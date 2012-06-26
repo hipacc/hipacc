@@ -1,0 +1,63 @@
+# Find the OpenCL includes and library
+#
+# To set manually the paths, define these environment variables:
+# OPENCL_INC_PATH       - Include path (e.g. OPENCL_INC_PATH=/opt/cuda/include)
+# OPENCL_LIB_PATH       - Library path (e.g. OPENCL_LIB_PATH=/usr/lib64/nvidia)
+#
+# Once done this will define
+#  OPENCL_INCLUDE_DIR   - where to find OpenCL include files
+#  OPENCL_LIBRARY_DIR   - where to find OpenCL libs
+#  OPENCL_CFLAGS        - OpenCL C compiler flags
+#  OPENCL_LFLAGS        - OpenCL linker flags
+#  OPENCL_FOUND         - True if OpenCL found.
+
+FIND_PACKAGE(PackageHandleStandardArgs)
+
+SET(OPENCL_INC_PATH $ENV{OPENCL_INC_PATH} CACHE PATH "OpenCL header files directory.")
+SET(OPENCL_LIB_PATH $ENV{OPENCL_LIB_PATH} CACHE PATH "OpenCL library files directory.")
+
+MARK_AS_ADVANCED(
+    OPENCL_INC_PATH
+    OPENCL_LIB_PATH)
+
+IF(APPLE)
+    FIND_LIBRARY(OPENCL_LIBRARY_DIR OpenCL)
+    FIND_PATH(OPENCL_INCLUDE_DIR OpenCL/cl.h)
+    FIND_PATH(_OPENCL_CPP_INCLUDE_DIR OpenCL/cl.hpp)
+    SET(OPENCL_CFLAGS "")
+    SET(OPENCL_LFLAGS "-framework OpenCL")
+ELSE(APPLE)
+    # Unix style platforms
+    FIND_LIBRARY(OPENCL_LIBRARY_DIR OpenCL
+        PATHS ${OPENCL_LIB_PATH} $ENV{LD_LIBRARY_PATH}
+    )
+    GET_FILENAME_COMPONENT(OPENCL_LIBRARY_DIR ${OPENCL_LIBRARY_DIR} PATH)
+
+    FIND_PATH(OPENCL_INCLUDE_DIR CL/cl.h
+        PATHS ${OPENCL_INC_PATH})
+    FIND_PATH(_OPENCL_CPP_INCLUDE_DIR CL/cl.hpp
+        PATHS ${OPENCL_INC_PATH})
+    SET(OPENCL_CFLAGS "-I${OPENCL_INCLUDE_DIR}")
+    SET(OPENCL_LFLAGS "-L${OPENCL_LIBRARY_DIR} -lOpenCL")
+ENDIF(APPLE)
+
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(OpenCL DEFAULT_MSG OPENCL_INCLUDE_DIR OPENCL_LIBRARY_DIR)
+
+IF(OPENCL_INCLUDE_DIR AND OPENCL_LIBRARY_DIR)
+    MESSAGE(STATUS "OpenCL includes found at: ${OPENCL_INCLUDE_DIR}")
+    MESSAGE(STATUS "OpenCL library found at: ${OPENCL_LIBRARY_DIR}")
+    SET(OPENCL_FOUND true)
+ELSE(OPENCL_INCLUDE_DIR AND OPENCL_LIBRARY_DIR)
+    MESSAGE(STATUS "Could NOT find OpenCL. Set OPENCL_INC_PATH and OPENCL_LIB_PATH to point to the OpenCL includes and libraries.")
+    SET(OPENCL_FOUND false)
+ENDIF(OPENCL_INCLUDE_DIR AND OPENCL_LIBRARY_DIR)
+
+IF(_OPENCL_CPP_INCLUDE_DIR)
+    SET(OPENCL_HAS_CPP_BINDINGS TRUE)
+ENDIF(_OPENCL_CPP_INCLUDE_DIR)
+
+MARK_AS_ADVANCED(
+    OPENCL_INCLUDE_DIR
+    OPENCL_LIBRARY_DIR
+)
+

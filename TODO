@@ -1,0 +1,12 @@
+TODO LIST:
+==========
+- add support for interpolation when staging data to shared memory
+
+KNOWN BUGS:
+===========
+- pretty-printing C-code: currently, the following OpenCL attributes are not
+  supported: __attribute__ ((max_constant_size(<size>)))
+  image type qualifiers: __write_only, __read_only, __read_write
+- pass 'CLK_LOCAL_MEM_FENCE' as parameter to the OpenCL barrier command instead
+  of the integer constant '0'
+

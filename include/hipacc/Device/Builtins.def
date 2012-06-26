@@ -1,0 +1,365 @@
+//
+// Copyright (c) 2012, University of Erlangen-Nuremberg
+// Copyright (c) 2012, Siemens AG
+// All rights reserved.
+// 
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met: 
+// 
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer. 
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation
+//    and/or other materials provided with the distribution. 
+// 
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+
+//===--- Builtins.def - Builtin function info database ----------*- C++ -*-===//
+//
+// This file defines the standard builtin function database.  Users of this file
+// must define the BUILTIN macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
+
+// The first value provided to the macro specifies the function name of the
+// builtin, and results in a hipacc::Builtin::HIPACCBIXX enum value for XX.
+
+// The second value provided to the macro specifies the type of the function
+// (result value, then each argument) as follows:
+//  v -> void
+//  b -> boolean
+//  c -> char
+//  s -> short
+//  i -> int
+//  f -> float
+//  d -> double
+//  z -> size_t
+//  V -> Vector, following num elements and a base type.
+//  . -> "...".  This may only occur at the end of the function list.
+//
+// Types may be prefixed with the following modifiers:
+//  L   -> long (e.g. Li for 'long int')
+//  LL  -> long long
+//  LLL -> __int128_t (e.g. LLLi)
+//  S   -> signed
+//  U   -> unsigned
+//
+// Types may be postfixed with the following modifiers:
+// * -> pointer (optionally followed by an address space number)
+// & -> reference (optionally followed by an address space number)
+// C -> const
+// D -> volatile
+
+// Builtin HIPACC math functions in alphabetical order from the OpenCL 1.1 Spec:
+// http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/mathFunctions.html
+HIPACCBUILTIN(acos,                 "dd",       HIPACCBIacos,       HIPACCBIacos)
+HIPACCBUILTIN(acosf,                "ff",       HIPACCBIacosf,      OPENCLBIacosf)
+OPENCLBUILTIN(acos,                 "ff",       acosf)
+
+HIPACCBUILTIN(acosh,                "dd",       HIPACCBIacosh,      HIPACCBIacosh)
+HIPACCBUILTIN(acoshf,               "ff",       HIPACCBIacoshf,     OPENCLBIacoshf)
+OPENCLBUILTIN(acosh,                "ff",       acoshf)
+
+//HIPACCBUILTIN(acospi,               "ff",       HIPACCBI,           HIPACCBI)
+
+HIPACCBUILTIN(asin,                 "dd",       HIPACCBIasin,       HIPACCBIasin)
+HIPACCBUILTIN(asinf,                "ff",       HIPACCBIasinf,      OPENCLBIasinf)
+OPENCLBUILTIN(asin,                 "ff",       asinf)
+
+HIPACCBUILTIN(asinh,                "dd",       HIPACCBIasinh,      HIPACCBIasinh)
+HIPACCBUILTIN(asinhf,               "ff",       HIPACCBIasinhf,     OPENCLBIasinhf)
+OPENCLBUILTIN(asinh,                "ff",       asinhf)
+
+//HIPACCBUILTIN(asinpi,               "ff",       HIPACCBI,           HIPACCBI)
+
+HIPACCBUILTIN(atan,                 "dd",       HIPACCBIatan,       HIPACCBIatan)
+HIPACCBUILTIN(atanf,                "ff",       HIPACCBIatanf,      OPENCLBIatanf)
+OPENCLBUILTIN(atan,                 "ff",       atanf)
+
+HIPACCBUILTIN(atan2,                "ddd",      HIPACCBIatan2,      HIPACCBIatan2)
+HIPACCBUILTIN(atan2f,               "fff",      HIPACCBIatan2f,     OPENCLBIatan2f)
+OPENCLBUILTIN(atan2,                "fff",      atan2f)
+
+HIPACCBUILTIN(atanh,                "dd",       HIPACCBIatanh,      HIPACCBIatanh)
+HIPACCBUILTIN(atanhf,               "ff",       HIPACCBIatanhf,     OPENCLBIatanhf)
+OPENCLBUILTIN(atanh,                "ff",       atanhf)
+
+//HIPACCBUILTIN(atanpi,               "ff",       HIPACCBI,           HIPACCBI)
+//HIPACCBUILTIN(atan2pi,              "ff",       HIPACCBI,           HIPACCBI)
+
+HIPACCBUILTIN(cbrt,                 "dd",       HIPACCBIcbrt,       HIPACCBIcbrt)
+HIPACCBUILTIN(cbrtf,                "ff",       HIPACCBIcbrtf,      OPENCLBIcbrtf)
+OPENCLBUILTIN(cbrt,                 "ff",       cbrtf)
+
+HIPACCBUILTIN(ceil,                 "dd",       HIPACCBIceil,       HIPACCBIceil)
+HIPACCBUILTIN(ceilf,                "ff",       HIPACCBIceilf,      OPENCLBIceilf)
+OPENCLBUILTIN(ceil,                 "ff",       ceilf)
+
+HIPACCBUILTIN(copysign,             "ddd",      HIPACCBIcopysign,   HIPACCBIcopysign)
+HIPACCBUILTIN(copysignf,            "fff",      HIPACCBIcopysignf,  OPENCLBIcopysignf)
+OPENCLBUILTIN(copysign,             "fff",      copysignf)
+
+HIPACCBUILTIN(cos,                  "dd",       HIPACCBIcos,        HIPACCBIcos)
+HIPACCBUILTIN(cosf,                 "ff",       HIPACCBIcosf,       OPENCLBIcosf)
+OPENCLBUILTIN(cos,                  "ff",       cosf)
+
+HIPACCBUILTIN(cosh,                 "dd",       HIPACCBIcosh,       HIPACCBIcosh)
+HIPACCBUILTIN(coshf,                "ff",       HIPACCBIcoshf,      OPENCLBIcoshf)
+OPENCLBUILTIN(cosh,                 "ff",       coshf)
+
+//HIPACCBUILTIN(cospi,                "ff",       HIPACCBI,           HIPACCBI)
+
+HIPACCBUILTIN(erfc,                 "dd",       HIPACCBIerfc,       HIPACCBIerfc)
+HIPACCBUILTIN(erfcf,                "ff",       HIPACCBIerfcf,      OPENCLBIerfcf)
+OPENCLBUILTIN(erfc,                 "ff",       erfcf)
+
+HIPACCBUILTIN(erf,                  "dd",       HIPACCBIerf,        HIPACCBIerf)
+HIPACCBUILTIN(erff,                 "ff",       HIPACCBIerff,       OPENCLBIerff)
+OPENCLBUILTIN(erf,                  "ff",       erff)
+
+HIPACCBUILTIN(exp,                  "dd",       HIPACCBIexp,        HIPACCBIexp)
+HIPACCBUILTIN(expf,                 "ff",       HIPACCBIexpf,       OPENCLBIexpf)
+OPENCLBUILTIN(exp,                  "ff",       expf)
+CUDABUILTIN(expf,                   "V4fV4f",   expf4)
+
+HIPACCBUILTIN(exp2,                 "dd",       HIPACCBIexp2,       HIPACCBIexp2)
+HIPACCBUILTIN(exp2f,                "ff",       HIPACCBIexp2f,      OPENCLBIexp2f)
+OPENCLBUILTIN(exp2,                 "ff",       exp2f)
+
+HIPACCBUILTIN(exp10,                "dd",       HIPACCBIexp10,      HIPACCBIexp10)
+HIPACCBUILTIN(exp10f,               "ff",       HIPACCBIexp10f,     OPENCLBIexp10f)
+OPENCLBUILTIN(exp10,                "ff",       exp10f)
+
+HIPACCBUILTIN(expm1,                "dd",       HIPACCBIexpm1,      HIPACCBIexpm1)
+HIPACCBUILTIN(expm1f,               "ff",       HIPACCBIexpm1f,     OPENCLBIexpm1f)
+OPENCLBUILTIN(expm1,                "ff",       expm1f)
+
+HIPACCBUILTIN(fabs,                 "dd",       HIPACCBIfabs,       HIPACCBIfabs)
+HIPACCBUILTIN(fabsf,                "ff",       HIPACCBIfabs,       OPENCLBIfabsf)
+OPENCLBUILTIN(fabs,                 "ff",       fabsf)
+
+HIPACCBUILTIN(fdim,                 "ddd",      HIPACCBIfdim,       HIPACCBIfdim)
+HIPACCBUILTIN(fdimf,                "fff",      HIPACCBIfdimf,      OPENCLBIfdimf)
+OPENCLBUILTIN(fdim,                 "fff",      fdimf)
+
+HIPACCBUILTIN(floor,                "dd",       HIPACCBIfloor,      HIPACCBIfloor)
+HIPACCBUILTIN(floorf,               "ff",       HIPACCBIfloorf,     OPENCLBIfloorf)
+OPENCLBUILTIN(floor,                "ff",       floorf)
+
+HIPACCBUILTIN(fma,                  "dddd",     HIPACCBIfma,        HIPACCBIfma)
+HIPACCBUILTIN(fmaf,                 "ffff",     HIPACCBIfma,        OPENCLBIfmaf)
+OPENCLBUILTIN(fma,                  "ffff",     fmaf)
+
+HIPACCBUILTIN(fmax,                 "ddd",      HIPACCBIfmax,       HIPACCBIfmax)
+HIPACCBUILTIN(fmaxf,                "fff",      HIPACCBIfmaxf,      OPENCLBIfmaxf)
+OPENCLBUILTIN(fmax,                 "fff",      fmaxf)
+
+HIPACCBUILTIN(fmin,                 "ddd",      HIPACCBIfmin,       HIPACCBIfmin)
+HIPACCBUILTIN(fminf,                "fff",      HIPACCBIfminf,      OPENCLBIfminf)
+OPENCLBUILTIN(fmin,                 "fff",      fminf)
+
+HIPACCBUILTIN(fmod,                 "ddd",      HIPACCBIfmod,       HIPACCBIfmod)
+HIPACCBUILTIN(fmodf,                "fff",      HIPACCBIfmodf,      OPENCLBIfmodf)
+OPENCLBUILTIN(fmod,                 "fff",      fmodf)
+
+HIPACCBUILTIN(fract,                "dd",       HIPACCBIfract,      HIPACCBIfract)
+HIPACCBUILTIN(fractf,               "ff",       HIPACCBIfractf,     OPENCLBIfractf)
+OPENCLBUILTIN(fract,                "ff",       fractf)
+
+HIPACCBUILTIN(frexp,                "ddi*",     HIPACCBIfrexp,      HIPACCBIfrexp)
+HIPACCBUILTIN(frexpf,               "ffi*",     HIPACCBIfrexpf,     OPENCLBIfrexpf)
+OPENCLBUILTIN(frexp,                "ffi*",     frexpf)
+
+HIPACCBUILTIN(hypot,                "ddd",      HIPACCBIhypot,      HIPACCBIhypot)
+HIPACCBUILTIN(hypotf,               "fff",      HIPACCBIhypotf,     OPENCLBIhypotf)
+OPENCLBUILTIN(hypot,                "fff",      hypotf)
+
+HIPACCBUILTIN(ilogb,                "dd",       HIPACCBIilogb,      HIPACCBIilogb)
+HIPACCBUILTIN(ilogbf,               "ff",       HIPACCBIilogbf,     OPENCLBIilogbf)
+OPENCLBUILTIN(ilogb,                "ff",       ilogbf)
+
+HIPACCBUILTIN(ldexp,                "ddi",      HIPACCBIldexp,      HIPACCBIldexp)
+HIPACCBUILTIN(ldexpf,               "ffi",      HIPACCBIldexpf,     OPENCLBIldexpf)
+OPENCLBUILTIN(ldexp,                "ffi",      ldexpf)
+
+HIPACCBUILTIN(lgamma,               "dd",       HIPACCBIlgamma,     HIPACCBIlgamma)
+HIPACCBUILTIN(lgammaf,              "ff",       HIPACCBIlgammaf,    OPENCLBIlgammaf)
+OPENCLBUILTIN(lgamma,               "ff",       lgammaf)
+
+HIPACCBUILTIN(lgamma_r,             "dd",       HIPACCBIlgamma_r,   HIPACCBIlgamma_r)
+HIPACCBUILTIN(lgamma_rf,            "ff",       HIPACCBIlgamma_rf,  OPENCLBIlgamma_rf)
+OPENCLBUILTIN(lgamma_r,             "ff",       lgamma_rf)
+
+HIPACCBUILTIN(log,                  "dd",       HIPACCBIlog,        HIPACCBIlog)
+HIPACCBUILTIN(logf,                 "ff",       HIPACCBIlogf,       OPENCLBIlogf)
+OPENCLBUILTIN(log,                  "ff",       logf)
+
+HIPACCBUILTIN(log2,                 "dd",       HIPACCBIlog2,       HIPACCBIlog2)
+HIPACCBUILTIN(log2f,                "ff",       HIPACCBIlog2f,      OPENCLBIlog2f)
+OPENCLBUILTIN(log2,                 "ff",       log2f)
+
+HIPACCBUILTIN(log10,                "dd",       HIPACCBIlog10,      HIPACCBIlog10)
+HIPACCBUILTIN(log10f,               "ff",       HIPACCBIlog10f,     OPENCLBIlog10f)
+OPENCLBUILTIN(log10,                "ff",       log10f)
+
+HIPACCBUILTIN(log1p,                "dd",       HIPACCBIlog1p,      HIPACCBIlog1p)
+HIPACCBUILTIN(log1pf,               "ff",       HIPACCBIlog1pf,     OPENCLBIlog1pf)
+OPENCLBUILTIN(log1p,                "ff",       log1pf)
+
+HIPACCBUILTIN(logb,                 "dd",       HIPACCBIlogb,       HIPACCBIlogb)
+HIPACCBUILTIN(logbf,                "ff",       HIPACCBIlogbf,      OPENCLBIlogbf)
+OPENCLBUILTIN(logb,                 "ff",       logbf)
+
+//HIPACCBUILTIN(mad,                  "ff",       HIPACCBI,           HIPACCBI)
+
+HIPACCBUILTIN(modf,                 "ddd*",     HIPACCBImodf,       HIPACCBImodf)
+HIPACCBUILTIN(modff,                "fff*",     HIPACCBImodff,      OPENCLBImodff)
+OPENCLBUILTIN(modf,                 "fff*",     modff)
+
+HIPACCBUILTIN(nan,                  "dc*C",     HIPACCBInan,        HIPACCBInan)
+HIPACCBUILTIN(nanf,                 "fc*C",     HIPACCBInanf,       OPENCLBInanf)
+OPENCLBUILTIN(nan,                  "fc*C",     nanf)
+
+HIPACCBUILTIN(nextafter,            "ddd",      HIPACCBInextafter,  HIPACCBInextafter)
+HIPACCBUILTIN(nextafterf,           "fff",      HIPACCBInextafterf, OPENCLBInextafterf)
+OPENCLBUILTIN(nextafter,            "fff",      nextafterf)
+
+HIPACCBUILTIN(pow,                  "ddd",      HIPACCBIpow,        HIPACCBIpow)
+HIPACCBUILTIN(powf,                 "fff",      HIPACCBIpowf,       OPENCLBIpowf)
+OPENCLBUILTIN(pow,                  "fff",      powf)
+
+HIPACCBUILTIN(pown,                 "dd",       HIPACCBIpown,       HIPACCBIpown)
+HIPACCBUILTIN(pownf,                "ff",       HIPACCBIpownf,      OPENCLBIpownf)
+OPENCLBUILTIN(pown,                 "ff",       pownf)
+
+HIPACCBUILTIN(powr,                 "dd",       HIPACCBIpowr,       HIPACCBIpowr)
+HIPACCBUILTIN(powrf,                "ff",       HIPACCBIpowrf,      OPENCLBIpowrf)
+OPENCLBUILTIN(powr,                 "ff",       powrf)
+
+HIPACCBUILTIN(remainder,            "ddd",      HIPACCBIremainder,  HIPACCBIremainder)
+HIPACCBUILTIN(remainderf,           "fff",      HIPACCBIremainderf, OPENCLBIremainderf)
+OPENCLBUILTIN(remainder,            "fff",      remainderf)
+
+HIPACCBUILTIN(remquo,               "dddc*C",   HIPACCBIremquo,     HIPACCBIremquo)
+HIPACCBUILTIN(remquof,              "fffc*C",   HIPACCBIremquof,    OPENCLBIremquof)
+OPENCLBUILTIN(remquo,               "fffc*C",   remquof)
+
+HIPACCBUILTIN(rint,                 "dd",       HIPACCBIrint,       HIPACCBIrint)
+HIPACCBUILTIN(rintf,                "ff",       HIPACCBIrintf,      OPENCLBIrintf)
+OPENCLBUILTIN(rint,                 "ff",       rintf)
+
+HIPACCBUILTIN(rootn,                "dd",       HIPACCBIrootn,      HIPACCBIrootn)
+HIPACCBUILTIN(rootnf,               "ff",       HIPACCBIrootnf,     OPENCLBIrootnf)
+OPENCLBUILTIN(rootn,                "ff",       rootnf)
+
+HIPACCBUILTIN(round,                "dd",       HIPACCBIround,      HIPACCBIround)
+HIPACCBUILTIN(roundf,               "ff",       HIPACCBIroundf,     OPENCLBIroundf)
+OPENCLBUILTIN(round,                "ff",       roundf)
+
+HIPACCBUILTIN(rsqrt,                "dd",       HIPACCBIrsqrt,      HIPACCBIrsqrt)
+HIPACCBUILTIN(rsqrtf,               "ff",       HIPACCBIrsqrtf,     OPENCLBIrsqrtf)
+OPENCLBUILTIN(rsqrt,                "ff",       rsqrtf)
+
+HIPACCBUILTIN(sin,                  "dd",       HIPACCBIsin,        HIPACCBIsin)
+HIPACCBUILTIN(sinf,                 "ff",       HIPACCBIsinf,       OPENCLBIsinf)
+OPENCLBUILTIN(sin,                  "ff",       sinf)
+
+//HIPACCBUILTIN(sincos,               "ff",       HIPACCBI,           HIPACCBI)
+
+HIPACCBUILTIN(sinh,                 "dd",       HIPACCBIsinh,       HIPACCBIsinh)
+HIPACCBUILTIN(sinhf,                "ff",       HIPACCBIsinhf,      OPENCLBIsinhf)
+OPENCLBUILTIN(sinh,                 "ff",       sinhf)
+
+//HIPACCBUILTIN(sinpi,                "ff",       HIPACCBI,           HIPACCBI)
+
+HIPACCBUILTIN(sqrt,                 "dd",       HIPACCBIsqrt,       HIPACCBIsqrt)
+HIPACCBUILTIN(sqrtf,                "ff",       HIPACCBIsqrtf,      OPENCLBIsqrtf)
+OPENCLBUILTIN(sqrt,                 "ff",       sqrtf)
+
+HIPACCBUILTIN(tan,                  "dd",       HIPACCBItan,        HIPACCBItan)
+HIPACCBUILTIN(tanf,                 "ff",       HIPACCBItanf,       OPENCLBItanf)
+OPENCLBUILTIN(tan,                  "ff",       tanf)
+
+HIPACCBUILTIN(tanh,                 "dd",       HIPACCBItanh,       HIPACCBItanh)
+HIPACCBUILTIN(tanhf,                "ff",       HIPACCBItanhf,      OPENCLBItanhf)
+OPENCLBUILTIN(tanh,                 "ff",       tanhf)
+
+//HIPACCBUILTIN(tanpi,                "ff",       HIPACCBI,           HIPACCBI)
+
+HIPACCBUILTIN(tgamma,               "dd",       HIPACCBItgamma,     HIPACCBItgamma)
+HIPACCBUILTIN(tgammaf,              "ff",       HIPACCBItgammaf,    OPENCLBItgammaf)
+OPENCLBUILTIN(tgamma,               "ff",       tgammaf)
+
+HIPACCBUILTIN(trunc,                "dd",       HIPACCBItrunc,      HIPACCBItrunc)
+HIPACCBUILTIN(truncf,               "ff",       HIPACCBItruncf,     OPENCLBItruncf)
+OPENCLBUILTIN(trunc,                "ff",       truncf)
+
+
+// other function - not from math.h
+HIPACCBUILTIN(abs,                  "ii",       HIPACCBIabs,        HIPACCBIabs)
+HIPACCBUILTIN(labs,                 "LiLi",     HIPACCBIlabs,       OPENCLBIlabs)
+OPENCLBUILTIN(abs,                  "LiLi",     labs)
+
+
+// Builtin OpenCL functions
+// OpenCL work-item built-in functions
+// http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/workItemFunctions.html
+OPENCLBUILTIN(get_work_dim,         "Ui",           get_work_dim)
+OPENCLBUILTIN(get_global_size,      "zUi",          get_global_size)
+OPENCLBUILTIN(get_global_id,        "zUi",          get_global_id)
+OPENCLBUILTIN(get_local_size,       "zUi",          get_local_size)
+OPENCLBUILTIN(get_local_id,         "zUi",          get_local_id)
+OPENCLBUILTIN(get_num_groups,       "zUi",          get_num_groups)
+OPENCLBUILTIN(get_group_id,         "zUi",          get_group_id)
+OPENCLBUILTIN(barrier,              "zUi",          barrier)
+OPENCLBUILTIN(read_imagef,          "V4fv*UiV2i",   read_imagef)
+OPENCLBUILTIN(read_imagei,          "V4iv*UiV2i",   read_imagei)
+OPENCLBUILTIN(read_imageui,         "V4Uiv*UiV2i",  read_imageui)
+OPENCLBUILTIN(write_imagef,         "vv*V2iV4f",    write_imagef)
+OPENCLBUILTIN(write_imagei,         "vv*V2iV4i",    write_imagei)
+OPENCLBUILTIN(write_imageui,        "vv*V2iV4Ui",   write_imageui)
+
+
+
+// Builtin CUDA functions
+// We fake the texture functions, e.g. instead of using
+// template<class T, int texType, enum cudaTextureReadMode mode> struct texture
+// T tex1Dfetch(texture<T, cudaTextureType1D, cudaReadModeElementType> t, int x)
+// Use the following definitions:
+// T tex1Dfetch(T *tex, int x)
+// This is possible since we use textures only for pretty-printing at the
+// moment.
+CUDABUILTIN(tex1Dfetch,             "ScSc*i",       tex1DfetchSc)
+CUDABUILTIN(tex1Dfetch,             "UcUc*i",       tex1DfetchUc)
+CUDABUILTIN(tex1Dfetch,             "ss*i",         tex1Dfetchs)
+CUDABUILTIN(tex1Dfetch,             "UsUs*i",       tex1DfetchUs)
+CUDABUILTIN(tex1Dfetch,             "ii*i",         tex1Dfetchi)
+CUDABUILTIN(tex1Dfetch,             "UiUi*i",       tex1DfetchUi)
+CUDABUILTIN(tex1Dfetch,             "ff*i",         tex1Dfetchf)
+CUDABUILTIN(__syncthreads,          "v",            __syncthreads)
+CUDABUILTIN(make_char4,             "V4cc",         make_char4)
+CUDABUILTIN(make_uchar4,            "V4UcUc",       make_uchar4)
+CUDABUILTIN(make_short4,            "V4ss",         make_short4)
+CUDABUILTIN(make_ushort4,           "V4UsUs",       make_ushort4)
+CUDABUILTIN(make_int4,              "V4ii",         make_int4)
+CUDABUILTIN(make_uint4,             "V4UiUi",       make_uint4)
+CUDABUILTIN(make_long4,             "V4LiLi",       make_long4)
+CUDABUILTIN(make_ulong4,            "V4ULiULi",     make_ulong4)
+CUDABUILTIN(make_float4,            "V4ff",         make_float4)
+CUDABUILTIN(make_double4,           "V4dd",         make_double4)
+
+
+#undef HIPACCBUILTIN
+#undef CUDABUILTIN
+#undef OPENCLBUILTIN
+

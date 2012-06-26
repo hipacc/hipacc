@@ -1,0 +1,35 @@
+HIPACC Prerequisites:
+=====================
+
+Cmake (2.8 or later)
+LLVM (trunk)
+Clang (trunk)
+libcxx (trunk)
+Polly (trunk - optional)
+
+
+Installation:
+=============
+
+To configure the project, call cmake in the root directory. A working
+installation of Clang/LLVM (and Polly) is required. The llvm-config tool will be
+used to determine configuration for HIPACC and must be present in the
+environment.
+
+The following variables can be set to tell cmake where to look for certain
+components:
+CMAKE_INSTALL_PREFIX    - Installation prefix
+OPENCL_INC_PATH         - OpenCL include path (e.g. -D OPENCL_INC_PATH=/opt/cuda/include)
+OPENCL_LIB_PATH         - OpenCL library path (e.g. -D OPENCL_LIB_PATH=/usr/lib64/nvidia)
+CUDA_BIN_PATH           - CUDA binary path (e.g. -D CUDA_BIN_PATH=/opt/cuda/bin)
+
+The following options can be enabled or disabled:
+USE_POLLY               - Use polly for kernel analysis (e.g. -D USE_POLLY=ON)
+
+A possible configuration may look like the following:
+cd <hipacc_root>
+mkdir build && cd build
+mkdir release
+cmake ../ -DCMAKE_INSTALL_PREFIX=./release
+make && make install
+

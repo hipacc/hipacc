@@ -1,0 +1,221 @@
+//
+// Copyright (c) 2012, University of Erlangen-Nuremberg
+// Copyright (c) 2012, Siemens AG
+// All rights reserved.
+// 
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met: 
+// 
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer. 
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation
+//    and/or other materials provided with the distribution. 
+// 
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+
+//===--- CompilerOptions.h - List of compiler options for code generation -===//
+//
+// This provides compiler options that drive the code generation.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _COMPILER_OPTIONS_H_
+#define _COMPILER_OPTIONS_H_
+
+#include <string>
+
+#include <llvm/Support/raw_ostream.h>
+
+#include "hipacc/Config/config.h"
+#include "hipacc/Device/TargetDevices.h"
+
+namespace clang {
+namespace hipacc {
+
+// compiler option possibilities
+enum hipaccCompilerOption {
+  AUTO              = 0x1,
+  ON                = 0x2,
+  OFF               = 0x4,
+  USER_ON           = 0x8,
+  USER_OFF          = 0x16
+};
+
+// target language specification
+enum hipaccTargetCode {
+  TARGET_CUDA       = 0x1,
+  TARGET_OpenCL     = 0x2,
+  TARGET_OpenCLx86  = 0x4,
+  TARGET_C          = 0x8
+};
+
+class CompilerOptions {
+  private:
+    // target code and device specification
+    hipaccTargetCode target_code;
+    hipaccTargetDevice compute_capability;
+    // target code features
+    hipaccCompilerOption explore_config;
+    hipaccCompilerOption time_kernels;
+    // target code features - may be selected by the framework
+    hipaccCompilerOption align_memory;
+    hipaccCompilerOption texture_memory;
+    hipaccCompilerOption local_memory;
+    hipaccCompilerOption multiple_pixels;
+    hipaccCompilerOption vectorize_kernels;
+    // user defined values for target code features
+    int align_bytes;
+    int pixels_per_thread;
+
+    void getOptionAsString(hipaccCompilerOption option, int val=-1) {
+      switch (option) {
+        case USER_ON:
+          llvm::errs() << "USER - ENABLED";
+          if (val!=-1) llvm::errs() << " with value '" << val << "'";
+          break;
+        case USER_OFF:
+          llvm::errs() << "USER - DISABLED";
+          break;
+        case AUTO:
+          llvm::errs() << "AUTO - determined by the framework";
+          break;
+        case ON:
+          llvm::errs() << "ENABLED";
+          break;
+        default:
+        case OFF:
+          llvm::errs() << "DISABLED";
+          break;
+      }
+    }
+
+  public:
+    CompilerOptions() :
+      target_code(TARGET_OpenCL),
+      compute_capability(TESLA_13),
+      explore_config(OFF),
+      time_kernels(OFF),
+      align_memory(AUTO),
+      texture_memory(AUTO),
+      local_memory(AUTO),
+      multiple_pixels(AUTO),
+      vectorize_kernels(OFF),
+      align_bytes(0),
+      pixels_per_thread(1)
+    {}
+
+    bool emitCUDA() {
+      if (target_code & TARGET_CUDA) return true;
+      return false;
+    }
+    bool emitOpenCL() {
+      if (target_code & TARGET_OpenCL ||
+          target_code & TARGET_OpenCLx86) return true;
+      return false;
+    }
+    bool emitOpenCLx86() {
+      if (target_code & TARGET_OpenCLx86) return true;
+      return false;
+    }
+    bool emitC() {
+      if (target_code & TARGET_C) return true;
+      return false;
+    }
+
+    hipaccTargetCode getTargetCode() { return target_code; }
+    hipaccTargetDevice getTargetDevice() { return compute_capability; }
+    bool exploreConfig() { return (explore_config & ON); }
+    bool timeKernels() { return (time_kernels & ON); }
+    bool emitPadding(hipaccCompilerOption
+        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+      if (align_memory & option) return true;
+      return false;
+    }
+    int getAlignment() { return align_bytes; }
+
+    bool useTextureMemory() { return (texture_memory & USER_ON); }
+    bool useLocalMemory() { return (local_memory & USER_ON); }
+    bool vectorizeKernels() { return (vectorize_kernels & USER_ON); }
+    bool multiplePixelsPerThread(hipaccCompilerOption
+        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+      if (multiple_pixels & option) return true;
+      return false;
+    }
+    int getPixelsPerThread() { return pixels_per_thread; }
+
+    void setTargetCode(hipaccTargetCode tc) { target_code = tc; }
+    void setTargetDevice(hipaccTargetDevice cc) { compute_capability = cc; }
+    void setExploreConfig(hipaccCompilerOption o) { explore_config = o; }
+    void setTimeKernels(hipaccCompilerOption o) { time_kernels = o; }
+    void setTextureMemory(hipaccCompilerOption o) { texture_memory = o; }
+    void setLocalMemory(hipaccCompilerOption o) { local_memory = o; }
+    void setVectorizeKernels(hipaccCompilerOption o) { vectorize_kernels = o; }
+
+    void setPadding(int bytes) {
+      align_bytes = bytes;
+      if (bytes > 1) align_memory = USER_ON;
+      else align_memory = USER_OFF;
+    }
+
+    void setPixelsPerThread(int pixels) {
+      pixels_per_thread = pixels;
+      if (pixels > 1) multiple_pixels = USER_ON;
+      else multiple_pixels = USER_OFF;
+    }
+
+    void printSummary(std::string target_device) {
+      llvm::errs() << "HIPACC compiler configuration summary: \n";
+      llvm::errs() << "  Generating target code for '";
+      switch (target_code) {
+        case TARGET_CUDA:
+          llvm::errs() << "CUDA";
+          break;
+        case TARGET_OpenCL:
+          llvm::errs() << "OpenCL (GPU)";
+          break;
+        case TARGET_OpenCLx86:
+          llvm::errs() << "OpenCL (CPU)";
+          break;
+        case TARGET_C:
+          llvm::errs() << "C/C++";
+          break;
+      }
+      llvm::errs() << "' language.\n";
+      llvm::errs() << "  Target device is '" << target_device;
+
+      llvm::errs() << "\n  Exploration of kernel configurations: ";
+      getOptionAsString(explore_config);
+      llvm::errs() << "\n  Automatic timing of kernel executions: ";
+      getOptionAsString(time_kernels);
+
+      llvm::errs() << "\n  Alignment of image memory: ";
+      getOptionAsString(align_memory, align_bytes);
+      llvm::errs() << "\n  Usage of texture memory for images: ";
+      getOptionAsString(texture_memory);
+      llvm::errs() << "\n  Usage of local memory reading from images: ";
+      getOptionAsString(local_memory);
+      llvm::errs() << "\n  Mapping multiple pixels to one thread: ";
+      getOptionAsString(multiple_pixels, pixels_per_thread);
+      llvm::errs() << "\n  Vectorization of kernels: ";
+      getOptionAsString(vectorize_kernels);
+      llvm::errs() << "\n\n";
+    }
+};
+} // end namespace hipacc
+} // end namespace clang
+
+#endif  // _COMPILER_OPTIONS_H_
+
+// vim: set ts=2 sw=2 sts=2 et ai:
+

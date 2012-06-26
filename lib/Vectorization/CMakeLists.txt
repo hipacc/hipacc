@@ -1,0 +1,4 @@
+SET(SIMDTypes_SOURCES SIMDTypes.cpp)
+
+ADD_LIBRARY(SIMDTypes ${SIMDTypes_SOURCES})
+
