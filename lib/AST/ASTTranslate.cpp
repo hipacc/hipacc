@@ -618,12 +618,39 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   numBlocksBHBottom = createFunctionCall(Ctx, ceilFD, args); 
 
   // only create labels if we need border handling
-  for (int i=0; i<9 && border_handling; i++) {
+  for (int i=0; i<=9 && border_handling; i++) {
     LabelDecl *LD;
-    BinaryOperator *if_goto;
+    BinaryOperator *if_goto = NULL;
 
     switch (i) {
       case 0:
+        // fall back: in case the image is too small, use code variant with
+        // boundary handling for all borders
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_FB");
+        // CUDA: if (gridDim.x < numBlocksBHLeft + numBlocksBHRight ||
+        //          gridDim.y < numBlocksBHTop + numBlocksBHBottom) goto BO_TL;
+        // OpenCL: if (get_num_groups(0) < numBlocksBHLeft + numBlocksBHRight ||
+        //            get_num_groups(1) < numBlocksBHTop + numBlocksBHBottom)
+        //            goto BO_TL;
+        if (kernel_x) {
+          if_goto = createBinaryOperator(Ctx, grid_size_x,
+              createBinaryOperator(Ctx, numBlocksBHLeft, numBlocksBHRight,
+                BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
+        }
+        if (kernel_y) {
+          if (kernel_x) {
+            if_goto = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
+                  grid_size_y, createBinaryOperator(Ctx, numBlocksBHTop,
+                    numBlocksBHBottom, BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy),
+                if_goto, BO_LOr, Ctx.BoolTy);
+          } else {
+            if_goto = createBinaryOperator(Ctx, grid_size_y,
+                createBinaryOperator(Ctx, numBlocksBHTop, numBlocksBHBottom,
+                  BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
+          }
+        }
+        break;
+      case 1:
         // check if we have only a row or column filter
         if (!kernel_x || !kernel_y) continue;
 
@@ -638,7 +665,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
               block_id_y, numBlocksBHTop, BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
-      case 1:
+      case 2:
         // check if we have only a row or column filter
         if (!kernel_x || !kernel_y) continue;
 
@@ -654,7 +681,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
               block_id_y, numBlocksBHTop, BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
-      case 2:
+      case 3:
         // check if we have only a row filter
         if (!kernel_y) continue;
 
@@ -664,7 +691,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         if_goto = createBinaryOperator(Ctx, block_id_y, numBlocksBHTop, BO_LT,
             Ctx.BoolTy);
         break;
-      case 3:
+      case 4:
         // check if we have only a row or column filter
         if (!kernel_x || !kernel_y) continue;
 
@@ -680,7 +707,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
               block_id_x, numBlocksBHLeft, BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
-      case 4:
+      case 5:
         // check if we have only a row or column filter
         if (!kernel_x || !kernel_y) continue;
 
@@ -698,7 +725,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
                 numBlocksBHRight, BO_Sub, Ctx.IntTy), BO_GE, Ctx.BoolTy),
             BO_LAnd, Ctx.BoolTy);
         break;
-      case 5:
+      case 6:
         // check if we have only a row filter
         if (!kernel_y) continue;
 
@@ -710,7 +737,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
             createBinaryOperator(Ctx, grid_size_y, numBlocksBHBottom, BO_Sub,
               Ctx.IntTy), BO_GE, Ctx.BoolTy);
         break;
-      case 6:
+      case 7:
         // check if we have only a column filter
         if (!kernel_x) continue;
 
@@ -722,7 +749,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
             createBinaryOperator(Ctx, grid_size_x, numBlocksBHRight, BO_Sub,
               Ctx.IntTy), BO_GE, Ctx.BoolTy);
         break;
-      case 7:
+      case 8:
         // check if we have only a column filter
         if (!kernel_x) continue;
 
@@ -732,7 +759,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         if_goto = createBinaryOperator(Ctx, block_id_x, numBlocksBHLeft, BO_LT,
             Ctx.BoolTy);
         break;
-      case 8:
+      case 9:
         LD = createLabelDecl(Ctx, kernelDecl, "BH_NO");
 
         // Note: this dummy check, which is always true is required for
@@ -760,46 +787,56 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   KernelDeclMapTex.clear();
 
   int ld_count = 0;
-  for (int i=border_handling?0:8; i<9; i++) {
+  for (int i=border_handling?0:9; i<=9; i++) {
     // set border handling mode
     switch (i) {
       case 0:
-        if (!kernel_x || !kernel_y) continue;
-        imgBorder.top = 1;
-        imgBorder.left = 1;
+        if (kernel_y) {
+          imgBorder.top = 1;
+          imgBorder.bottom = 1;
+        }
+        if (kernel_x) {
+          imgBorder.left = 1;
+          imgBorder.right = 1;
+        }
         break;
       case 1:
         if (!kernel_x || !kernel_y) continue;
         imgBorder.top = 1;
-        imgBorder.right = 1;
+        imgBorder.left = 1;
         break;
       case 2:
-        if (kernel_y) imgBorder.top = 1;
-        else continue;
+        if (!kernel_x || !kernel_y) continue;
+        imgBorder.top = 1;
+        imgBorder.right = 1;
         break;
       case 3:
-        if (!kernel_x || !kernel_y) continue;
-        imgBorder.bottom = 1;
-        imgBorder.left = 1;
+        if (kernel_y) imgBorder.top = 1;
+        else continue;
         break;
       case 4:
         if (!kernel_x || !kernel_y) continue;
         imgBorder.bottom = 1;
-        imgBorder.right = 1;
+        imgBorder.left = 1;
         break;
       case 5:
+        if (!kernel_x || !kernel_y) continue;
+        imgBorder.bottom = 1;
+        imgBorder.right = 1;
+        break;
+      case 6:
         if (kernel_y) imgBorder.bottom = 1;
         else continue;
         break;
-      case 6:
+      case 7:
         if (kernel_x) imgBorder.right = 1;
         else continue;
         break;
-      case 7:
+      case 8:
         if (kernel_x) imgBorder.left = 1;
         else continue;
         break;
-      case 8:
+      case 9:
         break;
       default:
         break;
