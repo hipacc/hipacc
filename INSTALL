@@ -25,6 +25,9 @@ CUDA_BIN_PATH           - CUDA binary path (e.g. -D CUDA_BIN_PATH=/opt/cuda/bin)
 
 The following options can be enabled or disabled:
 USE_POLLY               - Use polly for kernel analysis (e.g. -D USE_POLLY=ON)
+USE_JIT_ESTIMATE        - Use just-in-time compilation of generated kernels in
+                          order to get resource estimates - option only
+                          available for GNU/Linux systems
 
 A possible configuration may look like the following:
 cd <hipacc_root>

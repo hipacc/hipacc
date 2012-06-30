@@ -1,6 +1,8 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(HIPACC)
 OPTION(USE_POLLY "Use Polly for analysis" OFF) 
+INCLUDE(CMakeDependentOption)
+CMAKE_DEPENDENT_OPTION(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
 #SET(CMAKE_VERBOSE_MAKEFILE on)
 
@@ -31,10 +33,18 @@ IF(OPENCL_FOUND)
     SET(OCL_COMPILER "${CMAKE_INSTALL_PREFIX}/bin/ocl_compile")
 ENDIF(OPENCL_FOUND)
 
+MESSAGE(STATUS "Configuration summary:")
+MESSAGE(STATUS "===")
+MESSAGE(STATUS "USE_POLLY=${USE_POLLY}")
+MESSAGE(STATUS "USE_JIT_ESTIMATE=${USE_JIT_ESTIMATE}")
+MESSAGE(STATUS "===")
+
+
 SET(DSL_INCLUDES "${CMAKE_INSTALL_PREFIX}/include")
 
 SET(CMAKE_CXX_FLAGS "-Wall -Wunused ${LLVM_CXXFLAGS}")
 #ADD_DEFINITIONS(-DTEST_DEFINITION)
+
 
 # platform specific fixes
 IF(APPLE)
@@ -51,10 +61,12 @@ INCLUDE_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
+
 #add_subdirectory(include)
 ADD_SUBDIRECTORY(lib)
 ADD_SUBDIRECTORY(compiler)
 ADD_SUBDIRECTORY(tools)
+
 
 # configure a header file to pass some of the CMake settings to the source code
 CONFIGURE_FILE(

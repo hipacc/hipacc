@@ -36,6 +36,7 @@
 #cmakedefine CUDA_FOUND
 #cmakedefine OPENCL_FOUND
 #cmakedefine USE_POLLY
+#cmakedefine USE_JIT_ESTIMATE
 
 #define CUDA_COMPILER "${NVCC_COMPILER}"
 #define OCL_COMPILER "${OCL_COMPILER}"

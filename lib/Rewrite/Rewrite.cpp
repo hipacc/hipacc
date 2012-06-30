@@ -1279,12 +1279,13 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             name = "cl" + KC->getName() + VD->getNameAsString();
           }
           kernelName = llvm::StringRef(name);
-
-
-          // write kernel file to estimate resource usage. The constants for
-          // boundary handling are set later on.
           std::string filename = KC->getName() + VD->getNameAsString();
           K->setFileName(filename);
+
+
+          #ifdef USE_JIT_ESTIMATE
+          // write kernel file to estimate resource usage. The constants for
+          // boundary handling are set later on.
 
           // kernel declaration for CUDA
           FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
@@ -1408,6 +1409,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           }
 
           K->setResourceUsage(reg, lmem, smem, cmem);
+          #endif
 
           // kernel declaration
           FunctionDecl *kernelDecl = createFunctionDecl(Context,
