@@ -89,7 +89,8 @@ class HipaccDeviceOptions {
       }
 
       // use pixels per thread provided by user as compiler option
-      if (options.multiplePixelsPerThread(USER_ON)) {
+      if (options.multiplePixelsPerThread(
+            (hipaccCompilerOption)(USER_ON|USER_OFF))) {
         pixels_per_thread = options.getPixelsPerThread();
       }
 
