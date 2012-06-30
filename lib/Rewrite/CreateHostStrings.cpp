@@ -73,7 +73,7 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
     resultStr += ".cl\", \"cl";
     resultStr += kernelName + suffix;
     resultStr += "\", true, false, false, \"-I ";
-    resultStr += DSL_INCLUDES;
+    resultStr += RUNTIME_INCLUDES;
     resultStr += "\");\n";
     resultStr += ident;
   }

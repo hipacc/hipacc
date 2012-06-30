@@ -1,7 +1,7 @@
 CC = g++
 
 MYFLAGS ?= -D WIDTH=4096 -D HEIGHT=4096 -D SIZE_X=3 -D SIZE_Y=3
-CFLAGS = $(MYFLAGS) -Wall -Wunused -I../../include -D OpenCV -I/opt/local/include/opencv -I/opt/local/include
+CFLAGS = $(MYFLAGS) -Wall -Wunused -I../../include/dsl -D OpenCV -I/opt/local/include/opencv -I/opt/local/include
 LDFLAGS = -lstdc++ -lm -L/opt/local/lib -lopencv_core -lopencv_gpu
 OFLAGS = -O3
 
@@ -10,7 +10,6 @@ BINARY = opencv_test
 BINDIR = bin
 OBJDIR = obj
 SOURCES = $(shell echo *.cpp)
-HEADERS = $(shell echo *.hpp)
 
 OBJS = $(SOURCES:%.cpp=$(OBJDIR)/%.o)
 BIN = $(BINDIR)/$(BINARY)
@@ -21,7 +20,7 @@ all: $(BINARY)
 $(BINARY): $(OBJS) $(BINDIR)
 	$(CC) -o $(BINDIR)/$@ $(OBJS) $(LDFLAGS)
 
-$(OBJDIR)/%.o: %.cpp $(HEADERS) $(OBJDIR)
+$(OBJDIR)/%.o: %.cpp $(OBJDIR)
 	$(CC) $(CFLAGS) $(OFLAGS) -o $@ -c $<
 
 $(BINDIR):

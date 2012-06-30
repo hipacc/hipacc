@@ -1,7 +1,7 @@
 CC = g++
 CC = clang++
 
-CFLAGS = -Wall -Wunused -I../../include
+CFLAGS = -Wall -Wunused -I../../include/dsl
 LDFLAGS = -lm
 OFLAGS = -O3
 
@@ -19,7 +19,6 @@ BINARY = mean_filter
 BINDIR = bin
 OBJDIR = obj
 SOURCES = $(shell echo *.cpp)
-HEADERS = $(shell echo *.hpp)
 
 OBJS = $(SOURCES:%.cpp=$(OBJDIR)/%.o)
 BIN = $(BINDIR)/$(BINARY)

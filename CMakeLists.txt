@@ -40,12 +40,6 @@ MESSAGE(STATUS "USE_JIT_ESTIMATE=${USE_JIT_ESTIMATE}")
 MESSAGE(STATUS "===")
 
 
-SET(DSL_INCLUDES "${CMAKE_INSTALL_PREFIX}/include")
-
-SET(CMAKE_CXX_FLAGS "-Wall -Wunused ${LLVM_CXXFLAGS}")
-#ADD_DEFINITIONS(-DTEST_DEFINITION)
-
-
 # platform specific fixes
 IF(APPLE)
     IF("${DARWIN_MAJOR_VERSION}" LESS 11)
@@ -57,15 +51,18 @@ ELSE(APPLE)
     SET(PLATFORM_FIXES "-D NO_BOOST")
 ENDIF(APPLE)
 
-INCLUDE_DIRECTORIES(
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib)
+SET(CMAKE_CXX_FLAGS "-Wall -Wunused ${LLVM_CXXFLAGS}")
+#ADD_DEFINITIONS(-DTEST_DEFINITION)
 
 
-#add_subdirectory(include)
+# set include directory, add src directories 
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include)
 ADD_SUBDIRECTORY(lib)
 ADD_SUBDIRECTORY(compiler)
 ADD_SUBDIRECTORY(tools)
+
+SET(RUNTIME_INCLUDES "${CMAKE_INSTALL_PREFIX}/include")
+SET(DSL_INCLUDES "${CMAKE_INSTALL_PREFIX}/include/dsl")
 
 
 # configure a header file to pass some of the CMake settings to the source code
@@ -80,17 +77,18 @@ CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/Makefile_CL")
 
 
+# install dsl and runtime header files
 FILE(GLOB dsl_headers "${CMAKE_CURRENT_SOURCE_DIR}/dsl/*.hpp")
-INSTALL(FILES ${dsl_headers} DESTINATION include)
+FILE(GLOB runtime_headers "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp")
+INSTALL(FILES ${runtime_headers} DESTINATION include)
+INSTALL(FILES ${dsl_headers} DESTINATION include/dsl)
 
 INSTALL(DIRECTORY tests
     DESTINATION ${CMAKE_INSTALL_PREFIX}
-    PATTERN ".svn" EXCLUDE
     PATTERN "tests/Makefile.cmake" EXCLUDE
     PATTERN "tests/Makefile" EXCLUDE
     PATTERN "tests/Makefile_CL.cmake" EXCLUDE
-    PATTERN "tests/Makefile_CL" EXCLUDE
-    PATTERN "tests/benchmark.sh" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_WRITE GROUP_EXECUTE WORLD_READ)
+    PATTERN "tests/Makefile_CL" EXCLUDE)
 
 INSTALL(FILES tests/Makefile
     DESTINATION ${CMAKE_INSTALL_PREFIX})

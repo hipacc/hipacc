@@ -307,21 +307,21 @@ class HipaccDevice : public HipaccDeviceOptions {
 
       if (emitCUDA) {
         if (compute_capability >= FERMI_20) {
-          return " -I " + std::string(DSL_INCLUDES) + " -arch=sm_" +
+          return " -I " + std::string(RUNTIME_INCLUDES) + " -arch=sm_" +
             cc_string.str() +
             " -ftz=true -prec-sqrt=false -prec-div=false -cubin -Xptxas -v " +
             file + ".cu 2>&1";
         } else {
-          return " -I " + std::string(DSL_INCLUDES) + " -arch=sm_" +
+          return " -I " + std::string(RUNTIME_INCLUDES) + " -arch=sm_" +
             cc_string.str() + " -cubin -Xptxas -v " + file + ".cu 2>&1";
         }
       } else {
         if (isAMDGPU()) {
-          return " -i " + std::string(DSL_INCLUDES) + " -k " + kernel + " -f " + file +
-            ".cl -p AMD -d GPU 2>&1";
+          return " -i " + std::string(RUNTIME_INCLUDES) + " -k " + kernel +
+            " -f " + file + ".cl -p AMD -d GPU 2>&1";
         } else {
-          return " -i " + std::string(DSL_INCLUDES) + " -k " + kernel + " -f " + file +
-            ".cl -p NVIDIA -d GPU 2>&1";
+          return " -i " + std::string(RUNTIME_INCLUDES) + " -k " + kernel +
+            " -f " + file + ".cl -p NVIDIA -d GPU 2>&1";
         }
       }
     }

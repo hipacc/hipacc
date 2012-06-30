@@ -1,12 +1,11 @@
 # Configuration
 COMPILER            ?= ./bin/hipacc
-DSL_INC_DIR         ?= ./include
 COMPILER_INCLUDES   ?= @PLATFORM_FIXES@ -std=c++11 -stdlib=libc++ \
                         -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                         -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                         -I`@LLVM_CONFIG_EXECUTABLE@ --prefix`/usr/include/c++/v1 \
                         -I/usr/include \
-                        -I$(DSL_INC_DIR)
+                        -I@DSL_INCLUDES@
 TEST_CASE           ?= ./tests/opencv_blur_8uc1
 MYFLAGS             ?= -D WIDTH=4096 -D HEIGHT=4096 -D SIZE_X=3 -D SIZE_Y=3
 C_C                 ?= 13#69
@@ -63,7 +62,7 @@ cuda:
 	@echo 'Executing HIPACC Compiler for CUDA:'
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-cuda $(HIPACC_OPTS) -o main.cu
 	@echo 'Compiling CUDA file using nvcc:'
-	nvcc $(NVCC_FLAGS) -I$(DSL_INC_DIR) -I$(TEST_CASE) $(MYFLAGS) -lcuda -O3 main.cu -o main_cuda
+	nvcc $(NVCC_FLAGS) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) -lcuda -O3 main.cu -o main_cuda
 	@echo 'Executing CUDA binary'
 	./main_cuda
 

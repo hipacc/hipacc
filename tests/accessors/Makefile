@@ -2,7 +2,7 @@ CC = clang++
 CC = g++
 
 MYFLAGS ?= -D WIDTH=1024 -D HEIGHT=1024 -D SIZE_X=3 -D SIZE_Y=3
-CFLAGS = $(MYFLAGS) -Wall -Wunused -I../../include
+CFLAGS = $(MYFLAGS) -Wall -Wunused -I../../include/dsl
 LDFLAGS = -lm
 OFLAGS = -O3
 
@@ -20,7 +20,6 @@ BINARY = accessors
 BINDIR = bin
 OBJDIR = obj
 SOURCES = $(shell echo *.cpp)
-HEADERS = $(shell echo *.hpp)
 
 OBJS = $(SOURCES:%.cpp=$(OBJDIR)/%.o)
 BIN = $(BINDIR)/$(BINARY)
@@ -31,7 +30,7 @@ all: $(BINARY)
 $(BINARY): $(OBJS) $(BINDIR)
 	$(CC) -o $(BINDIR)/$@ $(OBJS) $(LDFLAGS)
 
-$(OBJDIR)/%.o: %.cpp $(HEADERS) $(OBJDIR)
+$(OBJDIR)/%.o: %.cpp $(OBJDIR)
 	$(CC) $(CFLAGS) $(OFLAGS) -o $@ -c $<
 
 $(BINDIR):

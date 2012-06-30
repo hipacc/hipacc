@@ -1,7 +1,7 @@
 IF(OPENCL_FOUND)
     INCLUDE_DIRECTORIES(
         ${OPENCL_INCLUDE_DIR}
-        ${HIPACC_SOURCE_DIR}/dsl)
+        ${HIPACC_SOURCE_DIR}/runtime)
 
     SET(ocl_compile_SOURCES ocl_compile.cc)
     ADD_EXECUTABLE(ocl_compile ${ocl_compile_SOURCES})
