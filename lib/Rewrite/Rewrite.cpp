@@ -1411,6 +1411,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           K->setResourceUsage(reg, lmem, smem, cmem);
           #endif
 
+
           // kernel declaration
           FunctionDecl *kernelDecl = createFunctionDecl(Context,
               Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
