@@ -36,67 +36,131 @@
 #include <sstream>
 
 #include "hipacc/Config/config.h"
+#include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDevices.h"
 
 namespace clang {
 namespace hipacc {
+// kernel type categorization
+enum KernelType {
+  PointOperator   = 0x0,
+  LocalOperator   = 0x1,
+  GlobalOperator  = 0x2,
+  UserOperator    = 0x4,
+  NumOperatorTypes
+};
 class HipaccDeviceOptions {
   public:
     unsigned int alignment;
-    unsigned int pixels_per_thread;
     unsigned int local_memory_threshold;
-    bool require_textures;
+    unsigned int pixels_per_thread[NumOperatorTypes];
+    bool require_textures[NumOperatorTypes];
+    bool vectorization;
 
   public:
-    HipaccDeviceOptions(CompilerOptions &options) {
+    HipaccDeviceOptions(CompilerOptions &options) :
+      local_memory_threshold(999)
+    {
       switch (options.getTargetDevice()) {
         case TESLA_10:
         case TESLA_11:
           alignment = 512;  // Quadro FX 1800
           alignment = 1024; // GeForce GTS 8800
-          pixels_per_thread = 4;
-          local_memory_threshold = 1;
-          require_textures = true;
+          pixels_per_thread[PointOperator] = 8;
+          pixels_per_thread[LocalOperator] = 16;
+          pixels_per_thread[GlobalOperator] = 31;
+          require_textures[PointOperator] = false;
+          require_textures[LocalOperator] = true;
+          require_textures[GlobalOperator] = false;
+          require_textures[UserOperator] = true;
+          vectorization = false;
           break;
         case TESLA_12:
         case TESLA_13:
           alignment = 256;
-          pixels_per_thread = 4;
-          local_memory_threshold = 1;
-          require_textures = true;
+          pixels_per_thread[PointOperator] = 8;
+          pixels_per_thread[LocalOperator] = 16;
+          pixels_per_thread[GlobalOperator] = 31;
+          require_textures[PointOperator] = false;
+          require_textures[LocalOperator] = true;
+          require_textures[GlobalOperator] = false;
+          require_textures[UserOperator] = true;
+          vectorization = false;
           break;
         case FERMI_20:
         case FERMI_21:
         case KEPLER_30:
         case KEPLER_35:
           alignment = 256;
-          pixels_per_thread = 4;
-          local_memory_threshold = 1;
-          require_textures = false;
+          pixels_per_thread[PointOperator] = 1;
+          pixels_per_thread[LocalOperator] = 8;
+          pixels_per_thread[GlobalOperator] = 15;
+          require_textures[PointOperator] = false;
+          require_textures[LocalOperator] = true;
+          require_textures[GlobalOperator] = false;
+          require_textures[UserOperator] = true;
+          vectorization = false;
           break;
         case EVERGREEN:
           alignment = 1024;
-          pixels_per_thread = 4;
-          local_memory_threshold = 1;
-          require_textures = false;
+          pixels_per_thread[PointOperator] = 4;
+          pixels_per_thread[LocalOperator] = 16;
+          pixels_per_thread[GlobalOperator] = 32;
+          require_textures[PointOperator] = false;
+          require_textures[LocalOperator] = false;
+          require_textures[GlobalOperator] = false;
+          require_textures[UserOperator] = false;
+          vectorization = true;
           break;
         case NORTHERN_ISLAND:
           alignment = 256;
-          pixels_per_thread = 4;
-          local_memory_threshold = 1;
-          require_textures = false;
+          pixels_per_thread[PointOperator] = 4;
+          pixels_per_thread[LocalOperator] = 16;
+          pixels_per_thread[GlobalOperator] = 32;
+          require_textures[PointOperator] = false;
+          require_textures[LocalOperator] = false;
+          require_textures[GlobalOperator] = false;
+          require_textures[UserOperator] = false;
+          vectorization = true;
           break;
       }
 
-      // use pixels per thread provided by user as compiler option
+      // deactivate for custom operators
+      pixels_per_thread[UserOperator] = 1;
+
+      // use default provided by user as compiler option
       if (options.multiplePixelsPerThread(
             (hipaccCompilerOption)(USER_ON|USER_OFF))) {
-        pixels_per_thread = options.getPixelsPerThread();
+        pixels_per_thread[PointOperator] = options.getPixelsPerThread();
+        pixels_per_thread[LocalOperator] = options.getPixelsPerThread();
+        pixels_per_thread[GlobalOperator] = options.getPixelsPerThread();
+        pixels_per_thread[UserOperator] = options.getPixelsPerThread();
       }
 
-      // use padding provided by user as compiler option
       if (options.emitPadding(USER_ON)) {
         alignment = options.getAlignment();
+      }
+
+      if (options.useLocalMemory(USER_ON)) {
+        local_memory_threshold = 0;
+      }
+
+      if (options.useTextureMemory(USER_ON)) {
+        require_textures[PointOperator] = true;
+        require_textures[LocalOperator] = true;
+        require_textures[GlobalOperator] = true;
+        require_textures[UserOperator] = true;
+      } else if (options.useTextureMemory(USER_OFF)) {
+        require_textures[PointOperator] = false;
+        require_textures[LocalOperator] = false;
+        require_textures[GlobalOperator] = false;
+        require_textures[UserOperator] = false;
+      }
+
+      if (options.vectorizeKernels(USER_ON)) {
+        vectorization = true;
+      } else if (options.vectorizeKernels(USER_OFF)) {
+        vectorization = false;
       }
     }
 };
@@ -105,7 +169,7 @@ class HipaccDeviceOptions {
 class HipaccDevice : public HipaccDeviceOptions {
   public:
     // allocation granularity
-    enum allocGranularity {
+    enum AllocGranularity {
       BLOCK,
       WARP
     };
@@ -121,7 +185,7 @@ class HipaccDevice : public HipaccDeviceOptions {
     unsigned int register_alloc_size;
     unsigned int shared_memory_alloc_size;
     unsigned int warp_register_alloc_size;
-    allocGranularity allocation_granularity;
+    AllocGranularity allocation_granularity;
 
     // NVIDIA only device properties
     unsigned int num_alus;

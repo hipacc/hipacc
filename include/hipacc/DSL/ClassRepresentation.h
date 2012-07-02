@@ -458,9 +458,16 @@ class HipaccKernelClass {
     hipaccMemoryAccess getImgAccess(FieldDecl *decl) {
       return kernelStatistics->getMemAccess(decl);
     }
+    hipaccMemoryAccessDetail getImgAccessDetail(FieldDecl *decl) {
+      return kernelStatistics->getMemAccessDetail(decl);
+    }
     hipaccVectorInfo getVectorizeInfo(VarDecl *decl) {
       return kernelStatistics->getVectorizeInfo(decl);
     }
+    KernelType getKernelType() {
+      return kernelStatistics->getKernelType();
+    }
+
 
     void addArg(FieldDecl *FD, QualType QT, llvm::StringRef Name) {
       argumentInfo a = {Normal, FD, QT, Name};
@@ -492,57 +499,64 @@ class HipaccKernelClass {
 class HipaccKernelFeatures : public HipaccDevice {
   public:
     // memory type of image/mask
-    enum memoryType {
+    enum MemoryType {
       Global    = 0x1,
       Constant  = 0x2,
       Texture   = 0x4,
-      Local     = 0x8,
-      //GS = (Global|Local)
+      Local     = 0x8
     };
 
     CompilerOptions &options;
-    std::map<HipaccAccessor *, memoryType> memMap;
+    HipaccKernelClass *KC;
+    std::map<HipaccAccessor *, MemoryType> memMap;
 
-    void calcImgFeature(HipaccAccessor *acc) {
-      memoryType mem_type = Global;
+    void calcISFeature(HipaccAccessor *acc) {
+      MemoryType mem_type = Global;
 
-      if (options.useTextureMemory()) {
+      if (options.emitOpenCL() && options.useTextureMemory(USER_ON)) {
+        mem_type = Texture;
+      }
+
+      memMap[acc] = mem_type;
+    }
+
+    void calcImgFeature(FieldDecl *decl, HipaccAccessor *acc) {
+      MemoryType mem_type = Global;
+      hipaccMemoryAccessDetail memAccessDetail = KC->getImgAccessDetail(decl);
+
+      if (options.useTextureMemory(USER_ON)) {
         mem_type = Texture;
       } else {
-        // for OpenCL and Images we have to enable or disable textures all the time
-        // otherwise, use texture memory only in case the image is accessed with
-        // an offset to the x-coordinate
-        // DEBUG
-        #if 0
-        if (options.emitCUDA() && require_textures && acc->getSizeX() > 0) {
-          mem_type = Texture;
+        // for OpenCL image-objects we have to enable or disable textures all
+        // the time otherwise, use texture memory only in case the image is
+        // accessed with an offset to the x-coordinate
+        if (options.emitCUDA()) {
+          if (memAccessDetail & NO_STRIDE) {
+            if (require_textures[PointOperator]) mem_type = Texture;
+          }
+          if ((memAccessDetail & STRIDE_X) || 
+              (memAccessDetail & STRIDE_Y) || 
+              (memAccessDetail & STRIDE_XY)) {
+              // possibly use textures only for stride_x ?
+              if (require_textures[LocalOperator]) mem_type = Texture;
+          } else if (memAccessDetail & USER_XY) {
+              if (require_textures[UserOperator]) mem_type = Texture;
+          }
         }
-        #else
-        #endif
-        // DEBUG
       }
 
-      // DEBUG
-      #if 0
-      if (options.useLocalMemory()) {
-        mem_type = (memoryType) (mem_type|Local);
-      } else if (acc->getSizeX() * acc->getSizeY() >= local_memory_threshold) {
-        mem_type = (memoryType) (mem_type|Local);
+      if (acc->getSizeX() * acc->getSizeY() >= local_memory_threshold) {
+        mem_type = (MemoryType) (mem_type|Local);
       }
-      #else
-      if (options.useLocalMemory()) {
-        mem_type = (memoryType) (mem_type|Local);
-      }
-      #endif
-      // DEBUG
 
       memMap[acc] = mem_type;
     }
 
   public:
-    HipaccKernelFeatures(CompilerOptions &options) :
+    HipaccKernelFeatures(CompilerOptions &options, HipaccKernelClass *KC) :
       HipaccDevice(options),
-      options(options)
+      options(options),
+      KC(KC)
     {}
 
     bool useLocalMemory(HipaccAccessor *acc) {
@@ -562,39 +576,16 @@ class HipaccKernelFeatures : public HipaccDevice {
     }
 
     bool propagateConstants() {
-      switch (compute_capability) {
-        case 10:
-        case 11:
-        case 12:
-        case 13:
-          return false;
-        default:
-          return true;
-      }
+      return true;
     }
 
     bool vectorize() {
-      #if 0
-      if (options.vectorizeKernels() || isAMDGPU()) return true;
-      return false;
-      #else
-      return false;
-      #endif
+      return vectorization;
     }
 
     unsigned int getPixelsPerThread() {
-      return pixels_per_thread;
+      return pixels_per_thread[KC->getKernelType()];
     }
-
-    // TODO
-    // kernel features describes what memory type, transformations etc. are used
-    // for which parameter, image, etc.
-    // this includes:
-    // - texture memory, shared memory, constant memory
-    // - loop unrolling, constant propagation
-    // - degree of parallelism (PPT)
-    // - vectorization
-    //
 };
 
 
@@ -602,7 +593,6 @@ class HipaccKernel : public HipaccKernelFeatures {
   private:
     ASTContext &Ctx;
     VarDecl *VD;
-    HipaccKernelClass *KC;
     CompilerOptions &options;
     std::string name;
     std::string kernelName;
@@ -635,10 +625,9 @@ class HipaccKernel : public HipaccKernelFeatures {
   public:
     HipaccKernel(ASTContext &Ctx, VarDecl *VD, HipaccKernelClass *KC,
         CompilerOptions &options) :
-      HipaccKernelFeatures(options),
+      HipaccKernelFeatures(options, KC),
       Ctx(Ctx),
       VD(VD),
-      KC(KC),
       options(options),
       name(VD->getNameAsString()),
       kernelName(KC->getName()),
@@ -676,13 +665,13 @@ class HipaccKernel : public HipaccKernelFeatures {
 
     void setIterationSpace(HipaccIterationSpace *IS) {
       iterationSpace = IS;
-      calcImgFeature(iterationSpace->getAccessor());
+      calcISFeature(iterationSpace->getAccessor());
     }
     HipaccIterationSpace *getIterationSpace() { return iterationSpace; }
 
     void insertMapping(FieldDecl *decl, HipaccAccessor *acc) {
       imgMap.insert(std::pair<FieldDecl *, HipaccAccessor *>(decl, acc));
-      calcImgFeature(acc);
+      calcImgFeature(decl, acc);
       calcSizes();
     }
     void insertMapping(FieldDecl *decl, HipaccMask *mask) {
@@ -756,13 +745,13 @@ class HipaccKernel : public HipaccKernelFeatures {
     }
 
     void printStats() {
-      llvm::errs() << "Statistics for Kernel '" << name << "'\n";
+      llvm::errs() << "Statistics for Kernel '" << fileName << "'\n";
       llvm::errs() << "  Loop unrolling & constant propagation: " <<
         propagateConstants() << "\n";
       llvm::errs() << "  Vectorization: " << vectorize() << "\n";
       llvm::errs() << "  Pixels per thread: " << getPixelsPerThread() << "\n";
 
-      for (std::map<HipaccAccessor *, memoryType>::iterator iter =
+      for (std::map<HipaccAccessor *, MemoryType>::iterator iter =
           memMap.begin(), eiter=memMap.end(); iter!=eiter; ++iter) {
         llvm::errs() << "  Image '" << iter->first->getName() << "': ";
         if (iter->second & Global) llvm::errs() << "global ";
@@ -805,7 +794,7 @@ class HipaccGlobalReductionClass {
 };
 
 
-class HipaccGlobalReduction : public HipaccKernelFeatures {
+class HipaccGlobalReduction : public HipaccDevice {
   private:
     HipaccAccessor *acc;
     VarDecl *VD;
@@ -823,7 +812,7 @@ class HipaccGlobalReduction : public HipaccKernelFeatures {
     HipaccGlobalReduction(HipaccAccessor *acc, VarDecl *VD,
         HipaccGlobalReductionClass *GRC, CompilerOptions &options, bool
         is_accessor) :
-      HipaccKernelFeatures(options),
+      HipaccDevice(options),
       acc(acc),
       VD(VD),
       GRC(GRC),
@@ -855,6 +844,9 @@ class HipaccGlobalReduction : public HipaccKernelFeatures {
     CXXMethodDecl *getReductionFunction() { return reductionFunction; }
     HipaccGlobalReductionClass *getReductionClass() const { return GRC; }
     unsigned int getNumThreads() { return num_threads; }
+    unsigned int getPixelsPerThread() {
+      return pixels_per_thread[GlobalOperator];
+    }
 };
 } // end namespace hipacc
 } // end namespace clang

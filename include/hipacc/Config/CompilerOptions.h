@@ -49,7 +49,7 @@ enum hipaccCompilerOption {
   ON                = 0x2,
   OFF               = 0x4,
   USER_ON           = 0x8,
-  USER_OFF          = 0x16
+  USER_OFF          = 0x10
 };
 
 // target language specification
@@ -144,9 +144,21 @@ class CompilerOptions {
     }
     int getAlignment() { return align_bytes; }
 
-    bool useTextureMemory() { return (texture_memory & USER_ON); }
-    bool useLocalMemory() { return (local_memory & USER_ON); }
-    bool vectorizeKernels() { return (vectorize_kernels & USER_ON); }
+    bool useTextureMemory(hipaccCompilerOption
+        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+      if (texture_memory & option) return true;
+      return false;
+    }
+    bool useLocalMemory(hipaccCompilerOption
+        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+      if (local_memory & option) return true;
+      return false;
+    }
+    bool vectorizeKernels(hipaccCompilerOption
+        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+      if (vectorize_kernels & option) return true;
+      return false;
+    }
     bool multiplePixelsPerThread(hipaccCompilerOption
         option=(hipaccCompilerOption)(AUTO|USER_ON)) {
       if (multiple_pixels & option) return true;

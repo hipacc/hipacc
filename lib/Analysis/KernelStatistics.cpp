@@ -50,58 +50,32 @@ class KernelStatsImpl {
   public:
     AnalysisDeclContext &analysisContext;
     llvm::DenseMap<const FieldDecl *, hipaccMemoryAccess> imagesToAccess;
+    llvm::DenseMap<const FieldDecl *, hipaccMemoryAccessDetail> imagesToAccessDetail;
     llvm::DenseMap<const VarDecl *, hipaccVectorInfo> declsToVector;
+    hipaccMemoryAccessDetail outputAccessDetail;
+    KernelType kernelType;
+
     ASTContext &Ctx;
     StringRef name;
     CompilerKnownClasses &compilerClasses;
     DiagnosticsEngine &Diags;
     unsigned int DiagIDUnsupportedBO, DiagIDUnsupportedUO,
-                 DiagIDUnsupportedCSCE, DiagIDUnsupportedTerm;
+                 DiagIDUnsupportedCSCE, DiagIDUnsupportedTerm,
+                 DiagIDImageAccess;
     unsigned int num_ops, num_sops;
     unsigned int num_img_loads, num_img_stores;
     unsigned int num_mask_loads, num_mask_stores;
     hipaccVectorInfo curStmtVectorize;
 
     void runOnBlock(const CFGBlock *block);
+    void runOnAllBlocks();
 
-    void runOnAllBlocks() {
-      PostOrderCFGView *POV = analysisContext.getAnalysis<PostOrderCFGView>(); 
-      for (PostOrderCFGView::iterator it=POV->begin(), ei=POV->end(); it!=ei;
-          ++it) {
-        runOnBlock(*it);
-      }
-      llvm::errs() << "Kernel statistics for '" << name << "':\n"
-                   << "  operations (ALU): "    << num_ops << "\n"
-                   << "  operations (SFU): "    << num_sops << "\n"
-                   << "  image loads: "         << num_img_loads << "\n"
-                   << "  image stores: "        << num_img_stores << "\n"
-                   << "  mask loads: "          << num_mask_loads << "\n"
-                   << "  mask stores: "         << num_mask_stores << "\n";
-
-      llvm::errs() << "VarDecls:\n";
-      for (llvm::DenseMap<const VarDecl *, hipaccVectorInfo>::iterator
-          it=declsToVector.begin(), ei=declsToVector.end(); it!=ei; ++it) {
-        const VarDecl *VD = it->first;
-        llvm::errs() << "  " << VD->getName() << " -> ";
-
-        switch (it->second) {
-          case SCALAR:
-            llvm::errs() << "SCALAR\n";
-            break;
-          case VECTORIZE:
-            llvm::errs() << "VECTORIZE\n";
-            break;
-          case PROPAGATE:
-            llvm::errs() << "PROPAGATE\n";
-            break;
-        }
-      }
-      if (declsToVector.empty()) llvm::errs() << "  - none -\n";
-    }
 
     KernelStatsImpl(AnalysisDeclContext &ac, StringRef name,
         CompilerKnownClasses &compilerClasses) :
       analysisContext(ac),
+      outputAccessDetail(),
+      kernelType(),
       Ctx(ac.getASTContext()),
       name(name),
       compilerClasses(compilerClasses),
@@ -114,6 +88,8 @@ class KernelStatsImpl {
             "Unsupported cast operator: %0.")),
       DiagIDUnsupportedTerm(Diags.getCustomDiagID(DiagnosticsEngine::Error,
             "Unsupported terminal statement: %0.")),
+      DiagIDImageAccess(Diags.getCustomDiagID(DiagnosticsEngine::Error,
+            "Accessing image pixels only supported via Accessors and output() function: %0.")),
       num_ops(0),
       num_sops(0),
       num_img_loads(0),
@@ -139,14 +115,14 @@ class TransferFunctions : public StmtVisitor<TransferFunctions> {
   private:
     KernelStatsImpl &KS;
     const CFGBlock *currentBlock;
+    bool checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc);
+    hipaccMemoryAccessDetail checkStride(Expr *EX, Expr *EY);
 
   public:
     TransferFunctions(KernelStatsImpl &ks, const CFGBlock *block) :
       KS(ks),
       currentBlock(block)
     {}
-
-    bool checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc);
 
     void VisitBinaryOperator(BinaryOperator *E);
     void VisitUnaryOperator(UnaryOperator *E);
@@ -247,6 +223,67 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
 }
 
 
+void KernelStatsImpl::runOnAllBlocks() {
+  PostOrderCFGView *POV = analysisContext.getAnalysis<PostOrderCFGView>(); 
+  for (PostOrderCFGView::iterator it=POV->begin(), ei=POV->end(); it!=ei; ++it) {
+    runOnBlock(*it);
+  }
+  llvm::errs() << "Kernel statistics for '" << name << "':\n"
+               << "  type: ";
+  switch (kernelType) {
+    case PointOperator:   llvm::errs() << "Point Operator\n"; break;
+    case LocalOperator:   llvm::errs() << "Local Operator\n"; break;
+    case GlobalOperator:  llvm::errs() << "Global Operator\n"; break;
+    default:
+    case UserOperator:    llvm::errs() << "Custom Operator\n"; break;
+  }
+  llvm::errs() << "  operations (ALU): "    << num_ops << "\n"
+               << "  operations (SFU): "    << num_sops << "\n"
+               << "  image loads: "         << num_img_loads << "\n"
+               << "  image stores: "        << num_img_stores << "\n"
+               << "  mask loads: "          << num_mask_loads << "\n"
+               << "  mask stores: "         << num_mask_stores << "\n";
+
+  llvm::errs() << "  images:\n";
+  for (llvm::DenseMap<const FieldDecl *, hipaccMemoryAccessDetail>::iterator
+      it=imagesToAccessDetail.begin(), ei=imagesToAccessDetail.end(); it!=ei;
+      ++it) {
+    const FieldDecl *FD = it->first;
+    llvm::errs() << "    " << FD->getNameAsString() << ": ";
+    if (it->second == 0)        llvm::errs() << "UNDEFINED ";
+    if (it->second & NO_STRIDE) llvm::errs() << "NO_STRIDE ";
+    if (it->second & USER_XY)   llvm::errs() << "USER_XY ";
+    if (it->second & STRIDE_X)  llvm::errs() << "STRIDE_X ";
+    if (it->second & STRIDE_Y)  llvm::errs() << "STRIDE_Y ";
+    if (it->second & STRIDE_XY) llvm::errs() << "STRIDE_XY ";
+    llvm::errs() << "\n";
+  }
+  llvm::errs() << "    output: ";
+  if (outputAccessDetail == 0)        llvm::errs() << "UNDEFINED ";
+  if (outputAccessDetail & NO_STRIDE) llvm::errs() << "NO_STRIDE ";
+  if (outputAccessDetail & USER_XY)   llvm::errs() << "USER_XY ";
+  if (outputAccessDetail & STRIDE_X)  llvm::errs() << "STRIDE_X ";
+  if (outputAccessDetail & STRIDE_Y)  llvm::errs() << "STRIDE_Y ";
+  if (outputAccessDetail & STRIDE_XY) llvm::errs() << "STRIDE_XY ";
+  llvm::errs() << "\n";
+
+  llvm::errs() << "  VarDecls:\n";
+  for (llvm::DenseMap<const VarDecl *, hipaccVectorInfo>::iterator
+      it=declsToVector.begin(), ei=declsToVector.end(); it!=ei; ++it) {
+    const VarDecl *VD = it->first;
+    llvm::errs() << "    " << VD->getName() << " -> ";
+
+    switch (it->second) {
+      case SCALAR:    llvm::errs() << "SCALAR\n"; break;
+      case VECTORIZE: llvm::errs() << "VECTORIZE\n"; break;
+      case PROPAGATE: llvm::errs() << "PROPAGATE\n"; break;
+    }
+  }
+  if (declsToVector.empty()) llvm::errs() << "    - none -\n";
+  llvm::errs() << "\n";
+}
+
+
 //===----------------------------------------------------------------------===//
 // Query methods.
 //===----------------------------------------------------------------------===//
@@ -256,8 +293,47 @@ hipaccMemoryAccess KernelStatistics::getMemAccess(const FieldDecl *FD) {
 }
 
 
+hipaccMemoryAccessDetail KernelStatistics::getMemAccessDetail(const FieldDecl
+    *FD) {
+  return getImpl(impl).imagesToAccessDetail[FD];
+}
+
+hipaccMemoryAccessDetail KernelStatistics::getOutAccessDetail() {
+  return getImpl(impl).outputAccessDetail;
+}
+
+
 hipaccVectorInfo KernelStatistics::getVectorizeInfo(const VarDecl *VD) {
   return getImpl(impl).declsToVector[VD];
+}
+
+
+KernelType KernelStatistics::getKernelType() {
+  return getImpl(impl).kernelType;
+}
+
+
+hipaccMemoryAccessDetail TransferFunctions::checkStride(Expr *EX, Expr *EY) {
+  bool stride_x=true, stride_y=true;
+
+  if (isa<IntegerLiteral>(EX->IgnoreParenCasts())) {
+    IntegerLiteral *IL = dyn_cast<IntegerLiteral>(EX->IgnoreParenCasts());
+    if (IL->getValue().getSExtValue()==0) {
+      stride_x = false;
+    }
+  }
+
+  if (isa<IntegerLiteral>(EY->IgnoreParenCasts())) {
+    IntegerLiteral *IL = dyn_cast<IntegerLiteral>(EY->IgnoreParenCasts());
+    if (IL->getValue().getSExtValue()==0) {
+      stride_y = false;
+    }
+  }
+
+  if (stride_x && stride_y) return STRIDE_XY;
+  if (stride_x) return STRIDE_X;
+  if (stride_y) return STRIDE_Y;
+  return NO_STRIDE;
 }
 
 
@@ -276,24 +352,51 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
       if (isa<FieldDecl>(ME->getMemberDecl())) {
         FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
         hipaccMemoryAccess memAcc = KS.imagesToAccess[FD];
+        hipaccMemoryAccessDetail memAccDetail = KS.imagesToAccessDetail[FD];
 
         memAcc = (hipaccMemoryAccess) (memAcc|curMemAcc);
         KS.imagesToAccess[FD] = memAcc;
 
+        // access to Image
         if (KS.compilerClasses.isTypeOfTemplateClass(FD->getType(),
               KS.compilerClasses.Image)) {
-          if (curMemAcc & READ_ONLY) KS.num_img_loads++;
-          if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
+          KS.Diags.Report(E->getLocStart(), KS.DiagIDImageAccess) <<
+            FD->getNameAsString();
 
-          return true;
+          exit(EXIT_FAILURE);
         }
+
+        // access to Accessor
         if (KS.compilerClasses.isTypeOfTemplateClass(FD->getType(),
               KS.compilerClasses.Accessor)) {
           if (curMemAcc & READ_ONLY) KS.num_img_loads++;
           if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
+          switch (COCE->getNumArgs()) {
+            default:
+              break;
+            case 1:
+              memAccDetail = (hipaccMemoryAccessDetail)
+                (memAccDetail|NO_STRIDE);
+              KS.imagesToAccessDetail[FD] = memAccDetail;
+              if (KS.kernelType < PointOperator) KS.kernelType = PointOperator;
+              break;
+            case 2:
+            // TODO check for Mask as parameter
+            break;
+            case 3:
+              memAccDetail = (hipaccMemoryAccessDetail)
+                (memAccDetail|checkStride(COCE->getArg(1), COCE->getArg(2)));
+              KS.imagesToAccessDetail[FD] = memAccDetail;
+              if (memAccDetail > NO_STRIDE && KS.kernelType < LocalOperator) {
+                KS.kernelType = LocalOperator;
+              }
+              break;
+          }
 
           return true;
         }
+
+        // access to Mask
         if (KS.compilerClasses.isTypeOfTemplateClass(FD->getType(),
               KS.compilerClasses.Mask)) {
           if (curMemAcc & READ_ONLY) KS.num_mask_loads++;
@@ -312,22 +415,42 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
     if (isa<MemberExpr>(CMCE->getCallee())) {
       MemberExpr *ME = dyn_cast<MemberExpr>(CMCE->getCallee());
 
-      // Image->getPixel()
-      if (ME->getMemberNameInfo().getAsString()=="getPixel" &&
-          isa<MemberExpr>(ME->getBase())) {
-        MemberExpr *ImgAcc = dyn_cast<MemberExpr>(ME->getBase());
+      if (isa<MemberExpr>(ME->getBase())) {
+        MemberExpr *MEAcc = dyn_cast<MemberExpr>(ME->getBase());
 
-        if (isa<FieldDecl>(ImgAcc->getMemberDecl())) {
-          FieldDecl *FD = dyn_cast<FieldDecl>(ImgAcc->getMemberDecl());
-          hipaccMemoryAccess memAcc = KS.imagesToAccess[FD];
+        if (isa<FieldDecl>(MEAcc->getMemberDecl())) {
+          FieldDecl *FD = dyn_cast<FieldDecl>(MEAcc->getMemberDecl());
 
-          memAcc = (hipaccMemoryAccess) (memAcc|curMemAcc);
-          KS.imagesToAccess[FD] = memAcc;
+          // Image
+          if (KS.compilerClasses.isTypeOfTemplateClass(FD->getType(),
+                KS.compilerClasses.Image)) {
+            KS.Diags.Report(E->getLocStart(), KS.DiagIDImageAccess) <<
+              FD->getNameAsString();
 
-          if (curMemAcc & READ_ONLY) KS.num_img_loads++;
-          if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
+            exit(EXIT_FAILURE);
+          }
 
-          return true;
+          // Accessor
+          if (KS.compilerClasses.isTypeOfTemplateClass(FD->getType(),
+                KS.compilerClasses.Accessor)) {
+            // Accessor->getPixel()
+            if (ME->getMemberNameInfo().getAsString()=="getPixel") {
+              hipaccMemoryAccess memAcc = KS.imagesToAccess[FD];
+              hipaccMemoryAccessDetail memAccDetail = KS.imagesToAccessDetail[FD];
+
+              memAcc = (hipaccMemoryAccess) (memAcc|curMemAcc);
+              KS.imagesToAccess[FD] = memAcc;
+
+              memAccDetail = (hipaccMemoryAccessDetail) (memAccDetail|USER_XY);
+              KS.imagesToAccessDetail[FD] = memAccDetail;
+              KS.kernelType = UserOperator;
+
+              if (curMemAcc & READ_ONLY) KS.num_img_loads++;
+              if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
+
+              return true;
+            }
+          }
         }
       }
 
@@ -335,6 +458,10 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
       if (ME->getMemberNameInfo().getAsString()=="output") {
         if (curMemAcc & READ_ONLY) KS.num_img_loads++;
         if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
+        hipaccMemoryAccessDetail cur = KS.outputAccessDetail;
+        KS.outputAccessDetail =
+          (hipaccMemoryAccessDetail)(cur|NO_STRIDE);
+        if (KS.kernelType < PointOperator) KS.kernelType = PointOperator;
 
         return true;
       }
@@ -343,6 +470,10 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
       if (ME->getMemberNameInfo().getAsString()=="outputAtPixel") {
         if (curMemAcc & READ_ONLY) KS.num_img_loads++;
         if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
+        hipaccMemoryAccessDetail cur = KS.outputAccessDetail;
+        KS.outputAccessDetail =
+          (hipaccMemoryAccessDetail)(cur|USER_XY);
+        KS.kernelType = UserOperator;
 
         return true;
       }

@@ -45,11 +45,12 @@
 #include <clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h>
 #include <clang/Basic/Diagnostic.h>
 
+#include "hipacc/Device/TargetDescription.h"
 #include "hipacc/DSL/CompilerKnownClasses.h"
 
 namespace clang {
 namespace hipacc {
-// memory access specification
+// read/write analysis of image accesses
 enum hipaccMemoryAccess {
   UNDEFINED   = 0x0,
   READ_ONLY   = 0x1,
@@ -57,7 +58,16 @@ enum hipaccMemoryAccess {
   READ_WRITE  = (READ_ONLY | WRITE_ONLY)
 };
 
-// vectorization information for VarDecls
+// stride analysis of image accesses
+enum hipaccMemoryAccessDetail {
+  NO_STRIDE   = 0x1,
+  STRIDE_X    = 0x2,
+  STRIDE_Y    = 0x4,
+  STRIDE_XY   = 0x8,
+  USER_XY     = 0x10
+};
+
+// vectorization information for variables
 enum hipaccVectorInfo {
   SCALAR      = 0x0,
   VECTORIZE   = 0x1,
@@ -71,7 +81,10 @@ class KernelStatistics : public ManagedAnalysis {
 
   public:
     hipaccMemoryAccess getMemAccess(const FieldDecl *FD);
+    hipaccMemoryAccessDetail getMemAccessDetail(const FieldDecl *FD);
+    hipaccMemoryAccessDetail getOutAccessDetail();
     hipaccVectorInfo getVectorizeInfo(const VarDecl *VD);
+    KernelType getKernelType();
 
     virtual ~KernelStatistics();
 
