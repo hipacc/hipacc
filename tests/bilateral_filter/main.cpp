@@ -162,7 +162,7 @@ class BilateralFilterMask : public Kernel<float> {
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
                     float diff = Input(xf, yf) - Input();
 
-                    s = expf(-c_r * diff*diff) * sMask(2*sigma_d + xf, 2*sigma_d + yf);
+                    s = expf(-c_r * diff*diff) * sMask(xf, yf);
                     d += s;
                     p += s * Input(xf, yf);
                 }

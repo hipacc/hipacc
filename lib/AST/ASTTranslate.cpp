@@ -2247,20 +2247,29 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           }
           break;
         case 3:
-          // array subscript: Mask[y][x]
+          // array subscript: Mask[y+size_y/2][x+size_x/2]
           // 0: -> (this *) Mask class
           // 1: -> x
           // 2: -> y
-          result = accessMem2DAt(LHS, Clone(E->getArg(1)), Clone(E->getArg(2)));
+          result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
+                Clone(E->getArg(1)), createIntegerLiteral(Ctx,
+                  (int)Mask->getSizeX()/2), BO_Sub, Ctx.IntTy),
+              createBinaryOperator(Ctx, Clone(E->getArg(2)),
+                createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Sub,
+                Ctx.IntTy));
           break;
       }
     } else {
-      // array subscript: Mask[(y)*width + x]
+      // array subscript: Mask[(y+size_y/2)*width + x+size_x/2]
       // 0: -> (this *) Mask class
       // 1: -> x
       // 2: -> y
       result = accessMemArrAt(LHS, createIntegerLiteral(Ctx, Mask->getSizeX()),
-          Clone(E->getArg(1)), Clone(E->getArg(2)));
+          createBinaryOperator(Ctx, Clone(E->getArg(1)),
+            createIntegerLiteral(Ctx, (int)Mask->getSizeX()/2), BO_Sub,
+            Ctx.IntTy), createBinaryOperator(Ctx, Clone(E->getArg(2)),
+              createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Sub,
+              Ctx.IntTy));
     }
     result->setValueDependent(E->isValueDependent());
     result->setTypeDependent(E->isTypeDependent());

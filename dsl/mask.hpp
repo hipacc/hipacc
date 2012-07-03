@@ -70,17 +70,10 @@ class MaskBase {
             assert(EI && "ElementIterator for Mask not set!");
             return EI->getY();
         }
-        int getRelX() {
-            assert(EI && "ElementIterator for Mask not set!");
-            return EI->getX() + offset_x;
-        }
-        int getRelY() {
-            assert(EI && "ElementIterator for Mask not set!");
-            return EI->getY() + offset_y;
-        }
 
         ElementIterator begin() const {
-            return ElementIterator(size_x, size_y, 0, 0, &iteration_space);
+            return ElementIterator(size_x, size_y, offset_x, offset_y,
+                    &iteration_space);
         }
         ElementIterator end() const { return ElementIterator(); }
 
@@ -121,16 +114,16 @@ class Mask : public MaskBase {
         data_t &operator()(void) {
             assert(EI && "ElementIterator for Mask not set!");
             #ifndef NO_BOOST
-            return array[EI->getY()][EI->getX()];
+            return array[EI->getY()-offset_y][EI->getX()-offset_x];
             #else
-            return array[EI->getY()*size_x + EI->getX()];
+            return array[(EI->getY()-offset_y)*size_x + EI->getX()-offset_x];
             #endif
         }
         data_t &operator()(const int xf, const int yf) {
             #ifndef NO_BOOST
-            return array[yf][xf];
+            return array[yf-offset_y][xf-offset_x];
             #else
-            return array[yf*size_x + xf];
+            return array[(yf-offset_y)*size_x + xf-offset_x];
             #endif
         }
 

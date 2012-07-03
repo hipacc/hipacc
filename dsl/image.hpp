@@ -331,8 +331,7 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
 
         data_t &operator()(MaskBase &M) {
             assert(EI && "ElementIterator not set!");
-            return interpolate(EI->getX(), EI->getY(), M.getRelX(),
-                    M.getRelY());
+            return interpolate(EI->getX(), EI->getY(), M.getX(), M.getY());
         }
 
         virtual void setEI(ElementIterator *ei) {
