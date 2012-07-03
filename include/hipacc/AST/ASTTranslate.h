@@ -81,7 +81,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     CompoundStmt *curCompoundStmtVistor;
     HipaccMask *convMask;
     DeclRefExpr *convRed;
-    hipaccConvolutionMode convMode;
+    ConvolutionMode convMode;
     int convIdxX, convIdxY;
     Expr *convExprX, *convExprY;
 
@@ -135,8 +135,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y);
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
     FunctionDecl *getTex1DFetchFunction(HipaccAccessor *Acc);
-    FunctionDecl *getImageFunction(HipaccAccessor *Acc, hipaccMemoryAccess
-        memAcc);
+    FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
 
@@ -144,17 +143,17 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addLocalOffset(Expr *idx, Expr *local_offset);
     Expr *addGlobalOffsetX(Expr *idx_x, HipaccAccessor *Acc);
     Expr *addGlobalOffsetY(Expr *idx_y, HipaccAccessor *Acc);
-    Expr *accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc, hipaccMemoryAccess
+    Expr *accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess memAcc,
+        Expr *offset_x=NULL, Expr *offset_y=NULL);
+    Expr *accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
         memAcc, Expr *offset_x=NULL, Expr *offset_y=NULL);
-    Expr *accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc,
-        hipaccMemoryAccess memAcc, Expr *offset_x=NULL, Expr *offset_y=NULL);
     Expr *accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
     Expr *accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x, Expr
         *idx_y);
     Expr *accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr *idx_x,
         Expr *idx_y);
-    Expr *accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
-        hipaccMemoryAccess memAcc, Expr *idx_x, Expr *idx_y);
+    Expr *accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
+        memAcc, Expr *idx_x, Expr *idx_y);
     Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=NULL, Expr
         *offset_y=NULL);
     Expr *accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);

@@ -129,8 +129,8 @@ class HipaccDeviceOptions {
       pixels_per_thread[UserOperator] = 1;
 
       // use default provided by user as compiler option
-      if (options.multiplePixelsPerThread(
-            (hipaccCompilerOption)(USER_ON|USER_OFF))) {
+      if (options.multiplePixelsPerThread( (CompilerOption)(USER_ON|USER_OFF)))
+      {
         pixels_per_thread[PointOperator] = options.getPixelsPerThread();
         pixels_per_thread[LocalOperator] = options.getPixelsPerThread();
         pixels_per_thread[GlobalOperator] = options.getPixelsPerThread();
@@ -173,7 +173,7 @@ class HipaccDevice : public HipaccDeviceOptions {
       BLOCK,
       WARP
     };
-    hipaccTargetDevice compute_capability;
+    TargetDevice compute_capability;
     unsigned int max_threads_per_warp;
     unsigned int max_threads_per_block;
     unsigned int max_blocks_per_multiprocessor;

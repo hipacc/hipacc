@@ -441,7 +441,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
     FieldDecl *FD = KernelClass->getImgFields().data()[i];
     HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
-    hipaccMemoryAccess memAcc = KernelClass->getImgAccess(FD);
+    MemoryAccess memAcc = KernelClass->getImgAccess(FD);
 
     // check if we need border handling
     if (Acc->getBoundaryHandling() != BOUNDARY_UNDEFINED) {
@@ -1045,7 +1045,7 @@ template<class T> T *ASTTranslate::CloneDecl(T *D) {
         name  = VD->getName();
 
         if (Kernel->vectorize()) {
-          hipaccVectorInfo VI = KernelClass->getVectorizeInfo(VD);
+          VectorInfo VI = KernelClass->getVectorizeInfo(VD);
 
           if (VI == VECTORIZE) {
             QT = simdTypes.getSIMDType(VD, SIMD4);
@@ -2202,7 +2202,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
 
   // find corresponding Image user class member variable
-  hipaccMemoryAccess memAcc = UNDEFINED;
+  MemoryAccess memAcc = UNDEFINED;
   if (Kernel->getImgFromMapping(FD)) {
     memAcc = KernelClass->getImgAccess(FD);
   }
@@ -2446,7 +2446,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     DeclRefExpr *LHS;
     HipaccAccessor *Acc;
     Expr *result;
-    hipaccMemoryAccess memAcc = UNDEFINED;
+    MemoryAccess memAcc = UNDEFINED;
     if (ME->getMemberNameInfo().getAsString() == "outputAtPixel") {
       LHS = outputImage;
       Acc = Kernel->getIterationSpace()->getAccessor();
@@ -2508,7 +2508,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     DeclRefExpr *LHS = outputImage;
     HipaccAccessor *Acc = Kernel->getIterationSpace()->getAccessor();
     // Fixme: only writing to images is supported using output()
-    hipaccMemoryAccess memAcc = WRITE_ONLY;
+    MemoryAccess memAcc = WRITE_ONLY;
     Expr *result;
 
     if (emitPolly) {

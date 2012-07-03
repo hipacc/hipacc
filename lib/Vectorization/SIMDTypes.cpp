@@ -38,8 +38,8 @@ using namespace ASTNode;
 using namespace hipacc::Builtin;
 
 
-QualType SIMDTypes::createSIMDType(QualType QT, llvm::StringRef base,
-    hipaccSIMDWidth simd_width) {
+QualType SIMDTypes::createSIMDType(QualType QT, llvm::StringRef base, SIMDWidth
+    simd_width) {
   int lanes;
   std::stringstream ss;
   ss << base.str();
@@ -85,8 +85,8 @@ QualType SIMDTypes::createSIMDType(QualType QT, llvm::StringRef base,
 }
 
 
-QualType SIMDTypes::getSIMDType(QualType QT, llvm::StringRef base,
-    hipaccSIMDWidth simd_width) {
+QualType SIMDTypes::getSIMDType(QualType QT, llvm::StringRef base, SIMDWidth
+    simd_width) {
   const BuiltinType *BT = QT->getAs<BuiltinType>();
 
   if (typeToVectorType[simd_width].count(BT)) {
@@ -101,7 +101,7 @@ QualType SIMDTypes::getSIMDType(QualType QT, llvm::StringRef base,
 
 
 QualType SIMDTypes::getSIMDTypeFromBT(const BuiltinType *BT, VarDecl *VD,
-    hipaccSIMDWidth simd_width) {
+    SIMDWidth simd_width) {
   QualType SIMDType;
 
   switch (BT->getKind()) {
@@ -162,7 +162,7 @@ QualType SIMDTypes::getSIMDTypeFromBT(const BuiltinType *BT, VarDecl *VD,
 }
 
 
-QualType SIMDTypes::getSIMDType(ParmVarDecl *PVD, hipaccSIMDWidth simd_width) {
+QualType SIMDTypes::getSIMDType(ParmVarDecl *PVD, SIMDWidth simd_width) {
   QualType SIMDType;
 
   if (imgsToVectorType[simd_width].count(PVD)) {
@@ -187,7 +187,7 @@ QualType SIMDTypes::getSIMDType(ParmVarDecl *PVD, hipaccSIMDWidth simd_width) {
 }
 
 
-QualType SIMDTypes::getSIMDType(VarDecl *VD, hipaccSIMDWidth simd_width) {
+QualType SIMDTypes::getSIMDType(VarDecl *VD, SIMDWidth simd_width) {
   if (declsToVectorType[simd_width].count(VD)) {
     return declsToVectorType[simd_width][VD];
   }

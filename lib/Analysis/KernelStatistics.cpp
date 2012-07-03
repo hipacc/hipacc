@@ -49,10 +49,10 @@ namespace {
 class KernelStatsImpl {
   public:
     AnalysisDeclContext &analysisContext;
-    llvm::DenseMap<const FieldDecl *, hipaccMemoryAccess> imagesToAccess;
-    llvm::DenseMap<const FieldDecl *, hipaccMemoryAccessDetail> imagesToAccessDetail;
-    llvm::DenseMap<const VarDecl *, hipaccVectorInfo> declsToVector;
-    hipaccMemoryAccessDetail outputAccessDetail;
+    llvm::DenseMap<const FieldDecl *, MemoryAccess> imagesToAccess;
+    llvm::DenseMap<const FieldDecl *, MemoryAccessDetail> imagesToAccessDetail;
+    llvm::DenseMap<const VarDecl *, VectorInfo> declsToVector;
+    MemoryAccessDetail outputAccessDetail;
     KernelType kernelType;
 
     ASTContext &Ctx;
@@ -65,7 +65,7 @@ class KernelStatsImpl {
     unsigned int num_ops, num_sops;
     unsigned int num_img_loads, num_img_stores;
     unsigned int num_mask_loads, num_mask_stores;
-    hipaccVectorInfo curStmtVectorize;
+    VectorInfo curStmtVectorize;
 
     void runOnBlock(const CFGBlock *block);
     void runOnAllBlocks();
@@ -115,8 +115,8 @@ class TransferFunctions : public StmtVisitor<TransferFunctions> {
   private:
     KernelStatsImpl &KS;
     const CFGBlock *currentBlock;
-    bool checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc);
-    hipaccMemoryAccessDetail checkStride(Expr *EX, Expr *EY);
+    bool checkImageAccess(Expr *E, MemoryAccess curMemAcc);
+    MemoryAccessDetail checkStride(Expr *EX, Expr *EY);
 
   public:
     TransferFunctions(KernelStatsImpl &ks, const CFGBlock *block) :
@@ -245,7 +245,7 @@ void KernelStatsImpl::runOnAllBlocks() {
                << "  mask stores: "         << num_mask_stores << "\n";
 
   llvm::errs() << "  images:\n";
-  for (llvm::DenseMap<const FieldDecl *, hipaccMemoryAccessDetail>::iterator
+  for (llvm::DenseMap<const FieldDecl *, MemoryAccessDetail>::iterator
       it=imagesToAccessDetail.begin(), ei=imagesToAccessDetail.end(); it!=ei;
       ++it) {
     const FieldDecl *FD = it->first;
@@ -268,7 +268,7 @@ void KernelStatsImpl::runOnAllBlocks() {
   llvm::errs() << "\n";
 
   llvm::errs() << "  VarDecls:\n";
-  for (llvm::DenseMap<const VarDecl *, hipaccVectorInfo>::iterator
+  for (llvm::DenseMap<const VarDecl *, VectorInfo>::iterator
       it=declsToVector.begin(), ei=declsToVector.end(); it!=ei; ++it) {
     const VarDecl *VD = it->first;
     llvm::errs() << "    " << VD->getName() << " -> ";
@@ -288,22 +288,21 @@ void KernelStatsImpl::runOnAllBlocks() {
 // Query methods.
 //===----------------------------------------------------------------------===//
 
-hipaccMemoryAccess KernelStatistics::getMemAccess(const FieldDecl *FD) {
+MemoryAccess KernelStatistics::getMemAccess(const FieldDecl *FD) {
   return getImpl(impl).imagesToAccess[FD];
 }
 
 
-hipaccMemoryAccessDetail KernelStatistics::getMemAccessDetail(const FieldDecl
-    *FD) {
+MemoryAccessDetail KernelStatistics::getMemAccessDetail(const FieldDecl *FD) {
   return getImpl(impl).imagesToAccessDetail[FD];
 }
 
-hipaccMemoryAccessDetail KernelStatistics::getOutAccessDetail() {
+MemoryAccessDetail KernelStatistics::getOutAccessDetail() {
   return getImpl(impl).outputAccessDetail;
 }
 
 
-hipaccVectorInfo KernelStatistics::getVectorizeInfo(const VarDecl *VD) {
+VectorInfo KernelStatistics::getVectorizeInfo(const VarDecl *VD) {
   return getImpl(impl).declsToVector[VD];
 }
 
@@ -313,7 +312,7 @@ KernelType KernelStatistics::getKernelType() {
 }
 
 
-hipaccMemoryAccessDetail TransferFunctions::checkStride(Expr *EX, Expr *EY) {
+MemoryAccessDetail TransferFunctions::checkStride(Expr *EX, Expr *EY) {
   bool stride_x=true, stride_y=true;
 
   if (isa<IntegerLiteral>(EX->IgnoreParenCasts())) {
@@ -337,7 +336,7 @@ hipaccMemoryAccessDetail TransferFunctions::checkStride(Expr *EX, Expr *EY) {
 }
 
 
-bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) {
+bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
   // discard implicit casts
   while (isa<ImplicitCastExpr>(E))
     E = dyn_cast<ImplicitCastExpr>(E)->getSubExpr();
@@ -351,10 +350,10 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
 
       if (isa<FieldDecl>(ME->getMemberDecl())) {
         FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
-        hipaccMemoryAccess memAcc = KS.imagesToAccess[FD];
-        hipaccMemoryAccessDetail memAccDetail = KS.imagesToAccessDetail[FD];
+        MemoryAccess memAcc = KS.imagesToAccess[FD];
+        MemoryAccessDetail memAccDetail = KS.imagesToAccessDetail[FD];
 
-        memAcc = (hipaccMemoryAccess) (memAcc|curMemAcc);
+        memAcc = (MemoryAccess) (memAcc|curMemAcc);
         KS.imagesToAccess[FD] = memAcc;
 
         // access to Image
@@ -375,8 +374,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
             default:
               break;
             case 1:
-              memAccDetail = (hipaccMemoryAccessDetail)
-                (memAccDetail|NO_STRIDE);
+              memAccDetail = (MemoryAccessDetail) (memAccDetail|NO_STRIDE);
               KS.imagesToAccessDetail[FD] = memAccDetail;
               if (KS.kernelType < PointOperator) KS.kernelType = PointOperator;
               break;
@@ -384,7 +382,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
             // TODO check for Mask as parameter
             break;
             case 3:
-              memAccDetail = (hipaccMemoryAccessDetail)
+              memAccDetail = (MemoryAccessDetail)
                 (memAccDetail|checkStride(COCE->getArg(1), COCE->getArg(2)));
               KS.imagesToAccessDetail[FD] = memAccDetail;
               if (memAccDetail > NO_STRIDE && KS.kernelType < LocalOperator) {
@@ -435,13 +433,13 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
                 KS.compilerClasses.Accessor)) {
             // Accessor->getPixel()
             if (ME->getMemberNameInfo().getAsString()=="getPixel") {
-              hipaccMemoryAccess memAcc = KS.imagesToAccess[FD];
-              hipaccMemoryAccessDetail memAccDetail = KS.imagesToAccessDetail[FD];
+              MemoryAccess memAcc = KS.imagesToAccess[FD];
+              MemoryAccessDetail memAccDetail = KS.imagesToAccessDetail[FD];
 
-              memAcc = (hipaccMemoryAccess) (memAcc|curMemAcc);
+              memAcc = (MemoryAccess) (memAcc|curMemAcc);
               KS.imagesToAccess[FD] = memAcc;
 
-              memAccDetail = (hipaccMemoryAccessDetail) (memAccDetail|USER_XY);
+              memAccDetail = (MemoryAccessDetail) (memAccDetail|USER_XY);
               KS.imagesToAccessDetail[FD] = memAccDetail;
               KS.kernelType = UserOperator;
 
@@ -458,9 +456,8 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
       if (ME->getMemberNameInfo().getAsString()=="output") {
         if (curMemAcc & READ_ONLY) KS.num_img_loads++;
         if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
-        hipaccMemoryAccessDetail cur = KS.outputAccessDetail;
-        KS.outputAccessDetail =
-          (hipaccMemoryAccessDetail)(cur|NO_STRIDE);
+        MemoryAccessDetail cur = KS.outputAccessDetail;
+        KS.outputAccessDetail = (MemoryAccessDetail)(cur|NO_STRIDE);
         if (KS.kernelType < PointOperator) KS.kernelType = PointOperator;
 
         return true;
@@ -470,9 +467,8 @@ bool TransferFunctions::checkImageAccess(Expr *E, hipaccMemoryAccess curMemAcc) 
       if (ME->getMemberNameInfo().getAsString()=="outputAtPixel") {
         if (curMemAcc & READ_ONLY) KS.num_img_loads++;
         if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
-        hipaccMemoryAccessDetail cur = KS.outputAccessDetail;
-        KS.outputAccessDetail =
-          (hipaccMemoryAccessDetail)(cur|USER_XY);
+        MemoryAccessDetail cur = KS.outputAccessDetail;
+        KS.outputAccessDetail = (MemoryAccessDetail)(cur|USER_XY);
         KS.kernelType = UserOperator;
 
         return true;
@@ -514,16 +510,16 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
     case BO_LOr:
       KS.num_ops++;
       if (checkImageAccess(E->getLHS(), READ_ONLY)) {
-        KS.curStmtVectorize = (hipaccVectorInfo) (KS.curStmtVectorize|VECTORIZE);
+        KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
       }
       if (checkImageAccess(E->getRHS(), READ_ONLY)) {
-        KS.curStmtVectorize = (hipaccVectorInfo) (KS.curStmtVectorize|VECTORIZE);
+        KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
       }
       break;
     case BO_Assign:
       KS.num_ops++;
       if (checkImageAccess(E->getRHS(), READ_ONLY)) {
-        KS.curStmtVectorize = (hipaccVectorInfo) (KS.curStmtVectorize|VECTORIZE);
+        KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
       } else {
         if (isa<DeclRefExpr>(E->getRHS()->IgnoreImpCasts())) {
           DRE = dyn_cast<DeclRefExpr>(E->getRHS()->IgnoreImpCasts());
@@ -531,7 +527,7 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
 
-            KS.declsToVector[VD] = (hipaccVectorInfo)
+            KS.declsToVector[VD] = (VectorInfo)
               (KS.curStmtVectorize|KS.declsToVector[VD]);
           }
         }
@@ -543,7 +539,7 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
 
-            KS.declsToVector[VD] = (hipaccVectorInfo)
+            KS.declsToVector[VD] = (VectorInfo)
               (KS.curStmtVectorize|KS.declsToVector[VD]);
           }
         } else {
@@ -570,7 +566,7 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
     case BO_OrAssign:
       KS.num_ops+=2;
       if (checkImageAccess(E->getRHS(), READ_ONLY)) {
-        KS.curStmtVectorize = (hipaccVectorInfo) (KS.curStmtVectorize|VECTORIZE);
+        KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
       } else {
         if (isa<DeclRefExpr>(E->getRHS()->IgnoreImpCasts())) {
           DRE = dyn_cast<DeclRefExpr>(E->getRHS()->IgnoreImpCasts());
@@ -578,7 +574,7 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
 
-            KS.declsToVector[VD] = (hipaccVectorInfo)
+            KS.declsToVector[VD] = (VectorInfo)
               (KS.curStmtVectorize|KS.declsToVector[VD]);
           }
         }
@@ -590,7 +586,7 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
 
-            KS.declsToVector[VD] = (hipaccVectorInfo)
+            KS.declsToVector[VD] = (VectorInfo)
               (KS.curStmtVectorize|KS.declsToVector[VD]);
           }
         } else {
@@ -671,8 +667,7 @@ void TransferFunctions::VisitDeclStmt(DeclStmt *S) {
       VarDecl *VD = dyn_cast<VarDecl>(*it);
       if (VD->hasInit()) {
         if (checkImageAccess(VD->getInit(), READ_ONLY)) {
-          KS.curStmtVectorize = (hipaccVectorInfo)
-            (KS.curStmtVectorize|VECTORIZE);
+          KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
         }
       }
       KS.declsToVector[VD] = KS.curStmtVectorize;
@@ -691,7 +686,7 @@ void TransferFunctions::VisitDeclRefExpr(DeclRefExpr *E) {
     // update vectorization information for current statement only if the
     // referenced variable is a vector
     if (KS.declsToVector.count(VD)) {
-      KS.curStmtVectorize = (hipaccVectorInfo)
+      KS.curStmtVectorize = (VectorInfo)
         (KS.curStmtVectorize|KS.declsToVector[VD]);
     }
   }

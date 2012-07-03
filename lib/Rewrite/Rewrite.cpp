@@ -812,10 +812,10 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                   case BOUNDARY_CLAMP:
                   case BOUNDARY_REPEAT:
                   case BOUNDARY_MIRROR:
-                    BC->setBoundaryHandling((hipaccBoundaryMode)mode);
+                    BC->setBoundaryHandling((BoundaryMode)mode);
                     break;
                   case BOUNDARY_CONSTANT:
-                    BC->setBoundaryHandling((hipaccBoundaryMode)mode);
+                    BC->setBoundaryHandling((BoundaryMode)mode);
                     if (CCE->getNumArgs() != i+2) {
                       Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDMode) <<
                         VD->getName();
@@ -912,7 +912,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         }
         assert(BC && "Expected BoundaryCondition or Image as first argument to Accessor.");
 
-        hipaccInterpolationMode mode;
+        InterpolationMode mode;
         if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
               compilerClasses.Accessor)) mode = InterpolateNO;
         else if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
@@ -2095,7 +2095,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
     // check if we have an Accessor
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
-    hipaccMemoryAccess memAcc = UNDEFINED;
+    MemoryAccess memAcc = UNDEFINED;
     if (i==0) { // first argument is always the output image
       Acc = K->getIterationSpace()->getAccessor();
       memAcc = WRITE_ONLY;

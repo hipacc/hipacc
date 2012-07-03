@@ -44,7 +44,7 @@ namespace clang {
 namespace hipacc {
 
 // compiler option possibilities
-enum hipaccCompilerOption {
+enum CompilerOption {
   AUTO              = 0x1,
   ON                = 0x2,
   OFF               = 0x4,
@@ -53,7 +53,7 @@ enum hipaccCompilerOption {
 };
 
 // target language specification
-enum hipaccTargetCode {
+enum TargetCode {
   TARGET_CUDA       = 0x1,
   TARGET_OpenCL     = 0x2,
   TARGET_OpenCLx86  = 0x4,
@@ -63,22 +63,22 @@ enum hipaccTargetCode {
 class CompilerOptions {
   private:
     // target code and device specification
-    hipaccTargetCode target_code;
-    hipaccTargetDevice compute_capability;
+    TargetCode target_code;
+    TargetDevice compute_capability;
     // target code features
-    hipaccCompilerOption explore_config;
-    hipaccCompilerOption time_kernels;
+    CompilerOption explore_config;
+    CompilerOption time_kernels;
     // target code features - may be selected by the framework
-    hipaccCompilerOption align_memory;
-    hipaccCompilerOption texture_memory;
-    hipaccCompilerOption local_memory;
-    hipaccCompilerOption multiple_pixels;
-    hipaccCompilerOption vectorize_kernels;
+    CompilerOption align_memory;
+    CompilerOption texture_memory;
+    CompilerOption local_memory;
+    CompilerOption multiple_pixels;
+    CompilerOption vectorize_kernels;
     // user defined values for target code features
     int align_bytes;
     int pixels_per_thread;
 
-    void getOptionAsString(hipaccCompilerOption option, int val=-1) {
+    void getOptionAsString(CompilerOption option, int val=-1) {
       switch (option) {
         case USER_ON:
           llvm::errs() << "USER - ENABLED";
@@ -133,46 +133,44 @@ class CompilerOptions {
       return false;
     }
 
-    hipaccTargetCode getTargetCode() { return target_code; }
-    hipaccTargetDevice getTargetDevice() { return compute_capability; }
+    TargetCode getTargetCode() { return target_code; }
+    TargetDevice getTargetDevice() { return compute_capability; }
     bool exploreConfig() { return (explore_config & ON); }
     bool timeKernels() { return (time_kernels & ON); }
-    bool emitPadding(hipaccCompilerOption
-        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+    bool emitPadding(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
       if (align_memory & option) return true;
       return false;
     }
     int getAlignment() { return align_bytes; }
 
-    bool useTextureMemory(hipaccCompilerOption
-        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+    bool useTextureMemory(CompilerOption option=(CompilerOption)(AUTO|USER_ON))
+    {
       if (texture_memory & option) return true;
       return false;
     }
-    bool useLocalMemory(hipaccCompilerOption
-        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+    bool useLocalMemory(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
       if (local_memory & option) return true;
       return false;
     }
-    bool vectorizeKernels(hipaccCompilerOption
-        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+    bool vectorizeKernels(CompilerOption option=(CompilerOption)(AUTO|USER_ON))
+    {
       if (vectorize_kernels & option) return true;
       return false;
     }
-    bool multiplePixelsPerThread(hipaccCompilerOption
-        option=(hipaccCompilerOption)(AUTO|USER_ON)) {
+    bool multiplePixelsPerThread(CompilerOption
+        option=(CompilerOption)(AUTO|USER_ON)) {
       if (multiple_pixels & option) return true;
       return false;
     }
     int getPixelsPerThread() { return pixels_per_thread; }
 
-    void setTargetCode(hipaccTargetCode tc) { target_code = tc; }
-    void setTargetDevice(hipaccTargetDevice cc) { compute_capability = cc; }
-    void setExploreConfig(hipaccCompilerOption o) { explore_config = o; }
-    void setTimeKernels(hipaccCompilerOption o) { time_kernels = o; }
-    void setTextureMemory(hipaccCompilerOption o) { texture_memory = o; }
-    void setLocalMemory(hipaccCompilerOption o) { local_memory = o; }
-    void setVectorizeKernels(hipaccCompilerOption o) { vectorize_kernels = o; }
+    void setTargetCode(TargetCode tc) { target_code = tc; }
+    void setTargetDevice(TargetDevice cc) { compute_capability = cc; }
+    void setExploreConfig(CompilerOption o) { explore_config = o; }
+    void setTimeKernels(CompilerOption o) { time_kernels = o; }
+    void setTextureMemory(CompilerOption o) { texture_memory = o; }
+    void setLocalMemory(CompilerOption o) { local_memory = o; }
+    void setVectorizeKernels(CompilerOption o) { vectorize_kernels = o; }
 
     void setPadding(int bytes) {
       align_bytes = bytes;

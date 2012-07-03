@@ -80,7 +80,7 @@ Expr *ASTTranslate::addGlobalOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
 
 // access 1D memory array
 Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
-    hipaccMemoryAccess memAcc, Expr *local_offset_x, Expr *local_offset_y) {
+    MemoryAccess memAcc, Expr *local_offset_x, Expr *local_offset_y) {
   Expr *idx_x = gidXRef;
   Expr *idx_y = gidYRef;
 
@@ -155,7 +155,7 @@ Expr *ASTTranslate::accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x,
 
 // access 2D memory array
 Expr *ASTTranslate::accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc,
-    hipaccMemoryAccess memAcc, Expr *local_offset_x, Expr *local_offset_y) {
+    MemoryAccess memAcc, Expr *local_offset_x, Expr *local_offset_y) {
   Expr *idx_x = gidXRef;
   Expr *idx_y = gidYRef;
 
@@ -237,8 +237,8 @@ FunctionDecl *ASTTranslate::getTex1DFetchFunction(HipaccAccessor *Acc) {
 
 
 // get read_image function for given Accessor
-FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc,
-    hipaccMemoryAccess memAcc) {
+FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
+    memAcc) {
   const BuiltinType *BT =
     Acc->getImage()->getPixelQualType()->getAs<BuiltinType>();
 
@@ -332,7 +332,7 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
 
 // access image memory at given index
 Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
-    hipaccMemoryAccess memAcc, Expr *idx_x, Expr *idx_y) {
+    MemoryAccess memAcc, Expr *idx_x, Expr *idx_y) {
   Expr *result, *coord;
 
   // construct coordinate: (int2)(gid_x, gid_y)

@@ -51,7 +51,7 @@ namespace hipacc {
 class HipaccKernel;
 
 // direction of data transfers
-enum hipaccDirection {
+enum MemoryTransferDirection {
   HOST_TO_DEVICE,
   DEVICE_TO_HOST,
   DEVICE_TO_DEVICE,
@@ -59,7 +59,7 @@ enum hipaccDirection {
 };
 
 // boundary handling modes for images
-enum hipaccBoundaryMode {
+enum BoundaryMode {
   BOUNDARY_UNDEFINED,
   BOUNDARY_CLAMP,
   BOUNDARY_REPEAT,
@@ -68,7 +68,7 @@ enum hipaccBoundaryMode {
 };
 
 // reduction modes for convolutions
-enum hipaccConvolutionMode {
+enum ConvolutionMode {
     HipaccSUM,
     HipaccMIN,
     HipaccMAX,
@@ -77,7 +77,7 @@ enum hipaccConvolutionMode {
 };
 
 // interpolation modes for accessors
-enum hipaccInterpolationMode {
+enum InterpolationMode {
     InterpolateNO,
     InterpolateNN,
     InterpolateLF,
@@ -144,7 +144,7 @@ class HipaccBoundaryCondition {
     VarDecl *VD;
     unsigned int size_x, size_y;
     std::string size_x_str, size_y_str;
-    hipaccBoundaryMode boundaryHandling;
+    BoundaryMode boundaryHandling;
     Expr *constExpr;
     void setConstExpr(APValue &val, ASTContext &Ctx);
 
@@ -174,7 +174,7 @@ class HipaccBoundaryCondition {
       size_y_str = SS.str();
       size_y = y;
     }
-    void setBoundaryHandling(hipaccBoundaryMode m) { boundaryHandling = m; }
+    void setBoundaryHandling(BoundaryMode m) { boundaryHandling = m; }
     void setConstVal(APValue &val, ASTContext &Ctx) {
       setConstExpr(val, Ctx);
     }
@@ -184,7 +184,7 @@ class HipaccBoundaryCondition {
     unsigned int getSizeY() { return size_y; }
     std::string getSizeXStr() { return size_x_str; }
     std::string getSizeYStr() { return size_y_str; }
-    hipaccBoundaryMode getBoundaryHandling() { return boundaryHandling; }
+    BoundaryMode getBoundaryHandling() { return boundaryHandling; }
     Expr *getConstExpr() { return constExpr; }
 };
 
@@ -192,7 +192,7 @@ class HipaccBoundaryCondition {
 class HipaccAccessor {
   private:
     HipaccBoundaryCondition *bc;
-    hipaccInterpolationMode interpolation;
+    InterpolationMode interpolation;
     VarDecl *VD;
     std::string name;
     bool crop;
@@ -207,8 +207,8 @@ class HipaccAccessor {
     DeclRefExpr *offsetXDecl, *offsetYDecl;
 
   public:
-    HipaccAccessor(HipaccBoundaryCondition *bc, hipaccInterpolationMode mode,
-        VarDecl *VD) :
+    HipaccAccessor(HipaccBoundaryCondition *bc, InterpolationMode mode, VarDecl
+        *VD) :
       bc(bc),
       interpolation(mode),
       VD(VD),
@@ -242,7 +242,7 @@ class HipaccAccessor {
     VarDecl *getDecl() { return VD; }
     const std::string &getName() const { return name; }
     HipaccBoundaryCondition *getBC() { return bc; }
-    hipaccInterpolationMode getInterpolation() { return interpolation; }
+    InterpolationMode getInterpolation() { return interpolation; }
     std::string getWidth() { return width; }
     std::string getHeight() { return height; }
     std::string getOffsetX() { return offset_x; }
@@ -269,7 +269,7 @@ class HipaccAccessor {
     DeclRefExpr *getOffsetXDecl() { return offsetXDecl; }
     DeclRefExpr *getOffsetYDecl() { return offsetYDecl; }
     bool isCrop() { return crop; }
-    hipaccBoundaryMode getBoundaryHandling() {
+    BoundaryMode getBoundaryHandling() {
       return bc->getBoundaryHandling();
     }
     Expr *getConstExpr() { return bc->getConstExpr(); }
@@ -411,7 +411,7 @@ class HipaccMask {
 class HipaccKernelClass {
   private:
     // type of argument
-    enum argumentKind {
+    enum ArgumentKind {
       Normal,
       IterationSpace,
       Image,
@@ -419,7 +419,7 @@ class HipaccKernelClass {
     };
     // argument information
     struct argumentInfo {
-      argumentKind kind;
+      ArgumentKind kind;
       FieldDecl *field;
       QualType type;
       llvm::StringRef name;
@@ -455,13 +455,13 @@ class HipaccKernelClass {
       return *kernelStatistics;
     }
 
-    hipaccMemoryAccess getImgAccess(FieldDecl *decl) {
+    MemoryAccess getImgAccess(FieldDecl *decl) {
       return kernelStatistics->getMemAccess(decl);
     }
-    hipaccMemoryAccessDetail getImgAccessDetail(FieldDecl *decl) {
+    MemoryAccessDetail getImgAccessDetail(FieldDecl *decl) {
       return kernelStatistics->getMemAccessDetail(decl);
     }
-    hipaccVectorInfo getVectorizeInfo(VarDecl *decl) {
+    VectorInfo getVectorizeInfo(VarDecl *decl) {
       return kernelStatistics->getVectorizeInfo(decl);
     }
     KernelType getKernelType() {
@@ -522,7 +522,7 @@ class HipaccKernelFeatures : public HipaccDevice {
 
     void calcImgFeature(FieldDecl *decl, HipaccAccessor *acc) {
       MemoryType mem_type = Global;
-      hipaccMemoryAccessDetail memAccessDetail = KC->getImgAccessDetail(decl);
+      MemoryAccessDetail memAccessDetail = KC->getImgAccessDetail(decl);
 
       if (options.useTextureMemory(USER_ON)) {
         mem_type = Texture;
@@ -695,7 +695,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       createArgInfo();
       return argNames.size();
     }
-    QualType *getArgTypes(ASTContext &Ctx, hipaccTargetCode target_code) {
+    QualType *getArgTypes(ASTContext &Ctx, TargetCode target_code) {
       createArgInfo();
 
       switch (target_code) {

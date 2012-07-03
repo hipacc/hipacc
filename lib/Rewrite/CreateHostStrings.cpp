@@ -129,7 +129,7 @@ void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
 
 
 void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
-    hipaccDirection direction, std::string &resultStr) {
+    MemoryTransferDirection direction, std::string &resultStr) {
   switch (direction) {
     case HOST_TO_DEVICE:
       if (options.emitCUDA()) {
@@ -168,7 +168,7 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
 
 
 void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
-    mem, hipaccDirection direction, std::string &resultStr) {
+    mem, MemoryTransferDirection direction, std::string &resultStr) {
   if (options.emitCUDA()) {
     llvm::SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
     for (unsigned int i=0; i<kernels.size(); i++) {

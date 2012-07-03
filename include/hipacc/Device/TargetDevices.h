@@ -36,7 +36,7 @@
 namespace clang {
 namespace hipacc {
 // supported target devices
-enum hipaccTargetDevice {
+enum TargetDevice {
   TESLA_10          = 10,
   TESLA_11          = 11,
   TESLA_12          = 12,

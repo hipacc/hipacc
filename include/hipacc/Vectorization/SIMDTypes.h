@@ -43,7 +43,7 @@
 namespace clang {
 namespace hipacc {
 
-enum hipaccSIMDWidth {
+enum SIMDWidth {
   SIMD1   = 0x0,
   SIMD2   = 0x1,
   SIMD3   = 0x2,
@@ -62,8 +62,8 @@ class SIMDTypes {
     llvm::DenseMap<const BuiltinType *, QualType> typeToVectorType[SIMDEND];
     unsigned int DiagIDType;
 
-    QualType getSIMDTypeFromBT(const BuiltinType *BT, VarDecl *VD,
-        hipaccSIMDWidth simd_width);
+    QualType getSIMDTypeFromBT(const BuiltinType *BT, VarDecl *VD, SIMDWidth
+        simd_width);
 
   public:
     SIMDTypes(ASTContext &Ctx, hipacc::Builtin::Context &builtins) :
@@ -77,11 +77,11 @@ class SIMDTypes {
 
     ~SIMDTypes() {}
 
-    QualType getSIMDType(ParmVarDecl *PVD, hipaccSIMDWidth simd_width);
-    QualType getSIMDType(VarDecl *VD, hipaccSIMDWidth simd_width);
-    QualType getSIMDType(QualType QT, llvm::StringRef base, hipaccSIMDWidth
+    QualType getSIMDType(ParmVarDecl *PVD, SIMDWidth simd_width);
+    QualType getSIMDType(VarDecl *VD, SIMDWidth simd_width);
+    QualType getSIMDType(QualType QT, llvm::StringRef base, SIMDWidth
         simd_width);
-    QualType createSIMDType(QualType QT, llvm::StringRef base, hipaccSIMDWidth
+    QualType createSIMDType(QualType QT, llvm::StringRef base, SIMDWidth
         simd_width);
     Expr *propagate(VarDecl *VD, Expr *E);
 };

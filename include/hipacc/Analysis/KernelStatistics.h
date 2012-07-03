@@ -51,7 +51,7 @@
 namespace clang {
 namespace hipacc {
 // read/write analysis of image accesses
-enum hipaccMemoryAccess {
+enum MemoryAccess {
   UNDEFINED   = 0x0,
   READ_ONLY   = 0x1,
   WRITE_ONLY  = 0x2,
@@ -59,7 +59,7 @@ enum hipaccMemoryAccess {
 };
 
 // stride analysis of image accesses
-enum hipaccMemoryAccessDetail {
+enum MemoryAccessDetail {
   NO_STRIDE   = 0x1,
   STRIDE_X    = 0x2,
   STRIDE_Y    = 0x4,
@@ -68,7 +68,7 @@ enum hipaccMemoryAccessDetail {
 };
 
 // vectorization information for variables
-enum hipaccVectorInfo {
+enum VectorInfo {
   SCALAR      = 0x0,
   VECTORIZE   = 0x1,
   PROPAGATE   = 0x2
@@ -80,10 +80,10 @@ class KernelStatistics : public ManagedAnalysis {
     void *impl;
 
   public:
-    hipaccMemoryAccess getMemAccess(const FieldDecl *FD);
-    hipaccMemoryAccessDetail getMemAccessDetail(const FieldDecl *FD);
-    hipaccMemoryAccessDetail getOutAccessDetail();
-    hipaccVectorInfo getVectorizeInfo(const VarDecl *VD);
+    MemoryAccess getMemAccess(const FieldDecl *FD);
+    MemoryAccessDetail getMemAccessDetail(const FieldDecl *FD);
+    MemoryAccessDetail getOutAccessDetail();
+    VectorInfo getVectorizeInfo(const VarDecl *VD);
     KernelType getKernelType();
 
     virtual ~KernelStatistics();

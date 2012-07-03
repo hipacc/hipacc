@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
         llvm::errs() << "Expected version parameter for -compute-capability switch.\n";
         exit(EXIT_FAILURE);
       }
-      compilerOptions.setTargetDevice((hipaccTargetDevice)val);
+      compilerOptions.setTargetDevice((TargetDevice)val);
       ++i;
       continue;
     }
