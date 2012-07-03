@@ -1,19 +1,24 @@
-HIPACC Prerequisites:
+HIPAcc Prerequisites:
 =====================
 
-Cmake (2.8 or later)
-LLVM (trunk)
-Clang (trunk)
-libcxx (trunk)
-Polly (trunk - optional)
+- Cmake (2.8 or later)
+- Clang (see dependencies.sh)
+- LLVM (see dependencies.sh)
+- libcxx (see dependencies.sh)
+- Polly (optional, see dependencies.sh)
 
+The versions of Clang/LLVM (and Polly) have to match in order to compile the
+HIPAcc sources successfully. The file 'dependencies.sh' lists the revisions and
+repositories of each dependency known to work with the latest version of HIPAcc.
+Use 'git checkout <revision>' in order to switch to the required revision.
+  
 
 Installation:
 =============
 
 To configure the project, call cmake in the root directory. A working
 installation of Clang/LLVM (and Polly) is required. The llvm-config tool will be
-used to determine configuration for HIPACC and must be present in the
+used to determine configuration for HIPAcc and must be present in the
 environment.
 
 The following variables can be set to tell cmake where to look for certain
