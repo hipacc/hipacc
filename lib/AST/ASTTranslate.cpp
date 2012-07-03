@@ -383,7 +383,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     // add scale factor calculations for interpolation:
     // float acc_scale_x = (float)acc_width/is_width;
     // float acc_scale_y = (float)acc_height/is_height;
-    if (Acc->isCrop()) {
+    if (Acc->getInterpolation()!=InterpolateNO) {
       Expr *scaleExprX = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
             Ctx.FloatTy, CK_IntegralToFloating, Acc->getWidthDecl(), NULL,
             NULL), Kernel->getIterationSpace()->getAccessor()->getWidthDecl(),
