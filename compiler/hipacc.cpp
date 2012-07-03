@@ -87,7 +87,8 @@ void printUsage() {
 
 
 void printVersion() {
-  llvm::errs() << "This is hipacc version " << HIPACC_VERSION << "\n";
+  llvm::errs() << "hipacc version " << HIPACC_VERSION
+    << " (" << GIT_REPOSITORY " " << GIT_VERSION << ")\n";
 }
 
 
