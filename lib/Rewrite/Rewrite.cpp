@@ -1409,6 +1409,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           }
 
           K->setResourceUsage(reg, lmem, smem, cmem);
+          #else
+          K->setDefaultConfig();
           #endif
 
 

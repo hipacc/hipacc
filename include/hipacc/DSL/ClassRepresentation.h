@@ -645,7 +645,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       max_threads_for_kernel(0),
       max_size_x(0),
       max_size_y(0),
-      num_threads_x(max_threads_per_warp),
+      num_threads_x(default_num_threads),
       num_threads_y(1),
       num_blocks_bh_l(0),
       num_blocks_bh_r(0),
@@ -743,6 +743,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       num_cmem = cmem;
       calcConfig();
     }
+
+    void setDefaultConfig();
 
     void printStats() {
       llvm::errs() << "Statistics for Kernel '" << fileName << "'\n";

@@ -369,18 +369,20 @@ void HipaccKernel::calcConfig() {
       }
     }
   }
-  // DEBUG
-  //num_threads_x = 128;
-  //num_threads_y = 1;
-  //num_blocks_bh_l = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-  //num_blocks_bh_r = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-  //num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*pixels_per_thread[KC->getKernelType()]));
-  // DEBUG
+
   llvm::errs() << "Using configuration " << num_threads_x << "x" <<
     num_threads_y << "(occupancy: " << occMap.second << ") for kernel '" <<
     kernelName << "'\n";
   llvm::errs() << "\t Blocks required for border handling: " <<
     num_blocks_bh_l << "x" << num_blocks_bh_y << "\n\n";
+}
+
+void HipaccKernel::setDefaultConfig() {
+  num_threads_x = default_num_threads;
+  num_threads_y = 1;
+  num_blocks_bh_l = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
+  num_blocks_bh_r = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
+  num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*pixels_per_thread[KC->getKernelType()]));
 }
 
 void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3, std::string
