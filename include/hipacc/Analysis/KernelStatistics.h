@@ -38,8 +38,7 @@
 #ifndef _KERNELSTATISTICS_H_
 #define _KERNELSTATISTICS_H_
 
-#include <clang/AST/Decl.h>
-#include <clang/AST/DeclTemplate.h>
+#include <clang/AST/ASTContext.h>
 #include <clang/Analysis/AnalysisContext.h>
 #include <clang/Analysis/Analyses/PostOrderCFGView.h>
 #include <clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h>

@@ -34,6 +34,7 @@
 #define _COMPILER_KNOWN_CLASSES_H_
 
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/DeclTemplate.h>
 
 namespace clang {
 namespace hipacc {
