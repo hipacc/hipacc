@@ -1879,7 +1879,7 @@ Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
   Expr *LHS = Clone(E->getLHS());
 
   // writeImageRHS has changed, use LHS
-  if (writeImageRHS && writeImageRHS!=RHS) {
+  if (E->getOpcode() == BO_Assign && writeImageRHS && writeImageRHS!=RHS) {
     // TODO: insert checks +=, -=, /=, and *= are not supported on Image objects
     result = LHS;
   } else {
