@@ -1858,7 +1858,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
               << D->getResultType().getAsString() << ", "
               << GR->getName() << "Reduce)\n";
   } else {
-    if (compilerOptions.useTextureMemory()) {
+    if (compilerOptions.useTextureMemory(USER_ON)) {
       kernelOut << "REDUCTION_OCL_2D_IMAGE(cl";
     } else {
       kernelOut << "REDUCTION_OCL_2D(cl";
@@ -1866,7 +1866,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     kernelOut << GR->getFileName() << "2D, "
               << D->getResultType().getAsString() << ", "
               << GR->getName() << "Reduce";
-    if (compilerOptions.useTextureMemory()) {
+    if (compilerOptions.useTextureMemory(USER_ON)) {
       kernelOut << ", " << GR->getAccessor()->getImage()->getImageReadFunction();
     }
     kernelOut << ")\n";
@@ -2056,7 +2056,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (!compilerOptions.exploreConfig() && emitHints) kernelOut << "__launch_bounds__ (" <<
       K->getNumThreadsX() << "*" << K->getNumThreadsY() << ") ";
   } else {
-    if (compilerOptions.useTextureMemory()) {
+    if (compilerOptions.useTextureMemory(USER_ON)) {
       kernelOut << "__constant sampler_t "
         << D->getNameInfo().getAsString() << "Sampler = "
         << "CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;\n\n";

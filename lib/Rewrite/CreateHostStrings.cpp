@@ -91,7 +91,7 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
     resultStr += "hipaccCreateMemory<" + type + ">(NULL, ";
   } else {
     resultStr += ident + "cl_mem " + memName + " = ";
-    if (options.useTextureMemory()) {
+    if (options.useTextureMemory(USER_ON)) {
       resultStr += "hipaccCreateImage<" + type + ">(NULL, ";
     } else {
       resultStr += "hipaccCreateBuffer<" + type + ">(NULL, ";
@@ -100,7 +100,7 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
   resultStr += "(int) " + width;
   resultStr += ", (int) " + height;
   resultStr += ", &" + pitchStr;
-  if (options.emitOpenCL() && options.useTextureMemory()) {
+  if (options.emitOpenCL() && options.useTextureMemory(USER_ON)) {
     // OpenCL Image objects don't support padding
   } else {
     if (options.emitPadding()) {
@@ -135,7 +135,7 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
       if (options.emitCUDA()) {
         resultStr += "hipaccWriteMemory(";
       } else {
-        if (options.useTextureMemory()) {
+        if (options.useTextureMemory(USER_ON)) {
           resultStr += "hipaccWriteImage(";
         } else {
           resultStr += "hipaccWriteBuffer(";
@@ -148,7 +148,7 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
       if (options.emitCUDA()) {
         resultStr += "hipaccReadMemory(";
       } else {
-        if (options.useTextureMemory()) {
+        if (options.useTextureMemory(USER_ON)) {
           resultStr += "hipaccReadImage(";
         } else {
           resultStr += "hipaccReadBuffer(";
