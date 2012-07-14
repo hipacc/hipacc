@@ -135,8 +135,14 @@ class CompilerOptions {
 
     TargetCode getTargetCode() { return target_code; }
     TargetDevice getTargetDevice() { return compute_capability; }
-    bool exploreConfig() { return (explore_config & ON); }
-    bool timeKernels() { return (time_kernels & ON); }
+    bool exploreConfig(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
+      if (explore_config & option) return true;
+      return false;
+    }
+    bool timeKernels(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
+      if (time_kernels & option) return true;
+      return false;
+    }
     bool emitPadding(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
       if (align_memory & option) return true;
       return false;
