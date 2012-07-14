@@ -36,7 +36,6 @@
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 //#define HSCAN
 //#define SIMPLE
-#define USE_GETPIXEL
 #define EPS 0.02f
 
 // variables set by Makefile
@@ -138,14 +137,16 @@ namespace hipacc {
 class HorizontalMeanFilter : public Kernel<float> {
     private:
         Accessor<float> &Input;
-        int d;
+        int d, nt, width;
 
     public:
         HorizontalMeanFilter(IterationSpace<float> &IS, Accessor<float> &Input,
-                int d) :
+                int d, int nt, int width) :
             Kernel(IS),
             Input(Input),
-            d(d)
+            d(d),
+            nt(nt),
+            width(width)
         {
             addAccessor(&Input);
         }
@@ -164,31 +165,16 @@ class HorizontalMeanFilter : public Kernel<float> {
 
             // first phase: convolution
             for (int k=0; k<d; ++k) {
-                #ifdef USE_GETPIXEL
-                sum += Input.getPixel(k + t0*NT, getY());
-                #else
-                sum += Input(k + (t0*NT-t0), 0);
-                #endif
+                sum += Input.getPixel(k + t0*nt, Input.getY());
             }
-            #ifdef USE_GETPIXEL
-            outputAtPixel(t0*NT, getY()) = sum/(float)d;
-            #else
-            output((t0*NT-t0), 0) = sum/(float)d;
-            #endif
+            outputAtPixel(t0*nt, getY()) = sum/(float)d;
 
             // second phase: rolling sum
-            for (int dt=1; dt<min(NT, WIDTH-d-(t0*NT)); ++dt) {
-                #ifdef USE_GETPIXEL
-                int t = t0*NT + dt;
-                sum -= Input.getPixel(t-1, getY());
-                sum += Input.getPixel(t-1+d, getY());
+            for (int dt=1; dt<min(nt, width-d-(t0*nt)); ++dt) {
+                int t = t0*nt + dt;
+                sum -= Input.getPixel(t-1, Input.getY());
+                sum += Input.getPixel(t-1+d, Input.getY());
                 outputAtPixel(t, getY()) = sum/(float)d;
-                #else
-                int t = (t0*NT-t0) + dt;
-                sum -= Input(t-1, 0);
-                sum += Input(t-1+d, 0);
-                output(t, 0) = sum/(float)d;
-                #endif
             }
             #endif
         }
@@ -197,14 +183,16 @@ class HorizontalMeanFilter : public Kernel<float> {
 class VerticalMeanFilter : public Kernel<float> {
     private:
         Accessor<float> &Input;
-        int d;
+        int d, nt, height;
 
     public:
         VerticalMeanFilter(IterationSpace<float> &IS, Accessor<float> &Input,
-                int d) :
+                int d, int nt, int height) :
             Kernel(IS),
             Input(Input),
-            d(d)
+            d(d),
+            nt(nt),
+            height(height)
         {
             addAccessor(&Input);
         }
@@ -223,31 +211,16 @@ class VerticalMeanFilter : public Kernel<float> {
 
             // first phase: convolution
             for (int k=0; k<d; ++k) {
-                #ifdef USE_GETPIXEL
-                sum += Input.getPixel(getX(), k + t0*NT);
-                #else
-                sum += Input(0, k + (t0*NT-t0));
-                #endif
+                sum += Input.getPixel(Input.getX(), k + t0*nt);
             }
-            #ifdef USE_GETPIXEL
-            outputAtPixel(getX(), t0*NT) = sum/(float)d;
-            #else
-            output(0, (t0*NT-t0)) = sum/(float)d;
-            #endif
+            outputAtPixel(getX(), t0*nt) = sum/(float)d;
 
             // second phase: rolling sum
-            for (int dt=1; dt<min(NT, HEIGHT-d-(t0*NT)); ++dt) {
-                #ifdef USE_GETPIXEL
-                int t = t0*NT + dt;
-                sum -= Input.getPixel(getX(), t-1);
-                sum += Input.getPixel(getX(), t-1+d);
+            for (int dt=1; dt<min(nt, height-d-(t0*nt)); ++dt) {
+                int t = t0*nt + dt;
+                sum -= Input.getPixel(Input.getX(), t-1);
+                sum += Input.getPixel(Input.getX(), t-1+d);
                 outputAtPixel(getX(), t) = sum/(float)d;
-                #else
-                int t = (t0*NT-t0) + dt;
-                sum -= Input(0, t-1);
-                sum += Input(0, t-1+d);
-                output(0, t) = sum/(float)d;
-                #endif
             }
             #endif
         }
@@ -261,6 +234,7 @@ int main(int argc, const char **argv) {
     int height = HEIGHT;
     int d = 40;
     int t = NT;
+    float timing;
 
     // host memory for image of of width x height pixels
     float *host_in = (float *)malloc(sizeof(float)*width*height);
@@ -271,10 +245,6 @@ int main(int argc, const char **argv) {
     // input and output image of width x height pixels
     Image<float> IN(width, height);
     Image<float> OUT(width, height);
-    BoundaryCondition<float> BcIN(IN, 5, 5, BOUNDARY_MIRROR);
-    BoundaryCondition<float> BcIN2(IN, 5, BOUNDARY_MIRROR);
-    BoundaryCondition<float> BcIN3(IN, 5, 5, BOUNDARY_CONSTANT, 5.0f);
-    BoundaryCondition<float> BcIN4(IN, 5, BOUNDARY_CONSTANT, 5.0f);
     Accessor<float> AccIN(IN);
 
     // initialize data
@@ -295,40 +265,35 @@ int main(int argc, const char **argv) {
     #else
     IterationSpace<float> HIS(OUT, (int)ceil(((float)width-d)/t), height);
     #endif
-    HorizontalMeanFilter HMF(HIS, IN, OUT, d);
+    HorizontalMeanFilter HMF(HIS, AccIN, d, t, width);
     #else
     #ifdef SIMPLE
     IterationSpace<float> VIS(OUT, width, height-d);
     #else
     IterationSpace<float> VIS(OUT, width, (int)ceil(((float)height-d)/t));
     #endif
-    VerticalMeanFilter VMF(VIS, AccIN, d);
+    VerticalMeanFilter VMF(VIS, AccIN, d, t, height);
     #endif
 
     IN = host_in;
     OUT = host_out;
 
     fprintf(stderr, "Calculating mean filter ...\n");
-    time0 = time_ms();
 
     #ifdef HSCAN
     HMF.execute();
     #else
     VMF.execute();
     #endif
-
-    time1 = time_ms();
-    dt = time1 - time0;
+    timing = hipaccGetLastKernelTiming();
 
     // get results
     host_out = OUT.getData();
 
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
     #ifdef HSCAN
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", dt, ((width-d)*height/dt)/1000);
+    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-d)*height/timing)/1000);
     #else
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", dt, (width*(height-d)/dt)/1000);
+    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*(height-d)/timing)/1000);
     #endif
 
 

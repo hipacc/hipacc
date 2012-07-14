@@ -61,17 +61,21 @@ Expr *ASTTranslate::addGlobalOffsetY(Expr *idx_y, HipaccAccessor *Acc) {
   return idx_y;
 }
 Expr *ASTTranslate::addGlobalOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
-  if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
-    if (Acc->getOffsetXDecl()) {
-      idx_x = createBinaryOperator(Ctx, idx_x, Acc->getOffsetXDecl(), BO_Add,
+  if (Acc->getOffsetXDecl()) {
+    idx_x = createBinaryOperator(Ctx, idx_x, Acc->getOffsetXDecl(), BO_Add,
+        Ctx.IntTy);
+  }
+
+  return idx_x;
+}
+
+
+// remove iteration space offset from index
+Expr *ASTTranslate::removeISOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
+  if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
+      idx_x = createBinaryOperator(Ctx, idx_x,
+          Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(), BO_Sub,
           Ctx.IntTy);
-      if (Acc->getInterpolation()==InterpolateNO &&
-          Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
-        idx_x = createBinaryOperator(Ctx, idx_x,
-            Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(),
-            BO_Sub, Ctx.IntTy);
-      }
-    }
   }
 
   return idx_x;
@@ -88,9 +92,12 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   idx_x = addLocalOffset(idx_x, local_offset_x);
   idx_y = addLocalOffset(idx_y, local_offset_y);
 
-  // step 1: add interpolation & boundary handling
+  // step 1: remove is_offset and add interpolation & boundary handling
   switch (Acc->getInterpolation()) {
     case InterpolateNO:
+      if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
+        idx_x = removeISOffsetX(idx_x, Acc);
+      }
       break;
     case InterpolateNN:
       idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
@@ -106,7 +113,9 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   }
 
   // step 2: add global Accessor/Iteration Space offset
-  idx_x = addGlobalOffsetX(idx_x, Acc);
+  if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
+    idx_x = addGlobalOffsetX(idx_x, Acc);
+  }
   idx_y = addGlobalOffsetY(idx_y, Acc);
 
   // step 3: access the appropriate memory
@@ -163,11 +172,16 @@ Expr *ASTTranslate::accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc,
   idx_x = addLocalOffset(idx_x, local_offset_x);
   idx_y = addLocalOffset(idx_y, local_offset_y);
 
-  // step 1: add interpolation & boundary handling
+  // step 1: remove is_offset and add interpolation & boundary handling
   // no interpolation & boundary handling for Polly
+  if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
+    idx_x = removeISOffsetX(idx_x, Acc);
+  }
 
   // step 2: add global Accessor/Iteration Space offset
-  idx_x = addGlobalOffsetX(idx_x, Acc);
+  if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
+    idx_x = addGlobalOffsetX(idx_x, Acc);
+  }
   idx_y = addGlobalOffsetY(idx_y, Acc);
 
   // step 3: access the appropriate memory

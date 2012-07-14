@@ -103,27 +103,24 @@ class Kernel {
         }
 
         // access output image
-        data_t &output() {
+        data_t &output(void) {
             return outImgAcc();
         }
 
-        data_t &output(const int xf, const int yf) {
-            return outImgAcc(xf, yf);
-        }
-
-        data_t &outputAtPixel(const int xf, const int yf) {
-            return outImgAcc.getPixel(xf, yf);
-        }
 
         // low-level access functions
+        data_t &outputAtPixel(const int xf, const int yf) {
+            return outImgAcc.getPixelFromImg(xf, yf);
+        }
+
         int getX(void) {
             assert(iter!=ElementIterator() && "ElementIterator not set!");
-            return iter.getX();
+            return iter.getX() - iter.getOffsetX();
         }
 
         int getY(void) {
             assert(iter!=ElementIterator() && "ElementIterator not set!");
-            return iter.getY();
+            return iter.getY() - iter.getOffsetY();
         }
 };
 
@@ -148,6 +145,7 @@ class GlobalReduction {
         {} 
 
         virtual data_t reduce(data_t left, data_t right) = 0;
+
         data_t reduce(void) {
             data_t result = neutral;
             bool first = true;

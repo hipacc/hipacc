@@ -2432,138 +2432,108 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
   MemberExpr *ME = dyn_cast<MemberExpr>(E->getCallee());
 
-  // TODO: get Image and return idx
-  // EI.getX() method -> gid_x
-  if (ME->getMemberNameInfo().getAsString() == "getX") {
-    return gidXRef;
-  }
-  // EI.getY() method -> gid_y + offset_y
-  if (ME->getMemberNameInfo().getAsString() == "getY") {
-    if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
-     return createBinaryOperator(Ctx, gidYRef,
-         Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl(), BO_Add,
-         Ctx.IntTy);
-    } else {
+  DeclRefExpr *LHS;
+  HipaccAccessor *Acc = NULL;
+  MemoryAccess memAcc = UNDEFINED;
+  Expr *result;
+
+  if (isa<CXXThisExpr>(ME->getBase()->IgnoreImpCasts())) {
+    // Kernel context -> use Iteration Space output Accessor
+    LHS = outputImage;
+    Acc = Kernel->getIterationSpace()->getAccessor();
+    memAcc = WRITE_ONLY;
+
+    // getX() method -> gid_x - is_offset_x
+    if (ME->getMemberNameInfo().getAsString() == "getX") {
+      return removeISOffsetX(gidXRef, Acc);
+    }
+
+    // getY() method -> gid_y
+    if (ME->getMemberNameInfo().getAsString() == "getY") {
       return gidYRef;
     }
-  }
 
-  // Image.getPixel(x, y) method -> img[y][x]
-  // outputAtPixel(x, y) method -> img[y+yf][x+xf]
-  if (ME->getMemberNameInfo().getAsString() == "getPixel" ||
-      ME->getMemberNameInfo().getAsString() == "outputAtPixel") {
-    DeclRefExpr *LHS;
-    HipaccAccessor *Acc;
-    Expr *result;
-    MemoryAccess memAcc = UNDEFINED;
-    if (ME->getMemberNameInfo().getAsString() == "outputAtPixel") {
-      LHS = outputImage;
-      Acc = Kernel->getIterationSpace()->getAccessor();
-      memAcc = WRITE_ONLY;
-    } else {
-      // MemberExpr is converted to DeclRefExpr when cloning
-      LHS = dyn_cast<DeclRefExpr>(Clone(ME->getBase()));
+    // output() method -> img[y][x]
+    if (ME->getMemberNameInfo().getAsString() == "output") {
+      assert(E->getNumArgs()==0 && "no arguments for output() method supported!");
 
-      // find corresponding Image user class member variable
-      MemberExpr *ImgAcc = dyn_cast<MemberExpr>(ME->getBase());
-      FieldDecl *FD = dyn_cast<FieldDecl>(ImgAcc->getMemberDecl());
-
-      Acc = Kernel->getImgFromMapping(FD);
-      if (Kernel->getImgFromMapping(FD)) {
-        memAcc = KernelClass->getImgAccess(FD);
+      if (emitPolly) {
+        // no padding is considered, data is accessed as a 2D-array
+        result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
+      } else {
+        result = accessMem(LHS, Acc, memAcc);
       }
-      assert(memAcc!=UNDEFINED && "Could not find Image/Accessor Field Decl.");
+
+      result->setValueDependent(E->isValueDependent());
+      result->setTypeDependent(E->isTypeDependent());
+
+      return result;
+    }
+  } else if (isa<MemberExpr>(ME->getBase()->IgnoreImpCasts())) {
+    // Accessor context -> use Accessor
+    // MemberExpr is converted to DeclRefExpr when cloning
+    LHS = dyn_cast<DeclRefExpr>(Clone(ME->getBase()->IgnoreImpCasts()));
+
+    // find corresponding Image user class member variable
+    MemberExpr *ImgAcc = dyn_cast<MemberExpr>(ME->getBase()->IgnoreImpCasts());
+    FieldDecl *FD = dyn_cast<FieldDecl>(ImgAcc->getMemberDecl());
+
+    Acc = Kernel->getImgFromMapping(FD);
+    if (Kernel->getImgFromMapping(FD)) {
+      memAcc = KernelClass->getImgAccess(FD);
+    }
+    assert(memAcc!=UNDEFINED && "Could not find Image/Accessor Field Decl.");
+
+    // Acc.getX() method -> acc_scale_x * (gid_x - is_offset_x)
+    if (ME->getMemberNameInfo().getAsString() == "getX") {
+      Expr *idx_x = gidXRef;
+      // remove is_offset_x and scale index to Accessor size
+      if (Acc->getInterpolation()!=InterpolateNO) {
+        idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+            createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL, NULL);
+      } else {
+        idx_x = removeISOffsetX(gidXRef, Acc);
+      }
+
+      return idx_x;
     }
 
-    assert(E->getNumArgs()==2 && "x and y argument for getPixel() or outputAtPixel() required!");
+    // Acc.getY() method -> acc_scale_y * gid_y
+    if (ME->getMemberNameInfo().getAsString() == "getY") {
+      Expr *idx_y = gidYRef;
+      // scale index to Accessor size
+      if (Acc->getInterpolation()!=InterpolateNO) {
+        idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+            createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL, NULL);
+      }
+
+      return idx_y;
+    }
+  }
+
+  // Acc.getPixel(x, y) method -> img[y][x]
+  // outputAtPixel(x, y) method -> img[y][x]
+  if (ME->getMemberNameInfo().getAsString() == "getPixel" ||
+      ME->getMemberNameInfo().getAsString() == "outputAtPixel") {
+    assert(Acc && E->getNumArgs()==2 && "x and y argument for getPixel() or outputAtPixel() required!");
+    Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), Acc);
+    Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), Acc);
 
     if (emitPolly) {
-      // no padding is considered, data is accessed as a 2D-array
-      // 0: -> x
-      // 1: -> y
-      result = accessMem2DAt(LHS, Clone(E->getArg(0)), Clone(E->getArg(1)));
+      result = accessMem2DAt(LHS, idx_x, idx_y);
     } else {
-      // access pixels directly as specified by parameters:
-      // 0: -> x
-      // 1: -> y
       if (Kernel->useTextureMemory(Acc)) {
         if (compilerOptions.emitCUDA()) {
           if (memAcc == WRITE_ONLY) {
-            result = accessMemArrAt(LHS, Acc->getStrideDecl(),
-                Clone(E->getArg(0)), Clone(E->getArg(1)));
+            result = accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
           } else {
-            result = accessMemTexAt(LHS, Acc, Clone(E->getArg(0)),
-                Clone(E->getArg(1)));
+            result = accessMemTexAt(LHS, Acc, idx_x, idx_y);
           }
         } else {
-          result = accessMemImgAt(LHS, Acc, memAcc, Clone(E->getArg(0)),
-              Clone(E->getArg(1)));
+          result = accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
         }
       } else {
-        result = accessMemArrAt(LHS, Acc->getStrideDecl(), Clone(E->getArg(0)),
-            Clone(E->getArg(1)));
-      }
-    }
-
-    result->setValueDependent(E->isValueDependent());
-    result->setTypeDependent(E->isTypeDependent());
-
-    return result;
-  }
-
-  // output() method -> img[y][x]
-  // output(xf, yf) method -> img[y+yf][x+xf]
-  if (ME->getMemberNameInfo().getAsString() == "output") {
-    DeclRefExpr *LHS = outputImage;
-    HipaccAccessor *Acc = Kernel->getIterationSpace()->getAccessor();
-    // Fixme: only writing to images is supported using output()
-    MemoryAccess memAcc = WRITE_ONLY;
-    Expr *result;
-
-    if (emitPolly) {
-      switch (E->getNumArgs()) {
-        default:
-          assert(0 && "0 or 2 arguments for 'output()' method expected!\n");
-          break;
-        case 0:
-          // no padding is considered, data is accessed as a 2D-array
-          result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
-          break;
-        case 2:
-          // no padding is considered, data is accessed as a 2D-array
-          // 0: -> offset x
-          // 1: -> offset y
-          result = accessMemPolly(LHS, Acc, memAcc, E->getArg(0), E->getArg(1));
-          break;
-      }
-    } else {
-      switch (E->getNumArgs()) {
-        default:
-          assert(0 && "0 or 2 arguments for output() method expected!\n");
-          break;
-        case 0:
-          result = accessMem(LHS, Acc, memAcc);
-          break;
-        case 2:
-          // 0: -> offset x
-          // 1: -> offset y
-          switch (memAcc) {
-            case READ_ONLY:
-              // Note: this should not happen; memAcc was set to WRITE_ONLY
-              if (Acc->getBoundaryHandling() != BOUNDARY_UNDEFINED) {
-                return addBorderHandling(LHS, E->getArg(0), E->getArg(1), Acc);
-              }
-              // fall through
-            case WRITE_ONLY:
-              result = accessMem(LHS, Acc, memAcc, E->getArg(0), E->getArg(1));
-              break;
-            case UNDEFINED:
-            case READ_WRITE:
-            default:
-              assert(0 && "Unsupported memory access with offset specification!\n");
-              break;
-          }
-          break;
+        result = accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
       }
     }
 
@@ -2574,7 +2544,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   }
 
   HIPACC_NOT_SUPPORTED(CXXMemberCallExpr);
-
   return NULL;
 }
 #endif

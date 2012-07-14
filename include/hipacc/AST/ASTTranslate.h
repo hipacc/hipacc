@@ -143,6 +143,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addLocalOffset(Expr *idx, Expr *local_offset);
     Expr *addGlobalOffsetX(Expr *idx_x, HipaccAccessor *Acc);
     Expr *addGlobalOffsetY(Expr *idx_y, HipaccAccessor *Acc);
+    Expr *removeISOffsetX(Expr *idx_x, HipaccAccessor *Acc);
     Expr *accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess memAcc,
         Expr *offset_x=NULL, Expr *offset_y=NULL);
     Expr *accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess

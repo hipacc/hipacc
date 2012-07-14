@@ -41,19 +41,16 @@ using namespace hipacc::Builtin;
 
 // calculate index using nearest neighbor interpolation
 Expr *ASTTranslate::addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x) {
-    // acc_scale_x * (gid_x - is_offset_x)
-    if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
-      idx_x = createBinaryOperator(Ctx, idx_x,
-          Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(),
-          BO_Sub, Ctx.IntTy);
-    }
-    return createBinaryOperator(Ctx, Acc->getScaleXDecl(), createParenExpr(Ctx,
-          idx_x), BO_Mul, Ctx.FloatTy);
+  // acc_scale_x * (gid_x - is_offset_x)
+  idx_x = removeISOffsetX(idx_x, Acc);
+
+  return createBinaryOperator(Ctx, Acc->getScaleXDecl(), createParenExpr(Ctx,
+        idx_x), BO_Mul, Ctx.FloatTy);
 }
 Expr *ASTTranslate::addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y) {
-    // acc_scale_y * (gid_y)
-    return createBinaryOperator(Ctx, Acc->getScaleYDecl(), createParenExpr(Ctx,
-          idx_y), BO_Mul, Ctx.FloatTy);
+  // acc_scale_y * (gid_y)
+  return createBinaryOperator(Ctx, Acc->getScaleYDecl(), createParenExpr(Ctx,
+        idx_y), BO_Mul, Ctx.FloatTy);
 }
 
 

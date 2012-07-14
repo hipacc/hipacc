@@ -47,14 +47,11 @@ enum hipaccBoundaryMode {
 
 template<typename data_t>
 class Image {
-    #ifndef NO_BOOST
-    typedef boost::multi_array<data_t, 2> Array2D;
-    #endif
-
     private:
         const int width;
         const int height;
         #ifndef NO_BOOST
+        typedef boost::multi_array<data_t, 2> Array2D;
         Array2D array;
         #else
         data_t *array;
@@ -204,6 +201,16 @@ class AccessorBase {
         const int offset_x, offset_y;
         ElementIterator *EI;
 
+        virtual void setEI(ElementIterator *ei) {
+            // TODO: enable this again for debugging
+            //assert((!ei || ei->getWidth()==width) &&
+            //        "For Accessor, width of Images and Iterationspace must be equal!");
+            //assert((!ei || ei->getHeight()==height) &&
+            //        "For Accessor, height of Image and Iterationspace must be equal!");
+            EI = ei;
+        }
+
+
     public:
         AccessorBase(int width, int height, int offset_x, int offset_y) :
             width(width),
@@ -213,9 +220,7 @@ class AccessorBase {
             EI(NULL)
         {}
 
-        virtual void setEI(ElementIterator *ei) {
-            EI = ei;
-        }
+    template<typename> friend class Kernel;
 };
 
 
@@ -231,46 +236,52 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
         using BoundaryCondition<data_t>::clamp;
 
         virtual data_t &interpolate(int x, int y, int xf=0, int yf=0) {
-            return getPixel(EI->getX() - EI->getOffsetX() + offset_x, EI->getY()
-                    - EI->getOffsetY() + offset_y, xf, yf);
+            return getPixelBH(EI->getX() - EI->getOffsetX() + offset_x + xf,
+                    EI->getY() - EI->getOffsetY() + offset_y + yf);
         }
 
-        data_t &getPixel(int x, int y, int xf, int yf) {
-            int x_tmp = x + xf;
-            int y_tmp = y + yf;
+        // used by output Accessor: outputAtPixel(x, y)
+        // and input Accessors: getPixel(x, y)
+        // x and y refer to the area defined by the Accessor
+        data_t &getPixelFromImg(int x, int y) {
+            assert(EI && "ElementIterator not set!");
+            return img.getPixel(x - EI->getOffsetX() + offset_x,
+                    y - EI->getOffsetY() + offset_y);
+        }
 
+        data_t &getPixelBH(int x, int y) {
             data_t *ret = &dummy;
 
             switch (mode) {
                 case BOUNDARY_UNDEFINED:
-                    ret = &img.getPixel(x_tmp, y_tmp);
+                    ret = &img.getPixel(x, y);
                     break;
                 case BOUNDARY_CLAMP:
-                    x_tmp = clamp(x_tmp, offset_x, offset_x+width-1);
-                    y_tmp = clamp(y_tmp, offset_y, offset_y+height-1);
-                    ret = &img.getPixel(x_tmp, y_tmp);
+                    x = clamp(x, offset_x, offset_x+width-1);
+                    y = clamp(y, offset_y, offset_y+height-1);
+                    ret = &img.getPixel(x, y);
                     break;
                 case BOUNDARY_REPEAT:
-                    while (x_tmp < offset_x) x_tmp += width;
-                    while (y_tmp < offset_y) y_tmp += height;
-                    while (x_tmp >= offset_x+width) x_tmp -= width;
-                    while (y_tmp >= offset_y+height) y_tmp -= height;
-                    ret = &img.getPixel(x_tmp, y_tmp);
+                    while (x < offset_x) x += width;
+                    while (y < offset_y) y += height;
+                    while (x >= offset_x+width) x -= width;
+                    while (y >= offset_y+height) y -= height;
+                    ret = &img.getPixel(x, y);
                     break;
                 case BOUNDARY_MIRROR:
-                    if (x_tmp < offset_x) x_tmp = offset_x + (offset_x - x_tmp - 1);
-                    if (y_tmp < offset_y) y_tmp = offset_y + (offset_y - y_tmp - 1);
-                    if (x_tmp >= offset_x+width) x_tmp = offset_x+width - (x_tmp + 1 - (offset_x+width));
-                    if (y_tmp >= offset_y+height) y_tmp = offset_y+height - (y_tmp + 1 - (offset_y+height));
-                    ret = &img.getPixel(x_tmp, y_tmp);
+                    if (x < offset_x) x = offset_x + (offset_x - x - 1);
+                    if (y < offset_y) y = offset_y + (offset_y - y - 1);
+                    if (x >= offset_x+width) x = offset_x+width - (x + 1 - (offset_x+width));
+                    if (y >= offset_y+height) y = offset_y+height - (y + 1 - (offset_y+height));
+                    ret = &img.getPixel(x, y);
                     break;
                 case BOUNDARY_CONSTANT:
-                    if (x_tmp < offset_x || y_tmp < offset_y || x_tmp >=
-                            offset_x+width || y_tmp >= offset_y+height) {
+                    if (x < offset_x || y < offset_y || x >=
+                            offset_x+width || y >= offset_y+height) {
                         dummy = const_val;
                         ret = &dummy;
                     } else {
-                        ret = &img.getPixel(x_tmp, y_tmp);
+                        ret = &img.getPixel(x, y);
                     }
                     break;
             }
@@ -301,24 +312,6 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
             BoundaryCondition<data_t>(BC)
         {}
 
-        data_t &getPixel(int x, int y) {
-            return getPixel(x, y, 0, 0);
-        }
-
-        void setPixel(int x, int y, data_t val) {
-            img.setPixel(x, y, val);
-        }
-
-        int getX(void) {
-            assert(EI && "ElementIterator not set!");
-            return EI->getX() - EI->getOffsetX() + offset_x;
-        }
-
-        int getY(void) {
-            assert(EI && "ElementIterator not set!");
-            return EI->getY() - EI->getOffsetY() + offset_y;
-        }
-
         data_t &operator()(void) {
             assert(EI && "ElementIterator not set!");
             return interpolate(EI->getX(), EI->getY());
@@ -334,15 +327,23 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
             return interpolate(EI->getX(), EI->getY(), M.getX(), M.getY());
         }
 
-        virtual void setEI(ElementIterator *ei) {
-            // TODO: enable this again for debugging
-            //assert((!ei || ei->getWidth()==width) &&
-            //        "For Accessor, width of Images and Iterationspace must be equal!");
-            //assert((!ei || ei->getHeight()==height) &&
-            //        "For Accessor, height of Image and Iterationspace must be equal!");
-            EI = ei;
+
+        // low-level access methods
+        data_t &getPixel(int x, int y) {
+            return getPixelFromImg(x, y);
         }
 
+        int getX(void) {
+            assert(EI && "ElementIterator not set!");
+            return EI->getX() - EI->getOffsetX() + offset_x;
+        }
+
+        int getY(void) {
+            assert(EI && "ElementIterator not set!");
+            return EI->getY() - EI->getOffsetY() + offset_y;
+        }
+
+    template<typename> friend class Kernel;
     template<typename> friend class GlobalReduction;
     template<typename> friend class AccessorNN;
     template<typename> friend class AccessorLF;
@@ -367,6 +368,9 @@ class AccessorNN : public Accessor<data_t> {
         using Accessor<data_t>::offset_y;
         using Accessor<data_t>::EI;
         using Accessor<data_t>::getPixel;
+        using Accessor<data_t>::getPixelBH;
+
+        void setEI(ElementIterator *ei) { EI = ei; }
 
         data_t &interpolate(int x, int y, int xf=0, int yf=0) {
             float stride_x = width/(float)EI->getWidth();
@@ -374,7 +378,7 @@ class AccessorNN : public Accessor<data_t> {
             int x_mapped = offset_x + (int)(stride_x*(x - EI->getOffsetX() + xf));
             int y_mapped = offset_y + (int)(stride_y*(y - EI->getOffsetY() + yf));
 
-            return getPixel(x_mapped, y_mapped);
+            return getPixelBH(x_mapped, y_mapped);
         }
 
 
@@ -396,10 +400,6 @@ class AccessorNN : public Accessor<data_t> {
                 xf=0, int yf=0) :
             Accessor<data_t>(BC, width, height, xf, yf)
         {}
-
-        void setEI(ElementIterator *ei) {
-            EI = ei;
-        }
 };
 
 
@@ -419,9 +419,12 @@ class AccessorLF : public Accessor<data_t> {
         using Accessor<data_t>::offset_y;
         using Accessor<data_t>::EI;
         using Accessor<data_t>::getPixel;
+        using Accessor<data_t>::getPixelBH;
         // dummy reference to return a reference for interpolation
         data_t interpol_init;
         data_t &interpol_val;
+
+        void setEI(ElementIterator *ei) { EI = ei; }
 
         data_t &interpolate(int x, int y, int xf=0, int yf=0) {
             // first calculate the mapped address
@@ -439,10 +442,10 @@ class AccessorLF : public Accessor<data_t> {
             float y_frac = yb - y_int;
 
             interpol_val =
-                (1.0f-x_frac) * (1.0f-y_frac) * getPixel(x_int  , y_int) +
-                      x_frac  * (1.0f-y_frac) * getPixel(x_int+1, y_int) +
-                (1.0f-x_frac) *       y_frac  * getPixel(x_int  , y_int+1) +
-                      x_frac  *       y_frac  * getPixel(x_int+1, y_int+1);
+                (1.0f-x_frac) * (1.0f-y_frac) * getPixelBH(x_int  , y_int) +
+                      x_frac  * (1.0f-y_frac) * getPixelBH(x_int+1, y_int) +
+                (1.0f-x_frac) *       y_frac  * getPixelBH(x_int  , y_int+1) +
+                      x_frac  *       y_frac  * getPixelBH(x_int+1, y_int+1);
 
             return interpol_val;
         }
@@ -474,10 +477,6 @@ class AccessorLF : public Accessor<data_t> {
             interpol_init(0),
             interpol_val(interpol_init)
         {}
-
-        void setEI(ElementIterator *ei) {
-            EI = ei;
-        }
 };
 
 
@@ -497,9 +496,12 @@ class AccessorCF : public Accessor<data_t> {
         using Accessor<data_t>::offset_y;
         using Accessor<data_t>::EI;
         using Accessor<data_t>::getPixel;
+        using Accessor<data_t>::getPixelBH;
         // dummy reference to return a reference for interpolation
         data_t interpol_init;
         data_t &interpol_val;
+
+        void setEI(ElementIterator *ei) { EI = ei; }
 
         data_t bicubic(float t, data_t a, data_t b, data_t c, data_t d) {
             return 0.5 * (c - a + (2.0f * a - 5.0f * b + 4.0f * c - d + (3.0f * (b - c) + d -a) * t) * t) * t + b;
@@ -542,22 +544,22 @@ class AccessorCF : public Accessor<data_t> {
             float y_frac = yb - y_int;
 
             #if 1
-            data_t y0 = getPixel(x_int - 1 + 0, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 0) +
-                getPixel(x_int - 1 + 1, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 1) +
-                getPixel(x_int - 1 + 2, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 2) +
-                getPixel(x_int - 1 + 3, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 3);
-            data_t y1 = getPixel(x_int - 1 + 0, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 0) +
-                getPixel(x_int - 1 + 1, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 1) +
-                getPixel(x_int - 1 + 2, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 2) +
-                getPixel(x_int - 1 + 3, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 3);
-            data_t y2 = getPixel(x_int - 1 + 0, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 0) +
-                getPixel(x_int - 1 + 1, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 1) +
-                getPixel(x_int - 1 + 2, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 2) +
-                getPixel(x_int - 1 + 3, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 3);
-            data_t y3 = getPixel(x_int - 1 + 0, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 0) +
-                getPixel(x_int - 1 + 1, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 1) +
-                getPixel(x_int - 1 + 2, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 2) +
-                getPixel(x_int - 1 + 3, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 3);
+            data_t y0 = getPixelBH(x_int - 1 + 0, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 0) +
+                getPixelBH(x_int - 1 + 1, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 1) +
+                getPixelBH(x_int - 1 + 2, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 2) +
+                getPixelBH(x_int - 1 + 3, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 3);
+            data_t y1 = getPixelBH(x_int - 1 + 0, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 0) +
+                getPixelBH(x_int - 1 + 1, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 1) +
+                getPixelBH(x_int - 1 + 2, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 2) +
+                getPixelBH(x_int - 1 + 3, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 3);
+            data_t y2 = getPixelBH(x_int - 1 + 0, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 0) +
+                getPixelBH(x_int - 1 + 1, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 1) +
+                getPixelBH(x_int - 1 + 2, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 2) +
+                getPixelBH(x_int - 1 + 3, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 3);
+            data_t y3 = getPixelBH(x_int - 1 + 0, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 0) +
+                getPixelBH(x_int - 1 + 1, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 1) +
+                getPixelBH(x_int - 1 + 2, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 2) +
+                getPixelBH(x_int - 1 + 3, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 3);
 
             interpol_val = y0*bicubic_spline(y_frac - 1 + 0) +
                 y1*bicubic_spline(y_frac - 1 + 1) +
@@ -565,25 +567,25 @@ class AccessorCF : public Accessor<data_t> {
                 y3*bicubic_spline(y_frac - 1 + 3);
             #else
             data_t y0 = bicubic(x_frac,
-                    getPixel(i-1, j-1),
-                    getPixel(i,   j-1),
-                    getPixel(i+1, j-1),
-                    getPixel(i+2, j-1));
+                    getPixelBH(i-1, j-1),
+                    getPixelBH(i,   j-1),
+                    getPixelBH(i+1, j-1),
+                    getPixelBH(i+2, j-1));
             data_t y1 = bicubic(x_frac,
-                    getPixel(i-1, j),
-                    getPixel(i,   j),
-                    getPixel(i+1, j),
-                    getPixel(i+2, j));
+                    getPixelBH(i-1, j),
+                    getPixelBH(i,   j),
+                    getPixelBH(i+1, j),
+                    getPixelBH(i+2, j));
             data_t y2 = bicubic(x_frac,
-                    getPixel(i-1, j+1),
-                    getPixel(i,   j+1),
-                    getPixel(i+1, j+1),
-                    getPixel(i+2, j+1));
+                    getPixelBH(i-1, j+1),
+                    getPixelBH(i,   j+1),
+                    getPixelBH(i+1, j+1),
+                    getPixelBH(i+2, j+1));
             data_t y3 = bicubic(x_frac,
-                    getPixel(i-1, j+2),
-                    getPixel(i,   j+2),
-                    getPixel(i+1, j+2),
-                    getPixel(i+2, j+2));
+                    getPixelBH(i-1, j+2),
+                    getPixelBH(i,   j+2),
+                    getPixelBH(i+1, j+2),
+                    getPixelBH(i+2, j+2));
 
             interpol_val = bicubic(y_frac, y0, y1, y2, y3);
             #endif
@@ -618,10 +620,6 @@ class AccessorCF : public Accessor<data_t> {
             interpol_init(0),
             interpol_val(interpol_init)
         {}
-
-        void setEI(ElementIterator *ei) {
-            EI = ei;
-        }
 };
 
 
@@ -641,9 +639,12 @@ class AccessorL3 : public Accessor<data_t> {
         using Accessor<data_t>::offset_y;
         using Accessor<data_t>::EI;
         using Accessor<data_t>::getPixel;
+        using Accessor<data_t>::getPixelBH;
         // dummy reference to return a reference for interpolation
         data_t interpol_init;
         data_t &interpol_val;
+
+        void setEI(ElementIterator *ei) { EI = ei; }
 
         #define PI 3.14159265358979323846
 
@@ -679,42 +680,42 @@ class AccessorL3 : public Accessor<data_t> {
             float x_frac = xb - x_int;
             float y_frac = yb - y_int;
 
-            data_t y0 = getPixel(x_int - 2 + 0, y_int - 1 + 0) * lanczos(x_frac - 2 + 0) +
-                getPixel(x_int - 2 + 1, y_int - 1 + 0) * lanczos(x_frac - 2 + 1) +
-                getPixel(x_int - 2 + 2, y_int - 1 + 0) * lanczos(x_frac - 2 + 2) +
-                getPixel(x_int - 2 + 3, y_int - 1 + 0) * lanczos(x_frac - 2 + 3) +
-                getPixel(x_int - 2 + 4, y_int - 1 + 0) * lanczos(x_frac - 2 + 4) +
-                getPixel(x_int - 2 + 5, y_int - 1 + 0) * lanczos(x_frac - 2 + 5);
-            data_t y1 = getPixel(x_int - 2 + 0, y_int - 1 + 1) * lanczos(x_frac - 2 + 0) +
-                getPixel(x_int - 2 + 1, y_int - 1 + 1) * lanczos(x_frac - 2 + 1) +
-                getPixel(x_int - 2 + 2, y_int - 1 + 1) * lanczos(x_frac - 2 + 2) +
-                getPixel(x_int - 2 + 3, y_int - 1 + 1) * lanczos(x_frac - 2 + 3) +
-                getPixel(x_int - 2 + 4, y_int - 1 + 1) * lanczos(x_frac - 2 + 5) +
-                getPixel(x_int - 2 + 5, y_int - 1 + 1) * lanczos(x_frac - 2 + 5);
-            data_t y2 = getPixel(x_int - 2 + 0, y_int - 1 + 2) * lanczos(x_frac - 2 + 0) +
-                getPixel(x_int - 2 + 1, y_int - 1 + 2) * lanczos(x_frac - 2 + 1) +
-                getPixel(x_int - 2 + 2, y_int - 1 + 2) * lanczos(x_frac - 2 + 2) +
-                getPixel(x_int - 2 + 3, y_int - 1 + 2) * lanczos(x_frac - 2 + 3) +
-                getPixel(x_int - 2 + 4, y_int - 1 + 2) * lanczos(x_frac - 2 + 4) +
-                getPixel(x_int - 2 + 5, y_int - 1 + 2) * lanczos(x_frac - 2 + 5);
-            data_t y3 = getPixel(x_int - 2 + 0, y_int - 1 + 3) * lanczos(x_frac - 2 + 0) +
-                getPixel(x_int - 2 + 1, y_int - 1 + 3) * lanczos(x_frac - 2 + 1) +
-                getPixel(x_int - 2 + 2, y_int - 1 + 3) * lanczos(x_frac - 2 + 2) +
-                getPixel(x_int - 2 + 3, y_int - 1 + 3) * lanczos(x_frac - 2 + 3) +
-                getPixel(x_int - 2 + 4, y_int - 1 + 3) * lanczos(x_frac - 2 + 4) +
-                getPixel(x_int - 2 + 5, y_int - 1 + 3) * lanczos(x_frac - 2 + 5);
-            data_t y4 = getPixel(x_int - 2 + 0, y_int - 1 + 4) * lanczos(x_frac - 2 + 0) +
-                getPixel(x_int - 2 + 1, y_int - 1 + 4) * lanczos(x_frac - 2 + 1) +
-                getPixel(x_int - 2 + 2, y_int - 1 + 4) * lanczos(x_frac - 2 + 2) +
-                getPixel(x_int - 2 + 3, y_int - 1 + 4) * lanczos(x_frac - 2 + 3) +
-                getPixel(x_int - 2 + 4, y_int - 1 + 4) * lanczos(x_frac - 2 + 4) +
-                getPixel(x_int - 2 + 5, y_int - 1 + 4) * lanczos(x_frac - 2 + 5);
-            data_t y5 = getPixel(x_int - 2 + 0, y_int - 1 + 5) * lanczos(x_frac - 2 + 0) +
-                getPixel(x_int - 2 + 1, y_int - 1 + 5) * lanczos(x_frac - 2 + 1) +
-                getPixel(x_int - 2 + 2, y_int - 1 + 5) * lanczos(x_frac - 2 + 2) +
-                getPixel(x_int - 2 + 3, y_int - 1 + 5) * lanczos(x_frac - 2 + 3) +
-                getPixel(x_int - 2 + 4, y_int - 1 + 5) * lanczos(x_frac - 2 + 4) +
-                getPixel(x_int - 2 + 5, y_int - 1 + 5) * lanczos(x_frac - 2 + 5);
+            data_t y0 = getPixelBH(x_int - 2 + 0, y_int - 1 + 0) * lanczos(x_frac - 2 + 0) +
+                getPixelBH(x_int - 2 + 1, y_int - 1 + 0) * lanczos(x_frac - 2 + 1) +
+                getPixelBH(x_int - 2 + 2, y_int - 1 + 0) * lanczos(x_frac - 2 + 2) +
+                getPixelBH(x_int - 2 + 3, y_int - 1 + 0) * lanczos(x_frac - 2 + 3) +
+                getPixelBH(x_int - 2 + 4, y_int - 1 + 0) * lanczos(x_frac - 2 + 4) +
+                getPixelBH(x_int - 2 + 5, y_int - 1 + 0) * lanczos(x_frac - 2 + 5);
+            data_t y1 = getPixelBH(x_int - 2 + 0, y_int - 1 + 1) * lanczos(x_frac - 2 + 0) +
+                getPixelBH(x_int - 2 + 1, y_int - 1 + 1) * lanczos(x_frac - 2 + 1) +
+                getPixelBH(x_int - 2 + 2, y_int - 1 + 1) * lanczos(x_frac - 2 + 2) +
+                getPixelBH(x_int - 2 + 3, y_int - 1 + 1) * lanczos(x_frac - 2 + 3) +
+                getPixelBH(x_int - 2 + 4, y_int - 1 + 1) * lanczos(x_frac - 2 + 5) +
+                getPixelBH(x_int - 2 + 5, y_int - 1 + 1) * lanczos(x_frac - 2 + 5);
+            data_t y2 = getPixelBH(x_int - 2 + 0, y_int - 1 + 2) * lanczos(x_frac - 2 + 0) +
+                getPixelBH(x_int - 2 + 1, y_int - 1 + 2) * lanczos(x_frac - 2 + 1) +
+                getPixelBH(x_int - 2 + 2, y_int - 1 + 2) * lanczos(x_frac - 2 + 2) +
+                getPixelBH(x_int - 2 + 3, y_int - 1 + 2) * lanczos(x_frac - 2 + 3) +
+                getPixelBH(x_int - 2 + 4, y_int - 1 + 2) * lanczos(x_frac - 2 + 4) +
+                getPixelBH(x_int - 2 + 5, y_int - 1 + 2) * lanczos(x_frac - 2 + 5);
+            data_t y3 = getPixelBH(x_int - 2 + 0, y_int - 1 + 3) * lanczos(x_frac - 2 + 0) +
+                getPixelBH(x_int - 2 + 1, y_int - 1 + 3) * lanczos(x_frac - 2 + 1) +
+                getPixelBH(x_int - 2 + 2, y_int - 1 + 3) * lanczos(x_frac - 2 + 2) +
+                getPixelBH(x_int - 2 + 3, y_int - 1 + 3) * lanczos(x_frac - 2 + 3) +
+                getPixelBH(x_int - 2 + 4, y_int - 1 + 3) * lanczos(x_frac - 2 + 4) +
+                getPixelBH(x_int - 2 + 5, y_int - 1 + 3) * lanczos(x_frac - 2 + 5);
+            data_t y4 = getPixelBH(x_int - 2 + 0, y_int - 1 + 4) * lanczos(x_frac - 2 + 0) +
+                getPixelBH(x_int - 2 + 1, y_int - 1 + 4) * lanczos(x_frac - 2 + 1) +
+                getPixelBH(x_int - 2 + 2, y_int - 1 + 4) * lanczos(x_frac - 2 + 2) +
+                getPixelBH(x_int - 2 + 3, y_int - 1 + 4) * lanczos(x_frac - 2 + 3) +
+                getPixelBH(x_int - 2 + 4, y_int - 1 + 4) * lanczos(x_frac - 2 + 4) +
+                getPixelBH(x_int - 2 + 5, y_int - 1 + 4) * lanczos(x_frac - 2 + 5);
+            data_t y5 = getPixelBH(x_int - 2 + 0, y_int - 1 + 5) * lanczos(x_frac - 2 + 0) +
+                getPixelBH(x_int - 2 + 1, y_int - 1 + 5) * lanczos(x_frac - 2 + 1) +
+                getPixelBH(x_int - 2 + 2, y_int - 1 + 5) * lanczos(x_frac - 2 + 2) +
+                getPixelBH(x_int - 2 + 3, y_int - 1 + 5) * lanczos(x_frac - 2 + 3) +
+                getPixelBH(x_int - 2 + 4, y_int - 1 + 5) * lanczos(x_frac - 2 + 4) +
+                getPixelBH(x_int - 2 + 5, y_int - 1 + 5) * lanczos(x_frac - 2 + 5);
 
             interpol_val = y0*lanczos(y_frac - 2 + 0) +
                 y1*lanczos(y_frac - 2 + 1) +
@@ -753,10 +754,6 @@ class AccessorL3 : public Accessor<data_t> {
             interpol_init(0),
             interpol_val(interpol_init)
         {}
-
-        void setEI(ElementIterator *ei) {
-            EI = ei;
-        }
 };
 } // end namespace hipacc
 
