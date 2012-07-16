@@ -445,9 +445,9 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
 
     // check if we need border handling
     if (Acc->getBoundaryHandling() != BOUNDARY_UNDEFINED) {
-      if (Acc->getSizeX() || Acc->getSizeY()) border_handling = true;
-      if (Acc->getSizeX()) kernel_x = true;
-      if (Acc->getSizeY()) kernel_y = true;
+      if (Acc->getSizeX() > 1 || Acc->getSizeY() > 1) border_handling = true;
+      if (Acc->getSizeX() > 1) kernel_x = true;
+      if (Acc->getSizeY() > 1) kernel_y = true;
     }
 
     // check if we need shared memory

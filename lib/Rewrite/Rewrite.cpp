@@ -902,8 +902,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           if (!BC && ImgDeclMap.count(DRE->getDecl())) {
             HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
             BC = new HipaccBoundaryCondition(Img, VD);
-            BC->setSizeX(0);
-            BC->setSizeY(0);
+            BC->setSizeX(1);
+            BC->setSizeY(1);
             BC->setBoundaryHandling(BOUNDARY_CLAMP);
 
             // Fixme: store BoundaryCondition???
