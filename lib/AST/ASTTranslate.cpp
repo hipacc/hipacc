@@ -2253,9 +2253,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           // 2: -> y
           result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                 Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                  (int)Mask->getSizeX()/2), BO_Sub, Ctx.IntTy),
+                  (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
               createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Sub,
+                createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
                 Ctx.IntTy));
           break;
       }
@@ -2266,9 +2266,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       // 2: -> y
       result = accessMemArrAt(LHS, createIntegerLiteral(Ctx, Mask->getSizeX()),
           createBinaryOperator(Ctx, Clone(E->getArg(1)),
-            createIntegerLiteral(Ctx, (int)Mask->getSizeX()/2), BO_Sub,
+            createIntegerLiteral(Ctx, (int)Mask->getSizeX()/2), BO_Add,
             Ctx.IntTy), createBinaryOperator(Ctx, Clone(E->getArg(2)),
-              createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Sub,
+              createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
               Ctx.IntTy));
     }
     result->setValueDependent(E->isValueDependent());
