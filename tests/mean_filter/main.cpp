@@ -234,7 +234,7 @@ int main(int argc, const char **argv) {
     int height = HEIGHT;
     int d = 40;
     int t = NT;
-    float timing;
+    float timing = 0.0f;
 
     // host memory for image of of width x height pixels
     float *host_in = (float *)malloc(sizeof(float)*width*height);

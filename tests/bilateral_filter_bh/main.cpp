@@ -37,6 +37,7 @@
 //#define SIGMA_R 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
+//#define CONST_MASK
 #define SIGMA_D SIZE_X
 #define SIGMA_R SIZE_Y
 #define CONVOLUTION_MASK
@@ -508,38 +509,24 @@ int main(int argc, const char **argv) {
     const int height = HEIGHT;
     const int sigma_d = SIGMA_D;
     const int sigma_r = SIGMA_R;
+    float timing = 0.0f;
 
-    // host memory for image of of widthxheight pixels
+    // host memory for image of of width x height pixels
     float *host_in = (float *)malloc(sizeof(float)*width*height);
     float *host_out = (float *)malloc(sizeof(float)*width*height);
     float *reference_in = (float *)malloc(sizeof(float)*width*height);
     float *reference_out = (float *)malloc(sizeof(float)*width*height);
 
-#if 0
-    float gaussian_d[2*2*sigma_d+1][2*2*sigma_d+1];
-    float gaussian[2*2*sigma_d+1];
-    for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
-        gaussian[xf+2*sigma_d] = expf(-1/(2.0f*sigma_d*sigma_d)*(xf*xf));
-    }
-    for (int yf=-2*sigma_d; yf<=2*sigma_d; yf++) {
-        for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
-            gaussian_d[yf+2*sigma_d][xf+2*sigma_d] = gaussian[yf+2*sigma_d] * gaussian[xf+2*SIGMA_D];
-            fprintf(stderr, "%f, ", gaussian_d[yf+2*sigma_d][xf+2*sigma_d]);
-        }
-        fprintf(stderr, "\n");
-    }
-#endif
-#if SIGMA_D==1
+#ifdef CONST_MASK
     const float mask[] = {
+        #if SIGMA_D==1
         0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f, 
         0.082085f, 0.367879f, 0.606531f, 0.367879f, 0.082085f, 
         0.135335f, 0.606531f, 1.000000f, 0.606531f, 0.135335f, 
         0.082085f, 0.367879f, 0.606531f, 0.367879f, 0.082085f, 
         0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f, 
-    };
-#endif
-#if SIGMA_D==3
-    const float mask[] = {
+        #endif
+        #if SIGMA_D==3
         0.018316, 0.033746, 0.055638, 0.082085, 0.108368, 0.128022, 0.135335, 0.128022, 0.108368, 0.082085, 0.055638, 0.033746, 0.018316, 
         0.033746, 0.062177, 0.102512, 0.151240, 0.199666, 0.235877, 0.249352, 0.235877, 0.199666, 0.151240, 0.102512, 0.062177, 0.033746, 
         0.055638, 0.102512, 0.169013, 0.249352, 0.329193, 0.388896, 0.411112, 0.388896, 0.329193, 0.249352, 0.169013, 0.102512, 0.055638, 
@@ -553,16 +540,26 @@ int main(int argc, const char **argv) {
         0.055638, 0.102512, 0.169013, 0.249352, 0.329193, 0.388896, 0.411112, 0.388896, 0.329193, 0.249352, 0.169013, 0.102512, 0.055638, 
         0.033746, 0.062177, 0.102512, 0.151240, 0.199666, 0.235877, 0.249352, 0.235877, 0.199666, 0.151240, 0.102512, 0.062177, 0.033746, 
         0.018316, 0.033746, 0.055638, 0.082085, 0.108368, 0.128022, 0.135335, 0.128022, 0.108368, 0.082085, 0.055638, 0.033746, 0.018316, 
+        #endif
     };
+#else
+    float mask[(2*2*sigma_d+1)*(2*2*sigma_d+1)];
+    float mask_tmp[2*2*sigma_d+1];
+    for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
+        mask_tmp[xf+2*sigma_d] = expf(-1/(2.0f*sigma_d*sigma_d)*(xf*xf));
+    }
+    for (int yf=-2*sigma_d; yf<=2*sigma_d; yf++) {
+        for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
+            mask[(yf+2*sigma_d)*(2*2*sigma_d+1) + xf+2*sigma_d] = mask_tmp[yf+2*sigma_d] * mask_tmp[xf+2*SIGMA_D];
+            fprintf(stderr, "%f, ", mask[(yf+2*sigma_d)*(2*2*sigma_d+1) + xf+2*sigma_d]);
+        }
+        fprintf(stderr, "\n");
+    }
 #endif
     Mask<float> M(4*sigma_d+1, 4*sigma_d+1);
     M = mask;
 
-    const char umask[] = {1u, '2', 3U, 4L, 7, 6, 7, 8, 9};
-    Mask<char> uM(3, 3);
-    uM = umask;
-
-    // input and output image of widthxheight pixels
+    // input and output image of width x height pixels
     Image<float> IN(width, height);
     Image<float> OUT(width, height);
 
@@ -582,6 +579,7 @@ int main(int argc, const char **argv) {
 
     IN = host_in;
     OUT = host_out;
+
     fprintf(stderr, "Calculating bilateral filter ...\n");
 
     // Image only
@@ -592,19 +590,11 @@ int main(int argc, const char **argv) {
     BilateralFilterNOBH BFNOBH(BIS, AccInUndef, sigma_d, sigma_r);
 #endif
 
-    // warmup
-    BFNOBH.execute();
-
-    time0 = time_ms();
 
     BFNOBH.execute();
+    timing = hipaccGetLastKernelTiming();
 
-    time1 = time_ms();
-    dt = time1 - time0;
-
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    fprintf(stderr, "Hipacc (NOBH): %.3f ms, %.3f Mpixel/s\n\n", dt,
-            (width*height/dt)/1000);
+    fprintf(stderr, "Hipacc (NOBH): %.3f ms, %.3f Mpixel/s\n\n", timing, (width*height/timing)/1000);
 
 
     // BOUNDARY_CLAMP
@@ -616,16 +606,10 @@ int main(int argc, const char **argv) {
     BilateralFilter BF(BIS, AccInClamp, sigma_d, sigma_r);
 #endif
 
-    time0 = time_ms();
-
     BF.execute();
+    timing = hipaccGetLastKernelTiming();
 
-    time1 = time_ms();
-    dt = time1 - time0;
-
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n\n", dt,
-            (width*height/dt)/1000);
+    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n\n", timing, (width*height/timing)/1000);
 
 
     // get results
@@ -638,64 +622,44 @@ int main(int argc, const char **argv) {
     BilateralFilterBHCLAMP BFBHCLAMP(BIS, AccIn, sigma_d, sigma_r, width, height);
 
     fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
-    time0 = time_ms();
 
     BFBHCLAMP.execute();
+    timing = hipaccGetLastKernelTiming();
 
-    time1 = time_ms();
-    dt = time1 - time0;
-
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    fprintf(stderr, "Hipacc(BHCLAMP): %.3f ms, %.3f Mpixel/s\n", dt,
-            (width*height/dt)/1000);
+    fprintf(stderr, "Hipacc(BHCLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     // manual border handling: REPEAT
     BilateralFilterBHREPEAT BFBHREPEAT(BIS, AccIn, sigma_d, sigma_r, width, height);
 
     fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
-    time0 = time_ms();
 
     BFBHREPEAT.execute();
+    timing = hipaccGetLastKernelTiming();
 
-    time1 = time_ms();
-    dt = time1 - time0;
-
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    fprintf(stderr, "Hipacc(BHREPEAT): %.3f ms, %.3f Mpixel/s\n", dt,
-            (width*height/dt)/1000);
+    fprintf(stderr, "Hipacc(BHREPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     // manual border handling: MIRROR
     BilateralFilterBHMIRROR BFBHMIRROR(BIS, AccIn, sigma_d, sigma_r, width, height);
 
     fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
-    time0 = time_ms();
 
     BFBHMIRROR.execute();
+    timing = hipaccGetLastKernelTiming();
 
-    time1 = time_ms();
-    dt = time1 - time0;
-
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    fprintf(stderr, "Hipacc(BHMIRROR): %.3f ms, %.3f Mpixel/s\n", dt,
-            (width*height/dt)/1000);
+    fprintf(stderr, "Hipacc(BHMIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     // manual border handling: CONSTANT
     BilateralFilterBHCONSTANT BFBHCONSTANT(BIS, AccIn, sigma_d, sigma_r, width, height);
 
     fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
-    time0 = time_ms();
 
     BFBHCONSTANT.execute();
+    timing = hipaccGetLastKernelTiming();
 
-    time1 = time_ms();
-    dt = time1 - time0;
-
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    fprintf(stderr, "Hipacc(BHCONSTANT): %.3f ms, %.3f Mpixel/s\n", dt,
-            (width*height/dt)/1000);
+    fprintf(stderr, "Hipacc(BHCONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 #endif
 
 
@@ -707,8 +671,7 @@ int main(int argc, const char **argv) {
 
     time1 = time_ms();
     dt = time1 - time0;
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt,
-            (width*height/dt)/1000);
+    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, (width*height/dt)/1000);
 
 
     fprintf(stderr, "\nComparing results ...\n");

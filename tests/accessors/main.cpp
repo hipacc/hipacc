@@ -35,12 +35,8 @@
 #include "hipacc.hpp"
 
 // variables set by Makefile
-//#define SIGMA_D 3
-//#define SIGMA_R 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
-#define SIGMA_D SIZE_X
-#define SIGMA_R SIZE_Y
 
 using namespace hipacc;
 
@@ -108,6 +104,7 @@ int main(int argc, const char **argv) {
     const int is_height = HEIGHT/2;
     const int is_offset_x = 2;
     const int is_offset_y = 2;
+    float timing = 0.0f;
 
     // host memory for image of of widthxheight pixels
     int *host_in = (int *)malloc(sizeof(int)*width*height);
@@ -150,22 +147,16 @@ int main(int argc, const char **argv) {
     CopyNN copy_nn(CIS, AccInNN);
     CopyNN copy_lf(CIS, AccInLF);
 
-    // warmup
-    copy_lf.execute();
-
     fprintf(stderr, "Executing copy (NN) kernel ...\n");
-    time0 = time_ms();
 
     copy_nn.execute();
+    timing = hipaccGetLastKernelTiming();
 
-    time1 = time_ms();
-    dt = time1 - time0;
 
     // get results
     host_out = OUT.getData();
 
-    // Mpixel/s = (is_width*is_height/1000000) / (dt/1000) = (is_width*is_height/dt)/1000
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", dt, (is_width*is_height/dt)/1000);
+    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (is_width*is_height/timing)/1000);
 
 
     fprintf(stderr, "\nCalculating reference ...\n");

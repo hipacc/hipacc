@@ -85,15 +85,11 @@ void blur_filter(unsigned char *in, unsigned char *out, int size_x, int size_y,
                     sum += in[(y + yf)*width + x + xf];
                 }
             }
-            out[y*width + x] = (unsigned char)
-                ((1/(float)(size_x*size_y))*sum);
-            //#if defined(CPU) && defined (OpenCV)
-            //out[y*width + x] = (unsigned char)
-            //    ((1/(float)(size_x*size_y))*sum + 0.5f);
-            //#else
-            //out[y*width + x] = (unsigned char)
-            //    ((1/(float)(size_x*size_y))*sum);
-            //#endif
+            #if defined(CPU) && defined (OpenCV)
+            out[y*width + x] = (unsigned char) ((1/(float)(size_x*size_y))*sum + 0.5f);
+            #else
+            out[y*width + x] = (unsigned char) ((1/(float)(size_x*size_y))*sum);
+            #endif
         }
     }
 }
@@ -154,14 +150,25 @@ class BlurFilter : public Kernel<unsigned char> {
     private:
         Accessor<unsigned char> &Input;
         int size_x, size_y;
+#ifndef SIMPLE
+        int nt, height;
+#endif
 
     public:
         BlurFilter(IterationSpace<unsigned char> &IS, Accessor<unsigned char>
-                &Input, int size_x, int size_y) :
+                &Input, int size_x, int size_y
+                #ifndef SIMPLE
+                , int nt, int height
+                #endif
+                ) :
             Kernel(IS),
             Input(Input),
             size_x(size_x),
             size_y(size_y)
+            #ifndef SIMPLE
+            , nt(nt),
+            height(height)
+            #endif
         {
             addAccessor(&Input);
         }
@@ -185,20 +192,20 @@ class BlurFilter : public Kernel<unsigned char> {
             // first phase: convolution
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum += Input(xf, yf + (t0*NT-t0));
+                    sum += Input.getPixel(Input.getX() + xf, t0*nt + yf);
                 }
             }
-            output(0, (t0*NT-t0)) = (unsigned char)
+            outputAtPixel(getX(), t0*nt) = (unsigned char)
                 ((1/(float)(size_x*size_y))*sum);
 
             // second phase: rolling sum
-            for (int dt=1; dt<min(NT, HEIGHT-anchor_y-(t0*NT)); ++dt) {
-                int t = (t0*NT-t0) + dt;
+            for (int dt=1; dt<min(nt, height-2*anchor_y-(t0*nt)); ++dt) {
+                int t = t0*nt + dt;
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum -= Input(xf, t-anchor_y-1);
-                    sum += Input(xf, t-anchor_y-1+size_y);
+                    sum -= Input.getPixel(Input.getX() + xf, t-anchor_y-1);
+                    sum += Input.getPixel(Input.getX() + xf, t-anchor_y-1+size_y);
                 }
-                output(0, t) = (unsigned char) ((1/(float)(size_x*size_y))*sum);
+                outputAtPixel(getX(), t) = (unsigned char) ((1/(float)(size_x*size_y))*sum);
             }
             #endif
         }
@@ -207,14 +214,15 @@ class BlurFilter : public Kernel<unsigned char> {
 
 
 int main(int argc, const char **argv) {
-    double time0, time1, dt, min_dt = DBL_MAX;
-    int width = WIDTH;
-    int height = HEIGHT;
-    int size_x = SIZE_X;
-    int size_y = SIZE_Y;
-    int offset_x = size_x >> 1;
-    int offset_y = size_y >> 1;
-    int t = NT;
+    double time0, time1, dt, min_dt;
+    const int width = WIDTH;
+    const int height = HEIGHT;
+    const int size_x = SIZE_X;
+    const int size_y = SIZE_Y;
+    const int offset_x = size_x >> 1;
+    const int offset_y = size_y >> 1;
+    const int t = NT;
+    float timing = 0.0f;
 
     // host memory for image of of widthxheight pixels
     unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
@@ -225,6 +233,7 @@ int main(int argc, const char **argv) {
     // input and output image of widthxheight pixels
     Image<unsigned char> IN(width, height);
     Image<unsigned char> OUT(width, height);
+    Accessor<unsigned char> AccIn(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -238,36 +247,24 @@ int main(int argc, const char **argv) {
 
     #ifdef SIMPLE
     IterationSpace<unsigned char> BIS(OUT, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    BlurFilter BF(BIS, AccIn, size_x, size_y);
     #else
     IterationSpace<unsigned char> BIS(OUT, width-2*offset_x, (int)ceil((float)(height-2*offset_y)/t), offset_x, offset_y);
+    BlurFilter BF(BIS, AccIn, size_x, size_y, t, height);
     #endif
-    Accessor<unsigned char> AccIn(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
-    BlurFilter BF(BIS, AccIn, size_x, size_y);
 
     IN = host_in;
     OUT = host_out;
 
     fprintf(stderr, "Calculating blur filter ...\n");
 
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
-
-        BF.execute();
-
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
-    }
+    BF.execute();
+    timing = hipaccGetLastKernelTiming();
 
     // get results
     host_out = OUT.getData();
 
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
-
+    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
 
 
 #ifdef OpenCV
@@ -293,7 +290,7 @@ int main(int argc, const char **argv) {
     cv::Size ksize(size_x, size_y);
 #ifdef CPU
     min_dt = DBL_MAX;
-    for (int nt=0; nt<3; nt++) {
+    for (int nt=0; nt<10; nt++) {
         time0 = time_ms();
 
         cv::blur(cv_data_in, cv_data_out, ksize);
@@ -320,10 +317,7 @@ int main(int argc, const char **argv) {
     gpu_out.download(cv_data_out);
 #endif
 
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-size_x)*(height-size_y)/min_dt)/1000);
+    fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt, ((width-size_x)*(height-size_y)/min_dt)/1000);
 #endif
 
 

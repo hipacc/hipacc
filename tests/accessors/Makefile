@@ -1,7 +1,7 @@
 CC = clang++
 CC = g++
 
-MYFLAGS ?= -D WIDTH=1024 -D HEIGHT=1024 -D SIZE_X=3 -D SIZE_Y=3
+MYFLAGS ?= -D WIDTH=1024 -D HEIGHT=1024
 CFLAGS = $(MYFLAGS) -Wall -Wunused -I../../include/dsl
 LDFLAGS = -lm
 OFLAGS = -O3

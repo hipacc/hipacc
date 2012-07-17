@@ -403,7 +403,7 @@ int main(int argc, const char **argv) {
     const int height = HEIGHT;
     int offset = 5;
     std::vector<float> timings;
-    float timing;
+    float timing = 0.0f;
 
     // host memory for image of of widthxheight pixels
     int *host_in0 = (int *)malloc(sizeof(int)*width*height);

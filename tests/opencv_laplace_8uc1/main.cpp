@@ -25,6 +25,8 @@
 //
 
 #include <iostream>
+#include <vector>
+
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
@@ -34,6 +36,8 @@
 #ifdef OpenCV
 #include "opencv2/gpu/gpu.hpp"
 #include "opencv2/imgproc/imgproc_c.h"
+#else
+#define CONVOLUTION_MASK
 #endif
 
 #include "hipacc.hpp"
@@ -44,11 +48,10 @@
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
+//#define CONST_MASK
 
 using namespace hipacc;
 
-#define max(a,b) (((a) > (b)) ? (a) : (b))
-#define min(a,b) (((a) < (b)) ? (a) : (b))
 
 // get time in milliseconds
 double time_ms () {
@@ -60,8 +63,8 @@ double time_ms () {
 
 
 // Laplace filter reference
-void laplace_filter(unsigned char *in, unsigned char *out, int size, int width,
-        int height) {
+void laplace_filter(unsigned char *in, unsigned char *out, int *filter, int
+        size, int width, int height) {
     const int size_x = size;
     const int size_y = size;
     int anchor_x = size_x >> 1;
@@ -74,56 +77,19 @@ void laplace_filter(unsigned char *in, unsigned char *out, int size, int width,
     int upper_y = height-anchor_y;
 #endif
 
-    if (size == 5) {
-        const int mask[5][5] = {
-            {1,   1,   1,   1,   1},
-            {1,   1,   1,   1,   1},
-            {1,   1, -24,   1,   1},
-            {1,   1,   1,   1,   1},
-            {1,   1,   1,   1,   1}};
-        for (int y=anchor_y; y<upper_y; ++y) {
-            for (int x=anchor_x; x<upper_x; ++x) {
-                int sum = 0;
+    for (int y=anchor_y; y<upper_y; ++y) {
+        for (int x=anchor_x; x<upper_x; ++x) {
+            int sum = 0;
 
-                for (int yf=-anchor_y; yf<=anchor_y; yf++) {
-                    for (int xf=-anchor_x; xf<=anchor_x; xf++) {
-                        sum += mask[(yf+anchor_y)][xf+anchor_x]*in[(y+yf)*width + x+xf];
-                    }
+            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
+                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x]*in[(y+yf)*width + x + xf];
                 }
-
-                sum = max(0, min(sum, 255));
-                out[y*width + x] = (unsigned char) (sum);
             }
-        }
-    } else if (size == 3) {
-        for (int y=anchor_y; y<upper_y; ++y) {
-            for (int x=anchor_x; x<upper_x; ++x) {
-                int sum = 0;
 
-                // 2  0  2
-                // 0 -8  0
-                // 2  0  2
-                sum = 2*in[(y-1)*width + x-1] + 2*in[(y-1)*width + x+1]
-                    - 8*in[(y)*width + x]
-                    + 2*in[(y+1)*width + x-1] + 2*in[(y+1)*width + x+1];
-                sum = max(0, min(sum, 255));
-                out[y*width + x] = (unsigned char) (sum);
-            }
-        }
-    } else {
-        for (int y=anchor_y; y<upper_y; ++y) {
-            for (int x=anchor_x; x<upper_x; ++x) {
-                int sum = 0;
-
-                // 0  1  0
-                // 1 -4  1
-                // 0  1  0
-                sum = in[(y-1)*width + x]
-                    + in[(y)*width + x-1] - 4*in[(y)*width + x] + in[(y)*width + x+1]
-                    + in[(y+1)*width + x];
-                sum = max(0, min(sum, 255));
-                out[y*width + x] = (unsigned char) (sum);
-            }
+            if (sum > 255) sum = 255;
+            else if (sum < 0) sum = 0;
+            out[y*width + x] = sum;
         }
     }
 }
@@ -133,58 +99,30 @@ namespace hipacc {
 class LaplaceFilter : public Kernel<unsigned char> {
     private:
         Accessor<unsigned char> &Input;
-        int size;
+        Mask<int> &cMask;
+        const int size;
 
     public:
         LaplaceFilter(IterationSpace<unsigned char> &IS, Accessor<unsigned char>
-                &Input, int size) :
+                &Input, Mask<int> &cMask, const int size) :
             Kernel(IS),
             Input(Input),
+            cMask(cMask),
             size(size)
         {
             addAccessor(&Input);
         }
 
         void kernel() {
+            const int anchor = size >> 1;
             int sum = 0;
 
-            if (size == 5) {
-                #if 1
-                sum = Input(-2, -2) + Input(-1, -2) + Input(0, -2) + Input(1, -2) + Input(2, -2)
-                    + Input(-2, -1) + Input(-1, -1) + Input(0, -1) + Input(1, -1) + Input(2, -1)
-                    + Input(-2, 0) + Input(-1, 0) - 24*Input(0, 0) + Input(1, 0) + Input(2, 0)
-                    + Input(-2, 1) + Input(-1, 1) + Input(0, 1) + Input(1, 1) + Input(2, 1)
-                    + Input(-2, 2) + Input(-1, 2) + Input(0, 2) + Input(1, 2) + Input(2, 2);
-                #else
-                int anchor = size >> 1;
-                const int mask[5][5] = {
-                    {1,   1,   1,   1,   1},
-                    {1,   1,   1,   1,   1},
-                    {1,   1, -24,   1,   1},
-                    {1,   1,   1,   1,   1},
-                    {1,   1,   1,   1,   1}};
-
-                for (int yf=-anchor; yf<=anchor; yf++) {
-                    for (int xf=-anchor; xf<=anchor; xf++) {
-                        sum += mask[(yf+anchor)][xf+anchor]*Input(xf, yf);
-                    }
+            for (int yf = -anchor; yf<=anchor; yf++) {
+                for (int xf = -anchor; xf<=anchor; xf++) {
+                    sum += cMask(xf, yf)*Input(xf, yf);
                 }
-                #endif
-            } else if (size == 3) {
-                // 2  0  2
-                // 0 -8  0
-                // 2  0  2
-                sum = 2*Input(-1, -1) + 2*Input(1, -1)
-                    - 8*Input(0, 0)
-                    + 2*Input(-1, 1) + 2*Input(1, 1);
-            } else {
-                // 0  1  0
-                // 1 -4  1
-                // 0  1  0
-                sum = Input(0, -1)
-                    + Input(-1, 0) - 4*Input(0, 0) + Input(1, 0)
-                    + Input(0, 1);
             }
+
             if (sum > 255) sum = 255;
             else if (sum < 0) sum = 0;
             output() = (unsigned char) (sum);
@@ -194,38 +132,56 @@ class LaplaceFilter : public Kernel<unsigned char> {
 
 
 int main(int argc, const char **argv) {
-    double time0, time1, dt, min_dt = DBL_MAX;
-    int width = WIDTH;
-    int height = HEIGHT;
-    int size_x = SIZE_X;
-    int size_y = SIZE_Y;
+    double time0, time1, dt, min_dt;
+    const int width = WIDTH;
+    const int height = HEIGHT;
+    const int size_x = SIZE_X;
+    const int size_y = SIZE_Y;
     // all filters are 3x3
-    int offset_x = size_x >> 1;
-    int offset_y = size_y >> 1;
+    const int offset_x = size_x >> 1;
+    const int offset_y = size_y >> 1;
+    std::vector<float> timings;
+    float timing = 0.0f;
 
-    // only filter kernel sizes 3x3 and 5x5 implemented
+    // only filter kernel sizes 3x3 and 5x5 supported
     if (size_x != size_y && (size_x != 3 || size_x != 5)) {
         fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!\n");
         exit(EXIT_FAILURE);
     }
-#ifdef OpenCV
-#ifndef CPU
-#if SIZE_X==5
-#error "OpenCV supports only 1x1 and 3x3 Laplace filters on the GPU!"
-#endif
-#endif
-#endif
 
-    // host memory for image of of widthxheight pixels
+    // host memory for image of of width x height pixels
     unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
     unsigned char *host_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
     unsigned char *reference_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
     unsigned char *reference_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
 
-    // input and output image of widthxheight pixels
+    // Laplacian
+    #ifdef CONST_MASK
+    const
+    #endif
+    int mask[] = {
+        #if SIZE_X==1
+        0,  1,  0,
+        1, -4,  1,
+        0,  1,  0,
+        #endif
+        #if SIZE_X==3
+        2,  0,  2,
+        0, -8,  0,
+        2,  0,  2,
+        #endif
+        #if SIZE_X==5
+        1,   1,   1,   1,   1,
+        1,   1,   1,   1,   1,
+        1,   1, -24,   1,   1,
+        1,   1,   1,   1,   1,
+        1,   1,   1,   1,   1,
+        #endif
+    };
+
+    // input and output image of width x height pixels
     Image<unsigned char> IN(width, height);
     Image<unsigned char> OUT(width, height);
-    Accessor<unsigned char> AccIn(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -237,32 +193,75 @@ int main(int argc, const char **argv) {
         }
     }
 
-    IterationSpace<unsigned char> LIS(OUT, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
-    LaplaceFilter LF(LIS, AccIn, size_x);
+    Mask<int> M(size_x, size_y);
+    M = mask;
+
+    IterationSpace<unsigned char> IsOut(OUT);
 
     IN = host_in;
     OUT = host_out;
 
     fprintf(stderr, "Calculating Laplace filter ...\n");
 
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
+#ifdef CONVOLUTION_MASK
+    // BOUNDARY_UNDEFINED
+    BoundaryCondition<unsigned char> BcInUndef(IN, size_x, BOUNDARY_UNDEFINED);
+    Accessor<unsigned char> AccInUndef(BcInUndef);
+    LaplaceFilter LFU(IsOut, AccInUndef, M, size_x);
 
-        LF.execute();
+    LFU.execute();
+    timing = hipaccGetLastKernelTiming();
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
-    }
+
+    // BOUNDARY_CLAMP
+    BoundaryCondition<unsigned char> BcInClamp(IN, size_x, BOUNDARY_CLAMP);
+    Accessor<unsigned char> AccInClamp(BcInClamp);
+    LaplaceFilter LFC(IsOut, AccInClamp, M, size_x);
+
+    LFC.execute();
+    timing = hipaccGetLastKernelTiming();
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // BOUNDARY_REPEAT
+    BoundaryCondition<unsigned char> BcInRepeat(IN, size_x, BOUNDARY_REPEAT);
+    Accessor<unsigned char> AccInRepeat(BcInRepeat);
+    LaplaceFilter LFR(IsOut, AccInRepeat, M, size_x);
+
+    LFR.execute();
+    timing = hipaccGetLastKernelTiming();
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // BOUNDARY_MIRROR
+    BoundaryCondition<unsigned char> BcInMirror(IN, size_x, BOUNDARY_MIRROR);
+    Accessor<unsigned char> AccInMirror(BcInMirror);
+    LaplaceFilter LFM(IsOut, AccInMirror, M, size_x);
+
+    LFM.execute();
+    timing = hipaccGetLastKernelTiming();
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // BOUNDARY_CONSTANT
+    BoundaryCondition<unsigned char> BcInConst(IN, size_x, BOUNDARY_CONSTANT, '1');
+    Accessor<unsigned char> AccInConst(BcInConst);
+    LaplaceFilter LFConst(IsOut, AccInConst, M, size_x);
+
+    LFConst.execute();
+    timing = hipaccGetLastKernelTiming();
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+#endif
+
 
     // get results
     host_out = OUT.getData();
-
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
 
 
 
@@ -277,51 +276,87 @@ int main(int argc, const char **argv) {
     // kernel size: 4x4
     // offset 4x4 shiftet by 1 -> 2x2
     // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
-    fprintf(stderr, "\nCalculating OpenCV Laplace filter on the %s ...\n",
-            #ifdef CPU
-            "CPU"
-            #else
-            "GPU"
-            #endif
-    );
+#ifdef CPU
+    fprintf(stderr, "\nCalculating OpenCV Laplacian filter on the CPU ...\n");
+#else
+    fprintf(stderr, "\nCalculating OpenCV Laplacian filter on the GPU ...\n");
+#endif
+
 
     cv::Mat cv_data_in(height, width, CV_8UC1, host_in);
     cv::Mat cv_data_out(height, width, CV_8UC1, host_out);
+    int ddepth = CV_8U;
+    double scale = 1.0f;
+    double delta = 0.0f;
+
+    for (int brd_type=0; brd_type<5; brd_type++) {
 #ifdef CPU
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<3; nt++) {
-        time0 = time_ms();
+        if (brd_type==cv::BORDER_WRAP) {
+            // BORDER_WRAP is not supported on the CPU by OpenCV
+            timings.push_back(0.0f);
+            continue;
+        }
+        min_dt = DBL_MAX;
+        for (int nt=0; nt<10; nt++) {
+            time0 = time_ms();
 
-        cv::Laplacian(cv_data_in, cv_data_out, -1, size_x);
+            cv::Laplacian(cv_data_in, cv_data_out, ddepth, size_x, scale, delta, brd_type);
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
-    }
+            time1 = time_ms();
+            dt = time1 - time0;
+            if (dt < min_dt) min_dt = dt;
+        }
 #else
-    cv::gpu::GpuMat gpu_in, gpu_out;
-    gpu_in.upload(cv_data_in);
+        #if SIZE_X==5
+        #error "OpenCV supports only 1x1 and 3x3 Laplace filters on the GPU!"
+        #endif
+        cv::gpu::GpuMat gpu_in, gpu_out;
+        gpu_in.upload(cv_data_in);
 
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
+        min_dt = DBL_MAX;
+        for (int nt=0; nt<10; nt++) {
+            time0 = time_ms();
 
-        cv::gpu::Laplacian(gpu_in, gpu_out, -1, size_x);
+            cv::gpu::Laplacian(gpu_in, gpu_out, -1, size_x, scale, brd_type);
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+            time1 = time_ms();
+            dt = time1 - time0;
+            if (dt < min_dt) min_dt = dt;
+        }
+
+        gpu_out.download(cv_data_out);
+#endif
+
+        fprintf(stderr, "OpenCV(");
+        switch (brd_type) {
+            case IPL_BORDER_CONSTANT:
+                fprintf(stderr, "CONSTANT");
+                break;
+            case IPL_BORDER_REPLICATE:
+                fprintf(stderr, "CLAMP");
+                break;
+            case IPL_BORDER_REFLECT:
+                fprintf(stderr, "MIRROR");
+                break;
+            case IPL_BORDER_WRAP:
+                fprintf(stderr, "REPEAT");
+                break;
+            case IPL_BORDER_REFLECT_101:
+                fprintf(stderr, "MIRROR_101");
+                break;
+            default:
+                break;
+        }
+        timings.push_back(min_dt);
+        fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
     }
-
-    gpu_out.download(cv_data_out);
 #endif
 
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-size_x)*(height-size_y)/min_dt)/1000);
-#endif
-
+    // print statistics
+    for (unsigned int i=0; i<timings.size(); i++) {
+        fprintf(stderr, "\t%.3f", timings.data()[i]);
+    }
+    fprintf(stderr, "\n\n");
 
 
     fprintf(stderr, "\nCalculating reference ...\n");
@@ -330,14 +365,13 @@ int main(int argc, const char **argv) {
         time0 = time_ms();
 
         // calculate reference
-        laplace_filter(reference_in, reference_out, size_x, width, height);
+        laplace_filter(reference_in, reference_out, mask, size_x, width, height);
 
         time1 = time_ms();
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
+    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
 
     fprintf(stderr, "\nComparing results ...\n");
 #ifdef OpenCV

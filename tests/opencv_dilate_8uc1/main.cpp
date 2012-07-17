@@ -123,13 +123,14 @@ class DilateFilter : public Kernel<unsigned char> {
 
 
 int main(int argc, const char **argv) {
-    double time0, time1, dt, min_dt = DBL_MAX;
-    int width = WIDTH;
-    int height = HEIGHT;
-    int size_x = SIZE_X;
-    int size_y = SIZE_Y;
-    int offset_x = size_x >> 1;
-    int offset_y = size_y >> 1;
+    double time0, time1, dt, min_dt;
+    const int width = WIDTH;
+    const int height = HEIGHT;
+    const int size_x = SIZE_X;
+    const int size_y = SIZE_Y;
+    const int offset_x = size_x >> 1;
+    const int offset_y = size_y >> 1;
+    float timing = 0.0f;
 
     // only filter kernel sizes 3x3 and 5x5 implemented
     if (size_x != size_y && (size_x != 3 || size_x != 5)) {
@@ -146,6 +147,7 @@ int main(int argc, const char **argv) {
     // input and output image of widthxheight pixels
     Image<unsigned char> IN(width, height);
     Image<unsigned char> OUT(width, height);
+    Accessor<unsigned char> AccIn(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -158,7 +160,6 @@ int main(int argc, const char **argv) {
     }
 
     IterationSpace<unsigned char> DIS(OUT, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
-    Accessor<unsigned char> AccIn(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
     DilateFilter DF(DIS, AccIn, size_x, size_y);
 
     IN = host_in;
@@ -166,25 +167,13 @@ int main(int argc, const char **argv) {
 
     fprintf(stderr, "Calculating Dilate filter ...\n");
 
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
-
-        DF.execute();
-
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
-    }
+    DF.execute();
+    timing = hipaccGetLastKernelTiming();
 
     // get results
     host_out = OUT.getData();
 
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
-
+    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
 
 
 #ifdef OpenCV
@@ -211,7 +200,7 @@ int main(int argc, const char **argv) {
     cv::Mat kernel(cv::Mat::ones(size_x, size_y, CV_8U));
 #ifdef CPU
     min_dt = DBL_MAX;
-    for (int nt=0; nt<3; nt++) {
+    for (int nt=0; nt<10; nt++) {
         time0 = time_ms();
 
         cv::dilate(cv_data_in, cv_data_out, kernel);
@@ -238,10 +227,7 @@ int main(int argc, const char **argv) {
     gpu_out.download(cv_data_out);
 #endif
 
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-size_x)*(height-size_y)/min_dt)/1000);
+    fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt, ((width-size_x)*(height-size_y)/min_dt)/1000);
 #endif
 
 

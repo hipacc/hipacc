@@ -2,7 +2,7 @@ CC = g++
 
 MYFLAGS ?= -D WIDTH=4096 -D HEIGHT=4096 -D SIZE_X=3 -D SIZE_Y=3
 CFLAGS = $(MYFLAGS) -Wall -Wunused -I../../include/dsl -D OpenCV -I/opt/local/include/opencv -I/opt/local/include
-LDFLAGS = -lstdc++ -lm -L/opt/local/lib -lopencv_core -lopencv_gpu
+LDFLAGS = -lstdc++ -lm -L/opt/local/lib -lopencv_core -lopencv_gpu -lopencv_imgproc
 OFLAGS = -O3
 
 

@@ -25,6 +25,8 @@
 //
 
 #include <iostream>
+#include <vector>
+
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
@@ -34,6 +36,8 @@
 #ifdef OpenCV
 #include "opencv2/gpu/gpu.hpp"
 #include "opencv2/imgproc/imgproc_c.h"
+#else
+#define CONVOLUTION_MASK
 #endif
 
 #include "hipacc.hpp"
@@ -44,6 +48,8 @@
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
+//#define YORDER
+//#define CONST_MASK
 
 using namespace hipacc;
 
@@ -58,104 +64,8 @@ double time_ms () {
 
 
 // Sobel filter reference
-void sobel_filter_x(unsigned char *in, short int *out, int size, int width, int
-        height) {
-    const int size_x = size;
-    const int size_y = size;
-    int anchor_x = size_x >> 1;
-    int anchor_y = size_y >> 1;
-#ifdef OpenCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-#else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-#endif
-
-    if (size_x == 3) {
-        for (int y=anchor_y; y<upper_y; ++y) {
-            for (int x=anchor_x; x<upper_x; ++x) {
-                int sum = 0;
-
-                // -1 0 1
-                // -2 0 2
-                // -1 0 1
-                sum = - in[(y-1)*width + x-1] + in[(y-1)*width + x+1]
-                    - 2*in[y*width + x-1] + 2*in[y*width + x+1]
-                    - in[(y+1)*width + x-1] + in[(y+1)*width + x+1];
-                out[y*width + x] = (short int) (sum);
-            }
-        }
-    } else {
-        for (int y=anchor_y; y<upper_y; ++y) {
-            for (int x=anchor_x; x<upper_x; ++x) {
-                int sum = 0;
-
-                // -1   -2  0   2   1
-                // -4   -8  0   8   4
-                // -6   -12 0   12  6
-                // -4   -8  0   8   4
-                // -1   -2  0   2   1
-                sum = - 1*in[(y-2)*width + x-2] - 2*in[(y-2)*width + x-1] + 2*in[(y-2)*width + x+1] + 1*in[(y-2)*width + x+2]
-                    - 4*in[(y-1)*width + x-2] - 8*in[(y-1)*width + x-1] + 8*in[(y-1)*width + x+1] + 4*in[(y-1)*width + x+2]
-                    - 6*in[(y)*width + x-2] - 12*in[(y)*width + x-1] + 12*in[(y)*width + x+1] + 6*in[(y)*width + x+2]
-                    - 4*in[(y+1)*width + x-2] - 8*in[(y+1)*width + x-1] + 8*in[(y+1)*width + x+1] + 4*in[(y+1)*width + x+2]
-                    - 1*in[(y+2)*width + x-2] - 2*in[(y+2)*width + x-1] + 2*in[(y+2)*width + x+1] + 1*in[(y+2)*width + x+2];
-                out[y*width + x] = (short int) (sum);
-
-            }
-        }
-    }
-}
-void sobel_filter_y(unsigned char *in, short int *out, int size, int width, int height) {
-    const int size_x = size;
-    const int size_y = size;
-    int anchor_x = size_x >> 1;
-    int anchor_y = size_y >> 1;
-#ifdef OpenCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-#else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-#endif
-
-    if (size_y == 3) {
-        for (int y=anchor_y; y<upper_y; ++y) {
-            for (int x=anchor_x; x<upper_x; ++x) {
-                int sum = 0;
-
-                // -1 -2 -1
-                // 0  0  0
-                // 1  2  1
-                sum = - in[(y-1)*width + x-1] - 2*in[(y-1)*width + x] - in[(y-1)*width + x+1]
-                    + in[(y+1)*width + x-1] + 2*in[(y+1)*width + x] + in[(y+1)*width + x+1];
-                out[y*width + x] = sum;
-            }
-        }
-    } else {
-        for (int y=anchor_y; y<upper_y; ++y) {
-            for (int x=anchor_x; x<upper_x; ++x) {
-                int sum = 0;
-
-                // -1   -4  -6  -4  -1
-                // -2   -8  -12 -8  -2
-                // 0    0   0   0   0
-                // 2    8   12  8   2
-                // 1    4   6   4   1
-                sum = - 1*in[(y-2)*width + x-2] - 4*in[(y-2)*width + x-1] - 6*in[(y-2)*width + x] - 4*in[(y-2)*width + x+1] - 1*in[(y-2)*width + x+2]
-                    - 2*in[(y-1)*width + x-2] - 8*in[(y-1)*width + x-1] - 12*in[(y-1)*width + x] - 8*in[(y-1)*width + x+1] - 2*in[(y-1)*width + x+2]
-                    + 2*in[(y+1)*width + x-2] + 8*in[(y+1)*width + x-1] + 12*in[(y+1)*width + x] + 8*in[(y+1)*width + x+1] + 2*in[(y+1)*width + x+2]
-                    + 1*in[(y+2)*width + x-2] + 4*in[(y+2)*width + x-1] + 6*in[(y+2)*width + x] + 4*in[(y+2)*width + x+1] + 1*in[(y+2)*width + x+2];
-                out[y*width + x] = sum;
-            }
-        }
-    }
-}
-// Scharr filter reference
-void scharr_filter_x(unsigned char *in, short int *out, int width, int height) {
-    const int size_x=3;
-    const int size_y=3;
+void sobel_filter(unsigned char *in, short int *out, int *filter, int size_x,
+        int size_y, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
 #ifdef OpenCV
@@ -170,157 +80,153 @@ void scharr_filter_x(unsigned char *in, short int *out, int width, int height) {
         for (int x=anchor_x; x<upper_x; ++x) {
             int sum = 0;
 
-            sum = - 3*in[(y-1)*width + x-1] + 3*in[(y-1)*width + x+1]
-                - 10*in[y*width + x-1] + 10*in[y*width + x+1]
-                - 3*in[(y+1)*width + x-1] + 3*in[(y+1)*width + x+1];
+            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
+                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x]*in[(y+yf)*width + x + xf];
+                }
+            }
             out[y*width + x] = sum;
         }
     }
 }
-void scharr_filter_y(unsigned char *in, short int *out, int width, int height) {
-    const int size_x=3;
-    const int size_y=3;
+void sobel_filter_row(unsigned char *in, short int *out, int *filter, int size_x,
+        int width, int height) {
     int anchor_x = size_x >> 1;
-    int anchor_y = size_y >> 1;
 #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
 #else
     int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
 #endif
 
-    for (int y=anchor_y; y<upper_y; ++y) {
+    for (int y=0; y<height; ++y) {
+        //for (int x=0; x<anchor_x; x++) out[y*width + x] = in[y*width + x];
         for (int x=anchor_x; x<upper_x; ++x) {
             int sum = 0;
 
-            sum = - 3*in[(y-1)*width + x-1] - 10*in[(y-1)*width + x] - 3*in[(y-1)*width + x+1]
-                + 3*in[(y+1)*width + x-1] + 10*in[(y+1)*width + x] + 3*in[(y+1)*width + x+1];
+            for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+                sum += filter[xf+anchor_x]*in[(y)*width + x + xf];
+            }
+            out[y*width + x] = sum;
+        }
+        //for (int x=upper_x; x<width; x++) out[y*width + x] = in[y*width + x];
+    }
+}
+void sobel_filter_column(short int *in, short int *out, int *filter, int size_y,
+        int width, int height) {
+    int anchor_y = size_y >> 1;
+#ifdef OpenCV
+    int upper_y = height-size_y+anchor_y;
+#else
+    int upper_y = height-anchor_y;
+#endif
+
+    //for (int y=0; y<anchor_y; y++) {
+    //    for (int x=0; x<width; ++x) {
+    //        out[y*width + x] = (unsigned char) in[y*width + x];
+    //    }
+    //}
+    for (int y=anchor_y; y<upper_y; ++y) {
+        for (int x=0; x<width; ++x) {
+            int sum = 0;
+
+            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
+                sum += filter[yf+anchor_y]*in[(y + yf)*width + x];
+            }
             out[y*width + x] = sum;
         }
     }
+    //for (int y=upper_y; y<height; y++) {
+    //    for (int x=0; x<width; ++x) {
+    //        out[y*width + x] = (unsigned char) in[y*width + x];
+    //    }
+    //}
 }
 
 
 namespace hipacc {
-class SobelFilterX : public Kernel<short int> {
+class SobelFilterMask : public Kernel<short int> {
     private:
         Accessor<unsigned char> &Input;
-        int size;
+        Mask<int> &cMask;
+        const int size;
 
     public:
-        SobelFilterX(IterationSpace<short int> &IS, Accessor<unsigned char>
-                &Input, int size) :
+        SobelFilterMask(IterationSpace<short int> &IS, Accessor<unsigned char>
+                &Input, Mask<int> &cMask, const int size) :
             Kernel(IS),
             Input(Input),
+            cMask(cMask),
             size(size)
         {
             addAccessor(&Input);
         }
 
         void kernel() {
+            const int anchor = size >> 1;
             int sum = 0;
 
-            if (size == 3) {
-                // -1 0 1
-                // -2 0 2
-                // -1 0 1
-                sum = - Input(-1, -1) + Input(1, -1)
-                    - 2*Input(-1, 0) + 2*Input(1, 0)
-                    - Input(-1, 1) + Input(1, 1);
-            } else {
-                // -1   -2  0   2   1
-                // -4   -8  0   8   4
-                // -6   -12 0   12  6
-                // -4   -8  0   8   4
-                // -1   -2  0   2   1
-                sum = - 1*Input(-2, -2) - 2*Input(-1, -2) + 2*Input(1, -2) + 1*Input(2, -2)
-                    - 4*Input(-2, -1) - 8*Input(-1, -1) + 8*Input(1, -1) + 4*Input(2, -1)
-                    - 6*Input(-2, 0) - 12*Input(-1, 0) + 12*Input(1, 0) + 6*Input(2, 0)
-                    - 4*Input(-2, 1) - 8*Input(-1, 1) + 8*Input(1, 1) + 4*Input(2, 1)
-                    - 1*Input(-2, +2) - 2*Input(-1, +2) + 2*Input(1, +2) + 1*Input(2, +2);
+            for (int yf = -anchor; yf<=anchor; yf++) {
+                for (int xf = -anchor; xf<=anchor; xf++) {
+                    sum += cMask(xf, yf)*Input(xf, yf);
+                }
             }
-            output() = (short int) (sum);
-        }
-};
-class SobelFilterY : public Kernel<short int> {
-    private:
-        Accessor<unsigned char> &Input;
-        int size;
 
-    public:
-        SobelFilterY(IterationSpace<short int> &IS, Accessor<unsigned char>
-                &Input, int size) :
-            Kernel(IS),
-            Input(Input),
-            size(size)
-        {
-            addAccessor(&Input);
-        }
-
-        void kernel() {
-            int sum = 0;
-
-            if (size == 3) {
-                // -1 -2 -1
-                // 0  0  0
-                // 1  2  1
-                sum = - Input(-1, -1) - 2*Input(0, -1) - Input(1, -1) +
-                    Input(-1, 1) + 2*Input(0, 1) + Input(1, 1);
-            } else {
-                // -1   -4  -6  -4  -1
-                // -2   -8  -12 -8  -2
-                // 0    0   0   0   0
-                // 2    8   12  8   2
-                // 1    4   6   4   1
-                sum = - 1*Input(-2, -2) - 4*Input(-1, -2) - 6*Input(0, -2) - 4*Input(1, -2) - 1*Input(2, -2)
-                    - 2*Input(-2, -1) - 8*Input(-1, -1) - 12*Input(0, -1) - 8*Input(1, -1) - 2*Input(2, -1)
-                    + 2*Input(-2, 1) + 8*Input(-1, 1) + 12*Input(0, 1) + 8*Input(1, 1) + 2*Input(2, 1)
-                    + 1*Input(-2, 2) + 4*Input(-1, 2) + 6*Input(0, 2) + 4*Input(1, 2) + 1*Input(2, 2);
-            }
-            output() = (float) (sum);
-        }
-};
-class ScharrFilterX : public Kernel<short int> {
-    private:
-        Accessor<unsigned char> &Input;
-
-    public:
-        ScharrFilterX(IterationSpace<short int> &IS, Accessor<unsigned char>
-                &Input) :
-            Kernel(IS),
-            Input(Input)
-        {
-            addAccessor(&Input);
-        }
-
-        void kernel() {
-            int sum = 0;
-
-            sum = - 3*Input(-1, -1) + 3*Input(1, -1)
-                - 10*Input(-1, 0) + 10*Input(1, 0)
-                - 3*Input(-1, 1) + 3*Input(1, 1);
             output() = (short int) sum;
         }
 };
-class ScharrFilterY : public Kernel<short int> {
+class SobelFilterMaskRow : public Kernel<short int> {
     private:
         Accessor<unsigned char> &Input;
+        Mask<int> &cMask;
+        const int size;
 
     public:
-        ScharrFilterY(IterationSpace<short int> &IS, Accessor<unsigned char>
-                &Input) :
+        SobelFilterMaskRow(IterationSpace<short int> &IS, Accessor<unsigned
+                char> &Input, Mask<int> &cMask, const int size):
             Kernel(IS),
-            Input(Input)
+            Input(Input),
+            cMask(cMask),
+            size(size)
         {
             addAccessor(&Input);
         }
 
         void kernel() {
+            const int anchor = size >> 1;
             int sum = 0;
 
-            sum = - 3*Input(-1, -1) - 10*Input(0, -1) - 3*Input(1, -1)
-                + 3*Input(-1, 1) + 10*Input(0, 1) + 3*Input(1, 1);
+            for (int xf = -anchor; xf<=anchor; xf++) {
+                sum += cMask(xf, 0)*Input(xf, 0);
+            }
+
+            output() = (short int) sum;
+        }
+};
+class SobelFilterMaskColumn : public Kernel<short int> {
+    private:
+        Accessor<short int> &Input;
+        Mask<int> &cMask;
+        const int size;
+
+    public:
+        SobelFilterMaskColumn(IterationSpace<short int> &IS, Accessor<short int>
+                &Input, Mask<int> &cMask, const int size):
+            Kernel(IS),
+            Input(Input),
+            cMask(cMask),
+            size(size)
+        {
+            addAccessor(&Input);
+        }
+
+        void kernel() {
+            const int anchor = size >> 1;
+            int sum = 0;
+
+            for (int yf = -anchor; yf<=anchor; yf++) {
+                sum += cMask(0, yf)*Input(0, yf);
+            }
+
             output() = (short int) sum;
         }
 };
@@ -328,79 +234,271 @@ class ScharrFilterY : public Kernel<short int> {
 
 
 int main(int argc, const char **argv) {
-    double time0, time1, dt, min_dt = DBL_MAX;
-    int width = WIDTH;
-    int height = HEIGHT;
-    int size_x = SIZE_X;
-    int size_y = SIZE_Y;
-    int offset_x = size_x >> 1;
-    int offset_y = size_y >> 1;
+    double time0, time1, dt, min_dt;
+    const int width = WIDTH;
+    const int height = HEIGHT;
+    const int size_x = SIZE_X;
+    const int size_y = SIZE_Y;
+    const int offset_x = size_x >> 1;
+    const int offset_y = size_y >> 1;
+    std::vector<float> timings;
+    float timing = 0.0f;
 
-    // host memory for image of of widthxheight pixels
+    // host memory for image of of width x height pixels
     unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
     short int *host_out = (short int *)malloc(sizeof(short int)*width*height);
     unsigned char *reference_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
     short int *reference_out = (short int *)malloc(sizeof(short int)*width*height);
+    short int *reference_tmp = (short int *)malloc(sizeof(short int)*width*height);
 
-    // input and output image of widthxheight pixels
+// Sobel
+#ifdef YORDER
+    #ifdef CONST_MASK
+    const
+    #endif
+    int mask[] = {
+        #if SIZE_X==3
+        -1, -2, -1,
+         0,  0,  0,
+         1,  2,  1,
+        #endif
+        #if SIZE_X==5
+        -1, -4, -6,  -4, -1,
+        -2, -8, -12, -8, -2,
+         0,  0,  0,   0,  0,
+         2,  8,  12,  8,  2,
+         1,  4,  6,   4,  1,
+        #endif
+    };
+    int mask_x[] = {
+        #if SIZE_X==3
+        1, 2, 1,
+        #endif
+        #if SIZE_X==5
+        1, 4, 6, 4, 1,
+        #endif
+    };
+    int mask_y[] = {
+        #if SIZE_X==3
+        -1,
+         0,
+        +1,
+        #endif
+        #if SIZE_X==5
+        -1,
+        -2,
+        0,
+        +2,
+        +1,
+        #endif
+    };
+#else
+    #ifdef CONST_MASK
+    const
+    #endif
+    int mask[] = {
+        #if SIZE_X==3
+        -1, 0,  1,
+        -2, 0,  2,
+        -1, 0,  1,
+        #endif
+        #if SIZE_X==5
+        -1, -2,  0,  2,  1,
+        -4, -8,  0,  8,  4,
+        -6, -12, 0,  12, 6,
+        -4, -8,  0,  8,  4,
+        -1, -2,  0,  2,  1,
+        #endif
+    };
+    int mask_x[] = {
+        #if SIZE_X==3
+        -1, 0, +1,
+        #endif
+        #if SIZE_X==5
+        -1, -2, 0, +2, +1,
+        #endif
+    };
+    int mask_y[] = {
+        #if SIZE_X==3
+        1,
+        2,
+        1,
+        #endif
+        #if SIZE_X==5
+        1,
+        4,
+        6,
+        4,
+        1,
+        #endif
+    };
+#endif
+
+    // input and output image of width x height pixels
     Image<unsigned char> IN(width, height);
     Image<short int> OUT(width, height);
-    Accessor<unsigned char> AccIn(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    Image<short int> TMP(width, height);
 
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = (unsigned char)(y*width + x) % 256;
-            reference_in[y*width + x] = (unsigned char)(y*width + x) % 256;
+            host_in[y*width + x] = rand()%256;
+            reference_in[y*width + x] = host_in[y*width + x];
             host_out[y*width + x] = 0;
             reference_out[y*width + x] = 0;
+            reference_tmp[y*width + x] = 0;
         }
     }
 
-    IterationSpace<short int> SIS(OUT, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
-    #ifdef SCHARR
-    #ifdef YORDER
-    ScharrFilterY SF(SIS, AccIn);
-    #else
-    ScharrFilterX SF(SIS, AccIn);
-    #endif
-    #else
-    #ifdef YORDER
-    SobelFilterY SF(SIS, AccIn, size_y);
-    #else
-    SobelFilterX SF(SIS, AccIn, size_x);
-    #endif
-    #endif
+    Mask<int> M(size_x, size_y);
+    Mask<int> MX(size_x, 1);
+    Mask<int> MY(1, size_y);
+    M = mask;
+    MX = mask_x;
+    MY = mask_y;
+
+    IterationSpace<short int> IsOut(OUT);
+    IterationSpace<short int> IsTmp(TMP);
 
     IN = host_in;
     OUT = host_out;
 
-    fprintf(stderr, "Calculating %s filter ...\n",
-            #ifdef SCHARR
-            "Scharr"
-            #else
-            "Sobel"
-            #endif
-    );
+    fprintf(stderr, "Calculating Sobel filter ...\n");
 
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
+#ifdef CONVOLUTION_MASK
+    // BOUNDARY_UNDEFINED
+    BoundaryCondition<unsigned char> BcInUndef(IN, size_x, 1, BOUNDARY_UNDEFINED);
+    Accessor<unsigned char> AccInUndef(BcInUndef);
+    SobelFilterMaskRow SFRU(IsTmp, AccInUndef, MX, size_x);
 
-        SF.execute();
+    BoundaryCondition<short int> BcTmpUndef(TMP, 1, size_y, BOUNDARY_UNDEFINED);
+    Accessor<short int> AccTmpUndef(BcTmpUndef);
+    SobelFilterMaskColumn SFCU(IsOut, AccTmpUndef, MY, size_y);
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
-    }
+    BoundaryCondition<unsigned char> BcInUndef2(IN, size_x, size_y, BOUNDARY_UNDEFINED);
+    Accessor<unsigned char> AccInUndef2(BcInUndef2);
+    SobelFilterMask SFU(IsOut, AccInUndef2, M, size_x);
+
+    #if 0
+    SFU.execute();
+    timing = hipaccGetLastKernelTiming();
+    #else
+    //SFRU.execute();
+    //timing = hipaccGetLastKernelTiming();
+    //SFCU.execute();
+    //timing += hipaccGetLastKernelTiming();
+    #endif
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // BOUNDARY_CLAMP
+    BoundaryCondition<unsigned char> BcInClamp(IN, size_x, 1, BOUNDARY_CLAMP);
+    Accessor<unsigned char> AccInClamp(BcInClamp);
+    SobelFilterMaskRow SFRC(IsTmp, AccInClamp, MX, size_x);
+
+    BoundaryCondition<short int> BcTmpClamp(TMP, 1, size_y, BOUNDARY_CLAMP);
+    Accessor<short int> AccTmpClamp(BcTmpClamp);
+    SobelFilterMaskColumn SFCC(IsOut, AccTmpClamp, MY, size_y);
+
+    BoundaryCondition<unsigned char> BcInClamp2(IN, size_x, size_y, BOUNDARY_CLAMP);
+    Accessor<unsigned char> AccInClamp2(BcInClamp2);
+    SobelFilterMask SFC(IsOut, AccInClamp2, M, size_x);
+
+    #if 0
+    SFC.execute();
+    timing = hipaccGetLastKernelTiming();
+    #else
+    SFRC.execute();
+    timing = hipaccGetLastKernelTiming();
+    SFCC.execute();
+    timing += hipaccGetLastKernelTiming();
+    #endif
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // BOUNDARY_REPEAT
+    BoundaryCondition<unsigned char> BcInRepeat(IN, size_x, 1, BOUNDARY_REPEAT);
+    Accessor<unsigned char> AccInRepeat(BcInRepeat);
+    SobelFilterMaskRow SFRR(IsTmp, AccInRepeat, MX, size_x);
+
+    BoundaryCondition<short int> BcTmpRepeat(TMP, 1, size_y, BOUNDARY_REPEAT);
+    Accessor<short int> AccTmpRepeat(BcTmpRepeat);
+    SobelFilterMaskColumn SFCR(IsOut, AccTmpRepeat, MY, size_y);
+
+    BoundaryCondition<unsigned char> BcInRepeat2(IN, size_x, size_y, BOUNDARY_REPEAT);
+    Accessor<unsigned char> AccInRepeat2(BcInRepeat2);
+    SobelFilterMask SFR(IsOut, AccInRepeat2, M, size_x);
+
+    #if 0
+    SFR.execute();
+    timing = hipaccGetLastKernelTiming();
+    #else
+    SFRR.execute();
+    timing = hipaccGetLastKernelTiming();
+    SFCR.execute();
+    timing += hipaccGetLastKernelTiming();
+    #endif
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // BOUNDARY_MIRROR
+    BoundaryCondition<unsigned char> BcInMirror(IN, size_x, 1, BOUNDARY_MIRROR);
+    Accessor<unsigned char> AccInMirror(BcInMirror);
+    SobelFilterMaskRow SFRM(IsTmp, AccInMirror, MX, size_x);
+
+    BoundaryCondition<short int> BcTmpMirror(TMP, 1, size_y, BOUNDARY_MIRROR);
+    Accessor<short int> AccTmpMirror(BcTmpMirror);
+    SobelFilterMaskColumn SFCM(IsOut, AccTmpMirror, MY, size_y);
+
+    BoundaryCondition<unsigned char> BcInMirror2(IN, size_x, size_y, BOUNDARY_MIRROR);
+    Accessor<unsigned char> AccInMirror2(BcInMirror2);
+    SobelFilterMask SFM(IsOut, AccInMirror2, M, size_x);
+
+    #if 0
+    SFM.execute();
+    timing = hipaccGetLastKernelTiming();
+    #else
+    SFRM.execute();
+    timing = hipaccGetLastKernelTiming();
+    SFCM.execute();
+    timing += hipaccGetLastKernelTiming();
+    #endif
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // BOUNDARY_CONSTANT
+    BoundaryCondition<unsigned char> BcInConst(IN, size_x, 1, BOUNDARY_CONSTANT, '1');
+    Accessor<unsigned char> AccInConst(BcInConst);
+    SobelFilterMaskRow SFRConst(IsTmp, AccInConst, MX, size_x);
+
+    BoundaryCondition<short int> BcTmpConst(TMP, 1, size_y, BOUNDARY_CONSTANT, 1);
+    Accessor<short int> AccTmpConst(BcTmpConst);
+    SobelFilterMaskColumn SFCConst(IsOut, AccTmpConst, MY, size_y);
+
+    BoundaryCondition<unsigned char> BcInConst2(IN, size_x, size_y, BOUNDARY_CONSTANT, '1');
+    Accessor<unsigned char> AccInConst2(BcInConst2);
+    SobelFilterMask SFConst(IsOut, AccInConst2, M, size_x);
+
+    #if 0
+    SFConst.execute();
+    timing = hipaccGetLastKernelTiming();
+    #else
+    SFRConst.execute();
+    timing = hipaccGetLastKernelTiming();
+    SFCConst.execute();
+    timing += hipaccGetLastKernelTiming();
+    #endif
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+#endif
+
 
     // get results
     host_out = OUT.getData();
-
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
 
 
 
@@ -415,80 +513,92 @@ int main(int argc, const char **argv) {
     // kernel size: 4x4
     // offset 4x4 shiftet by 1 -> 2x2
     // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
-    fprintf(stderr, "\nCalculating OpenCV %s filter on the %s ...\n",
-            #ifdef SCHARR
-            "Scharr", 
-            #else
-            "Sobel", 
-            #endif
-            #ifdef CPU
-            "CPU"
-            #else
-            "GPU"
-            #endif
-    );
+#ifdef CPU
+    fprintf(stderr, "\nCalculating OpenCV Sobel filter on the CPU ...\n");
+#else
+    fprintf(stderr, "\nCalculating OpenCV Sobel filter on the GPU ...\n");
+#endif
+
 
     cv::Mat cv_data_in(height, width, CV_8UC1, host_in);
     cv::Mat cv_data_out(height, width, CV_16SC1, host_out);
+    int ddepth = CV_16S;
+    double scale = 1.0f;
+    double delta = 0.0f;
+
+    for (int brd_type=0; brd_type<5; brd_type++) {
 #ifdef CPU
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<3; nt++) {
-        time0 = time_ms();
+        if (brd_type==cv::BORDER_WRAP) {
+            // BORDER_WRAP is not supported on the CPU by OpenCV
+            timings.push_back(0.0f);
+            continue;
+        }
+        min_dt = DBL_MAX;
+        for (int nt=0; nt<10; nt++) {
+            time0 = time_ms();
 
-        #ifdef SCHARR
-        #ifdef YORDER
-        cv::Scharr(cv_data_in, cv_data_out, -1, 0, 1);
-        #else
-        cv::Scharr(cv_data_in, cv_data_out, -1, 1, 0);
-        #endif
-        #else
-        #ifdef YORDER
-        cv::Sobel(cv_data_in, cv_data_out, -1, 0, 1, size_y);
-        #else
-        cv::Sobel(cv_data_in, cv_data_out, -1, 1, 0, size_x);
-        #endif
-        #endif
+            #ifdef YORDER
+            cv::Sobel(cv_data_in, cv_data_out, ddepth, 0, 1, size_y, scale, delta, brd_type);
+            #else
+            cv::Sobel(cv_data_in, cv_data_out, ddepth, 1, 0, size_x, scale, delta, brd_type);
+            #endif
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
-    }
+            time1 = time_ms();
+            dt = time1 - time0;
+            if (dt < min_dt) min_dt = dt;
+        }
 #else
-    cv::gpu::GpuMat gpu_in, gpu_out;
-    gpu_in.upload(cv_data_in);
+        cv::gpu::GpuMat gpu_in, gpu_out;
+        gpu_in.upload(cv_data_in);
 
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
+        min_dt = DBL_MAX;
+        for (int nt=0; nt<10; nt++) {
+            time0 = time_ms();
 
-        #ifdef SCHARR
-        #ifdef YORDER
-        cv::gpu::Scharr(gpu_in, gpu_out, -1, 0, 1);
-        #else
-        cv::gpu::Scharr(gpu_in, gpu_out, -1, 1, 0);
-        #endif
-        #else
-        #ifdef YORDER
-        cv::gpu::Sobel(gpu_in, gpu_out, -1, 0, 1, size_y);
-        #else
-        cv::gpu::Sobel(gpu_in, gpu_out, -1, 1, 0, size_x);
-        #endif
-        #endif
+            #ifdef YORDER
+            cv::gpu::Sobel(gpu_in, gpu_out, -1, 0, 1, size_y, scale, brd_type);
+            #else
+            cv::gpu::Sobel(gpu_in, gpu_out, -1, 1, 0, size_x, scale, brd_type);
+            #endif
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+            time1 = time_ms();
+            dt = time1 - time0;
+            if (dt < min_dt) min_dt = dt;
+        }
+
+        gpu_out.download(cv_data_out);
+#endif
+
+        fprintf(stderr, "OpenCV(");
+        switch (brd_type) {
+            case IPL_BORDER_CONSTANT:
+                fprintf(stderr, "CONSTANT");
+                break;
+            case IPL_BORDER_REPLICATE:
+                fprintf(stderr, "CLAMP");
+                break;
+            case IPL_BORDER_REFLECT:
+                fprintf(stderr, "MIRROR");
+                break;
+            case IPL_BORDER_WRAP:
+                fprintf(stderr, "REPEAT");
+                break;
+            case IPL_BORDER_REFLECT_101:
+                fprintf(stderr, "MIRROR_101");
+                break;
+            default:
+                break;
+        }
+        timings.push_back(min_dt);
+        fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
     }
-
-    gpu_out.download(cv_data_out);
 #endif
 
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-size_x)*(height-size_y)/min_dt)/1000);
-#endif
-
+    // print statistics
+    for (unsigned int i=0; i<timings.size(); i++) {
+        fprintf(stderr, "\t%.3f", timings.data()[i]);
+    }
+    fprintf(stderr, "\n\n");
 
 
     fprintf(stderr, "\nCalculating reference ...\n");
@@ -497,29 +607,21 @@ int main(int argc, const char **argv) {
         time0 = time_ms();
 
         // calculate reference
-        #ifdef SCHARR
-        #ifdef YORDER
-        scharr_filter_y(reference_in, reference_out, width, height);
-        #else
-        scharr_filter_x(reference_in, reference_out, width, height);
-        #endif
-        #else
-        #ifdef YORDER
-        sobel_filter_y(reference_in, reference_out, size_y, width, height);
-        #else
-        sobel_filter_x(reference_in, reference_out, size_x, width, height);
-        #endif
-        #endif
+        //sobel_filter(reference_in, reference_out, mask, size_x, size_y, width, height);
+        sobel_filter_row(reference_in, reference_tmp, mask_x, size_x, width, height);
+        sobel_filter_column(reference_tmp, reference_out, mask_y, size_y, width, height);
 
         time1 = time_ms();
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
+    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
 
     fprintf(stderr, "\nComparing results ...\n");
 #ifdef OpenCV
+#ifndef CPU
+    fprintf(stderr, "\nWarning: OpenCV implementation on the GPU is currently broken (wrong results) ...\n");
+#endif
     int upper_y = height-size_y+offset_y;
     int upper_x = width-size_x+offset_x;
 #else
@@ -542,6 +644,7 @@ int main(int argc, const char **argv) {
     free(host_in);
     //free(host_out);
     free(reference_in);
+    free(reference_tmp);
     free(reference_out);
 
     return EXIT_SUCCESS;

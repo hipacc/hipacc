@@ -38,6 +38,7 @@
 //#define SIGMA_R 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
+//#define CONST_MASK
 #define SIGMA_D SIZE_X
 #define SIGMA_R SIZE_Y
 #define CONVOLUTION_MASK
@@ -182,55 +183,24 @@ int main(int argc, const char **argv) {
     const int height = HEIGHT;
     const int sigma_d = SIGMA_D;
     const int sigma_r = SIGMA_R;
+    float timing = 0.0f;
 
-    // host memory for image of of widthxheight pixels
+    // host memory for image of of width x height pixels
     float *host_in = (float *)malloc(sizeof(float)*width*height);
     float *host_out = (float *)malloc(sizeof(float)*width*height);
     float *reference_in = (float *)malloc(sizeof(float)*width*height);
     float *reference_out = (float *)malloc(sizeof(float)*width*height);
 
-    // input and output image of widthxheight pixels
-    Image<float> IN(width, height);
-    Image<float> OUT(width, height);
-
-    Accessor<float> AccIn(IN, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
-
-    // initialize data
-    #define DELTA 0.001f
-    for (int y=0; y<height; ++y) {
-        for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = (float) (x*height + y) * DELTA;
-            reference_in[y*width + x] = (float) (x*height + y) * DELTA;
-            host_out[y*width + x] = (float) (3.12451);
-            reference_out[y*width + x] = (float) (3.12451);
-        }
-    }
-
-#if 0
-    float gaussian_d[2*2*sigma_d+1][2*2*sigma_d+1];
-    float gaussian[2*2*sigma_d+1];
-    for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
-        gaussian[xf+2*sigma_d] = expf(-1/(2.0f*sigma_d*sigma_d)*(xf*xf));
-    }
-    for (int yf=-2*sigma_d; yf<=2*sigma_d; yf++) {
-        for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
-            gaussian_d[yf+2*sigma_d][xf+2*sigma_d] = gaussian[yf+2*sigma_d] * gaussian[xf+2*SIGMA_D];
-            fprintf(stderr, "%f, ", gaussian_d[yf+2*sigma_d][xf+2*sigma_d]);
-        }
-        fprintf(stderr, "\n");
-    }
-#endif
-#if SIGMA_D==1
+#ifdef CONST_MASK
     const float mask[] = {
+        #if SIGMA_D==1
         0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f, 
         0.082085f, 0.367879f, 0.606531f, 0.367879f, 0.082085f, 
         0.135335f, 0.606531f, 1.000000f, 0.606531f, 0.135335f, 
         0.082085f, 0.367879f, 0.606531f, 0.367879f, 0.082085f, 
         0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f, 
-    };
-#endif
-#if SIGMA_D==3
-    const float mask[] = {
+        #endif
+        #if SIGMA_D==3
         0.018316, 0.033746, 0.055638, 0.082085, 0.108368, 0.128022, 0.135335, 0.128022, 0.108368, 0.082085, 0.055638, 0.033746, 0.018316, 
         0.033746, 0.062177, 0.102512, 0.151240, 0.199666, 0.235877, 0.249352, 0.235877, 0.199666, 0.151240, 0.102512, 0.062177, 0.033746, 
         0.055638, 0.102512, 0.169013, 0.249352, 0.329193, 0.388896, 0.411112, 0.388896, 0.329193, 0.249352, 0.169013, 0.102512, 0.055638, 
@@ -244,40 +214,64 @@ int main(int argc, const char **argv) {
         0.055638, 0.102512, 0.169013, 0.249352, 0.329193, 0.388896, 0.411112, 0.388896, 0.329193, 0.249352, 0.169013, 0.102512, 0.055638, 
         0.033746, 0.062177, 0.102512, 0.151240, 0.199666, 0.235877, 0.249352, 0.235877, 0.199666, 0.151240, 0.102512, 0.062177, 0.033746, 
         0.018316, 0.033746, 0.055638, 0.082085, 0.108368, 0.128022, 0.135335, 0.128022, 0.108368, 0.082085, 0.055638, 0.033746, 0.018316, 
+        #endif
     };
+#else
+    float mask[(2*2*sigma_d+1)*(2*2*sigma_d+1)];
+    float mask_tmp[2*2*sigma_d+1];
+    for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
+        mask_tmp[xf+2*sigma_d] = expf(-1/(2.0f*sigma_d*sigma_d)*(xf*xf));
+    }
+    for (int yf=-2*sigma_d; yf<=2*sigma_d; yf++) {
+        for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
+            mask[(yf+2*sigma_d)*(2*2*sigma_d+1) + xf+2*sigma_d] = mask_tmp[yf+2*sigma_d] * mask_tmp[xf+2*SIGMA_D];
+            fprintf(stderr, "%f, ", mask[(yf+2*sigma_d)*(2*2*sigma_d+1) + xf+2*sigma_d]);
+        }
+        fprintf(stderr, "\n");
+    }
 #endif
-
-    IterationSpace<float> BIS(OUT, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
-
-#ifdef CONVOLUTION_MASK
     Mask<float> M(4*sigma_d+1, 4*sigma_d+1);
     M = mask;
+
+    // input and output image of width x height pixels
+    Image<float> IN(width, height);
+    Image<float> OUT(width, height);
+
+    // iteration space
+    IterationSpace<float> BIS(OUT, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
+
+    // initialize data
+    #define DELTA 0.001f
+    for (int y=0; y<height; ++y) {
+        for (int x=0; x<width; ++x) {
+            host_in[y*width + x] = (float) (x*height + y) * DELTA;
+            reference_in[y*width + x] = (float) (x*height + y) * DELTA;
+            host_out[y*width + x] = (float) (3.12451);
+            reference_out[y*width + x] = (float) (-3.12451);
+        }
+    }
+
+    IN = host_in;
+    OUT = host_out;
+
+    fprintf(stderr, "Calculating bilateral filter ...\n");
+
+    // Image without border
+    Accessor<float> AccIn(IN, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
+#ifdef CONVOLUTION_MASK
     BilateralFilterMask BF(BIS, AccIn, M, sigma_d, sigma_r);
 #else
     BilateralFilter BF(BIS, AccIn, sigma_d, sigma_r);
 #endif
 
-    IN = host_in;
-    OUT = host_out;
-
-    // warmup
-    BF.execute();
-
-    fprintf(stderr, "Calculating bilateral filter ...\n");
-    time0 = time_ms();
 
     BF.execute();
+    timing = hipaccGetLastKernelTiming();
 
-    time1 = time_ms();
-    dt = time1 - time0;
+    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-4*sigma_d)*(height-4*sigma_d)/timing)/1000);
 
     // get results
     host_out = OUT.getData();
-
-    // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
-    // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", dt,
-            ((width-4*sigma_d)*(height-4*sigma_d)/dt)/1000);
 
 
     fprintf(stderr, "\nCalculating reference ...\n");
@@ -288,8 +282,7 @@ int main(int argc, const char **argv) {
 
     time1 = time_ms();
     dt = time1 - time0;
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt,
-            ((width-4*sigma_d)*(height-4*sigma_d)/dt)/1000);
+    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, ((width-4*sigma_d)*(height-4*sigma_d)/dt)/1000);
 
     fprintf(stderr, "\nComparing results ...\n");
     // compare results
