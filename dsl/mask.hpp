@@ -86,54 +86,56 @@ class MaskBase {
 
 template<typename data_t>
 class Mask : public MaskBase {
-    #ifndef NO_BOOST
-    typedef boost::multi_array<data_t, 2> Array2D;
-    #endif
-
     private:
-        #ifndef NO_BOOST
-        Array2D array;
-        #else
+        #ifdef NO_BOOST
         data_t *array;
+        #else
+        typedef boost::multi_array<data_t, 2> Array2D;
+        Array2D array;
         #endif
 
     public:
         Mask(int size_x, int size_y) :
             MaskBase(size_x, size_y),
-            #ifndef NO_BOOST
-            array(boost::extents[size_y][size_x])
-            #else
+            #ifdef NO_BOOST
             array((data_t *)malloc(sizeof(data_t)*size_x*size_y))
+            #else
+            array(boost::extents[size_y][size_x])
             #endif
         {
             assert(size_x>0 && size_y>0 && "size for Mask must be positive!");
         }
 
-        ~Mask() {}
+        ~Mask() {
+            #ifdef NO_BOOST
+            free(array);
+            #else
+            #endif
+        }
 
         data_t &operator()(void) {
             assert(EI && "ElementIterator for Mask not set!");
-            #ifndef NO_BOOST
-            return array[EI->getY()-offset_y][EI->getX()-offset_x];
-            #else
+            #ifdef NO_BOOST
             return array[(EI->getY()-offset_y)*size_x + EI->getX()-offset_x];
+            #else
+            return array[EI->getY()-offset_y][EI->getX()-offset_x];
             #endif
         }
         data_t &operator()(const int xf, const int yf) {
-            #ifndef NO_BOOST
-            return array[yf-offset_y][xf-offset_x];
-            #else
+            #ifdef NO_BOOST
             return array[(yf-offset_y)*size_x + xf-offset_x];
+            #else
+            return array[yf-offset_y][xf-offset_x];
             #endif
         }
 
         Mask &operator=(const data_t *other) {
             for (int y=0; y<size_y; ++y) {
                 for (int x=0; x<size_x; ++x) {
-                    #ifndef NO_BOOST
-                    array[y][x] = other[y*size_x + x];
-                    #else
+                    #ifdef NO_BOOST
                     array[y*size_x + x] = other[y*size_x + x];
+                    #else
+                    array[y][x] = other[y*size_x + x];
                     #endif
                 }
             }

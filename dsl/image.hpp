@@ -50,19 +50,19 @@ class Image {
     private:
         const int width;
         const int height;
-        #ifndef NO_BOOST
+        #ifdef NO_BOOST
+        data_t *array;
+        #else
         typedef boost::multi_array<data_t, 2> Array2D;
         Array2D array;
-        #else
-        data_t *array;
         #endif
 
-        #ifndef NO_BOOST
-        data_t &getPixel(int x, int y) { return array[y][x]; }
-        void setPixel(int x, int y, data_t val) { array[y][x] = val; }
-        #else
+        #ifdef NO_BOOST
         data_t &getPixel(int x, int y) { return array[y*width + x]; }
         void setPixel(int x, int y, data_t val) { array[y*width + x] = val; }
+        #else
+        data_t &getPixel(int x, int y) { return array[y][x]; }
+        void setPixel(int x, int y, data_t val) { array[y][x] = val; }
         #endif
 
 
@@ -70,31 +70,36 @@ class Image {
         Image(int width, int height) :
             width(width),
             height(height),
-            #ifndef NO_BOOST
-            array(boost::extents[height][width])
-            #else
+            #ifdef NO_BOOST
             array((data_t *)malloc(sizeof(data_t)*width*height))
+            #else
+            array(boost::extents[height][width])
             #endif
         {}
 
-        ~Image() {}
+        ~Image() {
+            #ifdef NO_BOOST
+            //free(array);
+            #else
+            #endif
+        }
 
         int getWidth() const { return width; }
         int getHeight() const { return height; }
 
-        #ifndef NO_BOOST
-        data_t *getData() { return array.data(); }
-        #else
+        #ifdef NO_BOOST
         data_t *getData() { return array; }
+        #else
+        data_t *getData() { return array.data(); }
         #endif
 
         Image &operator=(data_t *other) {
             for (int y=0; y<height; ++y) {
                 for (int x=0; x<width; ++x) {
-                    #ifndef NO_BOOST
-                    array[y][x] = other[y*width + x];
-                    #else
+                    #ifdef NO_BOOST
                     array[y*width + x] = other[y*width + x];
+                    #else
+                    array[y][x] = other[y*width + x];
                     #endif
                 }
             }
@@ -245,8 +250,8 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
         // x and y refer to the area defined by the Accessor
         data_t &getPixelFromImg(int x, int y) {
             assert(EI && "ElementIterator not set!");
-            return img.getPixel(x - EI->getOffsetX() + offset_x,
-                    y - EI->getOffsetY() + offset_y);
+            return img.getPixel(x + offset_x,
+                    y + offset_y);
         }
 
         data_t &getPixelBH(int x, int y) {
@@ -335,12 +340,12 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
 
         int getX(void) {
             assert(EI && "ElementIterator not set!");
-            return EI->getX() - EI->getOffsetX() + offset_x;
+            return EI->getX() - EI->getOffsetX();
         }
 
         int getY(void) {
             assert(EI && "ElementIterator not set!");
-            return EI->getY() - EI->getOffsetY() + offset_y;
+            return EI->getY() - EI->getOffsetY();
         }
 
     template<typename> friend class Kernel;
@@ -400,6 +405,18 @@ class AccessorNN : public Accessor<data_t> {
                 xf=0, int yf=0) :
             Accessor<data_t>(BC, width, height, xf, yf)
         {}
+
+        int getX(void) {
+            assert(EI && "ElementIterator not set!");
+            return (EI->getX() - EI->getOffsetX()) *
+                width/(float)EI->getWidth();
+        }
+
+        int getY(void) {
+            assert(EI && "ElementIterator not set!");
+            return EI->getY() - EI->getOffsetY() *
+                height/(float)EI->getHeight();
+        }
 };
 
 
@@ -477,6 +494,18 @@ class AccessorLF : public Accessor<data_t> {
             interpol_init(0),
             interpol_val(interpol_init)
         {}
+
+        int getX(void) {
+            assert(EI && "ElementIterator not set!");
+            return (EI->getX() - EI->getOffsetX()) *
+                width/(float)EI->getWidth();
+        }
+
+        int getY(void) {
+            assert(EI && "ElementIterator not set!");
+            return EI->getY() - EI->getOffsetY() *
+                height/(float)EI->getHeight();
+        }
 };
 
 
@@ -620,6 +649,18 @@ class AccessorCF : public Accessor<data_t> {
             interpol_init(0),
             interpol_val(interpol_init)
         {}
+
+        int getX(void) {
+            assert(EI && "ElementIterator not set!");
+            return (EI->getX() - EI->getOffsetX()) *
+                width/(float)EI->getWidth();
+        }
+
+        int getY(void) {
+            assert(EI && "ElementIterator not set!");
+            return EI->getY() - EI->getOffsetY() *
+                height/(float)EI->getHeight();
+        }
 };
 
 
@@ -754,6 +795,18 @@ class AccessorL3 : public Accessor<data_t> {
             interpol_init(0),
             interpol_val(interpol_init)
         {}
+
+        int getX(void) {
+            assert(EI && "ElementIterator not set!");
+            return (EI->getX() - EI->getOffsetX()) *
+                width/(float)EI->getWidth();
+        }
+
+        int getY(void) {
+            assert(EI && "ElementIterator not set!");
+            return EI->getY() - EI->getOffsetY() *
+                height/(float)EI->getHeight();
+        }
 };
 } // end namespace hipacc
 
