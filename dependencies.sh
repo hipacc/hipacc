@@ -1,7 +1,7 @@
-clang_revision=ea7eb071166c69e11bfda4f1d89d5c2b6bbcdca3
-llvm_revision=a8c4d739f2e763ae6dea7661a3af8393eeebd8ba
-libcxx_revision=820e00755aa68e10badd62c78ab6defec5b3c64d
-polly_revision=3b713b8c59d281f63b6c51e751dcb01098f4795e
+clang_revision=becfc2325c9b645d2208b2a5389b709fd3d75576
+llvm_revision=ac915b48d8ba73a5d734be5c4a0e1d25cea93252
+libcxx_revision=c42530723824fa58b3e49e9dcd0fd794d5f85712
+polly_revision=efc9d32668da56a2bb08f0613d1895281e69c1ea
 
 clang_repository=http://llvm.org/git/clang.git
 llvm_repository=http://llvm.org/git/llvm.git
