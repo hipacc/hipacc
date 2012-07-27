@@ -32,6 +32,7 @@
 #include <glob.h>
 #include <stdio.h>
 #include <unistd.h>
+
 #include "hipacc_ocl.hpp"
 
 void usage(char **argv) {
@@ -110,7 +111,11 @@ int main(int argc, char *argv[]) {
         // SQ_PGM_RESOURCES:NUM_GPRS = 25
         // SQ_PGM_RESOURCES:STACK_SIZE = 5
         // SQ_LDS_ALLOC:SIZE = 0x00000000
+        #ifdef CL_VERSION_1_2
+        std::string kernel_glob_command = "ls *_" + kernel_name + ".isa";
+        #else
         std::string kernel_glob_command = "ls " + kernel_name + "_*.isa";
+        #endif
 
         char glob_line[FILENAME_MAX];
         std::string kernel_file_name;

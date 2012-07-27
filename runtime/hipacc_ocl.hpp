@@ -108,6 +108,18 @@ const char *getOpenCLErrorCodeStr(int errorCode) {
         case CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST:
             return "CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST";
         #endif
+        #ifdef CL_VERSION_1_2
+        case CL_COMPILE_PROGRAM_FAILURE:
+            return "CL_COMPILE_PROGRAM_FAILURE";
+        case CL_LINKER_NOT_AVAILABLE:
+            return "CL_LINKER_NOT_AVAILABLE";
+        case CL_LINK_PROGRAM_FAILURE:
+            return "CL_LINK_PROGRAM_FAILURE";
+        case CL_DEVICE_PARTITION_FAILED:
+            return "CL_DEVICE_PARTITION_FAILED";
+        case CL_KERNEL_ARG_INFO_NOT_AVAILABLE:
+            return "CL_KERNEL_ARG_INFO_NOT_AVAILABLE";
+        #endif
         case CL_INVALID_VALUE:
             return "CL_INVALID_VALUE";
         case CL_INVALID_DEVICE_TYPE:
@@ -179,6 +191,16 @@ const char *getOpenCLErrorCodeStr(int errorCode) {
         #ifdef CL_VERSION_1_1
         case CL_INVALID_PROPERTY:
             return "CL_INVALID_PROPERTY";
+        #endif
+        #ifdef CL_VERSION_1_2
+        case CL_INVALID_IMAGE_DESCRIPTOR:
+            return "CL_INVALID_IMAGE_DESCRIPTOR";
+        case CL_INVALID_COMPILER_OPTIONS:
+            return "CL_INVALID_COMPILER_OPTIONS";
+        case CL_INVALID_LINKER_OPTIONS:
+            return "CL_INVALID_LINKER_OPTIONS";
+        case CL_INVALID_DEVICE_PARTITION_COUNT:
+            return "CL_INVALID_DEVICE_PARTITION_COUNT";
         #endif
         default:
             return "unknown error code";
@@ -289,9 +311,11 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
 
     // Set environment variable to tell AMD/ATI platform to dump kernel
     // this has to be done before platform initialization
+    #ifndef CL_VERSION_1_2
     if (platform_name & AMD) {
         setenv("GPU_DUMP_DEVICE_KERNEL", "3", 1);
     }
+    #endif
     if (platform_name & NVIDIA) {
         setenv("CUDA_CACHE_DISABLE", "1", 1);
     }
@@ -492,6 +516,9 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
         switch (platform_name) {
             case AMD:
                 options += "-cl-single-precision-constant -cl-denorms-are-zero";
+                #ifdef CL_VERSION_1_2
+                options += " -save-temps";
+                #endif
                 break;
             case APPLE:
                 options += "-cl-single-precision-constant -cl-denorms-are-zero";
@@ -606,8 +633,23 @@ cl_mem hipaccCreateImage(T *host_mem, int width, int height, int *stride, cl_cha
         flags |= CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR;
     }
     *stride = width;
+    #ifdef CL_VERSION_1_2
+    cl_image_desc image_desc;
+    memset(&image_desc, '\0', sizeof(cl_image_desc));
+
+    // CL_MEM_OBJECT_IMAGE1D
+    // CL_MEM_OBJECT_IMAGE1D_BUFFER
+    // CL_MEM_OBJECT_IMAGE2D
+    image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
+    image_desc.image_width = width;
+    image_desc.image_height = height;
+
+    image = clCreateImage(Ctx.get_contexts()[0], flags, &image_format, &image_desc, host_mem, &err);
+    checkErr(err, "clCreateImage()");
+    #else
     image = clCreateImage2D(Ctx.get_contexts()[0], flags, &image_format, width, height, 0, host_mem, &err);
     checkErr(err, "clCreateImage2D()");
+    #endif
 
     HipaccContext::cl_dims dim = { width, height, *stride, 0, sizeof(T) };
     Ctx.add_memory(image, dim);
