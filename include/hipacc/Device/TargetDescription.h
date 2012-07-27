@@ -162,7 +162,7 @@ class HipaccDeviceOptions {
 
       if (options.vectorizeKernels(USER_ON)) {
         vectorization = true;
-      } else if (options.vectorizeKernels(USER_OFF)) {
+      } else if (options.vectorizeKernels((CompilerOption)(USER_OFF | OFF))) {
         vectorization = false;
       }
     }
