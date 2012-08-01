@@ -1,0 +1,120 @@
+\section{Domain Specific Language}
+The \ac{DSL} can be separated into two parts: a) host code that describes the binding to standard C/C++ code and b) device code that describes the calculation on the graphics card.
+
+
+\subsection{Built-in C++ Classes}\label{sec:framework_classes}
+The library consists of built-in C++ classes that describe the following three basic components required to express image processing on an abstract level:
+\begin{itemize}
+    \item {\em Image}:
+    Describes data storage for the image pixels. Each pixel can be stored as an
+    integer number, a floating point number, or in another format depending on
+    instantiation of this templated class. The data layout is handled internally
+    using multi-dimensional arrays. Syntax:\\
+\begin{code}
+Image<type>(width, height);
+\end{code}
+
+    \item {\em Iteration Space}:
+    Describes a rectangular region of interest in the output image, for example
+    the complete image. Each pixel in this region is a point in the iteration
+    space. Syntax:\\
+\begin{code}
+IterationSpace<type>(Image, width, height, offset_x, offset_y);
+\end{code}
+    width, height, offset\_x and offset\_y are optional.
+
+    \item {\em Kernel}:
+    Describes an algorithm to be applied to each pixel in the {\em Iteration
+    Space}. Syntax:\\
+\begin{code}
+Kernel(IterationSpace, <parameters>);
+\end{code}
+    The parameters are defined in the kernel class itself by the user.
+
+    \item {\em Mask}:
+    Stores the coefficients that can be used by convolution kernels. Syntax:
+\begin{code}
+Mask<type>(size_x, size_y);
+\end{code}
+
+    \item {\em BoundaryCondition}:
+    Describes how the pixels of an {\em Accessor} are accessed when pixels are
+    accessed out-of-bounds. The following boundary handling modes are supported:
+    \begin{itemize}
+        \item {\tt BOUNDARY\_UNDEFINED}: No border handling specified $\rightarrow$ no border handling will be added by the compiler.
+        \item {\tt BOUNDARY\_CLAMP}: The x/y addresses will be set to the last valid value within the image.
+        \item {\tt BOUNDARY\_REPEAT}: Accesses outside to the image are handled as if the image is repeated in each direction.
+        \item {\tt BOUNDARY\_MIRROR}: Accesses outside to the image are handled as if the image is mirrored at the border.
+        \item {\tt BOUNDARY\_CONSTANT}: Accesses outside to the image return a constant value.
+    \end{itemize}
+    Syntax:
+\begin{code}
+BoundaryCondition<type>(Image, size_x, size_y, boundary_handling_mode, constant_value);
+\end{code}
+    size\_x and size\_y define the domain where boundary handling is necessary
+    (e.\,g., within a $5\times5$ convolution filter); boundary\_handling\_mode
+    is one of the aforementioned constants. In case {\tt BOUNDARY\_CONSTANT} is
+    used, the optional constant\_value has to be specified.
+
+    \item {\em Accessor}:
+    Describes which pixels of an {\em Image} are {\em seen} within the {\em
+    Kernel}. Similar to an {\em Iteration Space}, the Accessor defines an {\em
+    Iteration Space} on an input image. Syntax:\\
+\begin{code}
+Accessor<type>(Image, width, height, offset_x, offset_y);
+\end{code}
+    width, height, offset\_x and offset\_y are optional.\\
+
+    In order to avoid out-of-bounds memory accesses, also a {\em
+    BoundaryCondition} object can be specified instead of an {\em Image}.
+    Syntax:\\
+\begin{code}
+Accessor<type>(BoundaryCondition, width, height, offset_x, offset_y);
+\end{code}
+    width, height, offset\_x and offset\_y are optional.\\
+
+    In case the {\em Iteration Space} (defined for the output image) does not
+    match the region of interest defined by the {\em Accessor} (defined for an
+    input image), interpolation is required. Therefore, \ac{HIPAcc} provides
+    {\em Accessors} implementing different interpolation modes. Supported are
+    nearest neighbor, linear filtering, bicubic filtering, and Lanczos
+    filtering. Syntax:\\
+\begin{code}
+AccessorNN<type>(Image, width, height, offset_x, offset_y);
+AccessorLF<type>(Image, width, height, offset_x, offset_y);
+AccessorBF<type>(Image, width, height, offset_x, offset_y);
+AccessorL3<type>(Image, width, height, offset_x, offset_y);
+\end{code}
+
+    Interpolation can be also combined with border handling. Syntax:\\
+\begin{code}
+AccessorNN<type>(BoundaryCondition, width, height, offset_x, offset_y);
+\end{code}
+\end{itemize}
+
+
+\subsection{Example: Gaussian Filter}\label{sec:gaussian_filter}
+In the following, the \ac{HIPAcc} framework is illustrated using a Gaussian filter, smoothing an image. By doing so, the Gaussian filter reduces image noise and detail. This filter is a local operator that is applied to a neighborhood ($\sigma$) of each pixel to produce a smoothed image (see Equation~\ifhtml{(1)}{\eqref{eq:01}}). The filter mask of the Gaussian filter as described in Equation~\ifhtml{(2)}{\eqref{eq:02}} depends only on the size of the considered neighborhood ($\sigma$) and is otherwise constant for the image. Therefore, the filter mask is typically precalculated and stored in a lookup table to avoid redundant calculations for each image pixel.
+{\small
+\begin{align}
+    I_{Out}(x,y) = \sum_{ox=-\sigma}^{+\sigma} \sum_{oy=-\sigma}^{+\sigma} &G((x,y),(x+ox,y+oy)) *\nonumber\\
+                                                                       &I_{In}(x+ox,y+oy) \label{eq:01} \\[2ex]
+    G((x,y),(x^\prime,y^\prime)) = &\frac{1}{2\pi \sigma^2} e^{-\frac{\|(x,y) - (x^\prime,y^\prime)\|}{2 \sigma^2}} \label{eq:02}
+\end{align}}
+
+\paragraph{Device Code:}
+To express this filter in our framework, the programmer derives a class from the built-in {\em Kernel} class and implements the virtual {\em kernel} function, as shown in Listing~\ifhtml{1}{\ref{lst:gauss0}}. To access the pixels of an input image, the parenthesis operator {\tt ()} is used, taking the column ({\tt dx}) and row ({\tt dy}) offsets as optional parameters. Similarly, coefficients of a filter {\em Mask} are accessed using the parenthesis operator {\tt ()}, specifying the desired column ({\tt x}) and row ({\tt y}) index. The output image as specified by the {\em Iteration Space} is accessed using the {\tt output()} method provided by the built-in {\em Kernel} class. The user instantiates the class with input image accessors, one iteration space, and other parameters that are member variables of the class.
+\includecodefile{code_snippets/gauss0.cpp}{Gaussian filter, calculating the Gaussian mask for each pixel.}{lst:gauss0}{1}
+
+While in Listing~\ifhtml{1}{\ref{lst:gauss0}}, the Gaussian filter mask was calculated for each pixel (according to Equation~\ifhtml{(2)}{\eqref{eq:02}}), the Gaussian filter mask can be precalculated and stored to a \verb|Mask|. This is shown in Listing~\ifhtml{2}{\ref{lst:gauss1}} where the mask coefficient is retrieved from a \verb|Mask| object.
+
+\includecodefile{code_snippets/gauss1.cpp}{Gaussian filter, using a precalculated the Gaussian mask.}{lst:gauss1}{2}
+
+As an alternative, the convolution can be expressed using the \verb|convolve| method, taking three parameters: a) the mask itself, b) the reduction operator for each element, and c) the calculation instruction for one element of the mask with pixels of the image. This is shown in Listing~\ifhtml{3}{\ref{lst:gauss2}}.
+
+\includecodefile{code_snippets/gauss2.cpp}{Gaussian filter, using the convolve function.}{lst:gauss2}{3}
+
+\paragraph{Host Code:}
+In Listing~\ifhtml{4}{\ref{lst:gauss_host_code}}, the input and output {\em Image} objects {\tt IN} and {\tt OUT} are defined as two-dimensional $W \times H$ grayscale images, having pixels represented as floating-point numbers (lines 10--11). The {\em Image} object {\tt IN} is initialized with the {\tt host\_in} pointer to a plain C array (line 14). The Gaussian filter {\em Mask} object {\tt GMask} is defined (line 17) and is initialized (line 18) for the filter size. Because of accessing neighboring pixels in the Gaussian filter, border handling is required. In line 21, a {\em Boundary Condition} object specifying mirroring as boundary mode for the filter size is defined. The region of interest {\tt IsOut} contains the whole image (line 24) and the {\em Accessor} {\tt AccIn} is defined on the input image taking the boundary condition into account (line 27). The kernel is initialized with the iteration space, accessor, and filter mask objects as well as filter size parameters $size\_x$ and $size\_y$ (line 30), and executed by a call to the {\tt execute()} method (line 33). To retrieve the output image, the {\tt host\_out} pointer is assigned the {\em Image} object {\tt OUT}, invoking the {\tt getData()} operator (line 36).
+\includecodefile{code_snippets/gauss_host.cpp}{Host code, instantiating and executing the Gaussian filter.}{lst:gauss_host_code}{4}
+

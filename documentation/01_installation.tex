@@ -1,0 +1,87 @@
+\section{Installation}
+To install the \ac{HIPAcc} framework, which features a Clang-based source-to-source
+compiler, a version of Clang is required that was tested with \ac{HIPAcc}.
+Therefore, the file {\tt dependencies.sh} lists the revision of Clang (and other
+dependencies) the current version of \ac{HIPAcc} works with. In addition to Clang,
+also LLVM and libcxx are required. Using Polly is optional.
+
+
+\subsection{Dependencies}
+\begin{itemize}
+    \item \href{http://clang.llvm.org}{Clang: a C language family
+    frontend for LLVM}
+    \item \href{http://llvm.org}{LLVM compiler infrastructure}
+    \item \href{http://libcxx.llvm.org}{libc++: C++ standard library}
+    \item \href{http://polly.llvm.org}{Polly: polyhedral optimizations for LLVM} (optional)
+    %\item \href{http://www.cloog.org}{CLooG: the chunky loop generator} (optional)
+\end{itemize}
+
+Installation of dependencies:
+%\lstset{language=bash}
+\begin{lstlisting}
+cd <source_dir>
+git clone http://llvm.org/git/llvm.git
+cd llvm && git checkout <llvm_revision>
+cd <source_dir>
+git clone http://llvm.org/git/libcxx.git
+cd libcxx && git checkout <libcxx_revision>
+cd <source_dir>/llvm/tools
+git clone http://llvm.org/git/clang.git
+cd clang && git checkout <clang_revision>
+// optional: installation of polly
+cd <source_dir>/llvm/tools
+git clone http://llvm.org/git/polly.git
+cd polly && git checkout <polly_revision>
+\end{lstlisting}
+Configure and install the software packages using {\tt ./configure} and {\tt
+make install}.\\
+Note: On GNU/Linux systems, libc++ has to be built using clang/clang++. The
+easiest way to do this is to use CMake and to specify the compilers at the command
+line: \verb|CXX=clang++ CC=clang cmake ../ -DCMAKE_INSTALL_PREFIX=/opt/local| \\
+Note: On Mac OS 10.6, {\tt cxxabi.h} from
+\href{http://home.roadrunner.com/~hinnant/libcppabi.zip}{http://home.roadrunner.com/~hinnant/libcppabi.zip}
+is required to build libc++ successfully.
+
+
+\subsection{\ac{HIPAcc} Installation}
+Next, you have to download \ac{HIPAcc} from
+\href{http://hipacc.sourceforege.net}{http://hipacc.sourceforege.net}.
+\ac{HIPAcc} can be downloaded either as versioned tarball, or the latest version
+can be retrieved using git. Download the latest release (currently, the tarball
+hipacc-0.4.1.tar.gz) or get the latest sources using git:\\
+{\tt git clone git://git.code.sf.net/p/hipacc/code hipacc}
+
+To build and install the \ac{HIPAcc} framework, CMake is used. In the main
+directory, the file INSTALL contains required instructions:
+
+To configure the project, call cmake in the root directory. A working
+installation of Clang/LLVM (and Polly) is required. The llvm-config tool will be
+used to determine configuration for \ac{HIPAcc} and must be present in the
+environment.
+
+The following variables can be set to tell cmake where to look for certain components:
+\begin{itemize}
+    \item CMAKE\_INSTALL\_PREFIX: Installation prefix
+    \item OPENCL\_INC\_PATH: OpenCL include path\\(e.g., -D OPENCL\_INC\_PATH=/opt/cuda/include)
+    \item OPENCL\_LIB\_PATH: OpenCL library path\\(e.g., -D OPENCL\_LIB\_PATH=/usr/lib64/nvidia)
+    \item CUDA\_BIN\_PATH:      CUDA binary path\\(e.g., -D CUDA\_BIN\_PATH=/opt/cuda/bin)
+\end{itemize}
+
+The following options can be enabled or disabled:
+\begin{itemize}
+    \item USE\_POLLY: Use Polly for kernel analysis (e.g., -D USE\_POLLY=ON)
+    \item USE\_JIT\_ESTIMATE: Use just-in-time compilation of generated kernels
+    in order to get resource estimates - option only available for GNU/Linux
+    systems
+\end{itemize}
+
+A possible configuration may look like in the following:
+%\lstset{language=bash}
+\begin{lstlisting}
+cd <hipacc_root>
+mkdir build && cd build
+mkdir release
+cmake ../ -DCMAKE_INSTALL_PREFIX=./release
+make && make install
+\end{lstlisting}
+
