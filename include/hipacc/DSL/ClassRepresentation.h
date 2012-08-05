@@ -506,6 +506,13 @@ class HipaccKernelFeatures : public HipaccDevice {
       Local     = 0x8
     };
 
+    enum TextureType {
+      NoTexture = 0x0,
+      Linear1D  = 0x1,
+      Linear2D  = 0x2,
+      Array2D   = 0x4
+    };
+
     CompilerOptions &options;
     HipaccKernelClass *KC;
     std::map<HipaccAccessor *, MemoryType> memMap;
@@ -567,12 +574,12 @@ class HipaccKernelFeatures : public HipaccDevice {
       return false;
     }
 
-    bool useTextureMemory(HipaccAccessor *acc) {
+    TextureType useTextureMemory(HipaccAccessor *acc) {
       if (memMap.count(acc)) {
-        if (memMap[acc] & Texture) return true;
+        if (memMap[acc] & Texture) return Linear1D;
       }
 
-      return false;
+      return NoTexture;
     }
 
     bool propagateConstants() {

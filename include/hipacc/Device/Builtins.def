@@ -335,8 +335,10 @@ OPENCLBUILTIN(write_imageui,        "vv*V2iV4Ui",   write_imageui)
 // We fake the texture functions, e.g. instead of using
 // template<class T, int texType, enum cudaTextureReadMode mode> struct texture
 // T tex1Dfetch(texture<T, cudaTextureType1D, cudaReadModeElementType> t, int x)
+// T tex2D(texture<T, cudaTextureType2D, cudaReadModeElementType> t, int x, int y)
 // Use the following definitions:
 // T tex1Dfetch(T *tex, int x)
+// T tex2D(T *tex, int x, int y)
 // This is possible since we use textures only for pretty-printing at the
 // moment.
 CUDABUILTIN(tex1Dfetch,             "ScSc*i",       tex1DfetchSc)
@@ -346,6 +348,13 @@ CUDABUILTIN(tex1Dfetch,             "UsUs*i",       tex1DfetchUs)
 CUDABUILTIN(tex1Dfetch,             "ii*i",         tex1Dfetchi)
 CUDABUILTIN(tex1Dfetch,             "UiUi*i",       tex1DfetchUi)
 CUDABUILTIN(tex1Dfetch,             "ff*i",         tex1Dfetchf)
+CUDABUILTIN(tex2D,                  "ScSc*ii",      tex2DSc)
+CUDABUILTIN(tex2D,                  "UcUc*ii",      tex2DUc)
+CUDABUILTIN(tex2D,                  "ss*ii",        tex2Ds)
+CUDABUILTIN(tex2D,                  "UsUs*ii",      tex2DUs)
+CUDABUILTIN(tex2D,                  "ii*ii",        tex2Di)
+CUDABUILTIN(tex2D,                  "UiUi*ii",      tex2DUi)
+CUDABUILTIN(tex2D,                  "ff*ii",        tex2Df)
 CUDABUILTIN(__syncthreads,          "v",            __syncthreads)
 CUDABUILTIN(make_char4,             "V4cc",         make_char4)
 CUDABUILTIN(make_uchar4,            "V4UcUc",       make_uchar4)

@@ -324,21 +324,44 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
             resultStr += "_texs" + kernelName + ".push_back(";
             resultStr += "hipacc_tex_info(std::string(\"_tex" + K->getArgNames()[i].str() + K->getName() + "\"), ";
             resultStr += K->getImgFromMapping(FD)->getImage()->getTextureType() + ", ";
-            resultStr += "(void *)" + argNames[i] + "));\n";
+            resultStr += "(void *)" + argNames[i] + ", ";
+            switch (K->useTextureMemory(Acc)) {
+              default:
+              case HipaccKernelFeatures::Linear1D:
+                resultStr += "Linear1D";
+                break;
+              case HipaccKernelFeatures::Linear2D:
+                resultStr += "Linear2D";
+                break;
+              case HipaccKernelFeatures::Array2D:
+                resultStr += "Array2D";
+                break;
+            }
+            resultStr += "));\n";
           } else {
-            resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(_tex" + K->getArgNames()[i].str() + K->getName() + ", " + argNames[i] + ");\n";
+            switch (K->useTextureMemory(Acc)) {
+              case HipaccKernelFeatures::NoTexture:
+                break;
+              case HipaccKernelFeatures::Linear1D:
+                resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(_tex" + K->getArgNames()[i].str() + K->getName() + ", " + argNames[i] + ");\n";
+                break;
+              case HipaccKernelFeatures::Linear2D:
+              case HipaccKernelFeatures::Array2D:
+                resultStr += "hipaccBindTexture2D<" + argTypeNames[i] + ">(_tex" + K->getArgNames()[i].str() + K->getName() + ", " + argNames[i] + ");\n";
+                break;
+            }
           }
           resultStr += ident;
         }
       }
-      if (options.exploreConfig()) {
-        if (Acc->getSizeX() > 1 || Acc->getSizeY() > 1) {
-          resultStr += "_smems" + kernelName + ".push_back(";
-          resultStr += "hipacc_smem_info(" + Acc->getSizeXStr() + ", ";
-          resultStr += Acc->getSizeYStr() + ", ";
-          resultStr += "sizeof(" + Acc->getImage()->getPixelType() + ")));\n";
-          resultStr += ident;
-        } 
+
+      if (options.exploreConfig() && K->useLocalMemory(Acc)) {
+        // store local memory size information for exploration
+        resultStr += "_smems" + kernelName + ".push_back(";
+        resultStr += "hipacc_smem_info(" + Acc->getSizeXStr() + ", ";
+        resultStr += Acc->getSizeYStr() + ", ";
+        resultStr += "sizeof(" + Acc->getImage()->getPixelType() + ")));\n";
+        resultStr += ident;
       }
     }
 

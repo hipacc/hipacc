@@ -230,22 +230,71 @@ FunctionDecl *ASTTranslate::getTex1DFetchFunction(HipaccAccessor *Acc) {
       assert(0 && "BuiltinType for CUDA texture not supported.");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      return builtins.getBuiltinFunction(CUDABItex1DfetchSc);
+      switch (Kernel->useTextureMemory(Acc)) {
+        default:
+        case HipaccKernelFeatures::Linear1D:
+          return builtins.getBuiltinFunction(CUDABItex1DfetchSc);
+        case HipaccKernelFeatures::Linear2D:
+        case HipaccKernelFeatures::Array2D:
+          return builtins.getBuiltinFunction(CUDABItex2DSc);
+      }
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
-      return builtins.getBuiltinFunction(CUDABItex1DfetchUc);
+      switch (Kernel->useTextureMemory(Acc)) {
+        default:
+        case HipaccKernelFeatures::Linear1D:
+          return builtins.getBuiltinFunction(CUDABItex1DfetchUc);
+        case HipaccKernelFeatures::Linear2D:
+        case HipaccKernelFeatures::Array2D:
+          return builtins.getBuiltinFunction(CUDABItex2DUc);
+      }
     case BuiltinType::Short:
-      return builtins.getBuiltinFunction(CUDABItex1Dfetchs);
+      switch (Kernel->useTextureMemory(Acc)) {
+        default:
+        case HipaccKernelFeatures::Linear1D:
+          return builtins.getBuiltinFunction(CUDABItex1Dfetchs);
+        case HipaccKernelFeatures::Linear2D:
+        case HipaccKernelFeatures::Array2D:
+          return builtins.getBuiltinFunction(CUDABItex2Ds);
+      }
     case BuiltinType::Char16:
     case BuiltinType::UShort:
-      return builtins.getBuiltinFunction(CUDABItex1DfetchUs);
+      switch (Kernel->useTextureMemory(Acc)) {
+        default:
+        case HipaccKernelFeatures::Linear1D:
+          return builtins.getBuiltinFunction(CUDABItex1DfetchUs);
+        case HipaccKernelFeatures::Linear2D:
+        case HipaccKernelFeatures::Array2D:
+          return builtins.getBuiltinFunction(CUDABItex2DUs);
+      }
     case BuiltinType::Int:
-      return builtins.getBuiltinFunction(CUDABItex1Dfetchi);
+      switch (Kernel->useTextureMemory(Acc)) {
+        default:
+        case HipaccKernelFeatures::Linear1D:
+        case HipaccKernelFeatures::Linear2D:
+          return builtins.getBuiltinFunction(CUDABItex1Dfetchi);
+        case HipaccKernelFeatures::Array2D:
+          return builtins.getBuiltinFunction(CUDABItex2Di);
+      }
     case BuiltinType::Char32:
     case BuiltinType::UInt:
-      return builtins.getBuiltinFunction(CUDABItex1DfetchUi);
+      switch (Kernel->useTextureMemory(Acc)) {
+        default:
+        case HipaccKernelFeatures::Linear1D:
+          return builtins.getBuiltinFunction(CUDABItex1DfetchUi);
+        case HipaccKernelFeatures::Linear2D:
+        case HipaccKernelFeatures::Array2D:
+          return builtins.getBuiltinFunction(CUDABItex2DUi);
+      }
     case BuiltinType::Float:
-      return builtins.getBuiltinFunction(CUDABItex1Dfetchf);
+      switch (Kernel->useTextureMemory(Acc)) {
+        default:
+        case HipaccKernelFeatures::Linear1D:
+          return builtins.getBuiltinFunction(CUDABItex1Dfetchf);
+        case HipaccKernelFeatures::Linear2D:
+        case HipaccKernelFeatures::Array2D:
+          return builtins.getBuiltinFunction(CUDABItex2Df);
+      }
   }
 }
 
@@ -336,7 +385,17 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
   // parameters for tex1Dfetch
   llvm::SmallVector<Expr *, 16> args;
   args.push_back(LHStex);
-  args.push_back(result);
+  switch (Kernel->useTextureMemory(Acc)) {
+    default:
+    case HipaccKernelFeatures::Linear1D:
+      args.push_back(result);
+      break;
+    case HipaccKernelFeatures::Linear2D:
+    case HipaccKernelFeatures::Array2D:
+      args.push_back(idx_x);
+      args.push_back(idx_y);
+      break;
+  }
 
   result = createFunctionCall(Ctx, tex1Dfetch, args); 
 

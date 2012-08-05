@@ -1977,7 +1977,16 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
         kernelOut << "texture <";
         kernelOut << T.getAsString();
-        kernelOut << ", cudaTextureType1D, cudaReadModeElementType> _tex";
+        switch (K->useTextureMemory(Acc)) {
+          default:
+          case HipaccKernelFeatures::Linear1D:
+            kernelOut << ", cudaTextureType1D, cudaReadModeElementType> _tex";
+            break;
+          case HipaccKernelFeatures::Linear2D:
+          case HipaccKernelFeatures::Array2D:
+            kernelOut << ", cudaTextureType2D, cudaReadModeElementType> _tex";
+            break;
+        }
         kernelOut << FD->getNameAsString() << K->getName() << ";\n";
       }
     }

@@ -54,6 +54,13 @@ enum hipaccBoundaryMode {
     BOUNDARY_CONSTANT
 };
 
+enum hipaccTextureType {
+    Linear1D,
+    Linear2D,
+    Array2D
+};
+
+
 typedef struct hipacc_const_info {
     hipacc_const_info(std::string name, void *memory, int size) :
         name(name), memory(memory), size(size) {}
@@ -63,11 +70,13 @@ typedef struct hipacc_const_info {
 } hipacc_const_info;
 
 typedef struct hipacc_tex_info {
-    hipacc_tex_info(std::string name, CUarray_format type, void *image) :
-        name(name), type(type), image(image) {}
+    hipacc_tex_info(std::string name, CUarray_format type, void *image,
+            hipaccTextureType tex_type) :
+        name(name), type(type), image(image), tex_type(tex_type) {}
     std::string name;
     CUarray_format type;
     void *image;
+    hipaccTextureType tex_type;
 } hipacc_tex_info;
 
 typedef struct hipacc_smem_info {
@@ -699,13 +708,33 @@ void hipaccGetTexRef(CUtexref *result_texture, CUmodule &module, std::string tex
 
 
 // Bind texture to linear memory
-void hipaccBindTextureDrv(CUtexref &texture, void *mem, CUarray_format format) {
+void hipaccBindTextureDrv(CUtexref &texture, void *mem, CUarray_format format,
+        hipaccTextureType tex_type) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     HipaccContext::cl_dims dim = Ctx.get_mem_dims(mem);
 
     checkErrDrv(cuTexRefSetFormat(texture, format, 1), "cuTexRefSetFormat()");
     checkErrDrv(cuTexRefSetFlags(texture, CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
-    checkErrDrv(cuTexRefSetAddress(0, texture, (CUdeviceptr)mem, dim.pixel_size*dim.stride*dim.height), "cuTexRefSetAddress()");
+    switch (tex_type) {
+        case Linear1D:
+            checkErrDrv(cuTexRefSetAddress(0, texture, (CUdeviceptr)mem,
+                        dim.pixel_size*dim.stride*dim.height),
+                    "cuTexRefSetAddress()");
+            break;
+        case Linear2D:
+            CUDA_ARRAY_DESCRIPTOR desc;
+            desc.Format = format;
+            desc.NumChannels = 1;
+            desc.Width = dim.width;
+            desc.Height = dim.height;
+            checkErrDrv(cuTexRefSetAddress2D(texture, &desc, (CUdeviceptr)mem,
+                        dim.pixel_size*dim.stride), "cuTexRefSetAddress2D()");
+            break;
+        case Array2D:
+            checkErrDrv(cuTexRefSetArray(texture, (CUarray)mem,
+                        CU_TRSA_OVERRIDE_FORMAT), "cuTexRefSetArray()");
+            break;
+    }
     // not necessary?
     //checkErrDrv(cuParamSetTexRef(BF, CU_PARAM_TR_DEFAULT, texture), "cuParamSetTexRef()");
 }
@@ -1029,7 +1058,8 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             CUtexref texImage;
             for (unsigned int i=0; i<texs.size(); i++) {
                 hipaccGetTexRef(&texImage, modKernel, texs.data()[i].name);
-                hipaccBindTextureDrv(texImage, texs.data()[i].image, texs.data()[i].type);
+                hipaccBindTextureDrv(texImage, texs.data()[i].image,
+                        texs.data()[i].type, texs.data()[i].tex_type);
             }
 
             dim3 block(tile_size_x, tile_size_y);
