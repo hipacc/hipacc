@@ -66,6 +66,7 @@ class KernelStatsImpl {
     unsigned int num_img_loads, num_img_stores;
     unsigned int num_mask_loads, num_mask_stores;
     VectorInfo curStmtVectorize;
+    bool inLambdaFunction;
 
     void runOnBlock(const CFGBlock *block);
     void runOnAllBlocks();
@@ -96,7 +97,8 @@ class KernelStatsImpl {
       num_img_stores(0),
       num_mask_loads(0),
       num_mask_stores(0),
-      curStmtVectorize(SCALAR)
+      curStmtVectorize(SCALAR),
+      inLambdaFunction(false)
     {}
 };
 }
@@ -370,26 +372,29 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
               KS.compilerClasses.Accessor)) {
           if (curMemAcc & READ_ONLY) KS.num_img_loads++;
           if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
+
           switch (COCE->getNumArgs()) {
             default:
               break;
             case 1:
               memAccDetail = (MemoryAccessDetail) (memAccDetail|NO_STRIDE);
-              KS.imagesToAccessDetail[FD] = memAccDetail;
               if (KS.kernelType < PointOperator) KS.kernelType = PointOperator;
               break;
             case 2:
-            // TODO check for Mask as parameter
-            break;
+              // TODO: check for Mask as parameter and check if we need only
+              // STRIDE_X or STRIDE_Y
+              memAccDetail = (MemoryAccessDetail) (memAccDetail|STRIDE_XY);
+              if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
+              break;
             case 3:
               memAccDetail = (MemoryAccessDetail)
                 (memAccDetail|checkStride(COCE->getArg(1), COCE->getArg(2)));
-              KS.imagesToAccessDetail[FD] = memAccDetail;
               if (memAccDetail > NO_STRIDE && KS.kernelType < LocalOperator) {
                 KS.kernelType = LocalOperator;
               }
               break;
           }
+          KS.imagesToAccessDetail[FD] = memAccDetail;
 
           return true;
         }
@@ -399,6 +404,21 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
               KS.compilerClasses.Mask)) {
           if (curMemAcc & READ_ONLY) KS.num_mask_loads++;
           if (curMemAcc & WRITE_ONLY) KS.num_mask_stores++;
+
+          if (KS.inLambdaFunction) {
+            // TODO: check for Mask as parameter and check if we need only
+            // STRIDE_X or STRIDE_Y
+            memAccDetail = (MemoryAccessDetail) (memAccDetail|STRIDE_XY);
+            if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
+          } else {
+            assert(COCE->getNumArgs()==3 && "Mask access requires x and y parameters!");
+            memAccDetail = (MemoryAccessDetail)
+              (memAccDetail|checkStride(COCE->getArg(1), COCE->getArg(2)));
+            if (memAccDetail > NO_STRIDE && KS.kernelType < LocalOperator) {
+              KS.kernelType = LocalOperator;
+            }
+          }
+          KS.imagesToAccessDetail[FD] = memAccDetail;
 
           return false;
         }
@@ -701,10 +721,12 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
   assert(cfg && "Could not get CFG from lambda-function.");
 
   PostOrderCFGView *POV = AC.getAnalysis<PostOrderCFGView>(); 
+  KS.inLambdaFunction = true;
   for (PostOrderCFGView::iterator it=POV->begin(), ei=POV->end(); it!=ei;
       ++it) {
     KS.runOnBlock(*it);
   }
+  KS.inLambdaFunction = false;
 
   #ifdef DEBUG_ANALYSIS
   cfg->viewCFG(KS.Ctx.getLangOpts());
