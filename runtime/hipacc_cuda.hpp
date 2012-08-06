@@ -57,7 +57,8 @@ enum hipaccBoundaryMode {
 enum hipaccTextureType {
     Linear1D,
     Linear2D,
-    Array2D
+    Array2D,
+    Surface
 };
 
 
@@ -322,6 +323,41 @@ T *hipaccCreateMemory(T *host_mem, int width, int height, int *stride) {
 }
 
 
+// Allocate 2D array
+template<typename T>
+cudaArray *hipaccCreateArray2D(T *host_mem, int width, int height, int *stride,
+        cudaChannelFormatDesc format) {
+    cudaError_t err = cudaSuccess;
+    cudaArray *array;
+    int flags = cudaArraySurfaceLoadStore;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    *stride = width;
+    err = cudaMallocArray(&array, &format, width, height, flags);
+    checkErr(err, "cudaMallocArray()");
+
+    HipaccContext::cl_dims dim = { width, height, width, 0, sizeof(T) };
+    Ctx.add_memory(array, dim);
+
+    return array;
+}
+template<typename T>
+cudaArray *hipaccCreateArray2D(T *host_mem, int width, int height, int *stride);
+#define CREATE_ARRAY2D(DATA_TYPE, DATA_SIZE, CHANNEL_TYPE) \
+template <> \
+cudaArray *hipaccCreateArray2D<DATA_TYPE>(DATA_TYPE *host_mem, int width, int height, int *stride) { \
+    return hipaccCreateArray2D(host_mem, width, height, stride, cudaCreateChannelDesc(DATA_SIZE, 0, 0, 0, CHANNEL_TYPE)); \
+}
+CREATE_ARRAY2D(char, 8, cudaChannelFormatKindSigned)
+CREATE_ARRAY2D(short int, 16, cudaChannelFormatKindSigned)
+CREATE_ARRAY2D(int, 32, cudaChannelFormatKindSigned)
+CREATE_ARRAY2D(unsigned char, 8, cudaChannelFormatKindUnsigned)
+CREATE_ARRAY2D(unsigned short int, 16, cudaChannelFormatKindUnsigned)
+CREATE_ARRAY2D(unsigned int, 32, cudaChannelFormatKindUnsigned)
+CREATE_ARRAY2D(float, 32, cudaChannelFormatKindFloat)
+
+
+
 // Release memory
 void hipaccReleaseMemory(void *mem) {
     cudaError_t err = cudaSuccess;
@@ -331,6 +367,18 @@ void hipaccReleaseMemory(void *mem) {
     checkErr(err, "cudaFree()");
 
     Ctx.del_memory(mem);
+}
+
+
+// Release 2D array
+void hipaccReleaseMemory(cudaArray *array) {
+    cudaError_t err = cudaSuccess;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    err = cudaFreeArray(array);
+    checkErr(err, "cudaFreeArray()");
+
+    Ctx.del_memory(array);
 }
 
 
@@ -355,6 +403,21 @@ void hipaccWriteMemory(T *mem, T *host_mem) {
 }
 
 
+// Write to 2D array
+template<typename T>
+void hipaccWriteArray2D(cudaArray *array, T *host_mem) {
+    cudaError_t err = cudaSuccess;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims dim = Ctx.get_mem_dims(array);
+
+    int width = dim.width;
+    int height = dim.height;
+
+    err = cudaMemcpyToArray(array, 0, 0, host_mem, sizeof(T)*width*height, cudaMemcpyHostToDevice);
+    checkErr(err, "cudaMemcpyToArray()");
+}
+
+
 // Read from memory
 template<typename T>
 void hipaccReadMemory(T *host_mem, T *mem) {
@@ -376,29 +439,72 @@ void hipaccReadMemory(T *host_mem, T *mem) {
 }
 
 
+// Read from 2D array
+template<typename T>
+void hipaccReadArray2D(T *host_mem, cudaArray *array) {
+    cudaError_t err = cudaSuccess;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims dim = Ctx.get_mem_dims(array);
+
+    int width = dim.width;
+    int height = dim.height;
+
+    err = cudaMemcpyFromArray(host_mem, array, 0, 0, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
+    checkErr(err, "cudaMemcpyFromArray()");
+}
+
+
 // Bind linear memory to texture
 template<typename T>
-void hipaccBindTexture(const struct texture<T, cudaTextureType1D, cudaReadModeElementType> &texture, void *mem) {
+void hipaccBindTexture(const struct texture<T, cudaTextureType1D, cudaReadModeElementType> &tex, void *mem) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
     HipaccContext::cl_dims dim = Ctx.get_mem_dims(mem);
 
-    err = cudaBindTexture(NULL, texture, mem, sizeof(T)*dim.stride*dim.height);
+    err = cudaBindTexture(NULL, tex, mem, sizeof(T)*dim.stride*dim.height);
     checkErr(err, "cudaBindTexture()");
 }
 
 
 // Bind linear memory to 2D texture
 template<typename T>
-void hipaccBindTexture2D(const struct texture<T, cudaTextureType2D, cudaReadModeElementType> &texture, void *mem) {
+void hipaccBindTexture2D(const struct texture<T, cudaTextureType2D, cudaReadModeElementType> &tex, void *mem) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
     HipaccContext::cl_dims dim = Ctx.get_mem_dims(mem);
 
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
 
-    err = cudaBindTexture2D(NULL, texture, mem, channelDesc, dim.width, dim.height, dim.stride*sizeof(T));
+    err = cudaBindTexture2D(NULL, tex, mem, channelDesc, dim.width, dim.height, dim.stride*sizeof(T));
     checkErr(err, "cudaBindTexture2D()");
+}
+
+
+// Bind 2D array to 2D texture
+template<typename T>
+void hipaccBindTextureToArray(const struct texture<T, cudaTextureType2D, cudaReadModeElementType> &tex, cudaArray *array) {
+    cudaError_t err = cudaSuccess;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims dim = Ctx.get_mem_dims(array);
+
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
+
+    err = cudaBindTextureToArray(tex, array, channelDesc);
+    checkErr(err, "cudaBindTextureToArray()");
+}
+
+
+// Bind 2D array to surface
+template<typename T>
+void hipaccBindSurfaceToArray(const struct surface<void, cudaSurfaceType2D> &surf, cudaArray *array) {
+    cudaError_t err = cudaSuccess;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims dim = Ctx.get_mem_dims(array);
+
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
+
+    err = cudaBindSurfaceToArray(surf, array, channelDesc);
+    checkErr(err, "cudaBindSurfaceToArray()");
 }
 
 
@@ -707,6 +813,19 @@ void hipaccGetTexRef(CUtexref *result_texture, CUmodule &module, std::string tex
 }
 
 
+// Get surface reference from module
+void hipaccGetSurfRef(CUsurfref *result_surface, CUmodule &module, std::string surface_name) {
+    CUresult err = CUDA_SUCCESS;
+    CUsurfref surf;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    err = cuModuleGetSurfRef(&surf, module, surface_name.c_str());
+    checkErrDrv(err, "cuModuleGetSurfRef()");
+
+    *result_surface = surf;
+}
+
+
 // Bind texture to linear memory
 void hipaccBindTextureDrv(CUtexref &texture, void *mem, CUarray_format format,
         hipaccTextureType tex_type) {
@@ -737,6 +856,15 @@ void hipaccBindTextureDrv(CUtexref &texture, void *mem, CUarray_format format,
     }
     // not necessary?
     //checkErrDrv(cuParamSetTexRef(BF, CU_PARAM_TR_DEFAULT, texture), "cuParamSetTexRef()");
+}
+
+
+// Bind surface to 2D array
+void hipaccBindSurfaceDrv(CUsurfref &surface, void *array) {
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims dim = Ctx.get_mem_dims(array);
+
+    checkErrDrv(cuSurfRefSetArray(surface, (CUarray)array, 0), "cuSurfRefSetArray()");
 }
 
 
@@ -1054,12 +1182,19 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                 checkErrDrv(err, "cuMemcpyHtoD()");
             }
 
-            // bind texture memory
             CUtexref texImage;
+            CUsurfref surfImage;
             for (unsigned int i=0; i<texs.size(); i++) {
-                hipaccGetTexRef(&texImage, modKernel, texs.data()[i].name);
-                hipaccBindTextureDrv(texImage, texs.data()[i].image,
-                        texs.data()[i].type, texs.data()[i].tex_type);
+                if (texs.data()[i].tex_type==Surface) {
+                    // bind surface memory
+                    hipaccGetSurfRef(&surfImage, modKernel, texs.data()[i].name);
+                    hipaccBindSurfaceDrv(surfImage, texs.data()[i].image);
+                } else {
+                    // bind texture memory
+                    hipaccGetTexRef(&texImage, modKernel, texs.data()[i].name);
+                    hipaccBindTextureDrv(texImage, texs.data()[i].image,
+                            texs.data()[i].type, texs.data()[i].tex_type);
+                }
             }
 
             dim3 block(tile_size_x, tile_size_y);
