@@ -86,9 +86,15 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
   pitchStr = "_" + memName + "stride";
   resultStr += "int " + pitchStr + ";\n";
   if (options.emitCUDA()) {
-    resultStr += ident + type + " *" + memName + " = ";
     // texture is bound at kernel launch
-    resultStr += "hipaccCreateMemory<" + type + ">(NULL, ";
+    if (options.useTextureMemory(USER_ON) &&
+        options.getTextureType()==Array2D) {
+      resultStr += ident + "cudaArray *" + memName + " = ";
+      resultStr += "hipaccCreateArray2D<" + type + ">(NULL, ";
+    } else {
+      resultStr += ident + type + " *" + memName + " = ";
+      resultStr += "hipaccCreateMemory<" + type + ">(NULL, ";
+    }
   } else {
     resultStr += ident + "cl_mem " + memName + " = ";
     if (options.useTextureMemory(USER_ON)) {
@@ -100,8 +106,8 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
   resultStr += "(int) " + width;
   resultStr += ", (int) " + height;
   resultStr += ", &" + pitchStr;
-  if (options.emitOpenCL() && options.useTextureMemory(USER_ON)) {
-    // OpenCL Image objects don't support padding
+  if (options.useTextureMemory(USER_ON) && options.getTextureType()==Array2D) {
+    // OpenCL Image objects and CUDA Arrays don't support padding
   } else {
     if (options.emitPadding()) {
       std::stringstream alignment;
@@ -133,9 +139,15 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
   switch (direction) {
     case HOST_TO_DEVICE:
       if (options.emitCUDA()) {
-        resultStr += "hipaccWriteMemory(";
+        if (options.useTextureMemory(USER_ON) &&
+            options.getTextureType()==Array2D) {
+          resultStr += "hipaccWriteArray2D(";
+        } else {
+          resultStr += "hipaccWriteMemory(";
+        }
       } else {
-        if (options.useTextureMemory(USER_ON)) {
+        if (options.useTextureMemory(USER_ON) &&
+            options.getTextureType()==Array2D) {
           resultStr += "hipaccWriteImage(";
         } else {
           resultStr += "hipaccWriteBuffer(";
@@ -146,7 +158,12 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
       break;
     case DEVICE_TO_HOST:
       if (options.emitCUDA()) {
-        resultStr += "hipaccReadMemory(";
+        if (options.useTextureMemory(USER_ON) &&
+            options.getTextureType()==Array2D) {
+          resultStr += "hipaccReadArray2D(";
+        } else {
+          resultStr += "hipaccReadMemory(";
+        }
       } else {
         if (options.useTextureMemory(USER_ON)) {
           resultStr += "hipaccReadImage(";
@@ -327,29 +344,31 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
             resultStr += "(void *)" + argNames[i] + ", ";
             switch (K->useTextureMemory(Acc)) {
               default:
-              case HipaccKernelFeatures::Linear1D:
+              case Linear1D:
                 resultStr += "Linear1D";
                 break;
-              case HipaccKernelFeatures::Linear2D:
+              case Linear2D:
                 resultStr += "Linear2D";
                 break;
-              case HipaccKernelFeatures::Array2D:
+              case Array2D:
                 resultStr += "Array2D";
                 break;
             }
             resultStr += "));\n";
           } else {
             switch (K->useTextureMemory(Acc)) {
-              case HipaccKernelFeatures::NoTexture:
+              default:
+              case Linear1D:
+                resultStr += "hipaccBindTexture";
                 break;
-              case HipaccKernelFeatures::Linear1D:
-                resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(_tex" + K->getArgNames()[i].str() + K->getName() + ", " + argNames[i] + ");\n";
+              case Linear2D:
+                resultStr += "hipaccBindTexture2D";
                 break;
-              case HipaccKernelFeatures::Linear2D:
-              case HipaccKernelFeatures::Array2D:
-                resultStr += "hipaccBindTexture2D<" + argTypeNames[i] + ">(_tex" + K->getArgNames()[i].str() + K->getName() + ", " + argNames[i] + ");\n";
+              case Array2D:
+                resultStr += "hipaccBindTextureToArray";
                 break;
             }
+            resultStr += "<" + argTypeNames[i] + ">(_tex" + K->getArgNames()[i].str() + K->getName() + ", " + argNames[i] + ");\n";
           }
           resultStr += ident;
         }
@@ -373,6 +392,25 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
         resultStr += "hipacc_const_info(std::string(\"" + Mask->getName() + K->getName() + "\"), ";
         resultStr += "(void *)" + Mask->getHostMemName() + ", ";
         resultStr += "sizeof(" + Mask->getTypeStr() + ")*" + Mask->getSizeXStr() + "*" + Mask->getSizeYStr() + "));\n";
+        resultStr += ident;
+      }
+    }
+  }
+
+  if (options.emitCUDA()) {
+    // bind surface
+    if (options.exploreConfig()) {
+      resultStr += "_texs" + kernelName + ".push_back(";
+      resultStr += "hipacc_tex_info(std::string(\"_surfOutput" + K->getName() + "\"), ";
+      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTextureType() + ", ";
+      resultStr += "(void *)" + K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface));\n";
+    } else {
+      if (options.useTextureMemory(USER_ON) &&
+          options.getTextureType()==Array2D) {
+        resultStr += "hipaccBindSurfaceToArray<";
+        resultStr += K->getIterationSpace()->getAccessor()->getImage()->getPixelType();
+        resultStr += ">(_surfOutput" + K->getName() + ", ";
+        resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ");\n";
         resultStr += ident;
       }
     }
@@ -402,6 +440,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
         if (Mask->isConstant()) continue;
         argName = Mask->getName();
       }
+    }
+
+    if (options.emitCUDA() && i==0 && options.useTextureMemory(USER_ON) &&
+        options.getTextureType()==Array2D) {
+      // surface is handled separately
+      continue;
     }
 
     HipaccAccessor *Acc = K->getImgFromMapping(FD);

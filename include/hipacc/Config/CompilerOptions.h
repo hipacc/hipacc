@@ -77,6 +77,7 @@ class CompilerOptions {
     // user defined values for target code features
     int align_bytes;
     int pixels_per_thread;
+    TextureType texture_memory_type;
 
     void getOptionAsString(CompilerOption option, int val=-1) {
       switch (option) {
@@ -112,7 +113,8 @@ class CompilerOptions {
       multiple_pixels(AUTO),
       vectorize_kernels(OFF),
       align_bytes(0),
-      pixels_per_thread(1)
+      pixels_per_thread(1),
+      texture_memory_type(NoTexture)
     {}
 
     bool emitCUDA() {
@@ -154,6 +156,8 @@ class CompilerOptions {
       if (texture_memory & option) return true;
       return false;
     }
+    TextureType getTextureType() { return texture_memory_type; }
+
     bool useLocalMemory(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
       if (local_memory & option) return true;
       return false;
@@ -174,9 +178,14 @@ class CompilerOptions {
     void setTargetDevice(TargetDevice cc) { compute_capability = cc; }
     void setExploreConfig(CompilerOption o) { explore_config = o; }
     void setTimeKernels(CompilerOption o) { time_kernels = o; }
-    void setTextureMemory(CompilerOption o) { texture_memory = o; }
     void setLocalMemory(CompilerOption o) { local_memory = o; }
     void setVectorizeKernels(CompilerOption o) { vectorize_kernels = o; }
+
+    void setTextureMemory(TextureType type) {
+      texture_memory_type = type;
+      if (type == NoTexture) texture_memory = USER_OFF;
+      else texture_memory = USER_ON;
+    }
 
     void setPadding(int bytes) {
       align_bytes = bytes;
@@ -219,6 +228,11 @@ class CompilerOptions {
       getOptionAsString(align_memory, align_bytes);
       llvm::errs() << "\n  Usage of texture memory for images: ";
       getOptionAsString(texture_memory);
+      if (useTextureMemory(USER_ON)) {
+        if (texture_memory_type==Linear1D) llvm::errs() << ": Linear1D";
+        if (texture_memory_type==Linear2D) llvm::errs() << ": Linear2D";
+        if (texture_memory_type==Array2D) llvm::errs() << ": Array2D";
+      }
       llvm::errs() << "\n  Usage of local memory reading from images: ";
       getOptionAsString(local_memory);
       llvm::errs() << "\n  Mapping multiple pixels to one thread: ";

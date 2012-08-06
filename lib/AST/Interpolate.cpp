@@ -163,7 +163,7 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
   if (compilerOptions.emitCUDA() && Kernel->useTextureMemory(Acc)) {
     assert(isa<ParmVarDecl>(LHS->getDecl()) && "texture variable must be a ParmVarDecl!");
     ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());
-    args.push_back(createDeclRefExpr(Ctx, CloneDeclTex(PVD)));
+    args.push_back(createDeclRefExpr(Ctx, CloneDeclTex(PVD, "_tex")));
   } else {
     args.push_back(LHS);
   }

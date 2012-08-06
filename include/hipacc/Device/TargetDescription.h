@@ -49,13 +49,14 @@ enum KernelType {
   UserOperator    = 0x4,
   NumOperatorTypes
 };
+
 class HipaccDeviceOptions {
   public:
     unsigned int alignment;
     unsigned int local_memory_threshold;
     unsigned int default_num_threads;
     unsigned int pixels_per_thread[NumOperatorTypes];
-    bool require_textures[NumOperatorTypes];
+    TextureType require_textures[NumOperatorTypes];
     bool vectorization;
 
   public:
@@ -71,10 +72,10 @@ class HipaccDeviceOptions {
           pixels_per_thread[PointOperator] = 8;
           pixels_per_thread[LocalOperator] = 16;
           pixels_per_thread[GlobalOperator] = 31;
-          require_textures[PointOperator] = false;
-          require_textures[LocalOperator] = true;
-          require_textures[GlobalOperator] = false;
-          require_textures[UserOperator] = true;
+          require_textures[PointOperator] = NoTexture;
+          require_textures[LocalOperator] = Linear1D;
+          require_textures[GlobalOperator] = NoTexture;
+          require_textures[UserOperator] = Linear1D;
           vectorization = false;
           break;
         case TESLA_12:
@@ -83,10 +84,10 @@ class HipaccDeviceOptions {
           pixels_per_thread[PointOperator] = 8;
           pixels_per_thread[LocalOperator] = 16;
           pixels_per_thread[GlobalOperator] = 31;
-          require_textures[PointOperator] = false;
-          require_textures[LocalOperator] = true;
-          require_textures[GlobalOperator] = false;
-          require_textures[UserOperator] = true;
+          require_textures[PointOperator] = NoTexture;
+          require_textures[LocalOperator] = Linear1D;
+          require_textures[GlobalOperator] = NoTexture;
+          require_textures[UserOperator] = Linear1D;
           vectorization = false;
           break;
         case FERMI_20:
@@ -98,10 +99,10 @@ class HipaccDeviceOptions {
           pixels_per_thread[PointOperator] = 1;
           pixels_per_thread[LocalOperator] = 8;
           pixels_per_thread[GlobalOperator] = 15;
-          require_textures[PointOperator] = false;
-          require_textures[LocalOperator] = true;
-          require_textures[GlobalOperator] = false;
-          require_textures[UserOperator] = true;
+          require_textures[PointOperator] = NoTexture;
+          require_textures[LocalOperator] = Linear1D;
+          require_textures[GlobalOperator] = NoTexture;
+          require_textures[UserOperator] = Linear1D;
           vectorization = false;
           break;
         case EVERGREEN:
@@ -109,10 +110,10 @@ class HipaccDeviceOptions {
           pixels_per_thread[PointOperator] = 4;
           pixels_per_thread[LocalOperator] = 16;
           pixels_per_thread[GlobalOperator] = 32;
-          require_textures[PointOperator] = false;
-          require_textures[LocalOperator] = false;
-          require_textures[GlobalOperator] = false;
-          require_textures[UserOperator] = false;
+          require_textures[PointOperator] = NoTexture;
+          require_textures[LocalOperator] = NoTexture;
+          require_textures[GlobalOperator] = NoTexture;
+          require_textures[UserOperator] = NoTexture;
           vectorization = true;
           break;
         case NORTHERN_ISLAND:
@@ -120,10 +121,10 @@ class HipaccDeviceOptions {
           pixels_per_thread[PointOperator] = 4;
           pixels_per_thread[LocalOperator] = 16;
           pixels_per_thread[GlobalOperator] = 32;
-          require_textures[PointOperator] = false;
-          require_textures[LocalOperator] = false;
-          require_textures[GlobalOperator] = false;
-          require_textures[UserOperator] = false;
+          require_textures[PointOperator] = NoTexture;
+          require_textures[LocalOperator] = NoTexture;
+          require_textures[GlobalOperator] = NoTexture;
+          require_textures[UserOperator] = NoTexture;
           vectorization = true;
           break;
       }
@@ -148,16 +149,12 @@ class HipaccDeviceOptions {
         local_memory_threshold = 0;
       }
 
-      if (options.useTextureMemory(USER_ON)) {
-        require_textures[PointOperator] = true;
-        require_textures[LocalOperator] = true;
-        require_textures[GlobalOperator] = true;
-        require_textures[UserOperator] = true;
-      } else if (options.useTextureMemory(USER_OFF)) {
-        require_textures[PointOperator] = false;
-        require_textures[LocalOperator] = false;
-        require_textures[GlobalOperator] = false;
-        require_textures[UserOperator] = false;
+      if (options.useTextureMemory(USER_ON) ||
+          options.useTextureMemory(USER_OFF)) {
+        require_textures[PointOperator] = options.getTextureType();
+        require_textures[LocalOperator] = options.getTextureType();
+        require_textures[GlobalOperator] = options.getTextureType();
+        require_textures[UserOperator] = options.getTextureType();
       }
 
       if (options.vectorizeKernels(USER_ON)) {

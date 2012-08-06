@@ -225,7 +225,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
 
     if (Kernel->useTextureMemory(Acc)) {
       if (compilerOptions.emitCUDA()) {
-        RHS = accessMemTexAt(LHS, Acc, tmp_x_ref, tmp_y_ref);
+        RHS = accessMemTexAt(LHS, Acc, READ_ONLY, tmp_x_ref, tmp_y_ref);
       } else {
         RHS = accessMemImgAt(LHS, Acc, READ_ONLY, tmp_x_ref, tmp_y_ref);
       }
@@ -290,7 +290,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
     // get data
     if (Kernel->useTextureMemory(Acc)) {
       if (compilerOptions.emitCUDA()) {
-        result = accessMemTexAt(LHS, Acc, tmp_x_ref, tmp_y_ref);
+        result = accessMemTexAt(LHS, Acc, READ_ONLY, tmp_x_ref, tmp_y_ref);
       } else {
         result = accessMemImgAt(LHS, Acc, READ_ONLY, tmp_x_ref, tmp_y_ref);
       }

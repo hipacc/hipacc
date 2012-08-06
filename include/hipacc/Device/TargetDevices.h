@@ -49,6 +49,14 @@ enum TargetDevice {
   NORTHERN_ISLAND   = 69,
   //SOUTHERN_ISLAND   = 79,
 };
+
+// texture memory specification
+enum TextureType {
+  NoTexture         = 0x0,
+  Linear1D          = 0x1,
+  Linear2D          = 0x2,
+  Array2D           = 0x4
+};
 } // end namespace hipacc
 } // end namespace clang
 

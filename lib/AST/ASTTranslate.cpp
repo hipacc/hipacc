@@ -1088,7 +1088,7 @@ template<class T> T *ASTTranslate::CloneDecl(T *D) {
 }
 
 
-VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D) {
+VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D, std::string prefix) {
   if (D == NULL) {
     return NULL;
   }
@@ -1099,7 +1099,7 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D) {
   result = KernelDeclMapTex[D];
 
   if (!result) {
-    std::string texName = "_tex";
+    std::string texName = prefix;
     texName += D->getName();
     texName += Kernel->getName();
     result = VarDecl::Create(Ctx, DC, D->getInnerLocStart(), D->getLocation(),
@@ -2524,11 +2524,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     } else {
       if (Kernel->useTextureMemory(Acc)) {
         if (compilerOptions.emitCUDA()) {
-          if (memAcc == WRITE_ONLY) {
-            result = accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
-          } else {
-            result = accessMemTexAt(LHS, Acc, idx_x, idx_y);
-          }
+          result = accessMemTexAt(LHS, Acc, memAcc, idx_x, idx_y);
         } else {
           result = accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
         }

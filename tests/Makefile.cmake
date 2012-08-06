@@ -12,16 +12,17 @@ C_C                 ?= 13#69
 NVCC_FLAGS          := -gencode=arch=compute_$(C_C),code=\"sm_$(C_C),compute_$(C_C)\" -ftz=true -prec-sqrt=false -prec-div=false -Xptxas -v #-keep 
 
 # Source-to-source compiler configuration
-# use local memory -> set HIPACC_LMEM
-# use texture memory -> set HIPACC_TEX
-# vectorize code (experimental, doesn't work) -> set HIPACC_VEC
+# use local memory -> set HIPACC_LMEM to off|Linear1D|Linear2D|Array2D
+# use texture memory -> set HIPACC_TEX to off|on
+# vectorize code (experimental, doesn't work) -> set HIPACC_VEC to off|on
 # pad images to a multiple of n bytes -> set HIPACC_PAD to n
 # map n output pixels to one thread -> set HIPACC_PPT to n
 # generate code that explores configuration -> set HIPACC_EXPLORE
-HIPACC_LMEM?=0
-HIPACC_TEX?=0
+# generate code that times kernel execution -> set HIPACC_TIMING
+HIPACC_LMEM?=off
+HIPACC_TEX?=off
+HIPACC_VEC?=off
 HIPACC_PPT?=1
-HIPACC_VEC?=0
 HIPACC_EXPLORE?=0
 HIPACC_TIMING?=0
 
@@ -30,17 +31,17 @@ HIPACC_OPTS=-compute-capability $(C_C)
 ifdef HIPACC_PAD
     HIPACC_OPTS+= -emit-padding $(HIPACC_PAD)
 endif
-ifeq ($(HIPACC_LMEM),1)
-    HIPACC_OPTS+= -use-local
+ifdef HIPACC_LMEM
+    HIPACC_OPTS+= -use-local $(HIPACC_LMEM)
 endif
-ifeq ($(HIPACC_TEX),1)
-    HIPACC_OPTS+= -use-textures
+ifdef HIPACC_TEX
+    HIPACC_OPTS+= -use-textures $(HIPACC_TEX)
 endif
 ifdef HIPACC_PPT
     HIPACC_OPTS+= -pixels-per-thread $(HIPACC_PPT)
 endif
-ifeq ($(HIPACC_VEC),1)
-    HIPACC_OPTS+= -vectorize
+ifdef HIPACC_VEC
+    HIPACC_OPTS+= -vectorize $(HIPACC_VEC)
 endif
 ifeq ($(HIPACC_EXPLORE),1)
     HIPACC_OPTS+= -explore-config

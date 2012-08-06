@@ -101,7 +101,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     template<class T> T *Clone(T *S);
     template<class T> T *CloneDecl(T *D);
-    VarDecl *CloneDeclTex(ParmVarDecl *D);
+    VarDecl *CloneDeclTex(ParmVarDecl *D, std::string prefix);
     // KernelDeclMap - this keeps track of the cloned Decls which are used in
     // expressions, e.g. DeclRefExpr
     typedef llvm::DenseMap<VarDecl *, VarDecl *> DeclMapTy;
@@ -134,7 +134,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x);
     Expr *addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y);
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
-    FunctionDecl *getTex1DFetchFunction(HipaccAccessor *Acc);
+    FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
     FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
@@ -151,8 +151,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
     Expr *accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x, Expr
         *idx_y);
-    Expr *accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr *idx_x,
-        Expr *idx_y);
+    Expr *accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
+        memAcc, Expr *idx_x, Expr *idx_y);
     Expr *accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
         memAcc, Expr *idx_x, Expr *idx_y);
     Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=NULL, Expr

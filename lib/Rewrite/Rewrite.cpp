@@ -1848,6 +1848,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   if (compilerOptions.emitCUDA()) {
     if (compilerOptions.getTargetDevice() >= FERMI_20 &&
         !compilerOptions.exploreConfig()) {
+      // TODO Array2D ???
       kernelOut << "__device__ unsigned int finished_blocks_cu" <<
         GR->getFileName() << "2D = 0;\n\n";
       kernelOut << "REDUCTION_CUDA_2D_THREAD_FENCE(cu";
@@ -1966,8 +1967,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
   }
 
-  // write texture declarations
   if (compilerOptions.emitCUDA()) {
+    // write texture declarations
     for (unsigned int i=0, e=KC->getNumImages(); i!=e; ++i) {
       FieldDecl *FD = KC->getImgFields().data()[i];
       HipaccAccessor *Acc = K->getImgFromMapping(FD);
@@ -1975,20 +1976,27 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       if (KC->getImgAccess(FD) == READ_ONLY && K->useTextureMemory(Acc)) {
         QualType T = Acc->getImage()->getPixelQualType();
 
-        kernelOut << "texture <";
+        kernelOut << "texture<";
         kernelOut << T.getAsString();
         switch (K->useTextureMemory(Acc)) {
           default:
-          case HipaccKernelFeatures::Linear1D:
+          case Linear1D:
             kernelOut << ", cudaTextureType1D, cudaReadModeElementType> _tex";
             break;
-          case HipaccKernelFeatures::Linear2D:
-          case HipaccKernelFeatures::Array2D:
+          case Linear2D:
+          case Array2D:
             kernelOut << ", cudaTextureType2D, cudaReadModeElementType> _tex";
             break;
         }
         kernelOut << FD->getNameAsString() << K->getName() << ";\n";
       }
+    }
+
+    // write surface declaration
+    if (compilerOptions.useTextureMemory(USER_ON) &&
+        compilerOptions.getTextureType()==Array2D) {
+      kernelOut << "surface<void, cudaSurfaceType2D> _surfOutput";
+      kernelOut << K->getName() << ";\n";
     }
     kernelOut << "\n";
   }
@@ -2065,7 +2073,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (!compilerOptions.exploreConfig() && emitHints) kernelOut << "__launch_bounds__ (" <<
       K->getNumThreadsX() << "*" << K->getNumThreadsY() << ") ";
   } else {
-    if (compilerOptions.useTextureMemory(USER_ON)) {
+    if (compilerOptions.useTextureMemory(USER_ON) &&
+        compilerOptions.getTextureType()==Array2D) {
       kernelOut << "__constant sampler_t "
         << D->getNameInfo().getAsString() << "Sampler = "
         << "CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;\n\n";
@@ -2108,6 +2117,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     MemoryAccess memAcc = UNDEFINED;
     if (i==0) { // first argument is always the output image
+      if (compilerOptions.emitCUDA() &&
+          compilerOptions.useTextureMemory(USER_ON) &&
+          compilerOptions.getTextureType()==Array2D) continue;
       Acc = K->getIterationSpace()->getAccessor();
       memAcc = WRITE_ONLY;
     } else if (Acc) {

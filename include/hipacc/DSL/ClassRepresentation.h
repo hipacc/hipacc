@@ -506,48 +506,58 @@ class HipaccKernelFeatures : public HipaccDevice {
       Local     = 0x8
     };
 
-    enum TextureType {
-      NoTexture = 0x0,
-      Linear1D  = 0x1,
-      Linear2D  = 0x2,
-      Array2D   = 0x4
-    };
-
     CompilerOptions &options;
     HipaccKernelClass *KC;
     std::map<HipaccAccessor *, MemoryType> memMap;
+    std::map<HipaccAccessor *, TextureType> texMap;
 
     void calcISFeature(HipaccAccessor *acc) {
       MemoryType mem_type = Global;
+      TextureType tex_type = NoTexture;
 
-      if (options.emitOpenCL() && options.useTextureMemory(USER_ON)) {
+      if (options.useTextureMemory(USER_ON) &&
+          options.getTextureType()==Array2D) {
         mem_type = Texture;
+        tex_type = Array2D;
       }
 
       memMap[acc] = mem_type;
+      texMap[acc] = tex_type;
     }
 
     void calcImgFeature(FieldDecl *decl, HipaccAccessor *acc) {
       MemoryType mem_type = Global;
+      TextureType tex_type = NoTexture;
       MemoryAccessDetail memAccessDetail = KC->getImgAccessDetail(decl);
 
-      if (options.useTextureMemory(USER_ON)) {
+      if (options.useTextureMemory(USER_ON) &&
+          options.getTextureType()==Array2D) {
         mem_type = Texture;
+        tex_type = Array2D;
       } else {
-        // for OpenCL image-objects we have to enable or disable textures all
-        // the time otherwise, use texture memory only in case the image is
-        // accessed with an offset to the x-coordinate
+        // for OpenCL image-objects and CUDA arrays we have to enable or disable
+        // textures all the time otherwise, use texture memory only in case the
+        // image is accessed with an offset to the x-coordinate
         if (options.emitCUDA()) {
           if (memAccessDetail & NO_STRIDE) {
-            if (require_textures[PointOperator]) mem_type = Texture;
+            if (require_textures[PointOperator]) {
+              mem_type = Texture;
+              tex_type = require_textures[PointOperator];
+            }
           }
           if ((memAccessDetail & STRIDE_X) || 
               (memAccessDetail & STRIDE_Y) || 
               (memAccessDetail & STRIDE_XY)) {
-              // possibly use textures only for stride_x ?
-              if (require_textures[LocalOperator]) mem_type = Texture;
+            // possibly use textures only for stride_x ?
+            if (require_textures[LocalOperator]) {
+              mem_type = Texture;
+              tex_type = require_textures[LocalOperator];
+            }
           } else if (memAccessDetail & USER_XY) {
-              if (require_textures[UserOperator]) mem_type = Texture;
+            if (require_textures[UserOperator]) {
+              mem_type = Texture;
+              tex_type = require_textures[LocalOperator];
+            }
           }
         }
       }
@@ -557,6 +567,7 @@ class HipaccKernelFeatures : public HipaccDevice {
       }
 
       memMap[acc] = mem_type;
+      texMap[acc] = tex_type;
     }
 
   public:
@@ -576,7 +587,7 @@ class HipaccKernelFeatures : public HipaccDevice {
 
     TextureType useTextureMemory(HipaccAccessor *acc) {
       if (memMap.count(acc)) {
-        if (memMap[acc] & Texture) return Linear1D;
+        if (memMap[acc] & Texture) return texMap[acc];
       }
 
       return NoTexture;

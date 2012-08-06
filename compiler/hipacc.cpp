@@ -76,9 +76,13 @@ void printUsage() {
     << "                          Valid values for OpenCL on AMD devices is 58 and 69\n"
     << "  -explore-config         Emit code that explores all possible kernel configuration and print its performance\n"
     << "  -time-kernels           Emit code that executes each kernel multiple times to get accurate timings\n"
-    << "  -use-textures           Use textures (cached) in CUDA/OpenCL to read image pixels - for GPU devices only\n"
-    << "  -use-local              Use shared/local memory in CUDA/OpenCL to stage image pixels to scratchpad\n"
-    << "  -vectorize              Vectorize generated CUDA/OpenCL\n"
+    << "  -use-textures <o>       Enable/disable usage of textures (cached) in CUDA/OpenCL to read/write image pixels - for GPU devices only\n"
+    << "                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', and 'Array2D'\n"
+    << "                          Valid values for CUDA on NVIDIA devices: 'off' and 'Array2D'\n"
+    << "  -use-local <o>          Enable/disable usage of shared/local memory in CUDA/OpenCL to stage image pixels to scratchpad\n"
+    << "                          Valid values: 'on' and 'off'\n"
+    << "  -vectorize <o>          Enable/disable vectorization of generated CUDA/OpenCL code\n"
+    << "                          Valid values: 'on' and 'off'\n"
     << "  -pixels-per-thread <n>  Specify how many pixels should be calculated per thread\n"
     << "  -o <file>               Write output to <file>\n"
     << "  --help                  Display available options\n"
@@ -153,15 +157,49 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (llvm::StringRef(argv[i]) == "-use-textures") {
-      compilerOptions.setTextureMemory(USER_ON);
+      assert(i<(argc-1) && "Mandatory texture memory specification for -use-textures switch missing.");
+      if (llvm::StringRef(argv[i+1]) == "off") {
+        compilerOptions.setTextureMemory(NoTexture);
+      } else if (llvm::StringRef(argv[i+1]) == "Linear1D") {
+        compilerOptions.setTextureMemory(Linear1D);
+      } else if (llvm::StringRef(argv[i+1]) == "Linear2D") {
+        compilerOptions.setTextureMemory(Linear2D);
+      } else if (llvm::StringRef(argv[i+1]) == "Array2D") {
+        compilerOptions.setTextureMemory(Array2D);
+      } else {
+        llvm::errs() << "Expected valid texture memory specification for -use-textures switch.\n";
+        printUsage();
+        exit(EXIT_FAILURE);
+      }
+      ++i;
       continue;
     }
     if (llvm::StringRef(argv[i]) == "-use-local") {
-      compilerOptions.setLocalMemory(USER_ON);
+      assert(i<(argc-1) && "Mandatory local memory specification for -use-local switch missing.");
+      if (llvm::StringRef(argv[i+1]) == "off") {
+        compilerOptions.setLocalMemory(USER_OFF);
+      } else if (llvm::StringRef(argv[i+1]) == "on") {
+        compilerOptions.setLocalMemory(USER_ON);
+      } else {
+        llvm::errs() << "Expected valid local memory specification for -use-local switch.\n";
+        printUsage();
+        exit(EXIT_FAILURE);
+      }
+      ++i;
       continue;
     }
     if (llvm::StringRef(argv[i]) == "-vectorize") {
-      compilerOptions.setVectorizeKernels(USER_ON);
+      assert(i<(argc-1) && "Mandatory vectorization specification for -vectorize switch missing.");
+      if (llvm::StringRef(argv[i+1]) == "off") {
+        compilerOptions.setVectorizeKernels(USER_OFF);
+      } else if (llvm::StringRef(argv[i+1]) == "on") {
+        compilerOptions.setVectorizeKernels(USER_ON);
+      } else {
+        llvm::errs() << "Expected valid vectorization specification for -use-vectorize switch.\n";
+        printUsage();
+        exit(EXIT_FAILURE);
+      }
+      ++i;
       continue;
     }
     if (llvm::StringRef(argv[i]) == "-pixels-per-thread") {
@@ -201,7 +239,7 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
   if (compilerOptions.useTextureMemory() && compilerOptions.emitOpenCLx86()) {
-      compilerOptions.setTextureMemory(OFF);
+      compilerOptions.setTextureMemory(NoTexture);
       llvm::errs() << "Warning: texture support disabled! x86 devices do not support textures!\n";
   }
   if (compilerOptions.emitCUDA() && !targetDevice.isNVIDIAGPU()) {
@@ -209,6 +247,22 @@ int main(int argc, char *argv[]) {
       << "  Please select correct compute capability/code generation backend combination.\n";
     return EXIT_FAILURE;
   }
+  if (compilerOptions.emitCUDA()) {
+    if (compilerOptions.useTextureMemory()==Array2D &&
+        compilerOptions.getTargetDevice() < FERMI_20) {
+      llvm::errs() << "Warning: 'Array2D' texture memory only supported for Fermi (CC >= 2.0)!"
+        << "  Using 'Linear2D' instead!\n";
+      compilerOptions.setTextureMemory(Linear2D);
+    }
+  } else {
+    if (compilerOptions.useTextureMemory()==Linear1D ||
+        compilerOptions.useTextureMemory()==Linear2D) {
+      llvm::errs() << "Warning: 'Linear1D' and 'Linear2D' texture memory not supported by OpenCL!"
+        << "  Using 'Array2D' instead!\n";
+      compilerOptions.setTextureMemory(Array2D);
+    }
+  }
+
 
   // print summary of compiler options
   compilerOptions.printSummary(targetDevice.getTargetDeviceName());
