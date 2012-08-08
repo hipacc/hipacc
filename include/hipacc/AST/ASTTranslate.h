@@ -468,6 +468,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       HIPACC_NOT_SUPPORTED(CXXUuidofExpr);
       return NULL;
     }
+    Stmt *VisitMSAsmStmt(MSAsmStmt *S) {
+      HIPACC_NOT_SUPPORTED(MSAsmStmt);
+      return NULL;
+    }
     Stmt *VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
       HIPACC_NOT_SUPPORTED(MSDependentExistsStmt);
       return NULL;
