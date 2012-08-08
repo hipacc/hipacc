@@ -107,14 +107,29 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
     name += "_";
   }
 
-  if (Kernel->useTextureMemory(Acc)) {
-    if (compilerOptions.emitCUDA()) {
-      name += "tex";
-    } else {
-      name += "img";
+  if (compilerOptions.emitCUDA()) {
+    switch (Kernel->useTextureMemory(Acc)) {
+      case NoTexture:
+        name += "gmem";
+        break;
+      case Linear1D:
+        name+= "tex1D";
+        break;
+      case Linear2D:
+      case Array2D:
+        name+= "tex2D";
+        break;
     }
   } else {
-    name += "gmem";
+    switch (Kernel->useTextureMemory(Acc)) {
+      case NoTexture:
+      case Linear1D:
+      case Linear2D:
+        name += "gmem";
+      case Array2D:
+        name+= "img";
+        break;
+    }
   }
 
   if (!compilerOptions.emitCUDA()) {
