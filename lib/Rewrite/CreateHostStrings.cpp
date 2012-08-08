@@ -547,6 +547,7 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
     std::string &resultStr) {
   std::stringstream GRSS;
 
+  // print runtime function name plus name of reduction function
   if (options.emitCUDA()) {
     if (options.getTargetDevice() >= FERMI_20 && !options.exploreConfig()) {
       resultStr += "hipaccApplyReductionThreadFence<" + GR->getType() + ">(";
@@ -573,23 +574,59 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
       resultStr += GR->getFileName() + "1D, ";
     }
   }
-  resultStr += GR->getAccessor()->getImage()->getName() + ", ";
+
+  // print image name
+  resultStr += "(void *)" + GR->getAccessor()->getImage()->getName() + ", ";
+  // print neutral element
   resultStr += GR->getNeutral() + ", ";
+  // print width, height, and stride
   resultStr += GR->getAccessor()->getImage()->getWidth() + ", ";
   resultStr += GR->getAccessor()->getImage()->getHeight() + ", ";
   resultStr += GR->getAccessor()->getImage()->getStride() + ", ";
+
+  // print optional offset_x/offset_y and iteration space width/height
   if (GR->isAccessor()) {
     resultStr += GR->getAccessor()->getOffsetX() + ", ";
     resultStr += GR->getAccessor()->getOffsetY() + ", ";
     resultStr += GR->getAccessor()->getWidth() + ", ";
     resultStr += GR->getAccessor()->getHeight() + ", ";
   }
+
+  // print pixels per thread
   GRSS << GR->getNumThreads() << ", " << GR->getPixelsPerThread();
   resultStr += GRSS.str();
-  if (options.emitCUDA() && options.exploreConfig()) {
-    std::stringstream cc_string;
-    cc_string << options.getTargetDevice();
-    resultStr += ", " + cc_string.str();
+
+  if (options.emitCUDA()) {
+    if (options.exploreConfig()) {
+      // print 2D CUDA array texture information - this parameter is only used
+      // if the texture type is Array2D
+      resultStr += ", hipacc_tex_info(std::string(\"_tex" + GR->getAccessor()->getImage()->getName() + GR->getName() + "\"), ";
+      resultStr += GR->getAccessor()->getImage()->getTextureType() + ", ";
+      resultStr += "(void *)" + GR->getAccessor()->getImage()->getName() + ", ";
+      if (options.emitCUDA() && options.useTextureMemory(USER_ON) &&
+          options.getTextureType()==Array2D) {
+        resultStr += "Array2D";
+      } else {
+          resultStr += "NoTexture";
+      }
+      resultStr += "), ";
+
+      // print compute capability in case of configuration exploration
+      std::stringstream cc_string;
+      cc_string << options.getTargetDevice();
+      resultStr += cc_string.str();
+    } else {
+      // print 2D CUDA array name - this parameter is only used if the next
+      // parameter is Array2D
+      resultStr += ", _tex" + GR->getAccessor()->getImage()->getName() + GR->getName() + ", ";
+      // print what type of input image we have - Array2D or NoTexture
+      if (options.emitCUDA() && options.useTextureMemory(USER_ON) &&
+          options.getTextureType()==Array2D) {
+        resultStr += "Array2D";
+      } else {
+        resultStr += "NoTexture";
+      }
+    }
   }
   resultStr += ");";
 }

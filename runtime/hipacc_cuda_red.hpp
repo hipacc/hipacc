@@ -42,6 +42,14 @@
 #define OFFSET_CHECK_X gid_x < width
 #define OFFSET_CHECK_X_STRIDE gid_x + blockDim.x < width
 #endif
+#ifdef USE_ARRAY_2D
+#define READ(INPUT, X, Y, STRIDE) tex2D(INPUT, X, Y)
+#define INPUT_PARM(DATA_TYPE, INPUT_NAME)
+#else
+#define READ(INPUT, X, Y, STRIDE) INPUT[(X) + (Y)*STRIDE]
+#define INPUT_PARM(DATA_TYPE, INPUT_NAME) const DATA_TYPE *INPUT_NAME,
+#endif
+
 
 // global variable used by thread-fence reduction to count how many blocks have
 // finished -> defined by the compiler (otherwise redefined for multiple
@@ -52,10 +60,10 @@
 // reduce a 2D block and store the reduced values to linear memory; use
 // thread-fence synchronization to reduce the values stored to linear memory in
 // one go - CUDA 2.x hardware required
-#define REDUCTION_CUDA_2D_THREAD_FENCE(NAME, DATA_TYPE, REDUCE) \
-__global__ void __launch_bounds__ (BS) NAME(const DATA_TYPE *input, DATA_TYPE \
-        *output, DATA_TYPE neutral, const unsigned int width, const unsigned int \
-        height, const unsigned int stride OFFSETS) { \
+#define REDUCTION_CUDA_2D_THREAD_FENCE(NAME, DATA_TYPE, REDUCE, INPUT_NAME) \
+__global__ void __launch_bounds__ (BS) NAME(INPUT_PARM(DATA_TYPE, INPUT_NAME) \
+        DATA_TYPE *output, DATA_TYPE neutral, const unsigned int width, const \
+        unsigned int height, const unsigned int stride OFFSETS) { \
     const unsigned int gid_x = 2*blockDim.x * blockIdx.x + threadIdx.x; \
     const unsigned int gid_y = PPT*blockDim.y * blockIdx.y + threadIdx.y; \
     const unsigned int tid = threadIdx.x; \
@@ -67,10 +75,10 @@ __global__ void __launch_bounds__ (BS) NAME(const DATA_TYPE *input, DATA_TYPE \
     for (unsigned int j=0; j < PPT; j++) { \
         if (j+gid_y < IS_HEIGHT) { \
             if (OFFSET_CHECK_X) { \
-                val = REDUCE(val, input[(j+gid_y + OFFSET_Y)*stride + gid_x]); \
+                val = REDUCE(val, READ(INPUT_NAME, gid_x, j+gid_y + OFFSET_Y, stride)); \
             } \
             if (OFFSET_CHECK_X_STRIDE) { \
-                val = REDUCE(val, input[(j+gid_y + OFFSET_Y)*stride + gid_x+blockDim.x]); \
+                val = REDUCE(val, READ(INPUT_NAME, gid_x+blockDim.x, j+gid_y + OFFSET_Y, stride)); \
             } \
         } \
     } \
@@ -148,10 +156,10 @@ __global__ void __launch_bounds__ (BS) NAME(const DATA_TYPE *input, DATA_TYPE \
 
 // step 1:
 // reduce a 2D block and store the reduced value to linear memory
-#define REDUCTION_CUDA_2D(NAME, DATA_TYPE, REDUCE) \
-__global__ void __launch_bounds__ (BS) NAME(const DATA_TYPE *input, DATA_TYPE \
-        *output, DATA_TYPE neutral, const unsigned int width, const unsigned int \
-        height, const unsigned int stride OFFSETS) { \
+#define REDUCTION_CUDA_2D(NAME, DATA_TYPE, REDUCE, INPUT_NAME) \
+__global__ void __launch_bounds__ (BS) NAME(INPUT_PARM(DATA_TYPE, INPUT_NAME) \
+    DATA_TYPE *output, DATA_TYPE neutral, const unsigned int width, const \
+    unsigned int height, const unsigned int stride OFFSETS) { \
     const unsigned int gid_x = 2*blockDim.x * blockIdx.x + threadIdx.x; \
     const unsigned int gid_y = PPT*blockDim.y * blockIdx.y + threadIdx.y; \
     const unsigned int tid = threadIdx.x; \
@@ -163,10 +171,10 @@ __global__ void __launch_bounds__ (BS) NAME(const DATA_TYPE *input, DATA_TYPE \
     for (unsigned int j=0; j < PPT; j++) { \
         if (j+gid_y < IS_HEIGHT) { \
             if (OFFSET_CHECK_X) { \
-                val = REDUCE(val, input[(j+gid_y + OFFSET_Y)*stride + gid_x]); \
+                val = REDUCE(val, READ(INPUT_NAME, gid_x, j+gid_y + OFFSET_Y, stride)); \
             } \
             if (OFFSET_CHECK_X_STRIDE) { \
-                val = REDUCE(val, input[(j+gid_y + OFFSET_Y)*stride + gid_x+blockDim.x]); \
+                val = REDUCE(val, READ(INPUT_NAME, gid_x+blockDim.x, j+gid_y + OFFSET_Y, stride)); \
             } \
         } \
     } \

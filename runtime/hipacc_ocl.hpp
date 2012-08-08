@@ -883,7 +883,7 @@ unsigned int nextPow2(unsigned int x) {
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, cl_mem image, T
+T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, void *image, T
         neutral, unsigned int width, unsigned int height, unsigned int stride,
         unsigned int offset_x, unsigned int offset_y, unsigned int is_width,
         unsigned int is_height, unsigned int max_threads, unsigned int
@@ -954,7 +954,7 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, cl_mem image, T
 }
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, cl_mem image, T
+T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, void *image, T
         neutral, unsigned int width, unsigned int height, unsigned int stride,
         unsigned int max_threads, unsigned int pixels_per_thread) {
     return hipaccApplyReduction<T>(kernel2D, kernel1D, image, neutral, width,
@@ -966,7 +966,7 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, cl_mem image, T
 // Perform exploration of global reduction and return result
 template<typename T>
 T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, cl_mem image, T neutral, unsigned int width,
+        const char *kernel1D, void *image, T neutral, unsigned int width,
         unsigned int height, unsigned int stride, unsigned int offset_x,
         unsigned int offset_y, unsigned int is_width, unsigned int is_height,
         unsigned int max_threads, unsigned int pixels_per_thread) {
@@ -1061,7 +1061,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 }
 template<typename T>
 T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, cl_mem image, T neutral, unsigned int width,
+        const char *kernel1D, void *image, T neutral, unsigned int width,
         unsigned int height, unsigned int stride, unsigned int max_threads,
         unsigned int pixels_per_thread) {
     return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, image,

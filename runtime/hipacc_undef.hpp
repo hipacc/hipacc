@@ -36,6 +36,7 @@
 #undef OFFSET_CHECK_X
 #undef OFFSET_CHECK_X_STRIDE
 #undef USE_OFFSETS
+#undef USE_ARRAY_2D
 // undef macros defined for interpolation 
 #undef IMG_PARM
 #undef TEX_PARM

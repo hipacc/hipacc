@@ -1811,6 +1811,11 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   if (GR->isAccessor()) {
     kernelOut << "#define USE_OFFSETS\n";
   }
+  if (compilerOptions.emitCUDA() && compilerOptions.getTargetDevice()>=FERMI_20
+      && compilerOptions.useTextureMemory(USER_ON) &&
+      compilerOptions.getTextureType()==Array2D) {
+    kernelOut << "#define USE_ARRAY_2D\n";
+  }
   if (compilerOptions.emitCUDA()) {
     kernelOut << "#include \"hipacc_cuda_red.hpp\"\n\n";
   } else {
@@ -1846,9 +1851,14 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
 
   // instantiate reduction
   if (compilerOptions.emitCUDA()) {
-    if (compilerOptions.getTargetDevice() >= FERMI_20 &&
+    // print 2D CUDA array definition - this is only required on FERMI and if
+    // Array2D is selected, but doesn't harm otherwise
+    kernelOut << "texture<" << D->getResultType().getAsString()
+              << ", cudaTextureType2D, cudaReadModeElementType> _tex"
+              << GR->getAccessor()->getImage()->getName() + GR->getName()
+              << ";\n\n";
+    if (compilerOptions.getTargetDevice()>=FERMI_20 &&
         !compilerOptions.exploreConfig()) {
-      // TODO Array2D ???
       kernelOut << "__device__ unsigned int finished_blocks_cu" <<
         GR->getFileName() << "2D = 0;\n\n";
       kernelOut << "REDUCTION_CUDA_2D_THREAD_FENCE(cu";
@@ -1857,7 +1867,9 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     }
     kernelOut << GR->getFileName() << "2D, "
               << D->getResultType().getAsString() << ", "
-              << GR->getName() << "Reduce)\n";
+              << GR->getName() << "Reduce, _tex"
+              << GR->getAccessor()->getImage()->getName() + GR->getName()
+              << ")\n";
   } else {
     if (compilerOptions.useTextureMemory(USER_ON)) {
       kernelOut << "REDUCTION_OCL_2D_IMAGE(cl";
