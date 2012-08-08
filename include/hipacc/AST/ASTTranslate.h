@@ -53,24 +53,27 @@
 
 namespace clang {
 namespace hipacc {
+typedef union border_variant {
+  struct {
+    unsigned int left   : 1;
+    unsigned int right  : 1;
+    unsigned int top    : 1;
+    unsigned int bottom : 1;
+  } borders;
+  unsigned int borderVal;
+  border_variant() : borderVal(0) {}
+} border_variant;
+
 class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
   private:
     ASTContext &Ctx;
     FunctionDecl *kernelDecl;
     HipaccKernel *Kernel;
     HipaccKernelClass *KernelClass;
-    union {
-      struct {
-        unsigned int left   : 1;
-        unsigned int right  : 1;
-        unsigned int top    : 1;
-        unsigned int bottom : 1;
-      } imgBorder;
-      unsigned int imgBorderVal;
-    };
     hipacc::Builtin::Context &builtins;
     CompilerOptions &compilerOptions;
     SIMDTypes simdTypes;
+    border_variant bh_variant;
     bool emitEstimation;
     bool emitPolly;
 
@@ -181,10 +184,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       kernelDecl(kernelDecl),
       Kernel(kernel),
       KernelClass(kernelClass),
-      imgBorderVal(0),
       builtins(builtins),
       compilerOptions(options),
       simdTypes(SIMDTypes(Ctx, builtins)),
+      bh_variant(),
       emitEstimation(emitEstimation),
       emitPolly(emitPolly),
       literalCount(0),
@@ -240,6 +243,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         #include "clang/AST/StmtNodes.inc"
         "\n\n";
     }
+    // create interpolation function name
+    static std::string getInterpolationName(ASTContext &Ctx,
+        hipacc::Builtin::Context &builtins, CompilerOptions &compilerOptions,
+        HipaccKernel *Kernel, HipaccAccessor *Acc, border_variant bh_variant);
 
     // C Expressions and Statements
     Stmt *VisitStmt(Stmt *S);

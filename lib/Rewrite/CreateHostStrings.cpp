@@ -631,5 +631,79 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
   resultStr += ");";
 }
 
+
+void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
+    HipaccAccessor *Acc, std::string function_name, std::string type_suffix,
+    InterpolationMode ip_mode, BoundaryMode bh_mode, std::string &resultStr) {
+  // interpolation macro
+  switch (ip_mode) {
+    case InterpolateNO:
+    case InterpolateNN:
+      resultStr += "DEFINE_BH_VARIANT_NO_BH(INTERPOLATE_LINEAR_FILTERING";
+      break;
+    case InterpolateLF:
+      resultStr += "DEFINE_BH_VARIANT(INTERPOLATE_LINEAR_FILTERING";
+      break;
+    case InterpolateCF:
+      resultStr += "DEFINE_BH_VARIANT(INTERPOLATE_CUBIC_FILTERING";
+      break;
+    case InterpolateL3:
+      resultStr += "DEFINE_BH_VARIANT(INTERPOLATE_LANCZOS_FILTERING";
+      break;
+  }
+  if (options.emitCUDA()) {
+    resultStr += "_CUDA, ";
+  } else {
+    resultStr += "_OPENCL, ";
+  }
+  // data type
+  resultStr += Acc->getImage()->getPixelType() + ", ";
+  // append short data type - overloading is not supported in OpenCL
+  if (options.emitOpenCL()) {
+    resultStr += type_suffix + ", ";
+  }
+  // interpolation function
+  resultStr += function_name;
+  // boundary handling name + function (upper & lower)
+  std::string const_parameter = "NO_PARM";
+  std::string const_suffix = "";
+  switch (bh_mode) {
+    case BOUNDARY_CLAMP:
+      resultStr += "_clamp, BH_CONSTANT_LOWER, BH_CONSTANT_UPPER, "; break;
+    case BOUNDARY_REPEAT:
+      resultStr += "_repeat, BH_REPEAT_LOWER, BH_REPEAT_UPPER, "; break;
+    case BOUNDARY_MIRROR:
+      resultStr += "_mirror, BH_MIRROR_LOWER, BH_MIRROR_UPPER, "; break;
+    case BOUNDARY_CONSTANT:
+      resultStr += "_constant, BH_CONSTANT_LOWER, BH_CONSTANT_UPPER, ";
+      const_parameter = "CONST_PARM";
+      const_suffix = "_CONST";
+      break;
+    case BOUNDARY_UNDEFINED:
+      resultStr += ", NO_BH, NO_BH, "; break;
+  }
+  // image memory parameter, constant parameter, memory access function
+  switch (K->useTextureMemory(Acc)) {
+    case NoTexture:
+      resultStr += "IMG_PARM, " + const_parameter
+                + ", IMG" + const_suffix;
+      break;
+    case Linear1D:
+      resultStr += "TEX_PARM, " + const_parameter
+                + ", TEX" + const_suffix;
+      break;
+    case Linear2D:
+    case Array2D:
+      resultStr += "ARR_PARM, " + const_parameter
+                + ", ARR" + const_suffix;
+      break;
+  }
+  // image read function for OpenCL
+  if (options.emitOpenCL()) {
+    resultStr += ", " + Acc->getImage()->getImageReadFunction();
+  }
+  resultStr += ")\n";
+}
+
 // vim: set ts=2 sw=2 sts=2 et ai:
 

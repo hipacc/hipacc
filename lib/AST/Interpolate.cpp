@@ -39,30 +39,11 @@ using namespace ASTNode;
 using namespace hipacc::Builtin;
 
 
-// calculate index using nearest neighbor interpolation
-Expr *ASTTranslate::addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x) {
-  // acc_scale_x * (gid_x - is_offset_x)
-  idx_x = removeISOffsetX(idx_x, Acc);
-
-  return createBinaryOperator(Ctx, Acc->getScaleXDecl(), createParenExpr(Ctx,
-        idx_x), BO_Mul, Ctx.FloatTy);
-}
-Expr *ASTTranslate::addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y) {
-  // acc_scale_y * (gid_y)
-  return createBinaryOperator(Ctx, Acc->getScaleYDecl(), createParenExpr(Ctx,
-        idx_y), BO_Mul, Ctx.FloatTy);
-}
-
-
-// create interpolation function declaration
-FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
-  // interpolation function is constructed as follows:
-  // interpolate_ + <interpolation_mode> + _ + <boundary_handling_mode> + _ +
-  // <memory_type>
+// create interpolation function name
+std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
+    hipacc::Builtin::Context &builtins, CompilerOptions &compilerOptions,
+    HipaccKernel *Kernel, HipaccAccessor *Acc, border_variant bh_variant) {
   std::string name = "interpolate_";
-  FunctionDecl *interpolateDecl = NULL;
-  QualType QT = Acc->getImage()->getPixelQualType();
-  std::string typeSpecifier = builtins.EncodeTypeIntoStr(QT, Ctx);
 
   switch (Acc->getInterpolation()) {
     case InterpolateNO:
@@ -78,33 +59,6 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
     case InterpolateL3:
       name += "l3_";
       break;
-  }
-
-  // only add boundary handling mode string if required
-  if (imgBorderVal) {
-    switch (Acc->getBoundaryHandling()) {
-      case BOUNDARY_UNDEFINED:
-      default:
-        break;
-      case BOUNDARY_CLAMP:
-        name += "clamp_";
-        break;
-      case BOUNDARY_REPEAT:
-        name += "repeat_";
-        break;
-      case BOUNDARY_MIRROR:
-        name += "mirror_";
-        break;
-      case BOUNDARY_CONSTANT:
-        name += "constant_";
-        break;
-    }
-
-    if (imgBorder.top) name += "t";
-    if (imgBorder.bottom) name += "b";
-    if (imgBorder.left) name += "l";
-    if (imgBorder.right) name += "r";
-    name += "_";
   }
 
   if (compilerOptions.emitCUDA()) {
@@ -126,15 +80,73 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
       case Linear1D:
       case Linear2D:
         name += "gmem";
+        break;
       case Array2D:
         name+= "img";
         break;
     }
   }
 
+  return name;
+}
+
+
+// calculate index using nearest neighbor interpolation
+Expr *ASTTranslate::addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x) {
+  // acc_scale_x * (gid_x - is_offset_x)
+  idx_x = removeISOffsetX(idx_x, Acc);
+
+  return createBinaryOperator(Ctx, Acc->getScaleXDecl(), createParenExpr(Ctx,
+        idx_x), BO_Mul, Ctx.FloatTy);
+}
+Expr *ASTTranslate::addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y) {
+  // acc_scale_y * (gid_y)
+  return createBinaryOperator(Ctx, Acc->getScaleYDecl(), createParenExpr(Ctx,
+        idx_y), BO_Mul, Ctx.FloatTy);
+}
+
+
+// create interpolation function declaration
+FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
+  // interpolation function is constructed as follows:
+  // interpolate_ + <interpolation_mode> + _ + <boundary_handling_mode> + _ +
+  // <memory_type>
+  FunctionDecl *interpolateDecl = NULL;
+  QualType QT = Acc->getImage()->getPixelQualType();
+  std::string typeSpecifier = builtins.EncodeTypeIntoStr(QT, Ctx);
+
+  std::string name = getInterpolationName(Ctx, builtins, compilerOptions,
+      Kernel, Acc, bh_variant);
+
+  // only add boundary handling mode string if required
+  if (bh_variant.borderVal) {
+    switch (Acc->getBoundaryHandling()) {
+      case BOUNDARY_UNDEFINED:
+      default:
+        break;
+      case BOUNDARY_CLAMP:
+        name += "_clamp_";
+        break;
+      case BOUNDARY_REPEAT:
+        name += "_repeat_";
+        break;
+      case BOUNDARY_MIRROR:
+        name += "_mirror_";
+        break;
+      case BOUNDARY_CONSTANT:
+        name += "_constant_";
+        break;
+    }
+
+    if (bh_variant.borders.top) name += "t";
+    if (bh_variant.borders.bottom) name += "b";
+    if (bh_variant.borders.left) name += "l";
+    if (bh_variant.borders.right) name += "r";
+  }
+
   if (!compilerOptions.emitCUDA()) {
     // no function overloading supported in OpenCL -> add type specifier to function name
-    name += "_" + typeSpecifier;
+    name += "_" + builtins.EncodeTypeIntoStr(Acc->getImage()->getPixelQualType(), Ctx);
   }
 
   // lookup interpolation function
@@ -153,7 +165,7 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
   if (!interpolateDecl) {
     std::string funcTypeSpecifier = typeSpecifier + typeSpecifier + "*C"
       + "iCfCfCiCiCiCiC";
-    if (imgBorderVal && Acc->getBoundaryHandling()==BOUNDARY_CONSTANT) {
+    if (bh_variant.borderVal && Acc->getBoundaryHandling()==BOUNDARY_CONSTANT) {
       funcTypeSpecifier += typeSpecifier + "C";
     }
 
@@ -199,7 +211,8 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
     args.push_back(createIntegerLiteral(Ctx, 0));
   }
   // const val
-  if (Acc->getBoundaryHandling() == BOUNDARY_CONSTANT && imgBorderVal!=0) {
+  if (Acc->getBoundaryHandling()==BOUNDARY_CONSTANT &&
+      bh_variant.borderVal!=0) {
     args.push_back(Acc->getConstExpr());
   }
 

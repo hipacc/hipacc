@@ -792,48 +792,48 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     switch (i) {
       case 0:
         if (kernel_y) {
-          imgBorder.top = 1;
-          imgBorder.bottom = 1;
+          bh_variant.borders.top = 1;
+          bh_variant.borders.bottom = 1;
         }
         if (kernel_x) {
-          imgBorder.left = 1;
-          imgBorder.right = 1;
+          bh_variant.borders.left = 1;
+          bh_variant.borders.right = 1;
         }
         break;
       case 1:
         if (!kernel_x || !kernel_y) continue;
-        imgBorder.top = 1;
-        imgBorder.left = 1;
+        bh_variant.borders.top = 1;
+        bh_variant.borders.left = 1;
         break;
       case 2:
         if (!kernel_x || !kernel_y) continue;
-        imgBorder.top = 1;
-        imgBorder.right = 1;
+        bh_variant.borders.top = 1;
+        bh_variant.borders.right = 1;
         break;
       case 3:
-        if (kernel_y) imgBorder.top = 1;
+        if (kernel_y) bh_variant.borders.top = 1;
         else continue;
         break;
       case 4:
         if (!kernel_x || !kernel_y) continue;
-        imgBorder.bottom = 1;
-        imgBorder.left = 1;
+        bh_variant.borders.bottom = 1;
+        bh_variant.borders.left = 1;
         break;
       case 5:
         if (!kernel_x || !kernel_y) continue;
-        imgBorder.bottom = 1;
-        imgBorder.right = 1;
+        bh_variant.borders.bottom = 1;
+        bh_variant.borders.right = 1;
         break;
       case 6:
-        if (kernel_y) imgBorder.bottom = 1;
+        if (kernel_y) bh_variant.borders.bottom = 1;
         else continue;
         break;
       case 7:
-        if (kernel_x) imgBorder.right = 1;
+        if (kernel_x) bh_variant.borders.right = 1;
         else continue;
         break;
       case 8:
-        if (kernel_x) imgBorder.left = 1;
+        if (kernel_x) bh_variant.borders.left = 1;
         else continue;
         break;
       case 9:
@@ -878,14 +878,14 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       }
     } else {
       // if (gid_x >= is_offset_x)
-      if (border_handling && imgBorder.left &&
+      if (border_handling && bh_variant.borders.left &&
           Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
         check_bop = createBinaryOperator(Ctx, gidXRef,
             Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(), BO_GE,
             Ctx.BoolTy);
       }
       // if (gid_x < is_width+is_offset_x)
-      if (border_handling && imgBorder.right) {
+      if (border_handling && bh_variant.borders.right) {
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
           check_bop = createBinaryOperator(Ctx, gidXRef,
               createBinaryOperator(Ctx, isWidth,
@@ -930,7 +930,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       // add iteration space check when calculating multiple pixels per thread,
       // having a tiling with multiple threads in the y-dimension, or in case
       // exploration is done
-      if ((border_handling && imgBorder.bottom) ||
+      if ((border_handling && bh_variant.borders.bottom) ||
           Kernel->getPixelsPerThread()>1 || Kernel->getNumThreadsY()>1 ||
           compilerOptions.exploreConfig()) {
         // if (gid_y + p < is_height)
@@ -985,7 +985,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     }
 
     // reset image border configuration
-    imgBorderVal = 0;
+    bh_variant.borderVal = 0;
     // reset gid_y
     gidYRef = gid_y_ref;
     // reset lid_y

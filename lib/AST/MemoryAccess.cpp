@@ -283,8 +283,8 @@ FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
         switch (Kernel->useTextureMemory(Acc)) {
           default:
           case Linear1D:
-          case Linear2D:
             return builtins.getBuiltinFunction(CUDABItex1Dfetchi);
+          case Linear2D:
           case Array2D:
             return builtins.getBuiltinFunction(CUDABItex2Di);
         }

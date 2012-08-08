@@ -78,6 +78,9 @@ class CreateHostStrings {
         std::string &resultStr);
     void writeGlobalReductionCall(HipaccGlobalReduction *GR, std::string
         &resultStr);
+    void writeInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,
+        std::string function_name, std::string type_suffix, InterpolationMode
+        ip_mode, BoundaryMode bh_mode, std::string &resultStr);
 };
 } // end namespace hipacc
 } // end namespace clang

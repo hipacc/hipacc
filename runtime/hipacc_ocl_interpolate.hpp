@@ -30,13 +30,13 @@
 __constant sampler_t interpolationSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
 
 #define IMG_PARM(TYPE) __global const TYPE *img
-#define TEX_PARM(TYPE) __read_only image2d_t img
+#define ARR_PARM(TYPE) __read_only image2d_t img
 #define CONST_PARM(TYPE) , const TYPE const_val
 #define NO_PARM(TYPE)
 #define IMG(idx_x, idx_y, stride, const_val, method) img[(idx_x) + (idx_y)*(stride)]
-#define TEX(idx_x, idx_y, stride, const_val, method) method(img, interpolationSampler, (int2)(idx_x, idx_y)).x
+#define ARR(idx_x, idx_y, stride, const_val, method) method(img, interpolationSampler, (int2)(idx_x, idx_y)).x
 #define IMG_CONST(idx_x, idx_y, stride, const_val, method) ((idx_x)<0||(idx_y)<0)<0?const_val:img[(idx_x) + (idx_y)*(stride)]
-#define TEX_CONST(idx_x, idx_y, stride, const_val, method) ((idx_x)<0||(idx_y)<0)<0?const_val:method(img, interpolationSampler, (int2)(idx_x, idx_y)).x
+#define ARR_CONST(idx_x, idx_y, stride, const_val, method) ((idx_x)<0||(idx_y)<0)<0?const_val:method(img, interpolationSampler, (int2)(idx_x, idx_y)).x
 
 // border handling: CLAMP
 #define BH_CLAMP_LOWER(idx, lower, stride) bh_clamp_lower(idx, lower)
@@ -92,39 +92,26 @@ inline int no_bh(int idx) {
     return idx;
 }
 
-// CLAMP, REPEAT, MIRROR, CONSTANT, UNDEFINED (NO_BH)
-#define DEFINE_BH_VARIANTS(METHOD, IM, DATA_TYPE, ACCESS_TEX, TYPE_SHORT) \
-DEFINE_BH_VARIANT(METHOD, interpolate_##IM##_clamp, DATA_TYPE, TYPE_SHORT, NO_PARM, IMG, TEX, ACCESS_TEX, BH_CLAMP_LOWER, BH_CLAMP_UPPER) \
-DEFINE_BH_VARIANT(METHOD, interpolate_##IM##_repeat, DATA_TYPE, TYPE_SHORT, NO_PARM, IMG, TEX, ACCESS_TEX, BH_REPEAT_LOWER, BH_REPEAT_UPPER) \
-DEFINE_BH_VARIANT(METHOD, interpolate_##IM##_mirror, DATA_TYPE, TYPE_SHORT, NO_PARM, IMG, TEX, ACCESS_TEX, BH_MIRROR_LOWER, BH_MIRROR_UPPER) \
-DEFINE_BH_VARIANT(METHOD, interpolate_##IM##_constant, DATA_TYPE, TYPE_SHORT, CONST_PARM, IMG_CONST, TEX_CONST, ACCESS_TEX, BH_CONSTANT_LOWER, BH_CONSTANT_UPPER) \
-METHOD(interpolate_##IM##_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), NO_PARM(DATA_TYPE), IMG, ACCESS_TEX, NO_BH, NO_BH, NO_BH, NO_BH) \
-METHOD(interpolate_##IM##_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), NO_PARM(DATA_TYPE), TEX, ACCESS_TEX, NO_BH, NO_BH, NO_BH, NO_BH)
 
-// xl, xu, yl, yu
-#define DEFINE_BH_VARIANT(METHOD, NAME, DATA_TYPE, TYPE_SHORT, CPARM, IMGACC, TEXACC, ACCESS_TEX, BH_LOWER, BH_UPPER) \
-METHOD(NAME##_l_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), CPARM(DATA_TYPE), IMGACC, ACCESS_TEX, BH_LOWER, NO_BH, NO_BH, NO_BH) \
-METHOD(NAME##_r_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), CPARM(DATA_TYPE), IMGACC, ACCESS_TEX, NO_BH, BH_UPPER, NO_BH, NO_BH) \
-METHOD(NAME##_t_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), CPARM(DATA_TYPE), IMGACC, ACCESS_TEX, NO_BH, NO_BH, BH_LOWER, NO_BH) \
-METHOD(NAME##_b_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), CPARM(DATA_TYPE), IMGACC, ACCESS_TEX, NO_BH, NO_BH, NO_BH, BH_UPPER) \
-METHOD(NAME##_tl_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), CPARM(DATA_TYPE), IMGACC, ACCESS_TEX, BH_LOWER, NO_BH, BH_LOWER, NO_BH) \
-METHOD(NAME##_tr_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), CPARM(DATA_TYPE), IMGACC, ACCESS_TEX, NO_BH, BH_UPPER, BH_LOWER, NO_BH) \
-METHOD(NAME##_bl_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), CPARM(DATA_TYPE), IMGACC, ACCESS_TEX, BH_LOWER, NO_BH, NO_BH, BH_UPPER) \
-METHOD(NAME##_br_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), CPARM(DATA_TYPE), IMGACC, ACCESS_TEX, NO_BH, BH_UPPER, NO_BH, BH_UPPER) \
-METHOD(NAME##_tblr_gmem_##TYPE_SHORT, DATA_TYPE, IMG_PARM(DATA_TYPE), CPARM(DATA_TYPE), IMGACC, ACCESS_TEX, BH_LOWER, BH_UPPER, BH_LOWER, BH_UPPER) \
-METHOD(NAME##_l_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), CPARM(DATA_TYPE), TEXACC, ACCESS_TEX, BH_LOWER, NO_BH, NO_BH, NO_BH) \
-METHOD(NAME##_r_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), CPARM(DATA_TYPE), TEXACC, ACCESS_TEX, NO_BH, BH_UPPER, NO_BH, NO_BH) \
-METHOD(NAME##_t_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), CPARM(DATA_TYPE), TEXACC, ACCESS_TEX, NO_BH, NO_BH, BH_LOWER, NO_BH) \
-METHOD(NAME##_b_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), CPARM(DATA_TYPE), TEXACC, ACCESS_TEX, NO_BH, NO_BH, NO_BH, BH_UPPER) \
-METHOD(NAME##_tl_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), CPARM(DATA_TYPE), TEXACC, ACCESS_TEX, BH_LOWER, NO_BH, BH_LOWER, NO_BH) \
-METHOD(NAME##_tr_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), CPARM(DATA_TYPE), TEXACC, ACCESS_TEX, NO_BH, BH_UPPER, BH_LOWER, NO_BH) \
-METHOD(NAME##_bl_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), CPARM(DATA_TYPE), TEXACC, ACCESS_TEX, BH_LOWER, NO_BH, NO_BH, BH_UPPER) \
-METHOD(NAME##_br_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), CPARM(DATA_TYPE), TEXACC, ACCESS_TEX, NO_BH, BH_UPPER, NO_BH, BH_UPPER) \
-METHOD(NAME##_tblr_img_##TYPE_SHORT, DATA_TYPE, TEX_PARM(DATA_TYPE), CPARM(DATA_TYPE), TEXACC, ACCESS_TEX, BH_LOWER, BH_UPPER, BH_LOWER, BH_UPPER) \
+// no border handling
+#define DEFINE_BH_VARIANT_NO_BH(METHOD, DATA_TYPE, TS, NAME, BH_LOWER, BH_UPPER, PARM, CPARM, ACC, ACC_ARR) \
+METHOD(NAME##TS,        DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, NO_BH, NO_BH, NO_BH, NO_BH)
+
+// border handling
+#define DEFINE_BH_VARIANT(METHOD, DATA_TYPE, TS, NAME, BH_LOWER, BH_UPPER, PARM, CPARM, ACC, ACC_ARR) \
+METHOD(NAME##_l##TS,    DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, BH_LOWER, NO_BH, NO_BH, NO_BH) \
+METHOD(NAME##_r##TS,    DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, NO_BH, BH_UPPER, NO_BH, NO_BH) \
+METHOD(NAME##_t##TS,    DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, NO_BH, NO_BH, BH_LOWER, NO_BH) \
+METHOD(NAME##_b##TS,    DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, NO_BH, NO_BH, NO_BH, BH_UPPER) \
+METHOD(NAME##_tl##TS,   DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, BH_LOWER, NO_BH, BH_LOWER, NO_BH) \
+METHOD(NAME##_tr##TS,   DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, NO_BH, BH_UPPER, BH_LOWER, NO_BH) \
+METHOD(NAME##_bl##TS,   DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, BH_LOWER, NO_BH, NO_BH, BH_UPPER) \
+METHOD(NAME##_br##TS,   DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, NO_BH, BH_UPPER, NO_BH, BH_UPPER) \
+METHOD(NAME##_tblr##TS, DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, BH_LOWER, BH_UPPER, BH_LOWER, BH_UPPER)
 
 
 // Bilinear Interpolation
-#define INTERPOLATE_LINEAR_FILTERING_OPENCL(NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_TEX, BHXL, BHXU, BHYL, BHYU) \
+#define INTERPOLATE_LINEAR_FILTERING_OPENCL(NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_ARR, BHXL, BHXU, BHYL, BHYU) \
 DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
     float xb = x_mapped - 0.5f; \
     float yb = y_mapped - 0.5f; \
@@ -136,19 +123,11 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
     y_int += global_offset_y; \
  \
     return \
-        (1.0f-x_frac) * (1.0f-y_frac) * ACCESS(BHXU(BHXL(x_int  , global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int  , global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) + \
-              x_frac  * (1.0f-y_frac) * ACCESS(BHXU(BHXL(x_int+1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int  , global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) + \
-        (1.0f-x_frac) *       y_frac  * ACCESS(BHXU(BHXL(x_int  , global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int+1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) + \
-              x_frac  *       y_frac  * ACCESS(BHXU(BHXL(x_int+1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int+1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX); \
-} \
-
-DEFINE_BH_VARIANTS(INTERPOLATE_LINEAR_FILTERING_OPENCL, lf, char, read_imagei, c)
-DEFINE_BH_VARIANTS(INTERPOLATE_LINEAR_FILTERING_OPENCL, lf, short int, read_imagei, s)
-DEFINE_BH_VARIANTS(INTERPOLATE_LINEAR_FILTERING_OPENCL, lf, int, read_imagei, i)
-DEFINE_BH_VARIANTS(INTERPOLATE_LINEAR_FILTERING_OPENCL, lf, unsigned char, read_imageui, Uc)
-DEFINE_BH_VARIANTS(INTERPOLATE_LINEAR_FILTERING_OPENCL, lf, unsigned short int, read_imageui, Us)
-DEFINE_BH_VARIANTS(INTERPOLATE_LINEAR_FILTERING_OPENCL, lf, unsigned int, read_imageui, Ui)
-DEFINE_BH_VARIANTS(INTERPOLATE_LINEAR_FILTERING_OPENCL, lf, float, read_imagef, f)
+        (1.0f-x_frac) * (1.0f-y_frac) * ACCESS(BHXU(BHXL(x_int  , global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int  , global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) + \
+              x_frac  * (1.0f-y_frac) * ACCESS(BHXU(BHXL(x_int+1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int  , global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) + \
+        (1.0f-x_frac) *       y_frac  * ACCESS(BHXU(BHXL(x_int  , global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int+1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) + \
+              x_frac  *       y_frac  * ACCESS(BHXU(BHXL(x_int+1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int+1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR); \
+}
 
 
 // Cubic Interpolation
@@ -163,7 +142,7 @@ float bicubic_spline(float diff) {
     } else return 0.0f; 
 } 
  
-#define INTERPOLATE_CUBIC_FILTERING_OPENCL(NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_TEX, BHXL, BHXU, BHYL, BHYU) \
+#define INTERPOLATE_CUBIC_FILTERING_OPENCL(NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_ARR, BHXL, BHXU, BHYL, BHYU) \
 DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
     float xb = x_mapped - 0.5f; \
     float yb = y_mapped - 0.5f; \
@@ -175,39 +154,31 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
     y_int += global_offset_y; \
  \
     float y0 = \
-        ACCESS(BHXU(BHXL(x_int - 1 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 3); \
+        ACCESS(BHXU(BHXL(x_int - 1 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 3); \
     float y1 = \
-        ACCESS(BHXU(BHXL(x_int - 1 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 3); \
+        ACCESS(BHXU(BHXL(x_int - 1 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 3); \
     float y2 = \
-        ACCESS(BHXU(BHXL(x_int - 1 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 3); \
+        ACCESS(BHXU(BHXL(x_int - 1 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 3); \
     float y3 = \
-        ACCESS(BHXU(BHXL(x_int - 1 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 1 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * bicubic_spline(x_frac - 1 + 3); \
+        ACCESS(BHXU(BHXL(x_int - 1 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 3); \
  \
     return y0*bicubic_spline(y_frac - 1 + 0) + \
         y1*bicubic_spline(y_frac - 1 + 1) + \
         y2*bicubic_spline(y_frac - 1 + 2) + \
         y3*bicubic_spline(y_frac - 1 + 3); \
 }
-
-DEFINE_BH_VARIANTS(INTERPOLATE_CUBIC_FILTERING_OPENCL, cf, char, read_imagei, c)
-DEFINE_BH_VARIANTS(INTERPOLATE_CUBIC_FILTERING_OPENCL, cf, short int, read_imagei, s)
-DEFINE_BH_VARIANTS(INTERPOLATE_CUBIC_FILTERING_OPENCL, cf, int, read_imagei, i)
-DEFINE_BH_VARIANTS(INTERPOLATE_CUBIC_FILTERING_OPENCL, cf, unsigned char, read_imageui, Uc)
-DEFINE_BH_VARIANTS(INTERPOLATE_CUBIC_FILTERING_OPENCL, cf, unsigned short int, read_imageui, Us)
-DEFINE_BH_VARIANTS(INTERPOLATE_CUBIC_FILTERING_OPENCL, cf, unsigned int, read_imageui, Ui)
-DEFINE_BH_VARIANTS(INTERPOLATE_CUBIC_FILTERING_OPENCL, cf, float, read_imagef, f)
 
 
 // Lanczos3 Interpolation
@@ -222,7 +193,7 @@ float lanczos(float diff) {
     } else return 0.0;
 }
 
-#define INTERPOLATE_LANCZOS_FILTERING_OPENCL(NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_TEX, BHXL, BHXU, BHYL, BHYU) \
+#define INTERPOLATE_LANCZOS_FILTERING_OPENCL(NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_ARR, BHXL, BHXU, BHYL, BHYU) \
 DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
     float xb = x_mapped - 0.5f; \
     float yb = y_mapped - 0.5f; \
@@ -234,47 +205,47 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
     y_int += global_offset_y; \
  \
     float y0 = \
-        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 3) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 4) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 5); \
+        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 0, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
     float y1 = \
-        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 3) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 5) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 5); \
+        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 1, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
     float y2 = \
-        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 3) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 4) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 5); \
+        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 2, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
     float y3 = \
-        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 3) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 4) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 5); \
+        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 3, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
     float y4 = \
-        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 3) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 4) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 5); \
+        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 4, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
     float y5 = \
-        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 0) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 1) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 2) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 3) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 4) + \
-        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_TEX) * lanczos(x_frac - 2 + 5); \
+        ACCESS(BHXU(BHXL(x_int - 2 + 0, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 1, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 2, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 3, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 4, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
+        ACCESS(BHXU(BHXL(x_int - 2 + 5, global_offset_x, rwidth), global_offset_x+rwidth, rwidth), BHYU(BHYL(y_int - 1 + 5, global_offset_y, rheight), global_offset_y+rheight, rheight), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
  \
     return y0*lanczos(y_frac - 2 + 0) + \
         y1*lanczos(y_frac - 2 + 1) + \
@@ -283,14 +254,6 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
         y4*lanczos(y_frac - 2 + 4) + \
         y5*lanczos(y_frac - 2 + 5); \
 }
-
-DEFINE_BH_VARIANTS(INTERPOLATE_LANCZOS_FILTERING_OPENCL, l3, char, read_imagei, c)
-DEFINE_BH_VARIANTS(INTERPOLATE_LANCZOS_FILTERING_OPENCL, l3, short int, read_imagei, s)
-DEFINE_BH_VARIANTS(INTERPOLATE_LANCZOS_FILTERING_OPENCL, l3, int, read_imagei, i)
-DEFINE_BH_VARIANTS(INTERPOLATE_LANCZOS_FILTERING_OPENCL, l3, unsigned char, read_imageui, Uc)
-DEFINE_BH_VARIANTS(INTERPOLATE_LANCZOS_FILTERING_OPENCL, l3, unsigned short int, read_imageui, Us)
-DEFINE_BH_VARIANTS(INTERPOLATE_LANCZOS_FILTERING_OPENCL, l3, unsigned int, read_imageui, Ui)
-DEFINE_BH_VARIANTS(INTERPOLATE_LANCZOS_FILTERING_OPENCL, l3, float, read_imagef, f)
 
 #endif  // __HIPACC_OCL_INTERPOLATE_HPP__
 

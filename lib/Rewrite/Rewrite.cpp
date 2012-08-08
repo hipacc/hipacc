@@ -1976,6 +1976,24 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           kernelOut << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
         }
       }
+
+      // define required interpolation mode
+      if (inc && Acc->getInterpolation()>InterpolateNN) {
+        std::string function_name = ASTTranslate::getInterpolationName(Context,
+            builtins, compilerOptions, K, Acc, border_variant());
+        std::string suffix = "_" +
+          builtins.EncodeTypeIntoStr(Acc->getImage()->getPixelQualType(),
+              Context);
+
+        std::string resultStr;
+        stringCreator.writeInterpolationDefinition(K, Acc, function_name,
+            suffix, Acc->getInterpolation(), Acc->getBoundaryHandling(),
+            resultStr);
+
+        stringCreator.writeInterpolationDefinition(K, Acc, function_name,
+            suffix, InterpolateNO, BOUNDARY_UNDEFINED, resultStr);
+        kernelOut << resultStr;
+      }
     }
   }
 
@@ -2201,7 +2219,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   if (compilerOptions.emitCUDA()) {
     kernelOut << "}\n";
   }
-  if (inc) kernelOut << "#include \"hipacc_undef.hpp\"\n";
   kernelOut << "\n";
   kernelOut << "#endif //" + ifdef + "\n";
   kernelOut << "\n";

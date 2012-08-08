@@ -206,19 +206,19 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
     bhCStmts.push_back(curCompoundStmtVistor);
 
     Expr *bo_constant = NULL;
-    if (imgBorder.right && EX) {
+    if (bh_variant.borders.right && EX) {
       // < _gid_x<0> >= offset_x+width >
       bo_constant = addConstantUpper(Acc, tmp_x_ref, upperX, bo_constant);
     }
-    if (imgBorder.bottom && EY) {
+    if (bh_variant.borders.bottom && EY) {
       // if (_gid_y<0> >= offset_y+height)
       bo_constant = addConstantUpper(Acc, tmp_y_ref, upperY, bo_constant);
     }
-    if (imgBorder.left && EX) {
+    if (bh_variant.borders.left && EX) {
       // if (_gid_x<0> < offset_x)
       bo_constant = addConstantLower(Acc, tmp_x_ref, lowerX, bo_constant);
     }
-    if (imgBorder.top && EY) {
+    if (bh_variant.borders.top && EY) {
       // if (_gid_y<0> < offset_y)
       bo_constant = addConstantLower(Acc, tmp_y_ref, lowerY, bo_constant);
     }
@@ -270,19 +270,19 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
         break;
     }
 
-    if (imgBorder.right && EX) {
+    if (bh_variant.borders.right && EX) {
       bhStmts.push_back((*this.*upperFun)(Acc, tmp_x_ref, upperX));
       bhCStmts.push_back(curCompoundStmtVistor);
     }
-    if (imgBorder.bottom && EY) {
+    if (bh_variant.borders.bottom && EY) {
       bhStmts.push_back((*this.*upperFun)(Acc, tmp_y_ref, upperY));
       bhCStmts.push_back(curCompoundStmtVistor);
     }
-    if (imgBorder.left && EX) {
+    if (bh_variant.borders.left && EX) {
       bhStmts.push_back((*this.*lowerFun)(Acc, tmp_x_ref, lowerX));
       bhCStmts.push_back(curCompoundStmtVistor);
     }
-    if (imgBorder.top && EY) {
+    if (bh_variant.borders.top && EY) {
       bhStmts.push_back((*this.*lowerFun)(Acc, tmp_y_ref, lowerY));
       bhCStmts.push_back(curCompoundStmtVistor);
     }
