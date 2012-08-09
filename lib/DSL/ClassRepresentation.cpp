@@ -370,6 +370,11 @@ void HipaccKernel::calcConfig() {
     }
   }
 
+  // fall back to user specified configuration
+  if (options.useKernelConfig(USER_ON)) {
+    setDefaultConfig();
+  }
+
   llvm::errs() << "Using configuration " << num_threads_x << "x" <<
     num_threads_y << "(occupancy: " << occMap.second << ") for kernel '" <<
     kernelName << "'\n";
@@ -378,8 +383,8 @@ void HipaccKernel::calcConfig() {
 }
 
 void HipaccKernel::setDefaultConfig() {
-  num_threads_x = default_num_threads;
-  num_threads_y = 1;
+  num_threads_x = default_num_threads_x;
+  num_threads_y = default_num_threads_y;
   num_blocks_bh_l = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
   num_blocks_bh_r = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
   num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*pixels_per_thread[KC->getKernelType()]));

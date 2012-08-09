@@ -17,12 +17,14 @@ NVCC_FLAGS          := -gencode=arch=compute_$(C_C),code=\"sm_$(C_C),compute_$(C
 # vectorize code (experimental, doesn't work) -> set HIPACC_VEC to off|on
 # pad images to a multiple of n bytes -> set HIPACC_PAD to n
 # map n output pixels to one thread -> set HIPACC_PPT to n
+# use specific configuration for kernels -> set HIPACC_CONFIG to nxm
 # generate code that explores configuration -> set HIPACC_EXPLORE
 # generate code that times kernel execution -> set HIPACC_TIMING
 HIPACC_LMEM?=off
 HIPACC_TEX?=off
 HIPACC_VEC?=off
 HIPACC_PPT?=1
+HIPACC_CONFIG?=128x1
 HIPACC_EXPLORE?=0
 HIPACC_TIMING?=0
 
@@ -42,6 +44,9 @@ ifdef HIPACC_PPT
 endif
 ifdef HIPACC_VEC
     HIPACC_OPTS+= -vectorize $(HIPACC_VEC)
+endif
+ifdef HIPACC_CONFIG
+    HIPACC_OPTS+= -use-config $(HIPACC_CONFIG)
 endif
 ifeq ($(HIPACC_EXPLORE),1)
     HIPACC_OPTS+= -explore-config

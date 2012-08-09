@@ -54,7 +54,8 @@ class HipaccDeviceOptions {
   public:
     unsigned int alignment;
     unsigned int local_memory_threshold;
-    unsigned int default_num_threads;
+    unsigned int default_num_threads_x;
+    unsigned int default_num_threads_y;
     unsigned int pixels_per_thread[NumOperatorTypes];
     TextureType require_textures[NumOperatorTypes];
     bool vectorization;
@@ -62,7 +63,8 @@ class HipaccDeviceOptions {
   public:
     HipaccDeviceOptions(CompilerOptions &options) :
       local_memory_threshold(999),
-      default_num_threads(128)
+      default_num_threads_x(128),
+      default_num_threads_y(1)
     {
       switch (options.getTargetDevice()) {
         case TESLA_10:
@@ -95,7 +97,7 @@ class HipaccDeviceOptions {
         case KEPLER_30:
         case KEPLER_35:
           alignment = 256;
-          default_num_threads = 256;
+          default_num_threads_x = 256;
           pixels_per_thread[PointOperator] = 1;
           pixels_per_thread[LocalOperator] = 8;
           pixels_per_thread[GlobalOperator] = 15;
@@ -139,6 +141,11 @@ class HipaccDeviceOptions {
         pixels_per_thread[LocalOperator] = options.getPixelsPerThread();
         pixels_per_thread[GlobalOperator] = options.getPixelsPerThread();
         pixels_per_thread[UserOperator] = options.getPixelsPerThread();
+      }
+
+      if (options.useKernelConfig(USER_ON)) {
+        default_num_threads_x = options.getKernelConfigX();
+        default_num_threads_y = options.getKernelConfigY();
       }
 
       if (options.emitPadding(USER_ON)) {

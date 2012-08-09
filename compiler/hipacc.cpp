@@ -75,6 +75,7 @@ void printUsage() {
     << "                          Valid values for CUDA/OpenCL on NVIDIA devices are 10, 11, 12, 13, 20, 21, 30, and 35\n"
     << "                          Valid values for OpenCL on AMD devices is 58 and 69\n"
     << "  -explore-config         Emit code that explores all possible kernel configuration and print its performance\n"
+    << "  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1\n"
     << "  -time-kernels           Emit code that executes each kernel multiple times to get accurate timings\n"
     << "  -use-textures <o>       Enable/disable usage of textures (cached) in CUDA/OpenCL to read/write image pixels - for GPU devices only\n"
     << "                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', and 'Array2D'\n"
@@ -150,6 +151,19 @@ int main(int argc, char *argv[]) {
     }
     if (llvm::StringRef(argv[i]) == "-explore-config") {
       compilerOptions.setExploreConfig(USER_ON);
+      continue;
+    }
+    if (llvm::StringRef(argv[i]) == "-use-config") {
+      assert(i<(argc-1) && "Mandatory configuration specification for -use-config switch missing.");
+      int x=0, y=0, ret=0;
+      ret = sscanf(argv[i+1], "%dx%d", &x, &y);
+      if (ret!=2) {
+        llvm::errs() << "Expected valid configuration specification for -use-config switch.\n";
+        printUsage();
+        exit(EXIT_FAILURE);
+      }
+      compilerOptions.setKernelConfig(x, y);
+      ++i;
       continue;
     }
     if (llvm::StringRef(argv[i]) == "-time-kernels") {
@@ -238,7 +252,7 @@ int main(int argc, char *argv[]) {
       << "  Supported for AMD devices is 58 and 69.\n";
     exit(EXIT_FAILURE);
   }
-  if (compilerOptions.useTextureMemory() && compilerOptions.emitOpenCLx86()) {
+  if (compilerOptions.useTextureMemory(USER_ON) && compilerOptions.emitOpenCLx86()) {
       compilerOptions.setTextureMemory(NoTexture);
       llvm::errs() << "Warning: texture support disabled! x86 devices do not support textures!\n";
   }
@@ -247,19 +261,27 @@ int main(int argc, char *argv[]) {
       << "  Please select correct compute capability/code generation backend combination.\n";
     return EXIT_FAILURE;
   }
-  if (compilerOptions.emitCUDA()) {
-    if (compilerOptions.useTextureMemory()==Array2D &&
+  if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory(USER_ON)) {
+    if (compilerOptions.getTextureType()==Array2D &&
         compilerOptions.getTargetDevice() < FERMI_20) {
       llvm::errs() << "Warning: 'Array2D' texture memory only supported for Fermi (CC >= 2.0)!"
         << "  Using 'Linear2D' instead!\n";
       compilerOptions.setTextureMemory(Linear2D);
     }
   } else {
-    if (compilerOptions.useTextureMemory()==Linear1D ||
-        compilerOptions.useTextureMemory()==Linear2D) {
+    if (compilerOptions.getTextureType()==Linear1D ||
+        compilerOptions.getTextureType()==Linear2D) {
       llvm::errs() << "Warning: 'Linear1D' and 'Linear2D' texture memory not supported by OpenCL!"
         << "  Using 'Array2D' instead!\n";
       compilerOptions.setTextureMemory(Array2D);
+    }
+  }
+  if (compilerOptions.useKernelConfig(USER_ON)) {
+    if (compilerOptions.getKernelConfigX()*compilerOptions.getKernelConfigY() >
+        (int)targetDevice.max_threads_per_block) {
+      llvm::errs() << "Invalid kernel configuration: maximum threads for target device are "
+                  << targetDevice.max_threads_per_block << "!\n";
+      return EXIT_FAILURE;
     }
   }
 

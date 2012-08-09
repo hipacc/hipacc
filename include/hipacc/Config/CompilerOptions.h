@@ -69,12 +69,14 @@ class CompilerOptions {
     CompilerOption explore_config;
     CompilerOption time_kernels;
     // target code features - may be selected by the framework
+    CompilerOption kernel_config;
     CompilerOption align_memory;
     CompilerOption texture_memory;
     CompilerOption local_memory;
     CompilerOption multiple_pixels;
     CompilerOption vectorize_kernels;
     // user defined values for target code features
+    int kernel_config_x, kernel_config_y;
     int align_bytes;
     int pixels_per_thread;
     TextureType texture_memory_type;
@@ -107,11 +109,14 @@ class CompilerOptions {
       compute_capability(TESLA_13),
       explore_config(OFF),
       time_kernels(OFF),
+      kernel_config(AUTO),
       align_memory(AUTO),
       texture_memory(AUTO),
       local_memory(AUTO),
       multiple_pixels(AUTO),
       vectorize_kernels(OFF),
+      kernel_config_x(128),
+      kernel_config_y(1),
       align_bytes(0),
       pixels_per_thread(1),
       texture_memory_type(NoTexture)
@@ -137,6 +142,7 @@ class CompilerOptions {
 
     TargetCode getTargetCode() { return target_code; }
     TargetDevice getTargetDevice() { return compute_capability; }
+
     bool exploreConfig(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
       if (explore_config & option) return true;
       return false;
@@ -145,6 +151,13 @@ class CompilerOptions {
       if (time_kernels & option) return true;
       return false;
     }
+    bool useKernelConfig(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
+      if (kernel_config & option) return true;
+      return false;
+    }
+    int getKernelConfigX() { return kernel_config_x; }
+    int getKernelConfigY() { return kernel_config_y; }
+
     bool emitPadding(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
       if (align_memory & option) return true;
       return false;
@@ -187,6 +200,12 @@ class CompilerOptions {
       else texture_memory = USER_ON;
     }
 
+    void setKernelConfig(int x, int y) {
+      kernel_config = USER_ON;
+      kernel_config_x = x;
+      kernel_config_y = y;
+    }
+
     void setPadding(int bytes) {
       align_bytes = bytes;
       if (bytes > 1) align_memory = USER_ON;
@@ -224,6 +243,11 @@ class CompilerOptions {
       llvm::errs() << "\n  Automatic timing of kernel executions: ";
       getOptionAsString(time_kernels);
 
+      llvm::errs() << "\n  Kernel execution configuration: ";
+      getOptionAsString(kernel_config);
+      if (useKernelConfig(USER_ON)) {
+        llvm::errs() << ": " << kernel_config_x << "x" << kernel_config_y;
+      }
       llvm::errs() << "\n  Alignment of image memory: ";
       getOptionAsString(align_memory, align_bytes);
       llvm::errs() << "\n  Usage of texture memory for images: ";
