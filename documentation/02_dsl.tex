@@ -95,12 +95,11 @@ AccessorNN<type>(BoundaryCondition, width, height, offset_x, offset_y);
 
 \subsection{Example: Gaussian Filter}\label{sec:gaussian_filter}
 In the following, the \ac{HIPAcc} framework is illustrated using a Gaussian filter, smoothing an image. By doing so, the Gaussian filter reduces image noise and detail. This filter is a local operator that is applied to a neighborhood ($\sigma$) of each pixel to produce a smoothed image (see Equation~\ifhtml{(1)}{\eqref{eq:01}}). The filter mask of the Gaussian filter as described in Equation~\ifhtml{(2)}{\eqref{eq:02}} depends only on the size of the considered neighborhood ($\sigma$) and is otherwise constant for the image. Therefore, the filter mask is typically precalculated and stored in a lookup table to avoid redundant calculations for each image pixel.
-{\small
 \begin{align}
     I_{Out}(x,y) = \sum_{ox=-\sigma}^{+\sigma} \sum_{oy=-\sigma}^{+\sigma} &G((x,y),(x+ox,y+oy)) *\nonumber\\
                                                                        &I_{In}(x+ox,y+oy) \label{eq:01} \\[2ex]
     G((x,y),(x^\prime,y^\prime)) = &\frac{1}{2\pi \sigma^2} e^{-\frac{\|(x,y) - (x^\prime,y^\prime)\|}{2 \sigma^2}} \label{eq:02}
-\end{align}}
+\end{align}
 
 \paragraph{Device Code:}
 To express this filter in our framework, the programmer derives a class from the built-in {\em Kernel} class and implements the virtual {\em kernel} function, as shown in Listing~\ifhtml{1}{\ref{lst:gauss0}}. To access the pixels of an input image, the parenthesis operator {\tt ()} is used, taking the column ({\tt dx}) and row ({\tt dy}) offsets as optional parameters. Similarly, coefficients of a filter {\em Mask} are accessed using the parenthesis operator {\tt ()}, specifying the desired column ({\tt x}) and row ({\tt y}) index. The output image as specified by the {\em Iteration Space} is accessed using the {\tt output()} method provided by the built-in {\em Kernel} class. The user instantiates the class with input image accessors, one iteration space, and other parameters that are member variables of the class.

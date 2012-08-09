@@ -16,6 +16,7 @@ TEX2PAGE = my-tex2page
 TEX = documentation.tex
 BIB = literature.bib
 PDF = $(TEX:%.tex=%.pdf)
+XHTML = $(TEX:%.tex=hipacc_%.html)
 
 default: $(PDF)
 
@@ -52,7 +53,6 @@ $(PDF): *.tex $(BIB)
 	)
 
 XTEX = hipacc_documentation.tex
-XHTML = $(TEX:%.tex=hipacc_%.html)
 ALL_TEX = $(shell ls *.tex)
 $(XHTML): *.tex $(BIB)
 	$(TEX2PAGE) $(XTEX)
