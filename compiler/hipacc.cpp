@@ -65,7 +65,7 @@ void printCopyright() {
 
 
 void printUsage() {
-  llvm::errs() << "OVERVIEW: HIPACC - Heterogeneous Image Processing Acceleration framework\n\n"
+  llvm::errs() << "OVERVIEW: HIPAcc - Heterogeneous Image Processing Acceleration framework\n\n"
     << "USAGE:  hipacc [options] <input>\n\n"
     << "OPTIONS:\n\n"
     << "  -emit-cuda              Emit CUDA code; default is OpenCL code\n"
