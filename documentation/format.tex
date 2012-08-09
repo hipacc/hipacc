@@ -44,7 +44,7 @@
 \else % PDF only
 \newcommand{\ifhtml}[2]{#2}
 % define command for HIPAcc acronym
-\newcommand\hipacc{\mbox{\textsf{HIPA\hspace{-0.1em}\textsuperscript{cc}}}}
+\newcommand{\hipacc}{\textsf{HIPA\nolinebreak[4]\hspace{-0.1em}\textsuperscript{cc}}}
 \lstnewenvironment{code}{}{}
 \newcommand{\includecodefile}[4]{\lstinputlisting[caption={#2},label={#3}]{#1}}
 % use acronyms ...
@@ -70,6 +70,8 @@
 \definecolor{whitesmoke}{cmyk}{0.0000,0.0000,0.0000,0.0392}
 
 % Listing settings for pretty coloring
+\newlength{\savedparindent}
+\setlength{\savedparindent}{\parindent}
 \lstset{%
     breaklines=true,
     language=[ISO]{C++},
@@ -80,12 +82,14 @@
     numbersep=5pt,
     %aboveskip=\smallskipamount,
     %belowskip=\smallskipamount,
-    xleftmargin=\parindent,
-    xrightmargin=\parindent,
+    %xrightmargin=\parindent,
+    xleftmargin=\savedparindent,
+    framexleftmargin=\savedparindent,
     frame=lines,
     numbers=left,
     captionpos=b,
     rulecolor=\color{armblue},
+    framerule=1pt,
     backgroundcolor=\color{whitesmoke},
     keywordstyle=\color{darkgray}\bfseries,
     commentstyle=\color{purple}\ttfamily,
@@ -97,7 +101,7 @@
     keywordstyle={[2]\color{blue}\bfseries},
     keywords={[3]__kernel,__global,__constant,__local,get_num_groups,get_local_size,get_group_id,get_local_id,get_global_id,get_global_size,barrier,mem_fence,CLK_GLOBAL_MEM_FENCE,CLK_LOCAL_MEM_FENCE,read_mem_fence,write_mem_fence,read_imagef,write_imagef,int2,float4},
     keywordstyle={[3]\color{blue}\bfseries},
-    keywords={[4]Image,Accessor,AccessorNN,AccessorLF,AccessorBF,AccessorL3,Kernel,IterationSpace,Mask,BoundaryCondition,GlobalReduction,SUM,BOUNDARY_CLAMP,BOUNDARY_MIRROR},
+    keywords={[4]Image,Accessor,AccessorNN,AccessorLF,AccessorCF,AccessorL3,Kernel,IterationSpace,Mask,BoundaryCondition,GlobalReduction,SUM,BOUNDARY_CLAMP,BOUNDARY_MIRROR},
     keywordstyle={[4]\color{blue}\bfseries},
     tabsize=2,
 }

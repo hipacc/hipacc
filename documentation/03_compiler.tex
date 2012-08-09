@@ -20,7 +20,7 @@ Copyright (c) 2012, Siemens AG
 Copyright (c) 2010, ARM Limited
 All rights reserved.
 
-OVERVIEW: HIPACC - Heterogeneous Image Processing Acceleration framework
+OVERVIEW: HIPAcc - Heterogeneous Image Processing Acceleration framework
 
 USAGE:  hipacc [options] <input>
 
@@ -33,10 +33,15 @@ OPTIONS:
                           Valid values for CUDA/OpenCL on NVIDIA devices are 10, 11, 12, 13, 20, 21, 30, and 35
                           Valid values for OpenCL on AMD devices is 58 and 69
   -explore-config         Emit code that explores all possible kernel configuration and print its performance
+  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1
   -time-kernels           Emit code that executes each kernel multiple times to get accurate timings
-  -use-textures           Use textures (cached) in CUDA/OpenCL to read image pixels - for GPU devices only
-  -use-local              Use shared/local memory in CUDA/OpenCL to stage image pixels to scratchpad
-  -vectorize              Vectorize generated CUDA/OpenCL
+  -use-textures <o>       Enable/disable usage of textures (cached) in CUDA/OpenCL to read/write image pixels - for GPU devices only
+                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', and 'Array2D'
+                          Valid values for CUDA on NVIDIA devices: 'off' and 'Array2D'
+  -use-local <o>          Enable/disable usage of shared/local memory in CUDA/OpenCL to stage image pixels to scratchpad
+                          Valid values: 'on' and 'off'
+  -vectorize <o>          Enable/disable vectorization of generated CUDA/OpenCL code
+                          Valid values: 'on' and 'off'
   -pixels-per-thread <n>  Specify how many pixels should be calculated per thread
   -o <file>               Write output to <file>
   --help                  Display available options
