@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
                 sscanf(line.c_str(), "SQ_PGM_RESOURCES:STACK_SIZE = %d", &stack_size);
             }
             if (lds_size < 0) {
-                sscanf(line.c_str(), "SQ_LDS_ALLOC:SIZE = %x", &lds_size);
+                sscanf(line.c_str(), "SQ_LDS_ALLOC:SIZE = %i", &lds_size);
             }
         }
         if (num_gprs < 0 || stack_size < 0 || lds_size < 0) {

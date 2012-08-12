@@ -46,8 +46,8 @@ enum TargetDevice {
   KEPLER_30         = 30,
   KEPLER_35         = 35,
   EVERGREEN         = 58,
-  NORTHERN_ISLAND   = 69,
-  //SOUTHERN_ISLAND   = 79,
+  NORTHERN_ISLAND   = 69
+  //SOUTHERN_ISLAND   = 79
 };
 
 // texture memory specification
