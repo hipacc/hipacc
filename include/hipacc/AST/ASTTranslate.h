@@ -88,6 +88,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     int convIdxX, convIdxY;
     Expr *convExprX, *convExprY;
 
+    Expr *bh_start_left, *bh_start_right, *bh_start_top, *bh_start_bottom,
+         *bh_fall_back;
     DeclRefExpr *outputImage;
     Expr *gidXRef, *gidYRef;
     Expr *lidXRef, *lidYRef;
@@ -198,6 +200,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       convIdxY(0),
       convExprX(NULL),
       convExprY(NULL),
+      bh_start_left(NULL),
+      bh_start_right(NULL),
+      bh_start_top(NULL),
+      bh_start_bottom(NULL),
+      bh_fall_back(NULL),
       outputImage(NULL),
       gidXRef(NULL),
       gidYRef(NULL),

@@ -179,9 +179,11 @@ void HipaccIterationSpace::createOutputAccessor() {
 void HipaccKernel::calcSizes() {
   for (std::map<FieldDecl *, HipaccAccessor *>::iterator iter = imgMap.begin(),
       eiter=imgMap.end(); iter!=eiter; ++iter) {
-    if (iter->second->getSizeX() > max_size_x)
+    if (iter->second->getSizeX() > max_size_x &&
+        iter->second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
       max_size_x = iter->second->getSizeX();
-    if (iter->second->getSizeY() > max_size_y)
+    if (iter->second->getSizeY() > max_size_y &&
+        iter->second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
       max_size_y = iter->second->getSizeY();
   }
 }
@@ -333,11 +335,10 @@ void HipaccKernel::calcConfig() {
     num_threads_y = 1;
   }
 
-  // block required for border handling
-  // TODO: account for padding
-  num_blocks_bh_l = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-  num_blocks_bh_r = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-  num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*pixels_per_thread[KC->getKernelType()]));
+  // estimate block required for border handling - the exact number depends on
+  // offsets and is not known at compile time 
+  unsigned int num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
+  unsigned int num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*pixels_per_thread[KC->getKernelType()]));
 
   if ((max_size_y > 1) || num_threads_x != num_threads_x_opt || num_threads_y != num_threads_y_opt) {
     //std::vector<std::pair<unsigned int, float> >::iterator iter_n = occVec.begin()
@@ -355,16 +356,14 @@ void HipaccKernel::calcConfig() {
       unsigned int num_threads_y_tmp = occMapNext.first / num_threads_x_tmp;
 
       // block required for border handling
-      unsigned int num_blocks_bh_l_tmp = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x_tmp);
-      unsigned int num_blocks_bh_r_tmp = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x_tmp);
+      unsigned int num_blocks_bh_x_tmp = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x_tmp);
       unsigned int num_blocks_bh_y_tmp = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y_tmp*pixels_per_thread[KC->getKernelType()]));
 
       // use new configuration if we save blocks for border handling
-      if (num_blocks_bh_l_tmp+num_blocks_bh_y_tmp < num_blocks_bh_l+num_blocks_bh_y) {
+      if (num_blocks_bh_x_tmp+num_blocks_bh_y_tmp < num_blocks_bh_x+num_blocks_bh_y) {
         num_threads_x = num_threads_x_tmp;
         num_threads_y = num_threads_y_tmp;
-        num_blocks_bh_l = num_blocks_bh_l_tmp;
-        num_blocks_bh_r = num_blocks_bh_r_tmp;
+        num_blocks_bh_x = num_blocks_bh_x_tmp;
         num_blocks_bh_y = num_blocks_bh_y_tmp;
       }
     }
@@ -373,21 +372,20 @@ void HipaccKernel::calcConfig() {
   // fall back to user specified configuration
   if (options.useKernelConfig(USER_ON)) {
     setDefaultConfig();
+    num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
+    num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*pixels_per_thread[KC->getKernelType()]));
   }
 
   llvm::errs() << "Using configuration " << num_threads_x << "x" <<
     num_threads_y << "(occupancy: " << occMap.second << ") for kernel '" <<
     kernelName << "'\n";
   llvm::errs() << "\t Blocks required for border handling: " <<
-    num_blocks_bh_l << "x" << num_blocks_bh_y << "\n\n";
+    num_blocks_bh_x << "x" << num_blocks_bh_y << "\n\n";
 }
 
 void HipaccKernel::setDefaultConfig() {
   num_threads_x = default_num_threads_x;
   num_threads_y = default_num_threads_y;
-  num_blocks_bh_l = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-  num_blocks_bh_r = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-  num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*pixels_per_thread[KC->getKernelType()]));
 }
 
 void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3, std::string
@@ -523,6 +521,29 @@ void HipaccKernel::createArgInfo() {
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
         Ctx.getConstType(Ctx.IntTy).getAsString(), "is_offset_y", NULL);
   }
+
+  // bh_start_left, bh_start_right
+  if (getMaxSizeX()) {
+    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
+        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_left", NULL);
+    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
+        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_right", NULL);
+  }
+  // bh_start_top, bh_start_bottom
+  if (getMaxSizeY()) {
+    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
+        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_top", NULL);
+    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
+        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_bottom", NULL);
+  }
+  // bh_fall_back
+  addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
+      Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
+      Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_fall_back", NULL);
 }
 
 
@@ -615,6 +636,19 @@ void HipaccKernel::createHostArgInfo(Expr **hostArgs, std::string &hostLiterals,
     hostArgNames.push_back(iterationSpace->getOffsetX());
     hostArgNames.push_back(iterationSpace->getOffsetY());
   }
+
+  // bh_start_left, bh_start_right
+  if (getMaxSizeX()) {
+    hostArgNames.push_back(getName() + "_info.bh_start_left");
+    hostArgNames.push_back(getName() + "_info.bh_start_right");
+  }
+  // bh_start_top, bh_start_bottom
+  if (getMaxSizeY()) {
+    hostArgNames.push_back(getName() + "_info.bh_start_top");
+    hostArgNames.push_back(getName() + "_info.bh_start_bottom");
+  }
+  // bh_fall_back
+  hostArgNames.push_back(getName() + "_info.bh_fall_back");
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

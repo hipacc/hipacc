@@ -85,6 +85,27 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
             PVD));
       continue;
     }
+    if (PVD->getName().equals("bh_start_left")) {
+      bh_start_left = createDeclRefExpr(Ctx, PVD);
+      continue;
+    }
+    if (PVD->getName().equals("bh_start_right")) {
+      bh_start_right = createDeclRefExpr(Ctx, PVD);
+      continue;
+    }
+    if (PVD->getName().equals("bh_start_top")) {
+      bh_start_top = createDeclRefExpr(Ctx, PVD);
+      continue;
+    }
+    if (PVD->getName().equals("bh_start_bottom")) {
+      bh_start_bottom = createDeclRefExpr(Ctx, PVD);
+      continue;
+    }
+    if (PVD->getName().equals("bh_fall_back")) {
+      bh_fall_back = createDeclRefExpr(Ctx, PVD);
+      continue;
+    }
+
 
     // search for image width, height and stride parameters
     for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
@@ -559,204 +580,117 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   LabelStmt *LSExit = createLabelStmt(Ctx, LDExit, NULL);
   GotoStmt *GSExit = createGotoStmt(Ctx, LDExit);
 
-  // calculate the number of additional blocks required for border handling
-  // due to grids bigger than the image.
-  Expr *numBlocksBHBottom, *numBlocksBHRight, *numBlocksBHLeft, *numBlocksBHTop;
-  if (!emitEstimation && compilerOptions.exploreConfig()) {
-    numBlocksBHLeft = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
-          "BHX_EXPLORE", Ctx.IntTy, NULL));
-    numBlocksBHTop = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
-          "BHY_EXPLORE", Ctx.IntTy, NULL));
-  } else {
-    numBlocksBHLeft = createIntegerLiteral(Ctx,
-        emitEstimation?23:Kernel->getNumBlocksBHL());
-    numBlocksBHTop = createIntegerLiteral(Ctx,
-        emitEstimation?23:Kernel->getNumBlocksBHY());
-  }
-
-  FunctionDecl *ceilFD = NULL;
-  if (compilerOptions.emitCUDA()) {
-    ceilFD = builtins.getBuiltinFunction(HIPACCBIceilf);
-  } else {
-    ceilFD = builtins.getBuiltinFunction(OPENCLBIceilf);
-  }
-
-  llvm::SmallVector<Expr *, 16> args;
-  // CUDA: ceilf((blockDim.x*gridDim.x - (is_width + size_x)) / (float)(blockDim.x))
-  // OpenCL: ceil(get_local_size(0)*get_num_groups(0) - (is_width + size_x)) /
-  //      (float)(get_local_size(0))
-  numBlocksBHRight = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
-        local_size_x, grid_size_x, BO_Mul, Ctx.IntTy), createParenExpr(Ctx,
-          createBinaryOperator(Ctx, isWidth, createIntegerLiteral(Ctx,
-              Kernel->getMaxSizeX()), BO_Sub, Ctx.IntTy)), BO_Sub, Ctx.IntTy);
-  numBlocksBHRight = createBinaryOperator(Ctx, createParenExpr(Ctx,
-        numBlocksBHRight), createCStyleCastExpr(Ctx, ceilFD->getResultType(),
-          CK_IntegralToFloating, local_size_x, NULL, NULL), BO_Div, Ctx.IntTy);
-
-  args.push_back(numBlocksBHRight);
-  numBlocksBHRight = createFunctionCall(Ctx, ceilFD, args); 
-
-  // CUDA: ceilf((blockDim.y*PPT*gridDim.y - (is_height + size_y)) /
-  //      (float)(blockDim.y*PPT))
-  // OpenCL: ceilf((get_local_size(1)*PPT*get_num_groups(1) - (is_height + size_y)) /
-  //      (float)(get_local_size(1)*PPT))
-  numBlocksBHBottom = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
-        createBinaryOperator(Ctx, local_size_y, createIntegerLiteral(Ctx,
-            Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy), grid_size_y,
-        BO_Mul, Ctx.IntTy), createParenExpr(Ctx, createBinaryOperator(Ctx,
-            isHeight, createIntegerLiteral(Ctx, Kernel->getMaxSizeY()), BO_Sub,
-            Ctx.IntTy)), BO_Sub, Ctx.IntTy); 
-  numBlocksBHBottom = createBinaryOperator(Ctx, createParenExpr(Ctx,
-        numBlocksBHBottom), createCStyleCastExpr(Ctx, ceilFD->getResultType(),
-          CK_IntegralToFloating, createParenExpr(Ctx, createBinaryOperator(Ctx,
-              local_size_y, createIntegerLiteral(Ctx,
-                Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy)), NULL, NULL),
-      BO_Div, Ctx.IntTy);
-
-  args.clear();
-  args.push_back(numBlocksBHBottom);
-  numBlocksBHBottom = createFunctionCall(Ctx, ceilFD, args); 
 
   // only create labels if we need border handling
   for (int i=0; i<=9 && border_handling; i++) {
     LabelDecl *LD;
-    BinaryOperator *if_goto = NULL;
+    Expr *if_goto = NULL;
 
     switch (i) {
       case 0:
         // fall back: in case the image is too small, use code variant with
         // boundary handling for all borders
         LD = createLabelDecl(Ctx, kernelDecl, "BH_FB");
-        // CUDA: if (gridDim.x < numBlocksBHLeft + numBlocksBHRight ||
-        //          gridDim.y < numBlocksBHTop + numBlocksBHBottom) goto BO_TL;
-        // OpenCL: if (get_num_groups(0) < numBlocksBHLeft + numBlocksBHRight ||
-        //            get_num_groups(1) < numBlocksBHTop + numBlocksBHBottom)
-        //            goto BO_TL;
-        if (kernel_x) {
-          if_goto = createBinaryOperator(Ctx, grid_size_x,
-              createBinaryOperator(Ctx, numBlocksBHLeft, numBlocksBHRight,
-                BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
-        }
-        if (kernel_y) {
-          if (kernel_x) {
-            if_goto = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
-                  grid_size_y, createBinaryOperator(Ctx, numBlocksBHTop,
-                    numBlocksBHBottom, BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy),
-                if_goto, BO_LOr, Ctx.BoolTy);
-          } else {
-            if_goto = createBinaryOperator(Ctx, grid_size_y,
-                createBinaryOperator(Ctx, numBlocksBHTop, numBlocksBHBottom,
-                  BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
-          }
-        }
+        if_goto = bh_fall_back;
         break;
       case 1:
         // check if we have only a row or column filter
         if (!kernel_x || !kernel_y) continue;
 
+        // CUDA:    if (blockIdx.x < bh_start_left &&
+        //              blockIdx.y < bh_start_top) goto BO_TL;
+        // OpenCL:  if (get_group_id(0) < bh_start_left &&
+        //              get_group_id(1) < bh_start_top) goto BO_TL;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_TL");
-        // CUDA: if (blockIdx.x < numBlocksBHLeft && blockIdx.y <
-        //      numBlocksBHTop) goto BO_TL;
-        // OpenCL: if (get_group_id(0) < numBlocksBHLeft &&
-        //            get_group_id(1) < numBlocksBHTop) goto BO_TL;
-        if_goto = createBinaryOperator(Ctx, block_id_x, numBlocksBHLeft, BO_LT,
+        if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_left, BO_LT,
             Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_y, numBlocksBHTop, BO_LT, Ctx.BoolTy), BO_LAnd,
+              block_id_y, bh_start_top, BO_GE, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 2:
         // check if we have only a row or column filter
         if (!kernel_x || !kernel_y) continue;
 
+        // CUDA:    if (blockIdx.x >= bh_start_right &&
+        //              blockIdx.y < bh_start_top) goto BO_TR;
+        // OpenCL:  if (get_group_id(0) >= bh_start_right &&
+        //              get_group_id(1) < bh_start_top) goto BO_TR;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_TR");
-        // CUDA: if (blockIdx.x >= gridDim.x-numBlocksBHRight
-        //        && blockIdx.y < numBlocksBHTop) goto BO_TR;
-        // OpenCL: if (get_group_id(0) >= get_num_groups(0) - numBlocksBHRight
-        //        && get_group_id(1) < numBlocksBHTop) goto BO_TR;
-        if_goto = createBinaryOperator(Ctx, block_id_x,
-            createBinaryOperator(Ctx, grid_size_x, numBlocksBHRight, BO_Sub,
-              Ctx.IntTy), BO_GE, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_right, BO_GE,
+            Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_y, numBlocksBHTop, BO_LT, Ctx.BoolTy), BO_LAnd,
+              block_id_y, bh_start_top, BO_GE, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 3:
         // check if we have only a row filter
         if (!kernel_y) continue;
 
+        // CUDA:    if (blockIdx.y < bh_start_top) goto BO_T;
+        // OpenCL:  if (get_group_id(1) < bh_start_top) goto BO_T;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_T");
-        // CUDA: if (blockIdx.y < numBlocksBHTop) goto BO_T;
-        // OpenCL: if (get_group_id(1) < numBlocksBHTop) goto BO_T;
-        if_goto = createBinaryOperator(Ctx, block_id_y, numBlocksBHTop, BO_LT,
+        if_goto = createBinaryOperator(Ctx, block_id_y, bh_start_top, BO_LT,
             Ctx.BoolTy);
         break;
       case 4:
         // check if we have only a row or column filter
         if (!kernel_x || !kernel_y) continue;
 
+        // CUDA:    if (blockIdx.y >= bh_start_bottom &&
+        //              blockIdx.x < bh_start_left) goto BO_BL;
+        // OpenCL:  if (get_group_id(1) >= bh_start_bottom &&
+        //              get_group_id(0) < bh_start_left) goto BO_BL;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_BL");
-        // CUDA: if (blockIdx.y >= gridDim.y-numBlocksBHBottom
-        //        && blockIdx.x < numBlocksBHLeft) goto BO_BL;
-        // OpenCL: if (get_group_id(1) >= get_num_groups(1) - numBlocksBHBottom
-        //          && get_group_id(0) < numBlocksBHLeft) goto BO_BL;
-        if_goto = createBinaryOperator(Ctx, block_id_y,
-            createBinaryOperator(Ctx, grid_size_y, numBlocksBHBottom, BO_Sub,
-              Ctx.IntTy), BO_GE, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, block_id_y, bh_start_bottom, BO_GE,
+            Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_x, numBlocksBHLeft, BO_LT, Ctx.BoolTy), BO_LAnd,
+              block_id_x, bh_start_left, BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 5:
         // check if we have only a row or column filter
         if (!kernel_x || !kernel_y) continue;
 
+        // CUDA:    if (blockIdx.y >= bh_start_bottom &&
+        //              blockIdx.x >= bh_start_right) goto BO_BR;
+        // OpenCL:  if (get_group_id(1) >= bh_start_bottom &&
+        //              get_group_id(0) >= bh_start_right) goto BO_BL;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_BR");
-        // CUDA: if (blockIdx.y >= gridDim.y-numBlocksBHBottom
-        //        && blockIdx.x >= gridDim.x-numBlocksBHRight) goto BO_BR;
-        // OpenCL: if (get_group_id(1) >= get_num_groups(1) - numBlocksBHBottom
-        //          && get_group_id(0) >= get_num_groups(0) - numBlocksBHRight)
-        //          goto BO_BL;
-        if_goto = createBinaryOperator(Ctx, block_id_y,
-            createBinaryOperator(Ctx, grid_size_y, numBlocksBHBottom, BO_Sub,
-              Ctx.IntTy), BO_GE, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, block_id_y, bh_start_bottom, BO_GE,
+            Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_x, createBinaryOperator(Ctx, grid_size_x,
-                numBlocksBHRight, BO_Sub, Ctx.IntTy), BO_GE, Ctx.BoolTy),
-            BO_LAnd, Ctx.BoolTy);
+              block_id_x, bh_start_right, BO_GE, Ctx.BoolTy), BO_LAnd,
+            Ctx.BoolTy);
         break;
       case 6:
         // check if we have only a row filter
         if (!kernel_y) continue;
 
+        // CUDA:    if (blockIdx.y >= bh_start_bottom) goto BO_B;
+        // OpenCL:  if (get_group_id(1) >= bh_start_bottom) goto BO_B;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_B");
-        // CUDA: if (blockIdx.y >= gridDim.y-numBlocksBHBottom) goto BO_B;
-        // OpenCL: if (get_group_id(1) >= get_num_groups(1) - numBlocksBHBottom)
-        //            goto BO_B;
-        if_goto = createBinaryOperator(Ctx, block_id_y,
-            createBinaryOperator(Ctx, grid_size_y, numBlocksBHBottom, BO_Sub,
-              Ctx.IntTy), BO_GE, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, block_id_y, bh_start_bottom, BO_GE,
+            Ctx.BoolTy);
         break;
       case 7:
         // check if we have only a column filter
         if (!kernel_x) continue;
 
+        // CUDA:    if (blockIdx.x >= bh_start_right) goto BO_R;
+        // OpenCL:  if (get_group_id(0) >= bh_start_right) goto BO_R;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_R");
-        // CUDA: if (blockIdx.x >= gridDim.x-numBlocksBHRight) goto BO_R;
-        // OpenCL: if (get_group_id(0) >= get_num_groups(0) - numBlocksBHRight)
-        //            goto BO_R;
-        if_goto = createBinaryOperator(Ctx, block_id_x,
-            createBinaryOperator(Ctx, grid_size_x, numBlocksBHRight, BO_Sub,
-              Ctx.IntTy), BO_GE, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_right, BO_GE,
+            Ctx.BoolTy);
         break;
       case 8:
         // check if we have only a column filter
         if (!kernel_x) continue;
 
+        // CUDA:    if (blockIdx.x < bh_start_left) goto BO_L;
+        // OpenCL:  if (get_group_id(0) < bh_start_left) goto BO_L;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_L");
-        // CUDA: if (blockIdx.x < numBlocksBHLeft) goto BO_L;
-        // OpenCL: if (get_group_id(0) < numBlocksBHLeft) goto BO_L;
-        if_goto = createBinaryOperator(Ctx, block_id_x, numBlocksBHLeft, BO_LT,
+        if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_left, BO_LT,
             Ctx.BoolTy);
         break;
       case 9:
@@ -862,7 +796,35 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
 
     // if (gid_x >= is_offset_x && gid_x < is_width+is_offset_x)
     BinaryOperator *check_bop = NULL;
-    if (!border_handling) {
+    if (border_handling) {
+      // if (gid_x >= is_offset_x)
+      if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl() &&
+          !(kernel_x && !bh_variant.borders.left) && bh_variant.borderVal) {
+        check_bop = createBinaryOperator(Ctx, gidXRef,
+            Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(), BO_GE,
+            Ctx.BoolTy);
+      }
+      // if (gid_x < is_width+is_offset_x)
+      if (!(kernel_x && !bh_variant.borders.right) && bh_variant.borderVal) {
+        BinaryOperator *check_tmp = NULL;
+        if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
+          check_tmp = createBinaryOperator(Ctx, gidXRef,
+              createBinaryOperator(Ctx, isWidth,
+                Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(),
+                BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
+        } else {
+          check_tmp = createBinaryOperator(Ctx, gidXRef, isWidth, BO_LT,
+              Ctx.BoolTy);
+        }
+        if (check_bop) {
+          check_bop = createBinaryOperator(Ctx, check_bop, check_tmp, BO_LAnd,
+              Ctx.BoolTy);
+        } else {
+          check_bop = check_tmp;
+        }
+      }
+    } else {
+      // if (gid_x < is_width+is_offset_x)
       if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
         check_bop = createBinaryOperator(Ctx, gidXRef,
             Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(), BO_GE,
@@ -876,26 +838,6 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         check_bop = createBinaryOperator(Ctx, gidXRef, isWidth, BO_LT,
             Ctx.BoolTy);
       }
-    } else {
-      // if (gid_x >= is_offset_x)
-      if (border_handling && bh_variant.borders.left &&
-          Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
-        check_bop = createBinaryOperator(Ctx, gidXRef,
-            Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(), BO_GE,
-            Ctx.BoolTy);
-      }
-      // if (gid_x < is_width+is_offset_x)
-      if (border_handling && bh_variant.borders.right) {
-        if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
-          check_bop = createBinaryOperator(Ctx, gidXRef,
-              createBinaryOperator(Ctx, isWidth,
-                Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(),
-                BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
-        } else {
-          check_bop = createBinaryOperator(Ctx, gidXRef, isWidth, BO_LT,
-              Ctx.BoolTy);
-        }
-      }
     }
 
     for (unsigned int p=0; p<Kernel->getPixelsPerThread(); p++) {
@@ -907,15 +849,23 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       KernelDeclMap.clear();
 
       // update gid_y to gid_y + p*local_size_y
-      gidYRef = createBinaryOperator(Ctx, gid_y_ref, createBinaryOperator(Ctx,
-            createIntegerLiteral(Ctx, p), local_size_y, BO_Mul, Ctx.IntTy),
-          BO_Add, Ctx.IntTy);
+      if (p > 0) {
+        gidYRef = createBinaryOperator(Ctx, gid_y_ref, createBinaryOperator(Ctx,
+              createIntegerLiteral(Ctx, p), local_size_y, BO_Mul, Ctx.IntTy),
+            BO_Add, Ctx.IntTy);
+      } else {
+        gidYRef = gid_y_ref;
+      }
 #ifdef TEST_UPDATE_SMEM
 #else
       // update lid_y to lid_y + p*local_size_y
-      lidYRef = createBinaryOperator(Ctx, local_id_y, createBinaryOperator(Ctx,
-            createIntegerLiteral(Ctx, p), local_size_y, BO_Mul, Ctx.IntTy),
-          BO_Add, Ctx.IntTy);
+      if (p > 0) {
+        lidYRef = createBinaryOperator(Ctx, local_id_y,
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
+              local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+      } else {
+        lidYRef = local_id_y;
+      }
 #endif
 
       // load next iteration to shared memory
@@ -930,9 +880,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       // add iteration space check when calculating multiple pixels per thread,
       // having a tiling with multiple threads in the y-dimension, or in case
       // exploration is done
-      if ((border_handling && bh_variant.borders.bottom) ||
-          Kernel->getPixelsPerThread()>1 || Kernel->getNumThreadsY()>1 ||
-          compilerOptions.exploreConfig()) {
+      if ((border_handling && (!(kernel_y && !bh_variant.borders.bottom)) &&
+            bh_variant.borderVal) || Kernel->getPixelsPerThread()>1 ||
+          Kernel->getNumThreadsY()>1 || (!border_handling &&
+            compilerOptions.exploreConfig())) {
         // if (gid_y + p < is_height)
         BinaryOperator *inner_check_bop = createBinaryOperator(Ctx, gidYRef,
             isHeight, BO_LT, Ctx.BoolTy);

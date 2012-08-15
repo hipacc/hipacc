@@ -73,6 +73,58 @@ typedef struct hipacc_smem_info {
     int pixel_size;
 } hipacc_smem_info;
 
+typedef struct hipacc_launch_info {
+    hipacc_launch_info(int size_x, int size_y, int is_width, int is_height, int
+            offset_x, int offset_y, int pixels_per_thread, int simd_width) :
+        size_x(size_x), size_y(size_y), is_width(is_width),
+        is_height(is_height), offset_x(offset_x), offset_y(offset_y),
+        pixels_per_thread(pixels_per_thread), simd_width(simd_width),
+        bh_start_left(0), bh_start_right(0), bh_start_top(0),
+        bh_start_bottom(0), bh_fall_back(0) {}
+    int size_x, size_y;
+    int is_width, is_height;
+    int offset_x, offset_y;
+    int pixels_per_thread, simd_width;
+    // calculated later on
+    int bh_start_left, bh_start_right;
+    int bh_start_top, bh_start_bottom;
+    int bh_fall_back;
+} hipacc_launch_info;
+
+
+void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
+    // calculate block id of a) first block that requires no border handling
+    // (left, top) and b) first block that requires border handling (right,
+    // bottom)
+    // TODO: account for vectorization
+    if (info.size_x > 0) {
+        info.bh_start_left = (int)ceil((float)(info.offset_x + info.size_x) / block[0]);
+        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / block[0]);
+    } else {
+        info.bh_start_left = 0;
+        info.bh_start_right = (int)ceil((float)(info.offset_x + info.is_width) / block[0]);
+    }
+    if (info.size_y > 0) {
+        info.bh_start_top = (int)ceil((float)(info.size_y) / (info.pixels_per_thread * block[1]));
+        info.bh_start_bottom = (int)floor((float)(info.is_height - info.size_y) / (block[1] * info.pixels_per_thread));
+    } else {
+        info.bh_start_top = 0;
+        info.bh_start_bottom = (int)ceil((float)(info.is_height) / (block[1] * info.pixels_per_thread));
+    }
+
+    if ((info.bh_start_right - info.bh_start_left) > 1 && (info.bh_start_bottom - info.bh_start_top) > 1) {
+        info.bh_fall_back = 0;
+    } else {
+        info.bh_fall_back = 1;
+    }
+}
+
+
+void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *grid) {
+    grid[0] = (int)ceil((float)(info.is_width + info.offset_x)/block[0]) * block[0];
+    grid[1] = (int)ceil((float)(info.is_height)/(block[1]*info.pixels_per_thread)) * block[1];
+}
+
 
 const char *getOpenCLErrorCodeStr(int errorCode) {
     switch (errorCode) {
@@ -1092,10 +1144,9 @@ void hipaccEnqueueKernelBenchmark(cl_kernel kernel, std::vector<std::pair<size_t
 // Perform configuration exploration for a kernel call
 void hipaccKernelExploration(const char *filename, const char *kernel,
         std::vector<std::pair<size_t, void *> > args,
-        std::vector<hipacc_smem_info> smems, int is_width, int is_height, int
+        std::vector<hipacc_smem_info> smems, hipacc_launch_info &info, int
         warp_size, int max_threads_per_block, int max_threads_for_kernel, int
-        max_smem_per_block, int pixels_per_thread, int max_size_x, int
-        max_size_y, int opt_tx, int opt_ty) {
+        max_smem_per_block, int opt_tx, int opt_ty) {
 
     std::cerr << "<HIPACC:> Exploring configurations for kernel '" << kernel << "': optimal configuration ";
     std::cerr << opt_tx*opt_ty << "(" << opt_tx << "x" << opt_ty << "). " << std::endl;
@@ -1112,18 +1163,14 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             }
             if (used_smem >= max_smem_per_block) continue;
 
-            int num_blocks_bh_x = (int)ceil((float)(max_size_x) / (float)tile_size_x);
-            int num_blocks_bh_y = (int)ceil((float)(max_size_y) / (float)(tile_size_y*pixels_per_thread));
-            std::stringstream num_blocks_bh_x_ss, num_blocks_bh_y_ss;
-            num_blocks_bh_x_ss << num_blocks_bh_x;
-            num_blocks_bh_y_ss << num_blocks_bh_y;
             std::stringstream num_threads_x_ss, num_threads_y_ss;
             num_threads_x_ss << tile_size_x;
             num_threads_y_ss << tile_size_y;
 
             // compile kernel
-            std::string compile_options = "-D BSX_EXPLORE=" + num_threads_x_ss.str() + " -D BSY_EXPLORE=" + num_threads_y_ss.str();
-            compile_options += " -D BHX_EXPLORE=" + num_blocks_bh_x_ss.str() + " -D BHY_EXPLORE=" + num_blocks_bh_y_ss.str() + " ";
+            std::string compile_options = "-D BSX_EXPLORE=" +
+                num_threads_x_ss.str() + " -D BSY_EXPLORE=" +
+                num_threads_y_ss.str() + " ";
             cl_kernel exploreKernel = hipaccBuildProgramAndKernel(filename, kernel, false, false, false, compile_options.c_str());
 
 
@@ -1131,8 +1178,8 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             local_work_size[0] = tile_size_x;
             local_work_size[1] = tile_size_y;
             size_t global_work_size[2];
-            global_work_size[0] = (int)ceil((float)(is_width)/tile_size_x)*tile_size_x;
-            global_work_size[1] = (int)ceil((float)(is_height)/(tile_size_y*pixels_per_thread))*tile_size_y;
+            hipaccCalcGridFromBlock(info, local_work_size, global_work_size);
+            hipaccPrepareKernelLaunch(info, local_work_size);
 
             float min_dt=FLT_MAX;
             for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {

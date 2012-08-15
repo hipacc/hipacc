@@ -629,7 +629,6 @@ class HipaccKernel : public HipaccKernelFeatures {
     unsigned int max_threads_for_kernel;
     unsigned int max_size_x, max_size_y;
     unsigned int num_threads_x, num_threads_y;
-    unsigned int num_blocks_bh_l, num_blocks_bh_r, num_blocks_bh_y;
     unsigned int num_reg, num_lmem, num_smem, num_cmem;
 
     void calcSizes();
@@ -665,9 +664,6 @@ class HipaccKernel : public HipaccKernelFeatures {
       max_size_y(0),
       num_threads_x(default_num_threads_x),
       num_threads_y(default_num_threads_y),
-      num_blocks_bh_l(0),
-      num_blocks_bh_r(0),
-      num_blocks_bh_y(0),
       num_reg(0),
       num_lmem(0),
       num_smem(0),
@@ -790,9 +786,6 @@ class HipaccKernel : public HipaccKernelFeatures {
     unsigned int getMaxSizeY() { return max_size_y<=1?0:max_size_y>>1; }
     unsigned int getNumThreadsX() { return num_threads_x; }
     unsigned int getNumThreadsY() { return num_threads_y; }
-    unsigned int getNumBlocksBHL() { return num_blocks_bh_l; }
-    unsigned int getNumBlocksBHR() { return num_blocks_bh_r; }
-    unsigned int getNumBlocksBHY() { return num_blocks_bh_y; }
 };
 
 

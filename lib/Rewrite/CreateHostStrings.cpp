@@ -259,8 +259,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
   PPTSS << K->getPixelsPerThread();
   cX << K->getNumThreadsX();
   cY << K->getNumThreadsY();
-  std::string blockStr, gridStr, offsetStr;
-  std::string pptStr = PPTSS.str();
+  std::string blockStr, gridStr, offsetStr, infoStr;
+  std::stringstream maxSizeXStr, maxSizeYStr;
+  maxSizeXStr << K->getMaxSizeX();
+  maxSizeYStr << K->getMaxSizeY();
 
   if (options.emitCUDA()) {
     blockStr = "block" + LSS.str();
@@ -270,8 +272,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
     blockStr = "local_work_size" + LSS.str();
     gridStr = "global_work_size" + LSS.str();
   }
+  infoStr = K->getName() + "_info";
 
   if (options.exploreConfig() || options.timeKernels()) {
+    inc_ident();
     resultStr += "{\n";
     if (options.emitCUDA()) {
       if (options.exploreConfig()) {
@@ -285,48 +289,86 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       resultStr += ident + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
     }
     resultStr += ident + "std::vector<hipacc_smem_info> _smems" + kernelName + ";\n";
-    if (options.timeKernels()) resultStr += ident;
+    resultStr += ident;
   }
+
+  // hipacc_launch_info
+  resultStr += "hipacc_launch_info " + infoStr + "(";
+  resultStr += maxSizeXStr.str() + ", ";
+  resultStr += maxSizeYStr.str() + ", ";
+  resultStr += K->getIterationSpace()->getWidth() + ", ";
+  resultStr += K->getIterationSpace()->getHeight() + ", ";
+  if (K->getIterationSpace()->getOffsetX().empty()) {
+    resultStr += "0, ";
+  } else {
+    resultStr += K->getIterationSpace()->getOffsetX() + ", ";
+  }
+  if (K->getIterationSpace()->getOffsetY().empty()) {
+    resultStr += "0, ";
+  } else {
+    resultStr += K->getIterationSpace()->getOffsetY() + ", ";
+  }
+  resultStr += PPTSS.str() + ", ";
+  if (K->vectorize()) {
+    // TODO set and calculate per kernel simd width ...
+    resultStr += "4);\n";
+  } else {
+    resultStr += "1);\n";
+  }
+  resultStr += ident;
+
   if (!options.exploreConfig()) {
     if (options.emitCUDA()) {
+      // dim3 block
       resultStr += "dim3 " + blockStr + "(" + cX.str() + ", " + cY.str() + ");\n";
-      resultStr += ident + "dim3 " + gridStr + "((int)ceil((float)(";
-      resultStr += K->getIterationSpace()->getWidth();
-      // TODO set and calculate per kernel simd width ...
-      if (K->vectorize()) {
-        resultStr += "/4";
-      }
-      resultStr += ")/" + blockStr + ".x), ";
-      resultStr += "ceil((float)(";
-      resultStr += K->getIterationSpace()->getHeight();
-      resultStr += ")/(" + blockStr + ".y*" + pptStr + ")));\n";
-      resultStr += ident + "size_t " + offsetStr + " = 0;\n";
+      resultStr += ident;
+      
+      // dim3 grid & hipaccCalcGridFromBlock
+      resultStr += "dim3 " + gridStr + "(hipaccCalcGridFromBlock(";
+      resultStr += infoStr + ", ";
+      resultStr += blockStr + "));\n\n";
+      resultStr += ident;
 
-      // configure kernel call
-      resultStr += ident + "hipaccConfigureCall(";
+      // offset
+      resultStr += "size_t " + offsetStr + " = 0;\n";
+      resultStr += ident;
+      
+      // hipaccPrepareKernelLaunch
+      resultStr += "hipaccPrepareKernelLaunch(";
+      resultStr += infoStr + ", ";
+      resultStr += blockStr + ");\n";
+      resultStr += ident;
+
+      // hipaccConfigureCall
+      resultStr += "hipaccConfigureCall(";
       resultStr += gridStr;
       resultStr += ", " + blockStr;
       resultStr += ");\n\n";
     } else {
+      // size_t block
       resultStr += "size_t " + blockStr + "[2];\n";
       resultStr += ident + blockStr + "[0] = " + cX.str() + ";\n";
       resultStr += ident + blockStr + "[1] = " + cY.str() + ";\n";
-      resultStr += ident + "size_t " + gridStr + "[2];\n";
-      resultStr += ident + gridStr + "[0] = ";
-      resultStr += "(int)ceil((float)(";
-      resultStr += K->getIterationSpace()->getWidth();
-      // TODO set and calculate per kernel simd width ...
-      if (K->vectorize()) {
-        resultStr += "/4";
-      }
-      resultStr += ")/" + blockStr + "[0])*" + blockStr + "[0];\n";
-      resultStr += ident + gridStr + "[1] = ";
-      resultStr += "(int)ceil((float)(";
-      resultStr += K->getIterationSpace()->getHeight();
-      resultStr += ")/(" + blockStr + "[1]*" + pptStr + "))*" + blockStr + "[1];\n\n";
+      resultStr += ident;
+
+      // size_t grid
+      resultStr += "size_t " + gridStr + "[2];\n";
+      resultStr += ident;
+
+      // hipaccCalcGridFromBlock
+      resultStr += "hipaccCalcGridFromBlock(";
+      resultStr += infoStr + ", ";
+      resultStr += blockStr + ", ";
+      resultStr += gridStr + ");\n\n";
+      resultStr += ident;
+
+      // hipaccPrepareKernelLaunch
+      resultStr += "hipaccPrepareKernelLaunch(";
+      resultStr += infoStr + ", ";
+      resultStr += blockStr + ");\n\n";
     }
+    resultStr += ident;
   }
-  resultStr += ident;
 
   unsigned int numArgs = K->getNumArgs();
   // bind textures and get constant pointers
@@ -388,7 +430,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       HipaccMask *Mask = K->getMaskFromMapping(FD);
       if (Mask && !Mask->isConstant()) {
         // get constant pointer
-        resultStr += ident + "_consts" + kernelName + ".push_back(";
+        resultStr += "_consts" + kernelName + ".push_back(";
         resultStr += "hipacc_const_info(std::string(\"" + Mask->getName() + K->getName() + "\"), ";
         resultStr += "(void *)" + Mask->getHostMemName() + ", ";
         resultStr += "sizeof(" + Mask->getTypeStr() + ")*" + Mask->getSizeXStr() + "*" + Mask->getSizeYStr() + "));\n";
@@ -397,7 +439,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
     }
   }
 
-  if (options.emitCUDA()) {
+  if (options.emitCUDA() && options.useTextureMemory(USER_ON) &&
+      options.getTextureType()==Array2D) {
     // bind surface
     if (options.exploreConfig()) {
       resultStr += "_texs" + kernelName + ".push_back(";
@@ -405,15 +448,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTextureType() + ", ";
       resultStr += "(void *)" + K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface));\n";
     } else {
-      if (options.useTextureMemory(USER_ON) &&
-          options.getTextureType()==Array2D) {
-        resultStr += "hipaccBindSurfaceToArray<";
-        resultStr += K->getIterationSpace()->getAccessor()->getImage()->getPixelType();
-        resultStr += ">(_surfOutput" + K->getName() + ", ";
-        resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ");\n";
-        resultStr += ident;
-      }
+      resultStr += "hipaccBindSurfaceToArray<";
+      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getPixelType();
+      resultStr += ">(_surfOutput" + K->getName() + ", ";
+      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ");\n";
     }
+    resultStr += ident;
   }
 
   #if 0
@@ -456,15 +496,16 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
     }
 
     if (options.exploreConfig() || options.timeKernels()) {
-        // add kernel argument
+      // add kernel argument
+      resultStr += "_args" + kernelName + ".push_back(";
       if (options.emitCUDA()) {
         if (options.exploreConfig()) {
-          resultStr += "_args" + kernelName + ".push_back((void *)&" + argNames[i] + ");\n";
+          resultStr += "(void *)&" + argNames[i] + ");\n";
         } else {
-          resultStr += "_args" + kernelName + ".push_back(std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)&" + argNames[i] + "));\n";
+          resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)&" + argNames[i] + "));\n";
         }
       } else {
-        resultStr += "_args" + kernelName + ".push_back(std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)" + argName + "));\n";
+        resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)" + argName + "));\n";
       }
       resultStr += ident;
     } else {
@@ -477,11 +518,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
 
   // launch kernel
   if (options.exploreConfig() || options.timeKernels()) {
-    std::stringstream max_threads_per_block, max_threads_for_kernel, max_size_x, max_size_y, warp_size, max_shared_memory_per_block;
+    std::stringstream max_threads_per_block, max_threads_for_kernel, warp_size, max_shared_memory_per_block;
     max_threads_per_block << K->getMaxThreadsPerBlock();
     max_threads_for_kernel << K->getMaxThreadsForKernel();
-    max_size_x << K->getMaxSizeX();
-    max_size_y << K->getMaxSizeY();
     warp_size << K->getWarpSize();
     max_shared_memory_per_block << K->getMaxTotalSharedMemory();
 
@@ -499,21 +538,18 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       }
     }
     resultStr += ", _args" + kernelName;
+    // additional parameters for exploration
     if (options.exploreConfig()) {
       resultStr += ", _smems" + kernelName;
       if (options.emitCUDA()) {
         resultStr += ", _consts" + kernelName;
         resultStr += ", _texs" + kernelName;
       }
-      resultStr += ", " + K->getIterationSpace()->getWidth();
-      resultStr += ", " + K->getIterationSpace()->getHeight();
+      resultStr += ", " + infoStr;
       resultStr += ", " + warp_size.str();
       resultStr += ", " + max_threads_per_block.str();
       resultStr += ", " + max_threads_for_kernel.str();
       resultStr += ", " + max_shared_memory_per_block.str();
-      resultStr += ", " + pptStr;
-      resultStr += ", " + max_size_x.str();
-      resultStr += ", " + max_size_y.str();
       resultStr += ", " + cX.str();
       resultStr += ", " + cY.str();
       if (options.emitCUDA()) {
@@ -526,8 +562,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       resultStr += ", " + blockStr;
       resultStr += ", true";
     }
-    resultStr += ");\n" + ident;
-    resultStr += "}\n";
+    resultStr += ");\n";
+    dec_ident();
+    resultStr += ident + "}\n";
   } else {
     if (options.emitCUDA()) {
       resultStr += "hipaccLaunchKernel(\"cu";
