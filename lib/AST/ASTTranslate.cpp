@@ -605,7 +605,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_left, BO_LT,
             Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
+              block_id_y, bh_start_top, BO_GE, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 2:
@@ -620,7 +620,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_right, BO_GE,
             Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
+              block_id_y, bh_start_top, BO_GE, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 3:
