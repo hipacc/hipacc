@@ -605,7 +605,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_left, BO_LT,
             Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_y, bh_start_top, BO_GE, Ctx.BoolTy), BO_LAnd,
+              block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 2:
@@ -620,7 +620,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_right, BO_GE,
             Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_y, bh_start_top, BO_GE, Ctx.BoolTy), BO_LAnd,
+              block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 3:
@@ -880,10 +880,22 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       // add iteration space check when calculating multiple pixels per thread,
       // having a tiling with multiple threads in the y-dimension, or in case
       // exploration is done
-      if ((border_handling && (!(kernel_y && !bh_variant.borders.bottom)) &&
-            bh_variant.borderVal) || Kernel->getPixelsPerThread()>1 ||
-          Kernel->getNumThreadsY()>1 || (!border_handling &&
-            compilerOptions.exploreConfig())) {
+      bool require_is_check = true;
+      if (border_handling) {
+        // code variant for column filter not processing the bottom
+        if (kernel_y && !bh_variant.borders.bottom) require_is_check = false;
+        // code variant without border handling
+        if (!bh_variant.borderVal) require_is_check = false;
+        // number of threads is 1 and no exploration
+        if (Kernel->getNumThreadsY()==1 && Kernel->getPixelsPerThread()==1 &&
+            !compilerOptions.exploreConfig())
+          require_is_check = false;
+      } else {
+        // exploration
+        if (Kernel->getNumThreadsY()==1 && Kernel->getPixelsPerThread()==1 &&
+            !compilerOptions.exploreConfig()) require_is_check = false;
+      }
+      if (require_is_check) {
         // if (gid_y + p < is_height)
         BinaryOperator *inner_check_bop = createBinaryOperator(Ctx, gidYRef,
             isHeight, BO_LT, Ctx.BoolTy);
