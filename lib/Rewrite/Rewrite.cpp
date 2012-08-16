@@ -652,13 +652,11 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         // get the text string for the image width
         std::string widthStr;
         llvm::raw_string_ostream WS(widthStr);
-        CCE->getArg(0)->printPretty(WS, Context, 0,
-            PrintingPolicy(CI.getLangOpts()));
+        CCE->getArg(0)->printPretty(WS, 0, PrintingPolicy(CI.getLangOpts()));
         // get the text string for the image height
         std::string heightStr;
         llvm::raw_string_ostream HS(heightStr);
-        CCE->getArg(1)->printPretty(HS, Context, 0,
-            PrintingPolicy(CI.getLangOpts()));
+        CCE->getArg(1)->printPretty(HS, 0, PrintingPolicy(CI.getLangOpts()));
 
         // create a temporary variable for integer literals and floating
         // literals for OpenCL
@@ -933,7 +931,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           llvm::raw_string_ostream SS(Str);
 
           if (i < CCE->getNumArgs()) {
-            CCE->getArg(i)->printPretty(SS, Context, 0,
+            CCE->getArg(i)->printPretty(SS, 0,
                 PrintingPolicy(CI.getLangOpts()));
             Decl = CCE->getArg(i)->getType().getAsString();
           } else if (i < 3) {
@@ -1027,7 +1025,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           llvm::raw_string_ostream SS(Str);
 
           if (i < CCE->getNumArgs()) {
-            CCE->getArg(i)->printPretty(SS, Context, 0,
+            CCE->getArg(i)->printPretty(SS, 0,
                 PrintingPolicy(CI.getLangOpts()));
             Decl = CCE->getArg(i)->getType().getAsString();
           } else {
@@ -1193,8 +1191,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get the string representation of the neutral element
           std::string neutralStr;
           llvm::raw_string_ostream NS(neutralStr);
-          CCE->getArg(1)->printPretty(NS, Context, 0,
-              PrintingPolicy(CI.getLangOpts()));
+          CCE->getArg(1)->printPretty(NS, 0, PrintingPolicy(CI.getLangOpts()));
           GR->setNeutral(NS.str());
 
           // get the template specialization type
@@ -1493,8 +1490,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // get the text string for the memory transfer src
         std::string dataStr;
         llvm::raw_string_ostream DS(dataStr);
-        E->getArg(1)->printPretty(DS, Context, 0,
-            PrintingPolicy(CI.getLangOpts()));
+        E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
 
         // create memory transfer string
         stringCreator.writeMemoryTransfer(Img, DS.str(), HOST_TO_DEVICE,
@@ -1518,8 +1514,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // get the text string for the memory transfer src
         std::string dataStr;
         llvm::raw_string_ostream DS(dataStr);
-        E->getArg(1)->printPretty(DS, Context, 0,
-            PrintingPolicy(CI.getLangOpts()));
+        E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
 
         DeclRefExpr *DREVar =
           dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts());
@@ -1611,8 +1606,7 @@ bool Rewrite::VisitBinaryOperator(BinaryOperator *E) {
         // get the text string for the memory transfer dst
         std::string dataStr;
         llvm::raw_string_ostream DS(dataStr);
-        E->getLHS()->printPretty(DS, Context, 0,
-            PrintingPolicy(CI.getLangOpts()));
+        E->getLHS()->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
 
         // create memory transfer string
         stringCreator.writeMemoryTransfer(Img, DS.str(), DEVICE_TO_HOST,
@@ -1762,7 +1756,7 @@ void Rewrite::generateReductionKernels() {
 void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     std::string file) {
   PrintingPolicy Policy = Context.getPrintingPolicy();
-  Policy.Dump = dump;
+  if (dump) Policy.DumpSourceManager = SM;
   Policy.Indentation = 2;
   Policy.SuppressSpecifiers = false;
   Policy.SuppressTag = false;
@@ -1847,7 +1841,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   kernelOut << ") ";
 
   // print kernel body
-  D->getBody()->printPretty(kernelOut, Context, 0, Policy, 0);
+  D->getBody()->printPretty(kernelOut, 0, Policy, 0);
 
   // instantiate reduction
   if (compilerOptions.emitCUDA()) {
@@ -1916,7 +1910,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
 void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     HipaccKernel *K, std::string file, bool emitHints) {
   PrintingPolicy Policy = Context.getPrintingPolicy();
-  Policy.Dump = dump;
+  if (dump) Policy.DumpSourceManager = SM;
   Policy.Indentation = 2;
   Policy.SuppressSpecifiers = false;
   Policy.SuppressTag = false;
@@ -2209,13 +2203,13 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       if (!CCE || CCE->getConstructor()->isCopyConstructor()) {
         kernelOut << " = ";
       }
-      Init->printPretty(kernelOut, Context, 0, Policy, 0);
+      Init->printPretty(kernelOut, 0, Policy, 0);
     }
   }
   kernelOut << ") ";
 
   // print kernel body
-  D->getBody()->printPretty(kernelOut, Context, 0, Policy, 0);
+  D->getBody()->printPretty(kernelOut, 0, Policy, 0);
   if (compilerOptions.emitCUDA()) {
     kernelOut << "}\n";
   }

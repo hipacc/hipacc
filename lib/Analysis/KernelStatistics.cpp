@@ -737,10 +737,10 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
 #ifdef DEBUG_ANALYSIS
 void TransferFunctions::VisitTerminatorBinaryOperator(const BinaryOperator *E) {
   llvm::errs() << "BinaryOperator: \n";
-  E->getLHS()->printPretty(llvm::errs(), KS.Ctx, 0,
+  E->getLHS()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << " " << E->getOpcodeStr() << " ";
-  E->getRHS()->printPretty(llvm::errs(), KS.Ctx, 0,
+  E->getRHS()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << "\n";
 }
@@ -748,13 +748,13 @@ void TransferFunctions::VisitTerminatorBinaryOperator(const BinaryOperator *E) {
 void TransferFunctions::VisitTerminatorConditionalOperator(const
     ConditionalOperator *E) {
   llvm::errs() << "ConditionalOperator: \n";
-  E->getCond()->printPretty(llvm::errs(), KS.Ctx, 0,
+  E->getCond()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << "?";
-  E->getTrueExpr()->printPretty(llvm::errs(), KS.Ctx, 0,
+  E->getTrueExpr()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << ":";
-  E->getFalseExpr()->printPretty(llvm::errs(), KS.Ctx, 0,
+  E->getFalseExpr()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << "\n";
 }
@@ -762,7 +762,7 @@ void TransferFunctions::VisitTerminatorConditionalOperator(const
 void TransferFunctions::VisitTerminatorDoStmt(const DoStmt *S) {
   llvm::errs() << "DoStmt: \n";
   llvm::errs() << "do {} while (";
-  S->getCond()->printPretty(llvm::errs(), KS.Ctx, 0,
+  S->getCond()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << ")\n";
 }
@@ -770,7 +770,7 @@ void TransferFunctions::VisitTerminatorDoStmt(const DoStmt *S) {
 void TransferFunctions::VisitTerminatorIfStmt(const IfStmt *S) {
   llvm::errs() << "IfStmt: \n";
   llvm::errs() << "if (";
-  S->getCond()->printPretty(llvm::errs(), KS.Ctx, 0,
+  S->getCond()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << ") {}\n";
 }
@@ -778,13 +778,13 @@ void TransferFunctions::VisitTerminatorIfStmt(const IfStmt *S) {
 void TransferFunctions::VisitTerminatorForStmt(const ForStmt *S) {
   llvm::errs() << "ForStmt: \n";
   llvm::errs() << "for (";
-  S->getInit()->printPretty(llvm::errs(), KS.Ctx, 0,
+  S->getInit()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << ", ";
-  S->getCond()->printPretty(llvm::errs(), KS.Ctx, 0,
+  S->getCond()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << ", ";
-  S->getInc()->printPretty(llvm::errs(), KS.Ctx, 0,
+  S->getInc()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << ") {}\n";
 }
@@ -792,7 +792,7 @@ void TransferFunctions::VisitTerminatorForStmt(const ForStmt *S) {
 void TransferFunctions::VisitTerminatorWhileStmt(const WhileStmt *S) {
   llvm::errs() << "WhileStmt: \n";
   llvm::errs() << "while (";
-  S->getCond()->printPretty(llvm::errs(), KS.Ctx, 0,
+  S->getCond()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));;
   llvm::errs() << ") {}\n";
 }
@@ -800,7 +800,7 @@ void TransferFunctions::VisitTerminatorWhileStmt(const WhileStmt *S) {
 void TransferFunctions::VisitTerminatorSwitchStmt(const SwitchStmt *S) {
   llvm::errs() << "SwitchStmt: \n";
   llvm::errs() << "switch (";
-  S->getCond()->printPretty(llvm::errs(), KS.Ctx, 0,
+  S->getCond()->printPretty(llvm::errs(), 0,
       PrintingPolicy(KS.Ctx.getLangOpts()));;
   llvm::errs() << ") {}\n";
 }

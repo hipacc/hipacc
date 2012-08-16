@@ -562,8 +562,7 @@ void HipaccKernel::createHostArgInfo(Expr **hostArgs, std::string &hostLiterals,
 
     switch (KC->arguments.data()[i].kind) {
       case HipaccKernelClass::Normal:
-        hostArgs[i+1]->printPretty(SS, Ctx, 0,
-            PrintingPolicy(Ctx.getLangOpts()));
+        hostArgs[i+1]->printPretty(SS, 0, PrintingPolicy(Ctx.getLangOpts()));
 
         if (options.emitCUDA()) {
           hostArgNames.push_back(SS.str());
