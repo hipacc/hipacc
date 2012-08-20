@@ -730,6 +730,19 @@ void hipaccReleaseImage(cl_mem image) {
 }
 
 
+// Create sampler object
+cl_sampler hipaccCreateSampler(cl_bool normalized_coords, cl_addressing_mode addressing_mode, cl_filter_mode filter_mode) {
+    cl_int err = CL_SUCCESS;
+    cl_sampler sampler;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    sampler = clCreateSampler(Ctx.get_contexts()[0], normalized_coords, addressing_mode, filter_mode, &err);
+    checkErr(err, "clCreateSampler()");
+
+    return sampler;
+}
+
+
 // Allocate constant buffer
 template<typename T>
 cl_mem hipaccCreateBufferConstant(int width, int height) {
