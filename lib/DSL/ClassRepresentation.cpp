@@ -541,9 +541,11 @@ void HipaccKernel::createArgInfo() {
         Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_bottom", NULL);
   }
   // bh_fall_back
-  addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-      Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-      Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_fall_back", NULL);
+  if (getMaxSizeX() || getMaxSizeY()) {
+    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
+        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_fall_back", NULL);
+  }
 }
 
 
@@ -647,7 +649,9 @@ void HipaccKernel::createHostArgInfo(Expr **hostArgs, std::string &hostLiterals,
     hostArgNames.push_back(getName() + "_info.bh_start_bottom");
   }
   // bh_fall_back
-  hostArgNames.push_back(getName() + "_info.bh_fall_back");
+  if (getMaxSizeX() || getMaxSizeY()) {
+    hostArgNames.push_back(getName() + "_info.bh_fall_back");
+  }
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:
