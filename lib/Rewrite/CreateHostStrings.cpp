@@ -343,8 +343,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
 
       // offset parameter
       if (!options.timeKernels()) {
-        resultStr += "size_t " + offsetStr + " = 0;\n";
-        resultStr += ident;
+        resultStr += ident + "size_t " + offsetStr + " = 0;\n";
       }
     } else {
       // size_t block
