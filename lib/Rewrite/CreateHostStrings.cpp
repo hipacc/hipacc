@@ -329,10 +329,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       resultStr += blockStr + "));\n\n";
       resultStr += ident;
 
-      // offset
-      resultStr += "size_t " + offsetStr + " = 0;\n";
-      resultStr += ident;
-      
       // hipaccPrepareKernelLaunch
       resultStr += "hipaccPrepareKernelLaunch(";
       resultStr += infoStr + ", ";
@@ -344,6 +340,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       resultStr += gridStr;
       resultStr += ", " + blockStr;
       resultStr += ");\n\n";
+
+      // offset parameter
+      if (!options.timeKernels()) {
+        resultStr += "size_t " + offsetStr + " = 0;\n";
+        resultStr += ident;
+      }
     } else {
       // size_t block
       resultStr += "size_t " + blockStr + "[2];\n";
@@ -352,14 +354,14 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       resultStr += ident;
 
       // size_t grid
-      resultStr += "size_t " + gridStr + "[2];\n";
+      resultStr += "size_t " + gridStr + "[2];\n\n";
       resultStr += ident;
 
       // hipaccCalcGridFromBlock
       resultStr += "hipaccCalcGridFromBlock(";
       resultStr += infoStr + ", ";
       resultStr += blockStr + ", ";
-      resultStr += gridStr + ");\n\n";
+      resultStr += gridStr + ");\n";
       resultStr += ident;
 
       // hipaccPrepareKernelLaunch
@@ -370,8 +372,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
     resultStr += ident;
   }
 
-  unsigned int numArgs = K->getNumArgs();
+
   // bind textures and get constant pointers
+  unsigned int numArgs = K->getNumArgs();
   for (unsigned int i=0; i<numArgs; i++) {
     FieldDecl *FD = K->getArgFields()[i];
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
@@ -439,6 +442,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
     }
   }
 
+
+  // check if Array2D memory is required for the iteration space
   if (options.emitCUDA() && options.useTextureMemory(USER_ON) &&
       options.getTextureType()==Array2D) {
     // bind surface
@@ -464,6 +469,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
     resultStr += "assert(" + Acc->getHeight() + "==" + K->getIterationSpace()->getHeight() + " && \"Acc height != IS height\");\n" + ident;
   }
   #endif
+
 
   // parameters
   unsigned int curArg = 0;
