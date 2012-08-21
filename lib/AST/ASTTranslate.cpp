@@ -1324,9 +1324,9 @@ Stmt *ASTTranslate::VisitAsmStmt(AsmStmt *S) {
   }
 
   return new (Ctx) AsmStmt(Ctx, S->getAsmLoc(), S->isSimple(), S->isVolatile(),
-      S->isMSAsm(), S->getNumOutputs(), S->getNumInputs(), names.data(),
-      constraints.data(), exprs.data(), S->getAsmString(), S->getNumClobbers(),
-      clobbers.data(), S->getRParenLoc());
+      S->getNumOutputs(), S->getNumInputs(), names.data(), constraints.data(),
+      exprs.data(), S->getAsmString(), S->getNumClobbers(), clobbers.data(),
+      S->getRParenLoc());
 }
 
 Expr *ASTTranslate::VisitExpr(Expr *E) {
