@@ -163,15 +163,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=NULL, Expr
         *offset_y=NULL);
     Expr *accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
-    void stage_line_to_shared_memory(ParmVarDecl *PVD, llvm::SmallVector<Stmt *,
-        16> &stageBody, Expr *local_offset_x, Expr *local_offset_y, Expr
+    void stageLineToSharedMemory(ParmVarDecl *PVD, llvm::SmallVector<Stmt *, 16>
+        &stageBody, Expr *local_offset_x, Expr *local_offset_y, Expr
         *global_offset_x, Expr *global_offset_y);
-    bool stage_first_iteration_to_shared_memory(llvm::SmallVector<Stmt *, 16>
-        &stageBody);
-    bool stage_next_iteration_to_shared_memory(llvm::SmallVector<Stmt *, 16>
-        &stageBody);
-    bool update_shared_memory_for_next_iteration(llvm::SmallVector<Stmt *, 16>
-        &stageBody);
+    void stageIterationToSharedMemory(llvm::SmallVector<Stmt *, 16> &stageBody,
+        int p);
 
     // default error message for unsupported expressions and statements.
     #define HIPACC_NOT_SUPPORTED(MSG) \

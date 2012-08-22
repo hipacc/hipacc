@@ -427,7 +427,7 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     args.push_back(LHStex);
     // byte addressing required for surf2Dwrite
     args.push_back(createBinaryOperator(Ctx, idx_x, createIntegerLiteral(Ctx,
-            Acc->getImage()->getPixelSize()), BO_Mul, Ctx.IntTy));
+            (int)Acc->getImage()->getPixelSize()), BO_Mul, Ctx.IntTy));
     args.push_back(idx_y);
   }
 
@@ -525,8 +525,8 @@ Expr *ASTTranslate::accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr
 }
 
 
-// stage single image line to shared memory
-void ASTTranslate::stage_line_to_shared_memory(ParmVarDecl *PVD,
+// stage single image line (warp size) to shared memory
+void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
     llvm::SmallVector<Stmt *, 16> &stageBody, Expr *local_offset_x, Expr
     *local_offset_y, Expr *global_offset_x, Expr *global_offset_y) {
   VarDecl *VD = KernelDeclMapShared[PVD];
@@ -537,7 +537,7 @@ void ASTTranslate::stage_line_to_shared_memory(ParmVarDecl *PVD,
       local_offset_y);
 
   Expr *RHS;
-  if (Acc->getBoundaryHandling() != BOUNDARY_UNDEFINED) {
+  if (Acc->getBoundaryHandling()!=BOUNDARY_UNDEFINED && bh_variant.borderVal) {
     llvm::SmallVector<Stmt *, 16> bhStmts;
     llvm::SmallVector<CompoundStmt *, 16> bhCStmts;
     RHS = addBorderHandling(paramDRE, global_offset_x, global_offset_y, Acc,
@@ -556,29 +556,29 @@ void ASTTranslate::stage_line_to_shared_memory(ParmVarDecl *PVD,
 }
 
 
-// stage first iteration to shared memory
-bool ASTTranslate::stage_first_iteration_to_shared_memory(llvm::SmallVector<Stmt
-    *, 16> &stageBody) {
-  bool found = false;
-
+// stage iteration p to shared memory
+void ASTTranslate::stageIterationToSharedMemory(llvm::SmallVector<Stmt *, 16>
+    &stageBody, int p) {
   for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
       N=kernelDecl->param_end(); I!=N; ++I) {
     ParmVarDecl *PVD = *I;
 
     if (KernelDeclMapShared[PVD]) {
-      found = true;
       HipaccAccessor *Acc = KernelDeclMapAcc[PVD];
+
+      // check if the bottom apron has to be fetched
+      if (p==(int)Kernel->getPixelsPerThread() && Acc->getSizeY() <= 1)
+        continue;
 
       Expr *global_offset_x, *global_offset_y;
       IntegerLiteral *SX, *SY, *SX2, *SY2;
       llvm::SmallVector<Stmt *, 16> ifBody;
-      BinaryOperator *cond_x = NULL, *cond_y = NULL;
 
       if (Acc->getSizeX() > 1) {
-        SX = createIntegerLiteral(Ctx, (int)Acc->getSizeX());
-        SX2 = createIntegerLiteral(Ctx, (int)Acc->getSizeX()/2);
-        global_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-              0), SX2, BO_Sub, Ctx.IntTy);
+        SX = createIntegerLiteral(Ctx, (int)Kernel->max_threads_per_warp);
+        SX2 = createIntegerLiteral(Ctx, (int)Kernel->max_threads_per_warp);
+        global_offset_x = createParenExpr(Ctx, createUnaryOperator(Ctx, SX2,
+              UO_Minus, Ctx.IntTy));
       } else {
         SX = createIntegerLiteral(Ctx, 0);
         SX2 = createIntegerLiteral(Ctx, 0);
@@ -587,8 +587,8 @@ bool ASTTranslate::stage_first_iteration_to_shared_memory(llvm::SmallVector<Stmt
       if (Acc->getSizeY() > 1) {
         SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY());
         SY2 = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
-        global_offset_y = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-              0), SY2, BO_Sub, Ctx.IntTy);
+        global_offset_y = createParenExpr(Ctx, createUnaryOperator(Ctx, SY2,
+              UO_Minus, Ctx.IntTy));
       } else {
         SY = createIntegerLiteral(Ctx, 0);
         SY2 = createIntegerLiteral(Ctx, 0);
@@ -596,329 +596,29 @@ bool ASTTranslate::stage_first_iteration_to_shared_memory(llvm::SmallVector<Stmt
       }
 
 
-      // load first tile
-      if (Kernel->getNumThreadsY() > 1) {
-        // _smem[lidYRef][lidXRef] = Image[-SX/2, -SY/2];
-        stage_line_to_shared_memory(PVD, ifBody, NULL, NULL, global_offset_x,
-            global_offset_y);
-
-        // check if the index is still within the iteration space in case we
-        // have a tiling with multiple threads in the y-dimension
-        cond_y = createBinaryOperator(Ctx, gidYRef, isHeight, BO_LT,
-            Ctx.BoolTy);
-        stageBody.push_back(createIfStmt(Ctx, cond_y, createCompoundStmt(Ctx,
-                ifBody)));
-        ifBody.clear();
-      } else {
-        // _smem[lidYRef][lidXRef] = Image[-SX/2, -SY/2];
-        stage_line_to_shared_memory(PVD, stageBody, NULL, NULL, global_offset_x,
-            global_offset_y);
-      }
-
       // check if we need to stage right apron
-      if (Acc->getSizeX() > 1) {
-        int num_stages =
-          (int)ceil((float)(Acc->getSizeX()-1)/Kernel->getNumThreadsX());
-        for (int i=1; i<=num_stages; i++) {
-          // if (lidx + i*blockDim.x < blockDim.x + SX-1)
-          //      _smem[lidYRef][lidXRef + i*blockDim.x] =
-          //          Image[-SX/2 + i*blockDim.x, -SY/2];
-          Expr *local_offset_x = createBinaryOperator(Ctx,
-              createIntegerLiteral(Ctx, i), local_size_x, BO_Mul, Ctx.IntTy);
-          Expr *global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
-              BO_Sub, Ctx.IntTy);
-
-          stage_line_to_shared_memory(PVD, ifBody, local_offset_x, NULL,
-              global_offset_x, global_offset_y);
-
-          // lidx + offset_x < blockDim.x + SX-1
-          cond_x = createBinaryOperator(Ctx, createBinaryOperator(Ctx, lidXRef,
-                local_offset_x, BO_Add, Ctx.IntTy), createBinaryOperator(Ctx,
-                  createBinaryOperator(Ctx, SX, createIntegerLiteral(Ctx, 1),
-                    BO_Sub, Ctx.IntTy), local_size_x, BO_Add, Ctx.IntTy), BO_LT,
-              Ctx.BoolTy);
-
-          stageBody.push_back(createIfStmt(Ctx, cond_x, createCompoundStmt(Ctx,
-                  ifBody)));
-          ifBody.clear();
-        }
-      }
-
-      // check if we need to stage bottom apron
-      if (Acc->getSizeY() > 1) {
-        int num_stages =
-          (int)ceil((float)(Acc->getSizeY()-1)/Kernel->getNumThreadsY());
-        for (int i=1; i<=num_stages; i++) {
-          // if (lidy + i*blockDim.y < blockDim.y + SY-1)
-          //      _smem[lidYRef + i*blockDim.y][lidXRef] =
-          //          Image(-SX/2, i*blockDim.y - SY/2);
-          Expr *local_offset_y = createBinaryOperator(Ctx,
-              createIntegerLiteral(Ctx, i), local_size_y, BO_Mul, Ctx.IntTy);
-          Expr *global_offset_y = createBinaryOperator(Ctx, local_offset_y, SY2,
-              BO_Sub, Ctx.IntTy);
-
-          stage_line_to_shared_memory(PVD, ifBody, NULL, local_offset_y,
-              global_offset_x, global_offset_y);
-
-          // lidy + offset_y < blockDim.y + SY-1
-          cond_y = createBinaryOperator(Ctx, createBinaryOperator(Ctx, lidYRef,
-                local_offset_y, BO_Add, Ctx.IntTy), createBinaryOperator(Ctx,
-                  createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx, 1),
-                    BO_Sub, Ctx.IntTy), local_size_y, BO_Add, Ctx.IntTy), BO_LT,
-              Ctx.BoolTy);
-
-          // check if the index is still within the iteration space in case we
-          // have a tiling with multiple threads in the y-dimension
-          if (Kernel->getNumThreadsY() > 1) {
-            cond_y = createBinaryOperator(Ctx, cond_y, createBinaryOperator(Ctx,
-                  createBinaryOperator(Ctx, gidYRef, global_offset_y, BO_Add,
-                    Ctx.IntTy), isHeight, BO_LT, Ctx.BoolTy), BO_LAnd,
-                Ctx.BoolTy);
-          }
-
-          stageBody.push_back(createIfStmt(Ctx, cond_y, createCompoundStmt(Ctx,
-                  ifBody)));
-          ifBody.clear();
-        }
-      }
-
-      // check if we need to stage bottom/right apron
-      if (Acc->getSizeX() > 1 && Acc->getSizeY() > 1) {
-        int num_stages_x =
-          (int)ceil((float)(Acc->getSizeX()-1)/Kernel->getNumThreadsX());
-        int num_stages_y =
-          (int)ceil((float)(Acc->getSizeY()-1)/Kernel->getNumThreadsY());
-        for (int j=1; j<=num_stages_y; j++) {
-          Expr *local_offset_y = createBinaryOperator(Ctx,
-              createIntegerLiteral(Ctx, j), local_size_y, BO_Mul, Ctx.IntTy);
-          Expr *global_offset_y = createBinaryOperator(Ctx, local_offset_y, SY2,
-              BO_Sub, Ctx.IntTy);
-          for (int i=1; i<=num_stages_x; i++) {
-            // if (lidx + i*blockDim.x < blockDim.x + SX-1 &&
-            //     lidy + j*blockDim.y < blockDim.y + SY-1)
-            //      _smem[lidYRef + j*blockDim.y][lidXRef + i*blockDim.x] =
-            //          Image(i*blockDim.x - SX/2, j*blockDim.y - SY/2);
-            Expr *local_offset_x = createBinaryOperator(Ctx,
-                createIntegerLiteral(Ctx, i), local_size_x, BO_Mul, Ctx.IntTy);
-            Expr *global_offset_x = createBinaryOperator(Ctx, local_offset_x,
-                SX2, BO_Sub, Ctx.IntTy);
-
-            stage_line_to_shared_memory(PVD, ifBody, local_offset_x,
-                local_offset_y, global_offset_x, global_offset_y);
-
-            // lidx + offset_x < blockDim.x + SX-1
-            cond_x = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
-                  lidXRef, local_offset_x, BO_Add, Ctx.IntTy),
-                createBinaryOperator(Ctx, createBinaryOperator(Ctx, SX,
-                    createIntegerLiteral(Ctx, 1), BO_Sub, Ctx.IntTy),
-                  local_size_x, BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
-
-            // lidy + offset_y < blockDim.y + SY-1
-            cond_y = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
-                  lidYRef, local_offset_y, BO_Add, Ctx.IntTy),
-                createBinaryOperator(Ctx, createBinaryOperator(Ctx, SY,
-                    createIntegerLiteral(Ctx, 1), BO_Sub, Ctx.IntTy),
-                  local_size_y, BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
-
-            // check if the index is still within the iteration space in case we
-            // have a tiling with multiple threads in the y-dimension
-            if (Kernel->getNumThreadsY() > 1) {
-              cond_y = createBinaryOperator(Ctx, cond_y,
-                  createBinaryOperator(Ctx, createBinaryOperator(Ctx, gidYRef,
-                      global_offset_y, BO_Add, Ctx.IntTy), isHeight, BO_LT,
-                    Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
-            }
-
-            // cond_x && cond_y
-            stageBody.push_back(createIfStmt(Ctx, createBinaryOperator(Ctx,
-                    cond_x, cond_y, BO_LAnd, Ctx.BoolTy),
-                  createCompoundStmt(Ctx, ifBody)));
-            ifBody.clear();
-          }
-        }
-      }
-    }
-  }
-
-  return found;
-}
-
-
-// stage next iteration to shared memory
-bool ASTTranslate::stage_next_iteration_to_shared_memory(llvm::SmallVector<Stmt
-    *, 16> &stageBody) {
-  bool found = false;
-
-  for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
-      N=kernelDecl->param_end(); I!=N; ++I) {
-    ParmVarDecl *PVD = *I;
-
-    if (KernelDeclMapShared[PVD]) {
-      found = true;
-      HipaccAccessor *Acc = KernelDeclMapAcc[PVD];
-
-      IntegerLiteral *SX, *SY, *SX2, *SY2;
-      if (Acc->getSizeX() > 1) {
-        SX = createIntegerLiteral(Ctx, (int)Acc->getSizeX());
-        SX2 = createIntegerLiteral(Ctx, (int)Acc->getSizeX()/2);
-      } else {
-        SX = createIntegerLiteral(Ctx, 0);
-        SX2 = createIntegerLiteral(Ctx, 0);
-      }
-      if (Acc->getSizeY() > 1) {
-        SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY());
-        SY2 = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
-      } else {
-        SY = createIntegerLiteral(Ctx, 0);
-        SY2 = createIntegerLiteral(Ctx, 0);
-      }
-
-      // load next line to shared memory
-      // if (lidx + i*blockDim.x < blockDim.x + SX-1)
-      //      _smem[lidYRef + 2*SY/2 + (1+PPT)*blockDim.y]
-      //           [lidXRef + i*blockDim.x] =
-      //          Image(i*blockDim.x - SX/2,(1+PPT)*blockDim.y + SY/2);
       int num_stages_x = 0;
       if (Acc->getSizeX() > 1) {
-        num_stages_x =
-          (int)ceil((float)(Acc->getSizeX()-1)/Kernel->getNumThreadsX());
+          num_stages_x = 2;
       }
 
-      // 1*blockDim.y
-      Expr *local_offset_y = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-            1), local_size_y, BO_Mul, Ctx.IntTy);
-      // 1*blockDim.y + SY2
-      Expr *global_offset_y = createBinaryOperator(Ctx, local_offset_y, SY2,
-          BO_Add, Ctx.IntTy);
-      // += 2*SY2
-      local_offset_y = createBinaryOperator(Ctx, local_offset_y,
-          createBinaryOperator(Ctx, SY2, SY2, BO_Add, Ctx.IntTy), BO_Add,
-          Ctx.IntTy);
-
-      // check if the index is still within the iteration space in case we
-      // have a tiling with multiple threads in the y-dimension
-      BinaryOperator *cond_y = NULL;
-      if (Kernel->getNumThreadsY() > 1 || Kernel->getPixelsPerThread() > 1) {
-        cond_y = createBinaryOperator(Ctx, createBinaryOperator(Ctx, gidYRef,
-              global_offset_y, BO_Add, Ctx.IntTy), isHeight, BO_LT, Ctx.BoolTy);
-      }
-
+      // load row (line)
       for (int i=0; i<=num_stages_x; i++) {
-        Expr *local_offset_x = NULL;
-        Expr *global_offset_x = NULL;
-        BinaryOperator *cond = NULL;
-        llvm::SmallVector<Stmt *, 16> ifBody;
-
-        if (i!=1) {
+        // _smem[lidYRef][lidXRef + i*blockDim.x] =
+        //        Image[-SX/2 + i*blockDim.x, -SY/2];
+        Expr *local_offset_x = NULL, *global_offset_x = NULL;
+        if (Acc->getSizeX() > 1) {
           local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
                 i), local_size_x, BO_Mul, Ctx.IntTy);
           global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
               BO_Sub, Ctx.IntTy);
-
-          // lidx + offset_x < blockDim.x + SX-1
-          cond = createBinaryOperator(Ctx, createBinaryOperator(Ctx, lidXRef,
-                local_offset_x, BO_Add, Ctx.IntTy), createBinaryOperator(Ctx,
-                  createBinaryOperator(Ctx, SX, createIntegerLiteral(Ctx, 1),
-                    BO_Sub, Ctx.IntTy), local_size_x, BO_Add, Ctx.IntTy), BO_LT,
-              Ctx.BoolTy);
-          if (cond_y) {
-            cond = createBinaryOperator(Ctx, cond, cond_y, BO_LAnd, Ctx.BoolTy);
-          }
-
-          stage_line_to_shared_memory(PVD, ifBody, local_offset_x,
-              local_offset_y, global_offset_x, global_offset_y);
-          stageBody.push_back(createIfStmt(Ctx, cond, createCompoundStmt(Ctx,
-                  ifBody)));
-        } else {
-          stage_line_to_shared_memory(PVD, stageBody, local_offset_x,
-              local_offset_y, global_offset_x, global_offset_y);
         }
+
+        stageLineToSharedMemory(PVD, stageBody, local_offset_x, NULL,
+            global_offset_x, global_offset_y);
       }
     }
   }
-
-  return found;
-}
-
-
-// update shared memory for next iteration
-bool ASTTranslate::update_shared_memory_for_next_iteration(
-    llvm::SmallVector<Stmt *, 16> &stageBody) {
-  bool found = false;
-
-  for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
-      N=kernelDecl->param_end(); I!=N; ++I) {
-    ParmVarDecl *PVD = *I;
-
-    if (KernelDeclMapShared[PVD]) {
-      found = true;
-      HipaccAccessor *Acc = KernelDeclMapAcc[PVD];
-      VarDecl *VD = KernelDeclMapShared[PVD];
-
-      IntegerLiteral *SX, *SX2;
-      if (Acc->getSizeX() > 1) {
-        SX = createIntegerLiteral(Ctx, (int)Acc->getSizeX());
-        SX2 = createIntegerLiteral(Ctx, (int)Acc->getSizeX()/2);
-      } else {
-        SX = createIntegerLiteral(Ctx, 0);
-        SX2 = createIntegerLiteral(Ctx, 0);
-      }
-
-      // update shared memory locations for next iteration
-      // if (lidx + i*blockDim.x < blockDim.x + SX-1)
-      //      _smem[lidYRef + j*blockDim.y] [lidXRef + i*blockDim.x] =
-      //      _smem[lidYRef + (j+1)*blockDim.y] [lidXRef + i*blockDim.x];
-      int num_stages_x = 0, num_stages_y = 0;
-      if (Acc->getSizeX() > 1) {
-        num_stages_x =
-          (int)ceil((float)(Acc->getSizeX()-1)/Kernel->getNumThreadsX());
-      }
-      if (Acc->getSizeY() > 1) {
-        num_stages_y =
-          (int)ceil((float)(Acc->getSizeY()-1)/Kernel->getNumThreadsY());
-      }
-
-      for (int j=0; j<=num_stages_y; j++) {
-        Expr *local_offset_y_left = createBinaryOperator(Ctx,
-            createIntegerLiteral(Ctx, j), local_size_y, BO_Mul, Ctx.IntTy);
-        Expr *local_offset_y_right = createBinaryOperator(Ctx,
-            createIntegerLiteral(Ctx, j+1), local_size_y, BO_Mul, Ctx.IntTy);
-        for (int i=0; i<=num_stages_x; i++) {
-          Expr *local_offset_x = NULL;
-          BinaryOperator *cond = NULL;
-
-          if (i!=0) {
-            local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                  i), local_size_x, BO_Mul, Ctx.IntTy);
-
-            // lidx + offset_x < blockDim.x + SX-1
-            cond = createBinaryOperator(Ctx, createBinaryOperator(Ctx, lidXRef,
-                  local_offset_x, BO_Add, Ctx.IntTy), createBinaryOperator(Ctx,
-                    createBinaryOperator(Ctx, SX, createIntegerLiteral(Ctx, 1),
-                      BO_Sub, Ctx.IntTy), local_size_x, BO_Add, Ctx.IntTy),
-                BO_LT, Ctx.BoolTy);
-
-            Expr *LHS = accessMemShared(createDeclRefExpr(Ctx, VD),
-                local_offset_x, local_offset_y_left);
-            Expr *RHS = accessMemShared(createDeclRefExpr(Ctx, VD),
-                local_offset_x, local_offset_y_right);
-            stageBody.push_back(createIfStmt(Ctx, cond,
-                  createBinaryOperator(Ctx, LHS, RHS, BO_Assign,
-                    Acc->getImage()->getPixelQualType())));
-          } else {
-            Expr *LHS = accessMemShared(createDeclRefExpr(Ctx, VD),
-                local_offset_x, local_offset_y_left);
-            Expr *RHS = accessMemShared(createDeclRefExpr(Ctx, VD),
-                local_offset_x, local_offset_y_right);
-            stageBody.push_back(createBinaryOperator(Ctx, LHS, RHS, BO_Assign,
-                  Acc->getImage()->getPixelQualType()));
-          }
-        }
-      }
-    }
-  }
-
-  return found;
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

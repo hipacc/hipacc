@@ -38,7 +38,6 @@ using namespace hipacc;
 using namespace ASTNode;
 using namespace hipacc::Builtin;
 
-//#define TEST_UPDATE_SMEM
 
 //===----------------------------------------------------------------------===//
 // Statement/expression transformations
@@ -286,7 +285,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         Ctx.IntTy);
     if (Kernel->getPixelsPerThread() > 1) {
       YE = createBinaryOperator(Ctx, YE, createIntegerLiteral(Ctx,
-            Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
+            (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
     }
     gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
         createBinaryOperator(Ctx, YE, local_id_y, BO_Add, Ctx.IntTy));
@@ -369,8 +368,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       YE = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
             createBinaryOperator(Ctx, local_size_y, block_id_y, BO_Mul,
               Ctx.IntTy), createIntegerLiteral(Ctx,
-                Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy), local_id_y,
-          BO_Add, Ctx.IntTy);
+                (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy),
+          local_id_y, BO_Add, Ctx.IntTy);
     } else {
       // OpenCL: const int gid_y = get_global_id(1)*PPT;
       YE = get_global_id1;
@@ -455,7 +454,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   }
 
   // add shared/local memory declarations
-  bool useShared = false;
+  bool use_shared = false;
   bool border_handling = false;
   bool kernel_x = false;
   bool kernel_y = false;
@@ -475,15 +474,12 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     if (memAcc == READ_ONLY && Kernel->useLocalMemory(Acc)) {
       std::string sharedName = "_smem";
       sharedName += FD->getNameAsString();
-      useShared = true;
+      use_shared = true;
 
       VarDecl *VD;
       QualType QT;
-#ifdef TEST_UPDATE_SMEM
-      // __shared__ T _smemIn[SY-1 + 2*BSY][SX-1 + BSX + 1];
-#else
-      // __shared__ T _smemIn[SY-1 + BSY*PPT][SX-1 + BSX + 1];
-#endif
+      // __shared__ T _smemIn[SY-1 + BSY*PPT][3 * BSX];
+      // for left and right halo, add 2*BSX
       if (!emitEstimation && compilerOptions.exploreConfig()) {
         Expr *SX, *SY;
 
@@ -491,14 +487,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
               "BSX_EXPLORE", Ctx.IntTy, NULL));
         SY = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
               "BSY_EXPLORE", Ctx.IntTy, NULL));
+        // TODO: set the same as below at runtime
         if (Kernel->getPixelsPerThread() > 1) {
-#ifdef TEST_UPDATE_SMEM
-          SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx, 2),
-              BO_Mul, Ctx.IntTy);
-#else
           SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx,
-                Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
-#endif
+                (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
         }
 
         if (Acc->getSizeX() > 1) {
@@ -519,24 +511,16 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         llvm::APInt SX, SY;
         SX = llvm::APInt(32, Kernel->getNumThreadsX());
         if (Acc->getSizeX() > 1) {
-          SX += llvm::APInt(32, Acc->getSizeX()) - llvm::APInt(32, 1);
+          SX *= llvm::APInt(32, 3);
         }
         // add padding to avoid bank conflicts
-        if ((Acc->getSizeX()-1) % 16 == 0) {
-          SX += llvm::APInt(32, 1);
-        }
+        SX += llvm::APInt(32, 1);
 
-        SY = llvm::APInt(32, Kernel->getNumThreadsY());
-        if (Kernel->getPixelsPerThread() > 1) {
-#ifdef TEST_UPDATE_SMEM
-          SY *= llvm::APInt(32, 2);
-#else
-          SY *= llvm::APInt(32, Kernel->getPixelsPerThread());
-#endif
-        }
-        if (Acc->getSizeY() > 1) {
-          SY += llvm::APInt(32, Acc->getSizeY()) - llvm::APInt(32, 1);
-        }
+        // size_y = ceil((PPT*BSY+SX-1)/BSY)
+        int smem_size_y =
+          (int)ceilf((float)(Kernel->getPixelsPerThread()*Kernel->getNumThreadsY()
+                + Acc->getSizeY()-1)/(float)Kernel->getNumThreadsY());
+        SY = llvm::APInt(32, smem_size_y *Kernel->getNumThreadsY());
 
         QT = Acc->getImage()->getPixelQualType();
         QT = Ctx.getConstantArrayType(QT, SX, ArrayType::Normal,
@@ -782,24 +766,6 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         break;
     }
 
-    // stage pixels into shared memory
-    llvm::SmallVector<Stmt *, 16> labelBody;
-    bool barrier_required = false;
-    if (useShared) {
-      barrier_required = stage_first_iteration_to_shared_memory(labelBody);
-    }
-    if (barrier_required) {
-      // add memory barrier loading data
-      llvm::SmallVector<Expr *, 16> args;
-      if (compilerOptions.emitCUDA()) {
-        labelBody.push_back(createFunctionCall(Ctx, barrier, args));
-      } else {
-        // TODO: pass CLK_LOCAL_MEM_FENCE argument to barrier()
-        args.push_back(createIntegerLiteral(Ctx, 0));
-        labelBody.push_back(createFunctionCall(Ctx, barrier, args));
-      }
-    }
-
     // if (gid_x >= is_offset_x && gid_x < is_width+is_offset_x)
     BinaryOperator *check_bop = NULL;
     if (border_handling) {
@@ -846,37 +812,63 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       }
     }
 
-    for (unsigned int p=0; p<Kernel->getPixelsPerThread(); p++) {
-      // calculate multiple pixels per thread
-      llvm::SmallVector<Stmt *, 16> pptBody;
 
+    // stage pixels into shared memory
+    llvm::SmallVector<Stmt *, 16> labelBody;
+    for (int p=0; use_shared && p<=(int)Kernel->getPixelsPerThread(); p++) {
+      if (p==0) {
+        // initialize lid_y and gid_y
+        lidYRef = local_id_y;
+        gidYRef = gid_y_ref;
+        // first iteration
+        stageIterationToSharedMemory(labelBody, p);
+      } else {
+        // update lid_y to lid_y + p*local_size_y
+        // update gid_y to gid_y + p*local_size_y
+        lidYRef = createBinaryOperator(Ctx, local_id_y,
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
+              local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+        gidYRef = createBinaryOperator(Ctx, gid_y_ref, createBinaryOperator(Ctx,
+              createIntegerLiteral(Ctx, p), local_size_y, BO_Mul, Ctx.IntTy),
+            BO_Add, Ctx.IntTy);
+        // load next iteration to shared memory
+        stageIterationToSharedMemory(labelBody, p);
+
+        if (p == (int)Kernel->getPixelsPerThread()) {
+          // add memory barrier synchronization
+          llvm::SmallVector<Expr *, 16> args;
+          if (compilerOptions.emitCUDA()) {
+            labelBody.push_back(createFunctionCall(Ctx, barrier, args));
+          } else {
+            // TODO: pass CLK_LOCAL_MEM_FENCE argument to barrier()
+            args.push_back(createIntegerLiteral(Ctx, 0));
+            labelBody.push_back(createFunctionCall(Ctx, barrier, args));
+          }
+        }
+      }
+    }
+
+    for (int p=0; p<(int)Kernel->getPixelsPerThread(); p++) {
       // clear all stored decls before cloning, otherwise existing
       // VarDecls will be reused and we will miss declarations
       KernelDeclMap.clear();
 
-      // update gid_y to gid_y + p*local_size_y
-      if (p > 0) {
-        gidYRef = createBinaryOperator(Ctx, gid_y_ref, createBinaryOperator(Ctx,
-              createIntegerLiteral(Ctx, p), local_size_y, BO_Mul, Ctx.IntTy),
-            BO_Add, Ctx.IntTy);
-      } else {
+      // calculate multiple pixels per thread
+      llvm::SmallVector<Stmt *, 16> pptBody;
+  
+      if (p==0) {
+        // initialize lid_y and gid_y
+        lidYRef = local_id_y;
         gidYRef = gid_y_ref;
-      }
-#ifdef TEST_UPDATE_SMEM
-#else
-      // update lid_y to lid_y + p*local_size_y
-      if (p > 0) {
+      } else {
+        // update lid_y to lid_y + p*local_size_y
+        // update gid_y to gid_y + p*local_size_y
         lidYRef = createBinaryOperator(Ctx, local_id_y,
             createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
               local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
-      } else {
-        lidYRef = local_id_y;
-      }
-#endif
-
-      // load next iteration to shared memory
-      if (barrier_required && p<Kernel->getPixelsPerThread()-1) {
-        stage_next_iteration_to_shared_memory(labelBody);
+        gidYRef = createBinaryOperator(Ctx, gid_y_ref, createBinaryOperator(Ctx,
+              createIntegerLiteral(Ctx, p), local_size_y, BO_Mul, Ctx.IntTy),
+            BO_Add, Ctx.IntTy);
       }
 
       // convert kernel function body to CUDA/OpenCL kernel syntax
@@ -922,23 +914,6 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       } else {
         for (unsigned int i=0, e=pptBody.size(); i!=e; ++i) {
           labelBody.push_back(pptBody.data()[i]);
-        }
-      }
-
-
-      // add memory barrier loading data
-      // reorder shared memory
-      if (barrier_required && p<Kernel->getPixelsPerThread()-1) {
-#ifdef TEST_UPDATE_SMEM
-        update_shared_memory_for_next_iteration(labelBody);
-#endif
-        llvm::SmallVector<Expr *, 16> args;
-        if (compilerOptions.emitCUDA()) {
-          labelBody.push_back(createFunctionCall(Ctx, barrier, args));
-        } else {
-          // TODO: pass CLK_LOCAL_MEM_FENCE argument to barrier()
-          args.push_back(createIntegerLiteral(Ctx, 0));
-          labelBody.push_back(createFunctionCall(Ctx, barrier, args));
         }
       }
     }
@@ -2285,12 +2260,12 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
     IntegerLiteral *SX, *SY;
     if (Acc->getSizeX() > 1) {
-      SX = createIntegerLiteral(Ctx, Acc->getSizeX()/2);
+      SX = createIntegerLiteral(Ctx, Kernel->getNumThreadsX());
     } else {
       SX = createIntegerLiteral(Ctx, 0);
     }
     if (Acc->getSizeY() > 1) {
-      SY = createIntegerLiteral(Ctx, Acc->getSizeY()/2);
+      SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
     } else {
       SY = createIntegerLiteral(Ctx, 0);
     }
