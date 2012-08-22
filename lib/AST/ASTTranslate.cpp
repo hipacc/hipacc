@@ -1533,8 +1533,9 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       }
       assert(Mask && "Could not find Mask Field Decl.");
       
-      // check if Mask is initialized with constants
-      if (!Mask->isConstant()) {
+      // check if Mask is initialized with constants and only for the first
+      // iteration (gidYRef is a DeclRefExpr and not a BinaryOperator)
+      if (!Mask->isConstant() && isa<DeclRefExpr>(gidYRef)) {
         unsigned int DiagIDConstMask =
           Diags.getCustomDiagID(DiagnosticsEngine::Warning,
               "Unable to unroll convolution loop and propagate constants: Mask '%0' for 'convolve' call needs to be initialized using constants.");
@@ -2250,19 +2251,26 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // 0: -> (this *) Image Class
         // 1: -> offset x
         // 2: -> offset y
-        result = accessMemPolly(LHS, Acc, memAcc, E->getArg(1), E->getArg(2));
+        result = accessMemPolly(LHS, Acc, memAcc, Clone(E->getArg(1)),
+            Clone(E->getArg(2)));
         break;
     }
-  } else if (KernelDeclMapShared[PVD]) {
-    // shared/local memory
-    VarDecl *VD = KernelDeclMapShared[PVD];
-    DeclRefExpr *DRE = createDeclRefExpr(Ctx, VD);
+  } else {
+    bool use_shared = false;
+    DeclRefExpr *DRE = NULL;
+    if (KernelDeclMapShared[PVD]) {
+      // shared/local memory
+      use_shared = true;
+      VarDecl *VD = KernelDeclMapShared[PVD];
+      DRE = createDeclRefExpr(Ctx, VD);
+    }
 
-    IntegerLiteral *SX, *SY;
+    IntegerLiteral *SX, *SY, *TX;
     if (Acc->getSizeX() > 1) {
-      SX = createIntegerLiteral(Ctx, Kernel->getNumThreadsX());
+      TX = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
+      SX = createIntegerLiteral(Ctx, (int)Acc->getSizeX()/2);
     } else {
-      SX = createIntegerLiteral(Ctx, 0);
+      TX = SX = createIntegerLiteral(Ctx, 0);
     }
     if (Acc->getSizeY() > 1) {
       SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
@@ -2276,25 +2284,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         break;
       case 1:
         // 0: -> (this *) Image Class
-        result = accessMemShared(DRE, SX, SY);
-        break;
-      case 3:
-        // 0: -> (this *) Image Class
-        // 1: -> offset x
-        // 2: -> offset y
-        result = accessMemShared(DRE, createBinaryOperator(Ctx, E->getArg(1),
-              SX, BO_Add, Ctx.IntTy), createBinaryOperator(Ctx, E->getArg(2),
-                SY, BO_Add, Ctx.IntTy));
-        break;
-    }
-  } else {
-    switch (E->getNumArgs()) {
-      default:
-        assert(0 && "0 or 2 arguments for Accessor operator() expected!\n");
-        break;
-      case 1:
-        // 0: -> (this *) Image Class
-        result = accessMem(LHS, Acc, memAcc);
+        if (use_shared) {
+          result = accessMemShared(DRE, TX, SY);
+        } else {
+          result = accessMem(LHS, Acc, memAcc);
+        }
         break;
       case 2:
         // 0: -> (this *) Image Class
@@ -2315,33 +2309,37 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             offset_y = createIntegerLiteral(Ctx,
                 convIdxY-(int)convMask->getSizeY()/2);
           } else {
-            offset_x = createBinaryOperator(Ctx, convExprX,
-                createIntegerLiteral(Ctx, (int)convMask->getSizeX()/2), BO_Sub,
+            offset_x = createBinaryOperator(Ctx, convExprX, SX, BO_Sub,
                 Ctx.IntTy);
-            offset_y = createBinaryOperator(Ctx, convExprY,
-                createIntegerLiteral(Ctx, (int)convMask->getSizeY()/2), BO_Sub,
+            offset_y = createBinaryOperator(Ctx, convExprY, SY, BO_Sub,
                 Ctx.IntTy);
           }
         } else {
-          offset_x = E->getArg(1);
-          offset_y = E->getArg(2);
+          offset_x = Clone(E->getArg(1));
+          offset_y = Clone(E->getArg(2));
         }
 
-        switch (memAcc) {
-          case READ_ONLY:
-            if (Acc->getBoundaryHandling()!=BOUNDARY_UNDEFINED &&
-                bh_variant.borderVal) {
-              return addBorderHandling(LHS, offset_x, offset_y, Acc);
-            }
-            // fall through
-          case WRITE_ONLY:
-            result = accessMem(LHS, Acc, memAcc, offset_x, offset_y);
-            break;
-          case UNDEFINED:
-          case READ_WRITE:
-          default:
-            assert(0 && "Unsupported memory access with offset specification!\n");
-            break;
+        if (use_shared) {
+          result = accessMemShared(DRE, createBinaryOperator(Ctx, offset_x, TX,
+                BO_Add, Ctx.IntTy), createBinaryOperator(Ctx, offset_y, SY,
+                  BO_Add, Ctx.IntTy));
+        } else {
+          switch (memAcc) {
+            case READ_ONLY:
+              if (Acc->getBoundaryHandling()!=BOUNDARY_UNDEFINED &&
+                  bh_variant.borderVal) {
+                return addBorderHandling(LHS, offset_x, offset_y, Acc);
+              }
+              // fall through
+            case WRITE_ONLY:
+              result = accessMem(LHS, Acc, memAcc, offset_x, offset_y);
+              break;
+            case UNDEFINED:
+            case READ_WRITE:
+            default:
+              assert(0 && "Unsupported memory access with offset specification!\n");
+              break;
+          }
         }
         break;
     }
