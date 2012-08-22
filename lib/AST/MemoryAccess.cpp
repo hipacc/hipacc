@@ -570,27 +570,20 @@ void ASTTranslate::stageIterationToSharedMemory(llvm::SmallVector<Stmt *, 16>
       if (p==(int)Kernel->getPixelsPerThread() && Acc->getSizeY() <= 1)
         continue;
 
-      Expr *global_offset_x, *global_offset_y;
-      IntegerLiteral *SX, *SY, *SX2, *SY2;
+      Expr *global_offset_x = NULL, *global_offset_y = NULL;
+      IntegerLiteral *SX2, *SY2;
       llvm::SmallVector<Stmt *, 16> ifBody;
 
       if (Acc->getSizeX() > 1) {
-        SX = createIntegerLiteral(Ctx, (int)Kernel->max_threads_per_warp);
-        SX2 = createIntegerLiteral(Ctx, (int)Kernel->max_threads_per_warp);
-        global_offset_x = createParenExpr(Ctx, createUnaryOperator(Ctx, SX2,
-              UO_Minus, Ctx.IntTy));
+        SX2 = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
       } else {
-        SX = createIntegerLiteral(Ctx, 0);
         SX2 = createIntegerLiteral(Ctx, 0);
-        global_offset_x = NULL;
       }
       if (Acc->getSizeY() > 1) {
-        SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY());
         SY2 = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
         global_offset_y = createParenExpr(Ctx, createUnaryOperator(Ctx, SY2,
               UO_Minus, Ctx.IntTy));
       } else {
-        SY = createIntegerLiteral(Ctx, 0);
         SY2 = createIntegerLiteral(Ctx, 0);
         global_offset_y = NULL;
       }
@@ -606,7 +599,7 @@ void ASTTranslate::stageIterationToSharedMemory(llvm::SmallVector<Stmt *, 16>
       for (int i=0; i<=num_stages_x; i++) {
         // _smem[lidYRef][lidXRef + i*blockDim.x] =
         //        Image[-SX/2 + i*blockDim.x, -SY/2];
-        Expr *local_offset_x = NULL, *global_offset_x = NULL;
+        Expr *local_offset_x = NULL;
         if (Acc->getSizeX() > 1) {
           local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
                 i), local_size_x, BO_Mul, Ctx.IntTy);
