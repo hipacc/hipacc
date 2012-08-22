@@ -664,8 +664,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
             Ctx.BoolTy);
         break;
       case 6:
-        // check if we have only a row filter
-        if (!kernel_y) continue;
+        // this is not required for row filter, but for kernels where the
+        // iteration space is not a multiple of the block size
+        if (Kernel->getNumThreadsY()<=1 && Kernel->getPixelsPerThread()<=1 &&
+            !kernel_y) continue;
 
         // CUDA:    if (blockIdx.y >= bh_start_bottom) goto BO_B;
         // OpenCL:  if (get_group_id(1) >= bh_start_bottom) goto BO_B;
@@ -674,8 +676,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
             Ctx.BoolTy);
         break;
       case 7:
-        // check if we have only a column filter
-        if (!kernel_x) continue;
+        // this is not required for column filters, but for kernels where the
+        // iteration space is not a multiple of the block size
 
         // CUDA:    if (blockIdx.x >= bh_start_right) goto BO_R;
         // OpenCL:  if (get_group_id(0) >= bh_start_right) goto BO_R;
@@ -759,12 +761,16 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         bh_variant.borders.right = 1;
         break;
       case 6:
-        if (kernel_y) bh_variant.borders.bottom = 1;
+        // this is not required for row filter, but for kernels where the
+        // iteration space is not a multiple of the block size
+        if (Kernel->getNumThreadsY()>1 || Kernel->getPixelsPerThread()>1 ||
+            kernel_y) bh_variant.borders.bottom = 1;
         else continue;
         break;
       case 7:
-        if (kernel_x) bh_variant.borders.right = 1;
-        else continue;
+        // this is not required for column filters, but for kernels where the
+        // iteration space is not a multiple of the block size
+        bh_variant.borders.right = 1;
         break;
       case 8:
         if (kernel_x) bh_variant.borders.left = 1;
@@ -2348,7 +2354,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
         switch (memAcc) {
           case READ_ONLY:
-            if (Acc->getBoundaryHandling() != BOUNDARY_UNDEFINED) {
+            if (Acc->getBoundaryHandling()!=BOUNDARY_UNDEFINED &&
+                bh_variant.borderVal) {
               return addBorderHandling(LHS, offset_x, offset_y, Acc);
             }
             // fall through
