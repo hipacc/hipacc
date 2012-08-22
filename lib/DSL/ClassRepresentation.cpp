@@ -522,20 +522,26 @@ void HipaccKernel::createArgInfo() {
         Ctx.getConstType(Ctx.IntTy).getAsString(), "is_offset_y", NULL);
   }
 
-  // bh_start_left, bh_start_right
+  // bh_start_left
   if (getMaxSizeX()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
         Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_left", NULL);
-    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_right", NULL);
   }
-  // bh_start_top, bh_start_bottom
+  // bh_start_right: always emit bh_start_right for iteration spaces not being a
+  // multiple of the block size
+  addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
+      Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
+      Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_right", NULL);
+  // bh_start_top
   if (getMaxSizeY()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
         Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_top", NULL);
+  }
+  // bh_start_bottom: emit bh_start_bottom in case iteration space is not a
+  // multiple of the block size
+  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
         Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_bottom", NULL);
@@ -641,11 +647,13 @@ void HipaccKernel::createHostArgInfo(Expr **hostArgs, std::string &hostLiterals,
   // bh_start_left, bh_start_right
   if (getMaxSizeX()) {
     hostArgNames.push_back(getName() + "_info.bh_start_left");
-    hostArgNames.push_back(getName() + "_info.bh_start_right");
   }
+  hostArgNames.push_back(getName() + "_info.bh_start_right");
   // bh_start_top, bh_start_bottom
   if (getMaxSizeY()) {
     hostArgNames.push_back(getName() + "_info.bh_start_top");
+  }
+  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY()) {
     hostArgNames.push_back(getName() + "_info.bh_start_bottom");
   }
   // bh_fall_back

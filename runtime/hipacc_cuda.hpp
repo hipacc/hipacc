@@ -116,14 +116,14 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
         info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / block.x);
     } else {
         info.bh_start_left = 0;
-        info.bh_start_right = (int)ceil((float)(info.offset_x + info.is_width) / block.x);
+        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width) / block.x);
     }
     if (info.size_y > 0) {
         info.bh_start_top = (int)ceil((float)(info.size_y) / (info.pixels_per_thread * block.y));
         info.bh_start_bottom = (int)floor((float)(info.is_height - info.size_y) / (block.y * info.pixels_per_thread));
     } else {
         info.bh_start_top = 0;
-        info.bh_start_bottom = (int)ceil((float)(info.is_height) / (block.y * info.pixels_per_thread));
+        info.bh_start_bottom = (int)floor((float)(info.is_height) / (block.y * info.pixels_per_thread));
     }
 
     if ((info.bh_start_right - info.bh_start_left) > 1 && (info.bh_start_bottom - info.bh_start_top) > 1) {
