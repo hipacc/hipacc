@@ -2166,55 +2166,63 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   DeclRefExpr *LHS = dyn_cast<DeclRefExpr>(Clone(E->getArg(0)));
 
   if (found_mask) {
-    if (emitPolly || compilerOptions.emitCUDA() ||
-        Mask->isConstant()) {
-      switch (E->getNumArgs()) {
-        default:
-          assert(0 && "0 or 2 arguments for Mask operator() expected!");
-          break;
-        case 1:
-          assert(convMask && convMask==Mask && "0 arguments for Mask operator() only allowed within convolution lambda-function.");
-          if (Mask->isConstant()) {
-            // within convolute lambda-function propagate constant
-            result =
-              Clone(Mask->getInitList()->getInit(Mask->getSizeY()*convIdxX +
-                    convIdxY)->IgnoreParenCasts());
-            // in case CUDA code is generated, cast single-precision floating
-            // point constants explicitly - implicit conversions are extensive
-            // on older hardware (CC < 2.0)
-            if (compilerOptions.emitCUDA() && Mask->getType() == Ctx.FloatTy) {
-              result = createCStyleCastExpr(Ctx, Ctx.FloatTy, CK_FloatingCast,
-                  result, NULL, NULL);
-            }
-          } else {
+    switch (E->getNumArgs()) {
+      default:
+        assert(0 && "0 or 2 arguments for Mask operator() expected!");
+        break;
+      case 1:
+        assert(convMask && convMask==Mask && "0 arguments for Mask operator() only allowed within convolution lambda-function.");
+        if (Mask->isConstant()) {
+          // within convolute lambda-function propagate constant
+          result = Clone(Mask->getInitList()->getInit(Mask->getSizeY()*convIdxX
+                + convIdxY)->IgnoreParenCasts());
+          // in case CUDA code is generated, cast single-precision floating
+          // point constants explicitly - implicit conversions are extensive
+          // on older hardware (CC < 2.0)
+          if (compilerOptions.emitCUDA() && Mask->getType() == Ctx.FloatTy) {
+            result = createCStyleCastExpr(Ctx, Ctx.FloatTy, CK_FloatingCast,
+                result, NULL, NULL);
+          }
+        } else {
+          if (emitPolly || compilerOptions.emitCUDA()) {
             // array subscript: Mask[conv_y][conv_x]
             result = accessMem2DAt(LHS, convExprX, convExprY);
+          } else {
+            // options.emitOpenCL()
+            // array subscript: Mask[(conv_y+size_y/2)*width + conv_x+size_x/2]
+            result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
+                  (int)Mask->getSizeX()), createBinaryOperator(Ctx, convExprX,
+                  createIntegerLiteral(Ctx, (int)Mask->getSizeX()/2), BO_Add,
+                  Ctx.IntTy), createBinaryOperator(Ctx, convExprY,
+                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                    Ctx.IntTy));
           }
-          break;
-        case 3:
+        }
+        break;
+      case 3:
+        // 0: -> (this *) Mask class
+        // 1: -> x
+        // 2: -> y
+        if (emitPolly || compilerOptions.emitCUDA()) {
           // array subscript: Mask[y+size_y/2][x+size_x/2]
-          // 0: -> (this *) Mask class
-          // 1: -> x
-          // 2: -> y
           result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                 Clone(E->getArg(1)), createIntegerLiteral(Ctx,
                   (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
               createBinaryOperator(Ctx, Clone(E->getArg(2)),
                 createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
                 Ctx.IntTy));
-          break;
-      }
-    } else {
-      // array subscript: Mask[(y+size_y/2)*width + x+size_x/2]
-      // 0: -> (this *) Mask class
-      // 1: -> x
-      // 2: -> y
-      result = accessMemArrAt(LHS, createIntegerLiteral(Ctx, Mask->getSizeX()),
-          createBinaryOperator(Ctx, Clone(E->getArg(1)),
-            createIntegerLiteral(Ctx, (int)Mask->getSizeX()/2), BO_Add,
-            Ctx.IntTy), createBinaryOperator(Ctx, Clone(E->getArg(2)),
-              createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
-              Ctx.IntTy));
+        } else {
+          // options.emitOpenCL()
+          // array subscript: Mask[(y+size_y/2)*width + x+size_x/2]
+          result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
+                (int)Mask->getSizeX()), createBinaryOperator(Ctx,
+                Clone(E->getArg(1)), createIntegerLiteral(Ctx,
+                  (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+              createBinaryOperator(Ctx, Clone(E->getArg(2)),
+                createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                Ctx.IntTy));
+        }
+        break;
     }
     result->setValueDependent(E->isValueDependent());
     result->setTypeDependent(E->isTypeDependent());
