@@ -2201,13 +2201,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             result = accessMem2DAt(LHS, midx_x, midx_y);
           } else {
             // options.emitOpenCL()
-            // array subscript: Mask[(conv_y+size_y/2)*width + conv_x+size_x/2]
+            // array subscript: Mask[(conv_y)*width + conv_x]
             result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                  (int)Mask->getSizeX()), createBinaryOperator(Ctx, midx_x,
-                  createIntegerLiteral(Ctx, (int)Mask->getSizeX()/2), BO_Add,
-                  Ctx.IntTy), createBinaryOperator(Ctx, midx_y,
-                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
-                    Ctx.IntTy));
+                  (int)Mask->getSizeX()), midx_x, midx_y);
           }
         }
         break;
