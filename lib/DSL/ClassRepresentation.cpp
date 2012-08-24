@@ -252,7 +252,6 @@ void HipaccKernel::calcConfig() {
           int size_y = (int)ceilf((float)(getPixelsPerThread()*threads_y +
                 Acc->getSizeY()-1)/(float)threads_y) * threads_y;
           smem_used += size_x*size_y * Acc->getImage()->getPixelSize();
-          llvm::errs() << "32x" << threads_y << " -> " << size_x << "x" << size_y << "; smem: " << smem_used << "(" << max_total_shared_memory << ")\n";
           use_shared = true;
         } else {
           skip_config = true;
