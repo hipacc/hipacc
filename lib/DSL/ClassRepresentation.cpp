@@ -201,6 +201,7 @@ struct sortOccMap {
 void HipaccKernel::calcConfig() {
   std::vector<std::pair<unsigned int, float> > occVec;
   unsigned int num_threads = max_threads_per_warp;
+  bool use_shared = false;
 
   while (num_threads <= max_threads_per_block) {
     // allocations per thread block limits
@@ -230,18 +231,40 @@ void HipaccKernel::calcConfig() {
       }
     }
 
-    int smem_used = 0;
+    unsigned int smem_used = 0;
+    bool skip_config = false;
     // calculate shared memory usage for pixels staged to shared memory
     for (unsigned int i=0; i<KC->getNumImages(); i++) {
       HipaccAccessor *Acc = getImgFromMapping(KC->getImgFields().data()[i]);
       if (useLocalMemory(Acc)) {
-        // assume we use a configuration with warp_size threads for the
-        // x-dimension
-        smem_used += (Acc->getSizeX() + max_threads_per_warp) * (Acc->getSizeY()
-            + num_threads/max_threads_per_warp - 1) *
-          Acc->getImage()->getPixelSize();
+        // check if the configuration suits our assumptions about shared memory
+        if (num_threads % 32 == 0) {
+          // fixed shared memory for x: 3*BSX
+          int size_x = 32;
+          if (Acc->getSizeX() > 1) {
+            size_x *= 3;
+          }
+          // add padding to avoid bank conflicts
+          size_x += 1;
+
+          // size_y = ceil((PPT*BSY+SX-1)/BSY)
+          int threads_y = num_threads/32;
+          int size_y = (int)ceilf((float)(getPixelsPerThread()*threads_y +
+                Acc->getSizeY()-1)/(float)threads_y) * threads_y;
+          smem_used += size_x*size_y * Acc->getImage()->getPixelSize();
+          llvm::errs() << "32x" << threads_y << " -> " << size_x << "x" << size_y << "; smem: " << smem_used << "(" << max_total_shared_memory << ")\n";
+          use_shared = true;
+        } else {
+          skip_config = true;
+        }
       }
     }
+
+    if (skip_config || smem_used > max_total_shared_memory) {
+      num_threads += max_threads_per_warp;
+      continue;
+    }
+
     int shared_memory_per_block = (int)ceil((float)smem_used /
         (float)shared_memory_alloc_size) * shared_memory_alloc_size;
 
@@ -289,56 +312,71 @@ void HipaccKernel::calcConfig() {
   unsigned int num_threads_y_opt = 1;
   while (num_threads_x_opt < max_size_x>>1)
     num_threads_x_opt += max_threads_per_warp;
-  if (!options.useLocalMemory())
-  while (num_threads_y_opt < max_size_y>>1) num_threads_y_opt += 1;
+  while (num_threads_y_opt*getPixelsPerThread() < max_size_y>>1)
+    num_threads_y_opt += 1;
 
   // Heuristic:
-  // 0) Maximize occupancy (e.g. to hide instruction latency
-  // 1) - Minimize #threads for border handling (e.g. prefer y over x)
-  //    - Prefer x over y when no border handling is necessary
+  // 0) maximize occupancy (e.g. to hide instruction latency
+  // 1) - minimize #threads for border handling (e.g. prefer y over x)
+  //    - prefer x over y when no border handling is necessary
   llvm::errs() << "\nCalculating kernel configuration for " << kernelName << "\n";
-  llvm::errs() << "\toptimal configuration: " << num_threads_x_opt << "x" << num_threads_y_opt << "\n";
+  llvm::errs() << "\toptimal configuration: " << num_threads_x_opt << "x" <<
+    num_threads_y_opt << "(x" << getPixelsPerThread() << ")\n";
   for (iter=occVec.begin(); iter<occVec.end(); ++iter) {
     std::pair<unsigned int, float> occMap = *iter;
     llvm::errs() << "\t" << occMap.first << " threads:\t" << occMap.second << "\t";
 
-    // make difference if we create border handling or not
-    if (max_size_y > 1 && !options.useLocalMemory()) {
+    if (use_shared) {
       // start with warp_size or num_threads_x_opt if possible
-      unsigned int num_threads_x = max_threads_per_warp;
-      if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0) {
-        num_threads_x = num_threads_x_opt;
-      }
+      unsigned int num_threads_x = 32;
       unsigned int num_threads_y = occMap.first / num_threads_x;
-      llvm::errs() << " -> " << num_threads_x << "x" << num_threads_y << "\n";
+      llvm::errs() << " -> " << num_threads_x << "x" << num_threads_y;
     } else {
-      // use all threads for x direction
-      llvm::errs() << " -> " << occMap.first << "x1\n";
+      // make difference if we create border handling or not
+      if (max_size_y > 1) {
+        // start with warp_size or num_threads_x_opt if possible
+        unsigned int num_threads_x = max_threads_per_warp;
+        if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0) {
+          num_threads_x = num_threads_x_opt;
+        }
+        unsigned int num_threads_y = occMap.first / num_threads_x;
+        llvm::errs() << " -> " << num_threads_x << "x" << num_threads_y;
+      } else {
+        // use all threads for x direction
+        llvm::errs() << " -> " << occMap.first << "x1";
+      }
     }
+    llvm::errs() << "(x" << getPixelsPerThread() << ")\n";
   }
+
 
   // start with first configuration
   iter = occVec.begin();
   std::pair<unsigned int, float> occMap = *iter;
 
-  // make difference if we create border handling or not
-  // TODO: add exploration for PPT > 1
-  if (max_size_y > 1 && !options.useLocalMemory()) {
-    // start with warp_size or num_threads_x_opt if possible
-    num_threads_x = max_threads_per_warp;
-    if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0)
-      num_threads_x = num_threads_x_opt;
+  if (use_shared) {
+    num_threads_x = 32;
     num_threads_y = occMap.first / num_threads_x;
   } else {
-    // use all threads for x direction
-    num_threads_x = occMap.first;
-    num_threads_y = 1;
+    // make difference if we create border handling or not
+    if (max_size_y > 1) {
+      // start with warp_size or num_threads_x_opt if possible
+      num_threads_x = max_threads_per_warp;
+      if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0) {
+        num_threads_x = num_threads_x_opt;
+      }
+      num_threads_y = occMap.first / num_threads_x;
+    } else {
+      // use all threads for x direction
+      num_threads_x = occMap.first;
+      num_threads_y = 1;
+    }
   }
 
   // estimate block required for border handling - the exact number depends on
   // offsets and is not known at compile time 
   unsigned int num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-  unsigned int num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*pixels_per_thread[KC->getKernelType()]));
+  unsigned int num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
 
   if ((max_size_y > 1) || num_threads_x != num_threads_x_opt || num_threads_y != num_threads_y_opt) {
     //std::vector<std::pair<unsigned int, float> >::iterator iter_n = occVec.begin()
@@ -357,7 +395,7 @@ void HipaccKernel::calcConfig() {
 
       // block required for border handling
       unsigned int num_blocks_bh_x_tmp = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x_tmp);
-      unsigned int num_blocks_bh_y_tmp = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y_tmp*pixels_per_thread[KC->getKernelType()]));
+      unsigned int num_blocks_bh_y_tmp = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y_tmp*getPixelsPerThread()));
 
       // use new configuration if we save blocks for border handling
       if (num_blocks_bh_x_tmp+num_blocks_bh_y_tmp < num_blocks_bh_x+num_blocks_bh_y) {
@@ -373,7 +411,7 @@ void HipaccKernel::calcConfig() {
   if (options.useKernelConfig(USER_ON)) {
     setDefaultConfig();
     num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-    num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*pixels_per_thread[KC->getKernelType()]));
+    num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
   }
 
   llvm::errs() << "Using configuration " << num_threads_x << "x" <<
