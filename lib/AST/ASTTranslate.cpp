@@ -2174,10 +2174,10 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         break;
       case 1:
         assert(convMask && convMask==Mask && "0 arguments for Mask operator() only allowed within convolution lambda-function.");
-        if (Mask->isConstant()) {
+        if (Mask->isConstant() && Kernel->propagateConstants()) {
           // within convolute lambda-function propagate constant
-          result = Clone(Mask->getInitList()->getInit(Mask->getSizeY()*convIdxX
-                + convIdxY)->IgnoreParenCasts());
+          result = Clone(Mask->getInitList()->getInit(Mask->getSizeY() *
+                convIdxX + convIdxY)->IgnoreParenCasts());
           // in case CUDA code is generated, cast single-precision floating
           // point constants explicitly - implicit conversions are extensive
           // on older hardware (CC < 2.0)
@@ -2186,16 +2186,26 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                 result, NULL, NULL);
           }
         } else {
+          Expr *midx_x = NULL, *midx_y = NULL;
+
+          if (Mask->isConstant()) {
+            midx_x = createIntegerLiteral(Ctx, convIdxX);
+            midx_y = createIntegerLiteral(Ctx, convIdxY);
+          } else {
+            midx_x = convExprX;
+            midx_y = convExprY;
+          }
+
           if (emitPolly || compilerOptions.emitCUDA()) {
             // array subscript: Mask[conv_y][conv_x]
-            result = accessMem2DAt(LHS, convExprX, convExprY);
+            result = accessMem2DAt(LHS, midx_x, midx_y);
           } else {
             // options.emitOpenCL()
             // array subscript: Mask[(conv_y+size_y/2)*width + conv_x+size_x/2]
             result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                  (int)Mask->getSizeX()), createBinaryOperator(Ctx, convExprX,
+                  (int)Mask->getSizeX()), createBinaryOperator(Ctx, midx_x,
                   createIntegerLiteral(Ctx, (int)Mask->getSizeX()/2), BO_Add,
-                  Ctx.IntTy), createBinaryOperator(Ctx, convExprY,
+                  Ctx.IntTy), createBinaryOperator(Ctx, midx_y,
                     createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
                     Ctx.IntTy));
           }
