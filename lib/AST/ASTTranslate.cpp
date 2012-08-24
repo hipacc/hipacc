@@ -495,11 +495,11 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
 
         if (Acc->getSizeX() > 1) {
           SX = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                Acc->getSizeX()), SX, BO_Add, Ctx.IntTy);
+                (int)Acc->getSizeX()), SX, BO_Add, Ctx.IntTy);
         }
         if (Acc->getSizeY() > 1) {
           SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx,
-                Acc->getSizeY()-1), BO_Add, Ctx.IntTy);
+                (int)Acc->getSizeY()-1), BO_Add, Ctx.IntTy);
         }
 
         QT = Acc->getImage()->getPixelQualType();
@@ -1642,12 +1642,14 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
         //
         ForStmt *innerLoop = createForStmt(Ctx, conv_x_stmt,
             createBinaryOperator(Ctx, convExprX, createIntegerLiteral(Ctx,
-                Mask->getSizeX()), BO_LT, Ctx.BoolTy), createUnaryOperator(Ctx,
-              convExprX, UO_PostInc, convExprX->getType()), convIterations);
+                (int)Mask->getSizeX()), BO_LT, Ctx.BoolTy),
+            createUnaryOperator(Ctx, convExprX, UO_PostInc,
+              convExprX->getType()), convIterations);
         ForStmt *outerLoop = createForStmt(Ctx, conv_y_stmt,
             createBinaryOperator(Ctx, convExprY, createIntegerLiteral(Ctx,
-                Mask->getSizeY()), BO_LT, Ctx.BoolTy), createUnaryOperator(Ctx,
-              convExprY, UO_PostInc, convExprY->getType()), innerLoop);
+                (int)Mask->getSizeY()), BO_LT, Ctx.BoolTy),
+            createUnaryOperator(Ctx, convExprY, UO_PostInc,
+              convExprY->getType()), innerLoop);
 
         bhStmtsVistor.push_back(outerLoop);
         bhCStmtsVistor.push_back(outerCompountStmt);
