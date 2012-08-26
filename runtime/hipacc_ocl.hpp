@@ -105,8 +105,12 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
         info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width) / block[0]);
     }
     if (info.size_y > 0) {
+        // for shared memory calculate additional blocks to be staged - this is
+        // only required if shared memory is used, otherwise, info.size_y would
+        // be sufficient
+        int p_add = (int)ceilf(2*info.size_y / (float)block[1]);
         info.bh_start_top = (int)ceil((float)(info.size_y) / (info.pixels_per_thread * block[1]));
-        info.bh_start_bottom = (int)floor((float)(info.is_height - info.size_y) / (block[1] * info.pixels_per_thread));
+        info.bh_start_bottom = (int)floor((float)(info.is_height - p_add*block[1]) / (block[1] * info.pixels_per_thread));
     } else {
         info.bh_start_top = 0;
         info.bh_start_bottom = (int)floor((float)(info.is_height) / (block[1] * info.pixels_per_thread));
