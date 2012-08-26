@@ -567,8 +567,11 @@ void ASTTranslate::stageIterationToSharedMemory(llvm::SmallVector<Stmt *, 16>
       HipaccAccessor *Acc = KernelDeclMapAcc[PVD];
 
       // check if the bottom apron has to be fetched
-      if (p==(int)Kernel->getPixelsPerThread() && Acc->getSizeY() <= 1)
-        continue;
+      if (p>=(int)Kernel->getPixelsPerThread()) {
+        int p_add = (int)ceilf((Acc->getSizeY()-1) /
+            (float)Kernel->getNumThreadsY());
+        if (p>=(int)Kernel->getPixelsPerThread()+p_add) continue;
+      }
 
       Expr *global_offset_x = NULL, *global_offset_y = NULL;
       IntegerLiteral *SX2, *SY2;

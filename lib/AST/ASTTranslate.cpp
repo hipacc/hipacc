@@ -814,8 +814,14 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
 
 
     // stage pixels into shared memory
+    // ppt + ceil((size_y-1)/sy) iterations
+    int p_add = 0;
+    if (Kernel->getMaxSizeY()) {
+      p_add = (int)ceilf(2*Kernel->getMaxSizeY() /
+          (float)Kernel->getNumThreadsY());
+    }
     llvm::SmallVector<Stmt *, 16> labelBody;
-    for (int p=0; use_shared && p<=(int)Kernel->getPixelsPerThread(); p++) {
+    for (int p=0; use_shared && p<(int)Kernel->getPixelsPerThread()+p_add; p++) {
       if (p==0) {
         // initialize lid_y and gid_y
         lidYRef = local_id_y;
@@ -833,18 +839,18 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
             BO_Add, Ctx.IntTy);
         // load next iteration to shared memory
         stageIterationToSharedMemory(labelBody, p);
-
-        if (p == (int)Kernel->getPixelsPerThread()) {
-          // add memory barrier synchronization
-          llvm::SmallVector<Expr *, 16> args;
-          if (compilerOptions.emitCUDA()) {
-            labelBody.push_back(createFunctionCall(Ctx, barrier, args));
-          } else {
-            // TODO: pass CLK_LOCAL_MEM_FENCE argument to barrier()
-            args.push_back(createIntegerLiteral(Ctx, 0));
-            labelBody.push_back(createFunctionCall(Ctx, barrier, args));
-          }
-        }
+      }
+    }
+    // synchronize shared memory
+    if (use_shared) {
+      // add memory barrier synchronization
+      llvm::SmallVector<Expr *, 16> args;
+      if (compilerOptions.emitCUDA()) {
+        labelBody.push_back(createFunctionCall(Ctx, barrier, args));
+      } else {
+        // TODO: pass CLK_LOCAL_MEM_FENCE argument to barrier()
+        args.push_back(createIntegerLiteral(Ctx, 0));
+        labelBody.push_back(createFunctionCall(Ctx, barrier, args));
       }
     }
 
