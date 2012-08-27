@@ -37,6 +37,7 @@
 #include <clang/AST/Type.h>
 #include <clang/AST/StmtVisitor.h>
 #include <clang/Frontend/CompilerInstance.h>
+#include <clang/Sema/Ownership.h>
 #include <llvm/ADT/SmallVector.h>
 
 #include "hipacc/Analysis/KernelStatistics.h"

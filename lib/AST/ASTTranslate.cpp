@@ -1431,8 +1431,8 @@ Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
     Exprs.push_back(Clone(E->getExpr(i)));
   }
 
-  Expr *result = new (Ctx) ParenListExpr(Ctx, E->getLParenLoc(), Exprs.data(),
-      Exprs.size(), E->getRParenLoc());
+  Expr *result = new (Ctx) ParenListExpr(Ctx, E->getLParenLoc(),
+      llvm::makeArrayRef(Exprs.data(), Exprs.size()), E->getRParenLoc());
 
   result->setValueDependent(E->isValueDependent());
   result->setTypeDependent(E->isTypeDependent());
@@ -1713,7 +1713,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       createDeclRefExpr(Ctx, targetFD), NULL, VK_RValue);
 
   // create CallExpr
-  CallExpr *result = new (Ctx) CallExpr(Ctx, ICE, NULL, 0, E->getType(),
+  CallExpr *result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(), E->getType(),
       E->getValueKind(), E->getRParenLoc());
 
   result->setNumArgs(Ctx, E->getNumArgs());
@@ -1979,7 +1979,8 @@ Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
   }
 
   InitListExpr* result = new (Ctx) InitListExpr(Ctx, E->getLBraceLoc(),
-      initExprs.data(), initExprs.size(), E->getRBraceLoc());
+      llvm::makeArrayRef(initExprs.data(), initExprs.size()),
+      E->getRBraceLoc());
 
   result->setInitializedFieldInUnion(E->getInitializedFieldInUnion());
 
@@ -1993,13 +1994,14 @@ Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
 Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
   llvm::SmallVector<Expr *, 16> indexExprs;
 
-  for (int I=0, N=indexExprs.size(); I<N; ++I) {
-    indexExprs.push_back(Clone(E->getSubExpr(I)));
+  unsigned numIndexExprs = E->getNumSubExprs() - 1;
+  for (unsigned int I=0 ; I<numIndexExprs; ++I) {
+    indexExprs.push_back(Clone(E->getSubExpr(I+1)));
   }
 
-  Expr *result = DesignatedInitExpr::Create(Ctx, E->getDesignator(0),
-      E->size(), &indexExprs[0] + 1, indexExprs.size() - 1,    // no &indexExprs[1] 
-      E->getEqualOrColonLoc(), E->usesGNUSyntax(), indexExprs[0]);
+  Expr *result = DesignatedInitExpr::Create(Ctx, E->getDesignator(0), E->size(),
+      indexExprs, E->getEqualOrColonLoc(), E->usesGNUSyntax(),
+      Clone(E->getInit()));
 
   result->setValueDependent(E->isValueDependent());
   result->setTypeDependent(E->isTypeDependent());
@@ -2074,8 +2076,8 @@ Expr *ASTTranslate::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
     body.push_back(Clone(E->getExpr(I)));
   }
 
-  Expr *result = new (Ctx) ShuffleVectorExpr(Ctx, body.data(),
-      E->getNumSubExprs(), E->getType(), E->getBuiltinLoc(), E->getRParenLoc());
+  Expr *result = new (Ctx) ShuffleVectorExpr(Ctx, body, E->getType(),
+      E->getBuiltinLoc(), E->getRParenLoc());
 
   result->setValueDependent(E->isValueDependent());
   result->setTypeDependent(E->isTypeDependent());
@@ -2769,8 +2771,8 @@ Expr *ASTTranslate::VisitAtomicExpr(AtomicExpr *E) {
     Args.push_back(Clone(E->getSubExprs()[i]));
   }
 
-  Expr *result = new (Ctx) AtomicExpr(E->getBuiltinLoc(), Args.data(),
-      Args.size(), E->getType(), E->getOp(), E->getRParenLoc());
+  Expr *result = new (Ctx) AtomicExpr(E->getBuiltinLoc(), Args, E->getType(),
+      E->getOp(), E->getRParenLoc());
 
   result->setValueDependent(E->isValueDependent());
   result->setTypeDependent(E->isTypeDependent());
@@ -2787,8 +2789,8 @@ Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
   }
 
   Expr *result = new (Ctx) CUDAKernelCallExpr(Ctx, Clone(E->getCallee()),
-      Clone(E->getConfig()), Args.data(), Args.size(), E->getType(),
-      E->getValueKind(), E->getRParenLoc());
+      Clone(E->getConfig()), Args, E->getType(), E->getValueKind(),
+      E->getRParenLoc());
 
   result->setValueDependent(E->isValueDependent());
   result->setTypeDependent(E->isTypeDependent());
