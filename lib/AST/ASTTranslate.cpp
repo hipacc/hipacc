@@ -1285,7 +1285,7 @@ Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
   return new (Ctx) DeclStmt(clonedDecls, S->getStartLoc(), S->getEndLoc());
 }
 
-Stmt *ASTTranslate::VisitAsmStmt(AsmStmt *S) {
+Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
   llvm::SmallVector<IdentifierInfo *, 16> names;
   llvm::SmallVector<StringLiteral *, 16> constraints;
   llvm::SmallVector<Expr *, 16> exprs;
@@ -1310,10 +1310,10 @@ Stmt *ASTTranslate::VisitAsmStmt(AsmStmt *S) {
     clobbers.push_back(S->getClobber(I));
   }
 
-  return new (Ctx) AsmStmt(Ctx, S->getAsmLoc(), S->isSimple(), S->isVolatile(),
-      S->getNumOutputs(), S->getNumInputs(), names.data(), constraints.data(),
-      exprs.data(), S->getAsmString(), S->getNumClobbers(), clobbers.data(),
-      S->getRParenLoc());
+  return new (Ctx) GCCAsmStmt(Ctx, S->getAsmLoc(), S->isSimple(),
+      S->isVolatile(), S->getNumOutputs(), S->getNumInputs(), names.data(),
+      constraints.data(), exprs.data(), S->getAsmString(), S->getNumClobbers(),
+      clobbers.data(), S->getRParenLoc());
 }
 
 Expr *ASTTranslate::VisitExpr(Expr *E) {
