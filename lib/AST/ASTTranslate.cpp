@@ -1306,8 +1306,8 @@ Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
 
   // constraints
   llvm::SmallVector<StringLiteral *, 16> clobbers;
-  for (unsigned int I=0; I!=S->getNumClobbers(); ++I) {
-    clobbers.push_back(S->getClobber(I));
+  for (unsigned int I=0, N=S->getNumClobbers(); I!=N; ++I) {
+    clobbers.push_back(S->getClobberStringLiteral(I));
   }
 
   return new (Ctx) GCCAsmStmt(Ctx, S->getAsmLoc(), S->isSimple(),
