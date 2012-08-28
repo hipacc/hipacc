@@ -592,8 +592,8 @@ void HipaccKernel::createArgInfo() {
 }
 
 
-void HipaccKernel::createHostArgInfo(Expr **hostArgs, std::string &hostLiterals,
-    unsigned int &literalCount) {
+void HipaccKernel::createHostArgInfo(llvm::ArrayRef<Expr *> hostArgs,
+    std::string &hostLiterals, unsigned int &literalCount) {
   if (hostArgNames.size()) hostArgNames.clear();
 
   // iteration space image

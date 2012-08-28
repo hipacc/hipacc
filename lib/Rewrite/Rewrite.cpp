@@ -1662,7 +1662,8 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
             "number of arguments doesn't match!");
 
         // set host argument names and retrieve literals stored to temporaries
-        K->setHostArgNames(CCE->getArgs(), newStr, literalCount);
+        K->setHostArgNames(llvm::makeArrayRef(CCE->getArgs(),
+              CCE->getNumArgs()), newStr, literalCount);
 
         // create kernel call string
         stringCreator.writeKernelCall(K->getKernelName() + K->getName(),

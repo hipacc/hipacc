@@ -636,8 +636,8 @@ class HipaccKernel : public HipaccKernelFeatures {
     void createArgInfo();
     void addParam(QualType QT1, QualType QT2, QualType QT3, std::string typeC,
         std::string typeO, llvm::StringRef name, FieldDecl *fd);
-    void createHostArgInfo(Expr **hostArgs, std::string &hostLiterals, unsigned
-        int &literalCount);
+    void createHostArgInfo(llvm::ArrayRef<Expr *> hostArgs, std::string
+        &hostLiterals, unsigned int &literalCount);
 
   public:
     HipaccKernel(ASTContext &Ctx, VarDecl *VD, HipaccKernelClass *KC,
@@ -732,17 +732,17 @@ class HipaccKernel : public HipaccKernelFeatures {
       createArgInfo();
       return argNames.data();
     }
-    void setHostArgNames(Expr **hostArgs, std::string &hostLiterals, unsigned
-        int &literalCount) {
+    void setHostArgNames(llvm::ArrayRef<Expr *>hostArgs, std::string
+        &hostLiterals, unsigned int &literalCount) {
       createHostArgInfo(hostArgs, hostLiterals, literalCount);
     }
     std::string *getHostArgNames() {
       assert(hostArgNames.size() && "host argument names not set");
       return hostArgNames.data();
     }
-    FieldDecl **getArgFields() {
+    llvm::ArrayRef<FieldDecl *>getArgFields() {
       createArgInfo();
-      return argFields.data();
+      return llvm::makeArrayRef(argFields);
     }
 
     void setResourceUsage(int reg, int lmem, int smem, int cmem) {
