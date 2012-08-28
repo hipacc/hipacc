@@ -1152,6 +1152,11 @@ Stmt *ASTTranslate::VisitLabelStmt(LabelStmt *S) {
       Clone(S->getSubStmt()));
 }
 
+Stmt *ASTTranslate::VisitAttributedStmt(AttributedStmt *S) {
+  return AttributedStmt::Create(Ctx, S->getAttrLoc(), S->getAttrs(),
+      Clone(S->getSubStmt()));
+}
+
 Stmt *ASTTranslate::VisitIfStmt(IfStmt *S) {
   return new (Ctx) IfStmt(Ctx, S->getIfLoc(),
       CloneDecl(S->getConditionVariable()), Clone(S->getCond()),
@@ -1283,12 +1288,6 @@ Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
   }
 
   return new (Ctx) DeclStmt(clonedDecls, S->getStartLoc(), S->getEndLoc());
-}
-
-// abstract base class
-Stmt *ASTTranslate::VisitAsmStmt(AsmStmt *S) {
-  HIPACC_NOT_SUPPORTED(AsmStmt);
-  return NULL;
 }
 
 Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
@@ -2091,13 +2090,13 @@ Expr *ASTTranslate::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
   return result;
 }
 
-Expr *ASTTranslate::VisitBlockExpr(BlockExpr *E) {
-  HIPACC_NOT_SUPPORTED(BlockExpr);
+Expr *ASTTranslate::VisitGenericSelectionExpr(GenericSelectionExpr *E) {
+  HIPACC_NOT_SUPPORTED(GenericSelectionExpr);
   return NULL;
 }
 
-Expr *ASTTranslate::VisitGenericSelectionExpr(GenericSelectionExpr *E) {
-  HIPACC_NOT_SUPPORTED(GenericSelectionExpr);
+Expr *ASTTranslate::VisitPseudoObjectExpr(PseudoObjectExpr *E) {
+  HIPACC_NOT_SUPPORTED(PseudoObjectExpr);
   return NULL;
 }
 
@@ -2762,11 +2761,6 @@ Expr *ASTTranslate::VisitSubstNonTypeTemplateParmPackExpr(
 
 Expr *ASTTranslate::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
   HIPACC_NOT_SUPPORTED(MaterializeTemporaryExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitOpaqueValueExpr(OpaqueValueExpr *E) {
-  HIPACC_NOT_SUPPORTED(OpaqueValueExpr);
   return NULL;
 }
 

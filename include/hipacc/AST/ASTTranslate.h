@@ -252,14 +252,15 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         hipacc::Builtin::Context &builtins, CompilerOptions &compilerOptions,
         HipaccKernel *Kernel, HipaccAccessor *Acc, border_variant bh_variant);
 
-    // C Expressions and Statements
+    // the following list ist orderd according to
+    // include/clang/Basic/StmtNodes.td
+
+    // Statements
     Stmt *VisitStmt(Stmt *S);
     Stmt *VisitNullStmt(NullStmt *S);
     Stmt *VisitCompoundStmt(CompoundStmt *S);
-    Stmt *VisitSwitchCase(SwitchCase *S);
-    Stmt *VisitCaseStmt(CaseStmt *S);
-    Stmt *VisitDefaultStmt(DefaultStmt *S);
     Stmt *VisitLabelStmt(LabelStmt *S);
+    Stmt *VisitAttributedStmt(AttributedStmt *Stmt);
     Stmt *VisitIfStmt(IfStmt *S);
     Stmt *VisitSwitchStmt(SwitchStmt *S);
     Stmt *VisitWhileStmt(WhileStmt *S);
@@ -271,19 +272,66 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Stmt *VisitBreakStmt(BreakStmt *S);
     Stmt *VisitReturnStmt(ReturnStmt *S);
     Stmt *VisitDeclStmt(DeclStmt *S);
-    Stmt *VisitAsmStmt(AsmStmt *S);
+    Stmt *VisitSwitchCase(SwitchCase *S);
+    Stmt *VisitCaseStmt(CaseStmt *S);
+    Stmt *VisitDefaultStmt(DefaultStmt *S);
+
+    // Asm Statements
+    Stmt *VisitAsmStmt(AsmStmt *S) {  // abstract base class
+      HIPACC_NOT_SUPPORTED(AsmStmt);
+      return NULL;
+    }
     Stmt *VisitGCCAsmStmt(GCCAsmStmt *S);
+    Stmt *VisitMSAsmStmt(MSAsmStmt *S) {
+      HIPACC_NOT_SUPPORTED(MSAsmStmt);
+      return NULL;
+    }
+
+    // Obj-C Statements
+    Stmt *VisitObjCAtTryStmt(ObjCAtTryStmt *S) {
+      HIPACC_NOT_SUPPORTED(ObjCAtTryStmt);
+      return NULL;
+    }
+    Stmt *VisitObjCAtCatchStmt(ObjCAtCatchStmt *S) {
+      HIPACC_NOT_SUPPORTED(ObjCAtCatchStmt);
+      return NULL;
+    }
+    Stmt *VisitObjCAtFinallyStmt(ObjCAtFinallyStmt *S) {
+      HIPACC_NOT_SUPPORTED(ObjCAtFinallyStmt);
+      return NULL;
+    }
+    Stmt *VisitObjCAtThrowStmt(ObjCAtThrowStmt *S) {
+      HIPACC_NOT_SUPPORTED(ObjCAtThrowStmt);
+      return NULL;
+    }
+    Stmt *VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *S) {
+      HIPACC_NOT_SUPPORTED(ObjCAtSynchronizedStmt);
+      return NULL;
+    }
+    Stmt *VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
+      HIPACC_NOT_SUPPORTED(ObjCForCollectionStmt);
+      return NULL;
+    }
+    Stmt *VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S) {
+      HIPACC_NOT_SUPPORTED(ObjCAutoreleasePoolStmt);
+      return NULL;
+    }
+
+    // C++ Statements
+    Stmt *VisitCXXCatchStmt(CXXCatchStmt *S);
+    Stmt *VisitCXXTryStmt(CXXTryStmt *S);
+    Stmt *VisitCXXForRangeStmt(CXXForRangeStmt *S);
+
+    // Expressions
     Expr *VisitExpr(Expr *E);
     Expr *VisitPredefinedExpr(PredefinedExpr *E);
     Expr *VisitDeclRefExpr(DeclRefExpr *E);
-    Expr *VisitLambdaExpr(LambdaExpr *E);
     Expr *VisitIntegerLiteral(IntegerLiteral *E);
     Expr *VisitFloatingLiteral(FloatingLiteral *E);
     Expr *VisitImaginaryLiteral(ImaginaryLiteral *E);
     Expr *VisitStringLiteral(StringLiteral *E);
     Expr *VisitCharacterLiteral(CharacterLiteral *E);
     Expr *VisitParenExpr(ParenExpr *E);
-    Expr *VisitParenListExpr(ParenListExpr *E);
     Expr *VisitUnaryOperator(UnaryOperator *E);
     Expr *VisitOffsetOfExpr(OffsetOfExpr *E);
     Expr *VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E);
@@ -304,58 +352,55 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitInitListExpr(InitListExpr *E);
     Expr *VisitDesignatedInitExpr(DesignatedInitExpr *E);
     Expr *VisitImplicitValueInitExpr(ImplicitValueInitExpr *E);
+    Expr *VisitParenListExpr(ParenListExpr *E);
     Expr *VisitVAArgExpr(VAArgExpr *E);
+    Expr *VisitGenericSelectionExpr(GenericSelectionExpr *E);
+    Expr *VisitPseudoObjectExpr(PseudoObjectExpr *E);
+
+    // Atomic Expressions
+    Expr *VisitAtomicExpr(AtomicExpr *E);
+
+    // GNU Extensions
     Expr *VisitAddrLabelExpr(AddrLabelExpr *E);
     Expr *VisitStmtExpr(StmtExpr *E);
     Expr *VisitChooseExpr(ChooseExpr *E);
     Expr *VisitGNUNullExpr(GNUNullExpr *E);
-    Expr *VisitShuffleVectorExpr(ShuffleVectorExpr *E);
-    Expr *VisitBlockExpr(BlockExpr *E);
-    Expr *VisitGenericSelectionExpr(GenericSelectionExpr *E);
 
-    // C++ Expressions and Statements
-    Stmt *VisitCXXCatchStmt(CXXCatchStmt *S);
-    Stmt *VisitCXXTryStmt(CXXTryStmt *S);
-    Stmt *VisitCXXForRangeStmt(CXXForRangeStmt *S);
-
-    Expr *VisitUserDefinedLiteral(UserDefinedLiteral *E);
+    // C++ Expressions
     Expr *VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
     Expr *VisitCXXMemberCallExpr(CXXMemberCallExpr *E);
-    Expr *VisitCXXConstructExpr(CXXConstructExpr *E);
-    Expr *VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *E);
     Expr *VisitCXXNamedCastExpr(CXXNamedCastExpr *E);
     Expr *VisitCXXStaticCastExpr(CXXStaticCastExpr *E);
     Expr *VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E);
     Expr *VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E);
     Expr *VisitCXXConstCastExpr(CXXConstCastExpr *E);
     Expr *VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E);
+    Expr *VisitCXXTypeidExpr(CXXTypeidExpr *E);
+    Expr *VisitUserDefinedLiteral(UserDefinedLiteral *E);
     Expr *VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E);
     Expr *VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E);
-    Expr *VisitCXXTypeidExpr(CXXTypeidExpr *E);
     Expr *VisitCXXThisExpr(CXXThisExpr *E);
     Expr *VisitCXXThrowExpr(CXXThrowExpr *E);
     Expr *VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E);
-    Expr *VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E);
-
     Expr *VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E);
     Expr *VisitCXXNewExpr(CXXNewExpr *E);
     Expr *VisitCXXDeleteExpr(CXXDeleteExpr *E);
     Expr *VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *E);
-
-    Expr *VisitExprWithCleanups(ExprWithCleanups *E);
-    Expr *VisitCXXDependentScopeMemberExpr(CXXDependentScopeMemberExpr *E);
-    Expr *VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E);
-    Expr *VisitCXXUnresolvedConstructExpr(CXXUnresolvedConstructExpr *E);
-
-    Expr *VisitOverloadExpr(OverloadExpr *E);
-    Expr *VisitUnresolvedMemberExpr(UnresolvedMemberExpr *E);
-    Expr *VisitUnresolvedLookupExpr(UnresolvedLookupExpr *E);
-
     Expr *VisitTypeTraitExpr(TypeTraitExpr *E);
     Expr *VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *E);
     Expr *VisitBinaryTypeTraitExpr(BinaryTypeTraitExpr *E);
     Expr *VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E);
     Expr *VisitExpressionTraitExpr(ExpressionTraitExpr *E);
+    Expr *VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E);
+    Expr *VisitCXXConstructExpr(CXXConstructExpr *E);
+    Expr *VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E);
+    Expr *VisitExprWithCleanups(ExprWithCleanups *E);
+    Expr *VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *E);
+    Expr *VisitCXXUnresolvedConstructExpr(CXXUnresolvedConstructExpr *E);
+    Expr *VisitCXXDependentScopeMemberExpr(CXXDependentScopeMemberExpr *E);
+    Expr *VisitOverloadExpr(OverloadExpr *E);
+    Expr *VisitUnresolvedLookupExpr(UnresolvedLookupExpr *E);
+    Expr *VisitUnresolvedMemberExpr(UnresolvedMemberExpr *E);
     Expr *VisitCXXNoexceptExpr(CXXNoexceptExpr *E);
     Expr *VisitPackExpansionExpr(PackExpansionExpr *E);
     Expr *VisitSizeOfPackExpr(SizeOfPackExpr *E);
@@ -363,32 +408,19 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitSubstNonTypeTemplateParmPackExpr(
         SubstNonTypeTemplateParmPackExpr *E);
     Expr *VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E);
-    Expr *VisitOpaqueValueExpr(OpaqueValueExpr *E);
-    Expr *VisitAtomicExpr(AtomicExpr *E);
+    Expr *VisitLambdaExpr(LambdaExpr *E);
 
-    // CUDA Expressions
-    Expr *VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E);
-
-
-    // OpenCL Expressions
-    Expr *VisitAsTypeExpr(AsTypeExpr *E);
-
-
-    // ObjC Expressions and Statements
-    Expr *VisitObjCBridgedCastExpr(ObjCBridgedCastExpr *E) {
-      HIPACC_NOT_SUPPORTED(ObjCBridgedCastExpr);
-      return NULL;
-    }
-    Expr *VisitObjCArrayLiteral(ObjCArrayLiteral *E) {
-      HIPACC_NOT_SUPPORTED(ObjCArrayLiteral);
-      return NULL;
-    }
-    Expr *VisitObjCBoolLiteralExpr(ObjCBoolLiteralExpr *E) {
-      HIPACC_NOT_SUPPORTED(ObjCBoolLiteralExpr);
+    // Obj-C Expressions
+    Expr *VisitObjCStringLiteral(ObjCStringLiteral *E) {
+      HIPACC_NOT_SUPPORTED(ObjCStringLiteral);
       return NULL;
     }
     Expr *VisitObjCBoxedExpr(ObjCBoxedExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCBoxedExpr);
+      return NULL;
+    }
+    Expr *VisitObjCArrayLiteral(ObjCArrayLiteral *E) {
+      HIPACC_NOT_SUPPORTED(ObjCArrayLiteral);
       return NULL;
     }
     Expr *VisitObjCDictionaryLiteral(ObjCDictionaryLiteral *E) {
@@ -399,86 +431,70 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       HIPACC_NOT_SUPPORTED(ObjCEncodeExpr);
       return NULL;
     }
-    Expr *VisitObjCIndirectCopyRestoreExpr(ObjCIndirectCopyRestoreExpr *E) {
-      HIPACC_NOT_SUPPORTED(ObjCIndirectCopyRestoreExpr);
-      return NULL;
-    }
-    Expr *VisitObjCIsaExpr(ObjCIsaExpr *E) {
-      HIPACC_NOT_SUPPORTED(ObjCIsaExpr);
-      return NULL;
-    }
-    Expr *VisitObjCIvarRefExpr(ObjCIvarRefExpr *E) {
-      HIPACC_NOT_SUPPORTED(ObjCIvarRefExpr);
-      return NULL;
-    }
     Expr *VisitObjCMessageExpr(ObjCMessageExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCMessageExpr);
-      return NULL;
-    }
-    Expr *VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *E) {
-      HIPACC_NOT_SUPPORTED(ObjCPropertyRefExpr);
-      return NULL;
-    }
-    Expr *VisitObjCProtocolExpr(ObjCProtocolExpr *E) {
-      HIPACC_NOT_SUPPORTED(ObjCProtocolExpr);
       return NULL;
     }
     Expr *VisitObjCSelectorExpr(ObjCSelectorExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCSelectorExpr);
       return NULL;
     }
-    Expr *VisitObjCStringLiteral(ObjCStringLiteral *E) {
-      HIPACC_NOT_SUPPORTED(ObjCStringLiteral);
+    Expr *VisitObjCProtocolExpr(ObjCProtocolExpr *E) {
+      HIPACC_NOT_SUPPORTED(ObjCProtocolExpr);
+      return NULL;
+    }
+    Expr *VisitObjCIvarRefExpr(ObjCIvarRefExpr *E) {
+      HIPACC_NOT_SUPPORTED(ObjCIvarRefExpr);
+      return NULL;
+    }
+    Expr *VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *E) {
+      HIPACC_NOT_SUPPORTED(ObjCPropertyRefExpr);
+      return NULL;
+    }
+    Expr *VisitObjCIsaExpr(ObjCIsaExpr *E) {
+      HIPACC_NOT_SUPPORTED(ObjCIsaExpr);
+      return NULL;
+    }
+    Expr *VisitObjCIndirectCopyRestoreExpr(ObjCIndirectCopyRestoreExpr *E) {
+      HIPACC_NOT_SUPPORTED(ObjCIndirectCopyRestoreExpr);
+      return NULL;
+    }
+    Expr *VisitObjCBoolLiteralExpr(ObjCBoolLiteralExpr *E) {
+      HIPACC_NOT_SUPPORTED(ObjCBoolLiteralExpr);
       return NULL;
     }
     Expr *VisitObjCSubscriptRefExpr(ObjCSubscriptRefExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCSubscriptRefExpr);
       return NULL;
     }
-    Stmt *VisitObjCAtCatchStmt(ObjCAtCatchStmt *S) {
-      HIPACC_NOT_SUPPORTED(ObjCAtCatchStmt);
-      return NULL;
-    }
-    Stmt *VisitObjCAtFinallyStmt(ObjCAtFinallyStmt *S) {
-      HIPACC_NOT_SUPPORTED(ObjCAtFinallyStmt);
-      return NULL;
-    }
-    Stmt *VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *S) {
-      HIPACC_NOT_SUPPORTED(ObjCAtSynchronizedStmt);
-      return NULL;
-    }
-    Stmt *VisitObjCAtThrowStmt(ObjCAtThrowStmt *S) {
-      HIPACC_NOT_SUPPORTED(ObjCAtThrowStmt);
-      return NULL;
-    }
-    Stmt *VisitObjCAtTryStmt(ObjCAtTryStmt *S) {
-      HIPACC_NOT_SUPPORTED(ObjCAtTryStmt);
-      return NULL;
-    }
-    Stmt *VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S) {
-      HIPACC_NOT_SUPPORTED(ObjCAutoreleasePoolStmt);
-      return NULL;
-    }
-    Stmt *VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
-      HIPACC_NOT_SUPPORTED(ObjCForCollectionStmt);
-      return NULL;
-    }
-    Stmt *VisitPseudoObjectExpr(PseudoObjectExpr *E) {
-      HIPACC_NOT_SUPPORTED(PseudoObjectExpr);
+
+    // Obj-C ARC Expressions
+    Expr *VisitObjCBridgedCastExpr(ObjCBridgedCastExpr *E) {
+      HIPACC_NOT_SUPPORTED(ObjCBridgedCastExpr);
       return NULL;
     }
 
-    // Microsoft Expressions and Statements
+    // CUDA Expressions
+    Expr *VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E);
+
+    // Clang Extensions
+    Expr *VisitShuffleVectorExpr(ShuffleVectorExpr *E);
+    Expr *VisitBlockExpr(BlockExpr *E) {
+      HIPACC_NOT_SUPPORTED(BlockExpr);
+      return NULL;
+    }
+    Expr *VisitOpaqueValueExpr(OpaqueValueExpr *E) {
+      HIPACC_NOT_SUPPORTED(OpaqueValueExpr);
+      return NULL;
+    }
+
+    // Microsoft Extensions
     Expr *VisitCXXUuidofExpr(CXXUuidofExpr *E) {
       HIPACC_NOT_SUPPORTED(CXXUuidofExpr);
       return NULL;
     }
-    Stmt *VisitMSAsmStmt(MSAsmStmt *S) {
-      HIPACC_NOT_SUPPORTED(MSAsmStmt);
-      return NULL;
-    }
-    Stmt *VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
-      HIPACC_NOT_SUPPORTED(MSDependentExistsStmt);
+    Stmt *VisitSEHTryStmt(SEHTryStmt *S) {
+      HIPACC_NOT_SUPPORTED(SEHTryStmt);
       return NULL;
     }
     Stmt *VisitSEHExceptStmt(SEHExceptStmt *S) {
@@ -489,10 +505,13 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       HIPACC_NOT_SUPPORTED(SEHFinallyStmt);
       return NULL;
     }
-    Stmt *VisitSEHTryStmt(SEHTryStmt *S) {
-      HIPACC_NOT_SUPPORTED(SEHTryStmt);
+    Stmt *VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
+      HIPACC_NOT_SUPPORTED(MSDependentExistsStmt);
       return NULL;
     }
+
+    // OpenCL Expressions
+    Expr *VisitAsTypeExpr(AsTypeExpr *E);
 };
 } // end namespace hipacc
 } // end namespace clang
