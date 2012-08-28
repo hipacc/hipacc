@@ -1285,6 +1285,12 @@ Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
   return new (Ctx) DeclStmt(clonedDecls, S->getStartLoc(), S->getEndLoc());
 }
 
+// abstract base class
+Stmt *ASTTranslate::VisitAsmStmt(AsmStmt *S) {
+  HIPACC_NOT_SUPPORTED(AsmStmt);
+  return NULL;
+}
+
 Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
   llvm::SmallVector<IdentifierInfo *, 16> names;
   llvm::SmallVector<StringLiteral *, 16> constraints;

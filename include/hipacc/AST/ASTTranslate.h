@@ -271,6 +271,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Stmt *VisitBreakStmt(BreakStmt *S);
     Stmt *VisitReturnStmt(ReturnStmt *S);
     Stmt *VisitDeclStmt(DeclStmt *S);
+    Stmt *VisitAsmStmt(AsmStmt *S);
     Stmt *VisitGCCAsmStmt(GCCAsmStmt *S);
     Expr *VisitExpr(Expr *E);
     Expr *VisitPredefinedExpr(PredefinedExpr *E);
