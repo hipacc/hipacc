@@ -399,8 +399,7 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
       LHS->getNumTemplateArgs()?&templateArgs:0);
 
   LHStex->setObjectKind(LHS->getObjectKind());
-  LHStex->setValueDependent(LHS->isValueDependent());
-  LHStex->setTypeDependent(LHS->isTypeDependent());
+  setExprProps(LHS, LHStex);
 
   // parameters for tex1Dfetch, tex2D, or surf2Dwrite
   llvm::SmallVector<Expr *, 16> args;

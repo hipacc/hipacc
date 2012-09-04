@@ -232,8 +232,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
     } else {
       RHS = accessMemArrAt(LHS, Acc->getStrideDecl(), tmp_x_ref, tmp_y_ref);
     }
-    RHS->setValueDependent(LHS->isValueDependent());
-    RHS->setTypeDependent(LHS->isTypeDependent());
+    setExprProps(LHS, RHS);
 
     // tmp<0> = RHS;
     if (bo_constant) {
@@ -297,8 +296,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
     } else {
       result = accessMemArrAt(LHS, Acc->getStrideDecl(), tmp_x_ref, tmp_y_ref);
     }
-    result->setValueDependent(LHS->isValueDependent());
-    result->setTypeDependent(LHS->isTypeDependent());
+    setExprProps(LHS, result);
   }
 
   return result;

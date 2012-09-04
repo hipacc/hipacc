@@ -47,6 +47,7 @@
 #include "hipacc/DSL/ClassRepresentation.h"
 #include "hipacc/Vectorization/SIMDTypes.h"
 
+//#define NO_TRANSLATION
 
 //===----------------------------------------------------------------------===//
 // Statement/expression transformations
@@ -105,15 +106,44 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     DeclRefExpr *kernelSamplerRef;
 
 
-    template<class T> T *Clone(T *S);
-    template<class T> T *CloneDecl(T *D);
+    template<class T> T *Clone(T *S) {
+      if (S==NULL) return NULL;
+
+      return static_cast<T *>(Visit(S));
+    }
+    template<class T> T *CloneDecl(T *D) {
+      if (D==NULL) return NULL;
+
+      #ifdef NO_TRANSLATION
+      return D;
+      #else
+      VarDecl *result = NULL;
+      switch (D->getKind()) {
+        default:
+          assert(0 && "Only VarDecls supported!");
+          break;
+        case Decl::ParmVar:
+        case Decl::Var:
+          result = CloneVarDecl(static_cast<VarDecl *>(D));
+          break;
+      }
+
+      return static_cast<T *>(result);
+      #endif
+    }
+
+    VarDecl *CloneVarDecl(VarDecl *D);
     VarDecl *CloneDeclTex(ParmVarDecl *D, std::string prefix);
+    void setExprProps(Expr *orig, Expr *clone);
+    void setCastPath(CastExpr *orig, CXXCastPath &castPath);
+
     // KernelDeclMap - this keeps track of the cloned Decls which are used in
     // expressions, e.g. DeclRefExpr
     typedef llvm::DenseMap<VarDecl *, VarDecl *> DeclMapTy;
     typedef llvm::DenseMap<ParmVarDecl *, VarDecl *> PVDeclMapTy;
     typedef llvm::DenseMap<ParmVarDecl *, HipaccAccessor *> AccMapTy;
-    DeclMapTy KernelDeclMap, LambdaDeclMap;
+    DeclMapTy KernelDeclMap;
+    DeclMapTy LambdaDeclMap;
     PVDeclMapTy KernelDeclMapTex;
     PVDeclMapTy KernelDeclMapShared;
     PVDeclMapTy KernelDeclMapVector;
@@ -173,6 +203,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // default error message for unsupported expressions and statements.
     #define HIPACC_NOT_SUPPORTED(MSG) \
     assert(0 && "Hipacc: Stumbled upon unsupported expression or statement: " #MSG)
+    #define HIPACC_BASE_CLASS(MSG) \
+    assert(0 && "Hipacc: Stumbled upon base class '#MST#' implementation of any derived class missing?")
 
   public:
     ASTTranslate(ASTContext& Ctx, FunctionDecl *kernelDecl, HipaccKernel
@@ -252,8 +284,12 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         hipacc::Builtin::Context &builtins, CompilerOptions &compilerOptions,
         HipaccKernel *Kernel, HipaccAccessor *Acc, border_variant bh_variant);
 
-    // the following list ist orderd according to
+    // the following list ist ordered according to
     // include/clang/Basic/StmtNodes.td
+
+    // implementation of Visitors is split into two files:
+    // ASTClone.cpp for cloning single AST nodes
+    // ASTTranslate.cpp for translation related to CUDA/OpenCL
 
     // Statements
     Stmt *VisitStmt(Stmt *S);
@@ -278,7 +314,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // Asm Statements
     Stmt *VisitAsmStmt(AsmStmt *S) {  // abstract base class
-      HIPACC_NOT_SUPPORTED(AsmStmt);
+      HIPACC_BASE_CLASS(AsmStmt);
       return NULL;
     }
     Stmt *VisitGCCAsmStmt(GCCAsmStmt *S);

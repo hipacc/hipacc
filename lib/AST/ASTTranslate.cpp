@@ -951,11 +951,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
 }
 
 
-template<class T> T *ASTTranslate::CloneDecl(T *D) {
-  if (D == NULL) {
-    return NULL;
-  }
-
+VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
   VarDecl *result = NULL;
   ParmVarDecl *PVD = NULL;
   VarDecl *VD = NULL;
@@ -1034,7 +1030,7 @@ template<class T> T *ASTTranslate::CloneDecl(T *D) {
     DC->addDecl(result);
   }
 
-  return static_cast<T *>(result);
+  return result;
 }
 
 
@@ -1070,142 +1066,40 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D, std::string prefix) {
 }
 
 
-template<class T> T *ASTTranslate::Clone(T *S) {
-  if (S == NULL) {
-    return NULL;
-  }
-
-  T *clonedStmt = static_cast<T *>(Visit(S));
-
-  return clonedStmt;
-}
-
-
-// normal statements
-Stmt *ASTTranslate::VisitStmt(Stmt *) {
-  assert(0 && "Hipacc: Stumbled upon 'Stmt', implementation of any derived class missing?");
-
-  return NULL;
-}
-
-Stmt *ASTTranslate::VisitNullStmt(NullStmt *S) {
-  return new (Ctx) NullStmt(S->getSemiLoc());
-}
-
+#ifdef NO_TRANSLATION
+#else
 Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
-  unsigned int numStmts = S->size();
   CompoundStmt* result = new (Ctx) CompoundStmt(Ctx, NULL, 0, S->getLBracLoc(),
       S->getLBracLoc());
 
-  if (numStmts > 0) {
-    llvm::SmallVector<Stmt *, 16> body;
-    for (CompoundStmt::const_body_iterator I=S->body_begin(), E=S->body_end();
-        I!=E; ++I) {
-      curCompoundStmtVistor = S;
-      Stmt *newS = Clone(*I);
-      curCompoundStmtVistor = S;
+  llvm::SmallVector<Stmt *, 16> body;
+  for (CompoundStmt::const_body_iterator I=S->body_begin(), E=S->body_end();
+      I!=E; ++I) {
+    curCompoundStmtVistor = S;
+    Stmt *newS = Clone(*I);
+    curCompoundStmtVistor = S;
 
-      if (bhStmtsVistor.size()) {
-        unsigned int num_stmts = 0;
-        for (unsigned int i=0, e=bhStmtsVistor.size(); i!=e; ++i) {
-          if (bhCStmtsVistor.data()[i]==S) {
-            body.push_back(bhStmtsVistor.data()[i]);
-            num_stmts++;
-          }
-        }
-        for (unsigned int i=0; i<num_stmts; i++) {
-          bhStmtsVistor.pop_back();
-          bhCStmtsVistor.pop_back();
+    if (bhStmtsVistor.size()) {
+      unsigned int num_stmts = 0;
+      for (unsigned int i=0, e=bhStmtsVistor.size(); i!=e; ++i) {
+        if (bhCStmtsVistor.data()[i]==S) {
+          body.push_back(bhStmtsVistor.data()[i]);
+          num_stmts++;
         }
       }
-
-      body.push_back(newS);
+      for (unsigned int i=0; i<num_stmts; i++) {
+        bhStmtsVistor.pop_back();
+        bhCStmtsVistor.pop_back();
+      }
     }
-    result->setStmts(Ctx, body.data(), body.size());
+
+    body.push_back(newS);
   }
+  result->setStmts(Ctx, body.data(), body.size());
 
   return result;
 }
 
-Stmt *ASTTranslate::VisitSwitchCase(SwitchCase *S) {
-  assert(0 && "Hipacc: Stumbled upon 'SwitchCase', implementation of any derived class missing?");
-
-  return NULL;
-}
-
-Stmt *ASTTranslate::VisitCaseStmt(CaseStmt *S) {
-  CaseStmt* result = new (Ctx) CaseStmt(Clone(S->getLHS()), Clone(S->getRHS()),
-      S->getCaseLoc(), S->getEllipsisLoc(), S->getColonLoc());
-
-  result->setSubStmt(Clone(S->getSubStmt()));
-
-  return result;
-}
-
-Stmt *ASTTranslate::VisitDefaultStmt(DefaultStmt *S) {
-  return new (Ctx) DefaultStmt(S->getDefaultLoc(), S->getColonLoc(),
-      Clone(S->getSubStmt()));
-}
-
-Stmt *ASTTranslate::VisitLabelStmt(LabelStmt *S) {
-  return new (Ctx) LabelStmt(S->getIdentLoc(), S->getDecl(),
-      Clone(S->getSubStmt()));
-}
-
-Stmt *ASTTranslate::VisitAttributedStmt(AttributedStmt *S) {
-  return AttributedStmt::Create(Ctx, S->getAttrLoc(), S->getAttrs(),
-      Clone(S->getSubStmt()));
-}
-
-Stmt *ASTTranslate::VisitIfStmt(IfStmt *S) {
-  return new (Ctx) IfStmt(Ctx, S->getIfLoc(),
-      CloneDecl(S->getConditionVariable()), Clone(S->getCond()),
-      Clone(S->getThen()), S->getElseLoc(), Clone(S->getElse()));
-}
-
-Stmt *ASTTranslate::VisitSwitchStmt(SwitchStmt *S) {
-  SwitchStmt* result = new (Ctx) SwitchStmt(Ctx,
-      CloneDecl(S->getConditionVariable()), Clone(S->getCond()));
-
-  result->setBody(Clone(S->getBody()));
-  result->setSwitchLoc(S->getSwitchLoc());
-
-  return result;
-}
-
-Stmt *ASTTranslate::VisitWhileStmt(WhileStmt *S) {
-  return new (Ctx) WhileStmt(Ctx, CloneDecl(S->getConditionVariable()),
-      Clone(S->getCond()), Clone(S->getBody()), S->getWhileLoc());
-}
-
-Stmt *ASTTranslate::VisitDoStmt(DoStmt *S) {
-  return new (Ctx) DoStmt(Clone(S->getBody()), Clone(S->getCond()),
-      S->getDoLoc(), S->getWhileLoc(), S->getRParenLoc());
-}
-
-Stmt *ASTTranslate::VisitForStmt(ForStmt *S) {
-  return new (Ctx) ForStmt(Ctx, Clone(S->getInit()), Clone(S->getCond()),
-      CloneDecl(S->getConditionVariable()), Clone(S->getInc()),
-      Clone(S->getBody()), S->getForLoc(), S->getLParenLoc(),
-      S->getRParenLoc());
-}
-
-Stmt *ASTTranslate::VisitGotoStmt(GotoStmt *S) {
-  return new (Ctx) GotoStmt(S->getLabel(), S->getGotoLoc(), S->getLabelLoc());
-}
-
-Stmt *ASTTranslate::VisitIndirectGotoStmt(IndirectGotoStmt *S) {
-  return new (Ctx) IndirectGotoStmt(S->getGotoLoc(), S->getStarLoc(),
-      Clone(S->getTarget()));
-}
-
-Stmt *ASTTranslate::VisitContinueStmt(ContinueStmt *S) {
-  return new (Ctx) ContinueStmt(S->getContinueLoc());
-}
-
-Stmt *ASTTranslate::VisitBreakStmt(BreakStmt *S) {
-  return new (Ctx) BreakStmt(S->getBreakLoc());
-}
 
 Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
   // within convolve lambda-functions, return statements are replaced by
@@ -1270,244 +1164,6 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
   }
 }
 
-Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
-  DeclGroupRef clonedDecls;
-
-  if (S->isSingleDecl()) {
-    clonedDecls = DeclGroupRef(CloneDecl(S->getSingleDecl()));
-  } else if (S->getDeclGroup().isDeclGroup()) {
-    llvm::SmallVector<Decl *, 16> clonedDeclGroup;
-    const DeclGroupRef& DG = S->getDeclGroup();
-
-    for (DeclGroupRef::const_iterator I=DG.begin(), E=DG.end(); I!=E; ++I) {
-      clonedDeclGroup.push_back(CloneDecl(*I));
-    }
-
-    clonedDecls = DeclGroupRef(DeclGroup::Create(Ctx,
-          clonedDeclGroup.data(), clonedDeclGroup.size()));
-  }
-
-  return new (Ctx) DeclStmt(clonedDecls, S->getStartLoc(), S->getEndLoc());
-}
-
-Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
-  llvm::SmallVector<IdentifierInfo *, 16> names;
-  llvm::SmallVector<StringLiteral *, 16> constraints;
-  llvm::SmallVector<Expr *, 16> exprs;
-
-  // outputs
-  for (unsigned int I=0, N=S->getNumOutputs(); I!=N; ++I) {
-    names.push_back(S->getOutputIdentifier(I));
-    constraints.push_back(S->getOutputConstraintLiteral(I));
-    exprs.push_back(Clone(S->getOutputExpr(I)));
-  }
-
-  // inputs
-  for (unsigned int I=0, N=S->getNumInputs(); I!=N; ++I) {
-    names.push_back(S->getInputIdentifier(I));
-    constraints.push_back(S->getInputConstraintLiteral(I));
-    exprs.push_back(Clone(S->getInputExpr(I)));
-  }
-
-  // constraints
-  llvm::SmallVector<StringLiteral *, 16> clobbers;
-  for (unsigned int I=0, N=S->getNumClobbers(); I!=N; ++I) {
-    clobbers.push_back(S->getClobberStringLiteral(I));
-  }
-
-  return new (Ctx) GCCAsmStmt(Ctx, S->getAsmLoc(), S->isSimple(),
-      S->isVolatile(), S->getNumOutputs(), S->getNumInputs(), names.data(),
-      constraints.data(), exprs.data(), S->getAsmString(), S->getNumClobbers(),
-      clobbers.data(), S->getRParenLoc());
-}
-
-Expr *ASTTranslate::VisitExpr(Expr *E) {
-  assert(0 && "Hipacc: Stumbled upon 'Expr', implementation of any derived class missing?");
-
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitPredefinedExpr(PredefinedExpr *E) {
-  Expr* result = new (Ctx) PredefinedExpr(E->getLocation(), E->getType(),
-      E->getIdentType());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitDeclRefExpr(DeclRefExpr *E) {
-  TemplateArgumentListInfo templateArgs(E->getLAngleLoc(), E->getRAngleLoc());
-  for (unsigned int i=0, e=E->getNumTemplateArgs(); i!=e; ++i) {
-    templateArgs.addArgument(E->getTemplateArgs()[i]);
-  }
-
-  ValueDecl *VD = CloneDecl(E->getDecl());
-
-  DeclRefExpr *result = DeclRefExpr::Create(Ctx, E->getQualifierLoc(),
-      E->getTemplateKeywordLoc(), VD, E->refersToEnclosingLocal(),
-      E->getLocation(), VD->getType(), E->getValueKind(), E->getFoundDecl(),
-      E->getNumTemplateArgs()?&templateArgs:0);
-
-  result->setObjectKind(E->getObjectKind());
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
-  llvm::errs() << "Found LambdaExpr:\n";
-  E->dump();
-  llvm::errs() << "\n";
-
-  return E;
-}
-
-Expr *ASTTranslate::VisitIntegerLiteral(IntegerLiteral *E) {
-  Expr *result = IntegerLiteral::Create(Ctx, E->getValue(), E->getType(),
-      E->getLocation());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitFloatingLiteral(FloatingLiteral *E) {
-  Expr *result = FloatingLiteral::Create(Ctx, E->getValue(), E->isExact(),
-      E->getType(), E->getLocation());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitImaginaryLiteral(ImaginaryLiteral *E) {
-  Expr *result = new (Ctx) ImaginaryLiteral(Clone(E->getSubExpr()),
-      E->getType());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitStringLiteral(StringLiteral *E) {
-  llvm::SmallVector<SourceLocation, 16> concatLocations(E->tokloc_begin(),
-      E->tokloc_end());
-
-  Expr *result = StringLiteral::Create(Ctx, E->getString(), E->getKind(),
-      E->isPascal(), E->getType(), concatLocations.data(),
-      concatLocations.size());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitCharacterLiteral(CharacterLiteral *E) {
-  Expr *result = new (Ctx) CharacterLiteral(E->getValue(), E->getKind(),
-      E->getType(), E->getLocation());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitParenExpr(ParenExpr *E) {
-  Expr *result = new (Ctx) ParenExpr(E->getLParen(), E->getRParen(),
-      Clone(E->getSubExpr()));
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
-  llvm::SmallVector<Expr *, 16> Exprs;
-
-  for (unsigned int i=0, e=E->getNumExprs(); i<e; ++i) {
-    Exprs.push_back(Clone(E->getExpr(i)));
-  }
-
-  Expr *result = new (Ctx) ParenListExpr(Ctx, E->getLParenLoc(),
-      llvm::makeArrayRef(Exprs.data(), Exprs.size()), E->getRParenLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitUnaryOperator(UnaryOperator *E) {
-  Expr *result = new (Ctx) UnaryOperator(Clone(E->getSubExpr()), E->getOpcode(),
-      E->getType(), E->getValueKind(), E->getObjectKind(), E->getOperatorLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitOffsetOfExpr(OffsetOfExpr *E) {
-  OffsetOfExpr *result = OffsetOfExpr::CreateEmpty(Ctx, E->getNumExpressions(),
-      E->getNumComponents());
-
-  result->setType(E->getType());
-  result->setOperatorLoc(E->getOperatorLoc());
-  result->setTypeSourceInfo(E->getTypeSourceInfo());
-  result->setRParenLoc(E->getRParenLoc());
-
-  for (unsigned int I=0, N=E->getNumComponents(); I!=N; ++I) {
-    result->setComponent(I, E->getComponent(I));
-  }
-
-  for (unsigned int I=0, N=E->getNumExpressions(); I<N; ++I) {
-    result->setIndexExpr(I, Clone(E->getIndexExpr(I)));
-  }
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) { 
-  Expr *result;
-
-  if (E->isArgumentType()) {
-    result = new (Ctx) UnaryExprOrTypeTraitExpr(E->getKind(),
-        E->getArgumentTypeInfo(), E->getType(), E->getOperatorLoc(),
-        E->getRParenLoc());
-  } else {
-    result = new (Ctx) UnaryExprOrTypeTraitExpr(E->getKind(),
-        Clone(E->getArgumentExpr()), E->getType(), E->getOperatorLoc(),
-        E->getRParenLoc());
-  }
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-
-Expr *ASTTranslate::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
-  Expr *result = new (Ctx) ArraySubscriptExpr(Clone(E->getLHS()),
-      Clone(E->getRHS()), E->getType(), E->getValueKind(), E->getObjectKind(),
-      E->getRBracketLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
 
 Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
   FunctionDecl *targetFD;
@@ -1727,11 +1383,11 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
     result->setArg(I, Clone(E->getArg(I)));
   }
 
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
+  setExprProps(E, result);
 
   return result;
 }
+
 
 Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
   // TODO: create a map with all expressions not to be cloned ..
@@ -1812,18 +1468,11 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
   }
 
   Expr *result = createDeclRefExpr(Ctx, paramDecl);
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
+  setExprProps(E, result);
 
   return result;
 }
 
-Expr *ASTTranslate::VisitCastExpr(CastExpr *E) {
-  assert(0 && "Hipacc: Stumbled upon 'CastExpr', implementation of any derived class missing?");
-
-  return NULL;
-}
 
 Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
   Expr *result;
@@ -1849,53 +1498,11 @@ Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
   }
   if (E->getOpcode() == BO_Assign) writeImageRHS = NULL;
 
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
+  setExprProps(E, result);
 
   return result;
 }
 
-Expr *ASTTranslate::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
-  Expr *result = new (Ctx) CompoundAssignOperator(Clone(E->getLHS()),
-      Clone(E->getRHS()), E->getOpcode(), E->getType(), E->getValueKind(),
-      E->getObjectKind(), E->getComputationLHSType(),
-      E->getComputationResultType(), E->getOperatorLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-// abstract base class
-Expr *ASTTranslate::VisitAbstractConditionalOperator(AbstractConditionalOperator *E) {
-  HIPACC_NOT_SUPPORTED(AbstractConditionalOperator);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitConditionalOperator(ConditionalOperator *E) {
-  Expr *result = new (Ctx) ConditionalOperator(Clone(E->getCond()),
-      E->getQuestionLoc(), Clone(E->getLHS()), E->getColonLoc(),
-      Clone(E->getRHS()), E->getType(), E->getValueKind(), E->getObjectKind());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitBinaryConditionalOperator(BinaryConditionalOperator *E)
-{
-  Expr *result = new (Ctx) BinaryConditionalOperator(Clone(E->getCommon()),
-      Clone(E->getOpaqueValue()), Clone(E->getCond()), Clone(E->getTrueExpr()),
-      Clone(E->getFalseExpr()), E->getQuestionLoc(), E->getColonLoc(),
-      E->getType(), E->getValueKind(), E->getObjectKind());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
 
 Expr *ASTTranslate::VisitImplicitCastExpr(ImplicitCastExpr *E) {
   Expr *subExpr = Clone(E->getSubExpr());
@@ -1912,20 +1519,15 @@ Expr *ASTTranslate::VisitImplicitCastExpr(ImplicitCastExpr *E) {
       break;
   }
 
-  Expr *result = ImplicitCastExpr::Create(Ctx, QT, E->getCastKind(), subExpr,
-      NULL, E->getValueKind());
+  CXXCastPath castPath;
+  setCastPath(E, castPath);
 
-  // FIXME: set CXXCastPath
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
+  Expr *result = ImplicitCastExpr::Create(Ctx, QT, E->getCastKind(), subExpr,
+      &castPath, E->getValueKind());
+
+  setExprProps(E, result);
 
   return result;
-}
-
-Expr *ASTTranslate::VisitExplicitCastExpr(ExplicitCastExpr *E) {
-  assert(0 && "Hipacc: Stumbled upon 'ExplicitCastExpr', implementation of any derived class missing?");
-
-  return NULL;
 }
 
 
@@ -1944,209 +1546,19 @@ Expr *ASTTranslate::VisitCStyleCastExpr(CStyleCastExpr *E) {
       break;
   }
 
-  Expr *result = CStyleCastExpr::Create(Ctx, QT, E->getValueKind(),
-      E->getCastKind(), subExpr, NULL, E->getTypeInfoAsWritten(),
+  CXXCastPath castPath;
+  setCastPath(E, castPath);
+
+  CStyleCastExpr *result = CStyleCastExpr::Create(Ctx, QT, E->getValueKind(),
+      E->getCastKind(), subExpr, &castPath, E->getTypeInfoAsWritten(),
       E->getLParenLoc(), E->getRParenLoc());
 
-  // FIXME: set CXXCastPath
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
+  setExprProps(E, result);
 
   return result;
 }
 
-Expr *ASTTranslate::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
-  Expr *result = new (Ctx) CompoundLiteralExpr(E->getLParenLoc(),
-      E->getTypeSourceInfo(), E->getType(), E->getValueKind(),
-      Clone(E->getInitializer()), E->isFileScope());
 
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitExtVectorElementExpr(ExtVectorElementExpr *E) {
-  Expr *result = new (Ctx) ExtVectorElementExpr(E->getType(), E->getValueKind(),
-      Clone(E->getBase()), E->getAccessor(), E->getAccessorLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
-  llvm::SmallVector<Expr *, 16> initExprs;
-
-  for (unsigned int I=0, N=E->getNumInits(); I<N; ++I) {
-    initExprs.push_back(Clone(E->getInit(I)));
-  }
-
-  InitListExpr* result = new (Ctx) InitListExpr(Ctx, E->getLBraceLoc(),
-      llvm::makeArrayRef(initExprs.data(), initExprs.size()),
-      E->getRBraceLoc());
-
-  result->setInitializedFieldInUnion(E->getInitializedFieldInUnion());
-
-  // FIXME: clone the syntactic form, can this become recursive?
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
-  llvm::SmallVector<Expr *, 16> indexExprs;
-
-  unsigned numIndexExprs = E->getNumSubExprs() - 1;
-  for (unsigned int I=0 ; I<numIndexExprs; ++I) {
-    indexExprs.push_back(Clone(E->getSubExpr(I+1)));
-  }
-
-  Expr *result = DesignatedInitExpr::Create(Ctx, E->getDesignator(0), E->size(),
-      indexExprs, E->getEqualOrColonLoc(), E->usesGNUSyntax(),
-      Clone(E->getInit()));
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
-  Expr *result = new (Ctx) ImplicitValueInitExpr(E->getType());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitVAArgExpr(VAArgExpr *E) {
-  Expr *result = new (Ctx) VAArgExpr(E->getBuiltinLoc(), Clone(E->getSubExpr()),
-      E->getWrittenTypeInfo(), E->getRParenLoc(), E->getType());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitAddrLabelExpr(AddrLabelExpr *E) {
-  Expr *result = new (Ctx) AddrLabelExpr(E->getAmpAmpLoc(), E->getLabelLoc(),
-      E->getLabel(), E->getType());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitStmtExpr(StmtExpr *E) {
-  Expr *result = new (Ctx) StmtExpr(Clone(E->getSubStmt()), E->getType(),
-      E->getLParenLoc(), E->getRParenLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitChooseExpr(ChooseExpr *E) {
-  Expr *result = new (Ctx) ChooseExpr(E->getBuiltinLoc(), Clone(E->getCond()),
-      Clone(E->getLHS()), Clone(E->getRHS()), E->getType(), E->getValueKind(),
-      E->getObjectKind(), E->getRParenLoc(), E->isTypeDependent(),
-      E->isValueDependent());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitGNUNullExpr(GNUNullExpr *E) {
-  Expr *result = new (Ctx) GNUNullExpr(E->getType(), E->getTokenLocation());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
-  llvm::SmallVector<Expr *, 16> body;
-
-  for (unsigned int I=0, N=E->getNumSubExprs(); I<N; ++I) {
-    body.push_back(Clone(E->getExpr(I)));
-  }
-
-  Expr *result = new (Ctx) ShuffleVectorExpr(Ctx, body, E->getType(),
-      E->getBuiltinLoc(), E->getRParenLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitGenericSelectionExpr(GenericSelectionExpr *E) {
-  HIPACC_NOT_SUPPORTED(GenericSelectionExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitPseudoObjectExpr(PseudoObjectExpr *E) {
-  HIPACC_NOT_SUPPORTED(PseudoObjectExpr);
-  return NULL;
-}
-
-
-// C++ statements
-Stmt *ASTTranslate::VisitCXXCatchStmt(CXXCatchStmt *S) {
-  return new (Ctx) CXXCatchStmt(S->getCatchLoc(),
-      static_cast<VarDecl*>(CloneDecl(S->getExceptionDecl())),
-      Clone(S->getHandlerBlock()));
-}
-
-Stmt *ASTTranslate::VisitCXXTryStmt(CXXTryStmt *S) {
-  llvm::SmallVector<Stmt *, 16> handlers;
-
-  for (unsigned int I=0, N=S->getNumHandlers(); I<N; ++I) {
-    handlers.push_back((Stmt *)Clone(S->getHandler(I)));
-  }
-
-  return CXXTryStmt::Create(Ctx, S->getTryLoc(), Clone(S->getTryBlock()),
-      handlers.data(), handlers.size());
-}
-
-Stmt *ASTTranslate::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
-  HIPACC_NOT_SUPPORTED(CXXForRangeStmt);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitUserDefinedLiteral(UserDefinedLiteral *E) {
-  HIPACC_NOT_SUPPORTED(UserDefinedLiteral);
-  return NULL;
-}
-
-#if 0
-Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
-  CXXOperatorCallExpr *result = new (Ctx) CXXOperatorCallExpr(Ctx,
-      E->getOperator(), Clone(E->getCallee()), NULL, 0, E->getType(),
-      E->getRParenLoc());
-
-  result->setNumArgs(Ctx, E->getNumArgs());
-
-  for (unsigned int I=0, N=E->getNumArgs(); I<N; ++I) {
-    result->setArg(I, Clone(E->getArg(I)));
-  }
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-#else
 Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   bool found_mask = false;
   Expr *result = NULL;
@@ -2245,8 +1657,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         }
         break;
     }
-    result->setValueDependent(E->isValueDependent());
-    result->setTypeDependent(E->isTypeDependent());
+    setExprProps(E, result);
 
     return result;
   }
@@ -2374,31 +1785,12 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
     }
   }
 
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
+  setExprProps(E, result);
 
   return result;
 }
-#endif
 
 
-#if 0
-Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
-  CXXMemberCallExpr *result = new (Ctx) CXXMemberCallExpr(Ctx,
-      Clone(E->getCallee()), NULL, 0, E->getType(), E->getRParenLoc());
-
-  result->setNumArgs(Ctx, E->getNumArgs());
-
-  for (unsigned int I=0, N=E->getNumArgs(); I<N; ++I) {
-    result->setArg(I, Clone(E->getArg(I)));
-  }
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-#else
 Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   assert(isa<MemberExpr>(E->getCallee()) &&
       "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
@@ -2436,8 +1828,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         result = accessMem(LHS, Acc, memAcc);
       }
 
-      result->setValueDependent(E->isValueDependent());
-      result->setTypeDependent(E->isTypeDependent());
+      setExprProps(E, result);
 
       return result;
     }
@@ -2505,8 +1896,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       }
     }
 
-    result->setValueDependent(E->isValueDependent());
-    result->setTypeDependent(E->isTypeDependent());
+    setExprProps(E, result);
 
     return result;
   }
@@ -2515,300 +1905,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   return NULL;
 }
 #endif
-
-Expr *ASTTranslate::VisitCXXConstructExpr(CXXConstructExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXConstructExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXTemporaryObjectExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXNamedCastExpr(CXXNamedCastExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXNamedCastExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXStaticCastExpr(CXXStaticCastExpr *E) {
-  CXXStaticCastExpr *result = CXXStaticCastExpr::Create(Ctx, E->getType(),
-      E->getValueKind(), E->getCastKind(), Clone(E->getSubExpr()), NULL,
-      E->getTypeInfoAsWritten(), E->getOperatorLoc(), E->getRParenLoc());
-
-  // FIXME: set CXXCastPath
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E) {
-  CXXDynamicCastExpr *result = CXXDynamicCastExpr::Create(Ctx, E->getType(),
-      E->getValueKind(), E->getCastKind(), Clone(E->getSubExpr()), NULL,
-      E->getTypeInfoAsWritten(), E->getOperatorLoc(), E->getRParenLoc());
-
-  // FIXME: set CXXCastPath
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E) {
-  CXXReinterpretCastExpr *result = CXXReinterpretCastExpr::Create(Ctx,
-      E->getType(), E->getValueKind(), E->getCastKind(), Clone(E->getSubExpr()),
-      NULL, E->getTypeInfoAsWritten(), E->getOperatorLoc(), E->getRParenLoc());
-
-  // FIXME: set CXXCastPath
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitCXXConstCastExpr(CXXConstCastExpr *E) {
-  CXXConstCastExpr *result = CXXConstCastExpr::Create(Ctx, E->getType(),
-      E->getValueKind(), Clone(E->getSubExpr()), E->getTypeInfoAsWritten(),
-      E->getOperatorLoc(), E->getRParenLoc());
-
-  // FIXME: set CXXCastPath
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E) {
-  CXXFunctionalCastExpr *result = CXXFunctionalCastExpr::Create(Ctx,
-      E->getType(), E->getValueKind(), E->getTypeInfoAsWritten(),
-      E->getTypeBeginLoc(), E->getCastKind(), Clone(E->getSubExpr()), NULL,
-      E->getRParenLoc());
-
-  // FIXME: set CXXCastPath
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E) {
-  Expr *result = new (Ctx) CXXBoolLiteralExpr(E->getValue(), E->getType(),
-      E->getSourceRange().getBegin());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E) {
-  Expr *result = new (Ctx) CXXNullPtrLiteralExpr(E->getType(),
-      E->getSourceRange().getBegin());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-
-// unsupported CXX Statements and Expressions
-Expr *ASTTranslate::VisitCXXTypeidExpr(CXXTypeidExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXTypeidExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXThisExpr(CXXThisExpr *E) {
-  Expr *result = new (Ctx) CXXThisExpr(E->getSourceRange().getBegin(),
-      E->getType(), E->isImplicit());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitCXXThrowExpr(CXXThrowExpr *E) {
-  Expr *result = new (Ctx) CXXThrowExpr(Clone(E->getSubExpr()), E->getType(),
-      E->getThrowLoc(), E->isThrownVariableInScope());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-Expr *ASTTranslate::VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXDefaultArgExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXBindTemporaryExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXScalarValueInitExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXNewExpr(CXXNewExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXNewExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXDeleteExpr(CXXDeleteExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXDeleteExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXPseudoDestructorExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitExprWithCleanups(ExprWithCleanups *E) {
-  HIPACC_NOT_SUPPORTED(ExprWithCleanups);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXDependentScopeMemberExpr(CXXDependentScopeMemberExpr
-    *E) {
-  HIPACC_NOT_SUPPORTED(CXXDependentScopeMemberExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E)
-{
-  HIPACC_NOT_SUPPORTED(DependentScopeDeclRefExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXUnresolvedConstructExpr(CXXUnresolvedConstructExpr
-    *E) {
-  HIPACC_NOT_SUPPORTED(CXXUnresolvedConstructExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitOverloadExpr(OverloadExpr *E) {
-  HIPACC_NOT_SUPPORTED(OverloadExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *E) {
-  HIPACC_NOT_SUPPORTED(UnresolvedMemberExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *E) {
-  HIPACC_NOT_SUPPORTED(UnresolvedLookupExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitTypeTraitExpr(TypeTraitExpr *E) {
-  HIPACC_NOT_SUPPORTED(TypeTraitExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *E) {
-  HIPACC_NOT_SUPPORTED(UnaryTypeTraitExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitBinaryTypeTraitExpr(BinaryTypeTraitExpr *E) {
-  HIPACC_NOT_SUPPORTED(BinaryTypeTraitExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E) {
-  HIPACC_NOT_SUPPORTED(ArrayTypeTraitExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitExpressionTraitExpr(ExpressionTraitExpr *E) {
-  HIPACC_NOT_SUPPORTED(ExpressionTraitExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitCXXNoexceptExpr(CXXNoexceptExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXNoexceptExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitPackExpansionExpr(PackExpansionExpr *E) {
-  HIPACC_NOT_SUPPORTED(PackExpansionExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitSizeOfPackExpr(SizeOfPackExpr *E) {
-  HIPACC_NOT_SUPPORTED(SizeOfPackExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitSubstNonTypeTemplateParmExpr(
-    SubstNonTypeTemplateParmExpr *E) {
-  HIPACC_NOT_SUPPORTED(SubstNonTypeTemplateParmExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitSubstNonTypeTemplateParmPackExpr(
-    SubstNonTypeTemplateParmPackExpr *E) {
-  HIPACC_NOT_SUPPORTED(SubstNonTypeTemplateParmPackExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
-  HIPACC_NOT_SUPPORTED(MaterializeTemporaryExpr);
-  return NULL;
-}
-
-Expr *ASTTranslate::VisitAtomicExpr(AtomicExpr *E) {
-  llvm::SmallVector<Expr *, 16> Args;
-
-  for (unsigned int i=0, e=E->getNumSubExprs(); i<e; ++i) {
-    Args.push_back(Clone(E->getSubExprs()[i]));
-  }
-
-  Expr *result = new (Ctx) AtomicExpr(E->getBuiltinLoc(), Args, E->getType(),
-      E->getOp(), E->getRParenLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-// CUDA Expressions
-Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
-  llvm::SmallVector<Expr *, 16> Args;
-
-  for (unsigned int i=0, e=E->getNumArgs(); i<e; ++i) {
-    Args.push_back(Clone(E->getArg(i)));
-  }
-
-  Expr *result = new (Ctx) CUDAKernelCallExpr(Ctx, Clone(E->getCallee()),
-      Clone(E->getConfig()), Args, E->getType(), E->getValueKind(),
-      E->getRParenLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
-
-// OpenCL Expressions
-Expr *ASTTranslate::VisitAsTypeExpr(AsTypeExpr *E) {
-  Expr *result = new (Ctx) AsTypeExpr(Clone(E->getSrcExpr()), E->getType(),
-      E->getValueKind(), E->getObjectKind(), E->getBuiltinLoc(),
-      E->getRParenLoc());
-
-  result->setValueDependent(E->isValueDependent());
-  result->setTypeDependent(E->isTypeDependent());
-
-  return result;
-}
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 
