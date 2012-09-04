@@ -204,7 +204,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     #define HIPACC_NOT_SUPPORTED(MSG) \
     assert(0 && "Hipacc: Stumbled upon unsupported expression or statement: " #MSG)
     #define HIPACC_BASE_CLASS(MSG) \
-    assert(0 && "Hipacc: Stumbled upon base class '#MST#' implementation of any derived class missing?")
+    assert(0 && "Hipacc: Stumbled upon base class, implementation of any derived class missing? Base class was: " #MSG)
 
   public:
     ASTTranslate(ASTContext& Ctx, FunctionDecl *kernelDecl, HipaccKernel
