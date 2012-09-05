@@ -571,6 +571,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     Expr *if_goto = NULL;
 
     switch (i) {
+      default:
       case 0:
         // fall back: in case the image is too small, use code variant with
         // boundary handling for all borders
@@ -692,8 +693,6 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // OpenCL: if (get_local_size(0) >= 16) goto BH_NO;
         if_goto = createBinaryOperator(Ctx, local_size_x,
             createIntegerLiteral(Ctx, 16), BO_GE, Ctx.BoolTy);
-        break;
-      default:
         break;
     }
     LDS.push_back(LD);
@@ -1705,12 +1704,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       DRE = createDeclRefExpr(Ctx, VD);
     }
 
-    IntegerLiteral *SX, *SY, *TX;
+    IntegerLiteral *SY, *TX;
     if (Acc->getSizeX() > 1) {
       TX = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
-      SX = createIntegerLiteral(Ctx, (int)Acc->getSizeX()/2);
     } else {
-      TX = SX = createIntegerLiteral(Ctx, 0);
+      TX = createIntegerLiteral(Ctx, 0);
     }
     if (Acc->getSizeY() > 1) {
       SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
@@ -1749,9 +1747,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             offset_y = createIntegerLiteral(Ctx,
                 convIdxY-(int)convMask->getSizeY()/2);
           } else {
-            offset_x = createBinaryOperator(Ctx, convExprX, SX, BO_Sub,
+            offset_x = createBinaryOperator(Ctx, convExprX,
+                createIntegerLiteral(Ctx, (int)convMask->getSizeX()/2), BO_Sub,
                 Ctx.IntTy);
-            offset_y = createBinaryOperator(Ctx, convExprY, SY, BO_Sub,
+            offset_y = createBinaryOperator(Ctx, convExprY,
+                createIntegerLiteral(Ctx, (int)convMask->getSizeY()/2), BO_Sub,
                 Ctx.IntTy);
           }
         } else {
