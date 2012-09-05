@@ -30,14 +30,13 @@
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <sys/time.h>
 
 #ifdef OpenCV
 #include "opencv2/gpu/gpu.hpp"
 #include "opencv2/imgproc/imgproc_c.h"
-#else
-#define CONVOLUTION_MASK
 #endif
 
 #include "hipacc.hpp"
@@ -49,6 +48,8 @@
 //#define HEIGHT 4096
 //#define CPU
 //#define CONST_MASK
+#define USE_LAMBDA
+//#define RUN_UNDEF
 
 using namespace hipacc;
 
@@ -95,7 +96,7 @@ void laplace_filter(unsigned char *in, unsigned char *out, int *filter, int
 }
 
 
-namespace hipacc {
+// Laplace filter in HIPAcc
 class LaplaceFilter : public Kernel<unsigned char> {
     private:
         Accessor<unsigned char> &Input;
@@ -109,10 +110,18 @@ class LaplaceFilter : public Kernel<unsigned char> {
             Input(Input),
             cMask(cMask),
             size(size)
-        {
-            addAccessor(&Input);
-        }
+        { addAccessor(&Input); }
 
+        #ifdef USE_LAMBDA
+        void kernel() {
+            int sum = convolve(cMask, HipaccSUM, [&] () -> int {
+                    return cMask() * Input(cMask);
+                    });
+            if (sum > 255) sum = 255;
+            else if (sum < 0) sum = 0;
+            output() = (unsigned char) (sum);
+        }
+        #else
         void kernel() {
             const int anchor = size >> 1;
             int sum = 0;
@@ -127,35 +136,31 @@ class LaplaceFilter : public Kernel<unsigned char> {
             else if (sum < 0) sum = 0;
             output() = (unsigned char) (sum);
         }
+        #endif
 };
-}
 
 
+/*************************************************************************
+ * Main function                                                         *
+ *************************************************************************/
 int main(int argc, const char **argv) {
     double time0, time1, dt, min_dt;
     const int width = WIDTH;
     const int height = HEIGHT;
     const int size_x = SIZE_X;
     const int size_y = SIZE_Y;
-    // all filters are 3x3
     const int offset_x = size_x >> 1;
     const int offset_y = size_y >> 1;
     std::vector<float> timings;
     float timing = 0.0f;
 
     // only filter kernel sizes 3x3 and 5x5 supported
-    if (size_x != size_y && (size_x != 3 || size_x != 5)) {
+    if (size_x != size_y || !(size_x == 3 || size_x == 5)) {
         fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!\n");
         exit(EXIT_FAILURE);
     }
 
-    // host memory for image of of width x height pixels
-    unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    unsigned char *host_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    unsigned char *reference_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    unsigned char *reference_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-
-    // Laplacian
+    // convolution filter mask
     #ifdef CONST_MASK
     const
     #endif
@@ -179,9 +184,11 @@ int main(int argc, const char **argv) {
         #endif
     };
 
-    // input and output image of width x height pixels
-    Image<unsigned char> IN(width, height);
-    Image<unsigned char> OUT(width, height);
+    // host memory for image of of width x height pixels
+    unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
+    unsigned char *host_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
+    unsigned char *reference_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
+    unsigned char *reference_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -193,6 +200,12 @@ int main(int argc, const char **argv) {
         }
     }
 
+
+    // input and output image of width x height pixels
+    Image<unsigned char> IN(width, height);
+    Image<unsigned char> OUT(width, height);
+
+    // filter mask
     Mask<int> M(size_x, size_y);
     M = mask;
 
@@ -201,16 +214,19 @@ int main(int argc, const char **argv) {
     IN = host_in;
     OUT = host_out;
 
+
+#ifndef OpenCV
     fprintf(stderr, "Calculating Laplace filter ...\n");
 
-#ifdef CONVOLUTION_MASK
     // BOUNDARY_UNDEFINED
+    #ifdef RUN_UNDEF
     BoundaryCondition<unsigned char> BcInUndef(IN, size_x, BOUNDARY_UNDEFINED);
     Accessor<unsigned char> AccInUndef(BcInUndef);
     LaplaceFilter LFU(IsOut, AccInUndef, M, size_x);
 
     LFU.execute();
     timing = hipaccGetLastKernelTiming();
+    #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
@@ -257,25 +273,15 @@ int main(int argc, const char **argv) {
     timing = hipaccGetLastKernelTiming();
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
-#endif
 
 
     // get results
     host_out = OUT.getData();
+#endif
 
 
 
 #ifdef OpenCV
-    // OpenCV uses NPP library for filtering
-    // image: 4096x4096
-    // kernel size: 3x3
-    // offset 3x3 shiftet by 1 -> 1x1
-    // output: 4096x4096 - 3x3 -> 4093x4093; start: 1,1; end: 4094,4094
-    //
-    // image: 4096x4096
-    // kernel size: 4x4
-    // offset 4x4 shiftet by 1 -> 2x2
-    // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
 #ifdef CPU
     fprintf(stderr, "\nCalculating OpenCV Laplacian filter on the CPU ...\n");
 #else
@@ -384,9 +390,9 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x] != host_out[y*width +x]) {
+            if (reference_out[y*width + x] != host_out[y*width + x]) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %d vs. %d\n", x,
-                        y, reference_out[y*width + x], host_out[y*width +x]);
+                        y, reference_out[y*width + x], host_out[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }
