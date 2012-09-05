@@ -1,15 +1,15 @@
 CC = clang++
 CC = g++
 
-MYFLAGS ?= -D WIDTH=4096 -D HEIGHT=4096 -D SIZE_X=3 -D SIZE_Y=3
+MYFLAGS ?= -D WIDTH=4096 -D HEIGHT=4096
 CFLAGS = $(MYFLAGS) -Wall -Wunused -I../../include/dsl
 LDFLAGS = -lm
 OFLAGS = -O3
 
 ifeq ($(CC),clang++)
 # use libc++ for clang++ and use NO_BOOST
-CFLAGS += -D NO_BOOST -std=c++11 -stdlib=libc++ -nostdinc -I`clang -print-file-name=include` -I`llvm-config --prefix`/usr/include/c++/v1 -I`llvm-config --includedir` -I/usr/include
-LDFLAGS = -L`llvm-config --prefix`/usr/lib -lc++
+CFLAGS += -D NO_BOOST -std=c++11 -stdlib=libc++ -nostdinc -I`clang -print-file-name=include` -I`llvm-config --includedir`/c++/v1 -I`llvm-config --includedir` -I/usr/include
+LDFLAGS += -L`llvm-config --libdir` -lc++
 else
 CFLAGS += -std=c++0x
 LDFLAGS += -lstdc++ 
