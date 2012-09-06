@@ -40,7 +40,7 @@
 #include <clang/Basic/SourceManager.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
-#include <clang/Rewrite/Rewriter.h>
+#include <clang/Rewrite/Core/Rewriter.h>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/Casting.h>

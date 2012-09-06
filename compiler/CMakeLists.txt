@@ -11,7 +11,8 @@ SET(CLANG_USED_LIBS
     clangLex
     clangParse
     clangARCMigrate
-    clangRewrite
+    clangRewriteCore
+    clangRewriteFrontend
     clangSema
     clangSerialization
     clangStaticAnalyzerFrontend
