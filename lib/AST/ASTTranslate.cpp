@@ -1390,8 +1390,9 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
 
 Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
   // TODO: create a map with all expressions not to be cloned ..
-  if (E==local_size_x) return E;
-  if (E==local_size_y) return E;
+  if (E==local_size_x || E==local_size_y) return E;
+  if (E==local_id_x || E==local_id_y) return E;
+  if (E==block_id_x || E==block_id_y) return E;
 
   // replace member class variables by kernel parameter references
   // (MemberExpr 0x4bd4af0 'int' ->d 0x4bd2330
