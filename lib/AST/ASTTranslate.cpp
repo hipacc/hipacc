@@ -1319,6 +1319,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
 
         bhStmtsVistor.push_back(outerLoop);
         bhCStmtsVistor.push_back(outerCompountStmt);
+        LambdaDeclMap.clear();
       } else {
         for (unsigned int y=0; y<Mask->getSizeY(); y++) {
           for (unsigned int x=0; x<Mask->getSizeX(); x++) {
