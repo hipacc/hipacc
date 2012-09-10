@@ -272,7 +272,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
     blockStr = "local_work_size" + LSS.str();
     gridStr = "global_work_size" + LSS.str();
   }
-  infoStr = K->getName() + "_info";
+  infoStr = K->getInfoStr();
 
   if (options.exploreConfig() || options.timeKernels()) {
     inc_ident();

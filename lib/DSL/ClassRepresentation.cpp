@@ -681,21 +681,22 @@ void HipaccKernel::createHostArgInfo(llvm::ArrayRef<Expr *> hostArgs,
     hostArgNames.push_back(iterationSpace->getOffsetY());
   }
 
+  setInfoStr();
   // bh_start_left, bh_start_right
   if (getMaxSizeX()) {
-    hostArgNames.push_back(getName() + "_info.bh_start_left");
+    hostArgNames.push_back(getInfoStr() + ".bh_start_left");
   }
-  hostArgNames.push_back(getName() + "_info.bh_start_right");
+  hostArgNames.push_back(getInfoStr() + ".bh_start_right");
   // bh_start_top, bh_start_bottom
   if (getMaxSizeY()) {
-    hostArgNames.push_back(getName() + "_info.bh_start_top");
+    hostArgNames.push_back(getInfoStr() + ".bh_start_top");
   }
   if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY()) {
-    hostArgNames.push_back(getName() + "_info.bh_start_bottom");
+    hostArgNames.push_back(getInfoStr() + ".bh_start_bottom");
   }
   // bh_fall_back
   if (getMaxSizeX() || getMaxSizeY()) {
-    hostArgNames.push_back(getName() + "_info.bh_fall_back");
+    hostArgNames.push_back(getInfoStr() + ".bh_fall_back");
   }
 }
 

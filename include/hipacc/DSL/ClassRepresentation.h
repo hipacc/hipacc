@@ -615,6 +615,8 @@ class HipaccKernel : public HipaccKernelFeatures {
     std::string name;
     std::string kernelName;
     std::string fileName;
+    std::string infoStr;
+    unsigned int infoStrCnt;
     HipaccIterationSpace *iterationSpace;
     std::map<FieldDecl *, HipaccAccessor *> imgMap;
     std::map<FieldDecl *, HipaccMask *> maskMap;
@@ -649,6 +651,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       name(VD->getNameAsString()),
       kernelName(KC->getName()),
       fileName(""),
+      infoStr(""),
+      infoStrCnt(0),
       iterationSpace(NULL),
       imgMap(),
       maskMap(),
@@ -676,6 +680,12 @@ class HipaccKernel : public HipaccKernelFeatures {
     const std::string &getKernelName() const { return kernelName; }
     void setFileName(std::string name) { fileName = name; }
     const std::string &getFileName() const { return fileName; }
+    void setInfoStr() {
+      std::stringstream LSS;
+      LSS << infoStrCnt++;
+      infoStr = name + "_info" + LSS.str();
+    }
+    const std::string &getInfoStr() const { return infoStr; }
 
     void setIterationSpace(HipaccIterationSpace *IS) {
       iterationSpace = IS;
