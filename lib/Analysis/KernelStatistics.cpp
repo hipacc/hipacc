@@ -793,7 +793,7 @@ void TransferFunctions::VisitTerminatorWhileStmt(const WhileStmt *S) {
   llvm::errs() << "WhileStmt: \n";
   llvm::errs() << "while (";
   S->getCond()->printPretty(llvm::errs(), 0,
-      PrintingPolicy(KS.Ctx.getLangOpts()));;
+      PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << ") {}\n";
 }
 
@@ -801,7 +801,7 @@ void TransferFunctions::VisitTerminatorSwitchStmt(const SwitchStmt *S) {
   llvm::errs() << "SwitchStmt: \n";
   llvm::errs() << "switch (";
   S->getCond()->printPretty(llvm::errs(), 0,
-      PrintingPolicy(KS.Ctx.getLangOpts()));;
+      PrintingPolicy(KS.Ctx.getLangOpts()));
   llvm::errs() << ") {}\n";
 }
 #endif
