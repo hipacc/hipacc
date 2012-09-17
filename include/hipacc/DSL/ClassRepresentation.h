@@ -630,6 +630,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     llvm::SmallVector<FieldDecl *, 16> argFields;
     unsigned int max_threads_for_kernel;
     unsigned int max_size_x, max_size_y;
+    unsigned int max_size_x_undef, max_size_y_undef;
     unsigned int num_threads_x, num_threads_y;
     unsigned int num_reg, num_lmem, num_smem, num_cmem;
 
@@ -664,8 +665,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       argNames(),
       argFields(),
       max_threads_for_kernel(0),
-      max_size_x(0),
-      max_size_y(0),
+      max_size_x(0), max_size_y(0),
+      max_size_x_undef(0), max_size_y_undef(0),
       num_threads_x(default_num_threads_x),
       num_threads_y(default_num_threads_y),
       num_reg(0),
@@ -794,6 +795,12 @@ class HipaccKernel : public HipaccKernelFeatures {
     unsigned int getWarpSize() { return max_threads_per_warp; }
     unsigned int getMaxSizeX() { return max_size_x<=1?0:max_size_x>>1; }
     unsigned int getMaxSizeY() { return max_size_y<=1?0:max_size_y>>1; }
+    unsigned int getMaxSizeXUndef() {
+      return max_size_x_undef<=1?0:max_size_x_undef>>1;
+    }
+    unsigned int getMaxSizeYUndef() {
+      return max_size_y_undef<=1?0:max_size_y_undef>>1;
+    }
     unsigned int getNumThreadsX() { return num_threads_x; }
     unsigned int getNumThreadsY() { return num_threads_y; }
 };

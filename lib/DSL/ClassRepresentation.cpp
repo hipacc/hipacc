@@ -179,12 +179,18 @@ void HipaccIterationSpace::createOutputAccessor() {
 void HipaccKernel::calcSizes() {
   for (std::map<FieldDecl *, HipaccAccessor *>::iterator iter = imgMap.begin(),
       eiter=imgMap.end(); iter!=eiter; ++iter) {
+    // only Accessors with proper border handling mode
     if (iter->second->getSizeX() > max_size_x &&
         iter->second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
       max_size_x = iter->second->getSizeX();
     if (iter->second->getSizeY() > max_size_y &&
         iter->second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
       max_size_y = iter->second->getSizeY();
+    // including Accessors with UNDEFINED border handling mode
+    if (iter->second->getSizeX() > max_size_x_undef)
+      max_size_x_undef = iter->second->getSizeX();
+    if (iter->second->getSizeY() > max_size_y_undef)
+      max_size_y_undef = iter->second->getSizeY();
   }
 }
 

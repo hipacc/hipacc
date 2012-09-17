@@ -463,6 +463,9 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
     MemoryAccess memAcc = KernelClass->getImgAccess(FD);
 
+    // bail out for user defined kernels
+    if (KernelClass->getKernelType()==UserOperator) break;
+
     // check if we need border handling
     if (Acc->getBoundaryHandling() != BOUNDARY_UNDEFINED) {
       if (Acc->getSizeX() > 1 || Acc->getSizeY() > 1) border_handling = true;
@@ -815,8 +818,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     // stage pixels into shared memory
     // ppt + ceil((size_y-1)/sy) iterations
     int p_add = 0;
-    if (Kernel->getMaxSizeY()) {
-      p_add = (int)ceilf(2*Kernel->getMaxSizeY() /
+    if (Kernel->getMaxSizeYUndef()) {
+      p_add = (int)ceilf(2*Kernel->getMaxSizeYUndef() /
           (float)Kernel->getNumThreadsY());
     }
     llvm::SmallVector<Stmt *, 16> labelBody;
@@ -1768,8 +1771,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         } else {
           switch (memAcc) {
             case READ_ONLY:
-              if (Acc->getBoundaryHandling()!=BOUNDARY_UNDEFINED &&
-                  bh_variant.borderVal) {
+              if (bh_variant.borderVal) {
                 return addBorderHandling(LHS, offset_x, offset_y, Acc);
               }
               // fall through

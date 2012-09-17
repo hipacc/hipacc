@@ -536,7 +536,7 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
       local_offset_y);
 
   Expr *RHS;
-  if (Acc->getBoundaryHandling()!=BOUNDARY_UNDEFINED && bh_variant.borderVal) {
+  if (bh_variant.borderVal) {
     llvm::SmallVector<Stmt *, 16> bhStmts;
     llvm::SmallVector<CompoundStmt *, 16> bhCStmts;
     RHS = addBorderHandling(paramDRE, global_offset_x, global_offset_y, Acc,
