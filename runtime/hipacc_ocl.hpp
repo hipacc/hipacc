@@ -597,13 +597,28 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
     if (print_progress) std::cerr << ".";
 
     if (err != CL_SUCCESS || print_log) {
-        char program_build_options[10240];
-        char program_build_log[10240];
-        err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_OPTIONS, sizeof(program_build_options), program_build_options, NULL);
-        err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_LOG, sizeof(program_build_log), program_build_log, NULL);
-        if (print_progress) std::cerr << ". failed!" << std::endl;
+        // determine the size of the options and log
+        size_t log_size, options_size;
+        err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
+        err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+
+        // allocate memory for the options and log
+        char *program_build_options = (char *)malloc(options_size);
+        char *program_build_log = (char *)malloc(log_size);
+
+        // get the options and log
+        err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
+        err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
+        if (print_progress) {
+            if (err != CL_SUCCESS) std::cerr << ". failed!" << std::endl;
+            else std::cerr << "." << std::endl;
+        }
         std::cerr << "<HIPACC:> OpenCL build options : " << std::endl << program_build_options << std::endl;
         std::cerr << "<HIPACC:> OpenCL build log : " << std::endl << program_build_log << std::endl;
+
+        // free memory for options and log
+        free(program_build_options);
+        free(program_build_log);
     }
     checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
 
