@@ -195,12 +195,14 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
       switch (direction) {
         case HOST_TO_DEVICE:
           resultStr += "hipaccWriteSymbol<" + Mask->getTypeStr() + ">(\"";
-          resultStr += Mask->getName() + K->getName() + "\", " + mem;
+          resultStr += Mask->getName() + K->getName() + "\", ";
+          resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
           resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
           break;
         case DEVICE_TO_HOST:
           resultStr += "hipaccReadSymbol<" + Mask->getTypeStr() + ">(";
-          resultStr += mem + ", \"" + Mask->getName();
+          resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
+          resultStr += ", \"" + Mask->getName();
           resultStr += "\", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
           break;
         case DEVICE_TO_DEVICE:
@@ -212,10 +214,8 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
       }
     }
   } else {
-    resultStr += "hipaccWriteBuffer(";
-    resultStr += Mask->getName();
-    resultStr += ", (" + Mask->getTypeStr();
-    resultStr += " *)" + mem + ");";
+    resultStr += "hipaccWriteBuffer(" + Mask->getName();
+    resultStr += ", (" + Mask->getTypeStr() + " *)" + mem + ");";
   }
 }
 

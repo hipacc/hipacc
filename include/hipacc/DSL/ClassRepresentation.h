@@ -116,10 +116,10 @@ class HipaccImage {
     void setStride(std::string s) { stride = s; }
     void setWidthType(std::string wt) { widthType = wt; }
     void setHeightType(std::string ht) { heightType = ht; }
-    void setPixelType(QualType pt) {
-      type = pt;
-      pixelType = pt.getAsString();
-      pixelSize = Ctx.getTypeSize(pt)/8;
+    void setPixelType(QualType QT) {
+      type = QT;
+      pixelType = QT.getAsString();
+      pixelSize = Ctx.getTypeSize(QT)/8;
     }
     VarDecl *getDecl() { return VD; }
     std::string getWidth() { return width; }
