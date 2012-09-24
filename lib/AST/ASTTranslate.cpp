@@ -1204,7 +1204,8 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       
       // check if Mask is initialized with constants and only for the first
       // iteration (gidYRef is a DeclRefExpr and not a BinaryOperator)
-      if (!Mask->isConstant() && isa<DeclRefExpr>(gidYRef)) {
+      if (!Mask->isConstant() && isa<DeclRefExpr>(gidYRef) &&
+          !bh_variant.borderVal) { // emit only once for the different code variants
         unsigned int DiagIDConstMask =
           Diags.getCustomDiagID(DiagnosticsEngine::Warning,
               "Unable to unroll convolution loop and propagate constants: Mask '%0' for 'convolve' call needs to be initialized using constants.");
