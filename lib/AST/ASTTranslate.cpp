@@ -1608,13 +1608,6 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           // within convolute lambda-function propagate constant
           result = Clone(Mask->getInitList()->getInit(Mask->getSizeY() *
                 convIdxX + convIdxY)->IgnoreParenCasts());
-          // in case CUDA code is generated, cast single-precision floating
-          // point constants explicitly - implicit conversions are extensive
-          // on older hardware (CC < 2.0)
-          if (compilerOptions.emitCUDA() && Mask->getType() == Ctx.FloatTy) {
-            result = createCStyleCastExpr(Ctx, Ctx.FloatTy, CK_FloatingCast,
-                result, NULL, NULL);
-          }
         } else {
           Expr *midx_x = NULL, *midx_y = NULL;
 
