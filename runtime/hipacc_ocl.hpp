@@ -871,6 +871,8 @@ double hipaccCopyBufferBenchmark(cl_mem src_buffer, cl_mem dst_buffer, int num_d
         }
         if ((end-start) < min_dt) min_dt = (end-start);
     }
+    err = clReleaseEvent(event);
+    checkErr(err, "clReleaseEvent()");
 
     // return time in ms
     return min_dt*1.0e-6f;
@@ -944,6 +946,8 @@ void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *loc
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing (" << local_work_size[0]*local_work_size[1] << ": " << local_work_size[0] << "x" << local_work_size[1] << "): " << (end-start)*1.0e-6f << "(ms)" << std::endl;
     }
+    err = clReleaseEvent(event);
+    checkErr(err, "clReleaseEvent()");
     total_time += (end-start)*1.0e-6f;
     last_gpu_timing = (end-start)*1.0e-6f;
 }
