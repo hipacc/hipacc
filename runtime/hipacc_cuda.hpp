@@ -646,6 +646,9 @@ void hipaccLaunchKernel(const char *kernel, dim3 grid, dim3 block, bool print_ti
     cudaEventSynchronize(end);
     cudaEventElapsedTime(&time, start, end);
 
+    cudaEventDestroy(start);
+    cudaEventDestroy(end);
+
     last_gpu_timing = time;
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << time << "(ms)" << std::endl;
@@ -823,6 +826,9 @@ void hipaccLaunchKernel(CUfunction &kernel, const char *kernel_name, dim3 grid, 
     cudaEventSynchronize(end);
     cudaEventElapsedTime(&time, start, end);
     total_time += time;
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(end);
 
     last_gpu_timing = time;
     if (print_timing) {
