@@ -1536,11 +1536,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               Mask->setInitList(ILE);
 
               for (unsigned int i=0; i<ILE->getNumInits(); ++i) {
-                Expr *Ex = ILE->getInit(i)->IgnoreParenCasts();
-
-                if (!isa<IntegerLiteral>(Ex->IgnoreParenCasts()) &&
-                    !isa<FloatingLiteral>(Ex->IgnoreParenCasts()) &&
-                    !isa<CharacterLiteral>((Ex)->IgnoreParenCasts())) {
+                if (!ILE->getInit(i)->isConstantInitializer(Context, false)) {
                   isMaskConstant = false;
                   break;
                 }
@@ -2049,22 +2045,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       for (unsigned int j=0; j<Mask->getSizeY(); j++) {
         kernelOut << "        {";
         for (unsigned int k=0; k<Mask->getSizeX(); k++) {
-          Expr *Ex = ILE->getInit(num_init++)->IgnoreParenCasts();
-          if (isa<IntegerLiteral>(Ex->IgnoreParenCasts())) {
-            IntegerLiteral *IL = dyn_cast<IntegerLiteral>(Ex);
-            kernelOut << IL->getValue().getSExtValue();
-          } else if (isa<FloatingLiteral>(Ex->IgnoreParenCasts())) {
-            FloatingLiteral *FL = dyn_cast<FloatingLiteral>(Ex);
-            llvm::APFloat APF = FL->getValue();
-            if (&APF.getSemantics() == (const llvm::fltSemantics*)&llvm::APFloat::IEEEsingle) {
-              kernelOut << FL->getValue().convertToFloat();
-            } else {
-              kernelOut << FL->getValue().convertToDouble();
-            }
-          } else if (isa<CharacterLiteral>((Ex)->IgnoreParenCasts())) {
-            CharacterLiteral *CL = dyn_cast<CharacterLiteral>(Ex);
-            kernelOut << CL->getValue();
-          }
+          ILE->getInit(num_init++)->printPretty(kernelOut, 0, Policy, 0);
           if (k<Mask->getSizeX()-1) {
             kernelOut << ", ";
           }
