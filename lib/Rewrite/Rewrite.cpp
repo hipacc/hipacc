@@ -75,6 +75,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     // is handled
     llvm::SmallVector<CXXMemberCallExpr *, 16> ReductionCalls;
     llvm::SmallVector<HipaccGlobalReduction *, 16> InvokedReductions;
+    // store interpolation methods required for CUDA
+    std::vector<std::string> InterpolationDefinitions;
 
     // pointer to main function
     FunctionDecl *mainFD;
@@ -235,10 +237,29 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
     }
   }
 
+
   // add include files for CUDA
   std::string newStr;
+
   // get include header string, including a header twice is fine
   stringCreator.writeHeaders(newStr);
+
+  // add interpolation include and define interpolation functions for CUDA
+  if (InterpolationDefinitions.size()) {
+    newStr += "#include \"hipacc_cuda_interpolate.hpp\"\n";
+
+    // sort definitions and remove duplicate definitions
+    std::sort(InterpolationDefinitions.begin(), InterpolationDefinitions.end());
+    InterpolationDefinitions.erase(std::unique(InterpolationDefinitions.begin(),
+          InterpolationDefinitions.end()), InterpolationDefinitions.end());
+
+    // add interpolation definitions
+    for (unsigned int i=0, e=InterpolationDefinitions.size(); i!=e; ++i) {
+      newStr += InterpolationDefinitions.data()[i];
+    }
+    newStr += "\n";
+  }
+
   // include .cu files for normal kernels
   if (compilerOptions.emitCUDA() && !compilerOptions.exploreConfig()) {
     for (llvm::DenseMap<ValueDecl *, HipaccKernel *>::iterator
@@ -1962,7 +1983,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       if (!inc) {
         inc = true;
         if (compilerOptions.emitCUDA()) {
-          kernelOut << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
+          if (!emitHints) {
+            kernelOut << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
+          }
         } else {
           kernelOut << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
         }
@@ -1980,10 +2003,31 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
             suffix, Acc->getInterpolation(), Acc->getBoundaryHandling(),
             resultStr);
+        if (compilerOptions.emitCUDA()) {
+          if (!emitHints) {
+            kernelOut << resultStr;
+          } else {
+            // emit interpolation definitions at the beginning at the file
+            InterpolationDefinitions.push_back(resultStr);
+          }
+        } else {
+          kernelOut << resultStr;
+        }
 
+        resultStr.erase();
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
             suffix, InterpolateNO, BOUNDARY_UNDEFINED, resultStr);
-        kernelOut << resultStr;
+
+        if (compilerOptions.emitCUDA()) {
+          if (!emitHints) {
+            kernelOut << resultStr;
+          } else {
+            // emit interpolation definitions at the beginning at the file
+            InterpolationDefinitions.push_back(resultStr);
+          }
+        } else {
+          kernelOut << resultStr;
+        }
       }
     }
   }
