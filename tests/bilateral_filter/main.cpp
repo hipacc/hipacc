@@ -84,7 +84,7 @@ void bilateral_filter(float *in, float *out, int sigma_d, int sigma_r, int
 }
 
 
-namespace hipacc {
+// Kernel description in HIPAcc
 #ifndef CONVOLUTION_MASK
 class BilateralFilter : public Kernel<float> {
     private:
@@ -174,7 +174,6 @@ class BilateralFilterMask : public Kernel<float> {
         }
 };
 #endif
-}
 
 
 int main(int argc, const char **argv) {

@@ -133,7 +133,7 @@ void vertical_mean_filter(float *in, float *out, int d, int t, int width, int he
 }
 
 
-namespace hipacc {
+// Kernel description in HIPAcc
 class HorizontalMeanFilter : public Kernel<float> {
     private:
         Accessor<float> &Input;
@@ -225,7 +225,6 @@ class VerticalMeanFilter : public Kernel<float> {
             #endif
         }
 };
-}
 
 
 int main(int argc, const char **argv) {

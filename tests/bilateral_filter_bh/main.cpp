@@ -127,7 +127,7 @@ void bilateral_filter(float *in, float *out, int sigma_d, int sigma_r, int
 }
 
 
-namespace hipacc {
+// Kernel description in HIPAcc
 class BilateralFilterNOBH : public Kernel<float> {
     private:
         Accessor<float> &Input;
@@ -500,7 +500,6 @@ class BilateralFilterBHCONSTANT : public Kernel<float> {
             output() = (float) (p / d);
         }
 };
-}
 
 
 int main(int argc, const char **argv) {

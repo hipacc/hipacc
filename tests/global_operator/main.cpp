@@ -108,7 +108,7 @@ data_t calc_sum_pixel(data_t *in, data_t neutral, int width, int height) {
 }
 
 
-namespace hipacc {
+// Kernel description in HIPAcc
 template<typename data_t>
 struct MinReduction : public GlobalReduction<data_t> {
     public:
@@ -159,7 +159,6 @@ struct SumReduction : public GlobalReduction<data_t> {
             return left + right;
         }
 };
-}
 
 
 int main(int argc, const char **argv) {

@@ -87,7 +87,7 @@ void erode_filter(unsigned char *in, unsigned char *out, int size_x, int size_y,
 }
 
 
-namespace hipacc {
+// Kernel description in HIPAcc
 class ErodeFilter : public Kernel<unsigned char> {
     private:
         Accessor<unsigned char> &Input;
@@ -119,7 +119,6 @@ class ErodeFilter : public Kernel<unsigned char> {
             output() = min_val;
         }
 };
-}
 
 
 int main(int argc, const char **argv) {

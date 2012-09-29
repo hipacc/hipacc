@@ -145,7 +145,7 @@ void blur_filter(unsigned char *in, unsigned char *out, int size_x, int size_y,
 #endif
 
 
-namespace hipacc {
+// Kernel description in HIPAcc
 class BlurFilter : public Kernel<unsigned char> {
     private:
         Accessor<unsigned char> &Input;
@@ -210,7 +210,6 @@ class BlurFilter : public Kernel<unsigned char> {
             #endif
         }
 };
-}
 
 
 int main(int argc, const char **argv) {

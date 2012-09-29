@@ -74,7 +74,7 @@ void access_nn(data_t *in, data_t *out, int in_width, int in_height, int
 }
 
 
-namespace hipacc {
+// Kernel description in HIPAcc
 class CopyNN : public Kernel<int> {
     private:
         Accessor<int> &Input;
@@ -91,7 +91,6 @@ class CopyNN : public Kernel<int> {
             output() = Input();
         }
 };
-}
 
 
 int main(int argc, const char **argv) {
