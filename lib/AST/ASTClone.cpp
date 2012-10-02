@@ -445,7 +445,8 @@ Expr *ASTTranslate::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
   Expr *result = new (Ctx) CompoundAssignOperator(Clone(E->getLHS()),
       Clone(E->getRHS()), E->getOpcode(), E->getType(), E->getValueKind(),
       E->getObjectKind(), E->getComputationLHSType(),
-      E->getComputationResultType(), E->getOperatorLoc());
+      E->getComputationResultType(), E->getOperatorLoc(),
+      E->isFPContractable());
 
   setExprProps(E, result);
 

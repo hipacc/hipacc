@@ -1499,7 +1499,8 @@ Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
     // use type of LHS, so that the widened type is used in case of
     // vectorization
     result = new (Ctx) BinaryOperator(LHS, RHS, E->getOpcode(), LHS->getType(),
-        E->getValueKind(), E->getObjectKind(), E->getOperatorLoc());
+        E->getValueKind(), E->getObjectKind(), E->getOperatorLoc(),
+        E->isFPContractable());
   }
   if (E->getOpcode() == BO_Assign) writeImageRHS = NULL;
 
