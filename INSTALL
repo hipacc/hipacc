@@ -1,7 +1,7 @@
 HIPAcc Prerequisites:
 =====================
 
-- Cmake (2.8 or later)
+- CMake (2.8 or later)
 - Clang (see dependencies.sh)
 - LLVM (see dependencies.sh)
 - libcxx (see dependencies.sh)
@@ -25,7 +25,7 @@ The following variables can be set to tell cmake where to look for certain
 components:
 CMAKE_INSTALL_PREFIX    - Installation prefix
 OPENCL_INC_PATH         - OpenCL include path (e.g. -D OPENCL_INC_PATH=/opt/cuda/include)
-OPENCL_LIB_PATH         - OpenCL library path (e.g. -D OPENCL_LIB_PATH=/usr/lib64/nvidia)
+OPENCL_LIB_PATH         - OpenCL library path (e.g. -D OPENCL_LIB_PATH=/usr/lib64)
 CUDA_BIN_PATH           - CUDA binary path (e.g. -D CUDA_BIN_PATH=/opt/cuda/bin)
 
 The following options can be enabled or disabled:

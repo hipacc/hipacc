@@ -27,7 +27,7 @@ IterationSpace<float> IsOut(OUT);
 Accessor<float> AccIn(BcInMirror);
 
 // define kernel
-GaussianFilter GF(IS, AccIn, GMask, size_x, size_y);
+GaussianFilter GF(IsOut, AccIn, GMask, size_x, size_y);
 
 // execute kernel
 GF.execute();

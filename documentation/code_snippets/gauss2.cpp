@@ -13,7 +13,7 @@ class GaussianFilter : public Kernel<float> {
     }
 
     void kernel() {
-      output() = convolve(cMask, SUM, [&] () {
+      output() = convolve(cMask, HipaccSUM, [&] () {
         return cMask()*Input(cMask);
         });
     }
