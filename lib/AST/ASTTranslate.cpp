@@ -1808,7 +1808,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
     // getX() method -> gid_x - is_offset_x
     if (ME->getMemberNameInfo().getAsString() == "getX") {
-      return removeISOffsetX(gidXRef, Acc);
+      return createParenExpr(Ctx, removeISOffsetX(gidXRef, Acc));
     }
 
     // getY() method -> gid_y
@@ -1854,7 +1854,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
             createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL, NULL);
       } else {
-        idx_x = removeISOffsetX(gidXRef, Acc);
+        idx_x = createParenExpr(Ctx, removeISOffsetX(gidXRef, Acc));
       }
 
       return idx_x;
