@@ -170,7 +170,12 @@ QualType SIMDTypes::getSIMDType(ParmVarDecl *PVD, SIMDWidth simd_width) {
   }
 
   // get raw type, discarding pointer
-  const BuiltinType *BT = PVD->getType()->getPointeeType()->getAs<BuiltinType>();
+  const BuiltinType *BT;
+  if (PVD->getType()->isPointerType()) {
+    BT = PVD->getType()->getPointeeType()->getAs<BuiltinType>();
+  } else {
+    BT = PVD->getType()->getAs<BuiltinType>();
+  }
 
   if (typeToVectorType[simd_width].count(BT)) {
     SIMDType = typeToVectorType[simd_width][BT];

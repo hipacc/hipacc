@@ -87,6 +87,8 @@ UnaryOperator *createUnaryOperator(ASTContext &Ctx, Expr *input,
     UnaryOperator::Opcode opc, QualType ResTy);
 BinaryOperator *createBinaryOperator(ASTContext &Ctx, Expr *lhs, Expr *rhs,
     BinaryOperator::Opcode opc, QualType ResTy);
+CompoundAssignOperator *createCompoundAssignOperator(ASTContext &Ctx, Expr *lhs,
+    Expr *rhs, BinaryOperator::Opcode opc, QualType ResTy);
 
 // creates an AST node for paren expressions
 ParenExpr *createParenExpr(ASTContext &Ctx, Expr *val);

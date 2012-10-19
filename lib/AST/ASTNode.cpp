@@ -336,13 +336,35 @@ UnaryOperator *createUnaryOperator(ASTContext &Ctx, Expr *input,
 
 BinaryOperator *createBinaryOperator(ASTContext &Ctx, Expr *lhs, Expr *rhs,
     BinaryOperator::Opcode opc, QualType ResTy) {
+  // check if this is an CompoundAssignOperator
+  if (opc > BO_Assign && opc <= BO_OrAssign)
+    return createCompoundAssignOperator(Ctx, lhs, rhs, opc, ResTy);
+
   BinaryOperator *E = new (Ctx) BinaryOperator(Stmt::EmptyShell());
 
   E->setLHS(lhs);
   E->setRHS(rhs);
   E->setOpcode(opc);
   E->setOperatorLoc(SourceLocation());
+  E->setFPContractable(false);
   E->setType(ResTy);
+
+  return E;
+}
+
+
+CompoundAssignOperator *createCompoundAssignOperator(ASTContext &Ctx, Expr *lhs,
+    Expr *rhs, BinaryOperator::Opcode opc, QualType ResTy) {
+  CompoundAssignOperator *E = new (Ctx) CompoundAssignOperator(Stmt::EmptyShell());
+
+  E->setLHS(lhs);
+  E->setRHS(rhs);
+  E->setOpcode(opc);
+  E->setOperatorLoc(SourceLocation());
+  E->setFPContractable(false);
+  E->setType(ResTy);
+  E->setComputationLHSType(ResTy);
+  E->setComputationResultType(ResTy);
 
   return E;
 }

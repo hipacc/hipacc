@@ -101,9 +101,11 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       break;
     case InterpolateNN:
       idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-          createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL, NULL);
+          createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL,
+          Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-          createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL, NULL);
+          createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
+          Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       break;
     case InterpolateLF:
     case InterpolateCF:
@@ -442,9 +444,9 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // construct coordinate: (int2)(gid_x, gid_y)
   coord = createBinaryOperator(Ctx, idx_x, idx_y, BO_Comma, Ctx.IntTy);
   coord = createParenExpr(Ctx, coord);
-  coord = createCStyleCastExpr(Ctx, simdTypes.getSIMDType(Ctx.IntTy, "int",
-        SIMD2), CK_VectorSplat, coord, NULL, NULL);
-
+  QualType QTcoord = simdTypes.getSIMDType(Ctx.IntTy, "int", SIMD2);
+  coord = createCStyleCastExpr(Ctx, QTcoord, CK_VectorSplat, coord, NULL,
+      Ctx.getTrivialTypeSourceInfo(QTcoord));
   FunctionDecl *image_function = getImageFunction(Acc, memAcc);
 
   // create function call for image objects in OpenCL
@@ -473,7 +475,7 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     // writeImageRHS is set by VisitBinaryOperator - side effect
     writeImageRHS = createParenExpr(Ctx, writeImageRHS);
     writeImageRHS = createCStyleCastExpr(Ctx, QT, CK_VectorSplat, writeImageRHS,
-        NULL, NULL);
+        NULL, Ctx.getTrivialTypeSourceInfo(QT));
     // parameters for write_image
     llvm::SmallVector<Expr *, 16> args;
     args.push_back(LHS);

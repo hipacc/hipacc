@@ -406,12 +406,14 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     if (Acc->getInterpolation()!=InterpolateNO) {
       Expr *scaleExprX = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
             Ctx.FloatTy, CK_IntegralToFloating, Acc->getWidthDecl(), NULL,
-            NULL), Kernel->getIterationSpace()->getAccessor()->getWidthDecl(),
-          BO_Div, Ctx.FloatTy);
+            Ctx.getTrivialTypeSourceInfo(Ctx.FloatTy)),
+          Kernel->getIterationSpace()->getAccessor()->getWidthDecl(), BO_Div,
+          Ctx.FloatTy);
       Expr *scaleExprY = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
             Ctx.FloatTy, CK_IntegralToFloating, Acc->getHeightDecl(), NULL,
-            NULL), Kernel->getIterationSpace()->getAccessor()->getHeightDecl(),
-          BO_Div, Ctx.FloatTy);
+            Ctx.getTrivialTypeSourceInfo(Ctx.FloatTy)),
+          Kernel->getIterationSpace()->getAccessor()->getHeightDecl(), BO_Div,
+          Ctx.FloatTy);
       VarDecl *scaleDeclX = createVarDecl(Ctx, kernelDecl, Acc->getName() +
           "scale_x", Ctx.FloatTy, scaleExprX);
       VarDecl *scaleDeclY = createVarDecl(Ctx, kernelDecl, Acc->getName() +
@@ -445,7 +447,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
           VarDecl *VD = CloneDecl(PVD);
 
           VD->setInit(createCStyleCastExpr(Ctx, VD->getType(), CK_BitCast,
-                createDeclRefExpr(Ctx, PVD), NULL, NULL));
+                createDeclRefExpr(Ctx, PVD), NULL,
+                Ctx.getTrivialTypeSourceInfo(VD->getType())));
 
           kernelBody.push_back(createDeclStmt(Ctx, VD));
         }
@@ -973,11 +976,20 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
 
       if (!result) {
         name = PVD->getName();
-        name += "4";
         QT = PVD->getType();
 
+        // only vectorize image PVDs
         if (Kernel->vectorize()) {
-          QT = simdTypes.getSIMDType(PVD, SIMD4);
+          for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
+            FieldDecl *FD = KernelClass->getImgFields().data()[i];
+
+            // parameter name matches
+            if (PVD->getName().equals(FD->getName())) {
+              name += "4";
+              QT = simdTypes.getSIMDType(PVD, SIMD4);
+              break;
+            }
+          }
         }
       }
 
@@ -1115,8 +1127,8 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
     switch (convMode) {
       case HipaccSUM:
         // red += val;
-        convRedExpr = createBinaryOperator(Ctx, convRed, retVal, BO_AddAssign,
-            convRed->getType());
+        convRedExpr = createCompoundAssignOperator(Ctx, convRed, retVal,
+            BO_AddAssign, convRed->getType());
         break;
       case HipaccMIN:
         // if (val < red) red = val;
@@ -1132,8 +1144,8 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
         break;
       case HipaccPROD:
         // red *= val;
-        convRedExpr = createBinaryOperator(Ctx, convRed, retVal, BO_MulAssign,
-            convRed->getType());
+        convRedExpr = createCompoundAssignOperator(Ctx, convRed, retVal,
+            BO_MulAssign, convRed->getType());
         break;
       case HipaccMEDIAN:
       default:
@@ -1852,7 +1864,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       // remove is_offset_x and scale index to Accessor size
       if (Acc->getInterpolation()!=InterpolateNO) {
         idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-            createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL, NULL);
+            createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL,
+            Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       } else {
         idx_x = createParenExpr(Ctx, removeISOffsetX(gidXRef, Acc));
       }
@@ -1866,7 +1879,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       // scale index to Accessor size
       if (Acc->getInterpolation()!=InterpolateNO) {
         idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-            createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL, NULL);
+            createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
+            Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       }
 
       return idx_y;
