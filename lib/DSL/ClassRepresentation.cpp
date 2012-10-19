@@ -615,30 +615,21 @@ void HipaccKernel::createHostArgInfo(llvm::ArrayRef<Expr *> hostArgs,
       case HipaccKernelClass::Normal:
         hostArgs[i+1]->printPretty(SS, 0, PrintingPolicy(Ctx.getLangOpts()));
 
-        if (options.emitCUDA()) {
+        if (isa<DeclRefExpr>(hostArgs[i+1]->IgnoreParenCasts())) {
           hostArgNames.push_back(SS.str());
         } else {
-          // create a temporary variable for integer literals and floating
-          // literals for OpenCL
-          if (isa<IntegerLiteral>(hostArgs[i+1]->IgnoreParenCasts()) ||
-              isa<FloatingLiteral>(hostArgs[i+1]->IgnoreParenCasts()) ||
-              isa<CharacterLiteral>(hostArgs[i+1]->IgnoreParenCasts())) {
+          // get the text string for the argument and create a temporary
+          std::stringstream LSS;
+          LSS << "_tmpLiteral" << literalCount;
+          literalCount++;
 
-            // get the text string for the argument
-            std::stringstream LSS;
-            LSS << "_tmpLiteral" << literalCount;
-            literalCount++;
-
-            hostLiterals += hostArgs[i+1]->IgnoreParenCasts()->getType().getAsString();
-            hostLiterals += " ";
-            hostLiterals += LSS.str();
-            hostLiterals += " = ";
-            hostLiterals += SS.str();
-            hostLiterals += ";\n    ";
-            hostArgNames.push_back(LSS.str());
-          } else {
-            hostArgNames.push_back(SS.str());
-          }
+          hostLiterals += hostArgs[i+1]->IgnoreParenCasts()->getType().getAsString();
+          hostLiterals += " ";
+          hostLiterals += LSS.str();
+          hostLiterals += " = ";
+          hostLiterals += SS.str();
+          hostLiterals += ";\n    ";
+          hostArgNames.push_back(LSS.str());
         }
 
         break;

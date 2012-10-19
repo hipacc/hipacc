@@ -674,51 +674,14 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         std::string widthStr;
         llvm::raw_string_ostream WS(widthStr);
         CCE->getArg(0)->printPretty(WS, 0, PrintingPolicy(CI.getLangOpts()));
+        Img->setWidth(WS.str());
+        Img->setWidthType(CCE->getArg(0)->getType().getAsString());
+
         // get the text string for the image height
         std::string heightStr;
         llvm::raw_string_ostream HS(heightStr);
         CCE->getArg(1)->printPretty(HS, 0, PrintingPolicy(CI.getLangOpts()));
-
-        // create a temporary variable for integer literals and floating
-        // literals for OpenCL
-        if (isa<IntegerLiteral>(CCE->getArg(0)->IgnoreParenCasts()) ||
-            isa<FloatingLiteral>(CCE->getArg(0)->IgnoreParenCasts()) ||
-            isa<CharacterLiteral>(CCE->getArg(0)->IgnoreParenCasts())) {
-
-          std::stringstream LSS;
-          LSS << "_tmpLiteral" << literalCount;
-          literalCount++;
-
-          newStr += CCE->getArg(0)->getType().getAsString();
-          newStr += " ";
-          newStr += LSS.str();
-          newStr += " = ";
-          newStr += WS.str();
-          newStr += ";\n    ";
-          Img->setWidth(LSS.str());
-        } else {
-          Img->setWidth(WS.str());
-        }
-        Img->setWidthType(CCE->getArg(0)->getType().getAsString());
-
-        if (isa<IntegerLiteral>(CCE->getArg(1)->IgnoreParenCasts()) ||
-            isa<FloatingLiteral>(CCE->getArg(1)->IgnoreParenCasts()) ||
-            isa<CharacterLiteral>(CCE->getArg(1)->IgnoreParenCasts())) {
-
-          std::stringstream LSS;
-          LSS << "_tmpLiteral" << literalCount;
-          literalCount++;
-
-          newStr += CCE->getArg(1)->getType().getAsString();
-          newStr += " ";
-          newStr += LSS.str();
-          newStr += " = ";
-          newStr += HS.str();
-          newStr += ";\n    ";
-          Img->setHeight(LSS.str());
-        } else {
-          Img->setHeight(HS.str());
-        }
+        Img->setHeight(HS.str());
         Img->setHeightType(CCE->getArg(1)->getType().getAsString());
 
         // create memory allocation string
