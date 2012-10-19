@@ -148,7 +148,6 @@ class GlobalReduction {
 
         data_t reduce(void) {
             data_t result = neutral;
-            bool first = true;
 
             ElementIterator end = redIS.end();
             ElementIterator iter = redIS.begin();
@@ -158,13 +157,7 @@ class GlobalReduction {
 
             // advance iterator and apply kernel to whole iteration space
             while (iter != end) {
-                data_t current = imgAcc();
-                if (first) {
-                    first = false;
-                    result = reduce(neutral, current);
-                } else {
-                    result = reduce(result, current);
-                }
+                result = reduce(result, imgAcc());
                 ++iter;
             }
 
@@ -181,7 +174,6 @@ data_t reduce(Image<data_t> &img, data_t neutral, const Function& fun) {
     data_t result = neutral;
     IterationSpace<data_t> redIS(img);
     Accessor<data_t> imgAcc(img);
-    bool first = true;
 
     ElementIterator end = redIS.end();
     ElementIterator iter = redIS.begin();
@@ -191,13 +183,7 @@ data_t reduce(Image<data_t> &img, data_t neutral, const Function& fun) {
 
     // advance iterator and apply kernel to whole iteration space
     while (iter != end) {
-        data_t current = imgAcc();
-        if (first) {
-            first = false;
-            result = fun(neutral, current);
-        } else {
-            result = fun(result, current);
-        }
+        result = fun(result, imgAcc());
         ++iter;
     }
 
