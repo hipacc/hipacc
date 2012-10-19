@@ -134,13 +134,13 @@ class GlobalReduction {
 
     public:
         GlobalReduction(Image<data_t> &img, data_t neutral) :
-            imgAcc(img, 0, 0, img.getWidth(), img.getHeight()),
+            imgAcc(img, img.getWidth(), img.getHeight(), 0, 0),
             redIS(img),
             neutral(neutral)
         {} 
         GlobalReduction(Accessor<data_t> &acc, data_t neutral) :
             imgAcc(acc),
-            redIS(acc.img, acc.offset_x, acc.offset_y, acc.width, acc.height),
+            redIS(acc.img, acc.width, acc.height, acc.offset_x, acc.offset_y),
             neutral(neutral)
         {} 
 
@@ -167,6 +167,9 @@ class GlobalReduction {
                 }
                 ++iter;
             }
+
+            // de-register output accessors
+            imgAcc.setEI(NULL);
 
             return result;
         }
