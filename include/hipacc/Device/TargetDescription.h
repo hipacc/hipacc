@@ -62,7 +62,6 @@ class HipaccDeviceOptions {
 
   public:
     HipaccDeviceOptions(CompilerOptions &options) :
-      local_memory_threshold(999),
       default_num_threads_x(128),
       default_num_threads_y(1)
     {
@@ -71,6 +70,7 @@ class HipaccDeviceOptions {
         case TESLA_11:
           alignment = 512;  // Quadro FX 1800
           alignment = 1024; // GeForce GTS 8800
+          local_memory_threshold = 9999,
           pixels_per_thread[PointOperator] = 8;
           pixels_per_thread[LocalOperator] = 16;
           pixels_per_thread[GlobalOperator] = 31;
@@ -83,6 +83,7 @@ class HipaccDeviceOptions {
         case TESLA_12:
         case TESLA_13:
           alignment = 256;
+          local_memory_threshold = 9999;
           pixels_per_thread[PointOperator] = 8;
           pixels_per_thread[LocalOperator] = 16;
           pixels_per_thread[GlobalOperator] = 31;
@@ -97,6 +98,8 @@ class HipaccDeviceOptions {
         case KEPLER_30:
         case KEPLER_35:
           alignment = 256;
+          if (options.emitCUDA()) local_memory_threshold = 6;
+          else local_memory_threshold = 11;
           default_num_threads_x = 256;
           pixels_per_thread[PointOperator] = 1;
           pixels_per_thread[LocalOperator] = 8;
@@ -109,6 +112,7 @@ class HipaccDeviceOptions {
           break;
         case EVERGREEN:
           alignment = 1024;
+          local_memory_threshold = 17;
           pixels_per_thread[PointOperator] = 4;
           pixels_per_thread[LocalOperator] = 16;
           pixels_per_thread[GlobalOperator] = 32;
@@ -120,6 +124,7 @@ class HipaccDeviceOptions {
           break;
         case NORTHERN_ISLAND:
           alignment = 256;
+          local_memory_threshold = 21;
           pixels_per_thread[PointOperator] = 4;
           pixels_per_thread[LocalOperator] = 16;
           pixels_per_thread[GlobalOperator] = 32;
@@ -153,7 +158,10 @@ class HipaccDeviceOptions {
       }
 
       if (options.useLocalMemory(USER_ON)) {
-        local_memory_threshold = 0;
+        local_memory_threshold = 2;
+      }
+      if (options.useLocalMemory(USER_OFF)) {
+        local_memory_threshold = 9999;
       }
 
       if (options.useTextureMemory(USER_ON) ||
