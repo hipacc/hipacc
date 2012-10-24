@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
   llvm::PrettyStackTraceProgram X(argc, argv);
 
   // argument list for CompilerInvocation after removing our compiler flags
-  llvm::SmallVector<const char *, 16> Args;
+  SmallVector<const char *, 16> Args;
   CompilerOptions compilerOptions = CompilerOptions();
 
   // support exceptions
@@ -115,15 +115,15 @@ int main(int argc, char *argv[]) {
 
   // parse command line options
   for (int i=1; i<argc; ++i) {
-    if (llvm::StringRef(argv[i]) == "-emit-cuda") {
+    if (StringRef(argv[i]) == "-emit-cuda") {
       compilerOptions.setTargetCode(TARGET_CUDA);
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-emit-opencl-x86") {
+    if (StringRef(argv[i]) == "-emit-opencl-x86") {
       compilerOptions.setTargetCode(TARGET_OpenCLx86);
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-emit-padding") {
+    if (StringRef(argv[i]) == "-emit-padding") {
       assert(i<(argc-1) && "Mandatory alignment parameter for -emit-padding switch missing.");
       std::istringstream buffer(argv[i+1]);
       int val;
@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
       ++i;
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-compute-capability") {
+    if (StringRef(argv[i]) == "-compute-capability") {
       assert(i<(argc-1) && "Mandatory version parameter for -compute-capability switch missing.");
       std::istringstream buffer(argv[i+1]);
       int val;
@@ -149,11 +149,11 @@ int main(int argc, char *argv[]) {
       ++i;
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-explore-config") {
+    if (StringRef(argv[i]) == "-explore-config") {
       compilerOptions.setExploreConfig(USER_ON);
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-use-config") {
+    if (StringRef(argv[i]) == "-use-config") {
       assert(i<(argc-1) && "Mandatory configuration specification for -use-config switch missing.");
       int x=0, y=0, ret=0;
       ret = sscanf(argv[i+1], "%dx%d", &x, &y);
@@ -166,19 +166,19 @@ int main(int argc, char *argv[]) {
       ++i;
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-time-kernels") {
+    if (StringRef(argv[i]) == "-time-kernels") {
       compilerOptions.setTimeKernels(USER_ON);
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-use-textures") {
+    if (StringRef(argv[i]) == "-use-textures") {
       assert(i<(argc-1) && "Mandatory texture memory specification for -use-textures switch missing.");
-      if (llvm::StringRef(argv[i+1]) == "off") {
+      if (StringRef(argv[i+1]) == "off") {
         compilerOptions.setTextureMemory(NoTexture);
-      } else if (llvm::StringRef(argv[i+1]) == "Linear1D") {
+      } else if (StringRef(argv[i+1]) == "Linear1D") {
         compilerOptions.setTextureMemory(Linear1D);
-      } else if (llvm::StringRef(argv[i+1]) == "Linear2D") {
+      } else if (StringRef(argv[i+1]) == "Linear2D") {
         compilerOptions.setTextureMemory(Linear2D);
-      } else if (llvm::StringRef(argv[i+1]) == "Array2D") {
+      } else if (StringRef(argv[i+1]) == "Array2D") {
         compilerOptions.setTextureMemory(Array2D);
       } else {
         llvm::errs() << "Expected valid texture memory specification for -use-textures switch.\n";
@@ -188,11 +188,11 @@ int main(int argc, char *argv[]) {
       ++i;
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-use-local") {
+    if (StringRef(argv[i]) == "-use-local") {
       assert(i<(argc-1) && "Mandatory local memory specification for -use-local switch missing.");
-      if (llvm::StringRef(argv[i+1]) == "off") {
+      if (StringRef(argv[i+1]) == "off") {
         compilerOptions.setLocalMemory(USER_OFF);
-      } else if (llvm::StringRef(argv[i+1]) == "on") {
+      } else if (StringRef(argv[i+1]) == "on") {
         compilerOptions.setLocalMemory(USER_ON);
       } else {
         llvm::errs() << "Expected valid local memory specification for -use-local switch.\n";
@@ -202,11 +202,11 @@ int main(int argc, char *argv[]) {
       ++i;
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-vectorize") {
+    if (StringRef(argv[i]) == "-vectorize") {
       assert(i<(argc-1) && "Mandatory vectorization specification for -vectorize switch missing.");
-      if (llvm::StringRef(argv[i+1]) == "off") {
+      if (StringRef(argv[i+1]) == "off") {
         compilerOptions.setVectorizeKernels(USER_OFF);
-      } else if (llvm::StringRef(argv[i+1]) == "on") {
+      } else if (StringRef(argv[i+1]) == "on") {
         compilerOptions.setVectorizeKernels(USER_ON);
       } else {
         llvm::errs() << "Expected valid vectorization specification for -use-vectorize switch.\n";
@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
       ++i;
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-pixels-per-thread") {
+    if (StringRef(argv[i]) == "-pixels-per-thread") {
       assert(i<(argc-1) && "Mandatory integer parameter for -pixels-per-thread switch missing.");
       std::istringstream buffer(argv[i+1]);
       int val;
@@ -229,13 +229,11 @@ int main(int argc, char *argv[]) {
       ++i;
       continue;
     }
-    if (llvm::StringRef(argv[i]) == "-help" || llvm::StringRef(argv[i]) ==
-        "--help") {
+    if (StringRef(argv[i]) == "-help" || StringRef(argv[i]) == "--help") {
       printUsage();
       return EXIT_SUCCESS;
     }
-    if (llvm::StringRef(argv[i]) == "-version" || llvm::StringRef(argv[i]) ==
-        "--version") {
+    if (StringRef(argv[i]) == "-version" || StringRef(argv[i]) == "--version") {
       printVersion();
       return EXIT_SUCCESS;
     }
@@ -294,11 +292,12 @@ int main(int argc, char *argv[]) {
   void *mainAddr = (void *) (intptr_t) getExecutablePath;
   llvm::sys::Path Path = getExecutablePath(argv[0]);
 
-  llvm::OwningPtr<CompilerInstance> Clang(new CompilerInstance());
-  llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+  OwningPtr<CompilerInstance> Clang(new CompilerInstance());
+  IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
 
+  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
   TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
-  DiagnosticsEngine Diags(DiagID, DiagsBuffer);
+  DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagsBuffer);
 
   // initialize a compiler invocation object from the arguments
   bool success;
@@ -330,7 +329,7 @@ int main(int argc, char *argv[]) {
   if (!success) return EXIT_FAILURE;
 
   // create and execute the frontend action
-  llvm::OwningPtr<ASTFrontendAction> Act(new HipaccRewriteAction(compilerOptions));
+  OwningPtr<ASTFrontendAction> Act(new HipaccRewriteAction(compilerOptions));
 
   if (!Clang->ExecuteAction(*Act)) return EXIT_FAILURE;
 
