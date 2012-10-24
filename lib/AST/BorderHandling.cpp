@@ -130,8 +130,8 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
   return addBorderHandling(LHS, EX, EY, Acc, bhStmtsVistor, bhCStmtsVistor);
 }
 Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
-    HipaccAccessor *Acc, llvm::SmallVector<Stmt *, 16> &bhStmts,
-    llvm::SmallVector<CompoundStmt *, 16> &bhCStmts) {
+    HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
+    SmallVector<CompoundStmt *, 16> &bhCStmts) {
   Expr *RHS, *result;
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
 

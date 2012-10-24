@@ -236,7 +236,7 @@ QualType hipacc::Builtin::Context::getBuiltinType(unsigned int Id) const {
 }
 
 QualType hipacc::Builtin::Context::getBuiltinType(const char *TypeStr) const {
-  llvm::SmallVector<QualType, 8> ArgTypes;
+  SmallVector<QualType, 8> ArgTypes;
 
   QualType ResType = DecodeTypeFromStr(TypeStr, Ctx, true);
 
@@ -315,7 +315,7 @@ void hipacc::Builtin::Context::InitializeBuiltins() {
 
 
 void hipacc::Builtin::Context::getBuiltinNames(TargetID target,
-    llvm::SmallVectorImpl<const char *> &Names) {
+    SmallVectorImpl<const char *> &Names) {
   for (unsigned int i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
     if (BuiltinInfo[i].builtin_target == target)
       Names.push_back(BuiltinInfo[i].Name);
@@ -342,7 +342,7 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
 
   // create Decl objects for each parameter, adding them to the FunctionDecl.
   if (const FunctionProtoType *FT = dyn_cast<FunctionProtoType>(R)) {
-    llvm::SmallVector<ParmVarDecl *, 16> Params;
+    SmallVector<ParmVarDecl *, 16> Params;
     for (unsigned int i = 0, e = FT->getNumArgs(); i != e; ++i) {
       ParmVarDecl *parm = ParmVarDecl::Create(Ctx, New, SourceLocation(),
           SourceLocation(), 0, FT->getArgType(i), /*TInfo=*/0, SC_None,
@@ -359,7 +359,7 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
 }
 
 
-FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(llvm::StringRef Name,
+FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
     QualType QT, TargetID target) const {
   for (unsigned int i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
     if (BuiltinInfo[i].Name == Name && BuiltinInfo[i].FD->getResultType() == QT) {

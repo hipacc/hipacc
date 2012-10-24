@@ -79,10 +79,8 @@ class SIMDTypes {
 
     QualType getSIMDType(ParmVarDecl *PVD, SIMDWidth simd_width);
     QualType getSIMDType(VarDecl *VD, SIMDWidth simd_width);
-    QualType getSIMDType(QualType QT, llvm::StringRef base, SIMDWidth
-        simd_width);
-    QualType createSIMDType(QualType QT, llvm::StringRef base, SIMDWidth
-        simd_width);
+    QualType getSIMDType(QualType QT, StringRef base, SIMDWidth simd_width);
+    QualType createSIMDType(QualType QT, StringRef base, SIMDWidth simd_width);
     Expr *propagate(VarDecl *VD, Expr *E);
 };
 } // end namespace hipacc

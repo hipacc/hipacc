@@ -73,8 +73,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
     // store .reduce() calls - the kernels are created when the TranslationUnit
     // is handled
-    llvm::SmallVector<CXXMemberCallExpr *, 16> ReductionCalls;
-    llvm::SmallVector<HipaccGlobalReduction *, 16> InvokedReductions;
+    SmallVector<CXXMemberCallExpr *, 16> ReductionCalls;
+    SmallVector<HipaccGlobalReduction *, 16> InvokedReductions;
     // store interpolation methods required for CUDA
     std::vector<std::string> InterpolationDefinitions;
 
@@ -139,7 +139,7 @@ ASTConsumer *CreateRewrite(CompilerInstance &CI, CompilerOptions &options,
 
 
 ASTConsumer *HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
-    llvm::StringRef InFile) {
+    StringRef InFile) {
   if (llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, InFile)) {
     return CreateRewrite(CI, options, OS);
   }
@@ -1212,8 +1212,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
           unsigned int num_img = 0, num_mask = 0;
-          llvm::SmallVector<FieldDecl *, 16> imgFields = KC->getImgFields();
-          llvm::SmallVector<FieldDecl *, 16> maskFields = KC->getMaskFields();
+          SmallVector<FieldDecl *, 16> imgFields = KC->getImgFields();
+          SmallVector<FieldDecl *, 16> maskFields = KC->getMaskFields();
           for (unsigned int i=0; i<CCE->getNumArgs(); i++) {
             if (isa<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts())) {
               DeclRefExpr *DRE =
@@ -1252,14 +1252,14 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           }
 
           // create function declaration for kernel
-          llvm::StringRef kernelName;
+          StringRef kernelName;
           std::string name;
           if (compilerOptions.emitCUDA()) {
             name = "cu" + KC->getName() + VD->getNameAsString();
           } else {
             name = "cl" + KC->getName() + VD->getNameAsString();
           }
-          kernelName = llvm::StringRef(name);
+          kernelName = StringRef(name);
           std::string filename = KC->getName() + VD->getNameAsString();
           K->setFileName(filename);
 
@@ -1291,7 +1291,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           int reg=0, lmem=0, smem=0, cmem=0;
           char line[FILENAME_MAX];
-          llvm::SmallVector<std::string, 16> lines;
+          SmallVector<std::string, 16> lines;
           FILE *fpipe;
 
           if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {

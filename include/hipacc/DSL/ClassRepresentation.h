@@ -343,7 +343,7 @@ class HipaccMask {
     std::string typeStr;
     bool is_constant;
     bool is_printed;
-    llvm::SmallVector<HipaccKernel *, 16> kernels;
+    SmallVector<HipaccKernel *, 16> kernels;
     std::string hostMemName;
     Expr *hostMemExpr;
 
@@ -398,9 +398,7 @@ class HipaccMask {
     bool isPrinted() { return is_printed; }
     InitListExpr *getInitList() { return init_list; }
     void addKernel(HipaccKernel *K) { kernels.push_back(K); }
-    llvm::SmallVector<HipaccKernel *, 16> &getKernels() {
-      return kernels;
-    }
+    SmallVector<HipaccKernel *, 16> &getKernels() { return kernels; }
     void setHostMemName(std::string name) { hostMemName = name; }
     std::string getHostMemName() { return hostMemName; }
     void setHostMemExpr(Expr *expr) { hostMemExpr = expr; }
@@ -422,16 +420,16 @@ class HipaccKernelClass {
       ArgumentKind kind;
       FieldDecl *field;
       QualType type;
-      llvm::StringRef name;
+      StringRef name;
     };
 
     std::string name;
     CXXMethodDecl *kernelFunction;
     KernelStatistics *kernelStatistics;
     // kernel parameter information
-    llvm::SmallVector<argumentInfo, 16> arguments;
-    llvm::SmallVector<FieldDecl *, 16> imgFields;
-    llvm::SmallVector<FieldDecl *, 16> maskFields;
+    SmallVector<argumentInfo, 16> arguments;
+    SmallVector<FieldDecl *, 16> imgFields;
+    SmallVector<FieldDecl *, 16> maskFields;
 
   public:
     HipaccKernelClass(std::string name) :
@@ -469,16 +467,16 @@ class HipaccKernelClass {
     }
 
 
-    void addArg(FieldDecl *FD, QualType QT, llvm::StringRef Name) {
+    void addArg(FieldDecl *FD, QualType QT, StringRef Name) {
       argumentInfo a = {Normal, FD, QT, Name};
       arguments.push_back(a);
     }
-    void addImgArg(FieldDecl *FD, QualType QT, llvm::StringRef Name) {
+    void addImgArg(FieldDecl *FD, QualType QT, StringRef Name) {
       argumentInfo a = {Image, FD, QT, Name};
       arguments.push_back(a);
       imgFields.push_back(FD);
     }
-    void addMaskArg(FieldDecl *FD, QualType QT, llvm::StringRef Name) {
+    void addMaskArg(FieldDecl *FD, QualType QT, StringRef Name) {
       argumentInfo a = {Mask, FD, QT, Name};
       arguments.push_back(a);
       maskFields.push_back(FD);
@@ -488,9 +486,9 @@ class HipaccKernelClass {
     unsigned int getNumImages() { return imgFields.size(); }
     unsigned int getNumMasks() { return maskFields.size(); }
 
-    llvm::SmallVector<argumentInfo, 16> &getArguments() { return arguments; }
-    llvm::SmallVector<FieldDecl *, 16> &getImgFields() { return imgFields; }
-    llvm::SmallVector<FieldDecl *, 16> &getMaskFields() { return maskFields; }
+    SmallVector<argumentInfo, 16> &getArguments() { return arguments; }
+    SmallVector<FieldDecl *, 16> &getImgFields() { return imgFields; }
+    SmallVector<FieldDecl *, 16> &getMaskFields() { return maskFields; }
 
     friend class HipaccKernel;
 };
@@ -620,14 +618,14 @@ class HipaccKernel : public HipaccKernelFeatures {
     HipaccIterationSpace *iterationSpace;
     std::map<FieldDecl *, HipaccAccessor *> imgMap;
     std::map<FieldDecl *, HipaccMask *> maskMap;
-    llvm::SmallVector<QualType, 16> argTypesCUDA;
-    llvm::SmallVector<QualType, 16> argTypesOpenCL;
-    llvm::SmallVector<QualType, 16> argTypesC;
-    llvm::SmallVector<std::string, 16> argTypeNamesCUDA;
-    llvm::SmallVector<std::string, 16> argTypeNamesOpenCL;
-    llvm::SmallVector<llvm::StringRef, 16> argNames;
-    llvm::SmallVector<std::string, 16> hostArgNames;
-    llvm::SmallVector<FieldDecl *, 16> argFields;
+    SmallVector<QualType, 16> argTypesCUDA;
+    SmallVector<QualType, 16> argTypesOpenCL;
+    SmallVector<QualType, 16> argTypesC;
+    SmallVector<std::string, 16> argTypeNamesCUDA;
+    SmallVector<std::string, 16> argTypeNamesOpenCL;
+    SmallVector<StringRef, 16> argNames;
+    SmallVector<std::string, 16> hostArgNames;
+    SmallVector<FieldDecl *, 16> argFields;
     unsigned int max_threads_for_kernel;
     unsigned int max_size_x, max_size_y;
     unsigned int max_size_x_undef, max_size_y_undef;
@@ -638,9 +636,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     void calcConfig();
     void createArgInfo();
     void addParam(QualType QT1, QualType QT2, QualType QT3, std::string typeC,
-        std::string typeO, llvm::StringRef name, FieldDecl *fd);
-    void createHostArgInfo(llvm::ArrayRef<Expr *> hostArgs, std::string
-        &hostLiterals, unsigned int &literalCount);
+        std::string typeO, StringRef name, FieldDecl *fd);
+    void createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string &hostLiterals,
+        unsigned int &literalCount);
 
   public:
     HipaccKernel(ASTContext &Ctx, VarDecl *VD, HipaccKernelClass *KC,
@@ -739,11 +737,11 @@ class HipaccKernel : public HipaccKernelFeatures {
       if (options.emitCUDA()) return argTypeNamesCUDA.data();
       else return argTypeNamesOpenCL.data();
     }
-    llvm::StringRef *getArgNames() {
+    StringRef *getArgNames() {
       createArgInfo();
       return argNames.data();
     }
-    void setHostArgNames(llvm::ArrayRef<Expr *>hostArgs, std::string
+    void setHostArgNames(ArrayRef<Expr *>hostArgs, std::string
         &hostLiterals, unsigned int &literalCount) {
       createHostArgInfo(hostArgs, hostLiterals, literalCount);
     }
@@ -751,9 +749,9 @@ class HipaccKernel : public HipaccKernelFeatures {
       assert(hostArgNames.size() && "host argument names not set");
       return hostArgNames.data();
     }
-    llvm::ArrayRef<FieldDecl *>getArgFields() {
+    ArrayRef<FieldDecl *>getArgFields() {
       createArgInfo();
-      return llvm::makeArrayRef(argFields);
+      return makeArrayRef(argFields);
     }
 
     void setResourceUsage(int reg, int lmem, int smem, int cmem) {

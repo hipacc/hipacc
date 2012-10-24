@@ -432,7 +432,7 @@ void HipaccKernel::setDefaultConfig() {
 }
 
 void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3, std::string
-    typeC, std::string typeO, llvm::StringRef name, FieldDecl *fd) {
+    typeC, std::string typeO, StringRef name, FieldDecl *fd) {
   argTypesCUDA.push_back(QT1);
   argTypesOpenCL.push_back(QT2);
   argTypesC.push_back(QT3);
@@ -447,7 +447,7 @@ void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3, std::strin
 void HipaccKernel::createArgInfo() {
   if (argTypesCUDA.size()) return;
 
-  llvm::SmallVector<HipaccKernelClass::argumentInfo, 16> arguments =
+  SmallVector<HipaccKernelClass::argumentInfo, 16> arguments =
     KC->arguments;
 
   // add output image from iteration space 
@@ -461,7 +461,7 @@ void HipaccKernel::createArgInfo() {
   for (unsigned int i=0; i<KC->getNumArgs(); i++) {
     FieldDecl *FD = arguments.data()[i].field;
     QualType QT = arguments.data()[i].type;
-    llvm::StringRef name = arguments.data()[i].name;
+    StringRef name = arguments.data()[i].name;
     QualType QTtmp;
 
     switch (arguments.data()[i].kind) {
@@ -598,8 +598,8 @@ void HipaccKernel::createArgInfo() {
 }
 
 
-void HipaccKernel::createHostArgInfo(llvm::ArrayRef<Expr *> hostArgs,
-    std::string &hostLiterals, unsigned int &literalCount) {
+void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
+    &hostLiterals, unsigned int &literalCount) {
   if (hostArgNames.size()) hostArgNames.clear();
 
   // iteration space image

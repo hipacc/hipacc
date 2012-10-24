@@ -186,7 +186,7 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
   FunctionDecl *interpolation = getInterpolationFunction(Acc);
 
   // parameters for interpolate function call
-  llvm::SmallVector<Expr *, 16> args;
+  SmallVector<Expr *, 16> args;
   if (compilerOptions.emitCUDA() && Kernel->useTextureMemory(Acc)) {
     assert(isa<ParmVarDecl>(LHS->getDecl()) && "texture variable must be a ParmVarDecl!");
     ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());

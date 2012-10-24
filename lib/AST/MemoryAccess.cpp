@@ -404,7 +404,7 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   setExprProps(LHS, LHStex);
 
   // parameters for tex1Dfetch, tex2D, or surf2Dwrite
-  llvm::SmallVector<Expr *, 16> args;
+  SmallVector<Expr *, 16> args;
 
   if (memAcc == READ_ONLY) {
     args.push_back(LHStex);
@@ -452,7 +452,7 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // create function call for image objects in OpenCL
   if (memAcc == READ_ONLY) {
     // parameters for read_image
-    llvm::SmallVector<Expr *, 16> args;
+    SmallVector<Expr *, 16> args;
     args.push_back(LHS);
     args.push_back(kernelSamplerRef);
     args.push_back(coord);
@@ -477,7 +477,7 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     writeImageRHS = createCStyleCastExpr(Ctx, QT, CK_VectorSplat, writeImageRHS,
         NULL, Ctx.getTrivialTypeSourceInfo(QT));
     // parameters for write_image
-    llvm::SmallVector<Expr *, 16> args;
+    SmallVector<Expr *, 16> args;
     args.push_back(LHS);
     args.push_back(coord);
     args.push_back(writeImageRHS);
@@ -528,7 +528,7 @@ Expr *ASTTranslate::accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr
 
 // stage single image line (warp size) to shared memory
 void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
-    llvm::SmallVector<Stmt *, 16> &stageBody, Expr *local_offset_x, Expr
+    SmallVector<Stmt *, 16> &stageBody, Expr *local_offset_x, Expr
     *local_offset_y, Expr *global_offset_x, Expr *global_offset_y) {
   VarDecl *VD = KernelDeclMapShared[PVD];
   HipaccAccessor *Acc = KernelDeclMapAcc[PVD];
@@ -539,8 +539,8 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
 
   Expr *RHS;
   if (bh_variant.borderVal) {
-    llvm::SmallVector<Stmt *, 16> bhStmts;
-    llvm::SmallVector<CompoundStmt *, 16> bhCStmts;
+    SmallVector<Stmt *, 16> bhStmts;
+    SmallVector<CompoundStmt *, 16> bhCStmts;
     RHS = addBorderHandling(paramDRE, global_offset_x, global_offset_y, Acc,
         bhStmts, bhCStmts);
 
@@ -558,7 +558,7 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
 
 
 // stage iteration p to shared memory
-void ASTTranslate::stageIterationToSharedMemory(llvm::SmallVector<Stmt *, 16>
+void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
     &stageBody, int p) {
   for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
       N=kernelDecl->param_end(); I!=N; ++I) {
@@ -576,7 +576,7 @@ void ASTTranslate::stageIterationToSharedMemory(llvm::SmallVector<Stmt *, 16>
 
       Expr *global_offset_x = NULL, *global_offset_y = NULL;
       IntegerLiteral *SX2, *SY2;
-      llvm::SmallVector<Stmt *, 16> ifBody;
+      SmallVector<Stmt *, 16> ifBody;
 
       if (Acc->getSizeX() > 1) {
         SX2 = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());

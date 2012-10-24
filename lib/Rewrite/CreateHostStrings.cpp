@@ -187,7 +187,7 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
 void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
     mem, MemoryTransferDirection direction, std::string &resultStr) {
   if (options.emitCUDA()) {
-    llvm::SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
+    SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
     for (unsigned int i=0; i<kernels.size(); i++) {
       HipaccKernel *K = kernels[i];
       if (i) resultStr += "\n" + ident;

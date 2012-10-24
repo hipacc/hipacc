@@ -81,8 +81,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // "global variables"
     unsigned int literalCount;
-    llvm::SmallVector<Stmt *, 16> bhStmtsVistor;
-    llvm::SmallVector<CompoundStmt *, 16> bhCStmtsVistor;
+    SmallVector<Stmt *, 16> bhStmtsVistor;
+    SmallVector<CompoundStmt *, 16> bhCStmtsVistor;
     CompoundStmt *curCompoundStmtVistor;
     HipaccMask *convMask;
     DeclRefExpr *convRed;
@@ -153,8 +153,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY, HipaccAccessor
         *Acc);
     Expr *addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY, HipaccAccessor
-        *Acc, llvm::SmallVector<Stmt *, 16> &bhStmts,
-        llvm::SmallVector<CompoundStmt *, 16> &bhCStmts);
+        *Acc, SmallVector<Stmt *, 16> &bhStmts, SmallVector<CompoundStmt *, 16>
+        &bhCStmts);
     Stmt *addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper);
     Stmt *addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower);
     Stmt *addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper);
@@ -194,11 +194,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=NULL, Expr
         *offset_y=NULL);
     Expr *accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
-    void stageLineToSharedMemory(ParmVarDecl *PVD, llvm::SmallVector<Stmt *, 16>
+    void stageLineToSharedMemory(ParmVarDecl *PVD, SmallVector<Stmt *, 16>
         &stageBody, Expr *local_offset_x, Expr *local_offset_y, Expr
         *global_offset_x, Expr *global_offset_y);
-    void stageIterationToSharedMemory(llvm::SmallVector<Stmt *, 16> &stageBody,
-        int p);
+    void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int
+        p);
 
     // default error message for unsupported expressions and statements.
     #define HIPACC_NOT_SUPPORTED(MSG) \

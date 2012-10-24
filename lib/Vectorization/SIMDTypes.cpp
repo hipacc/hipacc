@@ -38,7 +38,7 @@ using namespace ASTNode;
 using namespace hipacc::Builtin;
 
 
-QualType SIMDTypes::createSIMDType(QualType QT, llvm::StringRef base, SIMDWidth
+QualType SIMDTypes::createSIMDType(QualType QT, StringRef base, SIMDWidth
     simd_width) {
   int lanes;
   std::stringstream ss;
@@ -85,7 +85,7 @@ QualType SIMDTypes::createSIMDType(QualType QT, llvm::StringRef base, SIMDWidth
 }
 
 
-QualType SIMDTypes::getSIMDType(QualType QT, llvm::StringRef base, SIMDWidth
+QualType SIMDTypes::getSIMDType(QualType QT, StringRef base, SIMDWidth
     simd_width) {
   const BuiltinType *BT = QT->getAs<BuiltinType>();
 
@@ -272,7 +272,7 @@ Expr *SIMDTypes::propagate(VarDecl *VD, Expr *E) {
   }
 
   // parameters for make_vec
-  llvm::SmallVector<Expr *, 16> args;
+  SmallVector<Expr *, 16> args;
   args.push_back(E);
 
   return createFunctionCall(Ctx, make_vec, args); 

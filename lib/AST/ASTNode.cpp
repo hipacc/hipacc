@@ -38,13 +38,13 @@ namespace clang {
 namespace hipacc {
 namespace ASTNode {
 
-FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC,
-    llvm::StringRef Name, QualType RT, unsigned int numArgs, QualType *ArgTypes,
-    llvm::StringRef *ArgNames, bool isVariadic) {
+FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
+    Name, QualType RT, unsigned int numArgs, QualType *ArgTypes, StringRef
+    *ArgNames, bool isVariadic) {
   bool hasWrittenPrototype = true;
   QualType T;
-  llvm::SmallVector<QualType, 16> ArgTys;
-  llvm::SmallVector<ParmVarDecl*, 16> Params;
+  SmallVector<QualType, 16> ArgTys;
+  SmallVector<ParmVarDecl*, 16> Params;
   Params.reserve(numArgs);
   ArgTys.reserve(numArgs);
 
@@ -104,8 +104,8 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC,
 }
 
 
-CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD,
-    llvm::SmallVector<Expr *, 16> Expr) {
+CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD, SmallVector<Expr
+    *, 16> Expr) {
   // get reference to FD
   DeclRefExpr *FDRef = createDeclRefExpr(Ctx, FD);
   // now, we cast the reference to a pointer to the function type.
@@ -189,7 +189,7 @@ FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, double val) {
 }
 
 
-StringLiteral *createStringLiteral(ASTContext &Ctx, llvm::StringRef Name) {
+StringLiteral *createStringLiteral(ASTContext &Ctx, StringRef Name) {
   StringLiteral *E = StringLiteral::CreateEmpty(Ctx, 1);
   QualType StrTy = Ctx.CharTy;
 
@@ -216,7 +216,7 @@ DeclStmt *createDeclStmt(ASTContext &Ctx, Decl *VD) {
 }
 
 
-VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, llvm::StringRef Name,
+VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
     QualType T, Expr *init) {
   VarDecl *VD = VarDecl::Create(Ctx, NULL, SourceLocation(), SourceLocation(),
       NULL, QualType(), NULL, SC_None, SC_None);
@@ -233,9 +233,9 @@ VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, llvm::StringRef Name,
 }
 
 
-RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, llvm::StringRef
-    Name, TagDecl::TagKind TK, unsigned int numDecls, QualType *declTypes,
-    llvm::StringRef *declNames) {
+RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
+    TagDecl::TagKind TK, unsigned int numDecls, QualType *declTypes, StringRef
+    *declNames) {
   RecordDecl *RD = RecordDecl::Create(Ctx, TK, DC, SourceLocation(),
       SourceLocation(), &Ctx.Idents.get(Name));
 
@@ -259,8 +259,8 @@ MemberExpr *createMemberExpr(ASTContext &Ctx, Expr *base, bool isArrow,
 }
 
 
-CompoundStmt *createCompoundStmt(ASTContext &Ctx, llvm::SmallVector<Stmt *, 16>
-    Stmts) {
+CompoundStmt *createCompoundStmt(ASTContext &Ctx, SmallVector<Stmt *, 16> Stmts)
+{
   CompoundStmt *S = new (Ctx) CompoundStmt(Stmt::EmptyShell());
 
   S->setStmts(Ctx, Stmts.data(), Stmts.size());
@@ -376,7 +376,7 @@ ParenExpr *createParenExpr(ASTContext &Ctx, Expr *val) {
 
 
 ExtVectorElementExpr *createExtVectorElementExpr(ASTContext &Ctx, QualType ty,
-    Expr *base, llvm::StringRef name) {
+    Expr *base, StringRef name) {
   return new (Ctx) ExtVectorElementExpr(ty, VK_RValue, base,
       Ctx.Idents.get(name), SourceLocation());
 }
@@ -391,8 +391,7 @@ DeclRefExpr *createDeclRefExpr(ASTContext &Ctx, ValueDecl *VD) {
 }
 
 
-LabelDecl *createLabelDecl(ASTContext &Ctx, DeclContext *DC, llvm::StringRef
-    Name) {
+LabelDecl *createLabelDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name) {
   LabelDecl *LD = LabelDecl::Create(Ctx, DC, SourceLocation(),
       &Ctx.Idents.get(Name));
 

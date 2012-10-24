@@ -155,8 +155,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   FunctionDecl *barrier;
   ImplicitCastExpr *get_global_size0, *get_global_size1;
   ImplicitCastExpr *get_global_id0, *get_global_id1;
-  llvm::SmallVector<Expr *, 16> tmpArg0;
-  llvm::SmallVector<Expr *, 16> tmpArg1;
+  SmallVector<Expr *, 16> tmpArg0;
+  SmallVector<Expr *, 16> tmpArg1;
   tmpArg0.push_back(createIntegerLiteral(Ctx, 0));
   tmpArg1.push_back(createIntegerLiteral(Ctx, 1));
 
@@ -205,7 +205,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
           BO_LT, Ctx.BoolTy), createUnaryOperator(Ctx, gidYRef, UO_PostInc,
             gidYRef->getType()), innerLoop);
 
-    llvm::SmallVector<Stmt *, 16> kernelBody;
+    SmallVector<Stmt *, 16> kernelBody;
     kernelBody.push_back(outerLoop);
     CompoundStmt *CS = createCompoundStmt(Ctx, kernelBody);
 
@@ -217,8 +217,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     //{
     //  unsigned int x, y, z;
     //};
-    llvm::SmallVector<QualType, 16> uintDeclTypes;
-    llvm::SmallVector<llvm::StringRef, 16> uintDeclNames;
+    SmallVector<QualType, 16> uintDeclTypes;
+    SmallVector<StringRef, 16> uintDeclNames;
     uintDeclTypes.push_back(Ctx.UnsignedIntTy);
     uintDeclTypes.push_back(Ctx.UnsignedIntTy);
     uintDeclTypes.push_back(Ctx.UnsignedIntTy);
@@ -392,7 +392,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   gidYRef = gid_y_ref;
 
   // add gid_x and gid_y declarations to kernel body
-  llvm::SmallVector<Stmt *, 16> kernelBody;
+  SmallVector<Stmt *, 16> kernelBody;
   kernelBody.push_back(gid_x_stmt);
   kernelBody.push_back(gid_y_stmt);
 
@@ -565,7 +565,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   }
 
 
-  llvm::SmallVector<LabelDecl *, 16> LDS;
+  SmallVector<LabelDecl *, 16> LDS;
   LabelDecl *LDExit = createLabelDecl(Ctx, kernelDecl, "BH_EXIT");
   LabelStmt *LSExit = createLabelStmt(Ctx, LDExit, NULL);
   GotoStmt *GSExit = createGotoStmt(Ctx, LDExit);
@@ -825,7 +825,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       p_add = (int)ceilf(2*Kernel->getMaxSizeYUndef() /
           (float)Kernel->getNumThreadsY());
     }
-    llvm::SmallVector<Stmt *, 16> labelBody;
+    SmallVector<Stmt *, 16> labelBody;
     for (int p=0; use_shared && p<(int)Kernel->getPixelsPerThread()+p_add; p++) {
       if (p==0) {
         // initialize lid_y and gid_y
@@ -849,7 +849,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     // synchronize shared memory
     if (use_shared) {
       // add memory barrier synchronization
-      llvm::SmallVector<Expr *, 16> args;
+      SmallVector<Expr *, 16> args;
       if (compilerOptions.emitCUDA()) {
         labelBody.push_back(createFunctionCall(Ctx, barrier, args));
       } else {
@@ -865,7 +865,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       KernelDeclMap.clear();
 
       // calculate multiple pixels per thread
-      llvm::SmallVector<Stmt *, 16> pptBody;
+      SmallVector<Stmt *, 16> pptBody;
   
       if (p==0) {
         // initialize lid_y and gid_y
@@ -1086,7 +1086,7 @@ Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
   CompoundStmt* result = new (Ctx) CompoundStmt(Ctx, NULL, 0, S->getLBracLoc(),
       S->getLBracLoc());
 
-  llvm::SmallVector<Stmt *, 16> body;
+  SmallVector<Stmt *, 16> body;
   for (CompoundStmt::const_body_iterator I=S->body_begin(), E=S->body_end();
       I!=E; ++I) {
     curCompoundStmtVistor = S;
@@ -1369,7 +1369,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       unsigned int DiagIDCallExpr =
         Diags.getCustomDiagID(DiagnosticsEngine::Error,
             "Found unsupported function call '%0' in kernel.");
-      llvm::SmallVector<const char *, 16> builtinNames;
+      SmallVector<const char *, 16> builtinNames;
       builtins.getBuiltinNames(hipacc::C_TARGET, builtinNames);
       Diags.Report(E->getExprLoc(), DiagIDCallExpr) << E->getDirectCallee()->getName();
 

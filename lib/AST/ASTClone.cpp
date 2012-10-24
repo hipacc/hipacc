@@ -70,7 +70,7 @@ Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
   CompoundStmt* result = new (Ctx) CompoundStmt(Ctx, NULL, 0, S->getLBracLoc(),
       S->getLBracLoc());
 
-  llvm::SmallVector<Stmt *, 16> body;
+  SmallVector<Stmt *, 16> body;
   for (CompoundStmt::const_body_iterator I=S->body_begin(), E=S->body_end();
       I!=E; ++I) {
     body.push_back(Clone(*I));
@@ -153,7 +153,7 @@ Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
   if (S->isSingleDecl()) {
     clonedDecls = DeclGroupRef(CloneDecl(S->getSingleDecl()));
   } else if (S->getDeclGroup().isDeclGroup()) {
-    llvm::SmallVector<Decl *, 16> clonedDeclGroup;
+    SmallVector<Decl *, 16> clonedDeclGroup;
     const DeclGroupRef& DG = S->getDeclGroup();
 
     for (DeclGroupRef::const_iterator I=DG.begin(), E=DG.end(); I!=E; ++I) {
@@ -189,9 +189,9 @@ Stmt *ASTTranslate::VisitDefaultStmt(DefaultStmt *S) {
 
 // Asm Statements
 Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
-  llvm::SmallVector<IdentifierInfo *, 16> names;
-  llvm::SmallVector<StringLiteral *, 16> constraints;
-  llvm::SmallVector<Expr *, 16> exprs;
+  SmallVector<IdentifierInfo *, 16> names;
+  SmallVector<StringLiteral *, 16> constraints;
+  SmallVector<Expr *, 16> exprs;
 
   // outputs
   for (unsigned int I=0, N=S->getNumOutputs(); I!=N; ++I) {
@@ -208,7 +208,7 @@ Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
   }
 
   // constraints
-  llvm::SmallVector<StringLiteral *, 16> clobbers;
+  SmallVector<StringLiteral *, 16> clobbers;
   for (unsigned int I=0, N=S->getNumClobbers(); I!=N; ++I) {
     clobbers.push_back(S->getClobberStringLiteral(I));
   }
@@ -228,7 +228,7 @@ Stmt *ASTTranslate::VisitCXXCatchStmt(CXXCatchStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitCXXTryStmt(CXXTryStmt *S) {
-  llvm::SmallVector<Stmt *, 16> handlers;
+  SmallVector<Stmt *, 16> handlers;
 
   for (unsigned int I=0, N=S->getNumHandlers(); I<N; ++I) {
     handlers.push_back((Stmt *)Clone(S->getHandler(I)));
@@ -306,7 +306,7 @@ Expr *ASTTranslate::VisitImaginaryLiteral(ImaginaryLiteral *E) {
 }
 
 Expr *ASTTranslate::VisitStringLiteral(StringLiteral *E) {
-  llvm::SmallVector<SourceLocation, 16> concatLocations(E->tokloc_begin(),
+  SmallVector<SourceLocation, 16> concatLocations(E->tokloc_begin(),
       E->tokloc_end());
 
   Expr *result = StringLiteral::Create(Ctx, E->getString(), E->getKind(),
@@ -398,7 +398,7 @@ Expr *ASTTranslate::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
 
 #ifdef NO_TRANSLATION
 Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
-  llvm::SmallVector<Expr *, 16> args;
+  SmallVector<Expr *, 16> args;
 
   for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
     args.push_back(Clone(E->getArg(I)));
@@ -534,7 +534,7 @@ Expr *ASTTranslate::VisitExtVectorElementExpr(ExtVectorElementExpr *E) {
 }
 
 Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
-  llvm::SmallVector<Expr *, 16> initExprs;
+  SmallVector<Expr *, 16> initExprs;
 
   for (unsigned int I=0, N=E->getNumInits(); I<N; ++I) {
     initExprs.push_back(Clone(E->getInit(I)));
@@ -553,7 +553,7 @@ Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
 }
 
 Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
-  llvm::SmallVector<Expr *, 16> indexExprs;
+  SmallVector<Expr *, 16> indexExprs;
 
   unsigned numIndexExprs = E->getNumSubExprs() - 1;
   for (unsigned int I=0 ; I<numIndexExprs; ++I) {
@@ -578,7 +578,7 @@ Expr *ASTTranslate::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
 }
 
 Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
-  llvm::SmallVector<Expr *, 16> Exprs;
+  SmallVector<Expr *, 16> Exprs;
 
   for (unsigned int I=0, N=E->getNumExprs(); I!=N; ++I) {
     Exprs.push_back(Clone(E->getExpr(I)));
@@ -614,7 +614,7 @@ Expr *ASTTranslate::VisitPseudoObjectExpr(PseudoObjectExpr *E) {
 
 // Atomic Expressions
 Expr *ASTTranslate::VisitAtomicExpr(AtomicExpr *E) {
-  llvm::SmallVector<Expr *, 16> Args;
+  SmallVector<Expr *, 16> Args;
 
   for (unsigned int i=0, e=E->getNumSubExprs(); i<e; ++i) {
     Args.push_back(Clone(E->getSubExprs()[i]));
@@ -959,11 +959,11 @@ Expr *ASTTranslate::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
 }
 
 Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
-  llvm::SmallVector<LambdaExpr::Capture, 16> captures;
-  llvm::SmallVector<Expr *, 16> captureInits;
+  SmallVector<LambdaExpr::Capture, 16> captures;
+  SmallVector<Expr *, 16> captureInits;
 
-  llvm::SmallVector<VarDecl *, 4> arrayIndexVars;
-  llvm::SmallVector<unsigned int, 4> arrayIndexStarts;
+  SmallVector<VarDecl *, 4> arrayIndexVars;
+  SmallVector<unsigned int, 4> arrayIndexStarts;
 
   // Captures
   for (LambdaExpr::capture_iterator CI=E->capture_begin(), CE=E->capture_end();
@@ -1006,7 +1006,7 @@ Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
 
 // CUDA Expressions
 Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
-  llvm::SmallVector<Expr *, 16> Args;
+  SmallVector<Expr *, 16> Args;
 
   for (unsigned int i=0, e=E->getNumArgs(); i<e; ++i) {
     Args.push_back(Clone(E->getArg(i)));
@@ -1024,7 +1024,7 @@ Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
 
 // Clang Extensions
 Expr *ASTTranslate::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
-  llvm::SmallVector<Expr *, 16> body;
+  SmallVector<Expr *, 16> body;
 
   for (unsigned int I=0, N=E->getNumSubExprs(); I<N; ++I) {
     body.push_back(Clone(E->getExpr(I)));

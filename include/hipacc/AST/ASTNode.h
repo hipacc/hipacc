@@ -42,30 +42,30 @@ namespace clang {
 namespace hipacc {
 namespace ASTNode {
 // creates a function declaration AST node
-FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC,
-    llvm::StringRef Name, QualType RT, unsigned int numArgs, QualType *ArgTypes,
-    llvm::StringRef *ArgNames, bool isVariadic=false);
+FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
+    Name, QualType RT, unsigned int numArgs, QualType *ArgTypes, StringRef
+    *ArgNames, bool isVariadic=false);
 
 // creates a function call AST node
 CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD,
-    llvm::SmallVector<Expr *, 16> Expr);
+    SmallVector<Expr *, 16> Expr);
 DeclRefExpr *createDeclRefExpr(ASTContext &Ctx, ValueDecl *decl);
 
 
 // creates a variable declaration AST node
 DeclStmt *createDeclStmt(ASTContext &Ctx, Decl *VD);
-VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, llvm::StringRef Name,
+VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
     QualType T, Expr *init=NULL);
-RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, llvm::StringRef
-    Name, TagDecl::TagKind TK, unsigned int numDecls, QualType *declTypes,
-    llvm::StringRef *declNames);
+RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
+    TagDecl::TagKind TK, unsigned int numDecls, QualType *declTypes, StringRef
+    *declNames);
 
 // create a member expression AST node
 MemberExpr *createMemberExpr(ASTContext &Ctx, Expr *base, bool isArrow,
     ValueDecl *memberdecl, QualType T);
 
 // creates a compound statement AST node representing multiple statements
-CompoundStmt *createCompoundStmt(ASTContext &Ctx, llvm::SmallVector<Stmt *, 16>
+CompoundStmt *createCompoundStmt(ASTContext &Ctx, SmallVector<Stmt *, 16>
     Stmts);
 
 // creates a return statement AST node
@@ -95,7 +95,7 @@ ParenExpr *createParenExpr(ASTContext &Ctx, Expr *val);
 
 // creates an AST node for vector access
 ExtVectorElementExpr *createExtVectorElementExpr(ASTContext &Ctx, QualType ty,
-    Expr *base, llvm::StringRef Name);
+    Expr *base, StringRef Name);
 
 // create an explicit/implicit cast required internally for correct AST
 CStyleCastExpr *createCStyleCastExpr(ASTContext &Ctx, QualType T, CastKind Kind,
@@ -109,11 +109,10 @@ IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, int64_t val);
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint64_t val);
 FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, float val);
 FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, double val);
-StringLiteral *createStringLiteral(ASTContext &Ctx, llvm::StringRef Name);
+StringLiteral *createStringLiteral(ASTContext &Ctx, StringRef Name);
 
 // create label/goto statements
-LabelDecl *createLabelDecl(ASTContext &Ctx, DeclContext *DC, llvm::StringRef
-    Name);
+LabelDecl *createLabelDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name);
 LabelStmt *createLabelStmt(ASTContext &Ctx, LabelDecl *LD, Stmt *Stmt);
 GotoStmt *createGotoStmt(ASTContext &Ctx, LabelDecl *LD);
 

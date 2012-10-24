@@ -90,15 +90,14 @@ class Context {
     FunctionDecl *CreateBuiltin(unsigned int bid);
     FunctionDecl *CreateBuiltin(QualType R, const char *Name);
 
-    void getBuiltinNames(TargetID target,
-        llvm::SmallVectorImpl<const char *> &Names);
+    void getBuiltinNames(TargetID target, SmallVectorImpl<const char *> &Names);
 
     FunctionDecl *getBuiltinFunction(unsigned int ID) const {
       return getRecord(ID-FirstBuiltin).FD;
     }
 
-    FunctionDecl *getBuiltinFunction(llvm::StringRef Name, QualType QT,
-        TargetID target) const;
+    FunctionDecl *getBuiltinFunction(StringRef Name, QualType QT, TargetID
+        target) const;
 
     const char *getName(unsigned int ID) const {
       return getRecord(ID).Name;

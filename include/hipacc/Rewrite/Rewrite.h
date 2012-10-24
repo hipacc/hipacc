@@ -73,7 +73,7 @@ class HipaccRewriteAction : public ASTFrontendAction {
   {}
 
   protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI, llvm::StringRef
+  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI, StringRef
       InFile);
 };
 ASTConsumer *CreateHipaccRewriteAction(CompilerInstance &CI, CompilerOptions
