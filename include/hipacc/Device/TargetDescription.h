@@ -72,7 +72,11 @@ class HipaccDeviceOptions {
           alignment = 1024; // GeForce GTS 8800
           local_memory_threshold = 9999,
           pixels_per_thread[PointOperator] = 8;
-          pixels_per_thread[LocalOperator] = 16;
+          if (options.emitCUDA()) {
+            pixels_per_thread[LocalOperator] = 8;
+          } else {
+            pixels_per_thread[LocalOperator] = 1;
+          }
           pixels_per_thread[GlobalOperator] = 31;
           require_textures[PointOperator] = NoTexture;
           require_textures[LocalOperator] = Linear1D;
@@ -82,10 +86,14 @@ class HipaccDeviceOptions {
           break;
         case TESLA_12:
         case TESLA_13:
-          alignment = 256;
+          alignment = 512;
           local_memory_threshold = 9999;
           pixels_per_thread[PointOperator] = 8;
-          pixels_per_thread[LocalOperator] = 16;
+          if (options.emitCUDA()) {
+            pixels_per_thread[LocalOperator] = 8;
+          } else {
+            pixels_per_thread[LocalOperator] = 1;
+          }
           pixels_per_thread[GlobalOperator] = 31;
           require_textures[PointOperator] = NoTexture;
           require_textures[LocalOperator] = Linear1D;
@@ -102,7 +110,11 @@ class HipaccDeviceOptions {
           else local_memory_threshold = 11;
           default_num_threads_x = 256;
           pixels_per_thread[PointOperator] = 1;
-          pixels_per_thread[LocalOperator] = 8;
+          if (options.emitCUDA()) {
+            pixels_per_thread[LocalOperator] = 8;
+          } else {
+            pixels_per_thread[LocalOperator] = 16;
+          }
           pixels_per_thread[GlobalOperator] = 15;
           require_textures[PointOperator] = NoTexture;
           require_textures[LocalOperator] = Linear1D;
@@ -114,7 +126,7 @@ class HipaccDeviceOptions {
           alignment = 1024;
           local_memory_threshold = 17;
           pixels_per_thread[PointOperator] = 4;
-          pixels_per_thread[LocalOperator] = 16;
+          pixels_per_thread[LocalOperator] = 8;
           pixels_per_thread[GlobalOperator] = 32;
           require_textures[PointOperator] = NoTexture;
           require_textures[LocalOperator] = NoTexture;
@@ -123,10 +135,10 @@ class HipaccDeviceOptions {
           vectorization = true;
           break;
         case NORTHERN_ISLAND:
-          alignment = 256;
+          alignment = 512;
           local_memory_threshold = 21;
           pixels_per_thread[PointOperator] = 4;
-          pixels_per_thread[LocalOperator] = 16;
+          pixels_per_thread[LocalOperator] = 4;
           pixels_per_thread[GlobalOperator] = 32;
           require_textures[PointOperator] = NoTexture;
           require_textures[LocalOperator] = NoTexture;
