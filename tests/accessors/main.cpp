@@ -75,17 +75,15 @@ void access_nn(data_t *in, data_t *out, int in_width, int in_height, int
 
 
 // Kernel description in HIPAcc
-class CopyNN : public Kernel<int> {
+class CopyKernel : public Kernel<int> {
     private:
         Accessor<int> &Input;
 
     public:
-        CopyNN(IterationSpace<int> &IS, Accessor<int> &Input) :
+        CopyKernel(IterationSpace<int> &IS, Accessor<int> &Input) :
             Kernel(IS),
             Input(Input)
-        {
-            addAccessor(&Input);
-        }
+        { addAccessor(&Input); }
 
         void kernel() {
             output() = Input();
@@ -115,13 +113,10 @@ int main(int argc, const char **argv) {
     Image<int> IN(width, height);
     Image<int> OUT(is_width, is_height);
 
-    // use constant for boundary handling
-    BoundaryCondition<int> BCIn(IN, offset_x, offset_y, BOUNDARY_CONSTANT, 0);
-
     // use nearest neighbor interpolation
-    AccessorNN<int> AccInNN(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    AccessorNN<int> AccInNN(IN);
     // use linear filtering interpolation
-    AccessorLF<int> AccInLF(BCIn, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    AccessorLF<int> AccInLF(IN);
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -140,11 +135,11 @@ int main(int argc, const char **argv) {
     IN = host_in;
     OUT = host_out;
 
-    IterationSpace<int> CIS(OUT, is_width-2*is_offset_x, is_height-2*is_offset_y, is_offset_x, is_offset_y);
+    IterationSpace<int> CIS(OUT);
 
     // copy kernel using NN
-    CopyNN copy_nn(CIS, AccInNN);
-    CopyNN copy_lf(CIS, AccInLF);
+    CopyKernel copy_nn(CIS, AccInNN);
+    CopyKernel copy_lf(CIS, AccInLF);
 
     fprintf(stderr, "Executing copy (NN) kernel ...\n");
 
@@ -162,8 +157,10 @@ int main(int argc, const char **argv) {
     time0 = time_ms();
 
     // calculate reference
-    access_nn(reference_in, reference_out, width, height, offset_x, offset_y, width-2*offset_x, height-2*offset_y,
-            is_width, is_height, is_offset_x, is_offset_y, is_width-2*is_offset_x, is_height-2*is_offset_y);
+    access_nn(reference_in, reference_out, width, height, 0, 0, width, height,
+            is_width, is_height, 0, 0, is_width, is_height);
+    //access_nn(reference_in, reference_out, width, height, offset_x, offset_y, width-2*offset_x, height-2*offset_y,
+    //        is_width, is_height, is_offset_x, is_offset_y, is_width-2*is_offset_x, is_height-2*is_offset_y);
 
     time1 = time_ms();
     dt = time1 - time0;

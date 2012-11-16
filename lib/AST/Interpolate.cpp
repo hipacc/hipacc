@@ -119,7 +119,9 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
       Kernel, Acc, bh_variant);
 
   // only add boundary handling mode string if required
-  if (bh_variant.borderVal) {
+  // for local operators only add support if the code variant requires this
+  // for point, global, and user operators add boundary handling for all borders
+  if (KernelClass->getKernelType()!=LocalOperator || bh_variant.borderVal) {
     switch (Acc->getBoundaryHandling()) {
       case BOUNDARY_UNDEFINED:
       default:
@@ -138,10 +140,16 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
         break;
     }
 
-    if (bh_variant.borders.top) name += "t";
-    if (bh_variant.borders.bottom) name += "b";
-    if (bh_variant.borders.left) name += "l";
-    if (bh_variant.borders.right) name += "r";
+    if (Acc->getBoundaryHandling()!=BOUNDARY_UNDEFINED) {
+      if (KernelClass->getKernelType()!=LocalOperator) {
+        name+= "tblr";
+      } else {
+        if (bh_variant.borders.top) name += "t";
+        if (bh_variant.borders.bottom) name += "b";
+        if (bh_variant.borders.left) name += "l";
+        if (bh_variant.borders.right) name += "r";
+      }
+    }
   }
 
   if (!compilerOptions.emitCUDA()) {

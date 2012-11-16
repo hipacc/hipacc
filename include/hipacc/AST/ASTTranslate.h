@@ -150,11 +150,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     AccMapTy KernelDeclMapAcc;
 
     // BorderHandling.cpp
-    Expr *addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY, HipaccAccessor
-        *Acc);
-    Expr *addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY, HipaccAccessor
-        *Acc, SmallVector<Stmt *, 16> &bhStmts, SmallVector<CompoundStmt *, 16>
-        &bhCStmts);
+    Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
+        *local_offset_y, HipaccAccessor *Acc);
+    Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
+        *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
+        SmallVector<CompoundStmt *, 16> &bhCStmts);
     Stmt *addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper);
     Stmt *addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower);
     Stmt *addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper);

@@ -125,12 +125,13 @@ Expr *ASTTranslate::addConstantLower(HipaccAccessor *Acc, Expr *idx, Expr
 
 
 // add border handling statements to the AST
-Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
-    HipaccAccessor *Acc) {
-  return addBorderHandling(LHS, EX, EY, Acc, bhStmtsVistor, bhCStmtsVistor);
+Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
+    Expr *local_offset_y, HipaccAccessor *Acc) {
+  return addBorderHandling(LHS, local_offset_x, local_offset_y, Acc,
+      bhStmtsVistor, bhCStmtsVistor);
 }
-Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
-    HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
+Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
+    Expr *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
     SmallVector<CompoundStmt *, 16> &bhCStmts) {
   Expr *RHS, *result;
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
@@ -159,37 +160,56 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
     upperY = Acc->getHeightDecl();
   }
 
-  // gid_x = gid_x - is_offset_x + offset_x + xf
-  Expr *tmp_x_ref = gidXRef;
-  if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
-    tmp_x_ref = createBinaryOperator(Ctx, tmp_x_ref,
-        Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(), BO_Sub,
-        Ctx.IntTy);
+  Expr *idx_x = gidXRef;
+  Expr *idx_y = gidYRef;
+
+  // step 0: add local offset: gid_[x|y] + local_offset_[x|y]
+  idx_x = addLocalOffset(idx_x, local_offset_x);
+  idx_y = addLocalOffset(idx_y, local_offset_y);
+
+  // step 1: remove is_offset and add interpolation & boundary handling
+  switch (Acc->getInterpolation()) {
+    case InterpolateNO:
+      if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
+        idx_x = removeISOffsetX(idx_x, Acc);
+      }
+      break;
+    case InterpolateNN:
+      idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+          createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL,
+          Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
+      idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+          createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
+          Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
+      break;
+    case InterpolateLF:
+    case InterpolateCF:
+    case InterpolateL3:
+      return addInterpolationCall(LHS, Acc, idx_x, idx_y);
+      break;
   }
-  if (Acc->getOffsetXDecl()) {
-    tmp_x_ref = createBinaryOperator(Ctx, tmp_x_ref, Acc->getOffsetXDecl(),
-        BO_Add, Ctx.IntTy);
+
+  // step 2: add global Accessor/Iteration Space offset
+  if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
+    idx_x = addGlobalOffsetX(idx_x, Acc);
   }
-  if (EX) {
+  idx_y = addGlobalOffsetY(idx_y, Acc);
+
+  // add temporary variables for updated idx_x and idx_y
+  if (local_offset_x) {
     VarDecl *tmp_x = createVarDecl(Ctx, kernelDecl, LSSX.str(), Ctx.IntTy,
-        createBinaryOperator(Ctx, tmp_x_ref, Clone(EX), BO_Add, Ctx.IntTy));
+        idx_x);
     DC->addDecl(tmp_x);
-    tmp_x_ref = createDeclRefExpr(Ctx, tmp_x);
+    idx_x = createDeclRefExpr(Ctx, tmp_x);
     bhStmts.push_back(createDeclStmt(Ctx, tmp_x));
     bhCStmts.push_back(curCompoundStmtVistor);
   }
 
-  // gid_y = gid_y + offset_y + yf
-  Expr *tmp_y_ref = gidYRef;
-  if (Acc->getOffsetYDecl()) {
-    tmp_y_ref = createBinaryOperator(Ctx, tmp_y_ref, Acc->getOffsetYDecl(),
-        BO_Add, Ctx.IntTy);
-  }
-  if (EY) {
+  if (local_offset_y) {
     VarDecl *tmp_y = createVarDecl(Ctx, kernelDecl, LSSY.str(), Ctx.IntTy,
-        createBinaryOperator(Ctx, tmp_y_ref, Clone(EY), BO_Add, Ctx.IntTy));
+        idx_y);
     DC->addDecl(tmp_y);
-    tmp_y_ref = createDeclRefExpr(Ctx, tmp_y);
+    idx_y = createDeclRefExpr(Ctx, tmp_y);
     bhStmts.push_back(createDeclStmt(Ctx, tmp_y));
     bhCStmts.push_back(curCompoundStmtVistor);
   }
@@ -206,31 +226,31 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
     bhCStmts.push_back(curCompoundStmtVistor);
 
     Expr *bo_constant = NULL;
-    if (bh_variant.borders.right && EX) {
+    if (bh_variant.borders.right && local_offset_x) {
       // < _gid_x<0> >= offset_x+width >
-      bo_constant = addConstantUpper(Acc, tmp_x_ref, upperX, bo_constant);
+      bo_constant = addConstantUpper(Acc, idx_x, upperX, bo_constant);
     }
-    if (bh_variant.borders.bottom && EY) {
+    if (bh_variant.borders.bottom && local_offset_y) {
       // if (_gid_y<0> >= offset_y+height)
-      bo_constant = addConstantUpper(Acc, tmp_y_ref, upperY, bo_constant);
+      bo_constant = addConstantUpper(Acc, idx_y, upperY, bo_constant);
     }
-    if (bh_variant.borders.left && EX) {
+    if (bh_variant.borders.left && local_offset_x) {
       // if (_gid_x<0> < offset_x)
-      bo_constant = addConstantLower(Acc, tmp_x_ref, lowerX, bo_constant);
+      bo_constant = addConstantLower(Acc, idx_x, lowerX, bo_constant);
     }
-    if (bh_variant.borders.top && EY) {
+    if (bh_variant.borders.top && local_offset_y) {
       // if (_gid_y<0> < offset_y)
-      bo_constant = addConstantLower(Acc, tmp_y_ref, lowerY, bo_constant);
+      bo_constant = addConstantLower(Acc, idx_y, lowerY, bo_constant);
     }
 
     if (Kernel->useTextureMemory(Acc)) {
       if (compilerOptions.emitCUDA()) {
-        RHS = accessMemTexAt(LHS, Acc, READ_ONLY, tmp_x_ref, tmp_y_ref);
+        RHS = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
       } else {
-        RHS = accessMemImgAt(LHS, Acc, READ_ONLY, tmp_x_ref, tmp_y_ref);
+        RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
       }
     } else {
-      RHS = accessMemArrAt(LHS, Acc->getStrideDecl(), tmp_x_ref, tmp_y_ref);
+      RHS = accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
     }
     setExprProps(LHS, RHS);
 
@@ -269,32 +289,32 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *EX, Expr *EY,
         break;
     }
 
-    if (bh_variant.borders.right && EX) {
-      bhStmts.push_back((*this.*upperFun)(Acc, tmp_x_ref, upperX));
+    if (bh_variant.borders.right && local_offset_x) {
+      bhStmts.push_back((*this.*upperFun)(Acc, idx_x, upperX));
       bhCStmts.push_back(curCompoundStmtVistor);
     }
-    if (bh_variant.borders.bottom && EY) {
-      bhStmts.push_back((*this.*upperFun)(Acc, tmp_y_ref, upperY));
+    if (bh_variant.borders.bottom && local_offset_y) {
+      bhStmts.push_back((*this.*upperFun)(Acc, idx_y, upperY));
       bhCStmts.push_back(curCompoundStmtVistor);
     }
-    if (bh_variant.borders.left && EX) {
-      bhStmts.push_back((*this.*lowerFun)(Acc, tmp_x_ref, lowerX));
+    if (bh_variant.borders.left && local_offset_x) {
+      bhStmts.push_back((*this.*lowerFun)(Acc, idx_x, lowerX));
       bhCStmts.push_back(curCompoundStmtVistor);
     }
-    if (bh_variant.borders.top && EY) {
-      bhStmts.push_back((*this.*lowerFun)(Acc, tmp_y_ref, lowerY));
+    if (bh_variant.borders.top && local_offset_y) {
+      bhStmts.push_back((*this.*lowerFun)(Acc, idx_y, lowerY));
       bhCStmts.push_back(curCompoundStmtVistor);
     }
 
     // get data
     if (Kernel->useTextureMemory(Acc)) {
       if (compilerOptions.emitCUDA()) {
-        result = accessMemTexAt(LHS, Acc, READ_ONLY, tmp_x_ref, tmp_y_ref);
+        result = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
       } else {
-        result = accessMemImgAt(LHS, Acc, READ_ONLY, tmp_x_ref, tmp_y_ref);
+        result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
       }
     } else {
-      result = accessMemArrAt(LHS, Acc->getStrideDecl(), tmp_x_ref, tmp_y_ref);
+      result = accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
     }
     setExprProps(LHS, result);
   }
