@@ -61,14 +61,14 @@ environment.
 The following variables can be set to tell cmake where to look for certain components:
 \begin{itemize}
     \item CMAKE\_INSTALL\_PREFIX: Installation prefix
-    \item OPENCL\_INC\_PATH: OpenCL include path\\(e.g., -D OPENCL\_INC\_PATH=/opt/cuda/include)
-    \item OPENCL\_LIB\_PATH: OpenCL library path\\(e.g., -D OPENCL\_LIB\_PATH=/usr/lib64)
-    \item CUDA\_BIN\_PATH:      CUDA binary path\\(e.g., -D CUDA\_BIN\_PATH=/opt/cuda/bin)
+    \item OPENCL\_INC\_PATH: OpenCL include path\\(e.g., -DOPENCL\_INC\_PATH=/opt/cuda/include)
+    \item OPENCL\_LIB\_PATH: OpenCL library path\\(e.g., -DOPENCL\_LIB\_PATH=/usr/lib64)
+    \item CUDA\_BIN\_PATH:      CUDA binary path\\(e.g., -DCUDA\_BIN\_PATH=/opt/cuda/bin)
 \end{itemize}
 
 The following options can be enabled or disabled:
 \begin{itemize}
-    \item USE\_POLLY: Use Polly for kernel analysis (e.g., -D USE\_POLLY=ON)
+    \item USE\_POLLY: Use Polly for kernel analysis (e.g., -DUSE\_POLLY=ON)
     \item USE\_JIT\_ESTIMATE: Use just-in-time compilation of generated kernels
     in order to get resource estimates - option only available for GNU/Linux
     systems

@@ -34,13 +34,13 @@
 #include <polly/LinkAllPasses.h>
 #include <polly/ScopDetection.h>
 
+#include <llvm/DataLayout.h>
 #include <llvm/LLVMContext.h>
 #include <llvm/Module.h>
 #include <llvm/PassManager.h>
 #include <llvm/ADT/Statistic.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/Passes.h>
-#include <llvm/Target/TargetData.h>
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/Scalar.h>
@@ -92,15 +92,15 @@ void Polly::analyzeKernel() {
   llvm::TargetLibraryInfo *TLI = new llvm::TargetLibraryInfo(targetTriple);
   Passes.add(TLI);
 
-  // add an appropriate TargetData instance for this module.
-  llvm::TargetData *TD = 0;
+  // add an appropriate DataLayout instance for this module.
+  llvm::DataLayout *DL = 0;
   const std::string &ModuleDataLayout = irModule->getDataLayout();
   if (!ModuleDataLayout.empty()) {
-    TD = new llvm::TargetData(ModuleDataLayout);
+    DL = new llvm::DataLayout(ModuleDataLayout);
   } else {
-    TD = new llvm::TargetData("default-data-layout");
+    DL = new llvm::DataLayout("default-data-layout");
   }
-  if (TD) Passes.add(TD);
+  if (DL) Passes.add(DL);
 
   Passes.add(llvm::createPromoteMemoryToRegisterPass());
   Passes.add(llvm::createFunctionInliningPass());

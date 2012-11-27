@@ -1,10 +1,10 @@
 SET(CLANG_USED_LIBS
     clang
     clangFrontendTool
-    clangAST
     clangAnalysis
     clangBasic
     clangCodeGen
+    clangAST
     clangDriver
     clangEdit
     clangFrontend

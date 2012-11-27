@@ -24,12 +24,12 @@ environment.
 The following variables can be set to tell cmake where to look for certain
 components:
 CMAKE_INSTALL_PREFIX    - Installation prefix
-OPENCL_INC_PATH         - OpenCL include path (e.g. -D OPENCL_INC_PATH=/opt/cuda/include)
-OPENCL_LIB_PATH         - OpenCL library path (e.g. -D OPENCL_LIB_PATH=/usr/lib64)
-CUDA_BIN_PATH           - CUDA binary path (e.g. -D CUDA_BIN_PATH=/opt/cuda/bin)
+OPENCL_INC_PATH         - OpenCL include path (e.g. -DOPENCL_INC_PATH=/opt/cuda/include)
+OPENCL_LIB_PATH         - OpenCL library path (e.g. -DOPENCL_LIB_PATH=/usr/lib64)
+CUDA_BIN_PATH           - CUDA binary path (e.g. -DCUDA_BIN_PATH=/opt/cuda/bin)
 
 The following options can be enabled or disabled:
-USE_POLLY               - Use polly for kernel analysis (e.g. -D USE_POLLY=ON)
+USE_POLLY               - Use polly for kernel analysis (e.g. -DUSE_POLLY=ON)
 USE_JIT_ESTIMATE        - Use just-in-time compilation of generated kernels in
                           order to get resource estimates - option only
                           available for GNU/Linux systems
