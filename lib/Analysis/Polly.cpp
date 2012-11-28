@@ -129,9 +129,6 @@ void Polly::analyzeKernel() {
   // run optimization passes
   Passes.run(*irModule);
 
-  // inform the diagnostic client we are done with this source file
-  Clang.getDiagnosticClient().EndSourceFile();
-
   // print Stats
   llvm::PrintStatistics();
 }

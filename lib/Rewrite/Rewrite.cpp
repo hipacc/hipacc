@@ -1427,7 +1427,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             Stmt *pollyStmts =
               HipaccPolly->Hipacc(KC->getKernelFunction()->getBody());
             kernelDeclPolly->setBody(pollyStmts);
-            kernelDeclPolly->dump();
+            llvm::errs() << "\nPassing the following function to Polly:\n";
+            kernelDeclPolly->print(llvm::errs(), Context.getPrintingPolicy());
+            llvm::errs() << "\n";
 
             Polly *polly_analysis = new Polly(Context, CI, kernelDeclPolly);
             polly_analysis->analyzeKernel();

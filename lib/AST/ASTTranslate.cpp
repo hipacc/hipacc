@@ -1305,12 +1305,16 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
             createIntegerLiteral(Ctx, 0));
         DeclStmt *conv_x_stmt = createDeclStmt(Ctx, conv_x);
         convExprX  = createDeclRefExpr(Ctx, conv_x);
+        LambdaDeclMap[conv_x] = conv_x;
+        DC->addDecl(conv_x);
 
         // int _conv_y = 0;
         VarDecl *conv_y = createVarDecl(Ctx, kernelDecl, "_conv_y", Ctx.IntTy,
             createIntegerLiteral(Ctx, 0));
         DeclStmt *conv_y_stmt = createDeclStmt(Ctx, conv_y);
         convExprY = createDeclRefExpr(Ctx, conv_y);
+        LambdaDeclMap[conv_y] = conv_y;
+        DC->addDecl(conv_y);
 
         // convert the lambda-function body to kernel syntax
         Stmt* convIterations = Clone(LE->getBody());
@@ -1687,90 +1691,79 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   // Output(EI) = ...
   // ->
   // Output[gid_y * width + gid_x] = ...
-  if (emitPolly) {
-    switch (E->getNumArgs()) {
-      default:
-        assert(0 && "0 or 2 arguments for Accessor operator() expected!\n");
-        break;
-      case 1:
-        // no padding is considered, data is accessed as a 2D-array
-        // 0: -> (this *) Image Class
-        result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
-        break;
-      case 3:
-        // no padding is considered, data is accessed as a 2D-array
-        // 0: -> (this *) Image Class
-        // 1: -> offset x
-        // 2: -> offset y
-        result = accessMemPolly(LHS, Acc, memAcc, Clone(E->getArg(1)),
-            Clone(E->getArg(2)));
-        break;
-    }
+  bool use_shared = false;
+  DeclRefExpr *DRE = NULL;
+  if (KernelDeclMapShared[PVD]) {
+    // shared/local memory
+    use_shared = true;
+    VarDecl *VD = KernelDeclMapShared[PVD];
+    DRE = createDeclRefExpr(Ctx, VD);
+  }
+
+  IntegerLiteral *SY, *TX;
+  if (Acc->getSizeX() > 1) {
+    TX = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
   } else {
-    bool use_shared = false;
-    DeclRefExpr *DRE = NULL;
-    if (KernelDeclMapShared[PVD]) {
-      // shared/local memory
-      use_shared = true;
-      VarDecl *VD = KernelDeclMapShared[PVD];
-      DRE = createDeclRefExpr(Ctx, VD);
-    }
+    TX = createIntegerLiteral(Ctx, 0);
+  }
+  if (Acc->getSizeY() > 1) {
+    SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
+  } else {
+    SY = createIntegerLiteral(Ctx, 0);
+  }
 
-    IntegerLiteral *SY, *TX;
-    if (Acc->getSizeX() > 1) {
-      TX = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
-    } else {
-      TX = createIntegerLiteral(Ctx, 0);
-    }
-    if (Acc->getSizeY() > 1) {
-      SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
-    } else {
-      SY = createIntegerLiteral(Ctx, 0);
-    }
-
-    switch (E->getNumArgs()) {
-      default:
-        assert(0 && "0 or 2 arguments for Accessor operator() expected!\n");
-        break;
-      case 1:
-        // 0: -> (this *) Image Class
+  switch (E->getNumArgs()) {
+    default:
+      assert(0 && "0 or 2 arguments for Accessor operator() expected!\n");
+      break;
+    case 1:
+      // 0: -> (this *) Image Class
+      if (emitPolly) {
+        // no padding is considered, data is accessed as a 2D-array
+        result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
+      } else {
         if (use_shared) {
           result = accessMemShared(DRE, TX, SY);
         } else {
           result = accessMem(LHS, Acc, memAcc);
         }
-        break;
-      case 2:
-        // 0: -> (this *) Image Class
-        // 1: -> Mask
-        assert(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()) && "Accessor operator() with 1 argument requires a convolution Mask.");
-        assert(convMask && convMask==Kernel->getMaskFromMapping(dyn_cast<FieldDecl>(dyn_cast<MemberExpr>(E->getArg(1)->IgnoreImpCasts())->getMemberDecl())) &&
-            "Accessor operator() with 1 argument requires a convolution Mask.");
-        assert(convMask && "0 or 2 arguments for Accessor operator() expected!\n");
-      case 3:
-        // 0: -> (this *) Image Class
-        // 1: -> offset x
-        // 2: -> offset y
-        Expr *offset_x, *offset_y;
-        if (E->getNumArgs()==2) {
-          if (convMask->isConstant()) {
-            offset_x = createIntegerLiteral(Ctx,
-                convIdxX-(int)convMask->getSizeX()/2);
-            offset_y = createIntegerLiteral(Ctx,
-                convIdxY-(int)convMask->getSizeY()/2);
-          } else {
-            offset_x = createBinaryOperator(Ctx, convExprX,
-                createIntegerLiteral(Ctx, (int)convMask->getSizeX()/2), BO_Sub,
-                Ctx.IntTy);
-            offset_y = createBinaryOperator(Ctx, convExprY,
-                createIntegerLiteral(Ctx, (int)convMask->getSizeY()/2), BO_Sub,
-                Ctx.IntTy);
-          }
+      }
+      break;
+    case 2:
+      // 0: -> (this *) Image Class
+      // 1: -> Mask
+      assert(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()) && "Accessor operator() with 1 argument requires a convolution Mask.");
+      assert(convMask && convMask==Kernel->getMaskFromMapping(dyn_cast<FieldDecl>(dyn_cast<MemberExpr>(E->getArg(1)->IgnoreImpCasts())->getMemberDecl())) &&
+          "Accessor operator() with 1 argument requires a convolution Mask.");
+      assert(convMask && "0 or 2 arguments for Accessor operator() expected!\n");
+    case 3:
+      // 0: -> (this *) Image Class
+      // 1: -> offset x
+      // 2: -> offset y
+      Expr *offset_x, *offset_y;
+      if (E->getNumArgs()==2) {
+        if (convMask->isConstant()) {
+          offset_x = createIntegerLiteral(Ctx,
+              convIdxX-(int)convMask->getSizeX()/2);
+          offset_y = createIntegerLiteral(Ctx,
+              convIdxY-(int)convMask->getSizeY()/2);
         } else {
-          offset_x = Clone(E->getArg(1));
-          offset_y = Clone(E->getArg(2));
+          offset_x = createBinaryOperator(Ctx, convExprX,
+              createIntegerLiteral(Ctx, (int)convMask->getSizeX()/2), BO_Sub,
+              Ctx.IntTy);
+          offset_y = createBinaryOperator(Ctx, convExprY,
+              createIntegerLiteral(Ctx, (int)convMask->getSizeY()/2), BO_Sub,
+              Ctx.IntTy);
         }
+      } else {
+        offset_x = Clone(E->getArg(1));
+        offset_y = Clone(E->getArg(2));
+      }
 
+      if (emitPolly) {
+        // no padding is considered, data is accessed as a 2D-array
+        result = accessMemPolly(LHS, Acc, memAcc, offset_x, offset_y);
+      } else {
         if (use_shared) {
           result = accessMemShared(DRE, createBinaryOperator(Ctx, offset_x, TX,
                 BO_Add, Ctx.IntTy), createBinaryOperator(Ctx, offset_y, SY,
@@ -1792,8 +1785,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               break;
           }
         }
-        break;
-    }
+      }
+      break;
   }
 
   setExprProps(E, result);
