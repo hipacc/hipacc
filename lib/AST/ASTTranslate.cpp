@@ -1036,8 +1036,13 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
     if (PVD) {
       KernelDeclMapVector[PVD] = result;
     } else {
-      if (convMask) LambdaDeclMap[VD] = result;
-      else KernelDeclMap[VD] = result;
+      if (convMask) {
+        LambdaDeclMap[VD] = result;
+        LambdaDeclMap[result] = result;
+      } else {
+        KernelDeclMap[VD] = result;
+        KernelDeclMap[result] = result;
+      }
     }
 
     // add VarDecl to current kernel DeclContext
