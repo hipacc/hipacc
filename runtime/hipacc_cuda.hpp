@@ -339,7 +339,37 @@ float hipaccGetLastKernelTiming() {
 
 // Initialize CUDA devices
 void hipaccInitCUDA() {
+    cudaError_t err = cudaSuccess;
+    int device_count, driver_version = 0, runtime_version = 0;
+
     setenv("CUDA_CACHE_DISABLE", "1", 1);
+
+    err = cudaGetDeviceCount(&device_count);
+    checkErr(err, "cudaGetDeviceCount()");
+    err = cudaDriverGetVersion(&driver_version);
+    checkErr(err, "cudaDriverGetVersion()");
+    err = cudaRuntimeGetVersion(&runtime_version);
+    checkErr(err, "cudaRuntimeGetVersion()");
+
+    std::cerr << "CUDA Driver/Runtime Version " << driver_version/1000 << "." << (driver_version%100)/10
+        << "/" << runtime_version/1000 << "." << (runtime_version%100)/10 << std::endl;
+
+    for (int i=0; i<device_count; i++) {
+        cudaDeviceProp device_prop;
+
+        err = cudaSetDevice(i);
+        checkErr(err, "cudaSetDevice()");
+        err = cudaGetDeviceProperties(&device_prop, i);
+        checkErr(err, "cudaGetDeviceProperties()");
+    
+        if (i==0) std::cerr << "  [*] ";
+        else std::cerr << "  [ ] ";
+        std::cerr << "Name: " << device_prop.name << std::endl;
+        std::cerr << "      Compute capability: " << device_prop.major << "." << device_prop.minor << std::endl;
+    }
+    err = cudaSetDevice(0);
+    checkErr(err, "cudaSetDevice()");
+
     HipaccContext &Ctx = HipaccContext::getInstance();
 }
 
