@@ -194,16 +194,16 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
 
       switch (direction) {
         case HOST_TO_DEVICE:
-          resultStr += "hipaccWriteSymbol<" + Mask->getTypeStr() + ">(\"";
-          resultStr += Mask->getName() + K->getName() + "\", ";
+          resultStr += "hipaccWriteSymbol<" + Mask->getTypeStr() + ">((const void *)&";
+          resultStr += Mask->getName() + K->getName() + ", ";
           resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
           resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
           break;
         case DEVICE_TO_HOST:
           resultStr += "hipaccReadSymbol<" + Mask->getTypeStr() + ">(";
           resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
-          resultStr += ", \"" + Mask->getName();
-          resultStr += "\", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
+          resultStr += ", (const void *)&" + Mask->getName();
+          resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
           break;
         case DEVICE_TO_DEVICE:
           resultStr += "writeMemoryTransferSymbol(todo, todo, DEVICE_TO_DEVICE);";
@@ -531,7 +531,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
 
     if (options.emitCUDA()) {
       if (options.timeKernels()) {
-        resultStr += "hipaccLaunchKernelBenchmark(\"cu" + kernelName + "\"";
+        resultStr += "hipaccLaunchKernelBenchmark((const void *)&cu";
+        resultStr += kernelName + ", \"cu";
+        resultStr += kernelName + "\"";
       } else {
         resultStr += "hipaccKernelExploration(\"" + kernelName + ".cu\", \"cu" + kernelName + "\"";
       }
@@ -572,12 +574,13 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
     resultStr += ident + "}\n";
   } else {
     if (options.emitCUDA()) {
-      resultStr += "hipaccLaunchKernel(\"cu";
+      resultStr += "hipaccLaunchKernel((const void *)&cu";
+      resultStr += kernelName + ", \"cu";
+      resultStr += kernelName + "\"";
     } else {
       resultStr += "hipaccEnqueueKernel(";
+      resultStr += kernelName;
     }
-    resultStr += kernelName;
-    if (options.emitCUDA()) resultStr += "\"";
     resultStr += ", " + gridStr;
     resultStr += ", " + blockStr;
     resultStr += ");";
@@ -593,16 +596,21 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
   if (options.emitCUDA()) {
     if (options.getTargetDevice() >= FERMI_20 && !options.exploreConfig()) {
       resultStr += "hipaccApplyReductionThreadFence<" + GR->getType() + ">(";
+      resultStr += "(const void *)&cu" + GR->getFileName() + "2D, ";
       resultStr += "\"cu" + GR->getFileName() + "2D\", ";
     } else {
       if (options.exploreConfig()) {
         resultStr += "hipaccApplyReductionExploration<" + GR->getType() + ">(";
         resultStr += "\"" + GR->getFileName() + ".cu\", ";
+        resultStr += "\"cu" + GR->getFileName() + "2D\", ";
+        resultStr += "\"cu" + GR->getFileName() + "1D\", ";
       } else {
         resultStr += "hipaccApplyReduction<" + GR->getType() + ">(";
+        resultStr += "\"cu" + GR->getFileName() + "2D\", ";
+        resultStr += "(const void *)&cu" + GR->getFileName() + "2D, ";
+        resultStr += "\"cu" + GR->getFileName() + "1D\", ";
+        resultStr += "(const void *)&cu" + GR->getFileName() + "1D, ";
       }
-      resultStr += "\"cu" + GR->getFileName() + "2D\", ";
-      resultStr += "\"cu" + GR->getFileName() + "1D\", ";
     }
   } else {
     if (options.exploreConfig()) {

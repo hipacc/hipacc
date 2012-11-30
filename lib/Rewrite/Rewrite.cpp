@@ -1324,6 +1324,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
                 if (num_read == 2 && mem_type == 's') {
                   smem = val1;
+                  llvm::errs() << "stack size: " << val1 << "\n";
                   continue;
                 }
               }
@@ -1341,11 +1342,15 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                       llvm::errs() << "wrong memory specifier '" << mem_type <<
                         "': " << ptr;
                       break;
+                    case 'c':
+                      cmem += val1;
+                      break;
                     case 'l':
                       lmem += val1 + val2;
                       break;
                     case 's':
                       smem += val1 + val2;
+                      llvm::errs() << "smem[2] size: " << val1 << "+" << val2 << "\n";
                       break;
                   }
                 } else {
@@ -1358,6 +1363,13 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                         break;
                       case 'c':
                         cmem += val1;
+                        break;
+                      case 'l':
+                        lmem += val1;
+                        break;
+                      case 's':
+                        smem += val1;
+                        break;
                     }
                   } else {
                     llvm::errs() << "Unexpected memory usage specification: '"

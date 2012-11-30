@@ -578,7 +578,7 @@ void hipaccUnbindTexture(const struct texture<T, ND, cudaReadModeElementType>tex
 
 // Write to symbol
 template<typename T>
-void hipaccWriteSymbol(const char *symbol, T *host_mem, int width, int height) {
+void hipaccWriteSymbol(const void *symbol, T *host_mem, int width, int height) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
@@ -589,7 +589,7 @@ void hipaccWriteSymbol(const char *symbol, T *host_mem, int width, int height) {
 
 // Read from symbol
 template<typename T>
-void hipaccReadSymbol(T *host_mem, const char *symbol, int width, int height) {
+void hipaccReadSymbol(T *host_mem, const void *symbol, int width, int height) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
@@ -622,13 +622,13 @@ void hipaccSetupArgument(const void *arg, size_t size, size_t &offset) {
 
 
 // Launch kernel
-void hipaccLaunchKernel(const char *kernel, dim3 grid, dim3 block, bool print_timing=true) {
+void hipaccLaunchKernel(const void *kernel, const char *kernel_name, dim3 grid, dim3 block, bool print_timing=true) {
     cudaError_t err = cudaSuccess;
     cudaEvent_t start, end;
     HipaccContext &Ctx = HipaccContext::getInstance();
     float time;
     std::string error_string = "cudaLaunch(";
-    error_string += kernel;
+    error_string += kernel_name;
     error_string += ")";
 
     cudaEventCreate(&start);
@@ -657,7 +657,7 @@ void hipaccLaunchKernel(const char *kernel, dim3 grid, dim3 block, bool print_ti
 
 
 // Benchmark timing for a kernel call
-void hipaccLaunchKernelBenchmark(const char *kernel, std::vector<std::pair<size_t, void *> > args, dim3 grid, dim3 block, bool print_timing=true) {
+void hipaccLaunchKernelBenchmark(const void *kernel, const char *kernel_name, std::vector<std::pair<size_t, void *> > args, dim3 grid, dim3 block, bool print_timing=true) {
     float min_dt=FLT_MAX;
 
     for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
@@ -671,7 +671,7 @@ void hipaccLaunchKernelBenchmark(const char *kernel, std::vector<std::pair<size_
         }
 
         // launch kernel
-        hipaccLaunchKernel(kernel, grid, block, print_timing);
+        hipaccLaunchKernel(kernel, kernel_name, grid, block, print_timing);
         if (last_gpu_timing < min_dt) min_dt = last_gpu_timing;
     }
 
@@ -715,6 +715,12 @@ void hipaccCompileCUDAToPTX(std::string file_name, int cc, const char *build_opt
             break;
         case 21:
             command += "-gencode=arch=compute_21,code=\\\"sm_21,compute_21\\\" ";
+            break;
+        case 30:
+            command += "-gencode=arch=compute_30,code=\\\"sm_30,compute_30\\\" ";
+            break;
+        case 35:
+            command += "-gencode=arch=compute_35,code=\\\"sm_35,compute_35\\\" ";
             break;
     }
     command += "-ftz=true -prec-sqrt=false -prec-div=false ";
@@ -764,6 +770,12 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
             break;
         case 21:
             target_cc = CU_TARGET_COMPUTE_21;
+            break;
+        case 30:
+            target_cc = CU_TARGET_COMPUTE_30;
+            break;
+        case 35:
+            target_cc = CU_TARGET_COMPUTE_35;
             break;
     }
 
@@ -950,12 +962,13 @@ unsigned int nextPow2(unsigned int x) {
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(const char *kernel2D, const char *kernel1D, void *image,
-        T neutral, unsigned int width, unsigned int height, unsigned int stride,
-        unsigned int offset_x, unsigned int offset_y, unsigned int is_width,
-        unsigned int is_height, unsigned int max_threads, unsigned int
-        pixels_per_thread, const struct texture<T, cudaTextureType2D,
-        cudaReadModeElementType> &tex, hipaccTextureType tex_type) {
+T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
+        void *kernel1D, const char *kernel1D_name, void *image, T neutral,
+        unsigned int width, unsigned int height, unsigned int stride, unsigned
+        int offset_x, unsigned int offset_y, unsigned int is_width, unsigned int
+        is_height, unsigned int max_threads, unsigned int pixels_per_thread,
+        const struct texture<T, cudaTextureType2D, cudaReadModeElementType>
+        &tex, hipaccTextureType tex_type) {
     cudaError_t err = cudaSuccess;
     T *output;  // GPU memory for reduction
     T result;   // host result
@@ -994,7 +1007,7 @@ T hipaccApplyReduction(const char *kernel2D, const char *kernel1D, void *image,
         hipaccSetupArgument(&is_height, sizeof(unsigned int), offset);
     }
 
-    hipaccLaunchKernel(kernel2D, grid, block);
+    hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
 
 
     // second step: reduce partial blocks on GPU
@@ -1017,7 +1030,7 @@ T hipaccApplyReduction(const char *kernel2D, const char *kernel1D, void *image,
     hipaccSetupArgument(&num_blocks, sizeof(unsigned int), offset);
     hipaccSetupArgument(&num_steps, sizeof(unsigned int), offset);
 
-    hipaccLaunchKernel(kernel1D, grid, block);
+    hipaccLaunchKernel(kernel1D, kernel1D_name, grid, block);
 
     // get reduced value
     err = cudaMemcpy(&result, output, sizeof(T), cudaMemcpyDeviceToHost);
@@ -1030,25 +1043,27 @@ T hipaccApplyReduction(const char *kernel2D, const char *kernel1D, void *image,
 }
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(const char *kernel2D, const char *kernel1D, void *image,
-        T neutral, unsigned int width, unsigned int height, unsigned int stride,
-        unsigned int max_threads, unsigned int pixels_per_thread, const struct
-        texture<T, cudaTextureType2D, cudaReadModeElementType> &tex,
-        hipaccTextureType tex_type) {
-    return hipaccApplyReduction<T>(kernel2D, kernel1D, image, neutral, width,
-            height, stride, 0, 0, width, height, max_threads, pixels_per_thread,
-            tex, tex_type);
+T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
+        void *kernel1D, const char *kernel1D_name, void *image, T neutral,
+        unsigned int width, unsigned int height, unsigned int stride, unsigned
+        int max_threads, unsigned int pixels_per_thread, const struct texture<T,
+        cudaTextureType2D, cudaReadModeElementType> &tex, hipaccTextureType
+        tex_type) {
+    return hipaccApplyReduction<T>(kernel2D, kernel2D_name, kernel1D,
+            kernel1D_name, image, neutral, width, height, stride, 0, 0, width,
+            height, max_threads, pixels_per_thread, tex, tex_type);
 }
 
 
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReductionThreadFence(const char *kernel2D, void *image, T neutral,
-        unsigned int width, unsigned int height, unsigned int stride, unsigned
-        int offset_x, unsigned int offset_y, unsigned int is_width, unsigned int
-        is_height, unsigned int max_threads, unsigned int pixels_per_thread,
-        const struct texture<T, cudaTextureType2D, cudaReadModeElementType>
-        &tex, hipaccTextureType tex_type) {
+T hipaccApplyReductionThreadFence(const void *kernel2D, const char
+        *kernel2D_name, void *image, T neutral, unsigned int width, unsigned int
+        height, unsigned int stride, unsigned int offset_x, unsigned int
+        offset_y, unsigned int is_width, unsigned int is_height, unsigned int
+        max_threads, unsigned int pixels_per_thread, const struct texture<T,
+        cudaTextureType2D, cudaReadModeElementType> &tex, hipaccTextureType
+        tex_type) {
     cudaError_t err = cudaSuccess;
     T *output;  // GPU memory for reduction
     T result;   // host result
@@ -1088,7 +1103,7 @@ T hipaccApplyReductionThreadFence(const char *kernel2D, void *image, T neutral,
         hipaccSetupArgument(&is_height, sizeof(unsigned int), offset);
     }
 
-    hipaccLaunchKernel(kernel2D, grid, block);
+    hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
 
     err = cudaMemcpy(&result, output, sizeof(T), cudaMemcpyDeviceToHost);
     checkErr(err, "cudaMemcpy()");
@@ -1100,14 +1115,14 @@ T hipaccApplyReductionThreadFence(const char *kernel2D, void *image, T neutral,
 }
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReductionThreadFence(const char *kernel2D, void *image, T neutral,
-        unsigned int width, unsigned int height, unsigned int stride, unsigned
-        int max_threads, unsigned int pixels_per_thread, const struct texture<T,
-        cudaTextureType2D, cudaReadModeElementType> &tex, hipaccTextureType
-        tex_info) {
-    return hipaccApplyReductionThreadFence<T>(kernel2D, image, neutral, width,
-            height, stride, 0, 0, width, height, max_threads, pixels_per_thread,
-            tex, tex_info);
+T hipaccApplyReductionThreadFence(const void *kernel2D, const char
+        *kernel2D_name, void *image, T neutral, unsigned int width, unsigned int
+        height, unsigned int stride, unsigned int max_threads, unsigned int
+        pixels_per_thread, const struct texture<T, cudaTextureType2D,
+        cudaReadModeElementType> &tex, hipaccTextureType tex_info) {
+    return hipaccApplyReductionThreadFence<T>(kernel2D, kernel2D_name, image,
+            neutral, width, height, stride, 0, 0, width, height, max_threads,
+            pixels_per_thread, tex, tex_info);
 }
 
 
@@ -1236,9 +1251,9 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         const char *kernel1D, void *image, T neutral, unsigned int width,
         unsigned int height, unsigned int stride, unsigned int max_threads,
         unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
-    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, image,
-            neutral, width, height, stride, 0, 0, width, height, max_threads,
-            pixels_per_thread, tex_info, cc);
+    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D,
+            image, neutral, width, height, stride, 0, 0, width, height,
+            max_threads, pixels_per_thread, tex_info, cc);
 }
 
 
