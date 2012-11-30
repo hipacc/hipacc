@@ -1343,14 +1343,13 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                         "': " << ptr;
                       break;
                     case 'c':
-                      cmem += val1;
+                      cmem += val1 + val2;
                       break;
                     case 'l':
                       lmem += val1 + val2;
                       break;
                     case 's':
                       smem += val1 + val2;
-                      llvm::errs() << "smem[2] size: " << val1 << "+" << val2 << "\n";
                       break;
                   }
                 } else {

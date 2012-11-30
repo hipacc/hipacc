@@ -585,11 +585,27 @@ void hipaccWriteSymbol(const void *symbol, T *host_mem, int width, int height) {
     err = cudaMemcpyToSymbol(symbol, host_mem, sizeof(T)*width*height);
     checkErr(err, "cudaMemcpyToSymbol()");
 }
+template<typename T>
+void hipaccWriteSymbol(const char *symbol, T *host_mem, int width, int height) {
+    cudaError_t err = cudaSuccess;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    err = cudaMemcpyToSymbol(symbol, host_mem, sizeof(T)*width*height);
+    checkErr(err, "cudaMemcpyToSymbol()");
+}
 
 
 // Read from symbol
 template<typename T>
 void hipaccReadSymbol(T *host_mem, const void *symbol, int width, int height) {
+    cudaError_t err = cudaSuccess;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    err = cudaMemcpyFromSymbol(host_mem, symbol, sizeof(T)*width*height);
+    checkErr(err, "cudaMemcpyFromSymbol()");
+}
+template<typename T>
+void hipaccReadSymbol(T *host_mem, const char *symbol, int width, int height) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
@@ -774,9 +790,11 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
         case 30:
             target_cc = CU_TARGET_COMPUTE_30;
             break;
+        #ifdef CU_TARGET_COMPUTE_35
         case 35:
             target_cc = CU_TARGET_COMPUTE_35;
             break;
+        #endif
     }
 
 
