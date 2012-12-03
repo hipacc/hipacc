@@ -34,6 +34,7 @@
 #ifndef _ASTTRANSLATE_H_
 #define _ASTTRANSLATE_H_
 
+#include <clang/AST/Attr.h>
 #include <clang/AST/Type.h>
 #include <clang/AST/StmtVisitor.h>
 #include <clang/Frontend/CompilerInstance.h>
