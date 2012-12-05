@@ -1,7 +1,3 @@
-TODO LIST:
-==========
-- add support for interpolation when staging data to shared memory
-
 KNOWN BUGS:
 ===========
 - pretty-printing C-code: currently, the following OpenCL attributes are not

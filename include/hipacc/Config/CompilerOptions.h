@@ -143,45 +143,45 @@ class CompilerOptions {
     TargetCode getTargetCode() { return target_code; }
     TargetDevice getTargetDevice() { return compute_capability; }
 
-    bool exploreConfig(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
+    bool exploreConfig(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
       if (explore_config & option) return true;
       return false;
     }
-    bool timeKernels(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
+    bool timeKernels(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
       if (time_kernels & option) return true;
       return false;
     }
-    bool useKernelConfig(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
+    bool useKernelConfig(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
       if (kernel_config & option) return true;
       return false;
     }
     int getKernelConfigX() { return kernel_config_x; }
     int getKernelConfigY() { return kernel_config_y; }
 
-    bool emitPadding(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
+    bool emitPadding(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
       if (align_memory & option) return true;
       return false;
     }
     int getAlignment() { return align_bytes; }
 
-    bool useTextureMemory(CompilerOption option=(CompilerOption)(AUTO|USER_ON))
+    bool useTextureMemory(CompilerOption option=(CompilerOption)(ON|USER_ON))
     {
       if (texture_memory & option) return true;
       return false;
     }
     TextureType getTextureType() { return texture_memory_type; }
 
-    bool useLocalMemory(CompilerOption option=(CompilerOption)(AUTO|USER_ON)) {
+    bool useLocalMemory(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
       if (local_memory & option) return true;
       return false;
     }
-    bool vectorizeKernels(CompilerOption option=(CompilerOption)(AUTO|USER_ON))
+    bool vectorizeKernels(CompilerOption option=(CompilerOption)(ON|USER_ON))
     {
       if (vectorize_kernels & option) return true;
       return false;
     }
     bool multiplePixelsPerThread(CompilerOption
-        option=(CompilerOption)(AUTO|USER_ON)) {
+        option=(CompilerOption)(ON|USER_ON)) {
       if (multiple_pixels & option) return true;
       return false;
     }
@@ -245,14 +245,14 @@ class CompilerOptions {
 
       llvm::errs() << "\n  Kernel execution configuration: ";
       getOptionAsString(kernel_config);
-      if (useKernelConfig(USER_ON)) {
+      if (useKernelConfig()) {
         llvm::errs() << ": " << kernel_config_x << "x" << kernel_config_y;
       }
       llvm::errs() << "\n  Alignment of image memory: ";
       getOptionAsString(align_memory, align_bytes);
       llvm::errs() << "\n  Usage of texture memory for images: ";
       getOptionAsString(texture_memory);
-      if (useTextureMemory(USER_ON)) {
+      if (useTextureMemory()) {
         if (texture_memory_type==Linear1D) llvm::errs() << ": Linear1D";
         if (texture_memory_type==Linear2D) llvm::errs() << ": Linear2D";
         if (texture_memory_type==Array2D) llvm::errs() << ": Array2D";

@@ -87,8 +87,7 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
   resultStr += "int " + pitchStr + ";\n";
   if (options.emitCUDA()) {
     // texture is bound at kernel launch
-    if (options.useTextureMemory(USER_ON) &&
-        options.getTextureType()==Array2D) {
+    if (options.useTextureMemory() && options.getTextureType()==Array2D) {
       resultStr += ident + "cudaArray *" + memName + " = ";
       resultStr += "hipaccCreateArray2D<" + type + ">(NULL, ";
     } else {
@@ -97,7 +96,7 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
     }
   } else {
     resultStr += ident + "cl_mem " + memName + " = ";
-    if (options.useTextureMemory(USER_ON)) {
+    if (options.useTextureMemory()) {
       resultStr += "hipaccCreateImage<" + type + ">(NULL, ";
     } else {
       resultStr += "hipaccCreateBuffer<" + type + ">(NULL, ";
@@ -106,7 +105,7 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
   resultStr += "(int) " + width;
   resultStr += ", (int) " + height;
   resultStr += ", &" + pitchStr;
-  if (options.useTextureMemory(USER_ON) && options.getTextureType()==Array2D) {
+  if (options.useTextureMemory() && options.getTextureType()==Array2D) {
     // OpenCL Image objects and CUDA Arrays don't support padding
   } else {
     if (options.emitPadding()) {
@@ -139,15 +138,13 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
   switch (direction) {
     case HOST_TO_DEVICE:
       if (options.emitCUDA()) {
-        if (options.useTextureMemory(USER_ON) &&
-            options.getTextureType()==Array2D) {
+        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
           resultStr += "hipaccWriteArray2D(";
         } else {
           resultStr += "hipaccWriteMemory(";
         }
       } else {
-        if (options.useTextureMemory(USER_ON) &&
-            options.getTextureType()==Array2D) {
+        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
           resultStr += "hipaccWriteImage(";
         } else {
           resultStr += "hipaccWriteBuffer(";
@@ -158,14 +155,13 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
       break;
     case DEVICE_TO_HOST:
       if (options.emitCUDA()) {
-        if (options.useTextureMemory(USER_ON) &&
-            options.getTextureType()==Array2D) {
+        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
           resultStr += "hipaccReadArray2D(";
         } else {
           resultStr += "hipaccReadMemory(";
         }
       } else {
-        if (options.useTextureMemory(USER_ON)) {
+        if (options.useTextureMemory()) {
           resultStr += "hipaccReadImage(";
         } else {
           resultStr += "hipaccReadBuffer(";
@@ -455,7 +451,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
 
 
   // check if Array2D memory is required for the iteration space
-  if (options.emitCUDA() && options.useTextureMemory(USER_ON) &&
+  if (options.emitCUDA() && options.useTextureMemory() &&
       options.getTextureType()==Array2D) {
     // bind surface
     if (options.exploreConfig()) {
@@ -499,7 +495,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       }
     }
 
-    if (options.emitCUDA() && i==0 && options.useTextureMemory(USER_ON) &&
+    if (options.emitCUDA() && i==0 && options.useTextureMemory() &&
         options.getTextureType()==Array2D) {
       // surface is handled separately
       continue;
@@ -665,7 +661,7 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
       resultStr += ", hipacc_tex_info(std::string(\"_tex" + GR->getAccessor()->getImage()->getName() + GR->getName() + "\"), ";
       resultStr += GR->getAccessor()->getImage()->getTextureType() + ", ";
       resultStr += "(void *)" + GR->getAccessor()->getImage()->getName() + ", ";
-      if (options.emitCUDA() && options.useTextureMemory(USER_ON) &&
+      if (options.emitCUDA() && options.useTextureMemory() &&
           options.getTextureType()==Array2D) {
         resultStr += "Array2D";
       } else {
@@ -682,7 +678,7 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
       // parameter is Array2D
       resultStr += ", _tex" + GR->getAccessor()->getImage()->getName() + GR->getName() + ", ";
       // print what type of input image we have - Array2D or NoTexture
-      if (options.emitCUDA() && options.useTextureMemory(USER_ON) &&
+      if (options.emitCUDA() && options.useTextureMemory() &&
           options.getTextureType()==Array2D) {
         resultStr += "Array2D";
       } else {

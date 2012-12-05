@@ -282,6 +282,11 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   }
+  if (compilerOptions.timeKernels(USER_ON) &&
+      compilerOptions.exploreConfig(USER_ON)) {
+    // kernels are timed internally by the runtime in case of exploration
+    compilerOptions.setTimeKernels(OFF);
+  }
 
 
   // print summary of compiler options

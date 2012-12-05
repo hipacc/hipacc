@@ -413,7 +413,7 @@ void HipaccKernel::calcConfig() {
   }
 
   // fall back to user specified configuration
-  if (options.useKernelConfig(USER_ON)) {
+  if (options.useKernelConfig()) {
     setDefaultConfig();
     num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
     num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
@@ -566,7 +566,7 @@ void HipaccKernel::createArgInfo() {
   }
 
   // bh_start_left
-  if (getMaxSizeX()) {
+  if (getMaxSizeX() || options.exploreConfig()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
         Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_left", NULL);
@@ -577,20 +577,21 @@ void HipaccKernel::createArgInfo() {
       Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
       Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_right", NULL);
   // bh_start_top
-  if (getMaxSizeY()) {
+  if (getMaxSizeY() || options.exploreConfig()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
         Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_top", NULL);
   }
   // bh_start_bottom: emit bh_start_bottom in case iteration space is not a
   // multiple of the block size
-  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY()) {
+  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY() ||
+      options.exploreConfig()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
         Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_bottom", NULL);
   }
   // bh_fall_back
-  if (getMaxSizeX() || getMaxSizeY()) {
+  if (getMaxSizeX() || getMaxSizeY() || options.exploreConfig()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
         Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_fall_back", NULL);
@@ -680,19 +681,20 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
 
   setInfoStr();
   // bh_start_left, bh_start_right
-  if (getMaxSizeX()) {
+  if (getMaxSizeX() || options.exploreConfig()) {
     hostArgNames.push_back(getInfoStr() + ".bh_start_left");
   }
   hostArgNames.push_back(getInfoStr() + ".bh_start_right");
   // bh_start_top, bh_start_bottom
-  if (getMaxSizeY()) {
+  if (getMaxSizeY() || options.exploreConfig()) {
     hostArgNames.push_back(getInfoStr() + ".bh_start_top");
   }
-  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY()) {
+  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY() ||
+      options.exploreConfig()) {
     hostArgNames.push_back(getInfoStr() + ".bh_start_bottom");
   }
   // bh_fall_back
-  if (getMaxSizeX() || getMaxSizeY()) {
+  if (getMaxSizeX() || getMaxSizeY() || options.exploreConfig()) {
     hostArgNames.push_back(getInfoStr() + ".bh_fall_back");
   }
 }

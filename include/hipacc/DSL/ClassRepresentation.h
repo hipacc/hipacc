@@ -513,8 +513,7 @@ class HipaccKernelFeatures : public HipaccDevice {
       MemoryType mem_type = Global;
       TextureType tex_type = NoTexture;
 
-      if (options.useTextureMemory(USER_ON) &&
-          options.getTextureType()==Array2D) {
+      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
         mem_type = Texture;
         tex_type = Array2D;
       }
@@ -528,8 +527,7 @@ class HipaccKernelFeatures : public HipaccDevice {
       TextureType tex_type = NoTexture;
       MemoryAccessDetail memAccessDetail = KC->getImgAccessDetail(decl);
 
-      if (options.useTextureMemory(USER_ON) &&
-          options.getTextureType()==Array2D) {
+      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
         mem_type = Texture;
         tex_type = Array2D;
       } else {
