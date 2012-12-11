@@ -191,26 +191,20 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
       switch (direction) {
         case HOST_TO_DEVICE:
           resultStr += "hipaccWriteSymbol<" + Mask->getTypeStr() + ">(";
-          if (options.getTargetDevice() >= KEPLER_30) {
-            resultStr += "(const void *)&";
-            resultStr += Mask->getName() + K->getName() + ", ";
-          } else {
-            resultStr += "\"";
-            resultStr += Mask->getName() + K->getName() + "\", ";
-          }
+          resultStr += "(const void *)&";
+          resultStr += Mask->getName() + K->getName() + ", ";
+          resultStr += "\"";
+          resultStr += Mask->getName() + K->getName() + "\", ";
           resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
           resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
           break;
         case DEVICE_TO_HOST:
           resultStr += "hipaccReadSymbol<" + Mask->getTypeStr() + ">(";
           resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
-          if (options.getTargetDevice() >= KEPLER_30) {
-            resultStr += "(const void *)&";
-            resultStr += Mask->getName() + K->getName() + ", ";
-          } else {
-            resultStr += "\"";
-            resultStr += Mask->getName() + K->getName() + "\", ";
-          }
+          resultStr += "(const void *)&";
+          resultStr += Mask->getName() + K->getName() + ", ";
+          resultStr += "\"";
+          resultStr += Mask->getName() + K->getName() + "\", ";
           resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
           break;
         case DEVICE_TO_DEVICE:

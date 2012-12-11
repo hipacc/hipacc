@@ -608,38 +608,30 @@ void hipaccUnbindTexture(const struct texture<T, ND, cudaReadModeElementType>tex
 
 // Write to symbol
 template<typename T>
-void hipaccWriteSymbol(const void *symbol, T *host_mem, int width, int height) {
+void hipaccWriteSymbol(const void *symbol, const char *symbol_name, T *host_mem, int width, int height) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
+    #if CUDA_VERSION >= 5000
     err = cudaMemcpyToSymbol(symbol, host_mem, sizeof(T)*width*height);
-    checkErr(err, "cudaMemcpyToSymbol()");
-}
-template<typename T>
-void hipaccWriteSymbol(const char *symbol, T *host_mem, int width, int height) {
-    cudaError_t err = cudaSuccess;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    err = cudaMemcpyToSymbol(symbol, host_mem, sizeof(T)*width*height);
+    #else
+    err = cudaMemcpyToSymbol(symbol_name, host_mem, sizeof(T)*width*height);
+    #endif
     checkErr(err, "cudaMemcpyToSymbol()");
 }
 
 
 // Read from symbol
 template<typename T>
-void hipaccReadSymbol(T *host_mem, const void *symbol, int width, int height) {
+void hipaccReadSymbol(T *host_mem, const void *symbol, const void *symbol_name, int width, int height) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
+    #if CUDA_VERSION >= 5000
     err = cudaMemcpyFromSymbol(host_mem, symbol, sizeof(T)*width*height);
-    checkErr(err, "cudaMemcpyFromSymbol()");
-}
-template<typename T>
-void hipaccReadSymbol(T *host_mem, const char *symbol, int width, int height) {
-    cudaError_t err = cudaSuccess;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    err = cudaMemcpyFromSymbol(host_mem, symbol, sizeof(T)*width*height);
+    #else
+    err = cudaMemcpyFromSymbol(host_mem, symbol_name, sizeof(T)*width*height);
+    #endif
     checkErr(err, "cudaMemcpyFromSymbol()");
 }
 
@@ -820,7 +812,7 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
         case 30:
             target_cc = CU_TARGET_COMPUTE_30;
             break;
-        #ifdef CU_TARGET_COMPUTE_35
+        #if CUDA_VERSION >= 5000
         case 35:
             target_cc = CU_TARGET_COMPUTE_35;
             break;
