@@ -160,8 +160,8 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
   // lookup interpolation function
   for (DeclContext::lookup_result Lookup =
       Ctx.getTranslationUnitDecl()->lookup(DeclarationName(&Ctx.Idents.get(name)));
-      Lookup.first!=Lookup.second; ++Lookup.first) {
-    FunctionDecl *Decl = cast_or_null<FunctionDecl>(*Lookup.first);
+      !Lookup.empty(); Lookup=Lookup.slice(1)) {
+    FunctionDecl *Decl = cast_or_null<FunctionDecl>(Lookup.front());
 
     if (Decl && Decl->getResultType() == Acc->getImage()->getPixelQualType()) {
       interpolateDecl = Decl;

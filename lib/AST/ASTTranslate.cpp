@@ -1480,8 +1480,8 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
           // get Mask reference
           for (DeclContext::lookup_result Lookup =
               Ctx.getTranslationUnitDecl()->lookup(DeclarationName(&Ctx.Idents.get(Mask->getName()+Kernel->getName())));
-              Lookup.first!=Lookup.second; ++Lookup.first) {
-            maskVar = cast_or_null<VarDecl>(*Lookup.first);
+              !Lookup.empty(); Lookup=Lookup.slice(1)) {
+            maskVar = cast_or_null<VarDecl>(Lookup.front());
 
             if (maskVar) break;
           }
