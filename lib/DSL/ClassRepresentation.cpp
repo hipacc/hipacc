@@ -413,7 +413,7 @@ void HipaccKernel::calcConfig() {
   }
 
   // fall back to user specified configuration
-  if (options.useKernelConfig()) {
+  if (!use_shared && options.useKernelConfig()) {
     setDefaultConfig();
     num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
     num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
