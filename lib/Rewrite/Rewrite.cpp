@@ -125,6 +125,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       TextRewriteOptions.RemoveLineIfEmpty = true;
     }
 
+    void setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
+        StringRef kernelName);
     void generateReductionKernels();
     void printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
         std::string file);
@@ -1264,146 +1266,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           K->setFileName(filename);
 
 
-          #ifdef USE_JIT_ESTIMATE
-          // write kernel file to estimate resource usage. The constants for
-          // boundary handling are set later on.
-
-          // kernel declaration for CUDA
-          FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
-              Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
-              K->getNumArgs(), K->getArgTypes(Context,
-                compilerOptions.getTargetCode()), K->getArgNames());
-
-          // create kernel body
-          ASTTranslate *HipaccEst = new ASTTranslate(Context, kernelDeclEst, K,
-              KC, builtins, compilerOptions, true);
-          Stmt *kernelStmtsEst =
-            HipaccEst->Hipacc(KC->getKernelFunction()->getBody());
-          kernelDeclEst->setBody(kernelStmtsEst);
-
-          // write kernel to file
-          printKernelFunction(kernelDeclEst, KC, K, filename, false);
-
-          // compile kernel in order to get resource usage
-          std::string command = K->getCompileCommand(compilerOptions.emitCUDA())
-            + K->getCompileOptions(kernelName.str(), filename,
-                compilerOptions.emitCUDA());
-
-          int reg=0, lmem=0, smem=0, cmem=0;
-          char line[FILENAME_MAX];
-          SmallVector<std::string, 16> lines;
-          FILE *fpipe;
-
-          if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
-            perror("Problems with pipe");
-            exit(EXIT_FAILURE);
-          }
-
-          std::string info;
-          if (compilerOptions.emitCUDA()) {
-            info = "ptxas info : Used %d registers";
-          } else {
-            if (targetDevice.isAMDGPU()) {
-              info = "isa info : Used %d gprs, %d bytes lds, stack size: %d";
-            } else {
-              info = "ptxas info : Used %d registers";
-            }
-          }
-          while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
-            lines.push_back(std::string(line));
-            if (targetDevice.isAMDGPU()) {
-              sscanf(line, info.c_str(), &reg, &smem, &lmem);
-            } else {
-              char *ptr = line;
-              int num_read = 0, val1 = 0, val2 = 0;
-              char mem_type = 'x';
-
-              if (compilerOptions.getTargetDevice() >= FERMI_20) {
-                // scan for stack size (shared memory)
-                num_read = sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type);
-
-                if (num_read == 2 && mem_type == 's') {
-                  smem = val1;
-                  llvm::errs() << "stack size: " << val1 << "\n";
-                  continue;
-                }
-              }
-
-              num_read = sscanf(line, info.c_str(), &reg);
-              if (!num_read) continue;
-
-              while ((ptr = strchr(ptr, ','))) {
-                ptr++;
-                num_read = sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2,
-                    &mem_type);
-                if (num_read == 3) {
-                  switch (mem_type) {
-                    default:
-                      llvm::errs() << "wrong memory specifier '" << mem_type <<
-                        "': " << ptr;
-                      break;
-                    case 'c':
-                      cmem += val1 + val2;
-                      break;
-                    case 'l':
-                      lmem += val1 + val2;
-                      break;
-                    case 's':
-                      smem += val1 + val2;
-                      break;
-                  }
-                } else {
-                  num_read = sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type);
-                  if (num_read == 2) {
-                    switch (mem_type) {
-                      default:
-                        llvm::errs() << "wrong memory specifier '" << mem_type
-                          << "': " << ptr;
-                        break;
-                      case 'c':
-                        cmem += val1;
-                        break;
-                      case 'l':
-                        lmem += val1;
-                        break;
-                      case 's':
-                        smem += val1;
-                        break;
-                    }
-                  } else {
-                    llvm::errs() << "Unexpected memory usage specification: '"
-                      << ptr;
-                  }
-                }
-              }
-            }
-          }
-          pclose(fpipe);
-
-          if (reg == 0) {
-            unsigned int DiagIDCompile =
-              Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-                  "Compiling kernel in file '%0.cu' failed, using default kernel configuration:\n%1");
-            Diags.Report(DiagIDCompile) << K->getFileName() << command.c_str();
-            for (unsigned int i=0, e=lines.size(); i!=e; ++i) {
-              llvm::errs() << lines.data()[i];
-            }
-          } else {
-            if (targetDevice.isAMDGPU()) {
-              llvm::errs() << "Resource usage for kernel '" << kernelName <<
-                "': " << reg << " gprs, " << lmem << " bytes stack, " << smem <<
-                " bytes lds\n";
-            } else {
-              llvm::errs() << "Resource usage for kernel '" << kernelName <<
-                "': " << reg << " registers, " << lmem << " bytes lmem, " <<
-                smem << " bytes smem, " << cmem << " bytes cmem\n";
-            }
-          }
-
-          K->setResourceUsage(reg, lmem, smem, cmem);
-          #else
-          K->setDefaultConfig();
-          #endif
+          // set kernel configuration
+          setKernelConfiguration(KC, K, kernelName);
 
 
           // kernel declaration
@@ -1687,6 +1551,154 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 }
 
 
+void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
+    StringRef kernelName) {
+  #ifdef USE_JIT_ESTIMATE
+  if (dump) {
+    K->setDefaultConfig();
+  } else {
+    // write kernel file to estimate resource usage
+    // kernel declaration for CUDA
+    FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
+        Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
+        K->getNumArgs(), K->getArgTypes(Context,
+          compilerOptions.getTargetCode()), K->getArgNames());
+
+    // create kernel body
+    ASTTranslate *HipaccEst = new ASTTranslate(Context, kernelDeclEst, K, KC,
+        builtins, compilerOptions, true);
+    Stmt *kernelStmtsEst =
+      HipaccEst->Hipacc(KC->getKernelFunction()->getBody());
+    kernelDeclEst->setBody(kernelStmtsEst);
+
+    // write kernel to file
+    printKernelFunction(kernelDeclEst, KC, K, K->getFileName(), false);
+
+    // compile kernel in order to get resource usage
+    std::string command = K->getCompileCommand(compilerOptions.emitCUDA()) +
+      K->getCompileOptions(kernelName.str(), K->getFileName(),
+          compilerOptions.emitCUDA());
+
+    int reg=0, lmem=0, smem=0, cmem=0;
+    char line[FILENAME_MAX];
+    SmallVector<std::string, 16> lines;
+    FILE *fpipe;
+
+    if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
+      perror("Problems with pipe");
+      exit(EXIT_FAILURE);
+    }
+
+    std::string info;
+    if (compilerOptions.emitCUDA()) {
+      info = "ptxas info : Used %d registers";
+    } else {
+      if (targetDevice.isAMDGPU()) {
+        info = "isa info : Used %d gprs, %d bytes lds, stack size: %d";
+      } else {
+        info = "ptxas info : Used %d registers";
+      }
+    }
+    while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
+      lines.push_back(std::string(line));
+      if (targetDevice.isAMDGPU()) {
+        sscanf(line, info.c_str(), &reg, &smem, &lmem);
+      } else {
+        char *ptr = line;
+        int num_read = 0, val1 = 0, val2 = 0;
+        char mem_type = 'x';
+
+        if (compilerOptions.getTargetDevice() >= FERMI_20) {
+          // scan for stack size (shared memory)
+          num_read = sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type);
+
+          if (num_read == 2 && mem_type == 's') {
+            smem = val1;
+            continue;
+          }
+        }
+
+        num_read = sscanf(line, info.c_str(), &reg);
+        if (!num_read) continue;
+
+        while ((ptr = strchr(ptr, ','))) {
+          ptr++;
+          num_read = sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2,
+              &mem_type);
+          if (num_read == 3) {
+            switch (mem_type) {
+              default:
+                llvm::errs() << "wrong memory specifier '" << mem_type
+                             << "': " << ptr;
+                break;
+              case 'c':
+                cmem += val1 + val2;
+                break;
+              case 'l':
+                lmem += val1 + val2;
+                break;
+              case 's':
+                smem += val1 + val2;
+                break;
+            }
+          } else {
+            num_read = sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type);
+            if (num_read == 2) {
+              switch (mem_type) {
+                default:
+                  llvm::errs() << "wrong memory specifier '" << mem_type
+                               << "': " << ptr;
+                  break;
+                case 'c':
+                  cmem += val1;
+                  break;
+                case 'l':
+                  lmem += val1;
+                  break;
+                case 's':
+                  smem += val1;
+                  break;
+              }
+            } else {
+              llvm::errs() << "Unexpected memory usage specification: '" << ptr;
+            }
+          }
+        }
+      }
+    }
+    pclose(fpipe);
+
+    if (reg == 0) {
+      unsigned int DiagIDCompile =
+        Diags.getCustomDiagID(DiagnosticsEngine::Warning,
+            "Compiling kernel in file '%0.cu' failed, using default kernel configuration:\n%1");
+      Diags.Report(DiagIDCompile) << K->getFileName() << command.c_str();
+      for (unsigned int i=0, e=lines.size(); i!=e; ++i) {
+        llvm::errs() << lines.data()[i];
+      }
+    } else {
+      if (targetDevice.isAMDGPU()) {
+        llvm::errs() << "Resource usage for kernel '" << kernelName << "': "
+                     << reg << " gprs, "
+                     << lmem << " bytes stack, "
+                     << smem << " bytes lds\n";
+      } else {
+        llvm::errs() << "Resource usage for kernel '" << kernelName << "': "
+                     << reg << " registers, "
+                     << lmem << " bytes lmem, "
+                     << smem << " bytes smem, "
+                     << cmem << " bytes cmem\n";
+      }
+    }
+
+    K->setResourceUsage(reg, lmem, smem, cmem);
+  }
+  #else
+  K->setDefaultConfig();
+  #endif
+}
+
+
 void Rewrite::generateReductionKernels() {
   for (unsigned int i=0; i<ReductionCalls.size(); i++) {
     CXXMemberCallExpr *E = ReductionCalls.data()[i];
@@ -1750,13 +1762,13 @@ void Rewrite::generateReductionKernels() {
 void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     std::string file) {
   PrintingPolicy Policy = Context.getPrintingPolicy();
-  if (dump) Policy.DumpSourceManager = SM;
   Policy.Indentation = 2;
   Policy.SuppressSpecifiers = false;
   Policy.SuppressTag = false;
   Policy.SuppressScope = false;
   Policy.ConstantArraySizeAsWritten = false;
   Policy.AnonymousTagLocations = true;
+  Policy.PolishForDeclaration = false;
   if (compilerOptions.emitCUDA()) {
     Policy.LangOpts.CUDA = 1;
   } else{
@@ -1773,13 +1785,16 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
 
   // open file stream using own file descriptor. We need to call fsync() to
   // compile the generated code using nvcc afterwards.
-  while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
-    if (errno != EINTR) {
-      std::string errorInfo = "Error opening output file '" + filename + "'";
-      perror(errorInfo.c_str());
+  llvm::raw_ostream *OS = &llvm::errs();
+  if (!dump) {
+    while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
+      if (errno != EINTR) {
+        std::string errorInfo = "Error opening output file '" + filename + "'";
+        perror(errorInfo.c_str());
+      }
     }
+    OS = new llvm::raw_fd_ostream(fd, false);
   }
-  llvm::raw_fd_ostream kernelOut(fd, false);
 
   // write ifndef, ifdef
   std::string ifdef = "_" + file + "_";
@@ -1789,88 +1804,85 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     ifdef += "CL_";
   }
   std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper); 
-  kernelOut << "#ifndef " + ifdef + "\n";
-  kernelOut << "#define " + ifdef + "\n\n";
+  *OS << "#ifndef " + ifdef + "\n";
+  *OS << "#define " + ifdef + "\n\n";
 
   if (!compilerOptions.exploreConfig()) {
-    kernelOut << "#define BS " << GR->getNumThreads() << "\n"
-              << "#define PPT " << GR->getPixelsPerThread() << "\n";
+    *OS << "#define BS " << GR->getNumThreads() << "\n"
+        << "#define PPT " << GR->getPixelsPerThread() << "\n";
   }
   if (GR->isAccessor()) {
-    kernelOut << "#define USE_OFFSETS\n";
+    *OS << "#define USE_OFFSETS\n";
   }
   if (compilerOptions.emitCUDA() && compilerOptions.getTargetDevice()>=FERMI_20
       && compilerOptions.useTextureMemory() &&
       compilerOptions.getTextureType()==Array2D) {
-    kernelOut << "#define USE_ARRAY_2D\n";
+    *OS << "#define USE_ARRAY_2D\n";
   }
   if (compilerOptions.emitCUDA()) {
-    kernelOut << "#include \"hipacc_cuda_red.hpp\"\n\n";
+    *OS << "#include \"hipacc_cuda_red.hpp\"\n\n";
   } else {
-    kernelOut << "#include \"hipacc_ocl_red.hpp\"\n\n";
+    *OS << "#include \"hipacc_ocl_red.hpp\"\n\n";
   }
 
 
   // write kernel name and qualifiers
   if (compilerOptions.emitCUDA()) {
-    kernelOut << "extern \"C\" {\n";
-    kernelOut << "__device__ ";
+    *OS << "extern \"C\" {\n";
+    *OS << "__device__ ";
   }
-  kernelOut << "inline "
-            << D->getResultType().getAsString() << " "
-            << GR->getName() << "Reduce(";
+  *OS << "inline " << D->getResultType().getAsString() << " "
+      << GR->getName() << "Reduce(";
   // write kernel parameters
   unsigned int comma = 0;
   for (unsigned int i=0, e=D->getNumParams(); i!=e; ++i) {
     std::string Name = D->getParamDecl(i)->getNameAsString();
 
     // normal arguments
-    if (comma++) kernelOut << ", ";
+    if (comma++) *OS << ", ";
     QualType T = D->getParamDecl(i)->getType();
     if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
       T = Parm->getOriginalType();
     T.getAsStringInternal(Name, Policy);
-    kernelOut << Name;
+    *OS << Name;
   }
-  kernelOut << ") ";
+  *OS << ") ";
 
   // print kernel body
-  D->getBody()->printPretty(kernelOut, 0, Policy, 0);
+  D->getBody()->printPretty(*OS, 0, Policy, 0);
 
   // instantiate reduction
   if (compilerOptions.emitCUDA()) {
     // print 2D CUDA array definition - this is only required on FERMI and if
     // Array2D is selected, but doesn't harm otherwise
-    kernelOut << "texture<" << D->getResultType().getAsString()
-              << ", cudaTextureType2D, cudaReadModeElementType> _tex"
-              << GR->getAccessor()->getImage()->getName() + GR->getName()
-              << ";\n\n";
+    *OS << "texture<" << D->getResultType().getAsString()
+        << ", cudaTextureType2D, cudaReadModeElementType> _tex"
+        << GR->getAccessor()->getImage()->getName() + GR->getName() << ";\n\n";
     if (compilerOptions.getTargetDevice()>=FERMI_20 &&
         !compilerOptions.exploreConfig()) {
-      kernelOut << "__device__ unsigned int finished_blocks_cu" <<
-        GR->getFileName() << "2D = 0;\n\n";
-      kernelOut << "REDUCTION_CUDA_2D_THREAD_FENCE(cu";
+      *OS << "__device__ unsigned int finished_blocks_cu" << GR->getFileName()
+        << "2D = 0;\n\n";
+      *OS << "REDUCTION_CUDA_2D_THREAD_FENCE(cu";
     } else {
-      kernelOut << "REDUCTION_CUDA_2D(cu";
+      *OS << "REDUCTION_CUDA_2D(cu";
     }
-    kernelOut << GR->getFileName() << "2D, "
-              << D->getResultType().getAsString() << ", "
-              << GR->getName() << "Reduce, _tex"
-              << GR->getAccessor()->getImage()->getName() + GR->getName()
-              << ")\n";
+    *OS << GR->getFileName() << "2D, "
+        << D->getResultType().getAsString() << ", "
+        << GR->getName() << "Reduce, _tex"
+        << GR->getAccessor()->getImage()->getName() + GR->getName() << ")\n";
   } else {
     if (compilerOptions.useTextureMemory()) {
-      kernelOut << "REDUCTION_OCL_2D_IMAGE(cl";
+      *OS << "REDUCTION_OCL_2D_IMAGE(cl";
     } else {
-      kernelOut << "REDUCTION_OCL_2D(cl";
+      *OS << "REDUCTION_OCL_2D(cl";
     }
-    kernelOut << GR->getFileName() << "2D, "
-              << D->getResultType().getAsString() << ", "
-              << GR->getName() << "Reduce";
+    *OS << GR->getFileName() << "2D, "
+        << D->getResultType().getAsString() << ", "
+        << GR->getName() << "Reduce";
     if (compilerOptions.useTextureMemory()) {
-      kernelOut << ", " << GR->getAccessor()->getImage()->getImageReadFunction();
+      *OS << ", " << GR->getAccessor()->getImage()->getImageReadFunction();
     }
-    kernelOut << ")\n";
+    *OS << ")\n";
   }
 
   if (compilerOptions.emitCUDA() && compilerOptions.getTargetDevice() >=
@@ -1878,24 +1890,24 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     // no second step required
   } else {
     if (compilerOptions.emitCUDA()) {
-      kernelOut << "REDUCTION_CUDA_1D(cu";
+      *OS << "REDUCTION_CUDA_1D(cu";
     } else {
-      kernelOut << "REDUCTION_OCL_1D(cl";
+      *OS << "REDUCTION_OCL_1D(cl";
     }
-    kernelOut << GR->getFileName() << "1D, "
-              << D->getResultType().getAsString() << ", "
-              << GR->getName() << "Reduce)\n";
+    *OS << GR->getFileName() << "1D, "
+        << D->getResultType().getAsString() << ", "
+        << GR->getName() << "Reduce)\n";
   }
 
   if (compilerOptions.emitCUDA()) {
-    kernelOut << "}\n";
+    *OS << "}\n";
   }
-  kernelOut << "#include \"hipacc_undef.hpp\"\n";
+  *OS << "#include \"hipacc_undef.hpp\"\n";
 
-  kernelOut << "\n";
-  kernelOut << "#endif //" + ifdef + "\n";
-  kernelOut << "\n";
-  kernelOut.flush();
+  *OS << "\n";
+  *OS << "#endif //" + ifdef + "\n";
+  *OS << "\n";
+  OS->flush();
   fsync(fd);
   close(fd);
 }
@@ -1904,13 +1916,13 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
 void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     HipaccKernel *K, std::string file, bool emitHints) {
   PrintingPolicy Policy = Context.getPrintingPolicy();
-  if (dump) Policy.DumpSourceManager = SM;
   Policy.Indentation = 2;
   Policy.SuppressSpecifiers = false;
   Policy.SuppressTag = false;
   Policy.SuppressScope = false;
   Policy.ConstantArraySizeAsWritten = false;
   Policy.AnonymousTagLocations = true;
+  Policy.PolishForDeclaration = false;
   if (compilerOptions.emitCUDA()) {
     Policy.LangOpts.CUDA = 1;
   } else{
@@ -1927,13 +1939,16 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   // open file stream using own file descriptor. We need to call fsync() to
   // compile the generated code using nvcc afterwards.
-  while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
-    if (errno != EINTR) {
-      std::string errorInfo = "Error opening output file '" + filename + "'";
-      perror(errorInfo.c_str());
+  llvm::raw_ostream *OS = &llvm::errs();
+  if (!dump) {
+    while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
+      if (errno != EINTR) {
+        std::string errorInfo = "Error opening output file '" + filename + "'";
+        perror(errorInfo.c_str());
+      }
     }
+    OS = new llvm::raw_fd_ostream(fd, false);
   }
-  llvm::raw_fd_ostream kernelOut(fd, false);
 
   // write ifndef, ifdef
   std::string ifdef = "_" + file + "_";
@@ -1943,11 +1958,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     ifdef += "CL_";
   }
   std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper); 
-  kernelOut << "#ifndef " + ifdef + "\n";
-  kernelOut << "#define " + ifdef + "\n\n";
+  *OS << "#ifndef " + ifdef + "\n";
+  *OS << "#define " + ifdef + "\n\n";
 
   if (compilerOptions.emitCUDA() && K->vectorize()) {
-    kernelOut << "#include \"hipacc_cuda_vec.hpp\"\n\n";
+    *OS << "#include \"hipacc_cuda_vec.hpp\"\n\n";
   }
 
   bool inc=false;
@@ -1960,10 +1975,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         inc = true;
         if (compilerOptions.emitCUDA()) {
           if (!emitHints) {
-            kernelOut << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
+            *OS << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
           }
         } else {
-          kernelOut << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
+          *OS << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
         }
       }
 
@@ -1981,13 +1996,13 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             resultStr);
         if (compilerOptions.emitCUDA()) {
           if (!emitHints) {
-            kernelOut << resultStr;
+            *OS << resultStr;
           } else {
             // emit interpolation definitions at the beginning at the file
             InterpolationDefinitions.push_back(resultStr);
           }
         } else {
-          kernelOut << resultStr;
+          *OS << resultStr;
         }
 
         resultStr.erase();
@@ -1996,13 +2011,13 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
         if (compilerOptions.emitCUDA()) {
           if (!emitHints) {
-            kernelOut << resultStr;
+            *OS << resultStr;
           } else {
             // emit interpolation definitions at the beginning at the file
             InterpolationDefinitions.push_back(resultStr);
           }
         } else {
-          kernelOut << resultStr;
+          *OS << resultStr;
         }
       }
     }
@@ -2017,29 +2032,29 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       if (KC->getImgAccess(FD) == READ_ONLY && K->useTextureMemory(Acc)) {
         QualType T = Acc->getImage()->getPixelQualType();
 
-        kernelOut << "texture<";
-        kernelOut << T.getAsString();
+        *OS << "texture<";
+        *OS << T.getAsString();
         switch (K->useTextureMemory(Acc)) {
           default:
           case Linear1D:
-            kernelOut << ", cudaTextureType1D, cudaReadModeElementType> _tex";
+            *OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
             break;
           case Linear2D:
           case Array2D:
-            kernelOut << ", cudaTextureType2D, cudaReadModeElementType> _tex";
+            *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
             break;
         }
-        kernelOut << FD->getNameAsString() << K->getName() << ";\n";
+        *OS << FD->getNameAsString() << K->getName() << ";\n";
       }
     }
 
     // write surface declaration
     if (compilerOptions.useTextureMemory() &&
         compilerOptions.getTextureType()==Array2D) {
-      kernelOut << "surface<void, cudaSurfaceType2D> _surfOutput";
-      kernelOut << K->getName() << ";\n";
+      *OS << "surface<void, cudaSurfaceType2D> _surfOutput";
+      *OS << K->getName() << ";\n";
     }
-    kernelOut << "\n";
+    *OS << "\n";
   }
 
   // write constant memory declarations
@@ -2049,44 +2064,40 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
     if (Mask->isConstant()) {
       if (compilerOptions.emitCUDA()) {
-        kernelOut << "__device__ __constant__ ";
+        *OS << "__device__ __constant__ ";
       } else {
-        kernelOut << "__constant ";
+        *OS << "__constant ";
       }
-      kernelOut << Mask->getTypeStr();
-      kernelOut << " " << Mask->getName() << K->getName();
-      kernelOut << "[" << Mask->getSizeYStr() << "][" << Mask->getSizeXStr() <<
-        "] = {\n";
+      *OS << Mask->getTypeStr() << " " << Mask->getName() << K->getName() << "["
+          << Mask->getSizeYStr() << "][" << Mask->getSizeXStr() << "] = {\n";
 
       InitListExpr *ILE = Mask->getInitList();
       unsigned int num_init = 0;
 
       // print Mask constant literals to 2D array
       for (unsigned int j=0; j<Mask->getSizeY(); j++) {
-        kernelOut << "        {";
+        *OS << "        {";
         for (unsigned int k=0; k<Mask->getSizeX(); k++) {
-          ILE->getInit(num_init++)->printPretty(kernelOut, 0, Policy, 0);
+          ILE->getInit(num_init++)->printPretty(*OS, 0, Policy, 0);
           if (k<Mask->getSizeX()-1) {
-            kernelOut << ", ";
+            *OS << ", ";
           }
         }
         if (j<Mask->getSizeY()-1) {
-          kernelOut << "},\n";
+          *OS << "},\n";
         } else {
-          kernelOut << "}\n";
+          *OS << "}\n";
         }
       }
-      kernelOut << "    };\n\n";
+      *OS << "    };\n\n";
       Mask->setIsPrinted(true);
     } else {
       // mask is not constant. Emit declaration in CUDA, for OpenCL nothing has
       // to be printed - the Mask will be added as kernel parameter
       if (compilerOptions.emitCUDA()) {
-        kernelOut << "__device__ __constant__ ";
-        kernelOut << Mask->getTypeStr();
-        kernelOut << " " << Mask->getName() << K->getName();
-        kernelOut << "[" << Mask->getSizeYStr() << "][" << Mask->getSizeXStr()
-          << "];\n\n";
+        *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
+          << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
+          << "][" << Mask->getSizeXStr() << "];\n\n";
         Mask->setIsPrinted(true);
       }
     }
@@ -2094,24 +2105,28 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   // write kernel name and qualifiers
   if (compilerOptions.emitCUDA()) {
-    kernelOut << "extern \"C\" {\n";
-    kernelOut << "__global__ void ";
-    if (!compilerOptions.exploreConfig() && emitHints) kernelOut << "__launch_bounds__ (" <<
-      K->getNumThreadsX() << "*" << K->getNumThreadsY() << ") ";
+    *OS << "extern \"C\" {\n";
+    *OS << "__global__ void ";
+    if (!compilerOptions.exploreConfig() && emitHints) {
+      *OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
+          << K->getNumThreadsY() << ") ";
+    }
   } else {
     if (compilerOptions.useTextureMemory() &&
         compilerOptions.getTextureType()==Array2D) {
-      kernelOut << "__constant sampler_t "
-        << D->getNameInfo().getAsString() << "Sampler = "
-        << "CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;\n\n";
+      *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
+          << "Sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | "
+          << " CLK_FILTER_NEAREST; \n\n";
     }
-    kernelOut << "__kernel ";
-    if (!compilerOptions.exploreConfig() && emitHints) kernelOut << "__attribute__((reqd_work_group_size(" <<
-      K->getNumThreadsX() << ", " << K->getNumThreadsY() << ", 1))) ";
-    kernelOut << "void ";
+    *OS << "__kernel ";
+    if (!compilerOptions.exploreConfig() && emitHints) {
+      *OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
+          << ", " << K->getNumThreadsY() << ", 1))) ";
+    }
+    *OS << "void ";
   }
-  kernelOut << D->getNameInfo().getAsString();
-  kernelOut << "(";
+  *OS << D->getNameInfo().getAsString();
+  *OS << "(";
 
   // write kernel parameters
   unsigned int comma = 0;
@@ -2125,16 +2140,16 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       if (compilerOptions.emitCUDA() || Mask->isConstant()) {
         // skip mask parameter in CUDA, mask is declared as constant memory
       } else {
-        if (comma++) kernelOut << ", ";
-        kernelOut << "__constant ";
+        if (comma++) *OS << ", ";
+        *OS << "__constant ";
         QualType T = D->getParamDecl(i)->getType();
         if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
           T = Parm->getOriginalType();
         T.getAsStringInternal(Name, Policy);
-        kernelOut << Name;
-        kernelOut << " __attribute__ ((max_constant_size (" <<
-          Mask->getSizeXStr() << "*" << Mask->getSizeYStr() <<
-          "*sizeof(" << Mask->getTypeStr() << "))))";
+        *OS << Name;
+        *OS << " __attribute__ ((max_constant_size (" << Mask->getSizeXStr()
+            << "*" << Mask->getSizeYStr() << "*sizeof(" << Mask->getTypeStr()
+            << "))))";
       }
       continue;
     }
@@ -2157,10 +2172,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           // no parameter is emitted for textures
           continue;
         } else {
-          if (comma++) kernelOut << ", ";
+          if (comma++) *OS << ", ";
           QualType T = D->getParamDecl(i)->getType();
           if (memAcc==READ_ONLY && !T.isLocalConstQualified()) {
-            kernelOut << "const ";
+            *OS << "const ";
           }
           if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
             T = Parm->getOriginalType();
@@ -2168,56 +2183,56 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         }
       } else {
         // __global keyword to specify memory location is only needed for OpenCL
-        if (comma++) kernelOut << ", ";
+        if (comma++) *OS << ", ";
         if (K->useTextureMemory(Acc)) {
           if (memAcc==WRITE_ONLY) {
-            kernelOut << "__write_only image2d_t ";
+            *OS << "__write_only image2d_t ";
           } else {
-            kernelOut << "__read_only image2d_t ";
+            *OS << "__read_only image2d_t ";
           }
         } else {
-          kernelOut << "__global ";
+          *OS << "__global ";
           QualType T = D->getParamDecl(i)->getType();
           if (memAcc==READ_ONLY && !T.isLocalConstQualified()) {
-            kernelOut << "const ";
+            *OS << "const ";
           }
           if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
             T = Parm->getOriginalType();
           T.getAsStringInternal(Name, Policy);
         }
       }
-      kernelOut << Name;
+      *OS << Name;
       continue;
     }
 
     // normal arguments
-    if (comma++) kernelOut << ", ";
+    if (comma++) *OS << ", ";
     QualType T = D->getParamDecl(i)->getType();
     if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
       T = Parm->getOriginalType();
     T.getAsStringInternal(Name, Policy);
-    kernelOut << Name;
+    *OS << Name;
 
     // default arguments ...
     if (Expr *Init = D->getParamDecl(i)->getInit()) {
       CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(Init);
       if (!CCE || CCE->getConstructor()->isCopyConstructor()) {
-        kernelOut << " = ";
+        *OS << " = ";
       }
-      Init->printPretty(kernelOut, 0, Policy, 0);
+      Init->printPretty(*OS, 0, Policy, 0);
     }
   }
-  kernelOut << ") ";
+  *OS << ") ";
 
   // print kernel body
-  D->getBody()->printPretty(kernelOut, 0, Policy, 0);
+  D->getBody()->printPretty(*OS, 0, Policy, 0);
   if (compilerOptions.emitCUDA()) {
-    kernelOut << "}\n";
+    *OS << "}\n";
   }
-  kernelOut << "\n";
-  kernelOut << "#endif //" + ifdef + "\n";
-  kernelOut << "\n";
-  kernelOut.flush();
+  *OS << "\n";
+  *OS << "#endif //" + ifdef + "\n";
+  *OS << "\n";
+  OS->flush();
   fsync(fd);
   close(fd);
 }
