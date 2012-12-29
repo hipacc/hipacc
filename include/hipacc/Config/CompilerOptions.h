@@ -236,7 +236,7 @@ class CompilerOptions {
           break;
       }
       llvm::errs() << "' language.\n";
-      llvm::errs() << "  Target device is '" << target_device;
+      llvm::errs() << "  Target device is '" << target_device << "'";
 
       llvm::errs() << "\n  Exploration of kernel configurations: ";
       getOptionAsString(explore_config);
