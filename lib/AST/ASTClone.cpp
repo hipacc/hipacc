@@ -230,7 +230,7 @@ Stmt *ASTTranslate::VisitCXXCatchStmt(CXXCatchStmt *S) {
 Stmt *ASTTranslate::VisitCXXTryStmt(CXXTryStmt *S) {
   SmallVector<Stmt *, 16> handlers;
 
-  for (unsigned int I=0, N=S->getNumHandlers(); I<N; ++I) {
+  for (unsigned int I=0, N=S->getNumHandlers(); I!=N; ++I) {
     handlers.push_back((Stmt *)Clone(S->getHandler(I)));
   }
 
@@ -261,8 +261,8 @@ Expr *ASTTranslate::VisitPredefinedExpr(PredefinedExpr *E) {
 
 Expr *ASTTranslate::VisitDeclRefExpr(DeclRefExpr *E) {
   TemplateArgumentListInfo templateArgs(E->getLAngleLoc(), E->getRAngleLoc());
-  for (unsigned int i=0, e=E->getNumTemplateArgs(); i!=e; ++i) {
-    templateArgs.addArgument(E->getTemplateArgs()[i]);
+  for (unsigned int I=0, N=E->getNumTemplateArgs(); I!=N; ++I) {
+    templateArgs.addArgument(E->getTemplateArgs()[I]);
   }
 
   ValueDecl *VD = CloneDecl(E->getDecl());
@@ -358,7 +358,7 @@ Expr *ASTTranslate::VisitOffsetOfExpr(OffsetOfExpr *E) {
     result->setComponent(I, E->getComponent(I));
   }
 
-  for (unsigned int I=0, N=E->getNumExpressions(); I<N; ++I) {
+  for (unsigned int I=0, N=E->getNumExpressions(); I!=N; ++I) {
     result->setIndexExpr(I, Clone(E->getIndexExpr(I)));
   }
 
@@ -433,7 +433,7 @@ Expr *ASTTranslate::VisitCastExpr(CastExpr *E) {
 Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
   BinaryOperator *result = new (Ctx) BinaryOperator(Clone(E->getLHS()),
       Clone(E->getRHS()), E->getOpcode(), E->getType(), E->getValueKind(),
-      E->getObjectKind(), E->getOperatorLoc());
+      E->getObjectKind(), E->getOperatorLoc(), E->isFPContractable());
 
   setExprProps(E, result);
 
@@ -536,7 +536,7 @@ Expr *ASTTranslate::VisitExtVectorElementExpr(ExtVectorElementExpr *E) {
 Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
   SmallVector<Expr *, 16> initExprs;
 
-  for (unsigned int I=0, N=E->getNumInits(); I<N; ++I) {
+  for (unsigned int I=0, N=E->getNumInits(); I!=N; ++I) {
     initExprs.push_back(Clone(E->getInit(I)));
   }
 
@@ -616,8 +616,8 @@ Expr *ASTTranslate::VisitPseudoObjectExpr(PseudoObjectExpr *E) {
 Expr *ASTTranslate::VisitAtomicExpr(AtomicExpr *E) {
   SmallVector<Expr *, 16> Args;
 
-  for (unsigned int i=0, e=E->getNumSubExprs(); i<e; ++i) {
-    Args.push_back(Clone(E->getSubExprs()[i]));
+  for (unsigned int I=0, N=E->getNumSubExprs(); I!=N; ++I) {
+    Args.push_back(Clone(E->getSubExprs()[I]));
   }
 
   Expr *result = new (Ctx) AtomicExpr(E->getBuiltinLoc(), Args, E->getType(),
@@ -671,15 +671,16 @@ Expr *ASTTranslate::VisitGNUNullExpr(GNUNullExpr *E) {
 // C++ Expressions
 #ifdef NO_TRANSLATION
 Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
-  CXXOperatorCallExpr *result = new (Ctx) CXXOperatorCallExpr(Ctx,
-      E->getOperator(), Clone(E->getCallee()), MultiExprArg(), E->getType(),
-      E->getValueKind(), E->getRParenLoc());
+  SmallVector<Expr *, 16> args;
 
-  result->setNumArgs(Ctx, E->getNumArgs());
-
-  for (unsigned int I=0, N=E->getNumArgs(); I<N; ++I) {
-    result->setArg(I, Clone(E->getArg(I)));
+  for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
+    args.push_back(Clone(E->getArg(I)));
   }
+
+  CXXOperatorCallExpr *result = new (Ctx) CXXOperatorCallExpr(Ctx,
+      E->getOperator(), Clone(E->getCallee()), llvm::makeArrayRef(args.data(),
+        args.size()), E->getType(), E->getValueKind(), E->getRParenLoc(),
+      E->isFPContractable());
 
   setExprProps(E, result);
 
@@ -693,7 +694,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
   result->setNumArgs(Ctx, E->getNumArgs());
 
-  for (unsigned int I=0, N=E->getNumArgs(); I<N; ++I) {
+  for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
     result->setArg(I, Clone(E->getArg(I)));
   }
 
@@ -949,6 +950,11 @@ Expr *ASTTranslate::VisitSubstNonTypeTemplateParmPackExpr(
   return NULL;
 }
 
+Expr *ASTTranslate::VisitFunctionParmPackExpr(FunctionParmPackExpr *E) {
+  HIPACC_NOT_SUPPORTED(FunctionParmPackExpr);
+  return NULL;
+}
+
 Expr *ASTTranslate::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
   MaterializeTemporaryExpr *result = new (Ctx) MaterializeTemporaryExpr(E->getType(), 
       Clone(E->GetTemporaryExpr()), E->isBoundToLvalueReference());
@@ -1008,8 +1014,8 @@ Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
 Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
   SmallVector<Expr *, 16> Args;
 
-  for (unsigned int i=0, e=E->getNumArgs(); i<e; ++i) {
-    Args.push_back(Clone(E->getArg(i)));
+  for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
+    Args.push_back(Clone(E->getArg(I)));
   }
 
   Expr *result = new (Ctx) CUDAKernelCallExpr(Ctx, Clone(E->getCallee()),
@@ -1026,7 +1032,7 @@ Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
 Expr *ASTTranslate::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
   SmallVector<Expr *, 16> body;
 
-  for (unsigned int I=0, N=E->getNumSubExprs(); I<N; ++I) {
+  for (unsigned int I=0, N=E->getNumSubExprs(); I!=N; ++I) {
     body.push_back(Clone(E->getExpr(I)));
   }
 

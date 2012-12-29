@@ -444,6 +444,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitSubstNonTypeTemplateParmExpr(SubstNonTypeTemplateParmExpr *E);
     Expr *VisitSubstNonTypeTemplateParmPackExpr(
         SubstNonTypeTemplateParmPackExpr *E);
+    Expr *VisitFunctionParmPackExpr(FunctionParmPackExpr *E);
     Expr *VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E);
     Expr *VisitLambdaExpr(LambdaExpr *E);
 
