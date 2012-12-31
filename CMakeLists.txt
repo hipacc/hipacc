@@ -67,7 +67,7 @@ IF(APPLE)
     SET(CUDA_LINK "-Xlinker -framework,CUDA")
 ELSE(APPLE)
     SET(PLATFORM_FIXES "-D NO_BOOST")
-    SET(CUDA_LINK "-lcuda")
+    SET(CUDA_LINK "-lcuda -lcudart")
 ENDIF(APPLE)
 
 
