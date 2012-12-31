@@ -1095,8 +1095,8 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D, std::string prefix) {
 #ifdef NO_TRANSLATION
 #else
 Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
-  CompoundStmt* result = new (Ctx) CompoundStmt(Ctx, NULL, 0, S->getLBracLoc(),
-      S->getLBracLoc());
+  CompoundStmt* result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
+      S->getLBracLoc(), S->getLBracLoc());
 
   SmallVector<Stmt *, 16> body;
   for (CompoundStmt::const_body_iterator I=S->body_begin(), E=S->body_end();

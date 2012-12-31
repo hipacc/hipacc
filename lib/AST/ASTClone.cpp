@@ -235,7 +235,7 @@ Stmt *ASTTranslate::VisitCXXTryStmt(CXXTryStmt *S) {
   }
 
   return CXXTryStmt::Create(Ctx, S->getTryLoc(), Clone(S->getTryBlock()),
-      handlers.data(), handlers.size());
+      llvm::makeArrayRef(handlers.data(), handlers.size()));
 }
 
 Stmt *ASTTranslate::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
