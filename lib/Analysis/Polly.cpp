@@ -34,9 +34,9 @@
 #include <polly/LinkAllPasses.h>
 #include <polly/ScopDetection.h>
 
-#include <llvm/DataLayout.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
+#include <llvm/IR/DataLayout.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <llvm/PassManager.h>
 #include <llvm/ADT/Statistic.h>
 #include <llvm/ADT/Triple.h>
