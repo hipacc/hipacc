@@ -146,6 +146,13 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
 // access 1D memory array at given index
 Expr *ASTTranslate::accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x,
     Expr *idx_y) {
+
+  // for vectorization divide stride by vector size
+  if (Kernel->vectorize() && !emitPolly) {
+    stride = createBinaryOperator(Ctx, stride, createIntegerLiteral(Ctx, 4),
+        BO_Div, Ctx.IntTy);
+  }
+
   Expr *result = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
         createParenExpr(Ctx, idx_y), stride, BO_Mul, Ctx.IntTy), idx_x, BO_Add,
       Ctx.IntTy);

@@ -218,7 +218,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       KernelClass(kernelClass),
       builtins(builtins),
       compilerOptions(options),
-      simdTypes(SIMDTypes(Ctx, builtins)),
+      simdTypes(SIMDTypes(Ctx, builtins, options)),
       bh_variant(),
       emitEstimation(emitEstimation),
       emitPolly(emitPolly),

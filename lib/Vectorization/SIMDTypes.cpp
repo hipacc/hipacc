@@ -184,6 +184,11 @@ QualType SIMDTypes::getSIMDType(ParmVarDecl *PVD, SIMDWidth simd_width) {
     typeToVectorType[simd_width][BT] = SIMDType;
   }
 
+  // add __global address qualifier for OpenCL back end
+  if (options.emitOpenCL()) {
+    SIMDType = Ctx.getAddrSpaceQualType(SIMDType, LangAS::opencl_global);
+  }
+
   // add pointer to type
   SIMDType = Ctx.getPointerType(SIMDType);
   imgsToVectorType[simd_width][PVD] = SIMDType;
@@ -216,6 +221,9 @@ Expr *SIMDTypes::propagate(VarDecl *VD, Expr *E) {
   // vector types do not need further widening
   if (E->getType()->isVectorType() || E->getType()->isExtVectorType())
     return E;
+
+  // only propagate scalars for CUDA back end
+  if (!options.emitCUDA()) return E;
 
   QualType QT = VD->getType();
   const BuiltinType *BT = QT->getAs<BuiltinType>();

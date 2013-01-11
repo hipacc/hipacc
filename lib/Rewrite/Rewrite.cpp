@@ -1290,6 +1290,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           #ifdef USE_POLLY
           if (!compilerOptions.exploreConfig()) {
+            TargetCode tc = compilerOptions.getTargetCode();
+            compilerOptions.setTargetCode(TARGET_C);
+
             // create kernel declaration for Polly
             FunctionDecl *kernelDeclPolly = createFunctionDecl(Context,
                 Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
@@ -1308,6 +1311,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
             Polly *polly_analysis = new Polly(Context, CI, kernelDeclPolly);
             polly_analysis->analyzeKernel();
+            compilerOptions.setTargetCode(tc);
           }
           #endif
 

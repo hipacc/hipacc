@@ -38,6 +38,7 @@
 #include <sstream>
 
 #include "hipacc/AST/ASTNode.h"
+#include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/Builtins.h"
 
 namespace clang {
@@ -57,6 +58,7 @@ class SIMDTypes {
   private:
     ASTContext &Ctx;
     hipacc::Builtin::Context &builtins;
+    CompilerOptions &options;
     llvm::DenseMap<const VarDecl *, QualType> declsToVectorType[SIMDEND];
     llvm::DenseMap<const ParmVarDecl *, QualType> imgsToVectorType[SIMDEND];
     llvm::DenseMap<const BuiltinType *, QualType> typeToVectorType[SIMDEND];
@@ -66,9 +68,11 @@ class SIMDTypes {
         simd_width);
 
   public:
-    SIMDTypes(ASTContext &Ctx, hipacc::Builtin::Context &builtins) :
+    SIMDTypes(ASTContext &Ctx, hipacc::Builtin::Context &builtins,
+        CompilerOptions &options) :
       Ctx(Ctx),
-      builtins(builtins)
+      builtins(builtins),
+      options(options)
     {
       DiagIDType =
         Ctx.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Error,

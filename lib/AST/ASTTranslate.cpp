@@ -432,9 +432,15 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   KernelDeclMapAcc.clear();
 
   // add vector pointer declarations for images
-  if (Kernel->vectorize()) {
-    for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
+  if (Kernel->vectorize() && !emitPolly) {
+    for (unsigned int i=0; i<=KernelClass->getNumImages(); i++) {
       FieldDecl *FD = KernelClass->getImgFields().data()[i];
+      // output image - iteration space
+      StringRef name = "Output";
+      if (i<KernelClass->getNumImages()) {
+        // normal parameter
+        name = FD->getName();
+      }
 
       // search for member name in kernel parameter list
       for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
@@ -442,9 +448,12 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         ParmVarDecl *PVD = *I;
 
         // parameter name matches
-        if (PVD->getName().equals(FD->getName())) {
+        if (PVD->getName().equals(name)) {
           // <type>4 *Input4 = (<type>4 *) Input;
           VarDecl *VD = CloneDecl(PVD);
+
+          // update outputImage reference
+          if (name.equals("Output")) outputImage = createDeclRefExpr(Ctx, VD);
 
           VD->setInit(createCStyleCastExpr(Ctx, VD->getType(), CK_BitCast,
                 createDeclRefExpr(Ctx, PVD), NULL,
@@ -986,12 +995,13 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
         QT = PVD->getType();
 
         // only vectorize image PVDs
-        if (Kernel->vectorize()) {
+        if (Kernel->vectorize() && !emitPolly) {
           for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
             FieldDecl *FD = KernelClass->getImgFields().data()[i];
 
             // parameter name matches
-            if (PVD->getName().equals(FD->getName())) {
+            if (PVD->getName().equals(FD->getName()) ||
+                PVD->getName().equals("Output")) {
               name += "4";
               QT = simdTypes.getSIMDType(PVD, SIMD4);
               break;
@@ -1011,7 +1021,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
         QT = VD->getType();
         name  = VD->getName();
 
-        if (Kernel->vectorize()) {
+        if (Kernel->vectorize() && !emitPolly) {
           VectorInfo VI = KernelClass->getVectorizeInfo(VD);
 
           if (VI == VECTORIZE) {
@@ -1030,7 +1040,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
     // set VarDecl as being used - required for CodeGen
     result->setUsed(true);
 
-    if (!PVD && Kernel->vectorize() &&
+    if (!PVD && Kernel->vectorize() && compilerOptions.emitCUDA() &&
         KernelClass->getVectorizeInfo(VD) == VECTORIZE) {
       result->setInit(simdTypes.propagate(VD, Clone(VD->getInit())));
     } else {
@@ -1196,7 +1206,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
 
   if (E->getDirectCallee()) {
     QualType QT = E->getCallReturnType();
-    if (Kernel->vectorize()) {
+    if (Kernel->vectorize() && !emitPolly) {
       QT = simdTypes.getSIMDType(QT, QT.getAsString(), SIMD4);
       // cast ExtVectorType to VectorType - Builtin functions are created
       // using VectorTypes
@@ -1445,7 +1455,7 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
       paramDecl = PVD;
 
       // get vector declaration
-      if (Kernel->vectorize()) {
+      if (Kernel->vectorize() && !emitPolly) {
         if (KernelDeclMapVector.count(PVD)) {
           paramDecl = KernelDeclMapVector[PVD];
           llvm::errs() << "Vectorize: \n";
@@ -1691,7 +1701,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
   // Masks are handled before - Images are ParmVarDecls
   ParmVarDecl *PVD = NULL;
-  if (!Kernel->vectorize()) {
+  if (!Kernel->vectorize()) { // Images are replaced by local pointers
     assert(isa<ParmVarDecl>(LHS->getDecl()) && "Image variable must be a ParmVarDecl!");
     PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());
   }

@@ -110,13 +110,12 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
     // calculate block id of a) first block that requires no border handling
     // (left, top) and b) first block that requires border handling (right,
     // bottom)
-    // TODO: account for vectorization
     if (info.size_x > 0) {
-        info.bh_start_left = (int)ceil((float)(info.offset_x + info.size_x) / block.x);
-        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / block.x);
+        info.bh_start_left = (int)ceil((float)(info.offset_x + info.size_x) / (block.x * info.simd_width));
+        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / (block.x * info.simd_width));
     } else {
         info.bh_start_left = 0;
-        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width) / block.x);
+        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width) / (block.x * info.simd_width));
     }
     if (info.size_y > 0) {
         // for shared memory calculate additional blocks to be staged - this is
@@ -140,7 +139,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
 
 dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
     return dim3(
-            (int)ceil((float)(info.is_width + info.offset_x)/block.x),
+            (int)ceil((float)(info.is_width + info.offset_x)/(block.x*info.simd_width)),
             (int)ceil((float)(info.is_height)/(block.y*info.pixels_per_thread))
             );
 }
