@@ -284,7 +284,6 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         break;
       case BOUNDARY_CONSTANT:
       case BOUNDARY_UNDEFINED:
-      default:
         assert(0 && "addBorderHandling && BOUNDARY_UNDEFINED!");
         break;
     }

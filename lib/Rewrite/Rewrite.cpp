@@ -1775,7 +1775,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   Policy.PolishForDeclaration = false;
   if (compilerOptions.emitCUDA()) {
     Policy.LangOpts.CUDA = 1;
-  } else{
+  } else {
     Policy.LangOpts.OpenCL = 1;
   }
 
@@ -1912,8 +1912,10 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   *OS << "#endif //" + ifdef + "\n";
   *OS << "\n";
   OS->flush();
-  fsync(fd);
-  close(fd);
+  if (!dump) {
+    fsync(fd);
+    close(fd);
+  }
 }
 
 
@@ -1929,7 +1931,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   Policy.PolishForDeclaration = false;
   if (compilerOptions.emitCUDA()) {
     Policy.LangOpts.CUDA = 1;
-  } else{
+  } else {
     Policy.LangOpts.OpenCL = 1;
   }
 
@@ -2237,8 +2239,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   *OS << "#endif //" + ifdef + "\n";
   *OS << "\n";
   OS->flush();
-  fsync(fd);
-  close(fd);
+  if (!dump) {
+    fsync(fd);
+    close(fd);
+  }
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

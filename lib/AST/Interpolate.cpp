@@ -48,7 +48,6 @@ std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
   switch (Acc->getInterpolation()) {
     case InterpolateNO:
     case InterpolateNN:
-    default:
       break;
     case InterpolateLF:
       name += "lf_";
@@ -124,7 +123,6 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
   if (KernelClass->getKernelType()!=LocalOperator || bh_variant.borderVal) {
     switch (Acc->getBoundaryHandling()) {
       case BOUNDARY_UNDEFINED:
-      default:
         break;
       case BOUNDARY_CLAMP:
         name += "_clamp_";

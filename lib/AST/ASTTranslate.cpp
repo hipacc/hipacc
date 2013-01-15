@@ -1170,7 +1170,6 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
             BO_MulAssign, convRed->getType());
         break;
       case HipaccMEDIAN:
-      default:
         assert(0 && "Unsupported convolution mode.");
         break;
     }
@@ -1802,7 +1801,6 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               break;
             case UNDEFINED:
             case READ_WRITE:
-            default:
               assert(0 && "Unsupported memory access with offset specification!\n");
               break;
           }

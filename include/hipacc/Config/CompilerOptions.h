@@ -96,7 +96,6 @@ class CompilerOptions {
         case ON:
           llvm::errs() << "ENABLED";
           break;
-        default:
         case OFF:
           llvm::errs() << "DISABLED";
           break;

@@ -432,6 +432,7 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
                 err = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(pnBuffer), &pnBuffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(pvBuffer), &pvBuffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(this_dev_type), &this_dev_type, NULL);
+                checkErr(err, "clGetDeviceInfo()");
 
                 // Use first device of desired type
                 if (platform_number == (int)i && device_number == -1 && (this_dev_type == dev_type || dev_type == CL_DEVICE_TYPE_ALL)) {
@@ -517,8 +518,7 @@ void hipaccDumpBinary(cl_program program, cl_device_id device) {
 
     // Get the sizes of the binaries
     size_t *binary_sizes = (size_t *)malloc(num_devices * sizeof(size_t));
-    err = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, num_devices * sizeof(size_t), binary_sizes, NULL);
-    checkErr(err, "clGetProgramInfo1()");
+    err |= clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, num_devices * sizeof(size_t), binary_sizes, NULL);
 
     // Get the binaries
     char **binary = (char **)malloc(num_devices * sizeof(char *));
@@ -526,13 +526,13 @@ void hipaccDumpBinary(cl_program program, cl_device_id device) {
         binary[i]= (char *)malloc(binary_sizes[i]);
     }
     err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES, 0, binary, NULL);
+    checkErr(err, "clGetProgramInfo()");
 
     for (unsigned int i=0; i<num_devices; i++) {
         if (devices[i] == device) {
             std::cerr << "OpenCL binary : " << std::endl << binary[i] << std::endl;
         }
     }
-    checkErr(err, "clGetProgramInfo()");
 
     for (unsigned int i=0; i<num_devices; i++) {
         free(binary[i]);

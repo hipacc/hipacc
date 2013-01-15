@@ -582,7 +582,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
       }
 
       Expr *global_offset_x = NULL, *global_offset_y = NULL;
-      IntegerLiteral *SX2, *SY2;
+      IntegerLiteral *SX2;
       SmallVector<Stmt *, 16> ifBody;
 
       if (Acc->getSizeX() > 1) {
@@ -591,11 +591,10 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
         SX2 = createIntegerLiteral(Ctx, 0);
       }
       if (Acc->getSizeY() > 1) {
-        SY2 = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
-        global_offset_y = createParenExpr(Ctx, createUnaryOperator(Ctx, SY2,
-              UO_Minus, Ctx.IntTy));
+        global_offset_y = createParenExpr(Ctx, createUnaryOperator(Ctx,
+              createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2), UO_Minus,
+              Ctx.IntTy));
       } else {
-        SY2 = createIntegerLiteral(Ctx, 0);
         global_offset_y = NULL;
       }
 
