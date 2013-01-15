@@ -186,7 +186,6 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     case InterpolateCF:
     case InterpolateL3:
       return addInterpolationCall(LHS, Acc, idx_x, idx_y);
-      break;
   }
 
   // step 2: add global Accessor/Iteration Space offset

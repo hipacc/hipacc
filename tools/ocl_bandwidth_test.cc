@@ -58,7 +58,6 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Compile OpenCL kernel for given Platform and/or device type.\n");
                 usage(argv);
                 exit(EXIT_SUCCESS);
-                break;
             case 'd':
                 if (strncmp(optarg, "GPU", 3) == 0) device_type = CL_DEVICE_TYPE_GPU;
                 else if (strncmp(optarg, "CPU", 3) == 0) device_type = CL_DEVICE_TYPE_CPU;

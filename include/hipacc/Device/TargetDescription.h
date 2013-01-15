@@ -327,11 +327,9 @@ class HipaccDevice : public HipaccDeviceOptions {
       switch (compute_capability) {
         default:
           return false;
-          break;
         case EVERGREEN:
         case NORTHERN_ISLAND:
           return true;
-          break;
       }
     }
 
@@ -339,7 +337,6 @@ class HipaccDevice : public HipaccDeviceOptions {
       switch (compute_capability) {
         default:
           return false;
-          break;
         case TESLA_10:
         case TESLA_11:
         case TESLA_12:
@@ -349,7 +346,6 @@ class HipaccDevice : public HipaccDeviceOptions {
         case KEPLER_30:
         case KEPLER_35:
           return true;
-          break;
       }
     }
 

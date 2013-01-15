@@ -111,7 +111,6 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     case InterpolateCF:
     case InterpolateL3:
       return addInterpolationCall(LHS, Acc, idx_x, idx_y);
-      break;
   }
 
   // step 2: add global Accessor/Iteration Space offset
@@ -133,7 +132,6 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       } else {
         return accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
       }
-      break;
     case UNDEFINED:
     case READ_WRITE:
     default:
