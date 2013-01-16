@@ -146,7 +146,7 @@ Expr *ASTTranslate::accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x,
     Expr *idx_y) {
 
   // for vectorization divide stride by vector size
-  if (Kernel->vectorize() && !emitPolly) {
+  if (Kernel->vectorize() && !compilerOptions.emitC()) {
     stride = createBinaryOperator(Ctx, stride, createIntegerLiteral(Ctx, 4),
         BO_Div, Ctx.IntTy);
   }
@@ -610,7 +610,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
         Expr *local_offset_x = NULL;
         if (Acc->getSizeX() > 1) {
           local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                i), local_size_x, BO_Mul, Ctx.IntTy);
+                i), tileVars.local_size_x, BO_Mul, Ctx.IntTy);
           global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
               BO_Sub, Ctx.IntTy);
         }

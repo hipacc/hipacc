@@ -1254,14 +1254,21 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           }
 
           // create function declaration for kernel
-          StringRef kernelName;
           std::string name;
-          if (compilerOptions.emitCUDA()) {
-            name = "cu" + KC->getName() + VD->getNameAsString();
-          } else {
-            name = "cl" + KC->getName() + VD->getNameAsString();
+          switch (compilerOptions.getTargetCode()) {
+            case TARGET_C:
+              name = "cc"; break;
+            case TARGET_CUDA:
+              name = "cu"; break;
+            case TARGET_OpenCL:
+            case TARGET_OpenCLx86:
+              name = "cl"; break;
+            case TARGET_Renderscript:
+              name = "rs"; break;
           }
-          kernelName = StringRef(name);
+          name += KC->getName() + VD->getNameAsString();
+
+          StringRef kernelName = StringRef(name);
           std::string filename = KC->getName() + VD->getNameAsString();
           K->setFileName(filename);
 
@@ -1301,7 +1308,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
             // call Polly ...
             ASTTranslate *HipaccPolly = new ASTTranslate(Context, kernelDeclPolly,
-                K, KC, builtins, compilerOptions, false, true);
+                K, KC, builtins, compilerOptions, false);
             Stmt *pollyStmts =
               HipaccPolly->Hipacc(KC->getKernelFunction()->getBody());
             kernelDeclPolly->setBody(pollyStmts);
@@ -1558,145 +1565,158 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
     StringRef kernelName) {
   #ifdef USE_JIT_ESTIMATE
-  if (dump) {
+  bool jit_compile = false;
+  switch (compilerOptions.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_OpenCLx86:
+    case TARGET_Renderscript:
+      jit_compile = false;
+      break;
+    case TARGET_CUDA:
+    case TARGET_OpenCL:
+      jit_compile = true;
+      break;
+  }
+
+  if (!jit_compile || dump) {
     K->setDefaultConfig();
+    return;
+  }
+
+  // write kernel file to estimate resource usage
+  // kernel declaration for CUDA
+  FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
+      Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
+      K->getNumArgs(), K->getArgTypes(Context,
+        compilerOptions.getTargetCode()), K->getArgNames());
+
+  // create kernel body
+  ASTTranslate *HipaccEst = new ASTTranslate(Context, kernelDeclEst, K, KC,
+      builtins, compilerOptions, true);
+  Stmt *kernelStmtsEst = HipaccEst->Hipacc(KC->getKernelFunction()->getBody());
+  kernelDeclEst->setBody(kernelStmtsEst);
+
+  // write kernel to file
+  printKernelFunction(kernelDeclEst, KC, K, K->getFileName(), false);
+
+  // compile kernel in order to get resource usage
+  std::string command = K->getCompileCommand(compilerOptions.emitCUDA()) +
+    K->getCompileOptions(kernelName.str(), K->getFileName(),
+        compilerOptions.emitCUDA());
+
+  int reg=0, lmem=0, smem=0, cmem=0;
+  char line[FILENAME_MAX];
+  SmallVector<std::string, 16> lines;
+  FILE *fpipe;
+
+  if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
+    perror("Problems with pipe");
+    exit(EXIT_FAILURE);
+  }
+
+  std::string info;
+  if (compilerOptions.emitCUDA()) {
+    info = "ptxas info : Used %d registers";
   } else {
-    // write kernel file to estimate resource usage
-    // kernel declaration for CUDA
-    FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
-        Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
-        K->getNumArgs(), K->getArgTypes(Context,
-          compilerOptions.getTargetCode()), K->getArgNames());
-
-    // create kernel body
-    ASTTranslate *HipaccEst = new ASTTranslate(Context, kernelDeclEst, K, KC,
-        builtins, compilerOptions, true);
-    Stmt *kernelStmtsEst =
-      HipaccEst->Hipacc(KC->getKernelFunction()->getBody());
-    kernelDeclEst->setBody(kernelStmtsEst);
-
-    // write kernel to file
-    printKernelFunction(kernelDeclEst, KC, K, K->getFileName(), false);
-
-    // compile kernel in order to get resource usage
-    std::string command = K->getCompileCommand(compilerOptions.emitCUDA()) +
-      K->getCompileOptions(kernelName.str(), K->getFileName(),
-          compilerOptions.emitCUDA());
-
-    int reg=0, lmem=0, smem=0, cmem=0;
-    char line[FILENAME_MAX];
-    SmallVector<std::string, 16> lines;
-    FILE *fpipe;
-
-    if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
-      perror("Problems with pipe");
-      exit(EXIT_FAILURE);
-    }
-
-    std::string info;
-    if (compilerOptions.emitCUDA()) {
-      info = "ptxas info : Used %d registers";
+    if (targetDevice.isAMDGPU()) {
+      info = "isa info : Used %d gprs, %d bytes lds, stack size: %d";
     } else {
-      if (targetDevice.isAMDGPU()) {
-        info = "isa info : Used %d gprs, %d bytes lds, stack size: %d";
-      } else {
-        info = "ptxas info : Used %d registers";
-      }
+      info = "ptxas info : Used %d registers";
     }
-    while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
-      lines.push_back(std::string(line));
-      if (targetDevice.isAMDGPU()) {
-        sscanf(line, info.c_str(), &reg, &smem, &lmem);
-      } else {
-        char *ptr = line;
-        int num_read = 0, val1 = 0, val2 = 0;
-        char mem_type = 'x';
+  }
+  while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
+    lines.push_back(std::string(line));
+    if (targetDevice.isAMDGPU()) {
+      sscanf(line, info.c_str(), &reg, &smem, &lmem);
+    } else {
+      char *ptr = line;
+      int num_read = 0, val1 = 0, val2 = 0;
+      char mem_type = 'x';
 
-        if (compilerOptions.getTargetDevice() >= FERMI_20) {
-          // scan for stack size (shared memory)
-          num_read = sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type);
+      if (compilerOptions.getTargetDevice() >= FERMI_20) {
+        // scan for stack size (shared memory)
+        num_read = sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type);
 
-          if (num_read == 2 && mem_type == 's') {
-            smem = val1;
-            continue;
-          }
+        if (num_read == 2 && mem_type == 's') {
+          smem = val1;
+          continue;
         }
+      }
 
-        num_read = sscanf(line, info.c_str(), &reg);
-        if (!num_read) continue;
+      num_read = sscanf(line, info.c_str(), &reg);
+      if (!num_read) continue;
 
-        while ((ptr = strchr(ptr, ','))) {
-          ptr++;
-          num_read = sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2,
-              &mem_type);
-          if (num_read == 3) {
+      while ((ptr = strchr(ptr, ','))) {
+        ptr++;
+        num_read = sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type);
+        if (num_read == 3) {
+          switch (mem_type) {
+            default:
+              llvm::errs() << "wrong memory specifier '" << mem_type
+                           << "': " << ptr;
+              break;
+            case 'c':
+              cmem += val1 + val2;
+              break;
+            case 'l':
+              lmem += val1 + val2;
+              break;
+            case 's':
+              smem += val1 + val2;
+              break;
+          }
+        } else {
+          num_read = sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type);
+          if (num_read == 2) {
             switch (mem_type) {
               default:
                 llvm::errs() << "wrong memory specifier '" << mem_type
                              << "': " << ptr;
                 break;
               case 'c':
-                cmem += val1 + val2;
+                cmem += val1;
                 break;
               case 'l':
-                lmem += val1 + val2;
+                lmem += val1;
                 break;
               case 's':
-                smem += val1 + val2;
+                smem += val1;
                 break;
             }
           } else {
-            num_read = sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type);
-            if (num_read == 2) {
-              switch (mem_type) {
-                default:
-                  llvm::errs() << "wrong memory specifier '" << mem_type
-                               << "': " << ptr;
-                  break;
-                case 'c':
-                  cmem += val1;
-                  break;
-                case 'l':
-                  lmem += val1;
-                  break;
-                case 's':
-                  smem += val1;
-                  break;
-              }
-            } else {
-              llvm::errs() << "Unexpected memory usage specification: '" << ptr;
-            }
+            llvm::errs() << "Unexpected memory usage specification: '" << ptr;
           }
         }
       }
     }
-    pclose(fpipe);
-
-    if (reg == 0) {
-      unsigned int DiagIDCompile =
-        Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-            "Compiling kernel in file '%0.cu' failed, using default kernel configuration:\n%1");
-      Diags.Report(DiagIDCompile) << K->getFileName() << command.c_str();
-      for (unsigned int i=0, e=lines.size(); i!=e; ++i) {
-        llvm::errs() << lines.data()[i];
-      }
-    } else {
-      if (targetDevice.isAMDGPU()) {
-        llvm::errs() << "Resource usage for kernel '" << kernelName << "': "
-                     << reg << " gprs, "
-                     << lmem << " bytes stack, "
-                     << smem << " bytes lds\n";
-      } else {
-        llvm::errs() << "Resource usage for kernel '" << kernelName << "': "
-                     << reg << " registers, "
-                     << lmem << " bytes lmem, "
-                     << smem << " bytes smem, "
-                     << cmem << " bytes cmem\n";
-      }
-    }
-
-    K->setResourceUsage(reg, lmem, smem, cmem);
   }
+  pclose(fpipe);
+
+  if (reg == 0) {
+    unsigned int DiagIDCompile =
+      Diags.getCustomDiagID(DiagnosticsEngine::Warning,
+          "Compiling kernel in file '%0.cu' failed, using default kernel configuration:\n%1");
+    Diags.Report(DiagIDCompile) << K->getFileName() << command.c_str();
+    for (unsigned int i=0, e=lines.size(); i!=e; ++i) {
+      llvm::errs() << lines.data()[i];
+    }
+  } else {
+    if (targetDevice.isAMDGPU()) {
+      llvm::errs() << "Resource usage for kernel '" << kernelName << "': "
+                   << reg << " gprs, "
+                   << lmem << " bytes stack, "
+                   << smem << " bytes lds\n";
+    } else {
+      llvm::errs() << "Resource usage for kernel '" << kernelName << "': "
+                   << reg << " registers, "
+                   << lmem << " bytes lmem, "
+                   << smem << " bytes smem, "
+                   << cmem << " bytes cmem\n";
+    }
+  }
+
+  K->setResourceUsage(reg, lmem, smem, cmem);
   #else
   K->setDefaultConfig();
   #endif
@@ -1781,10 +1801,16 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
 
   int fd;
   std::string filename = file;
-  if (compilerOptions.emitCUDA()) {
-    filename += ".cu";
-  } else {
-    filename += ".cl";
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+      filename += ".cc"; break;
+    case TARGET_CUDA:
+      filename += ".cu"; break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      filename += ".cl"; break;
+    case TARGET_Renderscript:
+      filename += ".rs"; break;
   }
 
   // open file stream using own file descriptor. We need to call fsync() to
@@ -1937,10 +1963,21 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   int fd;
   std::string filename = file;
-  if (compilerOptions.emitCUDA()) {
-    filename += ".cu";
-  } else {
-    filename += ".cl";
+  std::string ifdef = "_" + file + "_";
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+      filename += ".cc";
+      ifdef += "CC_"; break;
+    case TARGET_CUDA:
+      filename += ".cu";
+      ifdef += "CU_"; break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      filename += ".cl";
+      ifdef += "CL_"; break;
+    case TARGET_Renderscript:
+      filename += ".rs";
+      ifdef += "RS_"; break;
   }
 
   // open file stream using own file descriptor. We need to call fsync() to
@@ -1957,19 +1994,25 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
   // write ifndef, ifdef
-  std::string ifdef = "_" + file + "_";
-  if (compilerOptions.emitCUDA()) {
-    ifdef += "CU_";
-  } else {
-    ifdef += "CL_";
-  }
   std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper); 
   *OS << "#ifndef " + ifdef + "\n";
   *OS << "#define " + ifdef + "\n\n";
 
-  if (compilerOptions.emitCUDA() && K->vectorize()) {
-    *OS << "#include \"hipacc_cuda_vec.hpp\"\n\n";
+  // preprocessor defines
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      break;
+    case TARGET_CUDA:
+      if (K->vectorize()) *OS << "#include \"hipacc_cuda_vec.hpp\"\n\n";
+      break;
+    case TARGET_Renderscript:
+      *OS << "#pragma version(1)\n"
+          << "#pragma rs java_package_name(com.example.android.rs.hipacc)\n\n";
+      break;
   }
+
 
   bool inc=false;
   for (unsigned int i=0, e=KC->getNumImages(); i!=e; ++i) {
@@ -2110,27 +2153,34 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
   // write kernel name and qualifiers
-  if (compilerOptions.emitCUDA()) {
-    *OS << "extern \"C\" {\n";
-    *OS << "__global__ void ";
-    if (!compilerOptions.exploreConfig() && emitHints) {
-      *OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
-          << K->getNumThreadsY() << ") ";
-    }
-  } else {
-    if (compilerOptions.useTextureMemory() &&
-        compilerOptions.getTextureType()==Array2D) {
-      *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
-          << "Sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | "
-          << " CLK_FILTER_NEAREST; \n\n";
-    }
-    *OS << "__kernel ";
-    if (!compilerOptions.exploreConfig() && emitHints) {
-      *OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
-          << ", " << K->getNumThreadsY() << ", 1))) ";
-    }
-    *OS << "void ";
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_CUDA:
+      *OS << "extern \"C\" {\n";
+      *OS << "__global__ ";
+      if (!compilerOptions.exploreConfig() && emitHints) {
+        *OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
+            << K->getNumThreadsY() << ") ";
+      }
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      if (compilerOptions.useTextureMemory() &&
+          compilerOptions.getTextureType()==Array2D) {
+        *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
+            << "Sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | "
+            << " CLK_FILTER_NEAREST; \n\n";
+      }
+      *OS << "__kernel ";
+      if (!compilerOptions.exploreConfig() && emitHints) {
+        *OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
+            << ", " << K->getNumThreadsY() << ", 1))) ";
+      }
+      break;
+    case TARGET_C:
+    case TARGET_Renderscript:
+      break;
   }
+  *OS << "void ";
   *OS << D->getNameInfo().getAsString();
   *OS << "(";
 
@@ -2173,6 +2223,15 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
 
     if (Acc) {
+
+      // TODO: debug for Renderscript only
+      if (i==0 && compilerOptions.emitRenderscript()) {
+        *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
+            << " *" << Name << ", uint32_t x, uint32_t y";
+        break;
+      }
+      // TODO: debug for Renderscript only
+
       if (compilerOptions.emitCUDA()) {
         if (K->useTextureMemory(Acc) && memAcc==READ_ONLY) {
           // no parameter is emitted for textures

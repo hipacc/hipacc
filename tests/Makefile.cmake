@@ -65,7 +65,7 @@ run:
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES)
 
 cuda:
-	@echo 'Executing HIPACC Compiler for CUDA:'
+	@echo 'Executing HIPAcc Compiler for CUDA:'
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-cuda $(HIPACC_OPTS) -o main.cu
 	@echo 'Compiling CUDA file using nvcc:'
 	nvcc $(NVCC_FLAGS) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) @CUDA_LINK@ -O3 main.cu -o main_cuda
@@ -73,7 +73,7 @@ cuda:
 	./main_cuda
 
 opencl:
-	@echo 'Executing HIPACC Compiler for OpenCL:'
+	@echo 'Executing HIPAcc Compiler for OpenCL:'
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
 	TEST_CASE=$(TEST_CASE) make -f Makefile_CL MYFLAGS="$(MYFLAGS)"
@@ -81,12 +81,16 @@ opencl:
 	./main_opencl
 
 opencl_x86:
-	@echo 'Executing HIPACC Compiler for OpenCL:'
+	@echo 'Executing HIPAcc Compiler for OpenCL:'
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-opencl-x86 $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
 	TEST_CASE=$(TEST_CASE) make -f Makefile_CL MYFLAGS="$(MYFLAGS)"
 	@echo 'Executing OpenCL binary'
 	./main_opencl
+
+renderscript:
+	@echo 'Executing HIPAcc Compiler for Renderscript:'
+	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o -
 
 clean:
 	-$(RM) main_cuda main_opencl #*.cu *.cubin *.cl *.isa

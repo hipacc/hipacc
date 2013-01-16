@@ -39,10 +39,20 @@ using namespace hipacc;
 
 
 void CreateHostStrings::writeHeaders(std::string &resultStr) {
-  if (options.emitCUDA()) {
-    resultStr += "#include \"hipacc_cuda.hpp\"\n\n";
-  } else {
-    resultStr += "#include \"hipacc_ocl.hpp\"\n\n";
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+      break;
+    case TARGET_CUDA:
+      resultStr += "#include \"hipacc_cuda.hpp\"\n\n";
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      resultStr += "#include \"hipacc_ocl.hpp\"\n\n";
+      break;
+    case TARGET_Renderscript:
+      resultStr += "#include \"hipacc_rs.hpp\"\n\n";
+      break;
   }
 }
 
@@ -58,9 +68,9 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
       clDevice = "CL_DEVICE_TYPE_GPU";
     }
     resultStr += "hipaccInitPlatformsAndDevices(" + clDevice + ", ALL);\n";
-    resultStr += ident + "hipaccCreateContextsAndCommandQueues();\n\n";
+    resultStr += indent + "hipaccCreateContextsAndCommandQueues();\n\n";
   }
-  resultStr += ident;
+  resultStr += indent;
 }
 
 
@@ -75,7 +85,7 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
     resultStr += "\", true, false, false, \"-I ";
     resultStr += RUNTIME_INCLUDES;
     resultStr += "\");\n";
-    resultStr += ident;
+    resultStr += indent;
   }
 }
 
@@ -88,14 +98,14 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
   if (options.emitCUDA()) {
     // texture is bound at kernel launch
     if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-      resultStr += ident + "cudaArray *" + memName + " = ";
+      resultStr += indent + "cudaArray *" + memName + " = ";
       resultStr += "hipaccCreateArray2D<" + type + ">(NULL, ";
     } else {
-      resultStr += ident + type + " *" + memName + " = ";
+      resultStr += indent + type + " *" + memName + " = ";
       resultStr += "hipaccCreateMemory<" + type + ">(NULL, ";
     }
   } else {
-    resultStr += ident + "cl_mem " + memName + " = ";
+    resultStr += indent + "cl_mem " + memName + " = ";
     if (options.useTextureMemory()) {
       resultStr += "hipaccCreateImage<" + type + ">(NULL, ";
     } else {
@@ -186,7 +196,7 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
     SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
     for (unsigned int i=0; i<kernels.size(); i++) {
       HipaccKernel *K = kernels[i];
-      if (i) resultStr += "\n" + ident;
+      if (i) resultStr += "\n" + indent;
 
       switch (direction) {
         case HOST_TO_DEVICE:
@@ -247,7 +257,7 @@ void CreateHostStrings::setupKernelArgument(std::string kernelName, int curArg,
     resultStr += "), ";
     resultStr += argName + ");\n";
   }
-  resultStr += ident;
+  resultStr += indent;
 }
 
 
@@ -277,21 +287,21 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
   infoStr = K->getInfoStr();
 
   if (options.exploreConfig() || options.timeKernels()) {
-    inc_ident();
+    inc_indent();
     resultStr += "{\n";
     if (options.emitCUDA()) {
       if (options.exploreConfig()) {
-        resultStr += ident + "std::vector<void *> _args" + kernelName + ";\n";
+        resultStr += indent + "std::vector<void *> _args" + kernelName + ";\n";
       } else {
-        resultStr += ident + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
+        resultStr += indent + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
       }
-      resultStr += ident + "std::vector<hipacc_const_info> _consts" + kernelName + ";\n";
-      resultStr += ident + "std::vector<hipacc_tex_info> _texs" + kernelName + ";\n";
+      resultStr += indent + "std::vector<hipacc_const_info> _consts" + kernelName + ";\n";
+      resultStr += indent + "std::vector<hipacc_tex_info> _texs" + kernelName + ";\n";
     } else {
-      resultStr += ident + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
+      resultStr += indent + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
     }
-    resultStr += ident + "std::vector<hipacc_smem_info> _smems" + kernelName + ";\n";
-    resultStr += ident;
+    resultStr += indent + "std::vector<hipacc_smem_info> _smems" + kernelName + ";\n";
+    resultStr += indent;
   }
 
   // hipacc_launch_info
@@ -317,25 +327,25 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
   } else {
     resultStr += "1);\n";
   }
-  resultStr += ident;
+  resultStr += indent;
 
   if (!options.exploreConfig()) {
     if (options.emitCUDA()) {
       // dim3 block
       resultStr += "dim3 " + blockStr + "(" + cX.str() + ", " + cY.str() + ");\n";
-      resultStr += ident;
+      resultStr += indent;
       
       // dim3 grid & hipaccCalcGridFromBlock
       resultStr += "dim3 " + gridStr + "(hipaccCalcGridFromBlock(";
       resultStr += infoStr + ", ";
       resultStr += blockStr + "));\n\n";
-      resultStr += ident;
+      resultStr += indent;
 
       // hipaccPrepareKernelLaunch
       resultStr += "hipaccPrepareKernelLaunch(";
       resultStr += infoStr + ", ";
       resultStr += blockStr + ");\n";
-      resultStr += ident;
+      resultStr += indent;
 
       // hipaccConfigureCall
       resultStr += "hipaccConfigureCall(";
@@ -345,32 +355,32 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
 
       // offset parameter
       if (!options.timeKernels()) {
-        resultStr += ident + "size_t " + offsetStr + " = 0;\n";
+        resultStr += indent + "size_t " + offsetStr + " = 0;\n";
       }
     } else {
       // size_t block
       resultStr += "size_t " + blockStr + "[2];\n";
-      resultStr += ident + blockStr + "[0] = " + cX.str() + ";\n";
-      resultStr += ident + blockStr + "[1] = " + cY.str() + ";\n";
-      resultStr += ident;
+      resultStr += indent + blockStr + "[0] = " + cX.str() + ";\n";
+      resultStr += indent + blockStr + "[1] = " + cY.str() + ";\n";
+      resultStr += indent;
 
       // size_t grid
       resultStr += "size_t " + gridStr + "[2];\n\n";
-      resultStr += ident;
+      resultStr += indent;
 
       // hipaccCalcGridFromBlock
       resultStr += "hipaccCalcGridFromBlock(";
       resultStr += infoStr + ", ";
       resultStr += blockStr + ", ";
       resultStr += gridStr + ");\n";
-      resultStr += ident;
+      resultStr += indent;
 
       // hipaccPrepareKernelLaunch
       resultStr += "hipaccPrepareKernelLaunch(";
       resultStr += infoStr + ", ";
       resultStr += blockStr + ");\n\n";
     }
-    resultStr += ident;
+    resultStr += indent;
   }
 
 
@@ -416,7 +426,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
             }
             resultStr += "<" + argTypeNames[i] + ">(_tex" + K->getArgNames()[i].str() + K->getName() + ", " + argNames[i] + ");\n";
           }
-          resultStr += ident;
+          resultStr += indent;
         }
       }
 
@@ -426,7 +436,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
         resultStr += "hipacc_smem_info(" + Acc->getSizeXStr() + ", ";
         resultStr += Acc->getSizeYStr() + ", ";
         resultStr += "sizeof(" + Acc->getImage()->getPixelType() + ")));\n";
-        resultStr += ident;
+        resultStr += indent;
       }
     }
 
@@ -438,7 +448,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
         resultStr += "hipacc_const_info(std::string(\"" + Mask->getName() + K->getName() + "\"), ";
         resultStr += "(void *)" + Mask->getHostMemName() + ", ";
         resultStr += "sizeof(" + Mask->getTypeStr() + ")*" + Mask->getSizeXStr() + "*" + Mask->getSizeYStr() + "));\n";
-        resultStr += ident;
+        resultStr += indent;
       }
     }
   }
@@ -459,15 +469,15 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       resultStr += ">(_surfOutput" + K->getName() + ", ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ");\n";
     }
-    resultStr += ident;
+    resultStr += indent;
   }
 
   #if 0
   for (unsigned int i=0; i<KC->getNumImages(); i++) {
     HipaccAccessor *Acc = K->getImgFromMapping(KC->getImgFields().data()[i]);
     // emit assertion
-    resultStr += "assert(" + Acc->getWidth() + "==" + K->getIterationSpace()->getWidth() + " && \"Acc width != IS width\");\n" + ident;
-    resultStr += "assert(" + Acc->getHeight() + "==" + K->getIterationSpace()->getHeight() + " && \"Acc height != IS height\");\n" + ident;
+    resultStr += "assert(" + Acc->getWidth() + "==" + K->getIterationSpace()->getWidth() + " && \"Acc width != IS width\");\n" + indent;
+    resultStr += "assert(" + Acc->getHeight() + "==" + K->getIterationSpace()->getHeight() + " && \"Acc height != IS height\");\n" + indent;
   }
   #endif
 
@@ -502,26 +512,36 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       continue;
     }
 
+    if (options.emitRenderscript()) {
+      if (Acc || i==0) {
+        resultStr += kernelName + ".bind_" + argName + "(" + argName + ");\n";
+      } else {
+        resultStr += kernelName + ".set_" + argName + "(" + argName + ");\n";
+      }
+      resultStr += indent;
+      continue;
+    }
+
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument
       resultStr += "_args" + kernelName + ".push_back(";
       if (options.emitCUDA()) {
         if (options.exploreConfig()) {
-          resultStr += "(void *)&" + argNames[i] + ");\n";
+          resultStr += "(void *)&" + argName + ");\n";
         } else {
-          resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)&" + argNames[i] + "));\n";
+          resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)&" + argName + "));\n";
         }
       } else {
         resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)" + argName + "));\n";
       }
-      resultStr += ident;
+      resultStr += indent;
     } else {
       // set kernel arguments
       setupKernelArgument(kernelName, curArg++, argName, argTypeNames[i],
           offsetStr, resultStr);
     }
   }
-  resultStr += "\n" + ident;
+  resultStr += "\n" + indent;
 
   // launch kernel
   if (options.exploreConfig() || options.timeKernels()) {
@@ -572,8 +592,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       resultStr += ", true";
     }
     resultStr += ");\n";
-    dec_ident();
-    resultStr += ident + "}\n";
+    dec_indent();
+    resultStr += indent + "}\n";
   } else {
     if (options.emitCUDA()) {
       resultStr += "hipaccLaunchKernel((const void *)&cu";

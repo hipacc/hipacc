@@ -44,6 +44,304 @@ using namespace hipacc::Builtin;
 //===----------------------------------------------------------------------===//
 
 
+// C/Polly initialization
+void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
+  VarDecl *gid_x = NULL, *gid_y = NULL;
+
+  // Polly: int gid_x = offset_x;
+  if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
+    gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.IntTy,
+        Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl());
+  } else {
+    gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.IntTy,
+        createIntegerLiteral(Ctx, 0));
+  }
+
+  // Polly: int gid_y = offset_y;
+  if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
+    gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.IntTy,
+        Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl());
+  } else {
+    gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.IntTy,
+        createIntegerLiteral(Ctx, 0));
+  }
+
+  // add gid_x and gid_y statements
+  DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+  DC->addDecl(gid_x);
+  DC->addDecl(gid_y);
+  DeclStmt *gid_x_stmt = createDeclStmt(Ctx, gid_x);
+  DeclStmt *gid_y_stmt = createDeclStmt(Ctx, gid_x);
+
+  tileVars.global_id_x = createDeclRefExpr(Ctx, gid_x);
+  tileVars.global_id_y = createDeclRefExpr(Ctx, gid_y);
+  gidXRef = tileVars.global_id_x;
+  gidYRef = tileVars.global_id_y;
+
+  // convert the function body to kernel syntax
+  Stmt* clonedStmt = Clone(S);
+  assert(isa<CompoundStmt>(clonedStmt) && "CompoundStmt for kernel function body expected!");
+
+  //
+  // for (int gid_y=offset_y; gid_y<2048; gid_y++) {
+  //     for (int gid_x=offset_x; gid_x<4096; gid_x++) {
+  //         body
+  //     }
+  // }
+  //
+  ForStmt *innerLoop = createForStmt(Ctx, gid_x_stmt, createBinaryOperator(Ctx,
+        tileVars.global_id_x, createIntegerLiteral(Ctx, 4096), BO_LT,
+        Ctx.BoolTy), createUnaryOperator(Ctx, tileVars.global_id_x, UO_PostInc,
+          tileVars.global_id_x->getType()), clonedStmt);
+  ForStmt *outerLoop = createForStmt(Ctx, gid_y_stmt, createBinaryOperator(Ctx,
+        tileVars.global_id_y, createIntegerLiteral(Ctx, 2048), BO_LT,
+        Ctx.BoolTy), createUnaryOperator(Ctx, tileVars.global_id_y, UO_PostInc,
+          tileVars.global_id_y->getType()), innerLoop);
+
+  kernelBody.push_back(outerLoop);
+}
+
+
+// CUDA initialization
+void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
+  VarDecl *gid_x = NULL, *gid_y = NULL;
+  SmallVector<QualType, 16> uintDeclTypes;
+  SmallVector<StringRef, 16> uintDeclNames;
+  uintDeclTypes.push_back(Ctx.UnsignedIntTy);
+  uintDeclTypes.push_back(Ctx.UnsignedIntTy);
+  uintDeclTypes.push_back(Ctx.UnsignedIntTy);
+  uintDeclNames.push_back("x");
+  uintDeclNames.push_back("y");
+  uintDeclNames.push_back("z");
+
+  // CUDA
+  /*DEVICE_BUILTIN*/
+  //struct uint3
+  //{
+  //  unsigned int x, y, z;
+  //};
+  RecordDecl *uint3RD = createRecordDecl(Ctx, Ctx.getTranslationUnitDecl(),
+      "uint3", TTK_Struct, uintDeclTypes.size(), uintDeclTypes.data(),
+      uintDeclNames.data());
+
+  /*DEVICE_BUILTIN*/
+  //typedef struct uint3 uint3;
+
+  /*DEVICE_BUILTIN*/
+  //struct dim3
+  //{
+  //    unsigned int x, y, z;
+  //};
+
+  /*DEVICE_BUILTIN*/
+  //typedef struct dim3 dim3;
+
+  //uint3 threadIdx;
+  VarDecl *threadIdx = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
+      "threadIdx", Ctx.getTypeDeclType(uint3RD), NULL);
+  //uint3 blockIdx;
+  VarDecl *blockIdx = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
+      "blockIdx", Ctx.getTypeDeclType(uint3RD), NULL);
+  //dim3 blockDim;
+  VarDecl *blockDim = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
+      "blockDim", Ctx.getTypeDeclType(uint3RD), NULL);
+  //dim3 gridDim;
+  //VarDecl *gridDim = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
+  //    "gridDim", Ctx.getTypeDeclType(uint3RD), NULL);
+  //int warpSize;
+  //VarDecl *warpSize = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
+  //    "warpSize", Ctx.IntTy, NULL);
+
+  DeclRefExpr *TIRef = createDeclRefExpr(Ctx, threadIdx);
+  DeclRefExpr *BIRef = createDeclRefExpr(Ctx, blockIdx);
+  DeclRefExpr *BDRef = createDeclRefExpr(Ctx, blockDim);
+  VarDecl *xVD = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(), "x",
+      Ctx.IntTy, NULL);
+  VarDecl *yVD = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(), "y",
+      Ctx.IntTy, NULL);
+
+  tileVars.local_id_x = createMemberExpr(Ctx, TIRef, false, xVD,
+      xVD->getType());
+  tileVars.local_id_y = createMemberExpr(Ctx, TIRef, false, yVD,
+      yVD->getType());
+  tileVars.block_id_x = createMemberExpr(Ctx, BIRef, false, xVD,
+      xVD->getType());
+  tileVars.block_id_y = createMemberExpr(Ctx, BIRef, false, yVD,
+      yVD->getType());
+  tileVars.local_size_x = createMemberExpr(Ctx, BDRef, false, xVD,
+      xVD->getType());
+  tileVars.local_size_y = createMemberExpr(Ctx, BDRef, false, yVD,
+      yVD->getType());
+  //DeclRefExpr *GDRef = createDeclRefExpr(Ctx, gridDim);
+  //tileVars.grid_size_x = createMemberExpr(Ctx, GDRef, false, xVD,
+  //    xVD->getType());
+  //tileVars.grid_size_y = createMemberExpr(Ctx, GDRef, false, yVD,
+  //    yVD->getType());
+
+  // CUDA: const int gid_x = blockDim.x*blockIdx.x + threadIdx.x;
+  gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
+      createBinaryOperator(Ctx, createBinaryOperator(Ctx, tileVars.local_size_x,
+          tileVars.block_id_x, BO_Mul, Ctx.IntTy), tileVars.local_id_x, BO_Add,
+        Ctx.IntTy));
+
+  // CUDA: const int gid_y = blockDim.y*PPT*blockIdx.y + threadIdx.y;
+  Expr *YE = createBinaryOperator(Ctx, tileVars.local_size_y,
+      tileVars.block_id_y, BO_Mul, Ctx.IntTy);
+  if (Kernel->getPixelsPerThread() > 1) {
+    YE = createBinaryOperator(Ctx, YE, createIntegerLiteral(Ctx,
+          (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
+  }
+  gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
+      createBinaryOperator(Ctx, YE, tileVars.local_id_y, BO_Add, Ctx.IntTy));
+
+  // add gid_x and gid_y statements
+  DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+  DC->addDecl(gid_x);
+  DC->addDecl(gid_y);
+  kernelBody.push_back(createDeclStmt(Ctx, gid_x));
+  kernelBody.push_back(createDeclStmt(Ctx, gid_y));
+
+  tileVars.global_id_x = createDeclRefExpr(Ctx, gid_x);
+  tileVars.global_id_y = createDeclRefExpr(Ctx, gid_y);
+}
+
+
+// OpenCL initialization
+void ASTTranslate::initOpenCL(SmallVector<Stmt *, 16> &kernelBody) {
+  VarDecl *gid_x = NULL, *gid_y = NULL;
+  // uint get_work_dim();
+  //FunctionDecl *get_work_dim =
+  //  builtins.getBuiltinFunction(OPENCLBIget_work_dim);
+  // size_t get_global_size(uint dimindx);
+  //FunctionDecl *get_global_size =
+  //  builtins.getBuiltinFunction(OPENCLBIget_global_size);
+  //size_t get_global_id(uint dimindx);
+  FunctionDecl *get_global_id =
+    builtins.getBuiltinFunction(OPENCLBIget_global_id);
+  //size_t get_local_size(uint dimindx);
+  FunctionDecl *get_local_size =
+    builtins.getBuiltinFunction(OPENCLBIget_local_size);
+  //size_t get_local_id(uint dimindx);
+  FunctionDecl *get_local_id =
+    builtins.getBuiltinFunction(OPENCLBIget_local_id);
+  //size_t get_num_groups(uint dimindx);
+  //FunctionDecl *get_num_groups =
+  //  builtins.getBuiltinFunction(OPENCLBIget_num_groups);
+  //size_t get_group_id(uint dimindx);
+  FunctionDecl *get_group_id =
+    builtins.getBuiltinFunction(OPENCLBIget_group_id);
+
+  // .(0) .(1)
+  SmallVector<Expr *, 16> tmpArg0;
+  SmallVector<Expr *, 16> tmpArg1;
+  tmpArg0.push_back(createIntegerLiteral(Ctx, 0));
+  tmpArg1.push_back(createIntegerLiteral(Ctx, 1));
+  //ImplicitCastExpr *get_global_size0, *get_global_size1;
+  //get_global_size0 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+  //    CK_IntegralCast, createFunctionCall(Ctx, get_global_size, tmpArg0), NULL,
+  //    VK_RValue);
+  //get_global_size1 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+  //    CK_IntegralCast, createFunctionCall(Ctx, get_global_size, tmpArg1), NULL,
+  //    VK_RValue);
+  ImplicitCastExpr *get_global_id0, *get_global_id1;
+  get_global_id0 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+      CK_IntegralCast, createFunctionCall(Ctx, get_global_id, tmpArg0), NULL,
+      VK_RValue);
+  get_global_id1 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+      CK_IntegralCast, createFunctionCall(Ctx, get_global_id, tmpArg1), NULL,
+      VK_RValue);
+  tileVars.local_size_x = createImplicitCastExpr(Ctx,
+      Ctx.getConstType(Ctx.IntTy), CK_IntegralCast, createFunctionCall(Ctx,
+        get_local_size, tmpArg0), NULL, VK_RValue);
+  tileVars.local_size_y = createImplicitCastExpr(Ctx,
+      Ctx.getConstType(Ctx.IntTy), CK_IntegralCast, createFunctionCall(Ctx,
+        get_local_size, tmpArg1), NULL, VK_RValue);
+  tileVars.local_id_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+      CK_IntegralCast, createFunctionCall(Ctx, get_local_id, tmpArg0), NULL,
+      VK_RValue);
+  tileVars.local_id_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+      CK_IntegralCast, createFunctionCall(Ctx, get_local_id, tmpArg1), NULL,
+      VK_RValue);
+  tileVars.block_id_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+      CK_IntegralCast, createFunctionCall(Ctx, get_group_id, tmpArg0), NULL,
+      VK_RValue);
+  tileVars.block_id_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+      CK_IntegralCast, createFunctionCall(Ctx, get_group_id, tmpArg1), NULL,
+      VK_RValue);
+  //grid_size_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+  //    CK_IntegralCast, createFunctionCall(Ctx, get_num_groups, tmpArg0), NULL,
+  //    VK_RValue);
+  //grid_size_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
+  //    CK_IntegralCast, createFunctionCall(Ctx, get_num_groups, tmpArg1), NULL,
+  //    VK_RValue);
+
+  // OpenCL: const int gid_x = get_global_id(0);
+  gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
+      get_global_id0);
+
+  Expr *YE;
+  if (Kernel->getPixelsPerThread() > 1) {
+    // OpenCL: const int gid_y = get_local_size(1) * get_group_id(1)*PPT +
+    //                           get_local_id(1);
+    YE = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
+          createBinaryOperator(Ctx, tileVars.local_size_y, tileVars.block_id_y,
+            BO_Mul, Ctx.IntTy), createIntegerLiteral(Ctx,
+              (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy),
+        tileVars.local_id_y, BO_Add, Ctx.IntTy);
+  } else {
+    // OpenCL: const int gid_y = get_global_id(1)*PPT;
+    YE = get_global_id1;
+  }
+  gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
+      YE);
+
+  // add gid_x and gid_y statements
+  DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+  DC->addDecl(gid_x);
+  DC->addDecl(gid_y);
+  kernelBody.push_back(createDeclStmt(Ctx, gid_x));
+  kernelBody.push_back(createDeclStmt(Ctx, gid_y));
+
+  tileVars.global_id_x = createDeclRefExpr(Ctx, gid_x);
+  tileVars.global_id_y = createDeclRefExpr(Ctx, gid_y);
+}
+
+
+// Renderscript initialization
+void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
+  VarDecl *gid_x = NULL, *gid_y = NULL;
+  VarDecl *xDecl = createVarDecl(Ctx, kernelDecl, "x", Ctx.UnsignedIntTy);
+  VarDecl *yDecl = createVarDecl(Ctx, kernelDecl, "y", Ctx.UnsignedIntTy);
+
+  // const int gid_x = x;
+  gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
+      createDeclRefExpr(Ctx, xDecl));
+
+  Expr *YE;
+  if (Kernel->getPixelsPerThread() > 1) {
+    // const int gid_y = y*PPT;
+    YE = createBinaryOperator(Ctx, createDeclRefExpr(Ctx, yDecl),
+        createIntegerLiteral(Ctx, (int)Kernel->getPixelsPerThread()), BO_Mul,
+        Ctx.IntTy);
+  } else {
+    // OpenCL: const int gid_y = get_global_id(1)*PPT;
+    YE = createDeclRefExpr(Ctx, yDecl);
+  }
+  gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
+      YE);
+
+  // add gid_x and gid_y statements
+  DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+  DC->addDecl(gid_x);
+  DC->addDecl(gid_y);
+  kernelBody.push_back(createDeclStmt(Ctx, gid_x));
+  kernelBody.push_back(createDeclStmt(Ctx, gid_y));
+
+  tileVars.global_id_x = createDeclRefExpr(Ctx, gid_x);
+  tileVars.global_id_y = createDeclRefExpr(Ctx, gid_y);
+}
+
+
 Stmt* ASTTranslate::Hipacc(Stmt *S) {
   if (S == NULL) return NULL;
 
@@ -60,13 +358,13 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
 
     // search for iteration space parameters
     if (PVD->getName().equals("is_width")) {
-      isWidth = createDeclRefExpr(Ctx, PVD);
-      Kernel->getIterationSpace()->getAccessor()->setWidthDecl(isWidth);
+      Kernel->getIterationSpace()->getAccessor()->setWidthDecl(createDeclRefExpr(Ctx,
+            PVD));
       continue;
     }
     if (PVD->getName().equals("is_height")) {
-      isHeight = createDeclRefExpr(Ctx, PVD);
-      Kernel->getIterationSpace()->getAccessor()->setHeightDecl(isHeight);
+      Kernel->getIterationSpace()->getAccessor()->setHeightDecl(createDeclRefExpr(Ctx,
+            PVD));
       continue;
     }
     if (PVD->getName().equals("is_stride")) {
@@ -103,6 +401,18 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     if (PVD->getName().equals("bh_fall_back")) {
       bh_fall_back = createDeclRefExpr(Ctx, PVD);
       continue;
+    }
+
+    if (compilerOptions.emitRenderscript()) {
+      // search for uint32_t x, uint32_t y parameters
+      if (PVD->getName().equals("x")) {
+        // TODO: scan for uint32_t x
+        continue;
+      }
+      if (PVD->getName().equals("y")) {
+        // TODO: scan for uint32_t y
+        continue;
+      }
     }
 
 
@@ -144,257 +454,36 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     }
   }
 
-
-  // create variable declarations for global id variables that are generated
-  // when the kernel function is pretty printed
-  VarDecl *gid_x = NULL, *gid_y = NULL;
-  DeclRefExpr *gid_x_ref, *gid_y_ref = NULL;
-  DeclStmt *gid_x_stmt, *gid_y_stmt = NULL;
-
-  // OpenCL function calls to built-in functions
-  FunctionDecl *barrier;
-  ImplicitCastExpr *get_global_size0, *get_global_size1;
-  ImplicitCastExpr *get_global_id0, *get_global_id1;
-  SmallVector<Expr *, 16> tmpArg0;
-  SmallVector<Expr *, 16> tmpArg1;
-  tmpArg0.push_back(createIntegerLiteral(Ctx, 0));
-  tmpArg1.push_back(createIntegerLiteral(Ctx, 1));
-
-  if (emitPolly) {
-    // Polly: int gid_x = offset_x;
-    if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
-      gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.IntTy,
-          Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl());
-    } else {
-      gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.IntTy,
-          createIntegerLiteral(Ctx, 0));
-    }
-    gid_x_stmt = createDeclStmt(Ctx, gid_x);
-    gid_x_ref = createDeclRefExpr(Ctx, gid_x);
-    gidXRef = gid_x_ref;
-
-    // Polly: int gid_y = offset_y;
-    if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
-      gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.IntTy,
-          Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl());
-    } else {
-      gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.IntTy,
-          createIntegerLiteral(Ctx, 0));
-    }
-    gid_y_stmt = createDeclStmt(Ctx, gid_y);
-    gid_y_ref = createDeclRefExpr(Ctx, gid_y);
-    gidYRef = gid_y_ref;
-
-    // convert the function body to kernel syntax
-    Stmt* clonedStmt = Clone(S);
-    assert(isa<CompoundStmt>(clonedStmt) && "CompoundStmt for kernel function body expected!");
-
-    //
-    // for (int gid_y=offset_y; gid_y<2048; gid_y++) {
-    //     for (int gid_x=offset_x; gid_x<4096; gid_x++) {
-    //         body
-    //     }
-    // }
-    //
-    ForStmt *innerLoop = createForStmt(Ctx, gid_x_stmt,
-        createBinaryOperator(Ctx, gidXRef, createIntegerLiteral(Ctx, 4096),
-          BO_LT, Ctx.BoolTy), createUnaryOperator(Ctx, gidXRef, UO_PostInc,
-            gidXRef->getType()), clonedStmt);
-    ForStmt *outerLoop = createForStmt(Ctx, gid_y_stmt,
-        createBinaryOperator(Ctx, gidYRef, createIntegerLiteral(Ctx, 2048),
-          BO_LT, Ctx.BoolTy), createUnaryOperator(Ctx, gidYRef, UO_PostInc,
-            gidYRef->getType()), innerLoop);
-
-    SmallVector<Stmt *, 16> kernelBody;
-    kernelBody.push_back(outerLoop);
-    CompoundStmt *CS = createCompoundStmt(Ctx, kernelBody);
-
-    return CS;
-  } else if (compilerOptions.emitCUDA()) {
-    // CUDA
-    /*DEVICE_BUILTIN*/
-    //struct uint3
-    //{
-    //  unsigned int x, y, z;
-    //};
-    SmallVector<QualType, 16> uintDeclTypes;
-    SmallVector<StringRef, 16> uintDeclNames;
-    uintDeclTypes.push_back(Ctx.UnsignedIntTy);
-    uintDeclTypes.push_back(Ctx.UnsignedIntTy);
-    uintDeclTypes.push_back(Ctx.UnsignedIntTy);
-    uintDeclNames.push_back("x");
-    uintDeclNames.push_back("y");
-    uintDeclNames.push_back("z");
-    RecordDecl *uint3RD = createRecordDecl(Ctx, Ctx.getTranslationUnitDecl(),
-        "uint3", TTK_Struct, uintDeclTypes.size(), uintDeclTypes.data(),
-        uintDeclNames.data());
-
-    /*DEVICE_BUILTIN*/
-    //typedef struct uint3 uint3;
-
-    /*DEVICE_BUILTIN*/
-    //struct dim3
-    //{
-    //    unsigned int x, y, z;
-    //};
-
-    /*DEVICE_BUILTIN*/
-    //typedef struct dim3 dim3;
-
-    //uint3 threadIdx;
-    VarDecl *threadIdx = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-        "threadIdx", Ctx.getTypeDeclType(uint3RD), NULL);
-    //uint3 blockIdx;
-    VarDecl *blockIdx = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-        "blockIdx", Ctx.getTypeDeclType(uint3RD), NULL);
-    //dim3 blockDim;
-    VarDecl *blockDim = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-        "blockDim", Ctx.getTypeDeclType(uint3RD), NULL);
-    //dim3 gridDim;
-    VarDecl *gridDim = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-        "gridDim", Ctx.getTypeDeclType(uint3RD), NULL);
-    //int warpSize;
-    VarDecl *warpSize = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-        "warpSize", Ctx.IntTy, NULL);
-
-    DeclRefExpr *TIRef = createDeclRefExpr(Ctx, threadIdx);
-    DeclRefExpr *BIRef = createDeclRefExpr(Ctx, blockIdx);
-    DeclRefExpr *BDRef = createDeclRefExpr(Ctx, blockDim);
-    DeclRefExpr *GDRef = createDeclRefExpr(Ctx, gridDim);
-    VarDecl *xVD = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(), "x",
-        Ctx.IntTy, NULL);
-    VarDecl *yVD = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(), "y",
-        Ctx.IntTy, NULL);
-
-    local_id_x = createMemberExpr(Ctx, TIRef, false, xVD, xVD->getType());
-    local_id_y = createMemberExpr(Ctx, TIRef, false, yVD, yVD->getType());
-    block_id_x = createMemberExpr(Ctx, BIRef, false, xVD, xVD->getType());
-    block_id_y = createMemberExpr(Ctx, BIRef, false, yVD, yVD->getType());
-    local_size_x = createMemberExpr(Ctx, BDRef, false, xVD, xVD->getType());
-    local_size_y = createMemberExpr(Ctx, BDRef, false, yVD, yVD->getType());
-    grid_size_x = createMemberExpr(Ctx, GDRef, false, xVD, xVD->getType());
-    grid_size_y = createMemberExpr(Ctx, GDRef, false, yVD, yVD->getType());
-
-    // CUDA: const int gid_x = blockDim.x*blockIdx.x + threadIdx.x;
-    gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
-        createBinaryOperator(Ctx, createBinaryOperator(Ctx, local_size_x,
-            block_id_x, BO_Mul, Ctx.IntTy), local_id_x, BO_Add, Ctx.IntTy));
-
-    // CUDA: const int gid_y = blockDim.y*PPT*blockIdx.y + threadIdx.y;
-    Expr *YE = createBinaryOperator(Ctx, local_size_y, block_id_y, BO_Mul,
-        Ctx.IntTy);
-    if (Kernel->getPixelsPerThread() > 1) {
-      YE = createBinaryOperator(Ctx, YE, createIntegerLiteral(Ctx,
-            (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
-    }
-    gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
-        createBinaryOperator(Ctx, YE, local_id_y, BO_Add, Ctx.IntTy));
-
-    // void __syncthreads();
-    barrier = builtins.getBuiltinFunction(CUDABI__syncthreads);
-  } else {
-    // uint get_work_dim();
-    FunctionDecl *get_work_dim =
-      builtins.getBuiltinFunction(OPENCLBIget_work_dim);
-    // size_t get_global_size(uint dimindx);
-    FunctionDecl *get_global_size =
-      builtins.getBuiltinFunction(OPENCLBIget_global_size);
-    //size_t get_global_id(uint dimindx);
-    FunctionDecl *get_global_id =
-      builtins.getBuiltinFunction(OPENCLBIget_global_id);
-    //size_t get_local_size(uint dimindx);
-    FunctionDecl *get_local_size =
-      builtins.getBuiltinFunction(OPENCLBIget_local_size);
-    //size_t get_local_id(uint dimindx);
-    FunctionDecl *get_local_id =
-      builtins.getBuiltinFunction(OPENCLBIget_local_id);
-    //size_t get_num_groups(uint dimindx);
-    FunctionDecl *get_num_groups =
-      builtins.getBuiltinFunction(OPENCLBIget_num_groups);
-    //size_t get_group_id(uint dimindx);
-    FunctionDecl *get_group_id =
-      builtins.getBuiltinFunction(OPENCLBIget_group_id);
-
-    // void barrier(cl_mem_fence_flags);
-    barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
-
-    // .(0) .(1)
-    get_global_size0 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_global_size, tmpArg0),
-        NULL, VK_RValue);
-    get_global_size1 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_global_size, tmpArg1),
-        NULL, VK_RValue);
-    get_global_id0 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_global_id, tmpArg0), NULL,
-        VK_RValue);
-    get_global_id1 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_global_id, tmpArg1), NULL,
-        VK_RValue);
-    local_size_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_local_size, tmpArg0), NULL,
-        VK_RValue);
-    local_size_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_local_size, tmpArg1), NULL,
-        VK_RValue);
-    local_id_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_local_id, tmpArg0), NULL,
-        VK_RValue);
-    local_id_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_local_id, tmpArg1), NULL,
-        VK_RValue);
-    grid_size_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_num_groups, tmpArg0), NULL,
-        VK_RValue);
-    grid_size_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_num_groups, tmpArg1), NULL,
-        VK_RValue);
-    block_id_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_group_id, tmpArg0), NULL,
-        VK_RValue);
-    block_id_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-        CK_IntegralCast, createFunctionCall(Ctx, get_group_id, tmpArg1), NULL,
-        VK_RValue);
-
-
-    // OpenCL: const int gid_x = get_global_id(0);
-    gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
-        get_global_id0);
-
-    Expr *YE;
-    if (Kernel->getPixelsPerThread() > 1) {
-      // OpenCL: const int gid_y = get_local_size(1) * get_group_id(1)*PPT +
-      //                           get_local_id(1);
-      YE = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
-            createBinaryOperator(Ctx, local_size_y, block_id_y, BO_Mul,
-              Ctx.IntTy), createIntegerLiteral(Ctx,
-                (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy),
-          local_id_y, BO_Add, Ctx.IntTy);
-    } else {
-      // OpenCL: const int gid_y = get_global_id(1)*PPT;
-      YE = get_global_id1;
-    }
-    gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
-        YE);
-  }
-  lidXRef = local_id_x;
-  lidYRef = local_id_y;
-
+  // initialize target-specific variables and add gid_x and gid_y declarations
+  // to kernel body
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
-  DC->addDecl(gid_x);
-  DC->addDecl(gid_y);
-  gid_x_stmt = createDeclStmt(Ctx, gid_x);
-  gid_x_ref = createDeclRefExpr(Ctx, gid_x);
-  gidXRef = gid_x_ref;
-
-  gid_y_stmt = createDeclStmt(Ctx, gid_y);
-  gid_y_ref = createDeclRefExpr(Ctx, gid_y);
-  gidYRef = gid_y_ref;
-
-  // add gid_x and gid_y declarations to kernel body
   SmallVector<Stmt *, 16> kernelBody;
-  kernelBody.push_back(gid_x_stmt);
-  kernelBody.push_back(gid_y_stmt);
+  FunctionDecl *barrier;
+  switch (compilerOptions.getTargetCode()) {
+    default:
+    case TARGET_C:
+      initC(kernelBody, S);
+      return createCompoundStmt(Ctx, kernelBody);
+      break;
+    case TARGET_CUDA:
+      initCUDA(kernelBody);
+      // void __syncthreads();
+      barrier = builtins.getBuiltinFunction(CUDABI__syncthreads);
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      initOpenCL(kernelBody);
+      // void barrier(cl_mem_fence_flags);
+      barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
+      break;
+    case TARGET_Renderscript:
+      initRenderscript(kernelBody);
+      break;
+  }
+  lidXRef = tileVars.local_id_x;
+  lidYRef = tileVars.local_id_y;
+  gidXRef = tileVars.global_id_x;
+  gidYRef = tileVars.global_id_y;
 
   for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
     FieldDecl *FD = KernelClass->getImgFields().data()[i];
@@ -432,7 +521,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   KernelDeclMapAcc.clear();
 
   // add vector pointer declarations for images
-  if (Kernel->vectorize() && !emitPolly) {
+  if (Kernel->vectorize() && !compilerOptions.emitC()) {
     for (unsigned int i=0; i<=KernelClass->getNumImages(); i++) {
       FieldDecl *FD = KernelClass->getImgFields().data()[i];
       // output image - iteration space
@@ -609,10 +698,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // OpenCL:  if (get_group_id(0) < bh_start_left &&
         //              get_group_id(1) < bh_start_top) goto BO_TL;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_TL");
-        if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_left, BO_LT,
-            Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x, bh_start_left,
+            BO_LT, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
+              tileVars.block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 2:
@@ -624,10 +713,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // OpenCL:  if (get_group_id(0) >= bh_start_right &&
         //              get_group_id(1) < bh_start_top) goto BO_TR;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_TR");
-        if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_right, BO_GE,
-            Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x, bh_start_right,
+            BO_GE, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
+              tileVars.block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 3:
@@ -637,8 +726,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // CUDA:    if (blockIdx.y < bh_start_top) goto BO_T;
         // OpenCL:  if (get_group_id(1) < bh_start_top) goto BO_T;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_T");
-        if_goto = createBinaryOperator(Ctx, block_id_y, bh_start_top, BO_LT,
-            Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_y, bh_start_top,
+            BO_LT, Ctx.BoolTy);
         break;
       case 4:
         // check if we have only a row or column filter
@@ -649,10 +738,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // OpenCL:  if (get_group_id(1) >= bh_start_bottom &&
         //              get_group_id(0) < bh_start_left) goto BO_BL;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_BL");
-        if_goto = createBinaryOperator(Ctx, block_id_y, bh_start_bottom, BO_GE,
-            Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
+            bh_start_bottom, BO_GE, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_x, bh_start_left, BO_LT, Ctx.BoolTy), BO_LAnd,
+              tileVars.block_id_x, bh_start_left, BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 5:
@@ -664,10 +753,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // OpenCL:  if (get_group_id(1) >= bh_start_bottom &&
         //              get_group_id(0) >= bh_start_right) goto BO_BL;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_BR");
-        if_goto = createBinaryOperator(Ctx, block_id_y, bh_start_bottom, BO_GE,
-            Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
+            bh_start_bottom, BO_GE, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              block_id_x, bh_start_right, BO_GE, Ctx.BoolTy), BO_LAnd,
+              tileVars.block_id_x, bh_start_right, BO_GE, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 6:
@@ -679,8 +768,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // CUDA:    if (blockIdx.y >= bh_start_bottom) goto BO_B;
         // OpenCL:  if (get_group_id(1) >= bh_start_bottom) goto BO_B;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_B");
-        if_goto = createBinaryOperator(Ctx, block_id_y, bh_start_bottom, BO_GE,
-            Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
+            bh_start_bottom, BO_GE, Ctx.BoolTy);
         break;
       case 7:
         // this is not required for column filters, but for kernels where the
@@ -689,8 +778,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // CUDA:    if (blockIdx.x >= bh_start_right) goto BO_R;
         // OpenCL:  if (get_group_id(0) >= bh_start_right) goto BO_R;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_R");
-        if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_right, BO_GE,
-            Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x, bh_start_right,
+            BO_GE, Ctx.BoolTy);
         break;
       case 8:
         // check if we have only a column filter
@@ -699,8 +788,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // CUDA:    if (blockIdx.x < bh_start_left) goto BO_L;
         // OpenCL:  if (get_group_id(0) < bh_start_left) goto BO_L;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_L");
-        if_goto = createBinaryOperator(Ctx, block_id_x, bh_start_left, BO_LT,
-            Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x, bh_start_left,
+            BO_LT, Ctx.BoolTy);
         break;
       case 9:
         LD = createLabelDecl(Ctx, kernelDecl, "BH_NO");
@@ -713,7 +802,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // this behavior.
         // CUDA: if (blockDim.x >= 16) goto BH_NO;
         // OpenCL: if (get_local_size(0) >= 16) goto BH_NO;
-        if_goto = createBinaryOperator(Ctx, local_size_x,
+        if_goto = createBinaryOperator(Ctx, tileVars.local_size_x,
             createIntegerLiteral(Ctx, 16), BO_GE, Ctx.BoolTy);
         break;
     }
@@ -802,11 +891,13 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         BinaryOperator *check_tmp = NULL;
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
           check_tmp = createBinaryOperator(Ctx, gidXRef,
-              createBinaryOperator(Ctx, isWidth,
+              createBinaryOperator(Ctx,
+                Kernel->getIterationSpace()->getAccessor()->getWidthDecl(),
                 Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(),
                 BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
         } else {
-          check_tmp = createBinaryOperator(Ctx, gidXRef, isWidth, BO_LT,
+          check_tmp = createBinaryOperator(Ctx, gidXRef,
+              Kernel->getIterationSpace()->getAccessor()->getWidthDecl(), BO_LT,
               Ctx.BoolTy);
         }
         if (check_bop) {
@@ -824,11 +915,12 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
             Ctx.BoolTy);
         check_bop = createBinaryOperator(Ctx, check_bop,
             createBinaryOperator(Ctx, gidXRef, createBinaryOperator(Ctx,
-                isWidth,
+                Kernel->getIterationSpace()->getAccessor()->getWidthDecl(),
                 Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(),
                 BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
       } else {
-        check_bop = createBinaryOperator(Ctx, gidXRef, isWidth, BO_LT,
+        check_bop = createBinaryOperator(Ctx, gidXRef,
+            Kernel->getIterationSpace()->getAccessor()->getWidthDecl(), BO_LT,
             Ctx.BoolTy);
       }
     }
@@ -845,19 +937,19 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     for (int p=0; use_shared && p<(int)Kernel->getPixelsPerThread()+p_add; p++) {
       if (p==0) {
         // initialize lid_y and gid_y
-        lidYRef = local_id_y;
-        gidYRef = gid_y_ref;
+        lidYRef = tileVars.local_id_y;
+        gidYRef = tileVars.global_id_y;
         // first iteration
         stageIterationToSharedMemory(labelBody, p);
       } else {
         // update lid_y to lid_y + p*local_size_y
         // update gid_y to gid_y + p*local_size_y
-        lidYRef = createBinaryOperator(Ctx, local_id_y,
+        lidYRef = createBinaryOperator(Ctx, tileVars.local_id_y,
             createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
-              local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
-        gidYRef = createBinaryOperator(Ctx, gid_y_ref, createBinaryOperator(Ctx,
-              createIntegerLiteral(Ctx, p), local_size_y, BO_Mul, Ctx.IntTy),
-            BO_Add, Ctx.IntTy);
+              tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+        gidYRef = createBinaryOperator(Ctx, tileVars.global_id_y,
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
+              tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
         // load next iteration to shared memory
         stageIterationToSharedMemory(labelBody, p);
       }
@@ -885,17 +977,17 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   
       if (p==0) {
         // initialize lid_y and gid_y
-        lidYRef = local_id_y;
-        gidYRef = gid_y_ref;
+        lidYRef = tileVars.local_id_y;
+        gidYRef = tileVars.global_id_y;
       } else {
         // update lid_y to lid_y + p*local_size_y
         // update gid_y to gid_y + p*local_size_y
-        lidYRef = createBinaryOperator(Ctx, local_id_y,
+        lidYRef = createBinaryOperator(Ctx, tileVars.local_id_y,
             createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
-              local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
-        gidYRef = createBinaryOperator(Ctx, gid_y_ref, createBinaryOperator(Ctx,
-              createIntegerLiteral(Ctx, p), local_size_y, BO_Mul, Ctx.IntTy),
-            BO_Add, Ctx.IntTy);
+              tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+        gidYRef = createBinaryOperator(Ctx, tileVars.global_id_y,
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
+              tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
       }
 
       // convert kernel function body to CUDA/OpenCL kernel syntax
@@ -923,7 +1015,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       if (require_is_check) {
         // if (gid_y + p < is_height)
         BinaryOperator *inner_check_bop = createBinaryOperator(Ctx, gidYRef,
-            isHeight, BO_LT, Ctx.BoolTy);
+            Kernel->getIterationSpace()->getAccessor()->getHeightDecl(), BO_LT,
+            Ctx.BoolTy);
         IfStmt *inner_ispace_check = createIfStmt(Ctx, inner_check_bop,
             clonedStmt);
         pptBody.push_back(inner_ispace_check);
@@ -957,10 +1050,9 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
 
     // reset image border configuration
     bh_variant.borderVal = 0;
-    // reset gid_y
-    gidYRef = gid_y_ref;
-    // reset lid_y
-    lidYRef = local_id_y;
+    // reset lid_y and gid_y
+    lidYRef = tileVars.local_id_y;
+    gidYRef = tileVars.global_id_y;
   }
 
   if (border_handling) {
@@ -995,7 +1087,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
         QT = PVD->getType();
 
         // only vectorize image PVDs
-        if (Kernel->vectorize() && !emitPolly) {
+        if (Kernel->vectorize() && !compilerOptions.emitC()) {
           for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
             FieldDecl *FD = KernelClass->getImgFields().data()[i];
 
@@ -1021,7 +1113,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
         QT = VD->getType();
         name  = VD->getName();
 
-        if (Kernel->vectorize() && !emitPolly) {
+        if (Kernel->vectorize() && !compilerOptions.emitC()) {
           VectorInfo VI = KernelClass->getVectorizeInfo(VD);
 
           if (VI == VECTORIZE) {
@@ -1205,7 +1297,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
 
   if (E->getDirectCallee()) {
     QualType QT = E->getCallReturnType();
-    if (Kernel->vectorize() && !emitPolly) {
+    if (Kernel->vectorize() && !compilerOptions.emitC()) {
       QT = simdTypes.getSIMDType(QT, QT.getAsString(), SIMD4);
       // cast ExtVectorType to VectorType - Builtin functions are created
       // using VectorTypes
@@ -1432,9 +1524,9 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
 
 Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
   // TODO: create a map with all expressions not to be cloned ..
-  if (E==local_size_x || E==local_size_y) return E;
-  if (E==local_id_x || E==local_id_y) return E;
-  if (E==block_id_x || E==block_id_y) return E;
+  if (E==tileVars.local_size_x || E==tileVars.local_size_y) return E;
+  if (E==tileVars.local_id_x || E==tileVars.local_id_y) return E;
+  if (E==tileVars.block_id_x || E==tileVars.block_id_y) return E;
 
   // replace member class variables by kernel parameter references
   // (MemberExpr 0x4bd4af0 'int' ->d 0x4bd2330
@@ -1454,7 +1546,7 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
       paramDecl = PVD;
 
       // get vector declaration
-      if (Kernel->vectorize() && !emitPolly) {
+      if (Kernel->vectorize() && !compilerOptions.emitC()) {
         if (KernelDeclMapVector.count(PVD)) {
           paramDecl = KernelDeclMapVector[PVD];
           llvm::errs() << "Vectorize: \n";
@@ -1477,7 +1569,7 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
   }
 
   // check if the parameter is a Mask and replace it by a global VarDecl
-  if (!emitPolly) {
+  if (!compilerOptions.emitC()) {
     for (unsigned int i=0; i<KernelClass->getNumMasks(); i++) {
       FieldDecl *FD = KernelClass->getMaskFields().data()[i];
 
@@ -1657,11 +1749,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             midx_y = convExprY;
           }
 
-          if (emitPolly || compilerOptions.emitCUDA()) {
+          if (compilerOptions.emitC() || compilerOptions.emitCUDA()) {
             // array subscript: Mask[conv_y][conv_x]
             result = accessMem2DAt(LHS, midx_x, midx_y);
           } else {
-            // options.emitOpenCL()
+            // compilerOptions.emitOpenCL()
             // array subscript: Mask[(conv_y)*width + conv_x]
             result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                   (int)Mask->getSizeX()), midx_x, midx_y);
@@ -1672,7 +1764,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // 0: -> (this *) Mask class
         // 1: -> x
         // 2: -> y
-        if (emitPolly || compilerOptions.emitCUDA()) {
+        if (compilerOptions.emitC() || compilerOptions.emitCUDA()) {
           // array subscript: Mask[y+size_y/2][x+size_x/2]
           result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                 Clone(E->getArg(1)), createIntegerLiteral(Ctx,
@@ -1681,7 +1773,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                 createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
                 Ctx.IntTy));
         } else {
-          // options.emitOpenCL()
+          // compilerOptions.emitOpenCL()
           // array subscript: Mask[(y+size_y/2)*width + x+size_x/2]
           result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                 (int)Mask->getSizeX()), createBinaryOperator(Ctx,
@@ -1739,7 +1831,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       break;
     case 1:
       // 0: -> (this *) Image Class
-      if (emitPolly) {
+      if (compilerOptions.emitC()) {
         // no padding is considered, data is accessed as a 2D-array
         result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
       } else {
@@ -1781,7 +1873,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         offset_y = Clone(E->getArg(2));
       }
 
-      if (emitPolly) {
+      if (compilerOptions.emitC()) {
         // no padding is considered, data is accessed as a 2D-array
         result = accessMemPolly(LHS, Acc, memAcc, offset_x, offset_y);
       } else {
@@ -1845,11 +1937,21 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     if (ME->getMemberNameInfo().getAsString() == "output") {
       assert(E->getNumArgs()==0 && "no arguments for output() method supported!");
 
-      if (emitPolly) {
-        // no padding is considered, data is accessed as a 2D-array
-        result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
-      } else {
-        result = accessMem(LHS, Acc, memAcc);
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_C:
+          // no padding is considered, data is accessed as a 2D-array
+          result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
+          break;
+        case TARGET_CUDA:
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          result = accessMem(LHS, Acc, memAcc);
+          break;
+        case TARGET_Renderscript:
+          // access the current output element using *out or out[0]
+          result = accessMemArrAt(LHS, Acc->getStrideDecl(),
+              createIntegerLiteral(Ctx, 0), createIntegerLiteral(Ctx, 0));
+          break;
       }
 
       setExprProps(E, result);
@@ -1908,7 +2010,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), Acc);
     Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), Acc);
 
-    if (emitPolly) {
+    if (compilerOptions.emitC()) {
       result = accessMem2DAt(LHS, idx_x, idx_y);
     } else {
       if (Kernel->useTextureMemory(Acc)) {

@@ -45,19 +45,20 @@ namespace hipacc {
 
 // compiler option possibilities
 enum CompilerOption {
-  AUTO              = 0x1,
-  ON                = 0x2,
-  OFF               = 0x4,
-  USER_ON           = 0x8,
-  USER_OFF          = 0x10
+  AUTO                = 0x1,
+  ON                  = 0x2,
+  OFF                 = 0x4,
+  USER_ON             = 0x8,
+  USER_OFF            = 0x10
 };
 
 // target language specification
 enum TargetCode {
-  TARGET_CUDA       = 0x1,
-  TARGET_OpenCL     = 0x2,
-  TARGET_OpenCLx86  = 0x4,
-  TARGET_C          = 0x8
+  TARGET_CUDA         = 0x1,
+  TARGET_OpenCL       = 0x2,
+  TARGET_OpenCLx86    = 0x4,
+  TARGET_Renderscript = 0x8,
+  TARGET_C            = 0x10
 };
 
 class CompilerOptions {
@@ -132,6 +133,10 @@ class CompilerOptions {
     }
     bool emitOpenCLx86() {
       if (target_code & TARGET_OpenCLx86) return true;
+      return false;
+    }
+    bool emitRenderscript() {
+      if (target_code & TARGET_Renderscript) return true;
       return false;
     }
     bool emitC() {
@@ -229,6 +234,9 @@ class CompilerOptions {
           break;
         case TARGET_OpenCLx86:
           llvm::errs() << "OpenCL (CPU)";
+          break;
+        case TARGET_Renderscript:
+          llvm::errs() << "Renderscript";
           break;
         case TARGET_C:
           llvm::errs() << "C/C++";

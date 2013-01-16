@@ -46,17 +46,17 @@ class CreateHostStrings {
   private:
     CompilerOptions &options;
     unsigned int literalCountGridBock;
-    int num_ident, cur_ident;
-    std::string ident;
+    int num_indent, cur_indent;
+    std::string indent;
 
-    void inc_ident() {
-      cur_ident += num_ident;
-      ident = std::string(cur_ident, ' ');
+    void inc_indent() {
+      cur_indent += num_indent;
+      indent = std::string(cur_indent, ' ');
     }
-    void dec_ident() {
-      cur_ident -= num_ident;
-      if (cur_ident < 0) cur_ident = 0;
-      ident = std::string(cur_ident, ' ');
+    void dec_indent() {
+      cur_indent -= num_indent;
+      if (cur_indent < 0) cur_indent = 0;
+      indent = std::string(cur_indent, ' ');
     }
     void setupKernelArgument(std::string kernelName, int curArg, std::string
         argName, std::string argTypeName, std::string offsetStr, std::string
@@ -66,9 +66,9 @@ class CreateHostStrings {
     CreateHostStrings(CompilerOptions &options) :
       options(options),
       literalCountGridBock(0),
-      num_ident(4),
-      cur_ident(num_ident),
-      ident(cur_ident, ' ')
+      num_indent(4),
+      cur_indent(num_indent),
+      indent(cur_indent, ' ')
     {}
 
     void writeHeaders(std::string &resultStr);

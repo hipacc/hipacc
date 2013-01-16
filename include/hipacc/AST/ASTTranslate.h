@@ -78,7 +78,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     SIMDTypes simdTypes;
     border_variant bh_variant;
     bool emitEstimation;
-    bool emitPolly;
 
     // "global variables"
     unsigned int literalCount;
@@ -96,12 +95,21 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     DeclRefExpr *outputImage;
     Expr *gidXRef, *gidYRef;
     Expr *lidXRef, *lidYRef;
-    DeclRefExpr *isWidth, *isHeight;
-    Expr *local_id_x, *local_id_y;
-    Expr *local_size_x, *local_size_y;
-    Expr *block_id_x, *block_id_y;
-    Expr *block_size_x, *block_size_y;
-    Expr *grid_size_x, *grid_size_y;
+    class BlockingVars {
+      public:
+        Expr *global_id_x, *global_id_y;
+        Expr *local_id_x, *local_id_y;
+        Expr *local_size_x, *local_size_y;
+        Expr *block_id_x, *block_id_y;
+        //Expr *block_size_x, *block_size_y;
+        //Expr *grid_size_x, *grid_size_y;
+
+        BlockingVars() :
+          global_id_x(NULL), global_id_y(NULL), local_id_x(NULL),
+          local_id_y(NULL), local_size_x(NULL), local_size_y(NULL),
+          block_id_x(NULL), block_id_y(NULL) {}
+    };
+    BlockingVars tileVars;
     Expr *writeImageRHS;
     TypedefDecl *samplerTy;
     DeclRefExpr *kernelSamplerRef;
@@ -137,6 +145,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     VarDecl *CloneDeclTex(ParmVarDecl *D, std::string prefix);
     void setExprProps(Expr *orig, Expr *clone);
     void setCastPath(CastExpr *orig, CXXCastPath &castPath);
+    void initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S);
+    void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
+    void initOpenCL(SmallVector<Stmt *, 16> &kernelBody);
+    void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
 
     // KernelDeclMap - this keeps track of the cloned Decls which are used in
     // expressions, e.g. DeclRefExpr
@@ -210,8 +222,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
   public:
     ASTTranslate(ASTContext& Ctx, FunctionDecl *kernelDecl, HipaccKernel
         *kernel, HipaccKernelClass *kernelClass, hipacc::Builtin::Context
-        &builtins, CompilerOptions &options, bool emitEstimation=false, bool
-        emitPolly=false) :
+        &builtins, CompilerOptions &options, bool emitEstimation=false) :
       Ctx(Ctx),
       kernelDecl(kernelDecl),
       Kernel(kernel),
@@ -221,7 +232,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       simdTypes(SIMDTypes(Ctx, builtins, options)),
       bh_variant(),
       emitEstimation(emitEstimation),
-      emitPolly(emitPolly),
       literalCount(0),
       curCompoundStmtVistor(NULL),
       convMask(NULL),
@@ -240,18 +250,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       gidYRef(NULL),
       lidXRef(NULL),
       lidYRef(NULL),
-      isWidth(NULL),
-      isHeight(NULL),
-      local_id_x(NULL),
-      local_id_y(NULL),
-      local_size_x(NULL),
-      local_size_y(NULL),
-      block_id_x(NULL),
-      block_id_y(NULL),
-      block_size_x(NULL),
-      block_size_y(NULL),
-      grid_size_x(NULL),
-      grid_size_y(NULL),
+      tileVars(),
       writeImageRHS(NULL) {
         // typedef unsigned int sampler_t;
         TypeSourceInfo *TInfosampler =
