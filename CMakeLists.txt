@@ -83,7 +83,9 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -Wall -Wunused ${LLVM_CXXFLAGS
 
 
 # set include directory, add src directories 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_BINARY_DIR}/include)
 ADD_SUBDIRECTORY(lib)
 ADD_SUBDIRECTORY(compiler)
 ADD_SUBDIRECTORY(tools)
@@ -95,13 +97,20 @@ SET(DSL_INCLUDES "${CMAKE_INSTALL_PREFIX}/include/dsl")
 # configure a header file to pass some of the CMake settings to the source code
 CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/include/hipacc/Config/config.h.cmake"
-    "${HIPACC_SOURCE_DIR}/include/hipacc/Config/config.h")
+    "${HIPACC_BINARY_DIR}/include/hipacc/Config/config.h")
 CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/Makefile.cmake"
-    "${HIPACC_SOURCE_DIR}/tests/Makefile")
+    "${HIPACC_BINARY_DIR}/tests/Makefile")
 CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/Makefile_CL.cmake"
-    "${HIPACC_SOURCE_DIR}/tests/Makefile_CL")
+    "${HIPACC_BINARY_DIR}/tests/Makefile_CL")
+
+INSTALL(DIRECTORY tests
+    DESTINATION ${CMAKE_INSTALL_PREFIX}
+    PATTERN "*.cmake" EXCLUDE)
+
+INSTALL(DIRECTORY ${HIPACC_BINARY_DIR}/tests/
+    DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 
 # install dsl and runtime header files
@@ -109,19 +118,4 @@ FILE(GLOB dsl_headers "${CMAKE_CURRENT_SOURCE_DIR}/dsl/*.hpp")
 FILE(GLOB runtime_headers "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp")
 INSTALL(FILES ${runtime_headers} DESTINATION include)
 INSTALL(FILES ${dsl_headers} DESTINATION include/dsl)
-
-INSTALL(DIRECTORY tests
-    DESTINATION ${CMAKE_INSTALL_PREFIX}
-    PATTERN "tests/Makefile.cmake" EXCLUDE
-    PATTERN "tests/Makefile" EXCLUDE
-    PATTERN "tests/Makefile_CL.cmake" EXCLUDE
-    PATTERN "tests/Makefile_CL" EXCLUDE)
-
-INSTALL(FILES tests/Makefile
-    DESTINATION ${CMAKE_INSTALL_PREFIX})
-
-INSTALL(FILES tests/Makefile_CL
-    DESTINATION ${CMAKE_INSTALL_PREFIX})
-
-# TODO: build and install documentation (pdf)
 
