@@ -318,7 +318,7 @@ int main(int argc, char *argv[]) {
   }
 
   // create the compilers actual diagnostics engine
-  Clang->createDiagnostics(Args.size(), const_cast<char **>(Args.data()));
+  Clang->createDiagnostics();
   if (!Clang->hasDiagnostics()) return EXIT_FAILURE;
   // print diagnostics in color
   Clang->getDiagnosticOpts().ShowColors = 1;
