@@ -91,6 +91,7 @@ opencl_x86:
 renderscript:
 	@echo 'Executing HIPAcc Compiler for Renderscript:'
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o -
+	cat *.rs
 
 clean:
 	-$(RM) main_cuda main_opencl #*.cu *.cubin *.cl *.isa

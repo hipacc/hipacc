@@ -71,7 +71,7 @@ void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   DC->addDecl(gid_x);
   DC->addDecl(gid_y);
   DeclStmt *gid_x_stmt = createDeclStmt(Ctx, gid_x);
-  DeclStmt *gid_y_stmt = createDeclStmt(Ctx, gid_x);
+  DeclStmt *gid_y_stmt = createDeclStmt(Ctx, gid_y);
 
   tileVars.global_id_x = createDeclRefExpr(Ctx, gid_x);
   tileVars.global_id_y = createDeclRefExpr(Ctx, gid_y);

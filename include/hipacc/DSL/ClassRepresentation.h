@@ -726,6 +726,7 @@ class HipaccKernel : public HipaccKernelFeatures {
         case TARGET_OpenCLx86:
           return argTypesOpenCL.data();
         case TARGET_C:
+        case TARGET_Renderscript:
         default:
           return argTypesC.data();
       }
