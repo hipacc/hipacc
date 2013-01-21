@@ -2014,6 +2014,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
 
+  // interpolation includes & definitions
   bool inc=false;
   for (unsigned int i=0, e=KC->getNumImages(); i!=e; ++i) {
     FieldDecl *FD = KC->getImgFields().data()[i];
@@ -2072,39 +2073,67 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
   }
 
-  if (compilerOptions.emitCUDA()) {
-    // write texture declarations
-    for (unsigned int i=0, e=KC->getNumImages(); i!=e; ++i) {
-      FieldDecl *FD = KC->getImgFields().data()[i];
-      HipaccAccessor *Acc = K->getImgFromMapping(FD);
 
-      if (KC->getImgAccess(FD) == READ_ONLY && K->useTextureMemory(Acc)) {
-        QualType T = Acc->getImage()->getPixelQualType();
+  // global image declarations
+  for (unsigned int i=0, e=KC->getNumImages(); i!=e; ++i) {
+    FieldDecl *FD = KC->getImgFields().data()[i];
+    HipaccAccessor *Acc = K->getImgFromMapping(FD);
+    QualType T = Acc->getImage()->getPixelQualType();
 
-        *OS << "texture<";
-        *OS << T.getAsString();
-        switch (K->useTextureMemory(Acc)) {
-          default:
-          case Linear1D:
-            *OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
-            break;
-          case Linear2D:
-          case Array2D:
-            *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
-            break;
+    switch (compilerOptions.getTargetCode()) {
+      case TARGET_C:
+      case TARGET_OpenCL:
+      case TARGET_OpenCLx86:
+        break;
+      case TARGET_CUDA:
+        // texture declaration
+        if (KC->getImgAccess(FD) == READ_ONLY && K->useTextureMemory(Acc)) {
+          *OS << "texture<";
+          *OS << T.getAsString();
+          switch (K->useTextureMemory(Acc)) {
+            default:
+            case Linear1D:
+              *OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
+              break;
+            case Linear2D:
+            case Array2D:
+              *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
+              break;
+          }
+          *OS << FD->getNameAsString() << K->getName() << ";\n";
         }
-        *OS << FD->getNameAsString() << K->getName() << ";\n";
-      }
+        break;
+      case TARGET_Renderscript:
+        // memory declaration
+        if (KC->getImgAccess(FD) == READ_ONLY) {
+          *OS << "const ";
+        }
+        *OS << T.getAsString() << " *" << FD->getNameAsString() << ";\n";
+        break;
     }
-
-    // write surface declaration
-    if (compilerOptions.useTextureMemory() &&
-        compilerOptions.getTextureType()==Array2D) {
-      *OS << "surface<void, cudaSurfaceType2D> _surfOutput";
-      *OS << K->getName() << ";\n";
-    }
-    *OS << "\n";
   }
+
+  // output image declaration
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      break;
+    case TARGET_CUDA:
+      // surface declaration
+      if (compilerOptions.useTextureMemory() &&
+          compilerOptions.getTextureType()==Array2D) {
+        *OS << "surface<void, cudaSurfaceType2D> _surfOutput"
+            << K->getName() << ";\n\n";
+      }
+      break;
+    case TARGET_Renderscript:
+      // memory declaration
+      *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
+          << " *Output;\n\n";
+      break;
+  }
+
 
   // write constant memory declarations
   for (unsigned int i=0; i<KC->getNumMasks(); i++) {
@@ -2112,10 +2141,18 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     HipaccMask *Mask = K->getMaskFromMapping(FD);
 
     if (Mask->isConstant()) {
-      if (compilerOptions.emitCUDA()) {
-        *OS << "__device__ __constant__ ";
-      } else {
-        *OS << "__constant ";
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          *OS << "__constant ";
+          break;
+        case TARGET_CUDA:
+          *OS << "__device__ __constant__ ";
+          break;
+        case TARGET_C:
+        case TARGET_Renderscript:
+          *OS << "static const ";
+          break;
       }
       *OS << Mask->getTypeStr() << " " << Mask->getName() << K->getName() << "["
           << Mask->getSizeYStr() << "][" << Mask->getSizeXStr() << "] = {\n";
@@ -2141,16 +2178,29 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       *OS << "    };\n\n";
       Mask->setIsPrinted(true);
     } else {
-      // mask is not constant. Emit declaration in CUDA, for OpenCL nothing has
-      // to be printed - the Mask will be added as kernel parameter
-      if (compilerOptions.emitCUDA()) {
-        *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
-          << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
-          << "][" << Mask->getSizeXStr() << "];\n\n";
-        Mask->setIsPrinted(true);
+      // emit declaration in CUDA and Renderscript
+      // for other back ends, the mask will be added as kernel parameter
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          break;
+        case TARGET_CUDA:
+          *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
+            << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
+            << "][" << Mask->getSizeXStr() << "];\n\n";
+          Mask->setIsPrinted(true);
+          break;
+        case TARGET_C:
+        case TARGET_Renderscript:
+          *OS << "const " << Mask->getTypeStr() << " "
+            << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
+            << "][" << Mask->getSizeXStr() << "];\n\n";
+          Mask->setIsPrinted(true);
+          break;
       }
     }
   }
+
 
   // write kernel name and qualifiers
   switch (compilerOptions.getTargetCode()) {
@@ -2188,24 +2238,34 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   unsigned int comma = 0;
   for (unsigned int i=0, e=D->getNumParams(); i!=e; ++i) {
     std::string Name = D->getParamDecl(i)->getNameAsString();
+    FieldDecl *FD = K->getArgFields()[i];
 
     // check if we have a Mask
-    FieldDecl *FD = K->getArgFields()[i];
     HipaccMask *Mask = K->getMaskFromMapping(FD);
     if (Mask) {
-      if (compilerOptions.emitCUDA() || Mask->isConstant()) {
-        // skip mask parameter in CUDA, mask is declared as constant memory
-      } else {
-        if (comma++) *OS << ", ";
-        *OS << "__constant ";
-        QualType T = D->getParamDecl(i)->getType();
-        if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
-          T = Parm->getOriginalType();
-        T.getAsStringInternal(Name, Policy);
-        *OS << Name;
-        *OS << " __attribute__ ((max_constant_size (" << Mask->getSizeXStr()
-            << "*" << Mask->getSizeYStr() << "*sizeof(" << Mask->getTypeStr()
-            << "))))";
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          if (!Mask->isConstant()) {
+            if (comma++) *OS << ", ";
+            *OS << "__constant ";
+            QualType T = D->getParamDecl(i)->getType();
+            if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
+              T = Parm->getOriginalType();
+            T.getAsStringInternal(Name, Policy);
+            *OS << Name;
+            *OS << " __attribute__ ((max_constant_size (" << Mask->getSizeXStr()
+                << "*" << Mask->getSizeYStr() << "*sizeof("
+                << Mask->getTypeStr() << "))))";
+            }
+          break;
+        case TARGET_CUDA:
+          // mask is declared as constant memory
+          break;
+        case TARGET_C:
+        case TARGET_Renderscript:
+          // mask is declared as static memory
+          break;
       }
       continue;
     }
@@ -2214,6 +2274,15 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     MemoryAccess memAcc = UNDEFINED;
     if (i==0) { // first argument is always the output image
+
+      // TODO: debug for Renderscript only
+      if (compilerOptions.emitRenderscript()) {
+        *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
+            << " *" << Name << ", uint32_t x, uint32_t y";
+        break;
+      }
+      // TODO: debug for Renderscript only
+
       if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory() &&
           compilerOptions.getTextureType()==Array2D) continue;
       Acc = K->getIterationSpace()->getAccessor();
@@ -2223,48 +2292,46 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
 
     if (Acc) {
-
-      // TODO: debug for Renderscript only
-      if (i==0 && compilerOptions.emitRenderscript()) {
-        *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
-            << " *" << Name << ", uint32_t x, uint32_t y";
-        break;
-      }
-      // TODO: debug for Renderscript only
-
-      if (compilerOptions.emitCUDA()) {
-        if (K->useTextureMemory(Acc) && memAcc==READ_ONLY) {
-          // no parameter is emitted for textures
-          continue;
-        } else {
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          // __global keyword to specify memory location is only needed for OpenCL
           if (comma++) *OS << ", ";
-          QualType T = D->getParamDecl(i)->getType();
-          if (memAcc==READ_ONLY && !T.isLocalConstQualified()) {
-            *OS << "const ";
-          }
-          if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
-            T = Parm->getOriginalType();
-          T.getAsStringInternal(Name, Policy);
-        }
-      } else {
-        // __global keyword to specify memory location is only needed for OpenCL
-        if (comma++) *OS << ", ";
-        if (K->useTextureMemory(Acc)) {
-          if (memAcc==WRITE_ONLY) {
-            *OS << "__write_only image2d_t ";
+          if (K->useTextureMemory(Acc)) {
+            if (memAcc==WRITE_ONLY) {
+              *OS << "__write_only image2d_t ";
+            } else {
+              *OS << "__read_only image2d_t ";
+            }
           } else {
-            *OS << "__read_only image2d_t ";
+            *OS << "__global ";
+            QualType T = D->getParamDecl(i)->getType();
+            if (memAcc==READ_ONLY && !T.isLocalConstQualified()) {
+              *OS << "const ";
+            }
+            if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
+              T = Parm->getOriginalType();
+            T.getAsStringInternal(Name, Policy);
           }
-        } else {
-          *OS << "__global ";
-          QualType T = D->getParamDecl(i)->getType();
-          if (memAcc==READ_ONLY && !T.isLocalConstQualified()) {
-            *OS << "const ";
+          break;
+        case TARGET_CUDA:
+          if (K->useTextureMemory(Acc) && memAcc==READ_ONLY) {
+            // no parameter is emitted for textures
+            continue;
+          } else {
+            if (comma++) *OS << ", ";
+            QualType T = D->getParamDecl(i)->getType();
+            if (memAcc==READ_ONLY && !T.isLocalConstQualified()) {
+              *OS << "const ";
+            }
+            if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
+              T = Parm->getOriginalType();
+            T.getAsStringInternal(Name, Policy);
           }
-          if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
-            T = Parm->getOriginalType();
-          T.getAsStringInternal(Name, Policy);
-        }
+          break;
+        case TARGET_C:
+        case TARGET_Renderscript:
+          break;
       }
       *OS << Name;
       continue;
