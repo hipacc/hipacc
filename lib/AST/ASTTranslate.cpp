@@ -669,6 +669,11 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     }
   }
 
+  // TODO
+  if (compilerOptions.emitRenderscript()) {
+    border_handling = false;
+  }
+  // TODO
 
   SmallVector<LabelDecl *, 16> LDS;
   LabelDecl *LDExit = createLabelDecl(Ctx, kernelDecl, "BH_EXIT");
