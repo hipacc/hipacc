@@ -135,8 +135,8 @@ void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *gr
 #endif
 
 
-const char *getRSErrorCodeStr(int errorCode) {
-    switch (errorCode) {
+const char *getRSErrorCodeStr(int errorNum) {
+    switch (errorNum) {
         case RS_ERROR_NONE:
             return "RS_ERROR_NONE";
         case RS_ERROR_BAD_SHADER:
@@ -159,22 +159,14 @@ const char *getRSErrorCodeStr(int errorCode) {
             return "unknown error code";
     }
 }
-// Macro for error checking
-#if 1
-#define checkErr(err, name) \
-    if (err != RS_ERROR_NONE) { \
-        std::cerr << "ERROR: " << name << " (" << (err) << ")" << " [file " << __FILE__ << ", line " << __LINE__ << "]: "; \
-        std::cerr << getRSErrorCodeStr(err) << std::endl; \
-        exit(EXIT_FAILURE); \
-    }
-#else
-inline void checkErr(int err, const char *name) {
-    if (err != RS_ERROR_NONE) {
-        std::cerr << "ERROR: " << name << " (" << err << ")" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+
+
+RenderScript::ErrorHandlerFunc_t errorHandler(uint32_t errorNum,
+                                              const char *errorText) {
+    std::cerr << "ERROR: " << getRSErrorCodeStr(errorNum)
+              << " (" << errorNum << ")" << std::endl
+              << "    " << errorText << std::endl;
 }
-#endif
 
 
 class HipaccContext {
@@ -241,10 +233,14 @@ float hipaccGetLastKernelTiming() {
 // Create RenderScript context
 void hipaccInitRenderScript(int targetAPI) {
     HipaccContext &Ctx = HipaccContext::getInstance();
+    RenderScript* rs = Ctx.get_context();
+
+    rs->setErrorHandler((RenderScript::ErrorHandlerFunc_t)&errorHandler);
 
     // Create context
-    if (!Ctx.get_context()->init(targetAPI)) {
-        checkErr(-1, "RenderScript::init()"); //TODO
+    if (!rs->init(targetAPI)) {
+        std::cerr << "ERROR: RenderScript initialization failed for targetAPI: "
+                  << targetAPI << std::endl;
     }
 }
 
