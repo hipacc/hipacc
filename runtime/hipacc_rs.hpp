@@ -387,43 +387,6 @@ void hipaccCopyAllocation(sp<Allocation> src_allocation,
 }
 
 
-// Copy between allocations and return time
-double hipaccCopyAllocationBenchmark(sp<Allocation> src_allocation,
-                                     sp<Allocation> dst_allocation,
-                                     bool print_timing=false) {
-    long end, start;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::rs_dims src_dim = Ctx.get_mem_dims(src_allocation);
-    HipaccContext::rs_dims dst_dim = Ctx.get_mem_dims(dst_allocation);
-
-    assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height &&
-           src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyBuffer!");
-
-    float min_dt=FLT_MAX;
-    for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
-        start = getNanoTime();
-        hipaccCopyAllocation(src_allocation, dst_allocation);
-        end = getNanoTime();
-
-        if (print_timing) {
-            std::cerr << "<HIPACC:> Copy timing ("
-                      << (src_dim.width * src_dim.height * src_dim.pixel_size)
-                         / (float)(1 << 20) << " MB): "
-                      << (end-start)*1.0e-6f << "(ms)" << std::endl;
-            std::cerr << "          Bandwidth: "
-                      << 2.0f * (double)(src_dim.width * src_dim.height
-                                         * src_dim.pixel_size)
-                                / ((end - start) * 1.0e-9f * (float)(1 << 30))
-                      << " GB/s" << std::endl;
-        }
-        if ((end - start) < min_dt) min_dt = (end - start);
-    }
-
-    // return time in ms
-    return min_dt * 1.0e-6f;
-}
-
-
 // Set a single argument of script
 template<typename F, typename T>
 void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
