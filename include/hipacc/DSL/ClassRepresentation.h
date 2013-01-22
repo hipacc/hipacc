@@ -202,7 +202,6 @@ class HipaccAccessor {
     std::string widthType, heightType;
     std::string offsetXType, offsetYType;
     // kernel parameter name for width, height, and stride
-    std::string widthParm, heightParm, strideParm, offsetXParm, offsetYParm;
     DeclRefExpr *widthDecl, *heightDecl, *strideDecl, *scaleXDecl, *scaleYDecl;
     DeclRefExpr *offsetXDecl, *offsetYDecl;
 
@@ -216,9 +215,6 @@ class HipaccAccessor {
       crop(true),
       width(""), height(""), offset_x(""), offset_y(""),
       widthType(""), heightType(""), offsetXType(""), offsetYType(""),
-      widthParm(name + "_width"), heightParm(name + "_height"),
-      strideParm(name + "_stride"),
-      offsetXParm(name + "_offset_x"), offsetYParm(name + "_offset_y"),
       widthDecl(NULL), heightDecl(NULL), strideDecl(NULL),
       scaleXDecl(NULL), scaleYDecl(NULL), offsetXDecl(NULL), offsetYDecl(NULL)
     {}
@@ -256,11 +252,6 @@ class HipaccAccessor {
     std::string getHeightType() { return heightType; }
     std::string getOffsetXType() { return offsetXType; }
     std::string getOffsetYType() { return offsetYType; }
-    std::string getWidthParm() { return widthParm; }
-    std::string getHeightParm() { return heightParm; }
-    std::string getStrideParm() { return strideParm; }
-    std::string getOffsetXParm() { return offsetXParm; }
-    std::string getOffsetYParm() { return offsetYParm; }
     DeclRefExpr *getWidthDecl() { return widthDecl; }
     DeclRefExpr *getHeightDecl() { return heightDecl; }
     DeclRefExpr *getStrideDecl() { return strideDecl; }
@@ -481,6 +472,10 @@ class HipaccKernelClass {
       arguments.push_back(a);
       maskFields.push_back(FD);
     }
+    void addISArg(FieldDecl *FD, QualType QT, StringRef Name) {
+      argumentInfo a = {IterationSpace, FD, QT, Name};
+      arguments.push_back(a);
+    }
 
     unsigned int getNumArgs() { return arguments.size(); }
     unsigned int getNumImages() { return imgFields.size(); }
@@ -621,9 +616,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     SmallVector<QualType, 16> argTypesC;
     SmallVector<std::string, 16> argTypeNamesCUDA;
     SmallVector<std::string, 16> argTypeNamesOpenCL;
-    SmallVector<StringRef, 16> argNames;
     SmallVector<std::string, 16> hostArgNames;
-    SmallVector<FieldDecl *, 16> argFields;
+    SmallVector<std::string, 16> deviceArgNames;
+    SmallVector<FieldDecl *, 16> deviceArgFields;
     unsigned int max_threads_for_kernel;
     unsigned int max_size_x, max_size_y;
     unsigned int max_size_x_undef, max_size_y_undef;
@@ -634,7 +629,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     void calcConfig();
     void createArgInfo();
     void addParam(QualType QT1, QualType QT2, QualType QT3, std::string typeC,
-        std::string typeO, StringRef name, FieldDecl *fd);
+        std::string typeO, std::string name, FieldDecl *fd);
     void createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string &hostLiterals,
         unsigned int &literalCount);
 
@@ -658,8 +653,9 @@ class HipaccKernel : public HipaccKernelFeatures {
       argTypesC(),
       argTypeNamesCUDA(),
       argTypeNamesOpenCL(),
-      argNames(),
-      argFields(),
+      hostArgNames(),
+      deviceArgNames(),
+      deviceArgFields(),
       max_threads_for_kernel(0),
       max_size_x(0), max_size_y(0),
       max_size_x_undef(0), max_size_y_undef(0),
@@ -714,7 +710,7 @@ class HipaccKernel : public HipaccKernelFeatures {
 
     unsigned int getNumArgs() {
       createArgInfo();
-      return argNames.size();
+      return deviceArgNames.size();
     }
     QualType *getArgTypes(ASTContext &Ctx, TargetCode target_code) {
       createArgInfo();
@@ -736,9 +732,9 @@ class HipaccKernel : public HipaccKernelFeatures {
       if (options.emitCUDA()) return argTypeNamesCUDA.data();
       else return argTypeNamesOpenCL.data();
     }
-    StringRef *getArgNames() {
+    std::string *getDeviceArgNames() {
       createArgInfo();
-      return argNames.data();
+      return deviceArgNames.data();
     }
     void setHostArgNames(ArrayRef<Expr *>hostArgs, std::string
         &hostLiterals, unsigned int &literalCount) {
@@ -748,9 +744,9 @@ class HipaccKernel : public HipaccKernelFeatures {
       assert(hostArgNames.size() && "host argument names not set");
       return hostArgNames.data();
     }
-    ArrayRef<FieldDecl *>getArgFields() {
+    ArrayRef<FieldDecl *>getDeviceArgFields() {
       createArgInfo();
-      return makeArrayRef(argFields);
+      return makeArrayRef(deviceArgFields);
     }
 
     void setResourceUsage(int reg, int lmem, int smem, int cmem) {

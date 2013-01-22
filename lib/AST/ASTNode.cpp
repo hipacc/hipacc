@@ -39,7 +39,7 @@ namespace hipacc {
 namespace ASTNode {
 
 FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
-    Name, QualType RT, unsigned int numArgs, QualType *ArgTypes, StringRef
+    Name, QualType RT, unsigned int numArgs, QualType *ArgTypes, std::string
     *ArgNames, bool isVariadic) {
   bool hasWrittenPrototype = true;
   QualType T;

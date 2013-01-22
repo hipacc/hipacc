@@ -58,9 +58,6 @@ class CreateHostStrings {
       if (cur_indent < 0) cur_indent = 0;
       indent = std::string(cur_indent, ' ');
     }
-    void setupKernelArgument(std::string kernelName, int curArg, std::string
-        argName, std::string argTypeName, std::string offsetStr, std::string
-        &resultStr);
 
   public:
     CreateHostStrings(CompilerOptions &options) :
@@ -85,9 +82,8 @@ class CreateHostStrings {
         MemoryTransferDirection direction, std::string &resultStr);
     void writeMemoryTransferSymbol(HipaccMask *Mask, std::string mem,
         MemoryTransferDirection direction, std::string &resultStr);
-    void writeKernelCall(std::string kernelName, std::string *argTypeNames,
-        std::string *argNames, HipaccKernelClass *KC, HipaccKernel *K,
-        std::string &resultStr);
+    void writeKernelCall(std::string kernelName, HipaccKernelClass *KC,
+        HipaccKernel *K, std::string &resultStr);
     void writeGlobalReductionCall(HipaccGlobalReduction *GR, std::string
         &resultStr);
     void writeInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,

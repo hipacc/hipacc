@@ -491,6 +491,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
       for (CXXConstructorDecl::init_iterator II=CCD->init_begin(),
           EE=CCD->init_end(); II!=EE; ++II) {
         CXXCtorInitializer *CBOMI =*II;
+        QualType QT;
 
         // CBOMI->isMemberInitializer()
         if (isa<DeclRefExpr>(CBOMI->getInit()->IgnoreParenCasts())) {
@@ -503,8 +504,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
             // reference to Image variable ?
             if (compilerClasses.isTypeOfTemplateClass(FD->getType(),
                   compilerClasses.Image)) {
-
-              QualType QT = compilerClasses.getFirstTemplateType(FD->getType());
+              QT = compilerClasses.getFirstTemplateType(FD->getType());
               KC->addImgArg(FD, QT, FD->getName());
 
               break;
@@ -513,8 +513,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
             // reference to Accessor variable ?
             if (compilerClasses.isTypeOfTemplateClass(FD->getType(),
                   compilerClasses.Accessor)) {
-
-              QualType QT = compilerClasses.getFirstTemplateType(FD->getType());
+              QT = compilerClasses.getFirstTemplateType(FD->getType());
               KC->addImgArg(FD, QT, FD->getName());
 
               break;
@@ -523,8 +522,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
             // reference to Mask variable ?
             if (compilerClasses.isTypeOfTemplateClass(FD->getType(),
                   compilerClasses.Mask)) {
-
-              QualType QT = compilerClasses.getFirstTemplateType(FD->getType());
+              QT = compilerClasses.getFirstTemplateType(FD->getType());
               KC->addMaskArg(FD, QT, FD->getName());
 
               break;
@@ -546,10 +544,9 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
           if (isa<DeclRefExpr>(CCE->getArg(0))) {
             DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
             if (DRE->getDecl() == PVD) {
-              // skip IterationSpace declaration, the iteration space is set on
-              // the host side and an Accessor is created for the image
-              // associated with the IterationSpace when the IterationSpace
-              // declaration is found.
+              QT = compilerClasses.getFirstTemplateType(PVD->getType());
+              KC->addISArg(NULL, QT, "Output");
+
               break;
             }
           }
@@ -1281,7 +1278,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           FunctionDecl *kernelDecl = createFunctionDecl(Context,
               Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
               K->getNumArgs(), K->getArgTypes(Context,
-                compilerOptions.getTargetCode()), K->getArgNames());
+                compilerOptions.getTargetCode()), K->getDeviceArgNames());
 
           // write CUDA/OpenCL kernel function to file clone old body,
           // replacing member variables
@@ -1304,7 +1301,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             FunctionDecl *kernelDeclPolly = createFunctionDecl(Context,
                 Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
                 K->getNumArgs(), K->getArgTypes(Context, TARGET_C),
-                K->getArgNames());
+                K->getDeviceArgNames());
 
             // call Polly ...
             ASTTranslate *HipaccPolly = new ASTTranslate(Context, kernelDeclPolly,
@@ -1524,9 +1521,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
         // this was checked before, when the user class was parsed
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-
-        // constructor includes the iteration space -> -1
-        assert(CCE->getNumArgs()-1==K->getKernelClass()->getNumArgs() &&
+        assert(CCE->getNumArgs()==K->getKernelClass()->getNumArgs() &&
             "number of arguments doesn't match!");
 
         // set host argument names and retrieve literals stored to temporaries
@@ -1535,8 +1530,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
         // create kernel call string
         stringCreator.writeKernelCall(K->getKernelName() + K->getName(),
-            K->getArgTypeNames(), K->getHostArgNames(), K->getKernelClass(), K,
-            newStr);
+            K->getKernelClass(), K, newStr);
 
         // rewrite kernel invocation
         // get the start location and compute the semi location.
@@ -1588,8 +1582,8 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
   // kernel declaration for CUDA
   FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
       Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
-      K->getNumArgs(), K->getArgTypes(Context,
-        compilerOptions.getTargetCode()), K->getArgNames());
+      K->getNumArgs(), K->getArgTypes(Context, compilerOptions.getTargetCode()),
+      K->getDeviceArgNames());
 
   // create kernel body
   ASTTranslate *HipaccEst = new ASTTranslate(Context, kernelDeclEst, K, KC,
@@ -2238,7 +2232,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   unsigned int comma = 0;
   for (unsigned int i=0, e=D->getNumParams(); i!=e; ++i) {
     std::string Name = D->getParamDecl(i)->getNameAsString();
-    FieldDecl *FD = K->getArgFields()[i];
+    FieldDecl *FD = K->getDeviceArgFields()[i];
 
     // check if we have a Mask
     HipaccMask *Mask = K->getMaskFromMapping(FD);

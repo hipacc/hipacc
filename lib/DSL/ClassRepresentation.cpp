@@ -431,8 +431,8 @@ void HipaccKernel::setDefaultConfig() {
   num_threads_y = default_num_threads_y;
 }
 
-void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3, std::string
-    typeC, std::string typeO, StringRef name, FieldDecl *fd) {
+void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3,
+    std::string typeC, std::string typeO, std::string name, FieldDecl *fd) {
   argTypesCUDA.push_back(QT1);
   argTypesOpenCL.push_back(QT2);
   argTypesC.push_back(QT3);
@@ -440,8 +440,8 @@ void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3, std::strin
   argTypeNamesCUDA.push_back(typeC);
   argTypeNamesOpenCL.push_back(typeO);
 
-  argNames.push_back(name);
-  argFields.push_back(fd);
+  deviceArgNames.push_back(name);
+  deviceArgFields.push_back(fd);
 }
 
 void HipaccKernel::createArgInfo() {
@@ -450,18 +450,11 @@ void HipaccKernel::createArgInfo() {
   SmallVector<HipaccKernelClass::argumentInfo, 16> arguments =
     KC->arguments;
 
-  // add output image from iteration space 
-  QualType isQT = iterationSpace->getImage()->getPixelQualType();
-  addParam(Ctx.getPointerType(isQT), Ctx.getPointerType(isQT),
-      Ctx.getPointerType(Ctx.getConstantArrayType(isQT, llvm::APInt(32, 4096),
-          ArrayType::Normal, false)), Ctx.getPointerType(isQT).getAsString(),
-      "cl_mem", "Output", NULL);
-  
   // normal parameters
   for (unsigned int i=0; i<KC->getNumArgs(); i++) {
     FieldDecl *FD = arguments.data()[i].field;
     QualType QT = arguments.data()[i].type;
-    StringRef name = arguments.data()[i].name;
+    std::string name = arguments.data()[i].name;
     QualType QTtmp;
 
     switch (arguments.data()[i].kind) {
@@ -470,7 +463,12 @@ void HipaccKernel::createArgInfo() {
 
         break;
       case HipaccKernelClass::IterationSpace:
-        // iteration space is added as the first argument
+        // add output image
+        addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
+            Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
+                  4096), ArrayType::Normal, false)),
+            Ctx.getPointerType(QT).getAsString(), "cl_mem", name, NULL);
+
         break;
       case HipaccKernelClass::Image: 
         // for textures use no pointer type
@@ -491,21 +489,19 @@ void HipaccKernel::createArgInfo() {
         addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy).getAsString(),
-            Ctx.getConstType(Ctx.IntTy).getAsString(),
-            getImgFromMapping(FD)->getWidthParm(), NULL);
+            Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_width", NULL);
         addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy).getAsString(),
-            Ctx.getConstType(Ctx.IntTy).getAsString(),
-            getImgFromMapping(FD)->getHeightParm(), NULL);
+            Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_height", NULL);
 
         // stride
         if (options.emitPadding() || getImgFromMapping(FD)->isCrop()) {
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(),
-              getImgFromMapping(FD)->getStrideParm(), NULL);
+              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_stride",
+              NULL);
         }
 
         // offset_x
@@ -513,16 +509,16 @@ void HipaccKernel::createArgInfo() {
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(),
-              getImgFromMapping(FD)->getOffsetXParm(), NULL);
+              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_y",
+              NULL);
         }
         // offset_y
         if (!getImgFromMapping(FD)->getOffsetY().empty()) {
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(),
-              getImgFromMapping(FD)->getOffsetYParm(), NULL);
+              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_x",
+              NULL);
         }
 
         break;
@@ -603,9 +599,6 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
     &hostLiterals, unsigned int &literalCount) {
   if (hostArgNames.size()) hostArgNames.clear();
 
-  // iteration space image
-  hostArgNames.push_back(iterationSpace->getImage()->getName());
-
   for (unsigned int i=0; i<KC->getNumArgs(); i++) {
     FieldDecl *FD = KC->arguments.data()[i].field;
 
@@ -614,9 +607,9 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
 
     switch (KC->arguments.data()[i].kind) {
       case HipaccKernelClass::Normal:
-        hostArgs[i+1]->printPretty(SS, 0, PrintingPolicy(Ctx.getLangOpts()));
+        hostArgs[i]->printPretty(SS, 0, PrintingPolicy(Ctx.getLangOpts()));
 
-        if (isa<DeclRefExpr>(hostArgs[i+1]->IgnoreParenCasts())) {
+        if (isa<DeclRefExpr>(hostArgs[i]->IgnoreParenCasts())) {
           hostArgNames.push_back(SS.str());
         } else {
           // get the text string for the argument and create a temporary
@@ -624,7 +617,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
           LSS << "_tmpLiteral" << literalCount;
           literalCount++;
 
-          hostLiterals += hostArgs[i+1]->IgnoreParenCasts()->getType().getAsString();
+          hostLiterals += hostArgs[i]->IgnoreParenCasts()->getType().getAsString();
           hostLiterals += " ";
           hostLiterals += LSS.str();
           hostLiterals += " = ";
@@ -635,7 +628,9 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
 
         break;
       case HipaccKernelClass::IterationSpace:
-        // iteration space is added as the first argument -> i+1
+        // output image
+        hostArgNames.push_back(iterationSpace->getImage()->getName());
+
         break;
       case HipaccKernelClass::Image: 
         // image

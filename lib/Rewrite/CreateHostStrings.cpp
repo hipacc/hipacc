@@ -58,34 +58,54 @@ void CreateHostStrings::writeHeaders(std::string &resultStr) {
 
 
 void CreateHostStrings::writeInitialization(std::string &resultStr) {
-  if (options.emitCUDA()) {
-    resultStr += "hipaccInitCUDA();\n";
-  } else {
-    std::string clDevice;
-    if (options.emitOpenCLx86()) {
-      clDevice = "CL_DEVICE_TYPE_CPU";
-    } else {
-      clDevice = "CL_DEVICE_TYPE_GPU";
-    }
-    resultStr += "hipaccInitPlatformsAndDevices(" + clDevice + ", ALL);\n";
-    resultStr += indent + "hipaccCreateContextsAndCommandQueues();\n\n";
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+      break;
+    case TARGET_CUDA:
+      resultStr += "hipaccInitCUDA();\n";
+      resultStr += indent;
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      resultStr += "hipaccInitPlatformsAndDevices(";
+      if (options.emitOpenCLx86()) {
+        resultStr += "CL_DEVICE_TYPE_CPU";
+      } else {
+        resultStr += "CL_DEVICE_TYPE_GPU";
+      }
+      resultStr += ", ALL);\n";
+      resultStr += indent + "hipaccCreateContextsAndCommandQueues();\n\n";
+      resultStr += indent;
+      break;
+    case TARGET_Renderscript:
+      resultStr += "hipaccInitRenderscript();\n";
+      resultStr += indent;
+      break;
   }
-  resultStr += indent;
 }
 
 
 void CreateHostStrings::writeKernelCompilation(std::string kernelName,
     std::string &resultStr, std::string suffix) {
-  if (!options.emitCUDA()) {
-    resultStr += "cl_kernel " + kernelName + suffix;
-    resultStr += " = hipaccBuildProgramAndKernel(\"";
-    resultStr += kernelName;
-    resultStr += ".cl\", \"cl";
-    resultStr += kernelName + suffix;
-    resultStr += "\", true, false, false, \"-I ";
-    resultStr += RUNTIME_INCLUDES;
-    resultStr += "\");\n";
-    resultStr += indent;
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_CUDA:
+    case TARGET_Renderscript:
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      resultStr += "cl_kernel " + kernelName + suffix;
+      resultStr += " = hipaccBuildProgramAndKernel(\"";
+      resultStr += kernelName;
+      resultStr += ".cl\", \"cl";
+      resultStr += kernelName + suffix;
+      resultStr += "\", true, false, false, \"-I ";
+      resultStr += RUNTIME_INCLUDES;
+      resultStr += "\");\n";
+      resultStr += indent;
+      break;
   }
 }
 
@@ -232,38 +252,12 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
 }
 
 
-void CreateHostStrings::setupKernelArgument(std::string kernelName, int curArg,
-    std::string argName, std::string argTypeName, std::string offsetStr,
-    std::string &resultStr) {
-  if (options.emitCUDA()) {
-    resultStr += "hipaccSetupArgument(&";
-    resultStr += argName;
-    resultStr += ", sizeof(";
-    resultStr += argTypeName;
-    resultStr += "), ";
-    resultStr += offsetStr;
-    resultStr += ");\n";
-  } else {
-    std::string S;
-    std::stringstream SS;
-    SS << curArg;
+void CreateHostStrings::writeKernelCall(std::string kernelName,
+    HipaccKernelClass *KC, HipaccKernel *K, std::string &resultStr) {
+  std::string *argTypeNames = K->getArgTypeNames();
+  std::string *deviceArgNames = K->getDeviceArgNames();
+  std::string *hostArgNames = K->getHostArgNames();
 
-    resultStr += "hipaccSetKernelArg(";
-    resultStr += kernelName;
-    resultStr += ", ";
-    resultStr += SS.str();
-    resultStr += ", sizeof(";
-    resultStr += argTypeName;
-    resultStr += "), ";
-    resultStr += argName + ");\n";
-  }
-  resultStr += indent;
-}
-
-
-void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
-    *argTypeNames, std::string *argNames, HipaccKernelClass *KC, HipaccKernel
-    *K, std::string &resultStr) {
   std::stringstream LSS;
   std::stringstream PPTSS;
   std::stringstream cX, cY;
@@ -387,7 +381,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
   // bind textures and get constant pointers
   unsigned int numArgs = K->getNumArgs();
   for (unsigned int i=0; i<numArgs; i++) {
-    FieldDecl *FD = K->getArgFields()[i];
+    FieldDecl *FD = K->getDeviceArgFields()[i];
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     if (Acc) {
       if (options.emitCUDA() && K->useTextureMemory(Acc)) {
@@ -395,9 +389,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
           // bind texture
           if (options.exploreConfig()) {
             resultStr += "_texs" + kernelName + ".push_back(";
-            resultStr += "hipacc_tex_info(std::string(\"_tex" + K->getArgNames()[i].str() + K->getName() + "\"), ";
+            resultStr += "hipacc_tex_info(std::string(\"_tex" + deviceArgNames[i] + K->getName() + "\"), ";
             resultStr += K->getImgFromMapping(FD)->getImage()->getTextureType() + ", ";
-            resultStr += "(void *)" + argNames[i] + ", ";
+            resultStr += "(void *)" + hostArgNames[i] + ", ";
             switch (K->useTextureMemory(Acc)) {
               default:
               case Linear1D:
@@ -424,7 +418,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
                 resultStr += "hipaccBindTextureToArray";
                 break;
             }
-            resultStr += "<" + argTypeNames[i] + ">(_tex" + K->getArgNames()[i].str() + K->getName() + ", " + argNames[i] + ");\n";
+            resultStr += "<" + argTypeNames[i] + ">(_tex" + deviceArgNames[i] + K->getName() + ", " + hostArgNames[i] + ");\n";
           }
           resultStr += indent;
         }
@@ -485,8 +479,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
   // parameters
   unsigned int curArg = 0;
   for (unsigned int i=0; i<numArgs; i++) {
-    FieldDecl *FD = K->getArgFields()[i];
-    std::string argName = argNames[i];
+    FieldDecl *FD = K->getDeviceArgFields()[i];
 
     HipaccMask *Mask = K->getMaskFromMapping(FD);
     if (Mask) {
@@ -495,7 +488,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
         continue;
       } else {
         if (Mask->isConstant()) continue;
-        argName = Mask->getName();
       }
     }
 
@@ -512,33 +504,58 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
       continue;
     }
 
-    if (options.emitRenderscript()) {
-      if (Acc || i==0) {
-        resultStr += kernelName + ".bind_" + argName + "(" + argName + ");\n";
-      } else {
-        resultStr += kernelName + ".set_" + argName + "(" + argName + ");\n";
-      }
-      resultStr += indent;
-      continue;
-    }
-
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument
       resultStr += "_args" + kernelName + ".push_back(";
       if (options.emitCUDA()) {
         if (options.exploreConfig()) {
-          resultStr += "(void *)&" + argName + ");\n";
+          resultStr += "(void *)&" + hostArgNames[i] + ");\n";
         } else {
-          resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)&" + argName + "));\n";
+          resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)&" + hostArgNames[i] + "));\n";
         }
       } else {
-        resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)" + argName + "));\n";
+        resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)" + hostArgNames[i] + "));\n";
       }
       resultStr += indent;
     } else {
       // set kernel arguments
-      setupKernelArgument(kernelName, curArg++, argName, argTypeNames[i],
-          offsetStr, resultStr);
+      switch (options.getTargetCode()) {
+        default:
+        case TARGET_C:
+          break;
+        case TARGET_CUDA:
+          resultStr += "hipaccSetupArgument(&";
+          resultStr += hostArgNames[i];
+          resultStr += ", sizeof(" + argTypeNames[i] + "), ";
+          resultStr += offsetStr;
+          resultStr += ");\n";
+          break;
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          LSS.str("");
+          LSS.clear();
+          LSS << curArg++;
+
+          resultStr += "hipaccSetKernelArg(";
+          resultStr += kernelName;
+          resultStr += ", ";
+          resultStr += LSS.str();
+          resultStr += ", sizeof(" + argTypeNames[i] + "), ";
+          resultStr += hostArgNames[i];
+          resultStr += ");\n";
+          break;
+        case TARGET_Renderscript:
+          resultStr += kernelName;
+          if (Acc || i==0) {
+            resultStr += ".bind_";
+          } else {
+            resultStr += ".set_";
+          }
+          resultStr += deviceArgNames[i];
+          resultStr += "(" + hostArgNames[i] + ");";
+          break;
+      }
+      resultStr += "\n" + indent;
     }
   }
   resultStr += "\n" + indent;

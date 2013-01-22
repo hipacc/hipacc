@@ -43,7 +43,7 @@ namespace hipacc {
 namespace ASTNode {
 // creates a function declaration AST node
 FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
-    Name, QualType RT, unsigned int numArgs, QualType *ArgTypes, StringRef
+    Name, QualType RT, unsigned int numArgs, QualType *ArgTypes, std::string
     *ArgNames, bool isVariadic=false);
 
 // creates a function call AST node

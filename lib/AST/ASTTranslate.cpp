@@ -421,23 +421,23 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       FieldDecl *FD = KernelClass->getImgFields().data()[i];
       HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
 
-      if (PVD->getName().equals(Acc->getWidthParm())) {
+      if (PVD->getName().equals(FD->getNameAsString() + "_width")) {
         Acc->setWidthDecl(createDeclRefExpr(Ctx, PVD));
         continue;
       }
-      if (PVD->getName().equals(Acc->getHeightParm())) {
+      if (PVD->getName().equals(FD->getNameAsString() + "_height")) {
         Acc->setHeightDecl(createDeclRefExpr(Ctx, PVD));
         continue;
       }
-      if (PVD->getName().equals(Acc->getStrideParm())) {
+      if (PVD->getName().equals(FD->getNameAsString() + "_stride")) {
         Acc->setStrideDecl(createDeclRefExpr(Ctx, PVD));
         continue;
       }
-      if (PVD->getName().equals(Acc->getOffsetXParm())) {
+      if (PVD->getName().equals(FD->getNameAsString() + "_offset_x")) {
         Acc->setOffsetXDecl(createDeclRefExpr(Ctx, PVD));
         continue;
       }
-      if (PVD->getName().equals(Acc->getOffsetYParm())) {
+      if (PVD->getName().equals(FD->getNameAsString() + "_offset_y")) {
         Acc->setOffsetYDecl(createDeclRefExpr(Ctx, PVD));
         continue;
       }
