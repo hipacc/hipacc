@@ -135,6 +135,13 @@ void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *gr
 #endif
 
 
+long getNanoTime() {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return now.tv_sec*1000000000LL + now.tv_nsec;
+}
+
+
 const char *getRSErrorCodeStr(int errorNum) {
     switch (errorNum) {
         case RS_ERROR_NONE:
@@ -394,7 +401,9 @@ double hipaccCopyAllocationBenchmark(sp<Allocation> src_allocation,
 
     float min_dt=FLT_MAX;
     for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
-        //TODO
+        start = getNanoTime();
+        hipaccCopyAllocation(src_allocation, dst_allocation);
+        end = getNanoTime();
 
         if (print_timing) {
             std::cerr << "<HIPACC:> Copy timing ("
@@ -432,8 +441,9 @@ void hipaccLaunchScriptKernel(
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
+    start = getNanoTime();
     (script->*kernel)(in, out);
-    //checkErr(err, "clEnqueueNDRangeKernel()"); //TODO
+    end = getNanoTime();
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing: "
