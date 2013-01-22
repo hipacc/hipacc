@@ -91,25 +91,34 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
     // (left, top) and b) first block that requires border handling (right,
     // bottom)
     if (info.size_x > 0) {
-        info.bh_start_left = (int)ceil((float)(info.offset_x + info.size_x) / (block[0] * info.simd_width));
-        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / (block[0] * info.simd_width));
+        info.bh_start_left = (int)ceil((float)(info.offset_x + info.size_x)
+                                       / (block[0] * info.simd_width));
+        info.bh_start_right =
+            (int)floor((float)(info.offset_x + info.is_width - info.size_x)
+                       / (block[0] * info.simd_width));
     } else {
         info.bh_start_left = 0;
-        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width) / (block[0] * info.simd_width));
+        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width)
+                                         / (block[0] * info.simd_width));
     }
     if (info.size_y > 0) {
         // for shared memory calculate additional blocks to be staged - this is
         // only required if shared memory is used, otherwise, info.size_y would
         // be sufficient
         int p_add = (int)ceilf(2*info.size_y / (float)block[1]);
-        info.bh_start_top = (int)ceil((float)(info.size_y) / (info.pixels_per_thread * block[1]));
-        info.bh_start_bottom = (int)floor((float)(info.is_height - p_add*block[1]) / (block[1] * info.pixels_per_thread));
+        info.bh_start_top = (int)ceil((float)(info.size_y)
+                                      / (info.pixels_per_thread * block[1]));
+        info.bh_start_bottom =
+            (int)floor((float)(info.is_height - p_add*block[1])
+                       / (block[1] * info.pixels_per_thread));
     } else {
         info.bh_start_top = 0;
-        info.bh_start_bottom = (int)floor((float)(info.is_height) / (block[1] * info.pixels_per_thread));
+        info.bh_start_bottom = (int)floor((float)(info.is_height)
+                                         / (block[1] * info.pixels_per_thread));
     }
 
-    if ((info.bh_start_right - info.bh_start_left) > 1 && (info.bh_start_bottom - info.bh_start_top) > 1) {
+    if ((info.bh_start_right - info.bh_start_left) > 1 &&
+        (info.bh_start_bottom - info.bh_start_top) > 1) {
         info.bh_fall_back = 0;
     } else {
         info.bh_fall_back = 1;
@@ -118,8 +127,10 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 
 
 void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *grid) {
-    grid[0] = (int)ceil((float)(info.is_width + info.offset_x)/(block[0]*info.simd_width)) * block[0];
-    grid[1] = (int)ceil((float)(info.is_height)/(block[1]*info.pixels_per_thread)) * block[1];
+    grid[0] = (int)ceil((float)(info.is_width + info.offset_x)
+                        / (block[0]*info.simd_width)) * block[0];
+    grid[1] = (int)ceil((float)(info.is_height)
+                        / (block[1]*info.pixels_per_thread)) * block[1];
 }
 #endif
 
@@ -244,106 +255,70 @@ T hipaccInitScript() {
 }
 
 
-// Allocate memory with alignment specified
-template<typename T>
-sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, int *stride, int alignment) {
-    //TODO padding
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    RenderScript* rs = Ctx.get_context();
-    sp<Element> elem = Element::U8(rs);
-    
-    //TODO types
-    /*switch (typeid(T)) {
-    case typeid(float):
-        elem = Element::F32(rs);
-        break;
-    case typeid(double):
-        elem = Element::F64(rs);
-        break;
-    default:
-        switch (sizeof(T)) {
-        case 8:
-            elem = Element::U8(rs);
-            break;
-        case 16:
-            elem = Element::U16(rs);
-            break;
-        case 32:
-            elem = Element::U32(rs);
-            break;
-        case 64:
-            elem = Element::U64(rs);
-            break;
-        }
-        break;
-    }*/
-
-    *stride = (int)ceil((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
-
-    Type::Builder type(rs, elem);
-    type.setX(*stride);
-    type.setY(height);
-
-    sp<Allocation> allocation = Allocation::createTyped(rs, type.create());
-    allocation->copyFrom(host_mem, sizeof(T)*(*stride)*height);
-    //checkErr(err, "clCreateBuffer()"); //TODO
-
-    HipaccContext::rs_dims dim = { width, height, *stride, alignment, sizeof(T) };
-    Ctx.add_memory(allocation, dim);
-
-    return allocation;
+#define CREATE_ALLOCATION(T, E) \
+/* Allocate memory with alignment specified */ \
+sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
+                                      int *stride, int alignment) { \
+    HipaccContext &Ctx = HipaccContext::getInstance(); \
+    RenderScript* rs = Ctx.get_context(); \
+\
+    *stride = (int)ceil((float)(width) / (alignment / sizeof(T))) \
+                   * (alignment / sizeof(T)); \
+\
+    Type::Builder type(rs, E); \
+    type.setX(*stride); \
+    type.setY(height); \
+\
+    sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
+    if (host_mem) { \
+        /* TODO: Handle padding */ \
+        allocation->copyFromUnchecked(host_mem, sizeof(T)*(*stride)*height); \
+    } \
+\
+    HipaccContext::rs_dims dim = { width, height, *stride, \
+                                   alignment, sizeof(T) }; \
+    Ctx.add_memory(allocation, dim); \
+\
+    return allocation; \
+} \
+\
+/* Allocate memory without any alignment considerations */ \
+sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
+                                      int *stride) { \
+    HipaccContext &Ctx = HipaccContext::getInstance(); \
+    RenderScript* rs = Ctx.get_context(); \
+\
+    *stride = width; \
+\
+    Type::Builder type(rs, E); \
+    type.setX(*stride); \
+    type.setY(height); \
+\
+    sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
+    if (host_mem) { \
+        allocation->copyFromUnchecked(host_mem, sizeof(T)*width*height); \
+    } \
+\
+    HipaccContext::rs_dims dim = { width, height, width, 0, sizeof(T) }; \
+    Ctx.add_memory(allocation, dim); \
+\
+    return allocation; \
 }
 
+CREATE_ALLOCATION(uint8_t,  Element::U8(rs))
+CREATE_ALLOCATION(uint16_t, Element::U16(rs))
+CREATE_ALLOCATION(uint32_t, Element::U32(rs))
+CREATE_ALLOCATION(uint64_t, Element::U64(rs))
 
-// Allocate memory without any alignment considerations
-template<typename T>
-sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, int *stride) {
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    RenderScript* rs = Ctx.get_context();
-    
-    //TODO types
-    /*switch (typeid(T)) {
-    case typeid(float):
-        elem = Element::F32(rs);
-        break;
-    case typeid(double):
-        elem = Element::F64(rs);
-        break;
-    default:
-        switch (sizeof(T)) {
-        case 8:
-            elem = Element::U8(rs);
-            break;
-        case 16:
-            elem = Element::U16(rs);
-            break;
-        case 32:
-            elem = Element::U32(rs);
-            break;
-        case 64:
-            elem = Element::U64(rs);
-            break;
-        }
-        break;
-    }*/
+CREATE_ALLOCATION(int8_t,   Element::I8(rs))
+CREATE_ALLOCATION(int16_t,  Element::I16(rs))
+CREATE_ALLOCATION(int32_t,  Element::I32(rs))
+CREATE_ALLOCATION(int64_t,  Element::I64(rs))
 
-    *stride = width;
-
-    Type::Builder type(rs, Element::U8(rs));
-    type.setX(*stride);
-    type.setY(height);
-
-    sp<Allocation> allocation = Allocation::createTyped(rs, type.create());
-    //allocation->copyFromUnchecked(host_mem, sizeof(T)*width*height);
-    std::cout << "create allocation" << std::endl; //DEBUG
-    //checkErr(err, "clCreateBuffer()"); //TODO
-
-    HipaccContext::rs_dims dim = { width, height, width, 0, sizeof(T) };
-    Ctx.add_memory(allocation, dim);
-
-    return allocation;
-}
-
+CREATE_ALLOCATION(bool,     Element::BOOLEAN(rs))
+CREATE_ALLOCATION(char,     Element::U8(rs))
+CREATE_ALLOCATION(float,    Element::F32(rs))
+CREATE_ALLOCATION(double,   Element::F64(rs))
 
 // Destroy allocation
 //void hipaccDestroyAllocation(sp<Allocation> mem) {
