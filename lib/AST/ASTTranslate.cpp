@@ -1551,6 +1551,14 @@ Expr *ASTTranslate::VisitImplicitCastExpr(ImplicitCastExpr *E) {
   Expr *subExpr = Clone(E->getSubExpr());
   QualType QT;
 
+  // in case of constant propagation, lvalue-to-rvalue casts are invalid
+  if (E->getCastKind() == CK_LValueToRValue &&
+      (isa<IntegerLiteral>(subExpr->IgnoreParenCasts()) ||
+      isa<FloatingLiteral>(subExpr->IgnoreParenCasts()) ||
+      isa<CharacterLiteral>(subExpr->IgnoreParenCasts()))) {
+    return subExpr;
+  }
+
   // in case of vectorization, the cast type may change for the cloned subExpr
   switch (E->getCastKind()) {
     default:
