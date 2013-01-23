@@ -263,15 +263,31 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   }
 
   // include .cu files for normal kernels
-  if (compilerOptions.emitCUDA() && !compilerOptions.exploreConfig()) {
-    for (llvm::DenseMap<ValueDecl *, HipaccKernel *>::iterator
-        it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
-      HipaccKernel *Kernel = it->second;
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_CUDA:
+      if (!compilerOptions.exploreConfig()) {
+        for (llvm::DenseMap<ValueDecl *, HipaccKernel *>::iterator
+            it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
+          HipaccKernel *Kernel = it->second;
 
-      newStr += "#include \"";
-      newStr += Kernel->getFileName();
-      newStr += ".cu\"\n";
-    }
+          newStr += "#include \"";
+          newStr += Kernel->getFileName();
+          newStr += ".cu\"\n";
+        }
+      }
+      break;
+    case TARGET_Renderscript:
+      for (llvm::DenseMap<ValueDecl *, HipaccKernel *>::iterator
+          it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
+        HipaccKernel *Kernel = it->second;
+
+        newStr += "#include \"ScriptC_";
+        newStr += Kernel->getFileName();
+        newStr += ".h\"\n";
+      }
+      break;
+    default:
+      break;
   }
   // include .cu files for global reduction kernels
   if (compilerOptions.emitCUDA() && !compilerOptions.exploreConfig()) {
