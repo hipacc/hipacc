@@ -79,7 +79,8 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
       resultStr += indent;
       break;
     case TARGET_Renderscript:
-      resultStr += "hipaccInitRenderscript();\n";
+      // TODO: Handle API version
+      resultStr += "hipaccInitRenderScript(16);\n";
       resultStr += indent;
       break;
   }
@@ -93,6 +94,8 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
     case TARGET_C:
     case TARGET_CUDA:
     case TARGET_Renderscript:
+      resultStr += "ScriptC_" + kernelName + " " + kernelName + suffix;
+      resultStr += " = hipaccInitScript<ScriptC_" + kernelName + ">()";
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLx86:
@@ -115,22 +118,32 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
     std::string &resultStr, HipaccDevice &targetDevice) {
   pitchStr = "_" + memName + "stride";
   resultStr += "int " + pitchStr + ";\n";
-  if (options.emitCUDA()) {
-    // texture is bound at kernel launch
-    if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-      resultStr += indent + "cudaArray *" + memName + " = ";
-      resultStr += "hipaccCreateArray2D<" + type + ">(NULL, ";
-    } else {
-      resultStr += indent + type + " *" + memName + " = ";
-      resultStr += "hipaccCreateMemory<" + type + ">(NULL, ";
-    }
-  } else {
-    resultStr += indent + "cl_mem " + memName + " = ";
-    if (options.useTextureMemory()) {
-      resultStr += "hipaccCreateImage<" + type + ">(NULL, ";
-    } else {
-      resultStr += "hipaccCreateBuffer<" + type + ">(NULL, ";
-    }
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_CUDA:
+      // texture is bound at kernel launch
+      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+        resultStr += indent + "cudaArray *" + memName + " = ";
+        resultStr += "hipaccCreateArray2D<" + type + ">(NULL, ";
+      } else {
+        resultStr += indent + type + " *" + memName + " = ";
+        resultStr += "hipaccCreateMemory<" + type + ">(NULL, ";
+      }
+      break;
+    case TARGET_Renderscript:
+      resultStr += indent + "sp<Allocation> " + memName + " = ";
+      resultStr += "hipaccCreateAllocation(NULL, ";
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      resultStr += indent + "cl_mem " + memName + " = ";
+      if (options.useTextureMemory()) {
+        resultStr += "hipaccCreateImage<" + type + ">(NULL, ";
+      } else {
+        resultStr += "hipaccCreateBuffer<" + type + ">(NULL, ";
+      }
+      break;
   }
   resultStr += "(int) " + width;
   resultStr += ", (int) " + height;
@@ -152,13 +165,29 @@ void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
     std::string type, std::string width, std::string height, std::string
     &pitchStr, std::string &resultStr) {
 
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_CUDA:
+      assert(0 && "constant memory allocation not required in CUDA!");
+      break;
+    case TARGET_Renderscript:
+      resultStr += "sp<Allocation> " + memName;
+      resultStr += " = hipaccCreateAllocation((" + type + "*)NULL";
+      resultStr += ", " + width;
+      resultStr += ", " + height;
+      resultStr += ");";
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      resultStr += "cl_mem " + memName + " = hipaccCreateBufferConstant<" + type + ">(";
+      resultStr += width;
+      resultStr += ", " + height;
+      resultStr += ");";
+      break;
+  }
   if (options.emitCUDA()) {
-    assert(0 && "constant memory allocation not required in CUDA!");
   } else {
-    resultStr += "cl_mem " + memName + " = hipaccCreateBufferConstant<" + type + ">(";
-    resultStr += width;
-    resultStr += ", " + height;
-    resultStr += ");";
   }
 }
 
@@ -167,35 +196,53 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
     MemoryTransferDirection direction, std::string &resultStr) {
   switch (direction) {
     case HOST_TO_DEVICE:
-      if (options.emitCUDA()) {
-        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-          resultStr += "hipaccWriteArray2D(";
-        } else {
-          resultStr += "hipaccWriteMemory(";
-        }
-      } else {
-        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-          resultStr += "hipaccWriteImage(";
-        } else {
-          resultStr += "hipaccWriteBuffer(";
-        }
+      switch (options.getTargetCode()) {
+        default:
+        case TARGET_C:
+        case TARGET_CUDA:
+          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+            resultStr += "hipaccWriteArray2D(";
+          } else {
+            resultStr += "hipaccWriteMemory(";
+          }
+          break;
+        case TARGET_Renderscript:
+          resultStr += "hipaccWriteAllocation(";
+          break;
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+            resultStr += "hipaccWriteImage(";
+          } else {
+            resultStr += "hipaccWriteBuffer(";
+          }
+          break;
       }
       resultStr += Img->getName();
       resultStr += ", " + mem + ");";
       break;
     case DEVICE_TO_HOST:
-      if (options.emitCUDA()) {
-        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-          resultStr += "hipaccReadArray2D(";
-        } else {
-          resultStr += "hipaccReadMemory(";
-        }
-      } else {
-        if (options.useTextureMemory()) {
-          resultStr += "hipaccReadImage(";
-        } else {
-          resultStr += "hipaccReadBuffer(";
-        }
+      switch (options.getTargetCode()) {
+        default:
+        case TARGET_C:
+        case TARGET_CUDA:
+          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+            resultStr += "hipaccReadArray2D(";
+          } else {
+            resultStr += "hipaccReadMemory(";
+          }
+          break;
+        case TARGET_Renderscript:
+          resultStr += "hipaccReadAllocation(";
+          break;
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          if (options.useTextureMemory()) {
+            resultStr += "hipaccReadImage(";
+          } else {
+            resultStr += "hipaccReadBuffer(";
+          }
+          break;
       }
       resultStr += mem;
       resultStr += ", " + Img->getName() + ");";
@@ -212,42 +259,53 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
 
 void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
     mem, MemoryTransferDirection direction, std::string &resultStr) {
-  if (options.emitCUDA()) {
-    SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
-    for (unsigned int i=0; i<kernels.size(); i++) {
-      HipaccKernel *K = kernels[i];
-      if (i) resultStr += "\n" + indent;
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_CUDA: {
+        SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
+        for (unsigned int i=0; i<kernels.size(); i++) {
+          HipaccKernel *K = kernels[i];
+          if (i) resultStr += "\n" + indent;
 
-      switch (direction) {
-        case HOST_TO_DEVICE:
-          resultStr += "hipaccWriteSymbol<" + Mask->getTypeStr() + ">(";
-          resultStr += "(const void *)&";
-          resultStr += Mask->getName() + K->getName() + ", ";
-          resultStr += "\"";
-          resultStr += Mask->getName() + K->getName() + "\", ";
-          resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
-          resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
-          break;
-        case DEVICE_TO_HOST:
-          resultStr += "hipaccReadSymbol<" + Mask->getTypeStr() + ">(";
-          resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
-          resultStr += "(const void *)&";
-          resultStr += Mask->getName() + K->getName() + ", ";
-          resultStr += "\"";
-          resultStr += Mask->getName() + K->getName() + "\", ";
-          resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
-          break;
-        case DEVICE_TO_DEVICE:
-          resultStr += "writeMemoryTransferSymbol(todo, todo, DEVICE_TO_DEVICE);";
-          break;
-        case HOST_TO_HOST:
-          resultStr += "writeMemoryTransferSymbol(todo, todo, HOST_TO_HOST);";
-          break;
+          switch (direction) {
+            case HOST_TO_DEVICE:
+              resultStr += "hipaccWriteSymbol<" + Mask->getTypeStr() + ">(";
+              resultStr += "(const void *)&";
+              resultStr += Mask->getName() + K->getName() + ", ";
+              resultStr += "\"";
+              resultStr += Mask->getName() + K->getName() + "\", ";
+              resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
+              resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
+              break;
+            case DEVICE_TO_HOST:
+              resultStr += "hipaccReadSymbol<" + Mask->getTypeStr() + ">(";
+              resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
+              resultStr += "(const void *)&";
+              resultStr += Mask->getName() + K->getName() + ", ";
+              resultStr += "\"";
+              resultStr += Mask->getName() + K->getName() + "\", ";
+              resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
+              break;
+            case DEVICE_TO_DEVICE:
+              resultStr += "writeMemoryTransferSymbol(todo, todo, DEVICE_TO_DEVICE);";
+              break;
+            case HOST_TO_HOST:
+              resultStr += "writeMemoryTransferSymbol(todo, todo, HOST_TO_HOST);";
+              break;
+          }
+        }
       }
-    }
-  } else {
-    resultStr += "hipaccWriteBuffer(" + Mask->getName();
-    resultStr += ", (" + Mask->getTypeStr() + " *)" + mem + ");";
+      break;
+    case TARGET_Renderscript:
+      resultStr += "hipaccWriteAllocation(" + Mask->getName();
+      resultStr += ", (" + Mask->getTypeStr() + " *)" + mem + ");";
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      resultStr += "hipaccWriteBuffer(" + Mask->getName();
+      resultStr += ", (" + Mask->getTypeStr() + " *)" + mem + ");";
+      break;
   }
 }
 
@@ -270,13 +328,21 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   maxSizeXStr << K->getMaxSizeX();
   maxSizeYStr << K->getMaxSizeY();
 
-  if (options.emitCUDA()) {
-    blockStr = "block" + LSS.str();
-    gridStr = "grid" + LSS.str();
-    offsetStr = "offset" + LSS.str();
-  } else {
-    blockStr = "local_work_size" + LSS.str();
-    gridStr = "global_work_size" + LSS.str();
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_CUDA:
+      blockStr = "block" + LSS.str();
+      gridStr = "grid" + LSS.str();
+      offsetStr = "offset" + LSS.str();
+      break;
+    case TARGET_Renderscript:
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      blockStr = "local_work_size" + LSS.str();
+      gridStr = "global_work_size" + LSS.str();
+      break;
   }
   infoStr = K->getInfoStr();
 
@@ -324,55 +390,63 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   resultStr += indent;
 
   if (!options.exploreConfig()) {
-    if (options.emitCUDA()) {
-      // dim3 block
-      resultStr += "dim3 " + blockStr + "(" + cX.str() + ", " + cY.str() + ");\n";
-      resultStr += indent;
-      
-      // dim3 grid & hipaccCalcGridFromBlock
-      resultStr += "dim3 " + gridStr + "(hipaccCalcGridFromBlock(";
-      resultStr += infoStr + ", ";
-      resultStr += blockStr + "));\n\n";
-      resultStr += indent;
+    switch (options.getTargetCode()) {
+      default:
+      case TARGET_C:
+      case TARGET_CUDA:
+        // dim3 block
+        resultStr += "dim3 " + blockStr + "(" + cX.str() + ", " + cY.str() + ");\n";
+        resultStr += indent;
 
-      // hipaccPrepareKernelLaunch
-      resultStr += "hipaccPrepareKernelLaunch(";
-      resultStr += infoStr + ", ";
-      resultStr += blockStr + ");\n";
-      resultStr += indent;
+        // dim3 grid & hipaccCalcGridFromBlock
+        resultStr += "dim3 " + gridStr + "(hipaccCalcGridFromBlock(";
+        resultStr += infoStr + ", ";
+        resultStr += blockStr + "));\n\n";
+        resultStr += indent;
 
-      // hipaccConfigureCall
-      resultStr += "hipaccConfigureCall(";
-      resultStr += gridStr;
-      resultStr += ", " + blockStr;
-      resultStr += ");\n\n";
+        // hipaccPrepareKernelLaunch
+        resultStr += "hipaccPrepareKernelLaunch(";
+        resultStr += infoStr + ", ";
+        resultStr += blockStr + ");\n";
+        resultStr += indent;
 
-      // offset parameter
-      if (!options.timeKernels()) {
-        resultStr += indent + "size_t " + offsetStr + " = 0;\n";
-      }
-    } else {
-      // size_t block
-      resultStr += "size_t " + blockStr + "[2];\n";
-      resultStr += indent + blockStr + "[0] = " + cX.str() + ";\n";
-      resultStr += indent + blockStr + "[1] = " + cY.str() + ";\n";
-      resultStr += indent;
+        // hipaccConfigureCall
+        resultStr += "hipaccConfigureCall(";
+        resultStr += gridStr;
+        resultStr += ", " + blockStr;
+        resultStr += ");\n\n";
 
-      // size_t grid
-      resultStr += "size_t " + gridStr + "[2];\n\n";
-      resultStr += indent;
+        // offset parameter
+        if (!options.timeKernels()) {
+          resultStr += indent + "size_t " + offsetStr + " = 0;\n";
+        }
+        break;
+      case TARGET_Renderscript:
+        break;
+      case TARGET_OpenCL:
+      case TARGET_OpenCLx86:
+        // size_t block
+        resultStr += "size_t " + blockStr + "[2];\n";
+        resultStr += indent + blockStr + "[0] = " + cX.str() + ";\n";
+        resultStr += indent + blockStr + "[1] = " + cY.str() + ";\n";
+        resultStr += indent;
 
-      // hipaccCalcGridFromBlock
-      resultStr += "hipaccCalcGridFromBlock(";
-      resultStr += infoStr + ", ";
-      resultStr += blockStr + ", ";
-      resultStr += gridStr + ");\n";
-      resultStr += indent;
+        // size_t grid
+        resultStr += "size_t " + gridStr + "[2];\n\n";
+        resultStr += indent;
 
-      // hipaccPrepareKernelLaunch
-      resultStr += "hipaccPrepareKernelLaunch(";
-      resultStr += infoStr + ", ";
-      resultStr += blockStr + ");\n\n";
+        // hipaccCalcGridFromBlock
+        resultStr += "hipaccCalcGridFromBlock(";
+        resultStr += infoStr + ", ";
+        resultStr += blockStr + ", ";
+        resultStr += gridStr + ");\n";
+        resultStr += indent;
+
+        // hipaccPrepareKernelLaunch
+        resultStr += "hipaccPrepareKernelLaunch(";
+        resultStr += infoStr + ", ";
+        resultStr += blockStr + ");\n\n";
+        break;
     }
     resultStr += indent;
   }
@@ -545,14 +619,15 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += ");\n";
           break;
         case TARGET_Renderscript:
-          resultStr += kernelName;
+          resultStr += "hipaccSetScriptArg(&" + kernelName + ", ";
+          resultStr += "&ScriptC_" + kernelName;
           if (Acc || i==0) {
-            resultStr += ".bind_";
+            resultStr += "::bind_";
           } else {
-            resultStr += ".set_";
+            resultStr += "::set_";
           }
-          resultStr += deviceArgNames[i];
-          resultStr += "(" + hostArgNames[i] + ");";
+          resultStr += deviceArgNames[i] + ", ";
+          resultStr += hostArgNames[i] + ");";
           break;
       }
       resultStr += "\n" + indent;
@@ -612,17 +687,29 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     dec_indent();
     resultStr += indent + "}\n";
   } else {
-    if (options.emitCUDA()) {
-      resultStr += "hipaccLaunchKernel((const void *)&cu";
-      resultStr += kernelName + ", \"cu";
-      resultStr += kernelName + "\"";
-    } else {
-      resultStr += "hipaccEnqueueKernel(";
-      resultStr += kernelName;
+    switch (options.getTargetCode()) {
+      default:
+      case TARGET_C:
+      case TARGET_CUDA:
+        resultStr += "hipaccLaunchKernel((const void *)&cu";
+        resultStr += kernelName + ", \"cu";
+        resultStr += kernelName + "\"";
+        break;
+      case TARGET_Renderscript:
+        resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
+        resultStr += "&" + kernelName + "::forEach_root, IN, OUT);";
+        break;
+      case TARGET_OpenCL:
+      case TARGET_OpenCLx86:
+        resultStr += "hipaccEnqueueKernel(";
+        resultStr += kernelName;
+        break;
     }
-    resultStr += ", " + gridStr;
-    resultStr += ", " + blockStr;
-    resultStr += ");";
+    if (options.getTargetCode() != TARGET_Renderscript) {
+      resultStr += ", " + gridStr;
+      resultStr += ", " + blockStr;
+      resultStr += ");";
+    }
   }
 }
 
