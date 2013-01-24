@@ -2167,71 +2167,73 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     // constant memory declarations
     HipaccMask *Mask = K->getMaskFromMapping(FD);
     if (Mask) {
-    if (Mask->isConstant()) {
-      switch (compilerOptions.getTargetCode()) {
-        case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
-          *OS << "__constant ";
-          break;
-        case TARGET_CUDA:
-          *OS << "__device__ __constant__ ";
-          break;
-        case TARGET_C:
-        case TARGET_Renderscript:
-          *OS << "static const ";
-          break;
-      }
-      *OS << Mask->getTypeStr() << " " << Mask->getName() << K->getName() << "["
-          << Mask->getSizeYStr() << "][" << Mask->getSizeXStr() << "] = {\n";
+      if (Mask->isConstant()) {
+        switch (compilerOptions.getTargetCode()) {
+          case TARGET_OpenCL:
+          case TARGET_OpenCLx86:
+            *OS << "__constant ";
+            break;
+          case TARGET_CUDA:
+            *OS << "__device__ __constant__ ";
+            break;
+          case TARGET_C:
+          case TARGET_Renderscript:
+            *OS << "static const ";
+            break;
+        }
+        *OS << Mask->getTypeStr() << " " << Mask->getName() << K->getName() << "["
+            << Mask->getSizeYStr() << "][" << Mask->getSizeXStr() << "] = {\n";
 
-      InitListExpr *ILE = Mask->getInitList();
-      unsigned int num_init = 0;
+        InitListExpr *ILE = Mask->getInitList();
+        unsigned int num_init = 0;
 
-      // print Mask constant literals to 2D array
-      for (unsigned int j=0; j<Mask->getSizeY(); j++) {
-        *OS << "        {";
-        for (unsigned int k=0; k<Mask->getSizeX(); k++) {
-          ILE->getInit(num_init++)->printPretty(*OS, 0, Policy, 0);
-          if (k<Mask->getSizeX()-1) {
-            *OS << ", ";
+        // print Mask constant literals to 2D array
+        for (unsigned int j=0; j<Mask->getSizeY(); j++) {
+          *OS << "        {";
+          for (unsigned int k=0; k<Mask->getSizeX(); k++) {
+            ILE->getInit(num_init++)->printPretty(*OS, 0, Policy, 0);
+            if (k<Mask->getSizeX()-1) {
+              *OS << ", ";
+            }
+          }
+          if (j<Mask->getSizeY()-1) {
+            *OS << "},\n";
+          } else {
+            *OS << "}\n";
           }
         }
-        if (j<Mask->getSizeY()-1) {
-          *OS << "},\n";
-        } else {
-          *OS << "}\n";
+        *OS << "    };\n\n";
+        Mask->setIsPrinted(true);
+      } else {
+        // emit declaration in CUDA and Renderscript
+        // for other back ends, the mask will be added as kernel parameter
+        switch (compilerOptions.getTargetCode()) {
+          case TARGET_OpenCL:
+          case TARGET_OpenCLx86:
+            break;
+          case TARGET_CUDA:
+            *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
+              << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
+              << "][" << Mask->getSizeXStr() << "];\n\n";
+            Mask->setIsPrinted(true);
+            break;
+          case TARGET_C:
+          case TARGET_Renderscript:
+            *OS << "const " << Mask->getTypeStr() << " "
+              << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
+              << "][" << Mask->getSizeXStr() << "];\n\n";
+            Mask->setIsPrinted(true);
+            break;
         }
       }
-      *OS << "    };\n\n";
-      Mask->setIsPrinted(true);
-    } else {
-      // emit declaration in CUDA and Renderscript
-      // for other back ends, the mask will be added as kernel parameter
-      switch (compilerOptions.getTargetCode()) {
-        case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
-          break;
-        case TARGET_CUDA:
-          *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
-            << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
-            << "][" << Mask->getSizeXStr() << "];\n\n";
-          Mask->setIsPrinted(true);
-          break;
-        case TARGET_C:
-        case TARGET_Renderscript:
-          *OS << "const " << Mask->getTypeStr() << " "
-            << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
-            << "][" << Mask->getSizeXStr() << "];\n\n";
-          Mask->setIsPrinted(true);
-          break;
-      }
-    }
       continue;
     }
 
     // normal variables - Renderscript only
     if (compilerOptions.emitRenderscript()) {
-      *OS << K->getArgTypeNames()[i] << " " << K->getDeviceArgNames()[i] << ";\n";
+      QualType QT = K->getArgTypes(Context, compilerOptions.getTargetCode())[i];
+      QT.removeLocalConst();
+      *OS << QT.getAsString() << " " << K->getDeviceArgNames()[i] << ";\n";
       continue;
     }
   }
