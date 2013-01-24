@@ -402,7 +402,30 @@ void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
 }
 
 
-// Launch script kernel
+// Launch script kernel (one allocation)
+template<typename F>
+void hipaccLaunchScriptKernel(
+    F* script,
+    void(F::*kernel)(sp<const Allocation>) const,
+    sp<Allocation>& out, bool print_timing=true
+) {
+    long end, start;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    start = getNanoTime();
+    (script->*kernel)(out);
+    end = getNanoTime();
+
+    if (print_timing) {
+        std::cerr << "<HIPACC:> Kernel timing: "
+                  << (end - start) * 1.0e-6f << "(ms)" << std::endl;
+    }
+    total_time += (end - start) * 1.0e-6f;
+    last_gpu_timing = (end - start) * 1.0e-6f;
+}
+
+
+// Launch script kernel (two allocations)
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
