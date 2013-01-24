@@ -340,11 +340,15 @@ void hipaccWriteAllocation(sp<Allocation> allocation, T *host_mem) {
     int stride = dim.stride;
 
     if (stride > width) {
-        for (int i=0; i<height; i++) {
-            // TODO: Handle padding
+        T* buff = new T[stride * height];
+        for (int i = 0; i < height; i++) {
+            memcpy(buff + (i * stride), host_mem + (i * width),
+                   sizeof(T) * width);
         }
+        allocation->copyFromUnchecked(buff, sizeof(T) * stride * height);
+        delete[] buff;
     } else {
-        allocation->copyFromUnchecked(host_mem, sizeof(T)*width*height);
+        allocation->copyFromUnchecked(host_mem, sizeof(T) * width * height);
     }
 }
 
@@ -360,11 +364,15 @@ void hipaccReadAllocation(T *host_mem, sp<Allocation> allocation) {
     int stride = dim.stride;
 
     if (stride > width) {
-        for (int i=0; i<height; i++) {
-            // TODO: Handle padding
+        T* buff = new T[stride * height];
+        allocation->copyToUnchecked(buff, sizeof(T) * stride * height);
+        for (int i = 0; i < height; i++) {
+            memcpy(host_mem + (i * width), buff + (i * stride),
+                   sizeof(T) * width);
         }
+        delete[] buff;
     } else {
-        allocation->copyToUnchecked(host_mem, sizeof(T)*width*height);
+        allocation->copyToUnchecked(host_mem, sizeof(T) * width * height);
     }
 }
 
