@@ -149,6 +149,27 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
     void initOpenCL(SmallVector<Stmt *, 16> &kernelBody);
     void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
+    // wrappers to mark variables as being used
+    DeclRefExpr *getWidthDecl(HipaccAccessor *Acc) {
+      KernelClass->setUsed(Acc->getWidthDecl()->getNameInfo().getAsString());
+      return Acc->getWidthDecl();
+    }
+    DeclRefExpr *getHeightDecl(HipaccAccessor *Acc) {
+      KernelClass->setUsed(Acc->getHeightDecl()->getNameInfo().getAsString());
+      return Acc->getHeightDecl();
+    }
+    DeclRefExpr *getStrideDecl(HipaccAccessor *Acc) {
+      KernelClass->setUsed(Acc->getStrideDecl()->getNameInfo().getAsString());
+      return Acc->getStrideDecl();
+    }
+    DeclRefExpr *getOffsetXDecl(HipaccAccessor *Acc) {
+      KernelClass->setUsed(Acc->getOffsetXDecl()->getNameInfo().getAsString());
+      return Acc->getOffsetXDecl();
+    }
+    DeclRefExpr *getOffsetYDecl(HipaccAccessor *Acc) {
+      KernelClass->setUsed(Acc->getOffsetYDecl()->getNameInfo().getAsString());
+      return Acc->getOffsetYDecl();
+    }
 
     // KernelDeclMap - this keeps track of the cloned Decls which are used in
     // expressions, e.g. DeclRefExpr

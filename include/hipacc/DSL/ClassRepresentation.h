@@ -411,7 +411,7 @@ class HipaccKernelClass {
       ArgumentKind kind;
       FieldDecl *field;
       QualType type;
-      StringRef name;
+      std::string name;
     };
 
     std::string name;
@@ -421,6 +421,7 @@ class HipaccKernelClass {
     SmallVector<argumentInfo, 16> arguments;
     SmallVector<FieldDecl *, 16> imgFields;
     SmallVector<FieldDecl *, 16> maskFields;
+    std::set<std::string> usedVars;
 
   public:
     HipaccKernelClass(std::string name) :
@@ -457,6 +458,11 @@ class HipaccKernelClass {
       return kernelStatistics->getKernelType();
     }
 
+    void setUsed(std::string name) { usedVars.insert(name); }
+    bool getUsed(std::string name) {
+      if (usedVars.find(name) != usedVars.end()) return true;
+      else return false;
+    }
 
     void addArg(FieldDecl *FD, QualType QT, StringRef Name) {
       argumentInfo a = {Normal, FD, QT, Name};

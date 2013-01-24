@@ -522,6 +522,9 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
                   compilerClasses.Image)) {
               QT = compilerClasses.getFirstTemplateType(FD->getType());
               KC->addImgArg(FD, QT, FD->getName());
+              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_width");
+              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_height");
+              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_stride");
 
               break;
             }
@@ -531,6 +534,9 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
                   compilerClasses.Accessor)) {
               QT = compilerClasses.getFirstTemplateType(FD->getType());
               KC->addImgArg(FD, QT, FD->getName());
+              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_width");
+              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_height");
+              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_stride");
 
               break;
             }
@@ -562,6 +568,9 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
             if (DRE->getDecl() == PVD) {
               QT = compilerClasses.getFirstTemplateType(PVD->getType());
               KC->addISArg(NULL, QT, "Output");
+              //KC->addArg(NULL, Context.IntTy, "is_width");
+              //KC->addArg(NULL, Context.IntTy, "is_height");
+              //KC->addArg(NULL, Context.IntTy, "is_stride");
 
               break;
             }
@@ -2029,6 +2038,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   for (unsigned int i=0, e=KC->getNumImages(); i!=e; ++i) {
     FieldDecl *FD = KC->getImgFields().data()[i];
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
+
+    if (!KC->getUsed(Acc->getName())) continue;
     
     if (Acc->getInterpolation()!=InterpolateNO) {
       if (!inc) {
@@ -2084,72 +2095,78 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
 
-  // global image declarations
-  for (unsigned int i=0, e=KC->getNumImages(); i!=e; ++i) {
-    FieldDecl *FD = KC->getImgFields().data()[i];
-    HipaccAccessor *Acc = K->getImgFromMapping(FD);
-    QualType T = Acc->getImage()->getPixelQualType();
+  // declarations of textures, surfaces, variables, etc.
+  for (unsigned int i=0; i<K->getNumArgs(); i++) {
+    if (!KC->getUsed(K->getDeviceArgNames()[i])) continue;
 
-    switch (compilerOptions.getTargetCode()) {
-      case TARGET_C:
-      case TARGET_OpenCL:
-      case TARGET_OpenCLx86:
-        break;
-      case TARGET_CUDA:
-        // texture declaration
-        if (KC->getImgAccess(FD) == READ_ONLY && K->useTextureMemory(Acc)) {
-          *OS << "texture<";
-          *OS << T.getAsString();
-          switch (K->useTextureMemory(Acc)) {
-            default:
-            case Linear1D:
-              *OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
-              break;
-            case Linear2D:
-            case Array2D:
-              *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
-              break;
+    FieldDecl *FD = K->getDeviceArgFields()[i];
+
+    // output image declaration
+    if (i==0) {
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_C:
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          break;
+        case TARGET_CUDA:
+          // surface declaration
+          if (compilerOptions.useTextureMemory() &&
+              compilerOptions.getTextureType()==Array2D) {
+            *OS << "surface<void, cudaSurfaceType2D> _surfOutput"
+                << K->getName() << ";\n\n";
           }
-          *OS << FD->getNameAsString() << K->getName() << ";\n";
-        }
-        break;
-      case TARGET_Renderscript:
-        // memory declaration
-        if (KC->getImgAccess(FD) == READ_ONLY) {
-          *OS << "const ";
-        }
-        *OS << T.getAsString() << " *" << FD->getNameAsString() << ";\n";
-        break;
-    }
-  }
-
-  // output image declaration
-  switch (compilerOptions.getTargetCode()) {
-    case TARGET_C:
-    case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
-      break;
-    case TARGET_CUDA:
-      // surface declaration
-      if (compilerOptions.useTextureMemory() &&
-          compilerOptions.getTextureType()==Array2D) {
-        *OS << "surface<void, cudaSurfaceType2D> _surfOutput"
-            << K->getName() << ";\n\n";
+          break;
+        case TARGET_Renderscript:
+          // memory declaration
+          *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
+              << " *Output;\n";
+          break;
       }
-      break;
-    case TARGET_Renderscript:
-      // memory declaration
-      *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
-          << " *Output;\n\n";
-      break;
-  }
+      continue;
+    }
 
+    // global image declarations
+    HipaccAccessor *Acc = K->getImgFromMapping(FD);
+    if (Acc) {
+      QualType T = Acc->getImage()->getPixelQualType();
 
-  // write constant memory declarations
-  for (unsigned int i=0; i<KC->getNumMasks(); i++) {
-    FieldDecl *FD = KC->getMaskFields().data()[i];
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_C:
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          break;
+        case TARGET_CUDA:
+          // texture declaration
+          if (KC->getImgAccess(FD) == READ_ONLY && K->useTextureMemory(Acc)) {
+            *OS << "texture<";
+            *OS << T.getAsString();
+            switch (K->useTextureMemory(Acc)) {
+              default:
+              case Linear1D:
+                *OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
+                break;
+              case Linear2D:
+              case Array2D:
+                *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
+                break;
+            }
+            *OS << FD->getNameAsString() << K->getName() << ";\n";
+          }
+          break;
+        case TARGET_Renderscript:
+          // memory declaration
+          if (KC->getImgAccess(FD) == READ_ONLY) {
+            *OS << "const ";
+          }
+          *OS << T.getAsString() << " *" << FD->getNameAsString() << ";\n";
+          break;
+      }
+      continue;
+    }
+
+    // constant memory declarations
     HipaccMask *Mask = K->getMaskFromMapping(FD);
-
+    if (Mask) {
     if (Mask->isConstant()) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_OpenCL:
@@ -2209,10 +2226,19 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           break;
       }
     }
+      continue;
+    }
+
+    // normal variables - Renderscript only
+    if (compilerOptions.emitRenderscript()) {
+      *OS << K->getArgTypeNames()[i] << " " << K->getDeviceArgNames()[i] << ";\n";
+      continue;
+    }
   }
 
 
   // write kernel name and qualifiers
+  *OS << "\n";
   switch (compilerOptions.getTargetCode()) {
     case TARGET_CUDA:
       *OS << "extern \"C\" {\n";
@@ -2249,6 +2275,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   for (unsigned int i=0, e=D->getNumParams(); i!=e; ++i) {
     std::string Name = D->getParamDecl(i)->getNameAsString();
     FieldDecl *FD = K->getDeviceArgFields()[i];
+
+    if (!KC->getUsed(Name)) continue;
 
     // check if we have a Mask
     HipaccMask *Mask = K->getMaskFromMapping(FD);

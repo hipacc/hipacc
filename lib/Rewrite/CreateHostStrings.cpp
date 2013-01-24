@@ -415,10 +415,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += gridStr;
         resultStr += ", " + blockStr;
         resultStr += ");\n\n";
+        resultStr += indent;
 
         // offset parameter
         if (!options.timeKernels()) {
-          resultStr += indent + "size_t " + offsetStr + " = 0;\n";
+          resultStr += "size_t " + offsetStr + " = 0;\n";
+          resultStr += indent;
         }
         break;
       case TARGET_Renderscript:
@@ -446,15 +448,14 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += "hipaccPrepareKernelLaunch(";
         resultStr += infoStr + ", ";
         resultStr += blockStr + ");\n\n";
+        resultStr += indent;
         break;
     }
-    resultStr += indent;
   }
 
 
   // bind textures and get constant pointers
-  unsigned int numArgs = K->getNumArgs();
-  for (unsigned int i=0; i<numArgs; i++) {
+  for (unsigned int i=0; i<K->getNumArgs(); i++) {
     FieldDecl *FD = K->getDeviceArgFields()[i];
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     if (Acc) {
@@ -552,7 +553,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
 
   // parameters
   unsigned int curArg = 0;
-  for (unsigned int i=0; i<numArgs; i++) {
+  for (unsigned int i=0; i<K->getNumArgs(); i++) {
     FieldDecl *FD = K->getDeviceArgFields()[i];
 
     HipaccMask *Mask = K->getMaskFromMapping(FD);
@@ -593,6 +594,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       resultStr += indent;
     } else {
       // set kernel arguments
+      if (!KC->getUsed(K->getDeviceArgNames()[i])) continue;
+
       switch (options.getTargetCode()) {
         default:
         case TARGET_C:
@@ -603,6 +606,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += ", sizeof(" + argTypeNames[i] + "), ";
           resultStr += offsetStr;
           resultStr += ");\n";
+          resultStr += indent;
           break;
         case TARGET_OpenCL:
         case TARGET_OpenCLx86:
@@ -617,6 +621,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += ", sizeof(" + argTypeNames[i] + "), ";
           resultStr += hostArgNames[i];
           resultStr += ");\n";
+          resultStr += indent;
           break;
         case TARGET_Renderscript:
           resultStr += "hipaccSetScriptArg(&" + kernelName + ", ";
@@ -627,10 +632,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += "::set_";
           }
           resultStr += deviceArgNames[i] + ", ";
-          resultStr += hostArgNames[i] + ");";
+          resultStr += hostArgNames[i] + ");\n";
+          resultStr += indent;
           break;
       }
-      resultStr += "\n" + indent;
     }
   }
   resultStr += "\n" + indent;

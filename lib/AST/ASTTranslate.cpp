@@ -51,7 +51,7 @@ void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   // Polly: int gid_x = offset_x;
   if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
     gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.IntTy,
-        Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl());
+        getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()));
   } else {
     gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.IntTy,
         createIntegerLiteral(Ctx, 0));
@@ -60,7 +60,7 @@ void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   // Polly: int gid_y = offset_y;
   if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
     gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.IntTy,
-        Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl());
+        getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()));
   } else {
     gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.IntTy,
         createIntegerLiteral(Ctx, 0));
@@ -494,14 +494,14 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     // float acc_scale_y = (float)acc_height/is_height;
     if (Acc->getInterpolation()!=InterpolateNO) {
       Expr *scaleExprX = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
-            Ctx.FloatTy, CK_IntegralToFloating, Acc->getWidthDecl(), NULL,
+            Ctx.FloatTy, CK_IntegralToFloating, getWidthDecl(Acc), NULL,
             Ctx.getTrivialTypeSourceInfo(Ctx.FloatTy)),
-          Kernel->getIterationSpace()->getAccessor()->getWidthDecl(), BO_Div,
+          getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_Div,
           Ctx.FloatTy);
       Expr *scaleExprY = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
-            Ctx.FloatTy, CK_IntegralToFloating, Acc->getHeightDecl(), NULL,
+            Ctx.FloatTy, CK_IntegralToFloating, getHeightDecl(Acc), NULL,
             Ctx.getTrivialTypeSourceInfo(Ctx.FloatTy)),
-          Kernel->getIterationSpace()->getAccessor()->getHeightDecl(), BO_Div,
+          getHeightDecl(Kernel->getIterationSpace()->getAccessor()), BO_Div,
           Ctx.FloatTy);
       VarDecl *scaleDeclX = createVarDecl(Ctx, kernelDecl, Acc->getName() +
           "scale_x", Ctx.FloatTy, scaleExprX);
@@ -888,7 +888,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl() &&
           !(kernel_x && !bh_variant.borders.left) && bh_variant.borderVal) {
         check_bop = createBinaryOperator(Ctx, gidXRef,
-            Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(), BO_GE,
+            getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
             Ctx.BoolTy);
       }
       // if (gid_x < is_width+is_offset_x)
@@ -897,12 +897,12 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
           check_tmp = createBinaryOperator(Ctx, gidXRef,
               createBinaryOperator(Ctx,
-                Kernel->getIterationSpace()->getAccessor()->getWidthDecl(),
-                Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(),
+                getWidthDecl(Kernel->getIterationSpace()->getAccessor()),
+                getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()),
                 BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
         } else {
           check_tmp = createBinaryOperator(Ctx, gidXRef,
-              Kernel->getIterationSpace()->getAccessor()->getWidthDecl(), BO_LT,
+              getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
               Ctx.BoolTy);
         }
         if (check_bop) {
@@ -916,16 +916,16 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       // if (gid_x < is_width+is_offset_x)
       if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
         check_bop = createBinaryOperator(Ctx, gidXRef,
-            Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(), BO_GE,
+            getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
             Ctx.BoolTy);
         check_bop = createBinaryOperator(Ctx, check_bop,
             createBinaryOperator(Ctx, gidXRef, createBinaryOperator(Ctx,
-                Kernel->getIterationSpace()->getAccessor()->getWidthDecl(),
-                Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(),
+                getWidthDecl(Kernel->getIterationSpace()->getAccessor()),
+                getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()),
                 BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
       } else {
         check_bop = createBinaryOperator(Ctx, gidXRef,
-            Kernel->getIterationSpace()->getAccessor()->getWidthDecl(), BO_LT,
+            getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
             Ctx.BoolTy);
       }
     }
@@ -1020,7 +1020,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       if (require_is_check) {
         // if (gid_y + p < is_height)
         BinaryOperator *inner_check_bop = createBinaryOperator(Ctx, gidYRef,
-            Kernel->getIterationSpace()->getAccessor()->getHeightDecl(), BO_LT,
+            getHeightDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
             Ctx.BoolTy);
         IfStmt *inner_ispace_check = createIfStmt(Ctx, inner_check_bop,
             clonedStmt);
@@ -1550,6 +1550,9 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
     if (PVD->getName().equals(VD->getName())) {
       paramDecl = PVD;
 
+      // mark parameter as being used within the kernel
+      KernelClass->setUsed(VD->getName());
+
       // get vector declaration
       if (Kernel->vectorize() && !compilerOptions.emitC()) {
         if (KernelDeclMapVector.count(PVD)) {
@@ -1950,6 +1953,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     if (ME->getMemberNameInfo().getAsString() == "output") {
       assert(E->getNumArgs()==0 && "no arguments for output() method supported!");
 
+      // mark output image as being used within the kernel
+      KernelClass->setUsed("Output");
+
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
           // no padding is considered, data is accessed as a 2D-array
@@ -1962,7 +1968,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           break;
         case TARGET_Renderscript:
           // access the current output element using *out or out[0]
-          result = accessMemArrAt(LHS, Acc->getStrideDecl(),
+          result = accessMemArrAt(LHS, getStrideDecl(Acc),
               createIntegerLiteral(Ctx, 0), createIntegerLiteral(Ctx, 0));
           break;
       }
@@ -2023,18 +2029,33 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), Acc);
     Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), Acc);
 
-    if (compilerOptions.emitC()) {
-      result = accessMem2DAt(LHS, idx_x, idx_y);
-    } else {
-      if (Kernel->useTextureMemory(Acc)) {
-        if (compilerOptions.emitCUDA()) {
+    // mark output image as being used within the kernel
+    KernelClass->setUsed("Output");
+
+    switch (compilerOptions.getTargetCode()) {
+      case TARGET_C:
+        // no padding is considered, data is accessed as a 2D-array
+        result = accessMem2DAt(LHS, idx_x, idx_y);
+        break;
+      case TARGET_CUDA:
+        if (Kernel->useTextureMemory(Acc)) {
           result = accessMemTexAt(LHS, Acc, memAcc, idx_x, idx_y);
         } else {
-          result = accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
+          result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         }
-      } else {
-        result = accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
-      }
+        break;
+      case TARGET_OpenCL:
+      case TARGET_OpenCLx86:
+        if (Kernel->useTextureMemory(Acc)) {
+          result = accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
+        } else {
+          result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        }
+        break;
+      case TARGET_Renderscript:
+        // access the current output element using *out or out[0]
+        result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        break;
     }
 
     setExprProps(E, result);

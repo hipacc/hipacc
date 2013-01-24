@@ -61,7 +61,7 @@ Stmt *ASTTranslate::addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper) 
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
 
   return createWhileStmt(Ctx, NULL, bo_upper, createBinaryOperator(Ctx, idx,
-        createBinaryOperator(Ctx, idx, Acc->getWidthDecl(), BO_Sub, Ctx.IntTy),
+        createBinaryOperator(Ctx, idx, getWidthDecl(Acc), BO_Sub, Ctx.IntTy),
         BO_Assign, Ctx.IntTy));
 }
 Stmt *ASTTranslate::addRepeatLower(HipaccAccessor *Acc, Expr *idx, Expr *lower) {
@@ -69,7 +69,7 @@ Stmt *ASTTranslate::addRepeatLower(HipaccAccessor *Acc, Expr *idx, Expr *lower) 
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
 
   return createWhileStmt(Ctx, NULL, bo_lower, createBinaryOperator(Ctx, idx,
-        createBinaryOperator(Ctx, idx, Acc->getWidthDecl(), BO_Add, Ctx.IntTy),
+        createBinaryOperator(Ctx, idx, getWidthDecl(Acc), BO_Add, Ctx.IntTy),
         BO_Assign, Ctx.IntTy));
 }
 
@@ -144,20 +144,20 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
 
   Expr *lowerX, *upperX, *lowerY, *upperY;
   if (Acc->getOffsetXDecl()) {
-    lowerX = Acc->getOffsetXDecl();
-    upperX = createBinaryOperator(Ctx, Acc->getOffsetXDecl(),
-        Acc->getWidthDecl(), BO_Add, Ctx.IntTy);
+    lowerX = getOffsetXDecl(Acc);
+    upperX = createBinaryOperator(Ctx, getOffsetXDecl(Acc), getWidthDecl(Acc),
+        BO_Add, Ctx.IntTy);
   } else {
     lowerX = createIntegerLiteral(Ctx, 0);
-    upperX = Acc->getWidthDecl();
+    upperX = getWidthDecl(Acc);
   }
   if (Acc->getOffsetYDecl()) {
-    lowerY = Acc->getOffsetYDecl();
-    upperY = createBinaryOperator(Ctx, Acc->getOffsetYDecl(),
-        Acc->getHeightDecl(), BO_Add, Ctx.IntTy);
+    lowerY = getOffsetYDecl(Acc);
+    upperY = createBinaryOperator(Ctx, getOffsetYDecl(Acc), getHeightDecl(Acc),
+        BO_Add, Ctx.IntTy);
   } else {
     lowerY = createIntegerLiteral(Ctx, 0);
-    upperY = Acc->getHeightDecl();
+    upperY = getHeightDecl(Acc);
   }
 
   Expr *idx_x = gidXRef;
@@ -249,7 +249,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
       }
     } else {
-      RHS = accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
+      RHS = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
     }
     setExprProps(LHS, RHS);
 
@@ -312,7 +312,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
       }
     } else {
-      result = accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
+      result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
     }
     setExprProps(LHS, result);
   }

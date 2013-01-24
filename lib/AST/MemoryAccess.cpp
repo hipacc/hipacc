@@ -54,7 +54,7 @@ Expr *ASTTranslate::addLocalOffset(Expr *idx, Expr *local_offset) {
 // add global offset to index
 Expr *ASTTranslate::addGlobalOffsetY(Expr *idx_y, HipaccAccessor *Acc) {
   if (Acc->getOffsetYDecl()) {
-    idx_y = createBinaryOperator(Ctx, idx_y, Acc->getOffsetYDecl(), BO_Add,
+    idx_y = createBinaryOperator(Ctx, idx_y, getOffsetYDecl(Acc), BO_Add,
         Ctx.IntTy);
   }
 
@@ -62,7 +62,7 @@ Expr *ASTTranslate::addGlobalOffsetY(Expr *idx_y, HipaccAccessor *Acc) {
 }
 Expr *ASTTranslate::addGlobalOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
   if (Acc->getOffsetXDecl()) {
-    idx_x = createBinaryOperator(Ctx, idx_x, Acc->getOffsetXDecl(), BO_Add,
+    idx_x = createBinaryOperator(Ctx, idx_x, getOffsetXDecl(Acc), BO_Add,
         Ctx.IntTy);
   }
 
@@ -74,7 +74,7 @@ Expr *ASTTranslate::addGlobalOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
 Expr *ASTTranslate::removeISOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
   if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
       idx_x = createBinaryOperator(Ctx, idx_x,
-          Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl(), BO_Sub,
+          getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_Sub,
           Ctx.IntTy);
   }
 
@@ -130,7 +130,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           return accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
         }
       } else {
-        return accessMemArrAt(LHS, Acc->getStrideDecl(), idx_x, idx_y);
+        return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
       }
     case UNDEFINED:
     case READ_WRITE:
@@ -417,7 +417,7 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
       default:
       case Linear1D:
         args.push_back(createBinaryOperator(Ctx, createBinaryOperator(Ctx,
-                createParenExpr(Ctx, idx_y), Acc->getStrideDecl(), BO_Mul,
+                createParenExpr(Ctx, idx_y), getStrideDecl(Acc), BO_Mul,
                 Ctx.IntTy), idx_x, BO_Add, Ctx.IntTy));
         break;
       case Linear2D:

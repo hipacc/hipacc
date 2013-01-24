@@ -200,19 +200,19 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
   } else {
     args.push_back(LHS);
   }
-  args.push_back(Acc->getStrideDecl());
+  args.push_back(getStrideDecl(Acc));
   args.push_back(idx_x);
   args.push_back(idx_y);
-  args.push_back(Acc->getWidthDecl());
-  args.push_back(Acc->getHeightDecl());
+  args.push_back(getWidthDecl(Acc));
+  args.push_back(getHeightDecl(Acc));
   // global offset_[x|y]
   if (Acc->getOffsetXDecl()) {
-    args.push_back(Acc->getOffsetXDecl());
+    args.push_back(getOffsetXDecl(Acc));
   } else {
     args.push_back(createIntegerLiteral(Ctx, 0));
   }
   if (Acc->getOffsetYDecl()) {
-    args.push_back(Acc->getOffsetYDecl());
+    args.push_back(getOffsetYDecl(Acc));
   } else {
     args.push_back(createIntegerLiteral(Ctx, 0));
   }
