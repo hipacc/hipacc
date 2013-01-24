@@ -340,11 +340,15 @@ void hipaccWriteAllocation(sp<Allocation> allocation, T *host_mem) {
     int stride = dim.stride;
 
     if (stride > width) {
-        for (int i=0; i<height; i++) {
-            // TODO: Handle padding
+        T* buff = new T[stride * height];
+        for (int i = 0; i < height; i++) {
+            memcpy(buff + (i * stride), host_mem + (i * width),
+                   sizeof(T) * width);
         }
+        allocation->copyFromUnchecked(buff, sizeof(T) * stride * height);
+        delete[] buff;
     } else {
-        allocation->copyFromUnchecked(host_mem, sizeof(T)*width*height);
+        allocation->copyFromUnchecked(host_mem, sizeof(T) * width * height);
     }
 }
 
@@ -360,11 +364,15 @@ void hipaccReadAllocation(T *host_mem, sp<Allocation> allocation) {
     int stride = dim.stride;
 
     if (stride > width) {
-        for (int i=0; i<height; i++) {
-            // TODO: Handle padding
+        T* buff = new T[stride * height];
+        allocation->copyToUnchecked(buff, sizeof(T) * stride * height);
+        for (int i = 0; i < height; i++) {
+            memcpy(host_mem + (i * width), buff + (i * stride),
+                   sizeof(T) * width);
         }
+        delete[] buff;
     } else {
-        allocation->copyToUnchecked(host_mem, sizeof(T)*width*height);
+        allocation->copyToUnchecked(host_mem, sizeof(T) * width * height);
     }
 }
 
@@ -394,7 +402,30 @@ void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
 }
 
 
-// Launch script kernel
+// Launch script kernel (one allocation)
+template<typename F>
+void hipaccLaunchScriptKernel(
+    F* script,
+    void(F::*kernel)(sp<const Allocation>) const,
+    sp<Allocation>& out, bool print_timing=true
+) {
+    long end, start;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    start = getNanoTime();
+    (script->*kernel)(out);
+    end = getNanoTime();
+
+    if (print_timing) {
+        std::cerr << "<HIPACC:> Kernel timing: "
+                  << (end - start) * 1.0e-6f << "(ms)" << std::endl;
+    }
+    total_time += (end - start) * 1.0e-6f;
+    last_gpu_timing = (end - start) * 1.0e-6f;
+}
+
+
+// Launch script kernel (two allocations)
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
