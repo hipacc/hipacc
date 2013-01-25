@@ -326,8 +326,7 @@ sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
     Ctx.add_memory(allocation, dim); \
 \
     if (host_mem) { \
-        /* TODO: Handle padding */ \
-        allocation->copyFromUnchecked(host_mem, sizeof(T)*(*stride)*height); \
+        hipaccWriteAllocation(allocation, host_mem); \
     } \
 \
     return allocation; \
@@ -350,7 +349,7 @@ sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
     Ctx.add_memory(allocation, dim); \
 \
     if (host_mem) { \
-        allocation->copyFromUnchecked(host_mem, sizeof(T)*width*height); \
+        hipaccWriteAllocation(allocation, host_mem); \
     } \
 \
     return allocation; \
@@ -414,8 +413,8 @@ void hipaccCopyAllocation(sp<Allocation> src_allocation,
 
     size_t bufferSize = src_dim.width * src_dim.height * src_dim.pixel_size;
     uint8_t* buffer = new uint8_t[bufferSize];
-    src_allocation->copyToUnchecked(buffer, bufferSize);
-    dst_allocation->copyFromUnchecked(buffer, bufferSize);
+    hipaccReadAllocation(buffer, src_allocation);
+    hipaccWriteAllocation(dst_allocation, buffer);
     delete[] buffer;
 }
 
