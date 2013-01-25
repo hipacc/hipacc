@@ -174,7 +174,7 @@ void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
       break;
     case TARGET_Renderscript:
       resultStr += "sp<Allocation> " + memName;
-      resultStr += " = hipaccCreateAllocation((" + type + "*)NULL";
+      resultStr += " = hipaccCreateAllocationConstant((" + type + "*)NULL";
       resultStr += ", " + width;
       resultStr += ", " + height;
       resultStr += ");";

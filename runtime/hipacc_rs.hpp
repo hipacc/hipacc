@@ -258,77 +258,6 @@ T hipaccInitScript() {
 }
 
 
-#define CREATE_ALLOCATION(T, E) \
-/* Allocate memory with alignment specified */ \
-sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
-                                      int *stride, int alignment) { \
-    HipaccContext &Ctx = HipaccContext::getInstance(); \
-    RenderScript* rs = Ctx.get_context(); \
-\
-    *stride = (int)ceil((float)(width) / (alignment / sizeof(T))) \
-                   * (alignment / sizeof(T)); \
-\
-    Type::Builder type(rs, E); \
-    type.setX(*stride); \
-    type.setY(height); \
-\
-    sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
-    if (host_mem) { \
-        /* TODO: Handle padding */ \
-        allocation->copyFromUnchecked(host_mem, sizeof(T)*(*stride)*height); \
-    } \
-\
-    HipaccContext::rs_dims dim = { width, height, *stride, \
-                                   alignment, sizeof(T) }; \
-    Ctx.add_memory(allocation, dim); \
-\
-    return allocation; \
-} \
-\
-/* Allocate memory without any alignment considerations */ \
-sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
-                                      int *stride) { \
-    HipaccContext &Ctx = HipaccContext::getInstance(); \
-    RenderScript* rs = Ctx.get_context(); \
-\
-    *stride = width; \
-\
-    Type::Builder type(rs, E); \
-    type.setX(*stride); \
-    type.setY(height); \
-\
-    sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
-    if (host_mem) { \
-        allocation->copyFromUnchecked(host_mem, sizeof(T)*width*height); \
-    } \
-\
-    HipaccContext::rs_dims dim = { width, height, width, 0, sizeof(T) }; \
-    Ctx.add_memory(allocation, dim); \
-\
-    return allocation; \
-}
-
-CREATE_ALLOCATION(uint8_t,  Element::U8(rs))
-CREATE_ALLOCATION(uint16_t, Element::U16(rs))
-CREATE_ALLOCATION(uint32_t, Element::U32(rs))
-CREATE_ALLOCATION(uint64_t, Element::U64(rs))
-
-CREATE_ALLOCATION(int8_t,   Element::I8(rs))
-CREATE_ALLOCATION(int16_t,  Element::I16(rs))
-CREATE_ALLOCATION(int32_t,  Element::I32(rs))
-CREATE_ALLOCATION(int64_t,  Element::I64(rs))
-
-CREATE_ALLOCATION(bool,     Element::BOOLEAN(rs))
-CREATE_ALLOCATION(char,     Element::U8(rs))
-CREATE_ALLOCATION(float,    Element::F32(rs))
-CREATE_ALLOCATION(double,   Element::F64(rs))
-
-// Destroy allocation
-//void hipaccDestroyAllocation(sp<Allocation> mem) {
-    // TODO: Clarify proper removal of allocations
-//}
-
-
 // Write to allocation 
 template<typename T>
 void hipaccWriteAllocation(sp<Allocation> allocation, T *host_mem) {
@@ -375,6 +304,102 @@ void hipaccReadAllocation(T *host_mem, sp<Allocation> allocation) {
         allocation->copyToUnchecked(host_mem, sizeof(T) * width * height);
     }
 }
+
+
+#define CREATE_ALLOCATION(T, E) \
+/* Allocate memory with alignment specified */ \
+sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
+                                      int *stride, int alignment) { \
+    HipaccContext &Ctx = HipaccContext::getInstance(); \
+    RenderScript* rs = Ctx.get_context(); \
+\
+    *stride = (int)ceil((float)(width) / (alignment / sizeof(T))) \
+                   * (alignment / sizeof(T)); \
+\
+    Type::Builder type(rs, E); \
+    type.setX(*stride); \
+    type.setY(height); \
+\
+    sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
+    HipaccContext::rs_dims dim = { width, height, *stride, \
+                                   alignment, sizeof(T) }; \
+    Ctx.add_memory(allocation, dim); \
+\
+    if (host_mem) { \
+        /* TODO: Handle padding */ \
+        allocation->copyFromUnchecked(host_mem, sizeof(T)*(*stride)*height); \
+    } \
+\
+    return allocation; \
+} \
+\
+/* Allocate memory without any alignment considerations */ \
+sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
+                                      int *stride) { \
+    HipaccContext &Ctx = HipaccContext::getInstance(); \
+    RenderScript* rs = Ctx.get_context(); \
+\
+    *stride = width; \
+\
+    Type::Builder type(rs, E); \
+    type.setX(*stride); \
+    type.setY(height); \
+\
+    sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
+    HipaccContext::rs_dims dim = { width, height, width, 0, sizeof(T) }; \
+    Ctx.add_memory(allocation, dim); \
+\
+    if (host_mem) { \
+        allocation->copyFromUnchecked(host_mem, sizeof(T)*width*height); \
+    } \
+\
+    return allocation; \
+} \
+\
+/* Allocate memory in GPU constant memory space */ \
+sp<Allocation> hipaccCreateAllocationConstant(T *host_mem, \
+                                              int width, int height) { \
+    HipaccContext &Ctx = HipaccContext::getInstance(); \
+    RenderScript* rs = Ctx.get_context(); \
+\
+    Type::Builder type(rs, E); \
+    type.setX(width); \
+    type.setY(height); \
+\
+    sp<Allocation> allocation = \
+        Allocation::createTyped(rs, type.create(), \
+                                RS_ALLOCATION_USAGE_GRAPHICS_CONSTANTS); \
+    HipaccContext::rs_dims dim = { width, height, width, 0, sizeof(T) }; \
+    Ctx.add_memory(allocation, dim); \
+\
+    if (host_mem) { \
+        hipaccWriteAllocation(allocation, host_mem); \
+    } \
+\
+    return allocation; \
+}
+
+
+CREATE_ALLOCATION(uint8_t,  Element::U8(rs))
+CREATE_ALLOCATION(uint16_t, Element::U16(rs))
+CREATE_ALLOCATION(uint32_t, Element::U32(rs))
+CREATE_ALLOCATION(uint64_t, Element::U64(rs))
+
+CREATE_ALLOCATION(int8_t,   Element::I8(rs))
+CREATE_ALLOCATION(int16_t,  Element::I16(rs))
+CREATE_ALLOCATION(int32_t,  Element::I32(rs))
+CREATE_ALLOCATION(int64_t,  Element::I64(rs))
+
+CREATE_ALLOCATION(bool,     Element::BOOLEAN(rs))
+CREATE_ALLOCATION(char,     Element::U8(rs))
+CREATE_ALLOCATION(float,    Element::F32(rs))
+CREATE_ALLOCATION(double,   Element::F64(rs))
+
+
+// Destroy allocation
+//void hipaccDestroyAllocation(sp<Allocation> mem) {
+    // TODO: Clarify proper removal of allocations
+//}
 
 
 // Copy between allocations
