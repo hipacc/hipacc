@@ -626,7 +626,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         case TARGET_Renderscript:
           resultStr += "hipaccSetScriptArg(&" + kernelName + ", ";
           resultStr += "&ScriptC_" + kernelName;
-          if (Acc || i==0) {
+          if (Acc || Mask || i==0) {
             resultStr += "::bind_";
           } else {
             resultStr += "::set_";

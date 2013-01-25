@@ -2213,15 +2213,14 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             break;
           case TARGET_CUDA:
             *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
-              << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
-              << "][" << Mask->getSizeXStr() << "];\n\n";
+                << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
+                << "][" << Mask->getSizeXStr() << "];\n\n";
             Mask->setIsPrinted(true);
             break;
           case TARGET_C:
           case TARGET_Renderscript:
-            *OS << "const " << Mask->getTypeStr() << " "
-              << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
-              << "][" << Mask->getSizeXStr() << "];\n\n";
+            *OS << "const " << Mask->getTypeStr() << " *"
+                << K->getDeviceArgNames()[i] << ";\n\n";
             Mask->setIsPrinted(true);
             break;
         }
