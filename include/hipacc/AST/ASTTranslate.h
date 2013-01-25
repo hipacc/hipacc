@@ -90,8 +90,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     int convIdxX, convIdxY;
     Expr *convExprX, *convExprY;
 
-    Expr *bh_start_left, *bh_start_right, *bh_start_top, *bh_start_bottom,
-         *bh_fall_back;
+    DeclRefExpr *bh_start_left, *bh_start_right, *bh_start_top,
+                *bh_start_bottom, *bh_fall_back;
     DeclRefExpr *outputImage;
     Expr *gidXRef, *gidYRef;
     Expr *lidXRef, *lidYRef;
@@ -169,6 +169,26 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     DeclRefExpr *getOffsetYDecl(HipaccAccessor *Acc) {
       KernelClass->setUsed(Acc->getOffsetYDecl()->getNameInfo().getAsString());
       return Acc->getOffsetYDecl();
+    }
+    DeclRefExpr *getBHStartLeft() {
+      KernelClass->setUsed(bh_start_left->getNameInfo().getAsString());
+      return bh_start_left;
+    }
+    DeclRefExpr *getBHStartRight() {
+      KernelClass->setUsed(bh_start_right->getNameInfo().getAsString());
+      return bh_start_right;
+    }
+    DeclRefExpr *getBHStartTop() {
+      KernelClass->setUsed(bh_start_top->getNameInfo().getAsString());
+      return bh_start_top;
+    }
+    DeclRefExpr *getBHStartBottom() {
+      KernelClass->setUsed(bh_start_bottom->getNameInfo().getAsString());
+      return bh_start_bottom;
+    }
+    DeclRefExpr *getBHFallBack() {
+      KernelClass->setUsed(bh_fall_back->getNameInfo().getAsString());
+      return bh_fall_back;
     }
 
     // KernelDeclMap - this keeps track of the cloned Decls which are used in

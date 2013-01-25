@@ -692,7 +692,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // fall back: in case the image is too small, use code variant with
         // boundary handling for all borders
         LD = createLabelDecl(Ctx, kernelDecl, "BH_FB");
-        if_goto = bh_fall_back;
+        if_goto = getBHFallBack();
         break;
       case 1:
         // check if we have only a row or column filter
@@ -703,10 +703,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // OpenCL:  if (get_group_id(0) < bh_start_left &&
         //              get_group_id(1) < bh_start_top) goto BO_TL;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_TL");
-        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x, bh_start_left,
-            BO_LT, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x,
+            getBHStartLeft(), BO_LT, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              tileVars.block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
+              tileVars.block_id_y, getBHStartTop(), BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 2:
@@ -718,10 +718,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // OpenCL:  if (get_group_id(0) >= bh_start_right &&
         //              get_group_id(1) < bh_start_top) goto BO_TR;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_TR");
-        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x, bh_start_right,
-            BO_GE, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x,
+            getBHStartRight(), BO_GE, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              tileVars.block_id_y, bh_start_top, BO_LT, Ctx.BoolTy), BO_LAnd,
+              tileVars.block_id_y, getBHStartTop(), BO_LT, Ctx.BoolTy), BO_LAnd,
             Ctx.BoolTy);
         break;
       case 3:
@@ -731,8 +731,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // CUDA:    if (blockIdx.y < bh_start_top) goto BO_T;
         // OpenCL:  if (get_group_id(1) < bh_start_top) goto BO_T;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_T");
-        if_goto = createBinaryOperator(Ctx, tileVars.block_id_y, bh_start_top,
-            BO_LT, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
+            getBHStartTop(), BO_LT, Ctx.BoolTy);
         break;
       case 4:
         // check if we have only a row or column filter
@@ -744,10 +744,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         //              get_group_id(0) < bh_start_left) goto BO_BL;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_BL");
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
-            bh_start_bottom, BO_GE, Ctx.BoolTy);
+            getBHStartBottom(), BO_GE, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              tileVars.block_id_x, bh_start_left, BO_LT, Ctx.BoolTy), BO_LAnd,
-            Ctx.BoolTy);
+              tileVars.block_id_x, getBHStartLeft(), BO_LT, Ctx.BoolTy),
+            BO_LAnd, Ctx.BoolTy);
         break;
       case 5:
         // check if we have only a row or column filter
@@ -759,10 +759,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         //              get_group_id(0) >= bh_start_right) goto BO_BL;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_BR");
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
-            bh_start_bottom, BO_GE, Ctx.BoolTy);
+            getBHStartBottom(), BO_GE, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
-              tileVars.block_id_x, bh_start_right, BO_GE, Ctx.BoolTy), BO_LAnd,
-            Ctx.BoolTy);
+              tileVars.block_id_x, getBHStartRight(), BO_GE, Ctx.BoolTy),
+            BO_LAnd, Ctx.BoolTy);
         break;
       case 6:
         // this is not required for row filter, but for kernels where the
@@ -774,7 +774,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // OpenCL:  if (get_group_id(1) >= bh_start_bottom) goto BO_B;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_B");
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
-            bh_start_bottom, BO_GE, Ctx.BoolTy);
+            getBHStartBottom(), BO_GE, Ctx.BoolTy);
         break;
       case 7:
         // this is not required for column filters, but for kernels where the
@@ -783,8 +783,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // CUDA:    if (blockIdx.x >= bh_start_right) goto BO_R;
         // OpenCL:  if (get_group_id(0) >= bh_start_right) goto BO_R;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_R");
-        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x, bh_start_right,
-            BO_GE, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x,
+            getBHStartRight(), BO_GE, Ctx.BoolTy);
         break;
       case 8:
         // check if we have only a column filter
@@ -793,8 +793,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         // CUDA:    if (blockIdx.x < bh_start_left) goto BO_L;
         // OpenCL:  if (get_group_id(0) < bh_start_left) goto BO_L;
         LD = createLabelDecl(Ctx, kernelDecl, "BH_L");
-        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x, bh_start_left,
-            BO_LT, Ctx.BoolTy);
+        if_goto = createBinaryOperator(Ctx, tileVars.block_id_x,
+            getBHStartLeft(), BO_LT, Ctx.BoolTy);
         break;
       case 9:
         LD = createLabelDecl(Ctx, kernelDecl, "BH_NO");
