@@ -597,7 +597,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       resultStr += indent;
     } else {
       // set kernel arguments
-      if (!KC->getUsed(K->getDeviceArgNames()[i])) continue;
+      if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
 
       switch (options.getTargetCode()) {
         default:

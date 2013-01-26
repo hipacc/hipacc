@@ -1295,28 +1295,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           K->setFileName(filename);
 
 
-          // set kernel configuration
-          setKernelConfiguration(KC, K, kernelName);
-
-
-          // kernel declaration
-          FunctionDecl *kernelDecl = createFunctionDecl(Context,
-              Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
-              K->getNumArgs(), K->getArgTypes(Context,
-                compilerOptions.getTargetCode()), K->getDeviceArgNames());
-
-          // write CUDA/OpenCL kernel function to file clone old body,
-          // replacing member variables
-          ASTTranslate *Hipacc = new ASTTranslate(Context, kernelDecl, K, KC,
-              builtins, compilerOptions);
-          Stmt *kernelStmts = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
-          kernelDecl->setBody(kernelStmts);
-          K->printStats();
-
-          // write kernel to file
-          printKernelFunction(kernelDecl, KC, K, filename, true);
-
-
           #ifdef USE_POLLY
           if (!compilerOptions.exploreConfig()) {
             TargetCode tc = compilerOptions.getTargetCode();
@@ -1343,6 +1321,28 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             compilerOptions.setTargetCode(tc);
           }
           #endif
+
+
+          // set kernel configuration
+          setKernelConfiguration(KC, K, kernelName);
+
+
+          // kernel declaration
+          FunctionDecl *kernelDecl = createFunctionDecl(Context,
+              Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
+              K->getNumArgs(), K->getArgTypes(Context,
+                compilerOptions.getTargetCode()), K->getDeviceArgNames());
+
+          // write CUDA/OpenCL kernel function to file clone old body,
+          // replacing member variables
+          ASTTranslate *Hipacc = new ASTTranslate(Context, kernelDecl, K, KC,
+              builtins, compilerOptions);
+          Stmt *kernelStmts = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+          kernelDecl->setBody(kernelStmts);
+          K->printStats();
+
+          // write kernel to file
+          printKernelFunction(kernelDecl, KC, K, filename, true);
 
           break;
         }
@@ -2039,7 +2039,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     FieldDecl *FD = KC->getImgFields().data()[i];
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
 
-    if (!KC->getUsed(Acc->getName())) continue;
+    if (!K->getUsed(Acc->getName())) continue;
     
     if (Acc->getInterpolation()!=InterpolateNO) {
       if (!inc) {
@@ -2097,7 +2097,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   // declarations of textures, surfaces, variables, etc.
   for (unsigned int i=0; i<K->getNumArgs(); i++) {
-    if (!KC->getUsed(K->getDeviceArgNames()[i])) continue;
+    if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
 
     FieldDecl *FD = K->getDeviceArgFields()[i];
 
@@ -2277,7 +2277,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     std::string Name = D->getParamDecl(i)->getNameAsString();
     FieldDecl *FD = K->getDeviceArgFields()[i];
 
-    if (!KC->getUsed(Name)) continue;
+    if (!K->getUsed(Name)) continue;
 
     // check if we have a Mask
     HipaccMask *Mask = K->getMaskFromMapping(FD);

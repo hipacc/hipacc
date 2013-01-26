@@ -421,7 +421,6 @@ class HipaccKernelClass {
     SmallVector<argumentInfo, 16> arguments;
     SmallVector<FieldDecl *, 16> imgFields;
     SmallVector<FieldDecl *, 16> maskFields;
-    std::set<std::string> usedVars;
 
   public:
     HipaccKernelClass(std::string name) :
@@ -456,12 +455,6 @@ class HipaccKernelClass {
     }
     KernelType getKernelType() {
       return kernelStatistics->getKernelType();
-    }
-
-    void setUsed(std::string name) { usedVars.insert(name); }
-    bool getUsed(std::string name) {
-      if (usedVars.find(name) != usedVars.end()) return true;
-      else return false;
     }
 
     void addArg(FieldDecl *FD, QualType QT, StringRef Name) {
@@ -625,6 +618,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     SmallVector<std::string, 16> hostArgNames;
     SmallVector<std::string, 16> deviceArgNames;
     SmallVector<FieldDecl *, 16> deviceArgFields;
+    std::set<std::string> usedVars;
     unsigned int max_threads_for_kernel;
     unsigned int max_size_x, max_size_y;
     unsigned int max_size_x_undef, max_size_y_undef;
@@ -685,6 +679,14 @@ class HipaccKernel : public HipaccKernelFeatures {
       infoStr = name + "_info" + LSS.str();
     }
     const std::string &getInfoStr() const { return infoStr; }
+
+    // keep track of variables used within kernel
+    void setUsed(std::string name) { usedVars.insert(name); }
+    void resetUsed() { usedVars.clear(); }
+    bool getUsed(std::string name) {
+      if (usedVars.find(name) != usedVars.end()) return true;
+      else return false;
+    }
 
     void setIterationSpace(HipaccIterationSpace *IS) {
       iterationSpace = IS;

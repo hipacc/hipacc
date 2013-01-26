@@ -1551,7 +1551,7 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
       paramDecl = PVD;
 
       // mark parameter as being used within the kernel
-      KernelClass->setUsed(VD->getName());
+      Kernel->setUsed(VD->getName());
 
       // get vector declaration
       if (Kernel->vectorize() && !compilerOptions.emitC()) {
@@ -1954,7 +1954,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       assert(E->getNumArgs()==0 && "no arguments for output() method supported!");
 
       // mark output image as being used within the kernel
-      KernelClass->setUsed("Output");
+      Kernel->setUsed("Output");
 
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
@@ -2030,7 +2030,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), Acc);
 
     // mark output image as being used within the kernel
-    KernelClass->setUsed("Output");
+    Kernel->setUsed("Output");
 
     switch (compilerOptions.getTargetCode()) {
       case TARGET_C:

@@ -151,43 +151,43 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
     // wrappers to mark variables as being used
     DeclRefExpr *getWidthDecl(HipaccAccessor *Acc) {
-      KernelClass->setUsed(Acc->getWidthDecl()->getNameInfo().getAsString());
+      Kernel->setUsed(Acc->getWidthDecl()->getNameInfo().getAsString());
       return Acc->getWidthDecl();
     }
     DeclRefExpr *getHeightDecl(HipaccAccessor *Acc) {
-      KernelClass->setUsed(Acc->getHeightDecl()->getNameInfo().getAsString());
+      Kernel->setUsed(Acc->getHeightDecl()->getNameInfo().getAsString());
       return Acc->getHeightDecl();
     }
     DeclRefExpr *getStrideDecl(HipaccAccessor *Acc) {
-      KernelClass->setUsed(Acc->getStrideDecl()->getNameInfo().getAsString());
+      Kernel->setUsed(Acc->getStrideDecl()->getNameInfo().getAsString());
       return Acc->getStrideDecl();
     }
     DeclRefExpr *getOffsetXDecl(HipaccAccessor *Acc) {
-      KernelClass->setUsed(Acc->getOffsetXDecl()->getNameInfo().getAsString());
+      Kernel->setUsed(Acc->getOffsetXDecl()->getNameInfo().getAsString());
       return Acc->getOffsetXDecl();
     }
     DeclRefExpr *getOffsetYDecl(HipaccAccessor *Acc) {
-      KernelClass->setUsed(Acc->getOffsetYDecl()->getNameInfo().getAsString());
+      Kernel->setUsed(Acc->getOffsetYDecl()->getNameInfo().getAsString());
       return Acc->getOffsetYDecl();
     }
     DeclRefExpr *getBHStartLeft() {
-      KernelClass->setUsed(bh_start_left->getNameInfo().getAsString());
+      Kernel->setUsed(bh_start_left->getNameInfo().getAsString());
       return bh_start_left;
     }
     DeclRefExpr *getBHStartRight() {
-      KernelClass->setUsed(bh_start_right->getNameInfo().getAsString());
+      Kernel->setUsed(bh_start_right->getNameInfo().getAsString());
       return bh_start_right;
     }
     DeclRefExpr *getBHStartTop() {
-      KernelClass->setUsed(bh_start_top->getNameInfo().getAsString());
+      Kernel->setUsed(bh_start_top->getNameInfo().getAsString());
       return bh_start_top;
     }
     DeclRefExpr *getBHStartBottom() {
-      KernelClass->setUsed(bh_start_bottom->getNameInfo().getAsString());
+      Kernel->setUsed(bh_start_bottom->getNameInfo().getAsString());
       return bh_start_bottom;
     }
     DeclRefExpr *getBHFallBack() {
-      KernelClass->setUsed(bh_fall_back->getNameInfo().getAsString());
+      Kernel->setUsed(bh_fall_back->getNameInfo().getAsString());
       return bh_fall_back;
     }
 
@@ -305,6 +305,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
               kernelDecl->getNameAsString() + "Sampler",
               Ctx.getTypeDeclType(samplerTy), NULL));
         builtins.InitializeBuiltins();
+        Kernel->resetUsed();
         // debug
         //dump_available_statement_visitors();
         // debug
