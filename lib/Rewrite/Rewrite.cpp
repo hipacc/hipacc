@@ -1812,10 +1812,21 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   Policy.ConstantArraySizeAsWritten = false;
   Policy.AnonymousTagLocations = true;
   Policy.PolishForDeclaration = false;
-  if (compilerOptions.emitCUDA()) {
-    Policy.LangOpts.CUDA = 1;
-  } else {
-    Policy.LangOpts.OpenCL = 1;
+
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+      break;
+    case TARGET_CUDA:
+      Policy.LangOpts.CUDA = 1;
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      Policy.LangOpts.OpenCL = 1;
+      break;
+    case TARGET_Renderscript:
+      break;
+    default:
+      break;
   }
 
   int fd;
