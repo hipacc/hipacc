@@ -259,6 +259,10 @@ class HipaccAccessor {
     DeclRefExpr *getScaleYDecl() { return scaleYDecl; }
     DeclRefExpr *getOffsetXDecl() { return offsetXDecl; }
     DeclRefExpr *getOffsetYDecl() { return offsetYDecl; }
+    void resetDecls() {
+      widthDecl = heightDecl = strideDecl = NULL;
+      scaleXDecl = scaleYDecl = offsetXDecl = offsetYDecl = NULL;
+    }
     bool isCrop() { return crop; }
     BoundaryMode getBoundaryHandling() {
       return bc->getBoundaryHandling();
@@ -682,7 +686,13 @@ class HipaccKernel : public HipaccKernelFeatures {
 
     // keep track of variables used within kernel
     void setUsed(std::string name) { usedVars.insert(name); }
-    void resetUsed() { usedVars.clear(); }
+    void resetUsed() {
+      usedVars.clear();
+      for (std::map<FieldDecl *, HipaccAccessor *>::iterator iter =
+          imgMap.begin(), eiter=imgMap.end(); iter!=eiter; ++iter) {
+        iter->second->resetDecls();
+      }
+    }
     bool getUsed(std::string name) {
       if (usedVars.find(name) != usedVars.end()) return true;
       else return false;

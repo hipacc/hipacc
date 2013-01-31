@@ -582,23 +582,36 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       continue;
     }
 
+    // skip unused variables
+    if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
+
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument
       resultStr += "_args" + kernelName + ".push_back(";
-      if (options.emitCUDA()) {
-        if (options.exploreConfig()) {
-          resultStr += "(void *)&" + hostArgNames[i] + ");\n";
-        } else {
-          resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)&" + hostArgNames[i] + "));\n";
-        }
-      } else {
-        resultStr += "std::make_pair(sizeof(" + argTypeNames[i] + "), (void *)" + hostArgNames[i] + "));\n";
+      switch (options.getTargetCode()) {
+        default:
+        case TARGET_C:
+          break;
+        case TARGET_CUDA:
+          if (options.exploreConfig()) {
+            resultStr += "(void *)&" + hostArgNames[i] + ");\n";
+          } else {
+            resultStr += "std::make_pair(sizeof(" + argTypeNames[i];
+            resultStr += "), (void *)&" + hostArgNames[i] + "));\n";
+          }
+          resultStr += indent;
+          break;
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          resultStr += "std::make_pair(sizeof(" + argTypeNames[i];
+          resultStr += "), (void *)" + hostArgNames[i] + "));\n";
+          resultStr += indent;
+          break;
+        case TARGET_Renderscript:
+          break;
       }
-      resultStr += indent;
     } else {
       // set kernel arguments
-      if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
-
       switch (options.getTargetCode()) {
         default:
         case TARGET_C:
