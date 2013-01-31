@@ -90,7 +90,7 @@ class HipaccDeviceOptions {
           local_memory_threshold = 9999;
           pixels_per_thread[PointOperator] = 8;
           if (options.emitCUDA()) {
-            pixels_per_thread[LocalOperator] = 8;
+            pixels_per_thread[LocalOperator] = 4;
           } else {
             pixels_per_thread[LocalOperator] = 1;
           }
