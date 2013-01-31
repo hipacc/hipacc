@@ -162,7 +162,7 @@ class CompilerOptions {
     int getKernelConfigX() { return kernel_config_x; }
     int getKernelConfigY() { return kernel_config_y; }
 
-    bool emitPadding(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
+    bool emitPadding(CompilerOption option=(CompilerOption)(AUTO|ON|USER_ON)) {
       if (align_memory & option) return true;
       return false;
     }
