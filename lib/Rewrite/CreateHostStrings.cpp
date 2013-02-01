@@ -608,10 +608,10 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
         resultStr += "\"cu" + GR->getFileName() + "1D\", ";
       } else {
         resultStr += "hipaccApplyReduction<" + GR->getType() + ">(";
-        resultStr += "\"cu" + GR->getFileName() + "2D\", ";
         resultStr += "(const void *)&cu" + GR->getFileName() + "2D, ";
-        resultStr += "\"cu" + GR->getFileName() + "1D\", ";
+        resultStr += "\"cu" + GR->getFileName() + "2D\", ";
         resultStr += "(const void *)&cu" + GR->getFileName() + "1D, ";
+        resultStr += "\"cu" + GR->getFileName() + "1D\", ";
       }
     }
   } else {
