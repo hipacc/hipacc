@@ -2328,7 +2328,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       // TODO: debug for Renderscript only
       if (compilerOptions.emitRenderscript()) {
         *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
-            << " *" << Name << ", uint32_t x, uint32_t y";
+            << " *_IS, uint32_t x, uint32_t y";
         break;
       }
       // TODO: debug for Renderscript only

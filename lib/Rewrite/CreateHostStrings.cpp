@@ -365,31 +365,49 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     resultStr += indent;
   }
 
-  if (options.getTargetCode() != TARGET_Renderscript) {
-    // hipacc_launch_info
-    resultStr += "hipacc_launch_info " + infoStr + "(";
-    resultStr += maxSizeXStr.str() + ", ";
-    resultStr += maxSizeYStr.str() + ", ";
-    resultStr += K->getIterationSpace()->getWidth() + ", ";
-    resultStr += K->getIterationSpace()->getHeight() + ", ";
-    if (K->getIterationSpace()->getOffsetX().empty()) {
-      resultStr += "0, ";
-    } else {
-      resultStr += K->getIterationSpace()->getOffsetX() + ", ";
-    }
-    if (K->getIterationSpace()->getOffsetY().empty()) {
-      resultStr += "0, ";
-    } else {
-      resultStr += K->getIterationSpace()->getOffsetY() + ", ";
-    }
-    resultStr += PPTSS.str() + ", ";
-    if (K->vectorize()) {
-      // TODO set and calculate per kernel simd width ...
-      resultStr += "4);\n";
-    } else {
-      resultStr += "1);\n";
-    }
-    resultStr += indent;
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_CUDA:
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      // hipacc_launch_info
+      resultStr += "hipacc_launch_info " + infoStr + "(";
+      resultStr += maxSizeXStr.str() + ", ";
+      resultStr += maxSizeYStr.str() + ", ";
+      resultStr += K->getIterationSpace()->getWidth() + ", ";
+      resultStr += K->getIterationSpace()->getHeight() + ", ";
+      if (K->getIterationSpace()->getOffsetX().empty()) {
+        resultStr += "0, ";
+      } else {
+        resultStr += K->getIterationSpace()->getOffsetX() + ", ";
+      }
+      if (K->getIterationSpace()->getOffsetY().empty()) {
+        resultStr += "0, ";
+      } else {
+        resultStr += K->getIterationSpace()->getOffsetY() + ", ";
+      }
+      resultStr += PPTSS.str() + ", ";
+      if (K->vectorize()) {
+        // TODO set and calculate per kernel simd width ...
+        resultStr += "4);\n";
+      } else {
+        resultStr += "1);\n";
+      }
+      resultStr += indent;
+      break;
+    case TARGET_Renderscript: {
+        HipaccIterationSpace* IS = K->getIterationSpace();
+        resultStr += "int _ISstride;\n";
+        resultStr += indent;
+        resultStr += "sp<Allocation> _IS = hipaccCreateAllocation(";
+        resultStr += "(" + IS->getImage()->getPixelType() + "*)NULL";
+        resultStr += ", (int)" + IS->getWidth() + "+" + IS->getOffsetX();
+        resultStr += ", (int)" + IS->getHeight();
+        resultStr += ", &_ISstride);\n";
+        resultStr += indent;
+      }
+      break;
   }
 
   if (!options.exploreConfig()) {
@@ -719,7 +737,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_Renderscript:
         resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
         resultStr += "&ScriptC_" + kernelName + "::forEach_rs" + kernelName;
-        resultStr += ", OUT);";
+        resultStr += ", _IS);";
         break;
       case TARGET_OpenCL:
       case TARGET_OpenCLx86:
