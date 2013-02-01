@@ -622,7 +622,7 @@ void hipaccWriteSymbol(const void *symbol, const char *symbol_name, T *host_mem,
 
 // Read from symbol
 template<typename T>
-void hipaccReadSymbol(T *host_mem, const void *symbol, const void *symbol_name, int width, int height) {
+void hipaccReadSymbol(T *host_mem, const void *symbol, const char *symbol_name, int width, int height) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
