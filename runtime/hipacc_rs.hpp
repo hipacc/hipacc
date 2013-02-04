@@ -435,9 +435,12 @@ void hipaccLaunchScriptKernel(
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
+    RenderScript* rs = Ctx.get_context();
 
+    rs->finish();
     start = getNanoTime();
     (script->*kernel)(out);
+    rs->finish();
     end = getNanoTime();
 
     if (print_timing) {
@@ -458,9 +461,12 @@ void hipaccLaunchScriptKernel(
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
+    RenderScript* rs = Ctx.get_context();
 
+    rs->finish();
     start = getNanoTime();
     (script->*kernel)(in, out);
+    rs->finish();
     end = getNanoTime();
 
     if (print_timing) {
