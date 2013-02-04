@@ -7,7 +7,7 @@ COMPILER_INCLUDES   ?= @PLATFORM_FIXES@ -std=c++11 -stdlib=libc++ \
                         -I/usr/include \
                         -I@DSL_INCLUDES@
 TEST_CASE           ?= ./tests/opencv_blur_8uc1
-MYFLAGS             ?= -D WIDTH=4096 -D HEIGHT=4096 -D SIZE_X=3 -D SIZE_Y=3
+MYFLAGS             ?= -DWIDTH=4096 -DHEIGHT=4096 -DSIZE_X=3 -DSIZE_Y=3
 C_C                 ?= 13#69
 NVCC_FLAGS          := -gencode=arch=compute_$(C_C),code=\"sm_$(C_C),compute_$(C_C)\" -ftz=true -prec-sqrt=false -prec-div=false -Xptxas -v #-keep 
 
@@ -90,8 +90,13 @@ opencl_x86:
 
 renderscript:
 	@echo 'Executing HIPAcc Compiler for Renderscript:'
-	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o -
-	cat *.rs
+	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o main.cc
+	mkdir -p build_renderscript
+	@echo 'Generating build system current test case:'
+	cd build_renderscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ $(MYFLAGS)
+	@echo 'Compiling Renderscript file using llvm-rs-cc and g++:'
+	cd build_renderscript; make
+	cp build_renderscript/main_renderscript .
 
 clean:
 	-$(RM) main_cuda main_opencl #*.cu *.cubin *.cl *.isa
