@@ -59,7 +59,6 @@ enum hipaccBoundaryMode {
     BOUNDARY_CONSTANT
 };
 
-#if 0
 typedef struct hipacc_smem_info {
     hipacc_smem_info(int size_x, int size_y, int pixel_size) :
         size_x(size_x), size_y(size_y), pixel_size(pixel_size) {}
@@ -87,34 +86,37 @@ typedef struct hipacc_launch_info {
 
 
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
-    // calculate block id of a) first block that requires no border handling
-    // (left, top) and b) first block that requires border handling (right,
+    // calculate item id of a) first work item that requires no border handling
+    // (left, top) and b) first work item that requires border handling (right,
     // bottom)
     if (info.size_x > 0) {
         info.bh_start_left = (int)ceil((float)(info.offset_x + info.size_x)
-                                       / (block[0] * info.simd_width));
+                                       / (block[0] * info.simd_width))
+                                  * block[0];
         info.bh_start_right =
             (int)floor((float)(info.offset_x + info.is_width - info.size_x)
-                       / (block[0] * info.simd_width));
+                       / (block[0] * info.simd_width)) * block[0];
     } else {
         info.bh_start_left = 0;
         info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width)
-                                         / (block[0] * info.simd_width));
+                                         / (block[0] * info.simd_width))
+                                   * block[0];
     }
     if (info.size_y > 0) {
         // for shared memory calculate additional blocks to be staged - this is
         // only required if shared memory is used, otherwise, info.size_y would
-        // be sufficient
+        // be sufficient. TODO: No shared memory for RenderScript
         int p_add = (int)ceilf(2*info.size_y / (float)block[1]);
         info.bh_start_top = (int)ceil((float)(info.size_y)
                                       / (info.pixels_per_thread * block[1]));
         info.bh_start_bottom =
             (int)floor((float)(info.is_height - p_add*block[1])
-                       / (block[1] * info.pixels_per_thread));
+                       / (block[1] * info.pixels_per_thread)) * block[1];
     } else {
         info.bh_start_top = 0;
         info.bh_start_bottom = (int)floor((float)(info.is_height)
-                                         / (block[1] * info.pixels_per_thread));
+                                         / (block[1] * info.pixels_per_thread))
+                                    * block[1];
     }
 
     if ((info.bh_start_right - info.bh_start_left) > 1 &&
@@ -126,13 +128,16 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 }
 
 
-void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *grid) {
-    grid[0] = (int)ceil((float)(info.is_width + info.offset_x)
-                        / (block[0]*info.simd_width)) * block[0];
-    grid[1] = (int)ceil((float)(info.is_height)
-                        / (block[1]*info.pixels_per_thread)) * block[1];
+template<typename T>
+void hipaccCalcIterSpaceFromBlock(hipacc_launch_info &info, size_t *block,
+                           sp<Allocation> &is) {
+    int width = (int)ceil((float)(info.is_width + info.offset_x)
+                          / (block[0]*info.simd_width)) * block[0];
+    int height = (int)ceil((float)(info.is_height)
+                           / (block[1]*info.pixels_per_thread)) * block[1];
+    int stride;
+    is = hipaccCreateAllocation((T*)NULL, width, height, &stride);
 }
-#endif
 
 
 long getNanoTime() {

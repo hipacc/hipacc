@@ -338,6 +338,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       offsetStr = "offset" + LSS.str();
       break;
     case TARGET_Renderscript:
+      blockStr = "work_size" + LSS.str();
+      gridStr = "iter_space" + LSS.str();
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLx86:
@@ -365,55 +367,30 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     resultStr += indent;
   }
 
-  switch (options.getTargetCode()) {
-    default:
-    case TARGET_C:
-    case TARGET_CUDA:
-    case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
-      // hipacc_launch_info
-      resultStr += "hipacc_launch_info " + infoStr + "(";
-      resultStr += maxSizeXStr.str() + ", ";
-      resultStr += maxSizeYStr.str() + ", ";
-      resultStr += K->getIterationSpace()->getWidth() + ", ";
-      resultStr += K->getIterationSpace()->getHeight() + ", ";
-      if (K->getIterationSpace()->getOffsetX().empty()) {
-        resultStr += "0, ";
-      } else {
-        resultStr += K->getIterationSpace()->getOffsetX() + ", ";
-      }
-      if (K->getIterationSpace()->getOffsetY().empty()) {
-        resultStr += "0, ";
-      } else {
-        resultStr += K->getIterationSpace()->getOffsetY() + ", ";
-      }
-      resultStr += PPTSS.str() + ", ";
-      if (K->vectorize()) {
-        // TODO set and calculate per kernel simd width ...
-        resultStr += "4);\n";
-      } else {
-        resultStr += "1);\n";
-      }
-      resultStr += indent;
-      break;
-    case TARGET_Renderscript: {
-        HipaccIterationSpace* IS = K->getIterationSpace();
-        std::string offsetX = IS->getOffsetX();
-        if (offsetX != "") {
-            offsetX = "+" + offsetX;
-        }
-        resultStr += "int _ISstride_" + LSS.str() + ";\n";
-        resultStr += indent;
-        resultStr += "sp<Allocation> _IS_" + LSS.str();
-        resultStr += " = hipaccCreateAllocation(";
-        resultStr += "(" + IS->getImage()->getPixelType() + "*)NULL";
-        resultStr += ", (int)" + IS->getWidth() + offsetX;
-        resultStr += ", (int)" + IS->getHeight();
-        resultStr += ", &_ISstride_" + LSS.str() + ");\n";
-        resultStr += indent;
-      }
-      break;
+  // hipacc_launch_info
+  resultStr += "hipacc_launch_info " + infoStr + "(";
+  resultStr += maxSizeXStr.str() + ", ";
+  resultStr += maxSizeYStr.str() + ", ";
+  resultStr += K->getIterationSpace()->getWidth() + ", ";
+  resultStr += K->getIterationSpace()->getHeight() + ", ";
+  if (K->getIterationSpace()->getOffsetX().empty()) {
+    resultStr += "0, ";
+  } else {
+    resultStr += K->getIterationSpace()->getOffsetX() + ", ";
   }
+  if (K->getIterationSpace()->getOffsetY().empty()) {
+    resultStr += "0, ";
+  } else {
+    resultStr += K->getIterationSpace()->getOffsetY() + ", ";
+  }
+  resultStr += PPTSS.str() + ", ";
+  if (K->vectorize()) {
+    // TODO set and calculate per kernel simd width ...
+    resultStr += "4);\n";
+  } else {
+    resultStr += "1);\n";
+  }
+  resultStr += indent;
 
   if (!options.exploreConfig()) {
     switch (options.getTargetCode()) {
@@ -450,6 +427,30 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         }
         break;
       case TARGET_Renderscript:
+        // size_t work_size
+        resultStr += "size_t " + blockStr + "[2];\n";
+        resultStr += indent + blockStr + "[0] = " + cX.str() + ";\n";
+        resultStr += indent + blockStr + "[1] = " + cY.str() + ";\n";
+        resultStr += indent;
+
+        // size_t iter_space
+        resultStr += "sp<Allocation> " + gridStr + ";\n\n";
+        resultStr += indent;
+
+        // hipaccCalcIterSpaceFromBlock
+        resultStr += "hipaccCalcIterSpaceFromBlock<";
+        resultStr += K->getIterationSpace()->getImage()->getPixelType();
+        resultStr += ">(";
+        resultStr += infoStr + ", ";
+        resultStr += blockStr + ", ";
+        resultStr += gridStr + ");\n";
+        resultStr += indent;
+
+        // hipaccPrepareKernelLaunch
+        resultStr += "hipaccPrepareKernelLaunch(";
+        resultStr += infoStr + ", ";
+        resultStr += blockStr + ");\n\n";
+        resultStr += indent;
         break;
       case TARGET_OpenCL:
       case TARGET_OpenCLx86:
@@ -742,7 +743,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_Renderscript:
         resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
         resultStr += "&ScriptC_" + kernelName + "::forEach_rs" + kernelName;
-        resultStr += ", _IS_" + LSS.str() + ");";
+        resultStr += ", " + gridStr + ");";
         break;
       case TARGET_OpenCL:
       case TARGET_OpenCLx86:

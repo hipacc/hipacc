@@ -339,6 +339,12 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
 
   tileVars.global_id_x = createDeclRefExpr(Ctx, gid_x);
   tileVars.global_id_y = createDeclRefExpr(Ctx, gid_y);
+  tileVars.local_id_x = createDeclRefExpr(Ctx, gid_x);
+  tileVars.local_id_y = createDeclRefExpr(Ctx, gid_y);
+  tileVars.block_id_x = createDeclRefExpr(Ctx, gid_x);
+  tileVars.block_id_y = createDeclRefExpr(Ctx, gid_y);
+  tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace()->getAccessor());
+  tileVars.local_size_y = createIntegerLiteral(Ctx, 0);
 }
 
 
@@ -669,11 +675,6 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
     }
   }
 
-  // TODO
-  if (compilerOptions.emitRenderscript()) {
-    border_handling = false;
-  }
-  // TODO
 
   SmallVector<LabelDecl *, 16> LDS;
   LabelDecl *LDExit = createLabelDecl(Ctx, kernelDecl, "BH_EXIT");
