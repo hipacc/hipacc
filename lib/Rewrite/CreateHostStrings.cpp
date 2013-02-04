@@ -402,13 +402,14 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         if (offsetX != "") {
             offsetX = "+" + offsetX;
         }
-        resultStr += "int _ISstride;\n";
+        resultStr += "int _ISstride_" + LSS.str() + ";\n";
         resultStr += indent;
-        resultStr += "sp<Allocation> _IS = hipaccCreateAllocation(";
+        resultStr += "sp<Allocation> _IS_" + LSS.str();
+        resultStr += " = hipaccCreateAllocation(";
         resultStr += "(" + IS->getImage()->getPixelType() + "*)NULL";
         resultStr += ", (int)" + IS->getWidth() + offsetX;
         resultStr += ", (int)" + IS->getHeight();
-        resultStr += ", &_ISstride);\n";
+        resultStr += ", &_ISstride_" + LSS.str() + ");\n";
         resultStr += indent;
       }
       break;
@@ -741,7 +742,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_Renderscript:
         resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
         resultStr += "&ScriptC_" + kernelName + "::forEach_rs" + kernelName;
-        resultStr += ", _IS);";
+        resultStr += ", _IS_" + LSS.str() + ");";
         break;
       case TARGET_OpenCL:
       case TARGET_OpenCLx86:
