@@ -398,11 +398,15 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       break;
     case TARGET_Renderscript: {
         HipaccIterationSpace* IS = K->getIterationSpace();
+        std::string offsetX = IS->getOffsetX();
+        if (offsetX != "") {
+            offsetX = "+" + offsetX;
+        }
         resultStr += "int _ISstride;\n";
         resultStr += indent;
         resultStr += "sp<Allocation> _IS = hipaccCreateAllocation(";
         resultStr += "(" + IS->getImage()->getPixelType() + "*)NULL";
-        resultStr += ", (int)" + IS->getWidth() + "+" + IS->getOffsetX();
+        resultStr += ", (int)" + IS->getWidth() + offsetX;
         resultStr += ", (int)" + IS->getHeight();
         resultStr += ", &_ISstride);\n";
         resultStr += indent;
