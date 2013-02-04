@@ -1964,13 +1964,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         case TARGET_CUDA:
         case TARGET_OpenCL:
         case TARGET_OpenCLx86:
-          result = accessMem(LHS, Acc, memAcc);
-          break;
         case TARGET_Renderscript:
-          // access the current output element using *out or out[0]
-          result = accessMemArrAt(LHS, getStrideDecl(Acc), gidXRef,
-                       createBinaryOperator(Ctx, getOffsetYDecl(Acc), gidYRef,
-                                            BO_Add, Ctx.IntTy));
+          result = accessMem(LHS, Acc, memAcc);
           break;
       }
 
