@@ -14,7 +14,7 @@ rs_definitions (-DSIZE_X=${SIZE_X}
 
 rs_wrap_scripts (PROJECT_CPP ${PROJECT_RS})
 
-rs_include_directories (/scratch-local/usr/include)
+rs_include_directories (@CMAKE_INSTALL_PREFIX@/include)
 
 rs_link_libraries (${PROJECT_NAME} stdc++)
 
