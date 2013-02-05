@@ -1,6 +1,5 @@
 //
 // Copyright (c) 2013, University of Erlangen-Nuremberg
-// Copyright (c) 2013, Siemens AG
 // All rights reserved.
 // 
 // Redistribution and use in source and binary forms, with or without
