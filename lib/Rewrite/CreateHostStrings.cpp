@@ -743,7 +743,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_Renderscript:
         resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
         resultStr += "&ScriptC_" + kernelName + "::forEach_rs" + kernelName;
-        resultStr += ", " + gridStr + ");";
+        resultStr += ", " + gridStr + ", " + blockStr + ");";
         break;
       case TARGET_OpenCL:
       case TARGET_OpenCLx86:

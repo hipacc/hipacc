@@ -435,7 +435,7 @@ template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
     void(F::*kernel)(sp<const Allocation>) const,
-    sp<Allocation>& out, bool print_timing=true
+    sp<Allocation>& out, size_t *work_size, bool print_timing=true
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
@@ -448,7 +448,8 @@ void hipaccLaunchScriptKernel(
     end = getNanoTime();
 
     if (print_timing) {
-        std::cerr << "<HIPACC:> Kernel timing: "
+        std::cerr << "<HIPACC:> Kernel timing (" << work_size[0] * work_size[1]
+                  << ": " << work_size[0] << "x" << work_size[1] << "): "
                   << (end - start) * 1.0e-6f << "(ms)" << std::endl;
     }
     total_time += (end - start) * 1.0e-6f;
@@ -461,7 +462,8 @@ template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
     void(F::*kernel)(sp<const Allocation>, sp<const Allocation>) const,
-    sp<Allocation>& in, sp<Allocation>& out, bool print_timing=true
+    sp<Allocation>& in, sp<Allocation>& out, size_t *work_size,
+    bool print_timing=true
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
@@ -474,7 +476,8 @@ void hipaccLaunchScriptKernel(
     end = getNanoTime();
 
     if (print_timing) {
-        std::cerr << "<HIPACC:> Kernel timing: "
+        std::cerr << "<HIPACC:> Kernel timing (" << work_size[0] * work_size[1]
+                  << ": " << work_size[0] << "x" << work_size[1] << "): "
                   << (end - start) * 1.0e-6f << "(ms)" << std::endl;
     }
     total_time += (end - start) * 1.0e-6f;
