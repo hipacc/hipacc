@@ -352,16 +352,26 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   if (options.exploreConfig() || options.timeKernels()) {
     inc_indent();
     resultStr += "{\n";
-    if (options.emitCUDA()) {
-      if (options.exploreConfig()) {
-        resultStr += indent + "std::vector<void *> _args" + kernelName + ";\n";
-      } else {
+    switch (options.getTargetCode()) {
+      default:
+      case TARGET_C:
+        break;
+      case TARGET_CUDA:
+        if (options.exploreConfig()) {
+          resultStr += indent + "std::vector<void *> _args" + kernelName + ";\n";
+        } else {
+          resultStr += indent + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
+        }
+        resultStr += indent + "std::vector<hipacc_const_info> _consts" + kernelName + ";\n";
+        resultStr += indent + "std::vector<hipacc_tex_info> _texs" + kernelName + ";\n";
+        break;
+      case TARGET_OpenCL:
+      case TARGET_OpenCLx86:
         resultStr += indent + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
-      }
-      resultStr += indent + "std::vector<hipacc_const_info> _consts" + kernelName + ";\n";
-      resultStr += indent + "std::vector<hipacc_tex_info> _texs" + kernelName + ";\n";
-    } else {
-      resultStr += indent + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
+        break;
+      case TARGET_Renderscript:
+        resultStr += indent + "std::vector<hipacc_script_arg<ScriptC_" + kernelName + "> >";
+        resultStr += " _args" + kernelName + ";\n";
     }
     resultStr += indent + "std::vector<hipacc_smem_info> _smems" + kernelName + ";\n";
     resultStr += indent;
@@ -632,6 +642,16 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += indent;
           break;
         case TARGET_Renderscript:
+          resultStr += "hipacc_script_arg<ScriptC_" + kernelName + ">(";
+          resultStr += "&ScriptC_" + kernelName;
+          if (Acc || Mask || i==0) {
+            resultStr += "::bind_";
+          } else {
+            resultStr += "::set_";
+          }
+          resultStr += deviceArgNames[i];
+          resultStr += ", " + hostArgNames[i] + "));\n";
+          resultStr += indent;
           break;
       }
     } else {
@@ -688,22 +708,39 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     warp_size << K->getWarpSize();
     max_shared_memory_per_block << K->getMaxTotalSharedMemory();
 
-    if (options.emitCUDA()) {
-      if (options.timeKernels()) {
-        resultStr += "hipaccLaunchKernelBenchmark((const void *)&cu";
-        resultStr += kernelName + ", \"cu";
-        resultStr += kernelName + "\"";
-      } else {
-        resultStr += "hipaccKernelExploration(\"" + kernelName + ".cu\", \"cu" + kernelName + "\"";
-      }
-    } else {
-      if (options.timeKernels()) {
-        resultStr += "hipaccEnqueueKernelBenchmark(" + kernelName;
-      } else {
-        resultStr += "hipaccKernelExploration(\"" + kernelName + ".cl\", \"cl" + kernelName + "\"";
-      }
+    switch (options.getTargetCode()) {
+      default:
+      case TARGET_C:
+        break;
+      case TARGET_CUDA:
+        if (options.timeKernels()) {
+          resultStr += "hipaccLaunchKernelBenchmark((const void *)&cu";
+          resultStr += kernelName + ", \"cu";
+          resultStr += kernelName + "\"";
+        } else {
+          resultStr += "hipaccKernelExploration(\"" + kernelName + ".cu\", \"cu" + kernelName + "\"";
+        }
+        break;
+      case TARGET_Renderscript:
+        if (options.timeKernels()) {
+          resultStr += "hipaccLaunchScriptKernelBenchmark(&" + kernelName;
+        } else {
+          // TODO
+        }
+        break;
+      case TARGET_OpenCL:
+      case TARGET_OpenCLx86:
+        if (options.timeKernels()) {
+          resultStr += "hipaccEnqueueKernelBenchmark(" + kernelName;
+        } else {
+          resultStr += "hipaccKernelExploration(\"" + kernelName + ".cl\", \"cl" + kernelName + "\"";
+        }
+        break;
     }
     resultStr += ", _args" + kernelName;
+    if (options.emitRenderscript()) {
+        resultStr += ", &ScriptC_" + kernelName + "::forEach_rs" + kernelName;
+    }
     // additional parameters for exploration
     if (options.exploreConfig()) {
       resultStr += ", _smems" + kernelName;
