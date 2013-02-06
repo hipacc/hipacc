@@ -726,7 +726,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         if (options.timeKernels()) {
           resultStr += "hipaccLaunchScriptKernelBenchmark(&" + kernelName;
         } else {
-          // TODO
+          resultStr += "ScriptC_" + kernelName + " " + kernelName + " = ";
+          resultStr += "hipaccInitScript<ScriptC_" + kernelName + ">();\n";
+          resultStr += indent + "hipaccLaunchScriptKernelExploration<";
+          resultStr += "ScriptC_" + kernelName + ", ";
+          resultStr += K->getIterationSpace()->getImage()->getPixelType();
+          resultStr += ">(&" + kernelName;
         }
         break;
       case TARGET_OpenCL:
@@ -744,22 +749,26 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     }
     // additional parameters for exploration
     if (options.exploreConfig()) {
-      resultStr += ", _smems" + kernelName;
-      if (options.emitCUDA()) {
-        resultStr += ", _consts" + kernelName;
-        resultStr += ", _texs" + kernelName;
-      }
-      resultStr += ", " + infoStr;
-      resultStr += ", " + warp_size.str();
-      resultStr += ", " + max_threads_per_block.str();
-      resultStr += ", " + max_threads_for_kernel.str();
-      resultStr += ", " + max_shared_memory_per_block.str();
-      resultStr += ", " + cX.str();
-      resultStr += ", " + cY.str();
-      if (options.emitCUDA()) {
-        std::stringstream cc_string;
-        cc_string << options.getTargetDevice();
-        resultStr += ", " + cc_string.str();
+      if (options.emitRenderscript()) {
+        resultStr += ", " + infoStr;
+      } else {
+        resultStr += ", _smems" + kernelName;
+        if (options.emitCUDA()) {
+          resultStr += ", _consts" + kernelName;
+          resultStr += ", _texs" + kernelName;
+        }
+        resultStr += ", " + infoStr;
+        resultStr += ", " + warp_size.str();
+        resultStr += ", " + max_threads_per_block.str();
+        resultStr += ", " + max_threads_for_kernel.str();
+        resultStr += ", " + max_shared_memory_per_block.str();
+        resultStr += ", " + cX.str();
+        resultStr += ", " + cY.str();
+        if (options.emitCUDA()) {
+          std::stringstream cc_string;
+          cc_string << options.getTargetDevice();
+          resultStr += ", " + cc_string.str();
+        }
       }
     } else {
       resultStr += ", " + gridStr;

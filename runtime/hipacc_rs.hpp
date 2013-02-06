@@ -534,6 +534,60 @@ void hipaccLaunchScriptKernelBenchmark(
 }
 
 
+// Perform configuration exploration for a kernel call
+template<typename F, typename T>
+void hipaccLaunchScriptKernelExploration(
+    F* script,
+    std::vector<hipacc_script_arg<F> > args,
+    void(F::*kernel)(sp<const Allocation>) const,
+    hipacc_launch_info info
+) {
+    std::cerr << "<HIPACC:> Exploring configurations for kernel"
+              << " '" << kernel << "':" << std::endl;
+
+    for (int warp_size = 1; warp_size <= (int)ceil((float)info.is_width/3);
+         warp_size *= 2) {
+        size_t work_size[2];
+        work_size[0] = warp_size;
+        work_size[1] = 1;
+        size_t global_work_size[2];
+
+        sp<Allocation> iter_space;
+        hipaccCalcIterSpaceFromBlock<T>(info, work_size, iter_space);
+        hipaccPrepareKernelLaunch(info, work_size);
+
+        float min_dt=FLT_MAX;
+        for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
+            for (unsigned int i=0; i<args.size(); i++) {
+                if (args.data()[i].getId() == 0) {
+                    hipaccSetScriptArg(script, args.data()[i].getInt().first,
+                                               args.data()[i].getInt().second);
+                } else {
+                    hipaccSetScriptArg(script, args.data()[i].getAlloc().first,
+                                               args.data()[i].getAlloc().second);
+                }
+            }
+
+            // start timing
+            total_time = 0.0f;
+
+            // launch kernel
+            hipaccLaunchScriptKernel(script, kernel, iter_space, work_size, false);
+
+            // stop timing
+            if (total_time < min_dt) min_dt = total_time;
+        }
+
+        // print timing
+        std::cerr.precision(5);
+        std::cerr << "<HIPACC:> Kernel config: "
+                  << work_size[0] << "x" << work_size[1]
+                  << " (" << work_size[0] * work_size[1] << "): "
+                  << min_dt << " ms" << std::endl;
+    }
+}
+
+
 unsigned int nextPow2(unsigned int x) {
     --x;
     x |= x >> 1;
