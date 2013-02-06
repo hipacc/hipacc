@@ -96,7 +96,8 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
       break;
     case TARGET_Renderscript:
       resultStr += "ScriptC_" + kernelName + " " + kernelName + suffix;
-      resultStr += " = hipaccInitScript<ScriptC_" + kernelName + ">();";
+      resultStr += " = hipaccInitScript<ScriptC_" + kernelName + ">();\n";
+      resultStr += indent;
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLx86:
