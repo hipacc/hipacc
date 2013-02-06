@@ -18,5 +18,5 @@ rs_include_directories (@CMAKE_INSTALL_PREFIX@/include)
 
 rs_link_libraries (${PROJECT_NAME} stdc++)
 
-rs_executable (${PROJECT_NAME} ${PROJECT_CPP})
+rs_add_executable (${PROJECT_NAME} ${PROJECT_CPP})
 
