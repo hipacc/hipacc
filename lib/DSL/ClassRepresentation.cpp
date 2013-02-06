@@ -2,23 +2,23 @@
 // Copyright (c) 2012, University of Erlangen-Nuremberg
 // Copyright (c) 2012, Siemens AG
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met: 
-// 
+// modification, are permitted provided that the following conditions are met:
+//
 // 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer. 
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution. 
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
 // ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 // (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -355,78 +355,82 @@ void HipaccKernel::calcConfig() {
   }
 
 
-  // start with first configuration
-  iter = occVec.begin();
-  std::pair<unsigned int, float> occMap = *iter;
-
-  if (use_shared) {
-    num_threads_x = 32;
-    num_threads_y = occMap.first / num_threads_x;
-  } else {
-    // make difference if we create border handling or not
-    if (max_size_y > 1) {
-      // start with warp_size or num_threads_x_opt if possible
-      num_threads_x = max_threads_per_warp;
-      if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0) {
-        num_threads_x = num_threads_x_opt;
-      }
-      num_threads_y = occMap.first / num_threads_x;
-    } else {
-      // use all threads for x direction
-      num_threads_x = occMap.first;
-      num_threads_y = 1;
-    }
-  }
-
-  // estimate block required for border handling - the exact number depends on
-  // offsets and is not known at compile time 
-  unsigned int num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-  unsigned int num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
-
-  if ((max_size_y > 1) || num_threads_x != num_threads_x_opt || num_threads_y != num_threads_y_opt) {
-    //std::vector<std::pair<unsigned int, float> >::iterator iter_n = occVec.begin()
-
-    // look-ahead if other configurations match better
-    while (++iter<occVec.end()) {
-      std::pair<unsigned int, float> occMapNext = *iter;
-      // bail out on lower occupancy
-      if (occMapNext.second < occMap.second) break;
-
-      // start with warp_size or num_threads_x_opt if possible
-      unsigned int num_threads_x_tmp = max_threads_per_warp;
-      if (occMapNext.first >= num_threads_x_opt && occMapNext.first % num_threads_x_opt == 0)
-        num_threads_x_tmp = num_threads_x_opt;
-      unsigned int num_threads_y_tmp = occMapNext.first / num_threads_x_tmp;
-
-      // block required for border handling
-      unsigned int num_blocks_bh_x_tmp = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x_tmp);
-      unsigned int num_blocks_bh_y_tmp = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y_tmp*getPixelsPerThread()));
-
-      // use new configuration if we save blocks for border handling
-      if (num_blocks_bh_x_tmp+num_blocks_bh_y_tmp < num_blocks_bh_x+num_blocks_bh_y) {
-        num_threads_x = num_threads_x_tmp;
-        num_threads_y = num_threads_y_tmp;
-        num_blocks_bh_x = num_blocks_bh_x_tmp;
-        num_blocks_bh_y = num_blocks_bh_y_tmp;
-      }
-    }
-  }
-
-  // fall back to user specified configuration
-  if (!use_shared && options.useKernelConfig()) {
+  // fall back to default or user specified configuration
+  unsigned int num_blocks_bh_x, num_blocks_bh_y;
+  if (occVec.empty() || options.useKernelConfig()) {
     setDefaultConfig();
     num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
     num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
+    llvm::errs() << "Using default configuration " << num_threads_x << "x"
+                 << num_threads_y << " for kernel '" << kernelName << "'\n";
+  } else {
+    // start with first configuration
+    iter = occVec.begin();
+    std::pair<unsigned int, float> occMap = *iter;
+
+    if (use_shared) {
+      num_threads_x = 32;
+      num_threads_y = occMap.first / num_threads_x;
+    } else {
+      // make difference if we create border handling or not
+      if (max_size_y > 1) {
+        // start with warp_size or num_threads_x_opt if possible
+        num_threads_x = max_threads_per_warp;
+        if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0) {
+          num_threads_x = num_threads_x_opt;
+        }
+        num_threads_y = occMap.first / num_threads_x;
+      } else {
+        // use all threads for x direction
+        num_threads_x = occMap.first;
+        num_threads_y = 1;
+      }
+    }
+
+    // estimate block required for border handling - the exact number depends on
+    // offsets and is not known at compile time
+    num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
+    num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
+
+    if ((max_size_y > 1) || num_threads_x != num_threads_x_opt || num_threads_y != num_threads_y_opt) {
+      //std::vector<std::pair<unsigned int, float> >::iterator iter_n = occVec.begin()
+
+      // look-ahead if other configurations match better
+      while (++iter<occVec.end()) {
+        std::pair<unsigned int, float> occMapNext = *iter;
+        // bail out on lower occupancy
+        if (occMapNext.second < occMap.second) break;
+
+        // start with warp_size or num_threads_x_opt if possible
+        unsigned int num_threads_x_tmp = max_threads_per_warp;
+        if (occMapNext.first >= num_threads_x_opt && occMapNext.first % num_threads_x_opt == 0)
+          num_threads_x_tmp = num_threads_x_opt;
+        unsigned int num_threads_y_tmp = occMapNext.first / num_threads_x_tmp;
+
+        // block required for border handling
+        unsigned int num_blocks_bh_x_tmp = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x_tmp);
+        unsigned int num_blocks_bh_y_tmp = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y_tmp*getPixelsPerThread()));
+
+        // use new configuration if we save blocks for border handling
+        if (num_blocks_bh_x_tmp+num_blocks_bh_y_tmp < num_blocks_bh_x+num_blocks_bh_y) {
+          num_threads_x = num_threads_x_tmp;
+          num_threads_y = num_threads_y_tmp;
+          num_blocks_bh_x = num_blocks_bh_x_tmp;
+          num_blocks_bh_y = num_blocks_bh_y_tmp;
+        }
+      }
+    }
+    llvm::errs() << "Using configuration " << num_threads_x << "x"
+                 << num_threads_y << "(occupancy: " << occMap.second
+                 << ") for kernel '" << kernelName << "'\n";
   }
 
-  llvm::errs() << "Using configuration " << num_threads_x << "x" <<
-    num_threads_y << "(occupancy: " << occMap.second << ") for kernel '" <<
-    kernelName << "'\n";
   llvm::errs() << "\t Blocks required for border handling: " <<
     num_blocks_bh_x << "x" << num_blocks_bh_y << "\n\n";
 }
 
 void HipaccKernel::setDefaultConfig() {
+  max_threads_for_kernel = max_threads_per_block;
   num_threads_x = default_num_threads_x;
   num_threads_y = default_num_threads_y;
 }
@@ -470,7 +474,7 @@ void HipaccKernel::createArgInfo() {
             Ctx.getPointerType(QT).getAsString(), "cl_mem", name, NULL);
 
         break;
-      case HipaccKernelClass::Image: 
+      case HipaccKernelClass::Image:
         // for textures use no pointer type
         if (useTextureMemory(getImgFromMapping(FD)) &&
             KC->getImgAccess(FD) == READ_ONLY) {
@@ -632,7 +636,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
         hostArgNames.push_back(iterationSpace->getImage()->getName());
 
         break;
-      case HipaccKernelClass::Image: 
+      case HipaccKernelClass::Image:
         // image
         hostArgNames.push_back(getImgFromMapping(FD)->getImage()->getName());
 
@@ -644,7 +648,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
         if (options.emitPadding() || getImgFromMapping(FD)->isCrop()) {
           hostArgNames.push_back(getImgFromMapping(FD)->getImage()->getStride());
         }
-        
+
         // offset_x
         if (!getImgFromMapping(FD)->getOffsetX().empty()) {
           hostArgNames.push_back(getImgFromMapping(FD)->getOffsetX());
