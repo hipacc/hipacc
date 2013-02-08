@@ -88,20 +88,59 @@ template<typename F>
 class hipacc_script_arg {
   private:
     int id;
-    std::pair<void(F::*)(int), int const*> arg_int;
-    std::pair<void(F::*)(sp<Allocation>), sp<Allocation>*> arg_alloc;
+    void* valptr;
+    void(F::*memptr)();
 
   public:
-    hipacc_script_arg(void(F::*setter)(int), int const* arg)
-        : id(0), arg_int(std::make_pair(setter, arg)) {}
-    hipacc_script_arg(void(F::*setter)(sp<Allocation>), sp<Allocation>* arg)
-        : id(1), arg_alloc(std::make_pair(setter, arg)) {}
-    std::pair<void(F::*)(int), int const*> getInt() { return arg_int; }
-    std::pair<void(F::*)(sp<Allocation>), sp<Allocation>*> getAlloc() {
-        return arg_alloc;
-    }
     int getId() { return id; }
+
+#define CREATE_SCRIPT_ARG(ID, T) \
+    hipacc_script_arg(void(F::*setter)(T), T const* arg) \
+        : id(ID), memptr((void(F::*)())setter), valptr((void*)arg) {} \
+    std::pair<void(F::*)(T), T*> get ## ID() { \
+        return std::make_pair((void(F::*)(T))memptr, (T*)valptr); \
+    }
+
+    CREATE_SCRIPT_ARG(0, uint8_t)
+    CREATE_SCRIPT_ARG(1, uint16_t)
+    CREATE_SCRIPT_ARG(2, uint32_t)
+    CREATE_SCRIPT_ARG(3, uint64_t)
+
+    CREATE_SCRIPT_ARG(4, int8_t)
+    CREATE_SCRIPT_ARG(5, int16_t)
+    CREATE_SCRIPT_ARG(6, int32_t)
+    CREATE_SCRIPT_ARG(7, int64_t)
+
+    CREATE_SCRIPT_ARG(8, bool)
+    CREATE_SCRIPT_ARG(9, char)
+    CREATE_SCRIPT_ARG(10, float)
+    CREATE_SCRIPT_ARG(11, double)
+
+    CREATE_SCRIPT_ARG(12, sp<Allocation>)
 };
+
+
+#define SET_SCRIPT_ARG_ID(SCRIPT, ARG, ID) \
+    hipaccSetScriptArg(SCRIPT, \
+                       ARG.get ## ID().first, \
+                       *(ARG.get ## ID().second));
+
+#define SET_SCRIPT_ARG(SCRIPT, ARG) \
+    switch (ARG.getId()) { \
+       case 0: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 0) break; \
+       case 1: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 1) break; \
+       case 2: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 2) break; \
+       case 3: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 3) break; \
+       case 4: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 4) break; \
+       case 5: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 5) break; \
+       case 6: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 6) break; \
+       case 7: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 7) break; \
+       case 8: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 8) break; \
+       case 9: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 9) break; \
+       case 10: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 10) break; \
+       case 11: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 11) break; \
+       case 12: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 12) break; \
+    }
 
 
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
@@ -516,15 +555,7 @@ void hipaccLaunchScriptKernelBenchmark(
     for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
         // set kernel arguments
         for (unsigned int i=0; i<args.size(); i++) {
-            if (args.data()[i].getId() == 0) {
-                hipaccSetScriptArg(script,
-                                   args.data()[i].getInt().first,
-                                   *(args.data()[i].getInt().second));
-            } else {
-                hipaccSetScriptArg(script,
-                                   args.data()[i].getAlloc().first,
-                                   *(args.data()[i].getAlloc().second));
-            }
+            SET_SCRIPT_ARG(script, args.data()[i]);
         }
 
         // launch kernel
@@ -561,15 +592,7 @@ void hipaccLaunchScriptKernelExploration(
         float min_dt=FLT_MAX;
         for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
             for (unsigned int i=0; i<args.size(); i++) {
-                if (args.data()[i].getId() == 0) {
-                    hipaccSetScriptArg(script,
-                                       args.data()[i].getInt().first,
-                                       *(args.data()[i].getInt().second));
-                } else {
-                    hipaccSetScriptArg(script,
-                                       args.data()[i].getAlloc().first,
-                                       *(args.data()[i].getAlloc().second));
-                }
+                SET_SCRIPT_ARG(script, args.data()[i]);
             }
 
             // start timing
