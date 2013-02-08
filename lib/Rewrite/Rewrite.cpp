@@ -841,6 +841,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                 }
                 found_mode = true;
 
+                // if only size is specified, set size_x and size_y to size
+                if (found_size == 1) {
+                  BC->setSizeY(BC->getSizeX());
+                  found_size++;
+                }
+
                 continue;
               }
             }
