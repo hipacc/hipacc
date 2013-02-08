@@ -651,7 +651,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += "::set_";
           }
           resultStr += deviceArgNames[i];
-          resultStr += ", " + hostArgNames[i] + "));\n";
+          resultStr += ", &" + hostArgNames[i] + "));\n";
           resultStr += indent;
           break;
       }

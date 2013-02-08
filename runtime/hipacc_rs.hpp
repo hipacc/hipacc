@@ -88,16 +88,16 @@ template<typename F>
 class hipacc_script_arg {
   private:
     int id;
-    std::pair<void(F::*)(int), int> arg_int;
-    std::pair<void(F::*)(sp<Allocation>), sp<Allocation> > arg_alloc;
+    std::pair<void(F::*)(int), int const*> arg_int;
+    std::pair<void(F::*)(sp<Allocation>), sp<Allocation>*> arg_alloc;
 
   public:
-    hipacc_script_arg(void(F::*setter)(int), int arg)
+    hipacc_script_arg(void(F::*setter)(int), int const* arg)
         : id(0), arg_int(std::make_pair(setter, arg)) {}
-    hipacc_script_arg(void(F::*setter)(sp<Allocation>), sp<Allocation> arg)
+    hipacc_script_arg(void(F::*setter)(sp<Allocation>), sp<Allocation>* arg)
         : id(1), arg_alloc(std::make_pair(setter, arg)) {}
-    std::pair<void(F::*)(int), int> getInt() { return arg_int; }
-    std::pair<void(F::*)(sp<Allocation>), sp<Allocation> > getAlloc() {
+    std::pair<void(F::*)(int), int const*> getInt() { return arg_int; }
+    std::pair<void(F::*)(sp<Allocation>), sp<Allocation>*> getAlloc() {
         return arg_alloc;
     }
     int getId() { return id; }
@@ -517,11 +517,13 @@ void hipaccLaunchScriptKernelBenchmark(
         // set kernel arguments
         for (unsigned int i=0; i<args.size(); i++) {
             if (args.data()[i].getId() == 0) {
-                hipaccSetScriptArg(script, args.data()[i].getInt().first,
-                                           args.data()[i].getInt().second);
+                hipaccSetScriptArg(script,
+                                   args.data()[i].getInt().first,
+                                   *(args.data()[i].getInt().second));
             } else {
-                hipaccSetScriptArg(script, args.data()[i].getAlloc().first,
-                                           args.data()[i].getAlloc().second);
+                hipaccSetScriptArg(script,
+                                   args.data()[i].getAlloc().first,
+                                   *(args.data()[i].getAlloc().second));
             }
         }
 
@@ -540,7 +542,7 @@ void hipaccLaunchScriptKernelExploration(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
     void(F::*kernel)(sp<const Allocation>) const,
-    hipacc_launch_info info
+    hipacc_launch_info &info
 ) {
     std::cerr << "<HIPACC:> Exploring configurations for kernel"
               << " '" << kernel << "':" << std::endl;
@@ -560,11 +562,13 @@ void hipaccLaunchScriptKernelExploration(
         for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
             for (unsigned int i=0; i<args.size(); i++) {
                 if (args.data()[i].getId() == 0) {
-                    hipaccSetScriptArg(script, args.data()[i].getInt().first,
-                                               args.data()[i].getInt().second);
+                    hipaccSetScriptArg(script,
+                                       args.data()[i].getInt().first,
+                                       *(args.data()[i].getInt().second));
                 } else {
-                    hipaccSetScriptArg(script, args.data()[i].getAlloc().first,
-                                               args.data()[i].getAlloc().second);
+                    hipaccSetScriptArg(script,
+                                       args.data()[i].getAlloc().first,
+                                       *(args.data()[i].getAlloc().second));
                 }
             }
 
