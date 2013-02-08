@@ -669,13 +669,14 @@ class HipaccKernel : public HipaccKernelFeatures {
       num_lmem(0),
       num_smem(0),
       num_cmem(0)
-    {}
+    {
+      fileName = KC->getName() + VD->getNameAsString();
+    }
 
     VarDecl *getDecl() const { return VD; }
     HipaccKernelClass *getKernelClass() const { return KC; }
     const std::string &getName() const { return name; }
     const std::string &getKernelName() const { return kernelName; }
-    void setFileName(std::string name) { fileName = name; }
     const std::string &getFileName() const { return fileName; }
     void setInfoStr() {
       std::stringstream LSS;
@@ -865,11 +866,12 @@ class HipaccGlobalReduction : public HipaccDevice {
       is_accessor(is_accessor),
       is_printed(false),
       num_threads(256)
-    {}
+    {
+      fileName = GRC->getName() + VD->getNameAsString();
+    }
 
     void setType(std::string t) { type = t; }
     void setNeutral(std::string n) { neutral = n; }
-    void setFileName(std::string name) { fileName = name; }
     void setReductionFunction(CXXMethodDecl *fun) { reductionFunction = fun; }
     void setIsPrinted(bool p) { is_printed = p; }
 

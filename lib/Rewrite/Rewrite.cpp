@@ -1289,10 +1289,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               name = "rs"; break;
           }
           name += KC->getName() + VD->getNameAsString();
-
           StringRef kernelName = StringRef(name);
-          std::string filename = KC->getName() + VD->getNameAsString();
-          K->setFileName(filename);
 
 
           #ifdef USE_POLLY
@@ -1342,7 +1339,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           K->printStats();
 
           // write kernel to file
-          printKernelFunction(kernelDecl, KC, K, filename, true);
+          printKernelFunction(kernelDecl, KC, K, K->getFileName(), true);
 
           break;
         }
@@ -1771,12 +1768,9 @@ void Rewrite::generateReductionKernels() {
             CXXMethodDecl *FD = *I;
 
             if (FD->getNumParams()==2 && FD->getNameAsString() == "reduce") {
-              std::string filename = GR->getReductionClass()->getName() + VD->getNameAsString();
-              GR->setFileName(filename);
-              GR->setReductionFunction(FD);
-
               // generate kernel code
-              printReductionFunction(FD, GR, filename);
+              GR->setReductionFunction(FD);
+              printReductionFunction(FD, GR, GR->getFileName());
 
               // store global reduction as invoked (required to include header
               // later on)
