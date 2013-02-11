@@ -281,27 +281,36 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         lowerFun = &clang::hipacc::ASTTranslate::addMirrorLower;
         upperFun = &clang::hipacc::ASTTranslate::addMirrorUpper;
         break;
-      case BOUNDARY_CONSTANT:
       case BOUNDARY_UNDEFINED:
-        assert(0 && "addBorderHandling && BOUNDARY_UNDEFINED!");
+        // in case of exploration boundary handling variants are required
+        if (!compilerOptions.exploreConfig()) {
+          assert(0 && "addBorderHandling && BOUNDARY_UNDEFINED!");
+        }
+        break;
+      case BOUNDARY_CONSTANT:
+        assert(0 && "addBorderHandling && BOUNDARY_CONSTANT!");
         break;
     }
 
-    if (bh_variant.borders.right && local_offset_x) {
-      bhStmts.push_back((*this.*upperFun)(Acc, idx_x, upperX));
-      bhCStmts.push_back(curCompoundStmtVistor);
+    if (upperFun) {
+      if (bh_variant.borders.right && local_offset_x) {
+        bhStmts.push_back((*this.*upperFun)(Acc, idx_x, upperX));
+        bhCStmts.push_back(curCompoundStmtVistor);
+      }
+      if (bh_variant.borders.bottom && local_offset_y) {
+        bhStmts.push_back((*this.*upperFun)(Acc, idx_y, upperY));
+        bhCStmts.push_back(curCompoundStmtVistor);
+      }
     }
-    if (bh_variant.borders.bottom && local_offset_y) {
-      bhStmts.push_back((*this.*upperFun)(Acc, idx_y, upperY));
-      bhCStmts.push_back(curCompoundStmtVistor);
-    }
-    if (bh_variant.borders.left && local_offset_x) {
-      bhStmts.push_back((*this.*lowerFun)(Acc, idx_x, lowerX));
-      bhCStmts.push_back(curCompoundStmtVistor);
-    }
-    if (bh_variant.borders.top && local_offset_y) {
-      bhStmts.push_back((*this.*lowerFun)(Acc, idx_y, lowerY));
-      bhCStmts.push_back(curCompoundStmtVistor);
+    if (lowerFun) {
+      if (bh_variant.borders.left && local_offset_x) {
+        bhStmts.push_back((*this.*lowerFun)(Acc, idx_x, lowerX));
+        bhCStmts.push_back(curCompoundStmtVistor);
+      }
+      if (bh_variant.borders.top && local_offset_y) {
+        bhStmts.push_back((*this.*lowerFun)(Acc, idx_y, lowerY));
+        bhCStmts.push_back(curCompoundStmtVistor);
+      }
     }
 
     // get data
