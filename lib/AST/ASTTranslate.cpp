@@ -485,13 +485,6 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       if (Acc->getSizeY() > 1) kernel_y = true;
     }
 
-    // activate kernel for exploration
-    if (compilerOptions.exploreConfig()) {
-      border_handling = true;
-      kernel_x = true;
-      kernel_y = true;
-    }
-
     // check if we need shared memory
     if (memAcc == READ_ONLY && Kernel->useLocalMemory(Acc)) {
       std::string sharedName = "_smem";
@@ -578,6 +571,13 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       DC->addDecl(VD);
       kernelBody.push_back(createDeclStmt(Ctx, VD));
     }
+  }
+
+  // activate boundary handling for exploration in case shared memory is used
+  if (compilerOptions.exploreConfig() && use_shared) {
+    border_handling = true;
+    kernel_x = true;
+    kernel_y = true;
   }
 
 
