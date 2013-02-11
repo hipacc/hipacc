@@ -3,31 +3,31 @@
 // Copyright (c) 2012, Siemens AG
 // Copyright (c) 2010, ARM Limited
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met: 
-// 
+// modification, are permitted provided that the following conditions are met:
+//
 // 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer. 
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution. 
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
 // ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 // (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-//===--- Rewrite.cpp - OpenCL/CUDA rewriter for the AST -------------------===//
+//===--- Rewrite.cpp - Mapping the DSL (AST nodes) to the runtime ---------===//
 //
-// This file implements functionality for rewriting OpenCL/CUDA kernels.
+// This file implements functionality for mapping the DSL to the HIPAcc runtime.
 //
 //===----------------------------------------------------------------------===//
 
@@ -262,7 +262,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
     newStr += "\n";
   }
 
-  // include .cu files for normal kernels
+  // include .cu or .h files for normal kernels
   switch (compilerOptions.getTargetCode()) {
     case TARGET_CUDA:
       if (!compilerOptions.exploreConfig()) {
@@ -289,19 +289,30 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
     default:
       break;
   }
-  // include .cu files for global reduction kernels
-  if (compilerOptions.emitCUDA() && !compilerOptions.exploreConfig()) {
-    for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
-      HipaccGlobalReduction *GR = InvokedReductions.data()[i];
 
-      if (!GR->isPrinted()) {
+  // include .cu or .h files for global reduction kernels
+  for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
+    HipaccGlobalReduction *GR = InvokedReductions.data()[i];
+    if (GR->isPrinted()) continue;
+
+    switch (compilerOptions.getTargetCode()) {
+      case TARGET_CUDA:
+        if (compilerOptions.exploreConfig()) continue;
         newStr += "#include \"";
         newStr += GR->getFileName();
         newStr += ".cu\"\n";
-        GR->setIsPrinted(true);
-      }
+        break;
+      case TARGET_Renderscript:
+        newStr += "#include \"ScriptC_";
+        newStr += GR->getFileName();
+        newStr += ".h\"\n";
+        break;
+      default:
+        break;
     }
+    GR->setIsPrinted(true);
   }
+
   // write constant memory declarations
   if (compilerOptions.emitCUDA()) {
     for (llvm::DenseMap<ValueDecl *, HipaccMask *>::iterator
@@ -339,18 +350,23 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
       stringCreator.writeKernelCompilation(Kernel->getFileName(), initStr);
     }
-    initStr += "\n    ";
+    initStr += "\n" + stringCreator.getIndent();
   }
+
   // load OpenCL reduction kernel files and compile the OpenCL reduction kernels
-  if (!compilerOptions.emitCUDA() && !compilerOptions.exploreConfig()) {
+  if (!compilerOptions.exploreConfig()) {
+    // set all reduction kernels as not being printed
     for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
       HipaccGlobalReduction *GR = InvokedReductions.data()[i];
+      GR->setIsPrinted(false);
+    }
 
-      if (!GR->isPrinted()) {
-        stringCreator.writeKernelCompilation(GR->getFileName(), initStr, "2D");
-        stringCreator.writeKernelCompilation(GR->getFileName(), initStr, "1D");
-        GR->setIsPrinted(true);
-      }
+    for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
+      HipaccGlobalReduction *GR = InvokedReductions.data()[i];
+      if (GR->isPrinted()) continue;
+
+      stringCreator.writeReductionCompilation(GR, initStr);
+      GR->setIsPrinted(true);
     }
   }
 
@@ -884,11 +900,11 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Accessor) ||
           compilerClasses.isTypeOfTemplateClass(VD->getType(),
-            compilerClasses.AccessorNN) || 
+            compilerClasses.AccessorNN) ||
           compilerClasses.isTypeOfTemplateClass(VD->getType(),
-            compilerClasses.AccessorLF) || 
+            compilerClasses.AccessorLF) ||
           compilerClasses.isTypeOfTemplateClass(VD->getType(),
-            compilerClasses.AccessorCF) || 
+            compilerClasses.AccessorCF) ||
           compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.AccessorL3)) {
         assert(VD->hasInit() && "Currently only Accessor definitions are supported, no declarations!");
@@ -988,8 +1004,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               llvm::errs() << "Only four arguments for Accessor supported\n";
           }
 
-          Decl += " " + Var + " = " + SS.str() + ";\n    ";
-          newStr += Decl;
+          Decl += " " + Var + " = " + SS.str() + ";\n";
+          newStr += Decl + stringCreator.getIndent();
         }
 
         // replace Accessor decl by variables for width/height and offsets
@@ -1082,8 +1098,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               llvm::errs() << "Only four arguments for IterationSpace supported\n";
           }
 
-          Decl += " " + Var + " = " + SS.str() + ";\n    ";
-          newStr += Decl;
+          Decl += " " + Var + " = " + SS.str() + ";\n";
+          newStr += Decl + stringCreator.getIndent();
         }
 
         // store IterationSpace
@@ -1170,6 +1186,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           HipaccGlobalReduction *GR = NULL;
           HipaccImage *Img = NULL;
           HipaccAccessor *Acc = NULL;
+          std::string newStr;
 
           // check if the first argument is an Image or Accessor
           if (isa<DeclRefExpr>(CCE->getArg(0))) {
@@ -1205,8 +1222,20 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get the string representation of the neutral element
           std::string neutralStr;
           llvm::raw_string_ostream NS(neutralStr);
-          CCE->getArg(1)->printPretty(NS, 0, PrintingPolicy(CI.getLangOpts()));
-          GR->setNeutral(NS.str());
+          Expr *neutralExpr = CCE->getArg(1)->IgnoreParenCasts();
+          neutralExpr->printPretty(NS, 0, PrintingPolicy(CI.getLangOpts()));
+          if (isa<DeclRefExpr>(neutralExpr)) {
+            GR->setNeutral(NS.str());
+          } else {
+            // create a temporary for the literal
+            std::stringstream LSS;
+            LSS << "_tmpLiteral" << literalCount++;
+
+            newStr += neutralExpr->getType().getAsString() + " ";
+            newStr += LSS.str() + " = " + NS.str() + ";\n";
+            newStr += stringCreator.getIndent();
+            GR->setNeutral(LSS.str());
+          }
 
           // get the template specialization type
           QualType QT = compilerClasses.getFirstTemplateType(VD->getType());
@@ -1215,8 +1244,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // store GlobalReduction
           GlobalReductionDeclMap[VD] = GR;
 
-          // remove GlobalReduction definition
-          TextRewriter.RemoveText(D->getSourceRange());
+          // replace GlobalReduction declaration
+          stringCreator.writeReductionDeclaration(GR, newStr);
+          SourceLocation startLoc = D->getLocStart();
+          const char *startBuf = SM->getCharacterData(startLoc);
+          const char *semiPtr = strchr(startBuf, ';');
+          TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
         }
       }
 
@@ -1814,181 +1847,14 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   Policy.PolishForDeclaration = false;
 
   switch (compilerOptions.getTargetCode()) {
-    case TARGET_C:
-      break;
     case TARGET_CUDA:
-      Policy.LangOpts.CUDA = 1;
-      break;
+      Policy.LangOpts.CUDA = 1; break;
     case TARGET_OpenCL:
     case TARGET_OpenCLx86:
-      Policy.LangOpts.OpenCL = 1;
-      break;
-    case TARGET_Renderscript:
-      break;
-    default:
-      break;
-  }
-
-  int fd;
-  std::string filename = file;
-  switch (compilerOptions.getTargetCode()) {
+      Policy.LangOpts.OpenCL = 1; break;
     case TARGET_C:
-      filename += ".cc"; break;
-    case TARGET_CUDA:
-      filename += ".cu"; break;
-    case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
-      filename += ".cl"; break;
     case TARGET_Renderscript:
-      filename += ".rs"; break;
-  }
-
-  // open file stream using own file descriptor. We need to call fsync() to
-  // compile the generated code using nvcc afterwards.
-  llvm::raw_ostream *OS = &llvm::errs();
-  if (!dump) {
-    while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
-      if (errno != EINTR) {
-        std::string errorInfo = "Error opening output file '" + filename + "'";
-        perror(errorInfo.c_str());
-      }
-    }
-    OS = new llvm::raw_fd_ostream(fd, false);
-  }
-
-  // write ifndef, ifdef
-  std::string ifdef = "_" + file + "_";
-  if (compilerOptions.emitCUDA()) {
-    ifdef += "CU_";
-  } else {
-    ifdef += "CL_";
-  }
-  std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper); 
-  *OS << "#ifndef " + ifdef + "\n";
-  *OS << "#define " + ifdef + "\n\n";
-
-  if (!compilerOptions.exploreConfig()) {
-    *OS << "#define BS " << GR->getNumThreads() << "\n"
-        << "#define PPT " << GR->getPixelsPerThread() << "\n";
-  }
-  if (GR->isAccessor()) {
-    *OS << "#define USE_OFFSETS\n";
-  }
-  if (compilerOptions.emitCUDA() && compilerOptions.getTargetDevice()>=FERMI_20
-      && compilerOptions.useTextureMemory() &&
-      compilerOptions.getTextureType()==Array2D) {
-    *OS << "#define USE_ARRAY_2D\n";
-  }
-  if (compilerOptions.emitCUDA()) {
-    *OS << "#include \"hipacc_cuda_red.hpp\"\n\n";
-  } else {
-    *OS << "#include \"hipacc_ocl_red.hpp\"\n\n";
-  }
-
-
-  // write kernel name and qualifiers
-  if (compilerOptions.emitCUDA()) {
-    *OS << "extern \"C\" {\n";
-    *OS << "__device__ ";
-  }
-  *OS << "inline " << D->getResultType().getAsString() << " "
-      << GR->getName() << "Reduce(";
-  // write kernel parameters
-  unsigned int comma = 0;
-  for (unsigned int i=0, e=D->getNumParams(); i!=e; ++i) {
-    std::string Name = D->getParamDecl(i)->getNameAsString();
-
-    // normal arguments
-    if (comma++) *OS << ", ";
-    QualType T = D->getParamDecl(i)->getType();
-    if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
-      T = Parm->getOriginalType();
-    T.getAsStringInternal(Name, Policy);
-    *OS << Name;
-  }
-  *OS << ") ";
-
-  // print kernel body
-  D->getBody()->printPretty(*OS, 0, Policy, 0);
-
-  // instantiate reduction
-  if (compilerOptions.emitCUDA()) {
-    // print 2D CUDA array definition - this is only required on FERMI and if
-    // Array2D is selected, but doesn't harm otherwise
-    *OS << "texture<" << D->getResultType().getAsString()
-        << ", cudaTextureType2D, cudaReadModeElementType> _tex"
-        << GR->getAccessor()->getImage()->getName() + GR->getName() << ";\n\n";
-    if (compilerOptions.getTargetDevice()>=FERMI_20 &&
-        !compilerOptions.exploreConfig()) {
-      *OS << "__device__ unsigned int finished_blocks_cu" << GR->getFileName()
-        << "2D = 0;\n\n";
-      *OS << "REDUCTION_CUDA_2D_THREAD_FENCE(cu";
-    } else {
-      *OS << "REDUCTION_CUDA_2D(cu";
-    }
-    *OS << GR->getFileName() << "2D, "
-        << D->getResultType().getAsString() << ", "
-        << GR->getName() << "Reduce, _tex"
-        << GR->getAccessor()->getImage()->getName() + GR->getName() << ")\n";
-  } else {
-    if (compilerOptions.useTextureMemory()) {
-      *OS << "REDUCTION_OCL_2D_IMAGE(cl";
-    } else {
-      *OS << "REDUCTION_OCL_2D(cl";
-    }
-    *OS << GR->getFileName() << "2D, "
-        << D->getResultType().getAsString() << ", "
-        << GR->getName() << "Reduce";
-    if (compilerOptions.useTextureMemory()) {
-      *OS << ", " << GR->getAccessor()->getImage()->getImageReadFunction();
-    }
-    *OS << ")\n";
-  }
-
-  if (compilerOptions.emitCUDA() && compilerOptions.getTargetDevice() >=
-      FERMI_20 && !compilerOptions.exploreConfig()) {
-    // no second step required
-  } else {
-    if (compilerOptions.emitCUDA()) {
-      *OS << "REDUCTION_CUDA_1D(cu";
-    } else {
-      *OS << "REDUCTION_OCL_1D(cl";
-    }
-    *OS << GR->getFileName() << "1D, "
-        << D->getResultType().getAsString() << ", "
-        << GR->getName() << "Reduce)\n";
-  }
-
-  if (compilerOptions.emitCUDA()) {
-    *OS << "}\n";
-  }
-  *OS << "#include \"hipacc_undef.hpp\"\n";
-
-  *OS << "\n";
-  *OS << "#endif //" + ifdef + "\n";
-  *OS << "\n";
-  OS->flush();
-  if (!dump) {
-    fsync(fd);
-    close(fd);
-  }
-}
-
-
-void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
-    HipaccKernel *K, std::string file, bool emitHints) {
-  PrintingPolicy Policy = Context.getPrintingPolicy();
-  Policy.Indentation = 2;
-  Policy.SuppressSpecifiers = false;
-  Policy.SuppressTag = false;
-  Policy.SuppressScope = false;
-  Policy.ConstantArraySizeAsWritten = false;
-  Policy.AnonymousTagLocations = true;
-  Policy.PolishForDeclaration = false;
-  if (compilerOptions.emitCUDA()) {
-    Policy.LangOpts.CUDA = 1;
-  } else {
-    Policy.LangOpts.OpenCL = 1;
+      break;
   }
 
   int fd;
@@ -2024,7 +1890,222 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
   // write ifndef, ifdef
-  std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper); 
+  std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper);
+  *OS << "#ifndef " + ifdef + "\n";
+  *OS << "#define " + ifdef + "\n\n";
+
+  // preprocessor defines
+  if (!compilerOptions.exploreConfig()) {
+    *OS << "#define BS " << GR->getNumThreads() << "\n"
+        << "#define PPT " << GR->getPixelsPerThread() << "\n";
+  }
+  if (GR->isAccessor()) {
+    *OS << "#define USE_OFFSETS\n";
+  }
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      *OS << "#include \"hipacc_ocl_red.hpp\"\n\n";
+      break;
+    case TARGET_CUDA:
+      if (compilerOptions.getTargetDevice()>=FERMI_20 &&
+          compilerOptions.useTextureMemory() &&
+          compilerOptions.getTextureType()==Array2D) {
+        *OS << "#define USE_ARRAY_2D\n";
+      }
+      *OS << "#include \"hipacc_cuda_red.hpp\"\n\n";
+      break;
+    case TARGET_Renderscript:
+      *OS << "#pragma version(1)\n"
+          << "#pragma rs java_package_name(com.example.android.rs.hipacc)\n\n";
+      *OS << "#include \"hipacc_rs_red.hpp\"\n\n";
+      // neutral element definition
+      *OS << GR->getAccessor()->getImage()->getPixelType() + " *input;\n";
+      *OS << GR->getAccessor()->getImage()->getPixelType() + " *Output;\n";
+      *OS << GR->getAccessor()->getImage()->getPixelType() + " neutral;\n";
+      if (GR->isAccessor()) {
+        *OS << "int offset_x;\n";
+        *OS << "int offset_y;\n";
+      }
+      *OS << "int stride;\n";
+      *OS << "int is_height;\n";
+      *OS << "int num_elements;\n";
+      break;
+  }
+
+
+  // write kernel name and qualifiers
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      break;
+    case TARGET_CUDA:
+      *OS << "extern \"C\" {\n";
+      *OS << "__device__ ";
+      break;
+    case TARGET_Renderscript:
+      *OS << "static ";
+      break;
+  }
+  *OS << "inline " << D->getResultType().getAsString() << " "
+      << GR->getName() << "Reduce(";
+  // write kernel parameters
+  unsigned int comma = 0;
+  for (unsigned int i=0, e=D->getNumParams(); i!=e; ++i) {
+    std::string Name = D->getParamDecl(i)->getNameAsString();
+
+    // normal arguments
+    if (comma++) *OS << ", ";
+    QualType T = D->getParamDecl(i)->getType();
+    if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
+      T = Parm->getOriginalType();
+    T.getAsStringInternal(Name, Policy);
+    *OS << Name;
+  }
+  *OS << ") ";
+
+  // print kernel body
+  D->getBody()->printPretty(*OS, 0, Policy, 0);
+
+  // instantiate reduction
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      // 2D reduction
+      if (compilerOptions.useTextureMemory()) {
+        *OS << "REDUCTION_OCL_2D_IMAGE(cl";
+      } else {
+        *OS << "REDUCTION_OCL_2D(cl";
+      }
+      *OS << GR->getFileName() << "2D, "
+          << D->getResultType().getAsString() << ", "
+          << GR->getName() << "Reduce";
+      if (compilerOptions.useTextureMemory()) {
+        *OS << ", " << GR->getAccessor()->getImage()->getImageReadFunction();
+      }
+      *OS << ")\n";
+      // 1D reduction
+      *OS << "REDUCTION_OCL_1D(cl" << GR->getFileName() << "1D, "
+          << D->getResultType().getAsString() << ", "
+          << GR->getName() << "Reduce)\n";
+      break;
+    case TARGET_CUDA:
+      // print 2D CUDA array definition - this is only required on FERMI and if
+      // Array2D is selected, but doesn't harm otherwise
+      *OS << "texture<" << D->getResultType().getAsString()
+          << ", cudaTextureType2D, cudaReadModeElementType> _tex"
+          << GR->getAccessor()->getImage()->getName() + GR->getName() << ";\n\n";
+      // 2D reduction
+      if (compilerOptions.getTargetDevice()>=FERMI_20 &&
+          !compilerOptions.exploreConfig()) {
+        *OS << "__device__ unsigned int finished_blocks_cu" << GR->getFileName()
+            << "2D = 0;\n\n";
+        *OS << "REDUCTION_CUDA_2D_THREAD_FENCE(cu";
+      } else {
+        *OS << "REDUCTION_CUDA_2D(cu";
+      }
+      *OS << GR->getFileName() << "2D, "
+          << D->getResultType().getAsString() << ", "
+          << GR->getName() << "Reduce, _tex"
+          << GR->getAccessor()->getImage()->getName() + GR->getName() << ")\n";
+      // 1D reduction
+      if (compilerOptions.getTargetDevice() >= FERMI_20 &&
+          !compilerOptions.exploreConfig()) {
+        // no second step required
+      } else {
+        *OS << "REDUCTION_CUDA_1D(cu" << GR->getFileName() << "1D, "
+            << D->getResultType().getAsString() << ", "
+            << GR->getName() << "Reduce)\n";
+      }
+      break;
+    case TARGET_Renderscript:
+      *OS << "REDUCTION_RS_2D(rs" << GR->getFileName() << "2D, "
+          << D->getResultType().getAsString() << ", "
+          << GR->getName() << "Reduce)\n";
+      // 1D reduction
+      *OS << "REDUCTION_RS_1D(rs" << GR->getFileName() << "1D, "
+          << D->getResultType().getAsString() << ", "
+          << GR->getName() << "Reduce)\n";
+      break;
+  }
+
+  if (compilerOptions.emitCUDA()) {
+    *OS << "}\n";
+  }
+  *OS << "#include \"hipacc_undef.hpp\"\n";
+
+  *OS << "\n";
+  *OS << "#endif //" + ifdef + "\n";
+  *OS << "\n";
+  OS->flush();
+  if (!dump) {
+    fsync(fd);
+    close(fd);
+  }
+}
+
+
+void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
+    HipaccKernel *K, std::string file, bool emitHints) {
+  PrintingPolicy Policy = Context.getPrintingPolicy();
+  Policy.Indentation = 2;
+  Policy.SuppressSpecifiers = false;
+  Policy.SuppressTag = false;
+  Policy.SuppressScope = false;
+  Policy.ConstantArraySizeAsWritten = false;
+  Policy.AnonymousTagLocations = true;
+  Policy.PolishForDeclaration = false;
+
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_CUDA:
+      Policy.LangOpts.CUDA = 1; break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      Policy.LangOpts.OpenCL = 1; break;
+    case TARGET_C:
+    case TARGET_Renderscript:
+      break;
+  }
+
+  int fd;
+  std::string filename = file;
+  std::string ifdef = "_" + file + "_";
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+      filename += ".cc";
+      ifdef += "CC_"; break;
+    case TARGET_CUDA:
+      filename += ".cu";
+      ifdef += "CU_"; break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      filename += ".cl";
+      ifdef += "CL_"; break;
+    case TARGET_Renderscript:
+      filename += ".rs";
+      ifdef += "RS_"; break;
+  }
+
+  // open file stream using own file descriptor. We need to call fsync() to
+  // compile the generated code using nvcc afterwards.
+  llvm::raw_ostream *OS = &llvm::errs();
+  if (!dump) {
+    while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
+      if (errno != EINTR) {
+        std::string errorInfo = "Error opening output file '" + filename + "'";
+        perror(errorInfo.c_str());
+      }
+    }
+    OS = new llvm::raw_fd_ostream(fd, false);
+  }
+
+  // write ifndef, ifdef
+  std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper);
   *OS << "#ifndef " + ifdef + "\n";
   *OS << "#define " + ifdef + "\n\n";
 
@@ -2051,7 +2132,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
 
     if (!K->getUsed(Acc->getName())) continue;
-    
+
     if (Acc->getInterpolation()!=InterpolateNO) {
       if (!inc) {
         inc = true;
@@ -2324,14 +2405,13 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     MemoryAccess memAcc = UNDEFINED;
     if (i==0) { // first argument is always the output image
-
-      // TODO: debug for Renderscript only
       if (compilerOptions.emitRenderscript()) {
+        // parameters are set separately for Renderscript
+        // add parameters for dummy allocation and indices
         *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
             << " *_IS, uint32_t x, uint32_t y";
         break;
       }
-      // TODO: debug for Renderscript only
 
       if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory() &&
           compilerOptions.getTextureType()==Array2D) continue;

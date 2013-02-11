@@ -3,31 +3,31 @@
 // Copyright (c) 2012, Siemens AG
 // Copyright (c) 2010, ARM Limited
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met: 
-// 
+// modification, are permitted provided that the following conditions are met:
+//
 // 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer. 
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution. 
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
 // ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 // (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-//===--- CreateHostStrings.cpp - OpenCL/CUDA helper for the Rewriter ------===//
+//===--- CreateHostStrings.cpp - Runtime string creator for the Rewriter --===//
 //
-// This file implements functionality for printing OpenCL/CUDA host code to
+// This file implements functionality for printing HIPAcc runtime code to
 // strings.
 //
 //===----------------------------------------------------------------------===//
@@ -95,7 +95,7 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
     case TARGET_CUDA:
       break;
     case TARGET_Renderscript:
-      resultStr += "ScriptC_" + kernelName + " " + kernelName + suffix;
+      resultStr += "ScriptC_" + kernelName + " " + kernelName;
       resultStr += " = hipaccInitScript<ScriptC_" + kernelName + ">();\n";
       resultStr += indent;
       break;
@@ -110,6 +110,82 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
       resultStr += RUNTIME_INCLUDES;
       resultStr += "\");\n";
       resultStr += indent;
+      break;
+  }
+}
+
+
+void CreateHostStrings::addReductionArgument(HipaccGlobalReduction *GR,
+    std::string device_name, std::string host_name, std::string &resultStr, bool
+    bind) {
+  resultStr += "_args" + GR->getFileName();
+  resultStr += ".push_back(hipacc_script_arg<ScriptC_" + GR->getFileName();
+  resultStr += ">(&ScriptC_" + GR->getFileName();
+  if (bind) {
+    resultStr += "::bind_";
+  } else {
+    resultStr += "::set_";
+  }
+  resultStr += device_name + ", &" + host_name + "));\n";
+  resultStr += indent;
+}
+
+
+void CreateHostStrings::writeReductionCompilation(HipaccGlobalReduction *GR,
+    std::string &resultStr) {
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_CUDA:
+      break;
+    case TARGET_Renderscript:
+      writeKernelCompilation(GR->getFileName(), resultStr);
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      writeKernelCompilation(GR->getFileName(), resultStr, "2D");
+      writeKernelCompilation(GR->getFileName(), resultStr, "1D");
+      break;
+  }
+}
+
+
+void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
+    std::string &resultStr) {
+  HipaccImage *Img = GR->getAccessor()->getImage();
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_CUDA:
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      break;
+    case TARGET_Renderscript:
+      resultStr += "std::vector<hipacc_script_arg<ScriptC_" + GR->getFileName();
+      resultStr += "> > _args" + GR->getFileName() + ";\n";
+      resultStr += indent;
+
+      // store reduction arguments
+      addReductionArgument(GR, "input", Img->getName(), resultStr, true);
+      addReductionArgument(GR, "neutral", GR->getNeutral(), resultStr, false);
+      addReductionArgument(GR, "stride", Img->getStride(), resultStr, false);
+
+      // print optional offset_x/offset_y and iteration space width/height
+      if (GR->isAccessor()) {
+        addReductionArgument(GR, "offset_y", GR->getAccessor()->getOffsetY(),
+            resultStr, false);
+        addReductionArgument(GR, "offset_x", GR->getAccessor()->getOffsetX(),
+            resultStr, false);
+        addReductionArgument(GR, "is_height", GR->getAccessor()->getHeight(),
+            resultStr, false);
+        addReductionArgument(GR, "num_elements", GR->getAccessor()->getWidth(),
+            resultStr, false);
+      } else {
+        addReductionArgument(GR, "is_height", Img->getHeight(), resultStr,
+            false);
+        addReductionArgument(GR, "num_elements", Img->getWidth(), resultStr,
+            false);
+      }
       break;
   }
 }
@@ -782,6 +858,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     switch (options.getTargetCode()) {
       default:
       case TARGET_C:
+        break;
       case TARGET_CUDA:
         resultStr += "hipaccLaunchKernel((const void *)&cu";
         resultStr += kernelName + ", \"cu";
@@ -812,36 +889,63 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
   std::stringstream GRSS;
 
   // print runtime function name plus name of reduction function
-  if (options.emitCUDA()) {
-    if (options.getTargetDevice() >= FERMI_20 && !options.exploreConfig()) {
-      resultStr += "hipaccApplyReductionThreadFence<" + GR->getType() + ">(";
-      resultStr += "(const void *)&cu" + GR->getFileName() + "2D, ";
-      resultStr += "\"cu" + GR->getFileName() + "2D\", ";
-    } else {
-      if (options.exploreConfig()) {
-        resultStr += "hipaccApplyReductionExploration<" + GR->getType() + ">(";
-        resultStr += "\"" + GR->getFileName() + ".cu\", ";
-        resultStr += "\"cu" + GR->getFileName() + "2D\", ";
-        resultStr += "\"cu" + GR->getFileName() + "1D\", ";
-      } else {
-        resultStr += "hipaccApplyReduction<" + GR->getType() + ">(";
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+      break;
+    case TARGET_CUDA:
+      if (options.getTargetDevice() >= FERMI_20 && !options.exploreConfig()) {
+        resultStr += "hipaccApplyReductionThreadFence<" + GR->getType() + ">(";
         resultStr += "(const void *)&cu" + GR->getFileName() + "2D, ";
         resultStr += "\"cu" + GR->getFileName() + "2D\", ";
-        resultStr += "(const void *)&cu" + GR->getFileName() + "1D, ";
-        resultStr += "\"cu" + GR->getFileName() + "1D\", ";
+      } else {
+        if (options.exploreConfig()) {
+          resultStr += "hipaccApplyReductionExploration<" + GR->getType() + ">(";
+          resultStr += "\"" + GR->getFileName() + ".cu\", ";
+          resultStr += "\"cu" + GR->getFileName() + "2D\", ";
+          resultStr += "\"cu" + GR->getFileName() + "1D\", ";
+        } else {
+          resultStr += "hipaccApplyReduction<" + GR->getType() + ">(";
+          resultStr += "(const void *)&cu" + GR->getFileName() + "2D, ";
+          resultStr += "\"cu" + GR->getFileName() + "2D\", ";
+          resultStr += "(const void *)&cu" + GR->getFileName() + "1D, ";
+          resultStr += "\"cu" + GR->getFileName() + "1D\", ";
+        }
       }
-    }
-  } else {
-    if (options.exploreConfig()) {
-      resultStr += "hipaccApplyReductionExploration<" + GR->getType() + ">(";
-      resultStr += "\"" + GR->getFileName() + ".cl\", ";
-      resultStr += "\"cl" + GR->getFileName() + "2D\", ";
-      resultStr += "\"cl" + GR->getFileName() + "1D\", ";
-    } else {
-      resultStr += "hipaccApplyReduction<" + GR->getType() + ">(";
-      resultStr += GR->getFileName() + "2D, ";
-      resultStr += GR->getFileName() + "1D, ";
-    }
+      break;
+    case TARGET_Renderscript:
+      if (options.exploreConfig()) {
+        // TODO
+      } else {
+        resultStr += "hipaccApplyReduction<ScriptC_" + GR->getFileName() + ", ";
+        resultStr += GR->getType() + ">(&" + GR->getFileName() + ", ";
+        resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
+          GR->getFileName() + "2D, ";
+        resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
+          GR->getFileName() + "1D, ";
+        resultStr += "&ScriptC_" + GR->getFileName() + "::bind_Output, ";
+        resultStr += "_args" + GR->getFileName() + ", ";
+        resultStr += GR->getAccessor()->getImage()->getName() + ", ";
+        if (GR->isAccessor()) {
+          resultStr += GR->getAccessor()->getWidth() + ");\n";
+        } else {
+          resultStr += GR->getAccessor()->getImage()->getWidth() + ");\n";
+        }
+      }
+      return;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      if (options.exploreConfig()) {
+        resultStr += "hipaccApplyReductionExploration<" + GR->getType() + ">(";
+        resultStr += "\"" + GR->getFileName() + ".cl\", ";
+        resultStr += "\"cl" + GR->getFileName() + "2D\", ";
+        resultStr += "\"cl" + GR->getFileName() + "1D\", ";
+      } else {
+        resultStr += "hipaccApplyReduction<" + GR->getType() + ">(";
+        resultStr += GR->getFileName() + "2D, ";
+        resultStr += GR->getFileName() + "1D, ";
+      }
+      break;
   }
 
   // print image name

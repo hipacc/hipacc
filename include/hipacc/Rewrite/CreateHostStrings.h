@@ -68,10 +68,17 @@ class CreateHostStrings {
       indent(cur_indent, ' ')
     {}
 
+    std::string getIndent() { return indent; }
     void writeHeaders(std::string &resultStr);
     void writeInitialization(std::string &resultStr);
     void writeKernelCompilation(std::string kernelName, std::string &resultStr,
         std::string suffix="");
+    void addReductionArgument(HipaccGlobalReduction *GR, std::string
+        device_name, std::string host_name, std::string &resultStr, bool bind);
+    void writeReductionCompilation(HipaccGlobalReduction *GR, std::string
+        &resultStr);
+    void writeReductionDeclaration(HipaccGlobalReduction *GR, std::string
+        &resultStr);
     void writeMemoryAllocation(std::string memName, std::string type,
         std::string width, std::string height, std::string &pitchStr,
         std::string &resultStr, HipaccDevice &targetDevice);
