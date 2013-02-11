@@ -618,21 +618,64 @@ void hipaccLaunchScriptKernelExploration(
 }
 
 
-unsigned int nextPow2(unsigned int x) {
-    --x;
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    ++x;
+// Perform global reduction and return result
+template<typename F, typename T>
+T hipaccApplyReduction(
+    F *script,
+    void(F::*kernel2D)(sp<const Allocation>) const,
+    void(F::*kernel1D)(sp<const Allocation>) const,
+    void(F::*setter)(sp<Allocation>),
+    std::vector<hipacc_script_arg<F> > args,
+    sp<Allocation>& input, int is_width, bool print_timing=true
+) {
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    RenderScript* rs = Ctx.get_context();
+    long end, start;
+    sp<Allocation> output;      // memory for reduction
+    T result;                   // host result
 
-    // get at least the warp size
-    if (x < 32) x = 32;
+    // allocate temporary memory
+    int stride_output;
+    output = hipaccCreateAllocation((T*)NULL, is_width, 1, &stride_output);
+    (script->*setter)(output);
 
-    return x;
+    // allocation for 1st reduction step
+    sp<Allocation> is1 = hipaccCreateAllocation((T*)NULL, is_width, 1, &stride_output);
+    // allocation for 2nd reduction step
+    sp<Allocation> is2 = hipaccCreateAllocation((T*)NULL, 1, 1, &stride_output);
+
+    // set arguments
+    for (unsigned int i=0; i<args.size(); i++) {
+        SET_SCRIPT_ARG(script, args.data()[i]);
+    }
+
+    rs->finish();
+    start = getNanoTime();
+    (script->*kernel2D)(is1);   // first step: reduce image (region) into linear memory
+    (script->*kernel1D)(is2);   // second step: reduce linear memory
+    rs->finish();
+    end = getNanoTime();
+    last_gpu_timing = (end - start) * 1.0e-6f;
+
+    if (print_timing) {
+        std::cerr << "<HIPACC:> Reduction timing: "
+                  << (end - start) * 1.0e-6f << "(ms)" << std::endl;
+    }
+
+    // download result of reduction
+    // FIXME: the current Renderscript implementation copies the whole array
+    // regardless of the size specified by the user
+    #if 0
+    output->copyTo(&result, sizeof(T));
+    #else
+    T* buff = new T[is_width];
+    output->copyTo(buff, sizeof(T)*is_width);
+    result = buff[0];
+    delete[] buff;
+    #endif
+
+    return result;
 }
-
 
 #endif  // __HIPACC_RS_HPP__
 
