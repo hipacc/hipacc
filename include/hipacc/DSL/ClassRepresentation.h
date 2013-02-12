@@ -614,9 +614,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     HipaccIterationSpace *iterationSpace;
     std::map<FieldDecl *, HipaccAccessor *> imgMap;
     std::map<FieldDecl *, HipaccMask *> maskMap;
+    SmallVector<QualType, 16> argTypesC;
     SmallVector<QualType, 16> argTypesCUDA;
     SmallVector<QualType, 16> argTypesOpenCL;
-    SmallVector<QualType, 16> argTypesC;
     SmallVector<std::string, 16> argTypeNamesCUDA;
     SmallVector<std::string, 16> argTypeNamesOpenCL;
     SmallVector<std::string, 16> hostArgNames;
@@ -652,9 +652,9 @@ class HipaccKernel : public HipaccKernelFeatures {
       iterationSpace(NULL),
       imgMap(),
       maskMap(),
+      argTypesC(),
       argTypesCUDA(),
       argTypesOpenCL(),
-      argTypesC(),
       argTypeNamesCUDA(),
       argTypeNamesOpenCL(),
       hostArgNames(),
@@ -735,15 +735,14 @@ class HipaccKernel : public HipaccKernelFeatures {
       createArgInfo();
 
       switch (target_code) {
+        case TARGET_C:
+          return argTypesC.data();
         case TARGET_CUDA:
           return argTypesCUDA.data();
         case TARGET_OpenCL:
         case TARGET_OpenCLx86:
-          return argTypesOpenCL.data();
-        case TARGET_C:
         case TARGET_Renderscript:
-        default:
-          return argTypesC.data();
+          return argTypesOpenCL.data();
       }
     }
     std::string *getArgTypeNames() {
