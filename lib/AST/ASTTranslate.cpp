@@ -1642,15 +1642,21 @@ Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
   if (E->getOpcode() == BO_Assign) writeImageRHS = RHS;
   Expr *LHS = Clone(E->getLHS());
 
+  QualType QT;
+  // use the type of LHS in case of vectorization
+  if (LHS->getType()->isVectorType() || LHS->getType()->isExtVectorType()) {
+    QT = LHS->getType();
+  } else {
+    QT = E->getType();
+  }
+
   // writeImageRHS has changed, use LHS
   if (E->getOpcode() == BO_Assign && writeImageRHS && writeImageRHS!=RHS) {
     // TODO: insert checks +=, -=, /=, and *= are not supported on Image objects
     result = LHS;
   } else {
     // normal case: clone binary operator
-    // use type of LHS, so that the widened type is used in case of
-    // vectorization
-    result = new (Ctx) BinaryOperator(LHS, RHS, E->getOpcode(), LHS->getType(),
+    result = new (Ctx) BinaryOperator(LHS, RHS, E->getOpcode(), QT,
         E->getValueKind(), E->getObjectKind(), E->getOperatorLoc(),
         E->isFPContractable());
   }
