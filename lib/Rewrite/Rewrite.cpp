@@ -2127,11 +2127,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   // interpolation includes & definitions
   bool inc=false;
-  for (unsigned int i=0, e=KC->getNumImages(); i!=e; ++i) {
-    FieldDecl *FD = KC->getImgFields().data()[i];
+  for (unsigned int i=0; i<K->getNumArgs(); i++) {
+    FieldDecl *FD = K->getDeviceArgFields()[i];
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
 
-    if (!K->getUsed(Acc->getName())) continue;
+    if (!Acc || !K->getUsed(K->getDeviceArgNames()[i])) continue;
 
     if (Acc->getInterpolation()!=InterpolateNO) {
       if (!inc) {

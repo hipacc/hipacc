@@ -1977,9 +1977,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     if (ME->getMemberNameInfo().getAsString() == "output") {
       assert(E->getNumArgs()==0 && "no arguments for output() method supported!");
 
-      // mark output image as being used within the kernel
-      Kernel->setUsed("Output");
-
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
           // no padding is considered, data is accessed as a 2D-array
@@ -2048,9 +2045,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     assert(Acc && E->getNumArgs()==2 && "x and y argument for getPixel() or outputAtPixel() required!");
     Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), Acc);
     Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), Acc);
-
-    // mark output image as being used within the kernel
-    Kernel->setUsed("Output");
 
     switch (compilerOptions.getTargetCode()) {
       case TARGET_C:

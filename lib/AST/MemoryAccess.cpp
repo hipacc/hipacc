@@ -144,6 +144,8 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
 // access 1D memory array at given index
 Expr *ASTTranslate::accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x,
     Expr *idx_y) {
+  // mark image as being used within the kernel
+  Kernel->setUsed(LHS->getNameInfo().getAsString());
 
   // for vectorization divide stride by vector size
   if (Kernel->vectorize() && !compilerOptions.emitC()) {
@@ -195,6 +197,9 @@ Expr *ASTTranslate::accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y) {
   QualType QT = LHS->getType();
   QualType QT2 =
     QT.getTypePtr()->getPointeeType()->getAsArrayTypeUnsafe()->getElementType();
+
+  // mark image as being used within the kernel
+  Kernel->setUsed(LHS->getNameInfo().getAsString());
 
   Expr *result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx, QT,
         CK_LValueToRValue, LHS, NULL, VK_RValue), idx_y,
@@ -383,6 +388,8 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
 // access linear texture memory at given index
 Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     MemoryAccess memAcc, Expr *idx_x, Expr *idx_y) {
+  // mark image as being used within the kernel
+  Kernel->setUsed(LHS->getNameInfo().getAsString());
 
   FunctionDecl *texture_function = getTextureFunction(Acc, memAcc);
 
@@ -445,6 +452,9 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
 Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     MemoryAccess memAcc, Expr *idx_x, Expr *idx_y) {
   Expr *result, *coord;
+
+  // mark image as being used within the kernel
+  Kernel->setUsed(LHS->getNameInfo().getAsString());
 
   // construct coordinate: (int2)(gid_x, gid_y)
   coord = createBinaryOperator(Ctx, idx_x, idx_y, BO_Comma, Ctx.IntTy);
@@ -511,14 +521,15 @@ Expr *ASTTranslate::accessMemShared(DeclRefExpr *LHS, Expr *local_offset_x, Expr
 // access shared memory at given index
 Expr *ASTTranslate::accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr
     *idx_y) {
-  Expr *result;
-
   QualType QT =
     LHS->getType()->castAsArrayTypeUnsafe()->getElementType()->castAsArrayTypeUnsafe()->getElementType();
   QualType QT2 = LHS->getType()->castAsArrayTypeUnsafe()->getElementType();
 
+  // mark image as being used within the kernel
+  Kernel->setUsed(LHS->getNameInfo().getAsString());
+
   // calculate index: [idx_y][idx_x]
-  result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx, QT2,
+  Expr *result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx, QT2,
         CK_LValueToRValue, LHS, NULL, VK_RValue), idx_y,
       QT2.getTypePtr()->getPointeeType(), VK_LValue, OK_Ordinary,
       SourceLocation());

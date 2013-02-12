@@ -189,6 +189,9 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
   idx_x = addNNInterpolationX(Acc, idx_x);
   idx_y = addNNInterpolationY(Acc, idx_y);
 
+  // mark image as being used within the kernel
+  Kernel->setUsed(LHS->getNameInfo().getAsString());
+
   FunctionDecl *interpolation = getInterpolationFunction(Acc);
 
   // parameters for interpolate function call
