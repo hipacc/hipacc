@@ -60,30 +60,38 @@ std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
       break;
   }
 
-  if (compilerOptions.emitCUDA()) {
-    switch (Kernel->useTextureMemory(Acc)) {
-      case NoTexture:
-        name += "gmem";
-        break;
-      case Linear1D:
-        name+= "tex1D";
-        break;
-      case Linear2D:
-      case Array2D:
-        name+= "tex2D";
-        break;
-    }
-  } else {
-    switch (Kernel->useTextureMemory(Acc)) {
-      case NoTexture:
-      case Linear1D:
-      case Linear2D:
-        name += "gmem";
-        break;
-      case Array2D:
-        name+= "img";
-        break;
-    }
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+    case TARGET_Renderscript:
+      name += "gmem";
+      break;
+    case TARGET_CUDA:
+      switch (Kernel->useTextureMemory(Acc)) {
+        case NoTexture:
+          name += "gmem";
+          break;
+        case Linear1D:
+          name+= "tex1D";
+          break;
+        case Linear2D:
+        case Array2D:
+          name+= "tex2D";
+          break;
+      }
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      switch (Kernel->useTextureMemory(Acc)) {
+        case NoTexture:
+        case Linear1D:
+        case Linear2D:
+          name += "gmem";
+          break;
+        case Array2D:
+          name+= "img";
+          break;
+      }
+      break;
   }
 
   return name;
@@ -150,9 +158,16 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
     }
   }
 
-  if (!compilerOptions.emitCUDA()) {
-    // no function overloading supported in OpenCL -> add type specifier to function name
-    name += "_" + builtins.EncodeTypeIntoStr(Acc->getImage()->getPixelQualType(), Ctx);
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+    case TARGET_Renderscript:
+    case TARGET_CUDA:
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      // no function overloading supported in OpenCL -> add type specifier to function name
+      name += "_" + builtins.EncodeTypeIntoStr(Acc->getImage()->getPixelQualType(), Ctx);
+      break;
   }
 
   // lookup interpolation function

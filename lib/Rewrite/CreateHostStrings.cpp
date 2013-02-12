@@ -264,9 +264,6 @@ void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
       resultStr += ");";
       break;
   }
-  if (options.emitCUDA()) {
-  } else {
-  }
 }
 
 
@@ -1024,10 +1021,16 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
       resultStr += "DEFINE_BH_VARIANT(INTERPOLATE_LANCZOS_FILTERING";
       break;
   }
-  if (options.emitCUDA()) {
-    resultStr += "_CUDA, ";
-  } else {
-    resultStr += "_OPENCL, ";
+  switch (options.getTargetCode()) {
+    case TARGET_C:
+      break;
+    case TARGET_Renderscript:
+      resultStr += "_RS, "; break;
+    case TARGET_CUDA:
+      resultStr += "_CUDA, "; break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      resultStr += "_OPENCL, "; break;
   }
   // data type
   resultStr += Acc->getImage()->getPixelType() + ", ";

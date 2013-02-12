@@ -343,7 +343,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   stringCreator.writeInitialization(initStr);
 
   // load OpenCL kernel files and compile the OpenCL kernels
-  if (!compilerOptions.emitCUDA() && !compilerOptions.exploreConfig()) {
+  if (!compilerOptions.exploreConfig()) {
     for (llvm::DenseMap<ValueDecl *, HipaccKernel *>::iterator
         it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
       HipaccKernel *Kernel = it->second;
@@ -2136,12 +2136,21 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (Acc->getInterpolation()!=InterpolateNO) {
       if (!inc) {
         inc = true;
-        if (compilerOptions.emitCUDA()) {
-          if (!emitHints) {
-            *OS << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
-          }
-        } else {
-          *OS << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
+        switch (compilerOptions.getTargetCode()) {
+          case TARGET_C:
+            break;
+          case TARGET_CUDA:
+            if (!emitHints) {
+              *OS << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
+            }
+            break;
+          case TARGET_OpenCL:
+          case TARGET_OpenCLx86:
+            *OS << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
+            break;
+          case TARGET_Renderscript:
+              *OS << "#include \"hipacc_rs_interpolate.hpp\"\n\n";
+            break;
         }
       }
 
@@ -2157,30 +2166,45 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
             suffix, Acc->getInterpolation(), Acc->getBoundaryHandling(),
             resultStr);
-        if (compilerOptions.emitCUDA()) {
-          if (!emitHints) {
+
+        switch (compilerOptions.getTargetCode()) {
+          case TARGET_C:
+            break;
+          case TARGET_CUDA:
+            if (!emitHints) {
+              *OS << resultStr;
+            } else {
+              // emit interpolation definitions at the beginning at the file
+              InterpolationDefinitions.push_back(resultStr);
+            }
+            break;
+          case TARGET_OpenCL:
+          case TARGET_OpenCLx86:
+          case TARGET_Renderscript:
             *OS << resultStr;
-          } else {
-            // emit interpolation definitions at the beginning at the file
-            InterpolationDefinitions.push_back(resultStr);
-          }
-        } else {
-          *OS << resultStr;
+            break;
         }
 
         resultStr.erase();
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
             suffix, InterpolateNO, BOUNDARY_UNDEFINED, resultStr);
 
-        if (compilerOptions.emitCUDA()) {
-          if (!emitHints) {
+        switch (compilerOptions.getTargetCode()) {
+          case TARGET_C:
+            break;
+          case TARGET_CUDA:
+            if (!emitHints) {
+              *OS << resultStr;
+            } else {
+              // emit interpolation definitions at the beginning at the file
+              InterpolationDefinitions.push_back(resultStr);
+            }
+            break;
+          case TARGET_OpenCL:
+          case TARGET_OpenCLx86:
+          case TARGET_Renderscript:
             *OS << resultStr;
-          } else {
-            // emit interpolation definitions at the beginning at the file
-            InterpolationDefinitions.push_back(resultStr);
-          }
-        } else {
-          *OS << resultStr;
+            break;
         }
       }
     }
