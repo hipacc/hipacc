@@ -59,7 +59,7 @@ void Polly::analyzeKernel() {
   llvm::LLVMContext *LLVMCtx = new llvm::LLVMContext;
   clang::CodeGenerator *llvm_ir_cg =
     clang::CreateLLVMCodeGen(Clang.getDiagnostics(), func->getNameAsString(),
-        Clang.getCodeGenOpts(), *LLVMCtx);
+        Clang.getCodeGenOpts(), Clang.getTargetOpts(), *LLVMCtx);
 
   DeclGroupRef DG = DeclGroupRef(func);
   llvm_ir_cg->Initialize(Ctx);
