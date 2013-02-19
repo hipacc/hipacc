@@ -37,6 +37,12 @@
 #include "mask.hpp"
 
 namespace hipacc {
+// forward declaration
+template<typename data_t> class Accessor;
+template<typename data_t> class AccessorLF;
+template<typename data_t> class AccessorCF;
+template<typename data_t> class AccessorL3;
+
 enum hipaccBoundaryMode {
     BOUNDARY_UNDEFINED,
     BOUNDARY_CLAMP,
@@ -105,6 +111,25 @@ class Image {
             }
 
             return *this;
+        }
+        void operator=(Image &other) {
+            assert(width == other.getWidth() && height == other.getHeight() &&
+                    "Image sizes have to be the same!");
+            for (int y=0; y<height; ++y) {
+                for (int x=0; x<width; ++x) {
+                    getPixel(x, y) = other.getPixel(x, y);
+                }
+            }
+        }
+        void operator=(Accessor<data_t> &other) {
+            assert(width == other.width && height == other.height &&
+                    "Size of Image and Accessor have to be the same!");
+            for (int y=0; y<height; ++y) {
+                for (int x=0; x<width; ++x) {
+                    getPixel(x, y) = other.img.getPixel(x + other.offset_x,
+                            y + other.offset_y);
+                }
+            }
         }
 
     template<typename> friend class Accessor;
@@ -333,6 +358,27 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
         }
 
 
+        void operator=(Image<data_t> &other) {
+            assert(width == other.getWidth() && height == other.getHeight() &&
+                    "Size of Accessor and Image have to be the same!");
+            for (int y=offset_y; y<offset_y+height; ++y) {
+                for (int x=offset_x; x<offset_x+width; ++x) {
+                    img.getPixel(x, y) = other.getPixel(x - offset_x, y -
+                            offset_y);
+                }
+            }
+        }
+        void operator=(Accessor<data_t> &other) {
+            assert(width == other.width && height == other.height &&
+                    "Accessor sizes have to be the same!");
+            for (int y=offset_y; y<offset_y+height; ++y) {
+                for (int x=offset_x; x<offset_x+width; ++x) {
+                    img.getPixel(x, y) = other.img.getPixel(x - offset_x +
+                            other.offset_x, y - offset_y + other.offset_y);
+                }
+            }
+        }
+
         // low-level access methods
         data_t &getPixel(int x, int y) {
             return getPixelFromImg(x, y);
@@ -348,6 +394,7 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
             return EI->getY() - EI->getOffsetY();
         }
 
+    template<typename> friend class Image;
     template<typename> friend class Kernel;
     template<typename> friend class GlobalReduction;
     template<typename> friend class AccessorNN;
@@ -388,6 +435,8 @@ class AccessorNN : public Accessor<data_t> {
 
 
     public:
+        using Accessor<data_t>::operator=;
+
         AccessorNN(Image<data_t> &Img) :
             Accessor<data_t>(Img)
         {}
@@ -469,6 +518,17 @@ class AccessorLF : public Accessor<data_t> {
 
 
     public:
+        using Accessor<data_t>::operator=;
+        void operator=(AccessorLF<data_t> &other) {
+            Accessor<data_t>::operator=(other);
+        }
+        void operator=(AccessorCF<data_t> &other) {
+            Accessor<data_t>::operator=(other);
+        }
+        void operator=(AccessorL3<data_t> &other) {
+            Accessor<data_t>::operator=(other);
+        }
+
         AccessorLF(Image<data_t> &Img) :
             Accessor<data_t>(Img),
             interpol_init(0),
@@ -624,6 +684,17 @@ class AccessorCF : public Accessor<data_t> {
 
 
     public:
+        using Accessor<data_t>::operator=;
+        void operator=(AccessorLF<data_t> &other) {
+            Accessor<data_t>::operator=(other);
+        }
+        void operator=(AccessorCF<data_t> &other) {
+            Accessor<data_t>::operator=(other);
+        }
+        void operator=(AccessorL3<data_t> &other) {
+            Accessor<data_t>::operator=(other);
+        }
+
         AccessorCF(Image<data_t> &Img) :
             Accessor<data_t>(Img),
             interpol_init(0),
@@ -770,6 +841,17 @@ class AccessorL3 : public Accessor<data_t> {
 
 
     public:
+        using Accessor<data_t>::operator=;
+        void operator=(AccessorLF<data_t> &other) {
+            Accessor<data_t>::operator=(other);
+        }
+        void operator=(AccessorCF<data_t> &other) {
+            Accessor<data_t>::operator=(other);
+        }
+        void operator=(AccessorL3<data_t> &other) {
+            Accessor<data_t>::operator=(other);
+        }
+
         AccessorL3(Image<data_t> &Img) :
             Accessor<data_t>(Img),
             interpol_init(0),

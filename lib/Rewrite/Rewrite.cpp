@@ -405,7 +405,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
   //      kernel parameters and store that mapping.
   //    - analyze image memory access patterns for later usage.
 
-  if (D->getTagKind() == TTK_Class) {
+  if (D->getTagKind() == TTK_Class && D->isCompleteDefinition()) {
     DeclContext *DC = D->getEnclosingNamespaceContext();
     if (DC->isNamespace()) {
       NamespaceDecl *NS = dyn_cast<NamespaceDecl>(DC);
