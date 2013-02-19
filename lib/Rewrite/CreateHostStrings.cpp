@@ -325,13 +325,13 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
     case DEVICE_TO_DEVICE:
       if (options.emitCUDA()) {
         if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-          resultStr += "hipaccWriteArray2D(";
+          resultStr += "hipaccCopyArray2D(";
         } else {
           resultStr += "hipaccCopyMemory(";
         }
       } else {
         if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-          resultStr += "hipaccWriteImage(";
+          resultStr += "hipaccCopyImage(";
         } else {
           resultStr += "hipaccCopyBuffer(";
         }
@@ -356,7 +356,7 @@ void CreateHostStrings::writeMemoryTransferRegion(HipaccImage *SrcImg,
       break;
     case TARGET_CUDA:
       if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-        resultStr += "hipaccWriteArray2D(";
+        resultStr += "hipaccCopyArray2DRegion(";
       } else {
         resultStr += "hipaccCopyMemoryRegion(";
       }
@@ -364,7 +364,7 @@ void CreateHostStrings::writeMemoryTransferRegion(HipaccImage *SrcImg,
     case TARGET_OpenCL:
     case TARGET_OpenCLx86:
       if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-        resultStr += "hipaccWriteImage(";
+        resultStr += "hipaccCopyImageRegion(";
       } else {
         resultStr += "hipaccCopyBufferRegion(";
       }
