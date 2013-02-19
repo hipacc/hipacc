@@ -83,6 +83,10 @@ class CreateHostStrings {
         std::string &resultStr);
     void writeMemoryTransfer(HipaccImage *Img, std::string mem,
         MemoryTransferDirection direction, std::string &resultStr);
+    void writeMemoryTransferRegion(HipaccImage *SrcImg, HipaccImage *DstImg,
+        std::string src_ox, std::string src_oy, std::string dst_ox, std::string
+        dst_oy, std::string roi_width, std::string roi_height, std::string
+        &resultStr);
     void writeMemoryTransferSymbol(HipaccMask *Mask, std::string mem,
         MemoryTransferDirection direction, std::string &resultStr);
     void writeKernelCall(std::string kernelName, std::string *argTypeNames,

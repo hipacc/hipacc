@@ -171,12 +171,58 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
       resultStr += ", " + Img->getName() + ");";
       break;
     case DEVICE_TO_DEVICE:
-      resultStr += "writeMemoryTransfer(todo, todo, DEVICE_TO_DEVICE);";
+      if (options.emitCUDA()) {
+        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+          resultStr += "hipaccWriteArray2D(";
+        } else {
+          resultStr += "hipaccCopyMemory(";
+        }
+      } else {
+        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+          resultStr += "hipaccWriteImage(";
+        } else {
+          resultStr += "hipaccCopyBuffer(";
+        }
+      }
+      resultStr += mem + ", ";
+      resultStr += Img->getName() + ");";
       break;
     case HOST_TO_HOST:
-      resultStr += "writeMemoryTransfer(todo, todo, HOST_TO_HOST);";
+      assert(0 && "Unsupported memory transfer direction!");
       break;
   }
+}
+
+
+void CreateHostStrings::writeMemoryTransferRegion(HipaccImage *SrcImg,
+    HipaccImage *DstImg, std::string src_ox, std::string src_oy, std::string
+    dst_ox, std::string dst_oy, std::string roi_width, std::string roi_height,
+    std::string &resultStr) {
+  switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+      break;
+    case TARGET_CUDA:
+      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+        resultStr += "hipaccWriteArray2D(";
+      } else {
+        resultStr += "hipaccCopyMemoryRegion(";
+      }
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLx86:
+      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+        resultStr += "hipaccWriteImage(";
+      } else {
+        resultStr += "hipaccCopyBufferRegion(";
+      }
+      break;
+  }
+  resultStr += SrcImg->getName() + ", ";
+  resultStr += DstImg->getName() + ", ";
+  resultStr += src_ox + ", " + src_oy + ", ";
+  resultStr += dst_ox + ", " + dst_oy + ", ";
+  resultStr += roi_width + ", " + roi_height + ");";
 }
 
 
