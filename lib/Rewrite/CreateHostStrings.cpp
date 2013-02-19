@@ -323,18 +323,28 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
       resultStr += ", " + Img->getName() + ");";
       break;
     case DEVICE_TO_DEVICE:
-      if (options.emitCUDA()) {
-        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-          resultStr += "hipaccCopyArray2D(";
-        } else {
-          resultStr += "hipaccCopyMemory(";
-        }
-      } else {
-        if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-          resultStr += "hipaccCopyImage(";
-        } else {
-          resultStr += "hipaccCopyBuffer(";
-        }
+      switch (options.getTargetCode()) {
+        default:
+        case TARGET_C:
+          break;
+        case TARGET_CUDA:
+          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+            resultStr += "hipaccCopyArray2D(";
+          } else {
+            resultStr += "hipaccCopyMemory(";
+          }
+          break;
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+            resultStr += "hipaccCopyImage(";
+          } else {
+            resultStr += "hipaccCopyBuffer(";
+          }
+          break;
+        case TARGET_Renderscript:
+          resultStr += "hipaccCopyAllocation(";
+          break;
       }
       resultStr += mem + ", ";
       resultStr += Img->getName() + ");";
@@ -368,6 +378,9 @@ void CreateHostStrings::writeMemoryTransferRegion(HipaccImage *SrcImg,
       } else {
         resultStr += "hipaccCopyBufferRegion(";
       }
+      break;
+    case TARGET_Renderscript:
+      resultStr += "hipaccCopyAllocationRegion(";
       break;
   }
   resultStr += SrcImg->getName() + ", ";

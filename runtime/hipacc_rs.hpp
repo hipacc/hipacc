@@ -367,6 +367,30 @@ void hipaccReadAllocation(T *host_mem, sp<Allocation> allocation) {
 }
 
 
+// Copy from allocation to allocation
+void hipaccCopyAllocation(sp<Allocation> src, sp<Allocation> dst) {
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::rs_dims src_dim = Ctx.get_mem_dims(src);
+    HipaccContext::rs_dims dst_dim = Ctx.get_mem_dims(dst);
+
+    assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height &&
+           src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyAllocation!");
+
+    int height = src_dim.height;
+    int stride = src_dim.stride;
+
+    dst->copy1DRangeFrom(0, stride*height, src, 0);
+}
+
+
+// Copy from allocation region to allocation region
+void hipaccCopyAllocationRegion(sp<Allocation> src, sp<Allocation> dst, int src_offset_x, int src_offset_y, int dst_offset_x, int dst_offset_y, int roi_width, int roi_height) {
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    dst->copy2DRangeFrom(dst_offset_x, dst_offset_y, roi_width, roi_height, src, roi_width*roi_height, src_offset_x, src_offset_y);
+}
+
+
 #define CREATE_ALLOCATION(T, E) \
 /* Allocate memory with alignment specified */ \
 sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
@@ -460,24 +484,6 @@ CREATE_ALLOCATION(double,   Element::F64(rs))
 //void hipaccDestroyAllocation(sp<Allocation> mem) {
     // TODO: Clarify proper removal of allocations
 //}
-
-
-// Copy between allocations
-void hipaccCopyAllocation(sp<Allocation> src_allocation,
-                          sp<Allocation> dst_allocation) {
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::rs_dims src_dim = Ctx.get_mem_dims(src_allocation);
-    HipaccContext::rs_dims dst_dim = Ctx.get_mem_dims(dst_allocation);
-
-    assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height &&
-           src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyBuffer!");
-
-    size_t bufferSize = src_dim.width * src_dim.height * src_dim.pixel_size;
-    uint8_t* buffer = new uint8_t[bufferSize];
-    hipaccReadAllocation(buffer, src_allocation);
-    hipaccWriteAllocation(dst_allocation, buffer);
-    delete[] buffer;
-}
 
 
 // Set a single argument of script
