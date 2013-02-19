@@ -542,6 +542,41 @@ void hipaccReadArray2D(T *host_mem, cudaArray *array) {
 }
 
 
+// Copy from memory to memory
+template<typename T>
+void hipaccCopyMemory(T *src, T *dst) {
+    cudaError_t err = cudaSuccess;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src);
+    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst);
+
+    int height = src_dim.height;
+    int stride = src_dim.stride;
+
+    err = cudaMemcpy(dst, src, sizeof(T)*stride*height, cudaMemcpyDeviceToDevice);
+    checkErr(err, "cudaMemcpy()");
+}
+
+
+// Copy from memory region to memory region
+template<typename T>
+void hipaccCopyMemoryRegion(T *src, T *dst, int src_offset_x, int src_offset_y, int dst_offset_x, int dst_offset_y, int roi_width, int roi_height) {
+    cudaError_t err = cudaSuccess;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src);
+    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst);
+
+    int dst_stride = dst_dim.stride;
+    int src_stride = src_dim.stride;
+
+    void *dst_start = dst + dst_offset_x + (dst_offset_y*dst_stride);
+    void *src_start = src + src_offset_x + (src_offset_y*src_stride);
+
+    err = cudaMemcpy2D(dst_start, dst_stride*sizeof(T), src_start, src_stride*sizeof(T), roi_width*sizeof(T), roi_height, cudaMemcpyDeviceToDevice);
+    checkErr(err, "cudaMemcpy2D()");
+}
+
+
 // Bind linear memory to texture
 template<typename T>
 void hipaccBindTexture(const struct texture<T, cudaTextureType1D, cudaReadModeElementType> &tex, void *mem) {

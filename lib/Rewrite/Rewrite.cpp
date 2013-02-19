@@ -1405,26 +1405,86 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   if (!compilerClasses.HipaccEoP) return true;
 
   // convert overloaded operator 'operator=' function into memory transfer,
-  // e.g. IN = host_array;
+  // a) Img = host_array;
+  // b) Mask = host_array;
+  // c) Img = Img;
+  // d) Img = Acc;
+  // e) Acc = Acc;
+  // f) Acc = Img;
   if (E->getOperator() == OO_Equal) {
     if (E->getNumArgs() != 2) return true;
 
-    if (isa<DeclRefExpr>(E->getArg(0))) {
-      DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E->getArg(0));
+    if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
+      DeclRefExpr *DRE_LHS =
+        dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts());
 
-      // check if we have an Image
-      if (ImgDeclMap.count(DRE->getDecl())) {
-        HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
+      HipaccImage *ImgLHS = NULL, *ImgRHS = NULL;
+      HipaccAccessor *AccLHS = NULL, *AccRHS = NULL;
+
+      // check if we have an Image at the LHS
+      if (ImgDeclMap.count(DRE_LHS->getDecl())) {
+        ImgLHS = ImgDeclMap[DRE_LHS->getDecl()];
+      }
+      // check if we have an Accessor at the LHS
+      if (AccDeclMap.count(DRE_LHS->getDecl())) {
+        AccLHS = AccDeclMap[DRE_LHS->getDecl()];
+      }
+
+      if (isa<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts())) {
+        DeclRefExpr *DRE_RHS =
+          dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts());
+
+        // check if we have an Image at the RHS
+        if (ImgDeclMap.count(DRE_RHS->getDecl())) {
+          ImgRHS = ImgDeclMap[DRE_RHS->getDecl()];
+        }
+        // check if we have an Accessor at the RHS
+        if (AccDeclMap.count(DRE_RHS->getDecl())) {
+          AccRHS = AccDeclMap[DRE_RHS->getDecl()];
+        }
+      }
+
+      if (ImgLHS || AccLHS) {
         std::string newStr;
+        std::string srcOX("0"), srcOY("0"), dstOX("0"), dstOY("0");
+        if (AccLHS) {
+          if (!AccLHS->getOffsetX().empty()) dstOX = AccLHS->getOffsetX();
+          if (!AccLHS->getOffsetY().empty()) dstOY = AccLHS->getOffsetY();
+        }
+        if (AccRHS) {
+          if (!AccRHS->getOffsetX().empty()) srcOX = AccRHS->getOffsetX();
+          if (!AccRHS->getOffsetY().empty()) srcOY = AccRHS->getOffsetY();
+        }
 
-        // get the text string for the memory transfer src
-        std::string dataStr;
-        llvm::raw_string_ostream DS(dataStr);
-        E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
+        if (ImgLHS && ImgRHS) {
+          // Img1 = Img2;
+          stringCreator.writeMemoryTransfer(ImgLHS, ImgRHS->getName(),
+              DEVICE_TO_DEVICE, newStr);
+        } else if (ImgLHS && AccRHS) {
+          // Img1 = Acc2;
+          stringCreator.writeMemoryTransferRegion(AccRHS->getImage(), ImgLHS,
+              srcOX, srcOY, dstOX, dstOY, AccRHS->getWidth(),
+              AccRHS->getHeight(), newStr);
+        } else if (AccLHS && ImgRHS) {
+          // Acc1 = Img2;
+          stringCreator.writeMemoryTransferRegion(ImgRHS, AccLHS->getImage(),
+              srcOX, srcOY, dstOX, dstOY, AccLHS->getWidth(),
+              AccLHS->getHeight(), newStr);
+        } else if (AccLHS && AccRHS) {
+          // Acc1 = Acc2;
+          stringCreator.writeMemoryTransferRegion(AccRHS->getImage(),
+              AccLHS->getImage(), srcOX, srcOY, dstOX, dstOY,
+              AccLHS->getWidth(), AccLHS->getHeight(), newStr);
+        } else {
+          // get the text string for the memory transfer src
+          std::string dataStr;
+          llvm::raw_string_ostream DS(dataStr);
+          E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
 
-        // create memory transfer string
-        stringCreator.writeMemoryTransfer(Img, DS.str(), HOST_TO_DEVICE,
-            newStr);
+          // create memory transfer string
+          stringCreator.writeMemoryTransfer(ImgLHS, DS.str(), HOST_TO_DEVICE,
+              newStr);
+        }
 
         // rewrite Image assignment to memory transfer
         // get the start location and compute the semi location.
@@ -1437,8 +1497,8 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       }
 
       // check if we have a Mask
-      if (MaskDeclMap.count(DRE->getDecl())) {
-        HipaccMask *Mask = MaskDeclMap[DRE->getDecl()];
+      if (MaskDeclMap.count(DRE_LHS->getDecl())) {
+        HipaccMask *Mask = MaskDeclMap[DRE_LHS->getDecl()];
         std::string newStr;
 
         // get the text string for the memory transfer src

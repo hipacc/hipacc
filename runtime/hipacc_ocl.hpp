@@ -841,6 +841,26 @@ void hipaccCopyBuffer(cl_mem src_buffer, cl_mem dst_buffer, int num_device=0) {
 }
 
 
+// Copy from buffer region to buffer region
+void hipaccCopyBufferRegion(cl_mem src_buffer, cl_mem dst_buffer, int src_offset_x, int src_offset_y, int dst_offset_x, int dst_offset_y, int roi_width, int roi_height, int num_device=0) {
+    cl_int err = CL_SUCCESS;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src_buffer);
+    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst_buffer);
+
+    int dst_stride = dst_dim.stride * dst_dim.pixel_size;
+    int src_stride = src_dim.stride * src_dim.pixel_size;
+
+    const size_t dst_origin[] = { dst_offset_x*dst_dim.pixel_size, dst_offset_y, 0 };
+    const size_t src_origin[] = { src_offset_x*src_dim.pixel_size, src_offset_y, 0 };
+    const size_t region[] = { roi_width*dst_dim.pixel_size, roi_height, 1 };
+
+    err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device], src_buffer, dst_buffer, src_origin, dst_origin, region, src_stride, 0, dst_stride, 0, 0, NULL, NULL);
+    err |= clFinish(Ctx.get_command_queues()[num_device]);
+    checkErr(err, "clEnqueueCopyBufferRect()");
+}
+
+
 // Copy between buffers and return time
 double hipaccCopyBufferBenchmark(cl_mem src_buffer, cl_mem dst_buffer, int num_device=0, bool print_timing=false) {
     cl_int err = CL_SUCCESS;
