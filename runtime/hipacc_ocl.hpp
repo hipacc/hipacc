@@ -488,7 +488,7 @@ void hipaccCreateContextsAndCommandQueues(bool all_devies=false) {
     std::vector<cl_device_id> devices = all_devies?Ctx.get_devices_all():Ctx.get_devices();
 
     // Create context
-    cl_context_properties cprops[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platforms.data()[0], 0};
+    cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platforms.data()[0], 0 };
     context = clCreateContext(cprops, devices.size(), devices.data(), NULL, NULL, &err);
     checkErr(err, "clCreateContext()");
 
@@ -898,6 +898,41 @@ double hipaccCopyBufferBenchmark(cl_mem src_buffer, cl_mem dst_buffer, int num_d
 }
 
 
+// Copy between images
+void hipaccCopyImage(cl_mem src_image, cl_mem dst_image, int num_device=0) {
+    cl_int err = CL_SUCCESS;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src_image);
+    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst_image);
+
+    assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height && src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyImage!");
+
+    const size_t origin[] = { 0, 0, 0 };
+    const size_t region[] = { src_dim.width, src_dim.height, 1 };
+
+    err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], src_image, dst_image, origin, origin, region, 0, NULL, NULL);
+    err |= clFinish(Ctx.get_command_queues()[num_device]);
+    checkErr(err, "clEnqueueCopyImage()");
+}
+
+
+// Copy from image region to image region
+void hipaccCopyImageRegion(cl_mem src_image, cl_mem dst_image, int src_offset_x, int src_offset_y, int dst_offset_x, int dst_offset_y, int roi_width, int roi_height, int num_device=0) {
+    cl_int err = CL_SUCCESS;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src_image);
+    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst_image);
+
+    const size_t dst_origin[] = { dst_offset_x, dst_offset_y, 0 };
+    const size_t src_origin[] = { src_offset_x, src_offset_y, 0 };
+    const size_t region[] = { roi_width, roi_height, 1 };
+
+    err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], src_image, dst_image, src_origin, dst_origin, region, 0, NULL, NULL);
+    err |= clFinish(Ctx.get_command_queues()[num_device]);
+    checkErr(err, "clEnqueueCopyImage()");
+}
+
+
 // Write to image
 template<typename T>
 void hipaccWriteImage(cl_mem image, T *host_mem, int num_device=0) {
@@ -905,11 +940,11 @@ void hipaccWriteImage(cl_mem image, T *host_mem, int num_device=0) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     HipaccContext::cl_dims dim = Ctx.get_mem_dims(image);
 
-    size_t origin[] = {0, 0, 0};
-    size_t region[] = {dim.width, dim.height, 1};
+    const size_t origin[] = { 0, 0, 0 };
+    const size_t region[] = { dim.width, dim.height, 1 };
     // no stride supported for images in OpenCL
-    size_t input_row_pitch = dim.width*sizeof(T);
-    size_t input_slice_pitch = 0;
+    const size_t input_row_pitch = dim.width*sizeof(T);
+    const size_t input_slice_pitch = 0;
 
     err = clEnqueueWriteImage(Ctx.get_command_queues()[num_device], image, CL_FALSE, origin, region, input_row_pitch, input_slice_pitch, host_mem, 0, NULL, NULL);
     err |= clFinish(Ctx.get_command_queues()[num_device]);
@@ -924,11 +959,11 @@ void hipaccReadImage(T *host_mem, cl_mem image, int num_device=0) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     HipaccContext::cl_dims dim = Ctx.get_mem_dims(image);
 
-    size_t origin[] = {0, 0, 0};
-    size_t region[] = {dim.width, dim.height, 1};
+    const size_t origin[] = { 0, 0, 0 };
+    const size_t region[] = { dim.width, dim.height, 1 };
     // no stride supported for images in OpenCL
-    size_t row_pitch = dim.width*sizeof(T);
-    size_t slice_pitch = 0;
+    const size_t row_pitch = dim.width*sizeof(T);
+    const size_t slice_pitch = 0;
 
     err = clEnqueueReadImage(Ctx.get_command_queues()[num_device], image, CL_FALSE, origin, region, row_pitch, slice_pitch, host_mem, 0, NULL, NULL);
     err |= clFinish(Ctx.get_command_queues()[num_device]);
