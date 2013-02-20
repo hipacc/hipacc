@@ -920,8 +920,6 @@ void hipaccCopyImage(cl_mem src_image, cl_mem dst_image, int num_device=0) {
 void hipaccCopyImageRegion(cl_mem src_image, cl_mem dst_image, int src_offset_x, int src_offset_y, int dst_offset_x, int dst_offset_y, int roi_width, int roi_height, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src_image);
-    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst_image);
 
     const size_t dst_origin[] = { dst_offset_x, dst_offset_y, 0 };
     const size_t src_origin[] = { src_offset_x, src_offset_y, 0 };
