@@ -1816,6 +1816,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                 createBinaryOperator(Ctx, Clone(E->getArg(2)),
                   createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
                   Ctx.IntTy));
+            break;
           case TARGET_OpenCL:
           case TARGET_OpenCLx86:
           case TARGET_Renderscript:
