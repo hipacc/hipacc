@@ -42,10 +42,11 @@
 namespace clang {
 namespace hipacc {
 enum TargetID {
-  C_TARGET      = 0x1,  // builtin for C source.
-  CUDA_TARGET   = 0x2,  // builtin for CUDA.
-  OPENCL_TARGET = 0x4,  // builtin for OpenCL.
-  ALL_TARGETS   = (C_TARGET|CUDA_TARGET|OPENCL_TARGET) //builtin is for all targets.
+  C_TARGET      = 0x1,  // builtin for C
+  CUDA_TARGET   = 0x2,  // builtin for CUDA
+  OPENCL_TARGET = 0x4,  // builtin for OpenCL
+  RS_TARGET     = 0x8,  // builtin for Renderscript
+  ALL_TARGETS   = (C_TARGET|CUDA_TARGET|OPENCL_TARGET|RS_TARGET) //builtin is for all targets.
 };
 
 namespace Builtin {
@@ -54,6 +55,7 @@ enum ID {
   #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID) HIPACCBI##NAME,
   #define CUDABUILTIN(NAME, TYPE, CUDANAME) CUDABI##CUDANAME,
   #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) OPENCLBI##OPENCLNAME,
+  #define RSBUILTIN(NAME, TYPE, RSNAME) RSBI##RSNAME,
   #include "hipacc/Device/Builtins.def"
   LastBuiltin
 };

@@ -123,6 +123,10 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   switch (memAcc) {
     case WRITE_ONLY:
     case READ_ONLY:
+      // TODO: find a more elegant solution to check for this corner case
+      if (memAcc == READ_ONLY && compilerOptions.emitRenderscript()) {
+        return accessMemAllocAt(LHS, Acc, memAcc, idx_x, idx_y);
+      }
       if (Kernel->useTextureMemory(Acc)) {
         if (compilerOptions.emitCUDA()) {
           return accessMemTexAt(LHS, Acc, memAcc, idx_x, idx_y);
@@ -385,6 +389,52 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
 }
 
 
+// get rsGetElementAt_<type> function for given Accessor
+FunctionDecl *ASTTranslate::getAllocationFunction(HipaccAccessor *Acc,
+    MemoryAccess memAcc) {
+  const BuiltinType *BT =
+    Acc->getImage()->getPixelQualType()->getAs<BuiltinType>();
+
+  switch (BT->getKind()) {
+    case BuiltinType::WChar_U:
+    case BuiltinType::WChar_S:
+    case BuiltinType::Char16:
+    case BuiltinType::Char32:
+    case BuiltinType::ULongLong:
+    case BuiltinType::UInt128:
+    case BuiltinType::LongLong:
+    case BuiltinType::Int128:
+    case BuiltinType::LongDouble:
+    case BuiltinType::Void:
+    case BuiltinType::Bool:
+    default:
+      assert(0 && "BuiltinType for Renderscript Allocation not supported.");
+    case BuiltinType::Char_S:
+    case BuiltinType::SChar:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_char);
+    case BuiltinType::Short:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_short);
+    case BuiltinType::Int:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_int);
+    case BuiltinType::Long:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_long);
+    case BuiltinType::Char_U:
+    case BuiltinType::UChar:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_uchar);
+    case BuiltinType::UShort:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_ushort);
+    case BuiltinType::UInt:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_uint);
+    case BuiltinType::ULong:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_ulong);
+    case BuiltinType::Float:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_float);
+    case BuiltinType::Double:
+      return builtins.getBuiltinFunction(RSBIrsGetElementAt_double);
+  }
+}
+
+
 // access linear texture memory at given index
 Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     MemoryAccess memAcc, Expr *idx_x, Expr *idx_y) {
@@ -501,6 +551,25 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   }
 
   return result;
+}
+
+
+// access allocation at given index
+Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
+    MemoryAccess memAcc, Expr *idx_x, Expr *idx_y) {
+  // mark image as being used within the kernel
+  Kernel->setUsed(LHS->getNameInfo().getAsString());
+
+  FunctionDecl *get_element_function = getAllocationFunction(Acc, memAcc);
+
+
+  // parameters for rsGetElementAt_<type>
+  SmallVector<Expr *, 16> args;
+  args.push_back(LHS);
+  args.push_back(idx_x);
+  args.push_back(idx_y);
+
+  return createFunctionCall(Ctx, get_element_function, args);
 }
 
 

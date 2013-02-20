@@ -26,7 +26,7 @@
 
 //===--- Builtins.def - Builtin function info database ----------*- C++ -*-===//
 //
-// This file defines the standard builtin function database.  Users of this file
+// This file defines the standard builtin function database. Users of this file
 // must define the BUILTIN macro to make use of this information.
 //
 //===----------------------------------------------------------------------===//
@@ -376,8 +376,19 @@ CUDABUILTIN(make_ulong4,            "V4ULiULi",     make_ulong4)
 CUDABUILTIN(make_float4,            "V4ff",         make_float4)
 CUDABUILTIN(make_double4,           "V4dd",         make_double4)
 
+RSBUILTIN(rsGetElementAt_char,      "SciC*CUiUi",   rsGetElementAt_char)
+RSBUILTIN(rsGetElementAt_uchar,     "UciC*CUiUi",   rsGetElementAt_uchar)
+RSBUILTIN(rsGetElementAt_short,     "SsiC*CUiUi",   rsGetElementAt_short)
+RSBUILTIN(rsGetElementAt_ushort,    "UsiC*CUiUi",   rsGetElementAt_ushort)
+RSBUILTIN(rsGetElementAt_int,       "SiiC*CUiUi",   rsGetElementAt_int)
+RSBUILTIN(rsGetElementAt_uint,      "UiiC*CUiUi",   rsGetElementAt_uint)
+RSBUILTIN(rsGetElementAt_long,      "SLiiC*CUiUi",  rsGetElementAt_long)
+RSBUILTIN(rsGetElementAt_ulong,     "ULiiC*CUiUi",  rsGetElementAt_ulong)
+RSBUILTIN(rsGetElementAt_float,     "fiC*CUiUi",    rsGetElementAt_float)
+RSBUILTIN(rsGetElementAt_double,    "diC*CUiUi",    rsGetElementAt_double)
 
 #undef HIPACCBUILTIN
 #undef CUDABUILTIN
 #undef OPENCLBUILTIN
+#undef RSBUILTIN
 

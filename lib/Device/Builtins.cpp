@@ -41,6 +41,7 @@ static hipacc::Builtin::Info BuiltinInfo[] = {
   #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID) { #NAME, TYPE, C_TARGET, CUDAID, OPENCLID, 0 },
   #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, CUDA_TARGET, (ID)0, (ID)0, 0 },
   #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, OPENCL_TARGET, (ID)0, (ID)0, 0 },
+  #define RSBUILTIN(NAME, TYPE, RSNAME) { #NAME, TYPE, RS_TARGET, (ID)0, (ID)0, 0 },
   #include "hipacc/Device/Builtins.def"
 };
 

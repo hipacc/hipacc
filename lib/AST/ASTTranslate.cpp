@@ -2075,7 +2075,11 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         break;
       case TARGET_Renderscript:
         // access the current output element using *out or out[0]
-        result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        if (ME->getMemberNameInfo().getAsString() == "getPixel") {
+          result = accessMemAllocAt(LHS, Acc, memAcc, idx_x, idx_y);
+        } else {
+          result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        }
         break;
     }
 
