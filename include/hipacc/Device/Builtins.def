@@ -60,8 +60,8 @@
 // C -> const
 // D -> volatile
 
-// Builtin HIPACC math functions in alphabetical order from the OpenCL 1.1 Spec:
-// http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/mathFunctions.html
+// Builtin HIPACC math functions in alphabetical order from the OpenCL 1.2 Spec:
+// http://www.khronos.org/registry/cl/sdk/1.2/docs/man/xhtml/mathFunctions.html
 HIPACCBUILTIN(acos,                 "dd",       HIPACCBIacos,       HIPACCBIacos)
 HIPACCBUILTIN(acosf,                "ff",       HIPACCBIacosf,      OPENCLBIacosf)
 OPENCLBUILTIN(acos,                 "ff",       acosf)
@@ -221,6 +221,8 @@ HIPACCBUILTIN(logbf,                "ff",       HIPACCBIlogbf,      OPENCLBIlogb
 OPENCLBUILTIN(logb,                 "ff",       logbf)
 
 //HIPACCBUILTIN(mad,                  "ff",       HIPACCBI,           HIPACCBI)
+//HIPACCBUILTIN(maxmag,               "ff",       HIPACCBI,           HIPACCBI)
+//HIPACCBUILTIN(minmag,               "ff",       HIPACCBI,           HIPACCBI)
 
 HIPACCBUILTIN(modf,                 "ddd*",     HIPACCBImodf,       HIPACCBImodf)
 HIPACCBUILTIN(modff,                "fff*",     HIPACCBImodff,      OPENCLBImodff)
@@ -274,7 +276,9 @@ HIPACCBUILTIN(sin,                  "dd",       HIPACCBIsin,        HIPACCBIsin)
 HIPACCBUILTIN(sinf,                 "ff",       HIPACCBIsinf,       OPENCLBIsinf)
 OPENCLBUILTIN(sin,                  "ff",       sinf)
 
-//HIPACCBUILTIN(sincos,               "ff",       HIPACCBI,           HIPACCBI)
+HIPACCBUILTIN(sincos,               "vddd",     HIPACCBIsincos,     HIPACCBIsincos)
+HIPACCBUILTIN(sincosf,              "vfff",     HIPACCBIsincosf,    OPENCLBIsincosf)
+OPENCLBUILTIN(sincos,               "vfff",     sincosf)
 
 HIPACCBUILTIN(sinh,                 "dd",       HIPACCBIsinh,       HIPACCBIsinh)
 HIPACCBUILTIN(sinhf,                "ff",       HIPACCBIsinhf,      OPENCLBIsinhf)
