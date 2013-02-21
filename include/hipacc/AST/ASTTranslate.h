@@ -226,7 +226,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
     FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
     FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
-    FunctionDecl *getAllocationFunction(HipaccAccessor *Acc, MemoryAccess
+    FunctionDecl *getAllocationFunction(const BuiltinType *BT, MemoryAccess
         memAcc);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
@@ -243,11 +243,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
     Expr *accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x, Expr
         *idx_y);
+    Expr *accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess memAcc,
+                           Expr *idx_x, Expr *idx_y);
     Expr *accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
         memAcc, Expr *idx_x, Expr *idx_y);
     Expr *accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
-        memAcc, Expr *idx_x, Expr *idx_y);
-    Expr *accessMemAllocAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
         memAcc, Expr *idx_x, Expr *idx_y);
     Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=NULL, Expr
         *offset_y=NULL);

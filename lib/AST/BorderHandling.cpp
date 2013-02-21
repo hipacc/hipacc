@@ -242,14 +242,27 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       bo_constant = addConstantLower(Acc, idx_y, lowerY, bo_constant);
     }
 
-    if (Kernel->useTextureMemory(Acc)) {
-      if (compilerOptions.emitCUDA()) {
-        RHS = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
-      } else {
-        RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
-      }
-    } else {
-      RHS = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+    switch (compilerOptions.getTargetCode()) {
+      case TARGET_CUDA:
+        if (Kernel->useTextureMemory(Acc)) {
+          RHS = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
+          break;
+        }
+      case TARGET_C:
+      case TARGET_OpenCL:
+      case TARGET_OpenCLx86:
+        // fall through
+        if (Kernel->useTextureMemory(Acc)) {
+          RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
+          break;
+        }
+      case TARGET_Renderscript:
+        // fall through
+        RHS = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        break;
+      case TARGET_RenderscriptGPU:
+        RHS = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
+        break;
     }
     setExprProps(LHS, RHS);
 
@@ -314,14 +327,27 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     }
 
     // get data
-    if (Kernel->useTextureMemory(Acc)) {
-      if (compilerOptions.emitCUDA()) {
-        result = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
-      } else {
-        result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
-      }
-    } else {
-      result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+    switch (compilerOptions.getTargetCode()) {
+      case TARGET_CUDA:
+        if (Kernel->useTextureMemory(Acc)) {
+          result = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
+          break;
+        }
+      case TARGET_C:
+      case TARGET_OpenCL:
+      case TARGET_OpenCLx86:
+        // fall through
+        if (Kernel->useTextureMemory(Acc)) {
+          result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
+          break;
+        }
+      case TARGET_Renderscript:
+        // fall through
+        result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        break;
+      case TARGET_RenderscriptGPU:
+        result = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
+        break;
     }
     setExprProps(LHS, result);
   }

@@ -54,11 +54,12 @@ enum CompilerOption {
 
 // target language specification
 enum TargetCode {
-  TARGET_CUDA         = 0x1,
-  TARGET_OpenCL       = 0x2,
-  TARGET_OpenCLx86    = 0x4,
-  TARGET_Renderscript = 0x8,
-  TARGET_C            = 0x10
+  TARGET_CUDA            = 0x1,
+  TARGET_OpenCL          = 0x2,
+  TARGET_OpenCLx86       = 0x4,
+  TARGET_Renderscript    = 0x8,
+  TARGET_RenderscriptGPU = 0x10,
+  TARGET_C               = 0x20
 };
 
 class CompilerOptions {
@@ -137,6 +138,10 @@ class CompilerOptions {
     }
     bool emitRenderscript() {
       if (target_code & TARGET_Renderscript) return true;
+      return false;
+    }
+    bool emitRenderscriptGPU() {
+      if (target_code & TARGET_RenderscriptGPU) return true;
       return false;
     }
     bool emitC() {
@@ -237,6 +242,9 @@ class CompilerOptions {
           break;
         case TARGET_Renderscript:
           llvm::errs() << "Renderscript";
+          break;
+        case TARGET_RenderscriptGPU:
+          llvm::errs() << "Renderscript (GPU)";
           break;
         case TARGET_C:
           llvm::errs() << "C/C++";

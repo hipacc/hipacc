@@ -124,8 +124,8 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     case WRITE_ONLY:
     case READ_ONLY:
       // TODO: find a more elegant solution to check for this corner case
-      if (memAcc == READ_ONLY && compilerOptions.emitRenderscript()) {
-        return accessMemAllocAt(LHS, Acc, memAcc, idx_x, idx_y);
+      if (compilerOptions.emitRenderscriptGPU()) {
+        return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
       }
       if (Kernel->useTextureMemory(Acc)) {
         if (compilerOptions.emitCUDA()) {
@@ -390,11 +390,8 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
 
 
 // get rsGetElementAt_<type> function for given Accessor
-FunctionDecl *ASTTranslate::getAllocationFunction(HipaccAccessor *Acc,
+FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT,
     MemoryAccess memAcc) {
-  const BuiltinType *BT =
-    Acc->getImage()->getPixelQualType()->getAs<BuiltinType>();
-
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:
@@ -409,28 +406,33 @@ FunctionDecl *ASTTranslate::getAllocationFunction(HipaccAccessor *Acc,
     case BuiltinType::Bool:
     default:
       assert(0 && "BuiltinType for Renderscript Allocation not supported.");
+
+#define GET_BUILTIN_FUNCTION(NAME) (memAcc == READ_ONLY ? \
+                                    builtins.getBuiltinFunction(NAME) : \
+                                    builtins.getBuiltinFunction(NAME ## W))
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_char);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_char);
     case BuiltinType::Short:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_short);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_short);
     case BuiltinType::Int:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_int);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_int);
     case BuiltinType::Long:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_long);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_long);
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_uchar);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_uchar);
     case BuiltinType::UShort:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_ushort);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_ushort);
     case BuiltinType::UInt:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_uint);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_uint);
     case BuiltinType::ULong:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_ulong);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_ulong);
     case BuiltinType::Float:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_float);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_float);
     case BuiltinType::Double:
-      return builtins.getBuiltinFunction(RSBIrsGetElementAt_double);
+      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_double);
+#undef GET_BUILTIN_FUNCTION
   }
 }
 
@@ -555,13 +557,13 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
 
 
 // access allocation at given index
-Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
-    MemoryAccess memAcc, Expr *idx_x, Expr *idx_y) {
+Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess memAcc,
+                                     Expr *idx_x, Expr *idx_y) {
   // mark image as being used within the kernel
   Kernel->setUsed(LHS->getNameInfo().getAsString());
 
-  FunctionDecl *get_element_function = getAllocationFunction(Acc, memAcc);
-
+  const BuiltinType *BT = LHS->getType()->getPointeeType()->getAs<BuiltinType>();
+  FunctionDecl *get_element_function = getAllocationFunction(BT, memAcc);
 
   // parameters for rsGetElementAt_<type>
   SmallVector<Expr *, 16> args;

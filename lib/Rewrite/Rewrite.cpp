@@ -277,6 +277,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
       }
       break;
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       for (llvm::DenseMap<ValueDecl *, HipaccKernel *>::iterator
           it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
         HipaccKernel *Kernel = it->second;
@@ -303,6 +304,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
         newStr += ".cu\"\n";
         break;
       case TARGET_Renderscript:
+      case TARGET_RenderscriptGPU:
         newStr += "#include \"ScriptC_";
         newStr += GR->getFileName();
         newStr += ".h\"\n";
@@ -1325,6 +1327,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             case TARGET_OpenCLx86:
               name = "cl"; break;
             case TARGET_Renderscript:
+            case TARGET_RenderscriptGPU:
               name = "rs"; break;
           }
           name += KC->getName() + VD->getNameAsString();
@@ -1686,6 +1689,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
     case TARGET_C:
     case TARGET_OpenCLx86:
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       jit_compile = false;
       break;
     case TARGET_CUDA:
@@ -1914,6 +1918,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
       Policy.LangOpts.OpenCL = 1; break;
     case TARGET_C:
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       break;
   }
 
@@ -1932,6 +1937,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
       filename += ".cl";
       ifdef += "CL_"; break;
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       filename += ".rs";
       ifdef += "RS_"; break;
   }
@@ -1978,6 +1984,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
       *OS << "#include \"hipacc_cuda_red.hpp\"\n\n";
       break;
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       *OS << "#pragma version(1)\n"
           << "#pragma rs java_package_name(com.example.android.rs.hipacc)\n\n";
       *OS << "#include \"hipacc_rs_red.hpp\"\n\n";
@@ -2007,6 +2014,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
       *OS << "__device__ ";
       break;
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       *OS << "static ";
       break;
   }
@@ -2084,6 +2092,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
       }
       break;
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       *OS << "REDUCTION_RS_2D(rs" << GR->getFileName() << "2D, "
           << D->getResultType().getAsString() << ", "
           << GR->getName() << "Reduce)\n";
@@ -2129,6 +2138,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       Policy.LangOpts.OpenCL = 1; break;
     case TARGET_C:
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       break;
   }
 
@@ -2147,6 +2157,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       filename += ".cl";
       ifdef += "CL_"; break;
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       filename += ".rs";
       ifdef += "RS_"; break;
   }
@@ -2179,6 +2190,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       if (K->vectorize()) *OS << "#include \"hipacc_cuda_vec.hpp\"\n\n";
       break;
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       *OS << "#pragma version(1)\n"
           << "#pragma rs java_package_name(com.example.android.rs.hipacc)\n\n";
       break;
@@ -2209,6 +2221,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             *OS << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
             break;
           case TARGET_Renderscript:
+          case TARGET_RenderscriptGPU:
               *OS << "#include \"hipacc_rs_interpolate.hpp\"\n\n";
             break;
         }
@@ -2241,6 +2254,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_OpenCL:
           case TARGET_OpenCLx86:
           case TARGET_Renderscript:
+          case TARGET_RenderscriptGPU:
             *OS << resultStr;
             break;
         }
@@ -2263,6 +2277,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_OpenCL:
           case TARGET_OpenCLx86:
           case TARGET_Renderscript:
+          case TARGET_RenderscriptGPU:
             *OS << resultStr;
             break;
         }
@@ -2296,6 +2311,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           // memory declaration
           *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
               << " *Output;\n";
+          break;
+        case TARGET_RenderscriptGPU:
+          *OS << "rs_allocation Output;\n";
           break;
       }
       continue;
@@ -2336,6 +2354,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           }
           *OS << T.getAsString() << " *" << FD->getNameAsString() << ";\n";
           break;
+        case TARGET_RenderscriptGPU:
+          *OS << "rs_allocation " << FD->getNameAsString() << ";\n";
+          break;
       }
       continue;
     }
@@ -2354,6 +2375,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             break;
           case TARGET_C:
           case TARGET_Renderscript:
+          case TARGET_RenderscriptGPU:
             *OS << "static const ";
             break;
         }
@@ -2399,13 +2421,18 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                 << K->getDeviceArgNames()[i] << ";\n\n";
             Mask->setIsPrinted(true);
             break;
+          case TARGET_RenderscriptGPU:
+            *OS << "rs_allocation " << K->getDeviceArgNames()[i] << ";\n\n";
+            Mask->setIsPrinted(true);
+            break;
         }
       }
       continue;
     }
 
     // normal variables - Renderscript only
-    if (compilerOptions.emitRenderscript()) {
+    if (0 != (compilerOptions.getTargetCode() & (TARGET_Renderscript |
+                                                 TARGET_RenderscriptGPU))) {
       QualType QT = K->getArgTypes(Context, compilerOptions.getTargetCode())[i];
       QT.removeLocalConst();
       *OS << QT.getAsString() << " " << K->getDeviceArgNames()[i] << ";\n";
@@ -2441,6 +2468,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       break;
     case TARGET_C:
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       break;
   }
   *OS << "void ";
@@ -2479,6 +2507,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           break;
         case TARGET_C:
         case TARGET_Renderscript:
+        case TARGET_RenderscriptGPU:
           // mask is declared as static memory
           break;
       }
@@ -2489,16 +2518,28 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     MemoryAccess memAcc = UNDEFINED;
     if (i==0) { // first argument is always the output image
-      if (compilerOptions.emitRenderscript()) {
-        // parameters are set separately for Renderscript
-        // add parameters for dummy allocation and indices
-        *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
-            << " *_IS, uint32_t x, uint32_t y";
-        break;
+      bool doBreak = false;
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_C:
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          break;
+        case TARGET_CUDA:
+          if (compilerOptions.useTextureMemory() &&
+              compilerOptions.getTextureType()==Array2D) {
+              continue;
+          }
+          break;
+        case TARGET_Renderscript:
+        case TARGET_RenderscriptGPU:
+          // parameters are set separately for Renderscript
+          // add parameters for dummy allocation and indices
+          *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
+              << " *_IS, uint32_t x, uint32_t y";
+          doBreak = true;
+          break;
       }
-
-      if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory() &&
-          compilerOptions.getTextureType()==Array2D) continue;
+      if (doBreak) break;
       Acc = K->getIterationSpace()->getAccessor();
       memAcc = WRITE_ONLY;
     } else if (Acc) {
@@ -2545,6 +2586,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           break;
         case TARGET_C:
         case TARGET_Renderscript:
+        case TARGET_RenderscriptGPU:
           break;
       }
       *OS << Name;

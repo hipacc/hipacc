@@ -391,6 +391,19 @@ RSBUILTIN(rsGetElementAt_ulong,     "ULiiC*CUiUi",  rsGetElementAt_ulong)
 RSBUILTIN(rsGetElementAt_float,     "fiC*CUiUi",    rsGetElementAt_float)
 RSBUILTIN(rsGetElementAt_double,    "diC*CUiUi",    rsGetElementAt_double)
 
+// Builtin Renderscript getters abused for writing.
+// This is a poor workaround, which is used by TARGET_RenderscriptGPU only.
+RSBUILTIN(*(char*)rsGetElementAt,   "SciC*CUiUi",   rsGetElementAt_charW)
+RSBUILTIN(*(uchar*)rsGetElementAt,  "UciC*CUiUi",   rsGetElementAt_ucharW)
+RSBUILTIN(*(short*)rsGetElementAt,  "SsiC*CUiUi",   rsGetElementAt_shortW)
+RSBUILTIN(*(ushort*)rsGetElementAt, "UsiC*CUiUi",   rsGetElementAt_ushortW)
+RSBUILTIN(*(int*)rsGetElementAt,    "SiiC*CUiUi",   rsGetElementAt_intW)
+RSBUILTIN(*(uint*)rsGetElementAt,   "UiiC*CUiUi",   rsGetElementAt_uintW)
+RSBUILTIN(*(long*)rsGetElementAt,   "SLiiC*CUiUi",  rsGetElementAt_longW)
+RSBUILTIN(*(ulong*)rsGetElementAt,  "ULiiC*CUiUi",  rsGetElementAt_ulongW)
+RSBUILTIN(*(float*)rsGetElementAt,  "fiC*CUiUi",    rsGetElementAt_floatW)
+RSBUILTIN(*(double*)rsGetElementAt, "diC*CUiUi",    rsGetElementAt_doubleW)
+
 #undef HIPACCBUILTIN
 #undef CUDABUILTIN
 #undef OPENCLBUILTIN

@@ -15,6 +15,9 @@
 #   NDK_TOOLCHAIN_DIR
 #     Path to android NDK standalone toolchain.
 #
+#   RS_TARGET_API
+#     Defines Android API level to use.
+#
 # Read-only variables:
 #   RENDERSCRIPT_FOUND
 #     Indicates whether RenderScript has been found.
@@ -53,7 +56,11 @@ FIND_PROGRAM(RS_EXECUTABLE
   HINTS ${ANDROID_SOURCE_DIR}/out/host/${HOST_TYPE}/bin
   DOC "RenderScript compiler executable")
 
-SET (RS_FLAGS -allow-rs-prefix -reflect-c++ -target-api 16 -o .)
+IF (NOT RS_TARGET_API)
+  SET (RS_TARGET_API 16)
+ENDIF (NOT RS_TARGET_API)
+
+SET (RS_FLAGS -allow-rs-prefix -reflect-c++ -target-api ${RS_TARGET_API} -o .)
 
 SET (RS_INCLUDE_DIRS -I${ANDROID_SOURCE_DIR}/frameworks/rs/scriptc
                      -I${ANDROID_SOURCE_DIR}/external/clang/lib/Headers)

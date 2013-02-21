@@ -409,7 +409,8 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       continue;
     }
 
-    if (compilerOptions.emitRenderscript()) {
+    if (compilerOptions.emitRenderscript() ||
+        compilerOptions.emitRenderscriptGPU()) {
       // search for uint32_t x, uint32_t y parameters
       if (PVD->getName().equals("x")) {
         // TODO: scan for uint32_t x
@@ -483,6 +484,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
       break;
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       initRenderscript(kernelBody);
       break;
   }
@@ -642,6 +644,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
         case TARGET_Renderscript:
+        case TARGET_RenderscriptGPU:
           break;
         case TARGET_CUDA:
           VD = createVarDecl(Ctx, DC, sharedName, QT, NULL);
@@ -974,6 +977,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
         case TARGET_Renderscript:
+        case TARGET_RenderscriptGPU:
           break;
         case TARGET_CUDA:
           labelBody.push_back(createFunctionCall(Ctx, barrier, args));
@@ -1799,6 +1803,10 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                     (int)Mask->getSizeX()), midx_x, midx_y);
               break;
+            case TARGET_RenderscriptGPU:
+              // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
+              result = accessMemAllocAt(LHS, memAcc, midx_x, midx_y);
+              break;
           }
         }
         break;
@@ -1823,6 +1831,14 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             // array subscript: Mask[(y+size_y/2)*width + x+size_x/2]
             result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                   (int)Mask->getSizeX()), createBinaryOperator(Ctx,
+                  Clone(E->getArg(1)), createIntegerLiteral(Ctx,
+                    (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                createBinaryOperator(Ctx, Clone(E->getArg(2)),
+                  createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                  Ctx.IntTy));
+          case TARGET_RenderscriptGPU:
+            // allocation access: rsGetElementAt(Mask, x+size_x/2, y+size_y/2)
+            result = accessMemAllocAt(LHS, memAcc, createBinaryOperator(Ctx,
                   Clone(E->getArg(1)), createIntegerLiteral(Ctx,
                     (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
                 createBinaryOperator(Ctx, Clone(E->getArg(2)),
@@ -1993,6 +2009,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         case TARGET_OpenCL:
         case TARGET_OpenCLx86:
         case TARGET_Renderscript:
+        case TARGET_RenderscriptGPU:
           result = accessMem(LHS, Acc, memAcc);
           break;
       }
@@ -2074,9 +2091,10 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         }
         break;
       case TARGET_Renderscript:
+      case TARGET_RenderscriptGPU:
         // access the current output element using *out or out[0]
         if (ME->getMemberNameInfo().getAsString() == "getPixel") {
-          result = accessMemAllocAt(LHS, Acc, memAcc, idx_x, idx_y);
+          result = accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
         } else {
           result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         }
