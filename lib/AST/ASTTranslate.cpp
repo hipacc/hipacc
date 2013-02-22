@@ -1521,9 +1521,12 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
 
     // lookup if this function call is supported and choose appropriate
     // function, e.g. exp() instead of expf() in case of OpenCL
-    targetFD = builtins.getBuiltinFunction(E->getDirectCallee()->getName(), QT,
-        compilerOptions.emitCUDA() ? hipacc::CUDA_TARGET :
-        hipacc::OPENCL_TARGET);
+    if (compilerOptions.emitC()) {
+      targetFD = E->getDirectCallee();
+    } else {
+      targetFD = builtins.getBuiltinFunction(E->getDirectCallee()->getName(),
+          QT, compilerOptions.getTargetCode());
+    }
 
     if (!targetFD) {
       DiagnosticsEngine &Diags = Ctx.getDiagnostics();
@@ -1531,7 +1534,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
         Diags.getCustomDiagID(DiagnosticsEngine::Error,
             "Found unsupported function call '%0' in kernel.");
       SmallVector<const char *, 16> builtinNames;
-      builtins.getBuiltinNames(hipacc::C_TARGET, builtinNames);
+      builtins.getBuiltinNames(compilerOptions.getTargetCode(), builtinNames);
       Diags.Report(E->getExprLoc(), DiagIDCallExpr) << E->getDirectCallee()->getName();
 
       llvm::errs() << "Supported functions are: ";

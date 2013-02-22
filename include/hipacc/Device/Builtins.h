@@ -39,20 +39,15 @@
 #include <clang/Basic/TargetInfo.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include "hipacc/Config/CompilerOptions.h"
+
 namespace clang {
 namespace hipacc {
-enum TargetID {
-  C_TARGET      = 0x1,  // builtin for C
-  CUDA_TARGET   = 0x2,  // builtin for CUDA
-  OPENCL_TARGET = 0x4,  // builtin for OpenCL
-  RS_TARGET     = 0x8,  // builtin for Renderscript
-  ALL_TARGETS   = (C_TARGET|CUDA_TARGET|OPENCL_TARGET|RS_TARGET) //builtin is for all targets.
-};
 
 namespace Builtin {
 enum ID {
   FirstBuiltin = clang::Builtin::FirstTSBuiltin-1,
-  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID) HIPACCBI##NAME,
+  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID, RSID) HIPACCBI##NAME,
   #define CUDABUILTIN(NAME, TYPE, CUDANAME) CUDABI##CUDANAME,
   #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) OPENCLBI##OPENCLNAME,
   #define RSBUILTIN(NAME, TYPE, RSNAME) RSBI##RSNAME,
@@ -62,8 +57,8 @@ enum ID {
 
 struct Info {
   const char *Name, *Type;
-  TargetID builtin_target;
-  ID CUDA, OpenCL;
+  TargetCode builtin_target;
+  ID CUDA, OpenCL, Renderscript;
   FunctionDecl *FD;
 
   bool operator==(const Info &RHS) const {
@@ -92,13 +87,14 @@ class Context {
     FunctionDecl *CreateBuiltin(unsigned int bid);
     FunctionDecl *CreateBuiltin(QualType R, const char *Name);
 
-    void getBuiltinNames(TargetID target, SmallVectorImpl<const char *> &Names);
+    void getBuiltinNames(TargetCode target, SmallVectorImpl<const char *>
+        &Names);
 
     FunctionDecl *getBuiltinFunction(unsigned int ID) const {
       return getRecord(ID-FirstBuiltin).FD;
     }
 
-    FunctionDecl *getBuiltinFunction(StringRef Name, QualType QT, TargetID
+    FunctionDecl *getBuiltinFunction(StringRef Name, QualType QT, TargetCode
         target) const;
 
     const char *getName(unsigned int ID) const {

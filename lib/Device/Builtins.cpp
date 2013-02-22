@@ -37,11 +37,11 @@ using namespace hipacc;
 using namespace hipacc::Builtin;
 
 static hipacc::Builtin::Info BuiltinInfo[] = {
-  { "not a builtin function", 0, ALL_TARGETS, (ID)0, (ID)0, 0 },
-  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID) { #NAME, TYPE, C_TARGET, CUDAID, OPENCLID, 0 },
-  #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, CUDA_TARGET, (ID)0, (ID)0, 0 },
-  #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, OPENCL_TARGET, (ID)0, (ID)0, 0 },
-  #define RSBUILTIN(NAME, TYPE, RSNAME) { #NAME, TYPE, RS_TARGET, (ID)0, (ID)0, 0 },
+  { "not a builtin function", 0, TARGET_C, (ID)0, (ID)0, (ID)0, 0 },
+  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID, RSID) { #NAME, TYPE, TARGET_C, CUDAID, OPENCLID, RSID, 0 },
+  #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, TARGET_CUDA, (ID)0, (ID)0, (ID)0, 0 },
+  #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, TARGET_OpenCL, (ID)0, (ID)0, (ID)0, 0 },
+  #define RSBUILTIN(NAME, TYPE, RSNAME) { #NAME, TYPE, TARGET_Renderscript, (ID)0, (ID)0, (ID)0, 0 },
   #include "hipacc/Device/Builtins.def"
 };
 
@@ -315,11 +315,41 @@ void hipacc::Builtin::Context::InitializeBuiltins() {
 }
 
 
-void hipacc::Builtin::Context::getBuiltinNames(TargetID target,
+void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
     SmallVectorImpl<const char *> &Names) {
   for (unsigned int i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
-    if (BuiltinInfo[i].builtin_target == target)
-      Names.push_back(BuiltinInfo[i].Name);
+    switch (BuiltinInfo[i].builtin_target) {
+      case TARGET_C:
+        switch (target) {
+          case TARGET_C:
+            break;
+          case TARGET_CUDA:
+            if (!getBuiltinFunction(BuiltinInfo[i].CUDA)) continue;
+            break;
+          case TARGET_OpenCL:
+          case TARGET_OpenCLx86:
+            if (!getBuiltinFunction(BuiltinInfo[i].OpenCL)) continue;
+            break;
+          case TARGET_Renderscript:
+          case TARGET_RenderscriptGPU:
+            if (!getBuiltinFunction(BuiltinInfo[i].Renderscript)) continue;
+            break;
+        }
+        break;
+      case TARGET_CUDA:
+        if (target == TARGET_CUDA) break;
+        continue;
+      case TARGET_OpenCL:
+      case TARGET_OpenCLx86:
+        if (target == TARGET_OpenCL || target == TARGET_OpenCLx86) break;
+        continue;
+      case TARGET_Renderscript:
+      case TARGET_RenderscriptGPU:
+        if (target == TARGET_RenderscriptGPU ||
+            target == TARGET_Renderscript) break;
+        continue;
+    }
+    Names.push_back(BuiltinInfo[i].Name);
   }
 }
 
@@ -361,15 +391,36 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
 
 
 FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
-    QualType QT, TargetID target) const {
+    QualType QT, TargetCode target) const {
+  QT = QT.getDesugaredType(Ctx);
+
   for (unsigned int i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
     if (BuiltinInfo[i].Name == Name && BuiltinInfo[i].FD->getResultType() == QT) {
-      if (target == CUDA_TARGET) {
-        if (BuiltinInfo[i].CUDA==0) return BuiltinInfo[i].FD;
-        else return getBuiltinFunction(BuiltinInfo[i].CUDA);
-      } else {
-        if (BuiltinInfo[i].OpenCL==0) return BuiltinInfo[i].FD;
-        return getBuiltinFunction(BuiltinInfo[i].OpenCL);
+      switch (BuiltinInfo[i].builtin_target) {
+        case TARGET_C:
+          switch (target) {
+            case TARGET_C:
+              return NULL;
+            case TARGET_CUDA:
+              return getBuiltinFunction(BuiltinInfo[i].CUDA);
+            case TARGET_OpenCL:
+            case TARGET_OpenCLx86:
+              return getBuiltinFunction(BuiltinInfo[i].OpenCL);
+            case TARGET_Renderscript:
+            case TARGET_RenderscriptGPU:
+              return getBuiltinFunction(BuiltinInfo[i].Renderscript);
+          }
+          break;
+        case TARGET_CUDA:
+          if (target == TARGET_CUDA) return BuiltinInfo[i].FD;
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          if (target == TARGET_OpenCL || target == TARGET_OpenCLx86)
+            return BuiltinInfo[i].FD;
+        case TARGET_Renderscript:
+        case TARGET_RenderscriptGPU:
+          if (target == TARGET_RenderscriptGPU || target == TARGET_Renderscript)
+            return BuiltinInfo[i].FD;
       }
     }
   }
