@@ -624,9 +624,9 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
   Expr *RHS;
   if (bh_variant.borderVal) {
     SmallVector<Stmt *, 16> bhStmts;
-    SmallVector<CompoundStmt *, 16> bhCStmts;
+    SmallVector<CompoundStmt *, 16> bhCStmt;
     RHS = addBorderHandling(paramDRE, global_offset_x, global_offset_y, Acc,
-        bhStmts, bhCStmts);
+        bhStmts, bhCStmt);
 
     // add border handling statements to ifBody/stageBody
     for (unsigned int i=0, e=bhStmts.size(); i!=e; ++i) {

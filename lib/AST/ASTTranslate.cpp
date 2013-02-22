@@ -1237,21 +1237,35 @@ Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
     Stmt *newS = Clone(*I);
     curCompoundStmtVistor = S;
 
-    if (bhStmtsVistor.size()) {
+    if (preStmts.size()) {
       unsigned int num_stmts = 0;
-      for (unsigned int i=0, e=bhStmtsVistor.size(); i!=e; ++i) {
-        if (bhCStmtsVistor.data()[i]==S) {
-          body.push_back(bhStmtsVistor.data()[i]);
+      for (unsigned int i=0, e=preStmts.size(); i!=e; ++i) {
+        if (preCStmt.data()[i]==S) {
+          body.push_back(preStmts.data()[i]);
           num_stmts++;
         }
       }
       for (unsigned int i=0; i<num_stmts; i++) {
-        bhStmtsVistor.pop_back();
-        bhCStmtsVistor.pop_back();
+        preStmts.pop_back();
+        preCStmt.pop_back();
       }
     }
 
     body.push_back(newS);
+
+    if (postStmts.size()) {
+      unsigned int num_stmts = 0;
+      for (unsigned int i=0, e=postStmts.size(); i!=e; ++i) {
+        if (postCStmt.data()[i]==S) {
+          body.push_back(postStmts.data()[i]);
+          num_stmts++;
+        }
+      }
+      for (unsigned int i=0; i<num_stmts; i++) {
+        postStmts.pop_back();
+        postCStmt.pop_back();
+      }
+    }
   }
   result->setStmts(Ctx, body.data(), body.size());
 
@@ -1436,8 +1450,8 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       DC->addDecl(conv_tmp);
       DeclRefExpr *conv_red = createDeclRefExpr(Ctx, conv_tmp);
       convRed = conv_red;
-      bhStmtsVistor.push_back(createDeclStmt(Ctx, conv_tmp));
-      bhCStmtsVistor.push_back(outerCompountStmt);
+      preStmts.push_back(createDeclStmt(Ctx, conv_tmp));
+      preCStmt.push_back(outerCompountStmt);
 
       // unroll convolution
       convMask = Mask;
@@ -1480,8 +1494,8 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
             createUnaryOperator(Ctx, convExprY, UO_PostInc,
               convExprY->getType()), innerLoop);
 
-        bhStmtsVistor.push_back(outerLoop);
-        bhCStmtsVistor.push_back(outerCompountStmt);
+        preStmts.push_back(outerLoop);
+        preCStmt.push_back(outerCompountStmt);
         LambdaDeclMap.clear();
       } else {
         for (unsigned int y=0; y<Mask->getSizeY(); y++) {
@@ -1489,8 +1503,8 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
             convIdxX = x;
             convIdxY = y;
             Stmt *convIteration = Clone(LE->getBody());
-            bhStmtsVistor.push_back(convIteration);
-            bhCStmtsVistor.push_back(outerCompountStmt);
+            preStmts.push_back(convIteration);
+            preCStmt.push_back(outerCompountStmt);
             // clear decls added while cloning last iteration
             LambdaDeclMap.clear();
           }

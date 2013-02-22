@@ -81,8 +81,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // "global variables"
     unsigned int literalCount;
-    SmallVector<Stmt *, 16> bhStmtsVistor;
-    SmallVector<CompoundStmt *, 16> bhCStmtsVistor;
+    SmallVector<Stmt *, 16> preStmts, postStmts;
+    SmallVector<CompoundStmt *, 16> preCStmt, postCStmt;
     CompoundStmt *curCompoundStmtVistor;
     HipaccMask *convMask;
     DeclRefExpr *convRed;
@@ -208,7 +208,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         *local_offset_y, HipaccAccessor *Acc);
     Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
         *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
-        SmallVector<CompoundStmt *, 16> &bhCStmts);
+        SmallVector<CompoundStmt *, 16> &bhCStmt);
     Stmt *addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper);
     Stmt *addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower);
     Stmt *addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper);
