@@ -1118,7 +1118,13 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
             // parameter name matches
             if (PVD->getName().equals(FD->getName()) ||
                 PVD->getName().equals("Output")) {
+              // mark original variable as being used
+              Kernel->setUsed(name);
+
+              // add suffix to vectorized variable
               name += "4";
+
+              // get SIMD4 type
               QT = simdTypes.getSIMDType(PVD, SIMD4);
               break;
             }
@@ -2091,7 +2097,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         }
         break;
       case TARGET_Renderscript:
-        // access the current output element using *out or out[0]
         result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         break;
       case TARGET_RenderscriptGPU:
