@@ -78,8 +78,8 @@ class CompilerKnownClasses {
     {}
 
     bool isTypeOfTemplateClass(QualType QT, CXXRecordDecl *CRD) {
-      if (QT.getTypePtr()->isReferenceType()) {
-        QT = QT.getTypePtr()->getPointeeType();
+      if (QT->isReferenceType()) {
+        QT = QT->getPointeeType();
       }
 
       // see also UnwrapTypeForDebugInfo() in CGDebugInfo.cpp
@@ -88,7 +88,7 @@ class CompilerKnownClasses {
       }
 
       // class<type> ...
-      if (QT.getTypePtr()->getTypeClass() == Type::TemplateSpecialization) {
+      if (QT->getTypeClass() == Type::TemplateSpecialization) {
         const TemplateSpecializationType *TST =
           dyn_cast<TemplateSpecializationType>(QT);
 
@@ -112,8 +112,8 @@ class CompilerKnownClasses {
     }
 
     QualType getFirstTemplateType(QualType QT) {
-      if (QT.getTypePtr()->isReferenceType()) {
-        QT = QT.getTypePtr()->getPointeeType();
+      if (QT->isReferenceType()) {
+        QT = QT->getPointeeType();
       }
 
       if (QT->getTypeClass() == Type::Elaborated) {
@@ -121,7 +121,7 @@ class CompilerKnownClasses {
       }
 
       // class<type> ...
-      assert(QT.getTypePtr()->getTypeClass() == Type::TemplateSpecialization &&
+      assert(QT->getTypeClass() == Type::TemplateSpecialization &&
           "instance of template class expected");
       const TemplateSpecializationType *TST =
         dyn_cast<TemplateSpecializationType>(QT);

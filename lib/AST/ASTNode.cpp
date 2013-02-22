@@ -83,7 +83,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
   DeclarationName DecName(&info);
 
   // create function declaration
-  assert(T.getTypePtr()->isFunctionType());
+  assert(T->isFunctionType());
   FunctionDecl *FD = FunctionDecl::Create(Ctx, DC, SourceLocation(),
       SourceLocation(), DecName, T, NULL, SC_None, SC_None, false,
       hasWrittenPrototype);

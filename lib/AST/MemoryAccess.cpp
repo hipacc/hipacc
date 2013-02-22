@@ -162,7 +162,7 @@ Expr *ASTTranslate::accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x,
       Ctx.IntTy);
 
   result = new (Ctx) ArraySubscriptExpr(LHS, result,
-      LHS->getType().getTypePtr()->getPointeeType(), VK_LValue, OK_Ordinary,
+      LHS->getType()->getPointeeType(), VK_LValue, OK_Ordinary,
       SourceLocation());
 
   return result;
@@ -199,16 +199,14 @@ Expr *ASTTranslate::accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc,
 // access 2D memory array at given index
 Expr *ASTTranslate::accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y) {
   QualType QT = LHS->getType();
-  QualType QT2 =
-    QT.getTypePtr()->getPointeeType()->getAsArrayTypeUnsafe()->getElementType();
+  QualType QT2 = QT->getPointeeType()->getAsArrayTypeUnsafe()->getElementType();
 
   // mark image as being used within the kernel
   Kernel->setUsed(LHS->getNameInfo().getAsString());
 
   Expr *result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx, QT,
-        CK_LValueToRValue, LHS, NULL, VK_RValue), idx_y,
-      QT.getTypePtr()->getPointeeType(), VK_LValue, OK_Ordinary,
-      SourceLocation());
+        CK_LValueToRValue, LHS, NULL, VK_RValue), idx_y, QT->getPointeeType(),
+      VK_LValue, OK_Ordinary, SourceLocation());
 
   result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx,
         Ctx.getPointerType(QT2), CK_ArrayToPointerDecay, result, NULL,
@@ -601,9 +599,8 @@ Expr *ASTTranslate::accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr
 
   // calculate index: [idx_y][idx_x]
   Expr *result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx, QT2,
-        CK_LValueToRValue, LHS, NULL, VK_RValue), idx_y,
-      QT2.getTypePtr()->getPointeeType(), VK_LValue, OK_Ordinary,
-      SourceLocation());
+        CK_LValueToRValue, LHS, NULL, VK_RValue), idx_y, QT2->getPointeeType(),
+      VK_LValue, OK_Ordinary, SourceLocation());
 
   result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx,
         Ctx.getPointerType(QT), CK_ArrayToPointerDecay, result, NULL,

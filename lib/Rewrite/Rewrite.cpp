@@ -1256,7 +1256,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       }
 
       // found Kernel decl
-      if (VD->getType().getTypePtr()->getTypeClass() == Type::Record) {
+      if (VD->getType()->getTypeClass() == Type::Record) {
         const RecordType *RT = cast<RecordType>(VD->getType());
 
         // get Kernel Class
@@ -1857,8 +1857,7 @@ void Rewrite::generateReductionKernels() {
       if (!GR->getReductionFunction()) {
         VarDecl *VD = GR->getDecl();
 
-        if (VD->getType().getTypePtr()->getTypeClass() ==
-            Type::TemplateSpecialization) {
+        if (VD->getType()->getTypeClass() == Type::TemplateSpecialization) {
           const TemplateSpecializationType *TST =
             cast<TemplateSpecializationType>(VD->getType());
 
