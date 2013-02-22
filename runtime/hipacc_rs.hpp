@@ -314,8 +314,9 @@ void hipaccInitRenderScript(int targetAPI) {
 
 template<typename T>
 T hipaccInitScript() {
-    // TODO: Set reasonable cache path
-    return T(HipaccContext::getInstance().get_context(), ".", 1);
+    std::string cache_path = "/sdcard";
+    return T(HipaccContext::getInstance().get_context(), cache_path.c_str(),
+            cache_path.length());
 }
 
 
