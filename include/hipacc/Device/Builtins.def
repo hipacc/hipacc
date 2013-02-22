@@ -62,6 +62,8 @@
 
 // Builtin HIPACC math functions in alphabetical order from the OpenCL 1.2 Spec:
 // http://www.khronos.org/registry/cl/sdk/1.2/docs/man/xhtml/mathFunctions.html
+// Corresponding CUDA Math API:
+// http://docs.nvidia.com/cuda/cuda-math-api/index.html
 HIPACCBUILTIN(acos,                 "dd",       HIPACCBIacos,       HIPACCBIacos)
 HIPACCBUILTIN(acosf,                "ff",       HIPACCBIacosf,      OPENCLBIacosf)
 OPENCLBUILTIN(acos,                 "ff",       acosf)
@@ -127,6 +129,11 @@ HIPACCBUILTIN(erf,                  "dd",       HIPACCBIerf,        HIPACCBIerf)
 HIPACCBUILTIN(erff,                 "ff",       HIPACCBIerff,       OPENCLBIerff)
 OPENCLBUILTIN(erf,                  "ff",       erff)
 
+// CUDA only
+//HIPACCBUILTIN(erfcinv,              "ff",       HIPACCBI,           HIPACCBI)
+//HIPACCBUILTIN(erfcx,                "ff",       HIPACCBI,           HIPACCBI)
+//HIPACCBUILTIN(erfinv,               "ff",       HIPACCBI,           HIPACCBI)
+
 HIPACCBUILTIN(exp,                  "dd",       HIPACCBIexp,        HIPACCBIexp)
 HIPACCBUILTIN(expf,                 "ff",       HIPACCBIexpf,       OPENCLBIexpf)
 OPENCLBUILTIN(exp,                  "ff",       expf)
@@ -151,6 +158,9 @@ OPENCLBUILTIN(fabs,                 "ff",       fabsf)
 HIPACCBUILTIN(fdim,                 "ddd",      HIPACCBIfdim,       HIPACCBIfdim)
 HIPACCBUILTIN(fdimf,                "fff",      HIPACCBIfdimf,      OPENCLBIfdimf)
 OPENCLBUILTIN(fdim,                 "fff",      fdimf)
+
+// CUDA only
+//HIPACCBUILTIN(fdivide,              "fff",      HIPACCBI,           HIPACCBI)
 
 HIPACCBUILTIN(floor,                "dd",       HIPACCBIfloor,      HIPACCBIfloor)
 HIPACCBUILTIN(floorf,               "ff",       HIPACCBIfloorf,     OPENCLBIfloorf)
@@ -188,6 +198,19 @@ HIPACCBUILTIN(ilogb,                "dd",       HIPACCBIilogb,      HIPACCBIilog
 HIPACCBUILTIN(ilogbf,               "ff",       HIPACCBIilogbf,     OPENCLBIilogbf)
 OPENCLBUILTIN(ilogb,                "ff",       ilogbf)
 
+HIPACCBUILTIN(isfinite,             "bf",       HIPACCBIisfinite,   FirstBuiltin)
+HIPACCBUILTIN(isinf,                "bf",       HIPACCBIisinf,      FirstBuiltin)
+HIPACCBUILTIN(isnan,                "bf",       HIPACCBIisnan,      FirstBuiltin)
+
+HIPACCBUILTIN(j0,                   "id",       HIPACCBIj0,         FirstBuiltin)
+HIPACCBUILTIN(j0f,                  "if",       HIPACCBIj0f,        FirstBuiltin)
+
+HIPACCBUILTIN(j1,                   "id",       HIPACCBIj1,         FirstBuiltin)
+HIPACCBUILTIN(j1f,                  "if",       HIPACCBIj1f,        FirstBuiltin)
+
+HIPACCBUILTIN(jn,                   "id",       HIPACCBIjn,         FirstBuiltin)
+HIPACCBUILTIN(jnf,                  "if",       HIPACCBIjnf,        FirstBuiltin)
+
 HIPACCBUILTIN(ldexp,                "ddi",      HIPACCBIldexp,      HIPACCBIldexp)
 HIPACCBUILTIN(ldexpf,               "ffi",      HIPACCBIldexpf,     OPENCLBIldexpf)
 OPENCLBUILTIN(ldexp,                "ffi",      ldexpf)
@@ -196,9 +219,9 @@ HIPACCBUILTIN(lgamma,               "dd",       HIPACCBIlgamma,     HIPACCBIlgam
 HIPACCBUILTIN(lgammaf,              "ff",       HIPACCBIlgammaf,    OPENCLBIlgammaf)
 OPENCLBUILTIN(lgamma,               "ff",       lgammaf)
 
-HIPACCBUILTIN(lgamma_r,             "dd",       HIPACCBIlgamma_r,   HIPACCBIlgamma_r)
-HIPACCBUILTIN(lgamma_rf,            "ff",       HIPACCBIlgamma_rf,  OPENCLBIlgamma_rf)
-OPENCLBUILTIN(lgamma_r,             "ff",       lgamma_rf)
+HIPACCBUILTIN(lgamma_r,             "ddi*",     FirstBuiltin,       HIPACCBIlgamma_r)
+HIPACCBUILTIN(lgamma_rf,            "ffi*",     FirstBuiltin,       OPENCLBIlgamma_rf)
+OPENCLBUILTIN(lgamma_r,             "ffi*",     lgamma_rf)
 
 HIPACCBUILTIN(log,                  "dd",       HIPACCBIlog,        HIPACCBIlog)
 HIPACCBUILTIN(logf,                 "ff",       HIPACCBIlogf,       OPENCLBIlogf)
@@ -220,9 +243,10 @@ HIPACCBUILTIN(logb,                 "dd",       HIPACCBIlogb,       HIPACCBIlogb
 HIPACCBUILTIN(logbf,                "ff",       HIPACCBIlogbf,      OPENCLBIlogbf)
 OPENCLBUILTIN(logb,                 "ff",       logbf)
 
-//HIPACCBUILTIN(mad,                  "ff",       HIPACCBI,           HIPACCBI)
-//HIPACCBUILTIN(maxmag,               "ff",       HIPACCBI,           HIPACCBI)
-//HIPACCBUILTIN(minmag,               "ff",       HIPACCBI,           HIPACCBI)
+// OpenCL
+//HIPACCBUILTIN(mad,                  "ff",       FirstBuiltin,       HIPACCBI)
+//HIPACCBUILTIN(maxmag,               "ff",       FirstBuiltin,       HIPACCBI)
+//HIPACCBUILTIN(minmag,               "ff",       FirstBuiltin,       HIPACCBI)
 
 HIPACCBUILTIN(modf,                 "ddd*",     HIPACCBImodf,       HIPACCBImodf)
 HIPACCBUILTIN(modff,                "fff*",     HIPACCBImodff,      OPENCLBImodff)
@@ -232,9 +256,18 @@ HIPACCBUILTIN(nan,                  "dc*C",     HIPACCBInan,        HIPACCBInan)
 HIPACCBUILTIN(nanf,                 "fc*C",     HIPACCBInanf,       OPENCLBInanf)
 OPENCLBUILTIN(nan,                  "fc*C",     nanf)
 
+HIPACCBUILTIN(nearbyint,            "dd",       HIPACCBInearbyint,  FirstBuiltin)
+HIPACCBUILTIN(nearbyintf,           "ff",       HIPACCBInearbyintf, FirstBuiltin)
+
 HIPACCBUILTIN(nextafter,            "ddd",      HIPACCBInextafter,  HIPACCBInextafter)
 HIPACCBUILTIN(nextafterf,           "fff",      HIPACCBInextafterf, OPENCLBInextafterf)
 OPENCLBUILTIN(nextafter,            "fff",      nextafterf)
+
+// CUDA
+//HIPACCBUILTIN(normcdff,           "ff",       HIPACCBI,           FirstBuiltin)
+//HIPACCBUILTIN(normcdf,            "dd",       HIPACCBI,           FirstBuiltin)
+//HIPACCBUILTIN(normcdfinvf,        "ff",       HIPACCBI,           FirstBuiltin)
+//HIPACCBUILTIN(normcdfinv,         "dd",       HIPACCBI,           FirstBuiltin)
 
 HIPACCBUILTIN(pow,                  "ddd",      HIPACCBIpow,        HIPACCBIpow)
 HIPACCBUILTIN(powf,                 "fff",      HIPACCBIpowf,       OPENCLBIpowf)
@@ -248,6 +281,10 @@ HIPACCBUILTIN(powr,                 "dd",       HIPACCBIpowr,       HIPACCBIpowr
 HIPACCBUILTIN(powrf,                "ff",       HIPACCBIpowrf,      OPENCLBIpowrf)
 OPENCLBUILTIN(powr,                 "ff",       powrf)
 
+// CUDA
+//HIPACCBUILTIN(rcbrt,              "dd",         HIPACCBI,           FirstBuiltin)
+//HIPACCBUILTIN(rcbrtf,             "ff",         HIPACCBI,           FirstBuiltin)
+
 HIPACCBUILTIN(remainder,            "ddd",      HIPACCBIremainder,  HIPACCBIremainder)
 HIPACCBUILTIN(remainderf,           "fff",      HIPACCBIremainderf, OPENCLBIremainderf)
 OPENCLBUILTIN(remainder,            "fff",      remainderf)
@@ -260,9 +297,15 @@ HIPACCBUILTIN(rint,                 "dd",       HIPACCBIrint,       HIPACCBIrint
 HIPACCBUILTIN(rintf,                "ff",       HIPACCBIrintf,      OPENCLBIrintf)
 OPENCLBUILTIN(rint,                 "ff",       rintf)
 
-HIPACCBUILTIN(rootn,                "dd",       HIPACCBIrootn,      HIPACCBIrootn)
-HIPACCBUILTIN(rootnf,               "ff",       HIPACCBIrootnf,     OPENCLBIrootnf)
-OPENCLBUILTIN(rootn,                "ff",       rootnf)
+HIPACCBUILTIN(lrint,                "Lid",      HIPACCBIlrint,      FirstBuiltin)
+HIPACCBUILTIN(lrintf,               "Lif",      HIPACCBIlrintf,     FirstBuiltin)
+
+HIPACCBUILTIN(lround,               "Lid",      HIPACCBIlround,     FirstBuiltin)
+HIPACCBUILTIN(lroundf,              "Lif",      HIPACCBIlroundf,    FirstBuiltin)
+
+// OpenCL only
+//HIPACCBUILTIN(rootn,                "dd",       FirstBuiltin,      HIPACCBI)
+//HIPACCBUILTIN(rootnf,               "ff",       FirstBuiltin,      HIPACCBI)
 
 HIPACCBUILTIN(round,                "dd",       HIPACCBIround,      HIPACCBIround)
 HIPACCBUILTIN(roundf,               "ff",       HIPACCBIroundf,     OPENCLBIroundf)
@@ -272,6 +315,13 @@ HIPACCBUILTIN(rsqrt,                "dd",       HIPACCBIrsqrt,      HIPACCBIrsqr
 HIPACCBUILTIN(rsqrtf,               "ff",       HIPACCBIrsqrtf,     OPENCLBIrsqrtf)
 OPENCLBUILTIN(rsqrt,                "ff",       rsqrtf)
 
+// CUDA
+HIPACCBUILTIN(scalbln,              "ddLi",     HIPACCBIscalbln,    FirstBuiltin)
+HIPACCBUILTIN(scalblnf,             "ffLi",     HIPACCBIscalblnf,   FirstBuiltin)
+HIPACCBUILTIN(scalbn,               "ddi",      HIPACCBIscalbln,    FirstBuiltin)
+HIPACCBUILTIN(scalbnf,              "ffi",      HIPACCBIscalblnf,   FirstBuiltin)
+HIPACCBUILTIN(signbit,              "bf",       HIPACCBIsignbit,    FirstBuiltin)
+
 HIPACCBUILTIN(sin,                  "dd",       HIPACCBIsin,        HIPACCBIsin)
 HIPACCBUILTIN(sinf,                 "ff",       HIPACCBIsinf,       OPENCLBIsinf)
 OPENCLBUILTIN(sin,                  "ff",       sinf)
@@ -279,6 +329,9 @@ OPENCLBUILTIN(sin,                  "ff",       sinf)
 HIPACCBUILTIN(sincos,               "vddd",     HIPACCBIsincos,     HIPACCBIsincos)
 HIPACCBUILTIN(sincosf,              "vfff",     HIPACCBIsincosf,    OPENCLBIsincosf)
 OPENCLBUILTIN(sincos,               "vfff",     sincosf)
+
+// CUDA only
+//HIPACCBUILTIN(sincospif,            "vff*f*",   HIPACCBI,           HIPACCBI)
 
 HIPACCBUILTIN(sinh,                 "dd",       HIPACCBIsinh,       HIPACCBIsinh)
 HIPACCBUILTIN(sinhf,                "ff",       HIPACCBIsinhf,      OPENCLBIsinhf)
@@ -308,6 +361,16 @@ HIPACCBUILTIN(trunc,                "dd",       HIPACCBItrunc,      HIPACCBItrun
 HIPACCBUILTIN(truncf,               "ff",       HIPACCBItruncf,     OPENCLBItruncf)
 OPENCLBUILTIN(trunc,                "ff",       truncf)
 
+// CUDA
+HIPACCBUILTIN(y0,                   "dd",       HIPACCBIy0,         FirstBuiltin)
+HIPACCBUILTIN(y0f,                  "ff",       HIPACCBIy0f,        FirstBuiltin)
+OPENCLBUILTIN(y0,                   "ff",       y0f)
+HIPACCBUILTIN(y1,                   "dd",       HIPACCBIy1,         FirstBuiltin)
+HIPACCBUILTIN(y1f,                  "ff",       HIPACCBIy1f,        FirstBuiltin)
+OPENCLBUILTIN(y1,                   "ff",       y1f)
+HIPACCBUILTIN(yn,                   "dd",       HIPACCBIyn,         FirstBuiltin)
+HIPACCBUILTIN(ynf,                  "ff",       HIPACCBIynf,        FirstBuiltin)
+OPENCLBUILTIN(yn,                   "ff",       ynf)
 
 // other function - not from math.h
 HIPACCBUILTIN(abs,                  "ii",       HIPACCBIabs,        HIPACCBIabs)
@@ -317,7 +380,7 @@ OPENCLBUILTIN(abs,                  "LiLi",     labs)
 
 // Builtin OpenCL functions
 // OpenCL work-item built-in functions
-// http://www.khronos.org/registry/cl/sdk/1.0/docs/man/xhtml/workItemFunctions.html
+// http://www.khronos.org/registry/cl/sdk/1.2/docs/man/xhtml/workItemFunctions.html
 OPENCLBUILTIN(get_work_dim,         "Ui",           get_work_dim)
 OPENCLBUILTIN(get_global_size,      "zUi",          get_global_size)
 OPENCLBUILTIN(get_global_id,        "zUi",          get_global_id)
@@ -325,7 +388,10 @@ OPENCLBUILTIN(get_local_size,       "zUi",          get_local_size)
 OPENCLBUILTIN(get_local_id,         "zUi",          get_local_id)
 OPENCLBUILTIN(get_num_groups,       "zUi",          get_num_groups)
 OPENCLBUILTIN(get_group_id,         "zUi",          get_group_id)
+OPENCLBUILTIN(get_global_offset,    "zUi",          get_global_offset)
+// http://www.khronos.org/registry/cl/sdk/1.2/docs/man/xhtml/barrier.html
 OPENCLBUILTIN(barrier,              "zUi",          barrier)
+// http://www.khronos.org/registry/cl/sdk/1.2/docs/man/xhtml/imageFunctions.html
 OPENCLBUILTIN(read_imagef,          "V4fv*UiV2i",   read_imagef)
 OPENCLBUILTIN(read_imagei,          "V4iv*UiV2i",   read_imagei)
 OPENCLBUILTIN(read_imageui,         "V4Uiv*UiV2i",  read_imageui)
