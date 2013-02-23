@@ -173,9 +173,9 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
   for (CFGBlock::const_iterator it = block->begin(), ei = block->end(); it !=
       ei; ++it) {
     const CFGElement &elem = *it;
-    if (!isa<CFGStmt>(elem)) continue;
+    if (!elem.getAs<CFGStmt>()) continue;
 
-    const Stmt *S = cast<CFGStmt>(elem).getStmt();
+    const Stmt *S = elem.castAs<CFGStmt>().getStmt();
     TF.Visit(const_cast<Stmt*>(S));
   }
 
