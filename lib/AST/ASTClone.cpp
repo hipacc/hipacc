@@ -67,8 +67,8 @@ Stmt *ASTTranslate::VisitNullStmt(NullStmt *S) {
 
 #ifdef NO_TRANSLATION
 Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
-  CompoundStmt* result = new (Ctx) CompoundStmt(Ctx, NULL, 0, S->getLBracLoc(),
-      S->getLBracLoc());
+  CompoundStmt* result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
+      S->getLBracLoc(), S->getLBracLoc());
 
   SmallVector<Stmt *, 16> body;
   for (CompoundStmt::const_body_iterator I=S->body_begin(), E=S->body_end();
@@ -715,7 +715,8 @@ Expr *ASTTranslate::VisitCXXStaticCastExpr(CXXStaticCastExpr *E) {
 
   CXXStaticCastExpr *result = CXXStaticCastExpr::Create(Ctx, E->getType(),
       E->getValueKind(), E->getCastKind(), Clone(E->getSubExpr()), &castPath,
-      E->getTypeInfoAsWritten(), E->getOperatorLoc(), E->getRParenLoc());
+      E->getTypeInfoAsWritten(), E->getOperatorLoc(), E->getRParenLoc(),
+      E->getAngleBrackets());
 
   setExprProps(E, result);
 
@@ -728,7 +729,8 @@ Expr *ASTTranslate::VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E) {
 
   CXXDynamicCastExpr *result = CXXDynamicCastExpr::Create(Ctx, E->getType(),
       E->getValueKind(), E->getCastKind(), Clone(E->getSubExpr()), &castPath,
-      E->getTypeInfoAsWritten(), E->getOperatorLoc(), E->getRParenLoc());
+      E->getTypeInfoAsWritten(), E->getOperatorLoc(), E->getRParenLoc(),
+      E->getAngleBrackets());
 
   setExprProps(E, result);
 
@@ -742,7 +744,7 @@ Expr *ASTTranslate::VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E) {
   CXXReinterpretCastExpr *result = CXXReinterpretCastExpr::Create(Ctx,
       E->getType(), E->getValueKind(), E->getCastKind(), Clone(E->getSubExpr()),
       &castPath, E->getTypeInfoAsWritten(), E->getOperatorLoc(),
-      E->getRParenLoc());
+      E->getRParenLoc(), E->getAngleBrackets());
 
   setExprProps(E, result);
 
@@ -752,7 +754,7 @@ Expr *ASTTranslate::VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E) {
 Expr *ASTTranslate::VisitCXXConstCastExpr(CXXConstCastExpr *E) {
   CXXConstCastExpr *result = CXXConstCastExpr::Create(Ctx, E->getType(),
       E->getValueKind(), Clone(E->getSubExpr()), E->getTypeInfoAsWritten(),
-      E->getOperatorLoc(), E->getRParenLoc());
+      E->getOperatorLoc(), E->getRParenLoc(), E->getAngleBrackets());
 
   setExprProps(E, result);
 
