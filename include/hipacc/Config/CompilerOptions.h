@@ -66,7 +66,7 @@ class CompilerOptions {
   private:
     // target code and device specification
     TargetCode target_code;
-    TargetDevice compute_capability;
+    TargetDevice target_device;
     // target code features
     CompilerOption explore_config;
     CompilerOption time_kernels;
@@ -107,7 +107,7 @@ class CompilerOptions {
   public:
     CompilerOptions() :
       target_code(TARGET_OpenCL),
-      compute_capability(TESLA_13),
+      target_device(TESLA_13),
       explore_config(OFF),
       time_kernels(OFF),
       kernel_config(AUTO),
@@ -150,7 +150,7 @@ class CompilerOptions {
     }
 
     TargetCode getTargetCode() { return target_code; }
-    TargetDevice getTargetDevice() { return compute_capability; }
+    TargetDevice getTargetDevice() { return target_device; }
 
     bool exploreConfig(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
       if (explore_config & option) return true;
@@ -197,7 +197,7 @@ class CompilerOptions {
     int getPixelsPerThread() { return pixels_per_thread; }
 
     void setTargetCode(TargetCode tc) { target_code = tc; }
-    void setTargetDevice(TargetDevice cc) { compute_capability = cc; }
+    void setTargetDevice(TargetDevice td) { target_device = td; }
     void setExploreConfig(CompilerOption o) { explore_config = o; }
     void setTimeKernels(CompilerOption o) { time_kernels = o; }
     void setLocalMemory(CompilerOption o) { local_memory = o; }

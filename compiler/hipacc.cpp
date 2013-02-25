@@ -3,23 +3,23 @@
 // Copyright (c) 2012, Siemens AG
 // Copyright (c) 2010, ARM Limited
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met: 
-// 
+// modification, are permitted provided that the following conditions are met:
+//
 // 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer. 
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution. 
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
 // ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 // (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -73,9 +73,16 @@ void printUsage() {
     << "  -emit-renderscript      Emit Renderscript code for Android\n"
     << "  -emit-renderscript-gpu  Emit Renderscript code for Android (force GPU execution)\n"
     << "  -emit-padding <n>       Emit CUDA/OpenCL/Renderscript image padding, using alignment of <n> bytes for GPU devices\n"
-    << "  -compute-capability <n> Generate code for GPUs with compute capability <n>.\n"
-    << "                          Valid values for CUDA/OpenCL on NVIDIA devices are 10, 11, 12, 13, 20, 21, 30, and 35\n"
-    << "                          Valid values for OpenCL on AMD devices is 58 and 69\n"
+    << "  -target <n>             Generate code for GPUs with code name <n>.\n"
+    << "                          Code names for CUDA/OpenCL on NVIDIA devices are:\n"
+    << "                            'Tesla-10', 'Tesla-11', 'Tesla-12', and 'Tesla-13' for Tesla architecture.\n"
+    << "                            'Fermi-20' and 'Fermi-21' for Fermi architecture.\n"
+    << "                            'Kepler-30' and 'Kepler-35' for Kepler architecture.\n"
+    << "                          Code names for for OpenCL on AMD devices are:\n"
+    << "                            'Evergreen'      for Evergreen architecture (Radeon HD5xxx).\n"
+    << "                            'NorthernIsland' for Northern Island architecture (Radeon HD6xxx).\n"
+    << "                          Code names for for OpenCL/Renderscript on ARM devices are:\n"
+    << "                            'Midgard' for Mali-T6xx' for Mali.\n"
     << "  -explore-config         Emit code that explores all possible kernel configuration and print its performance\n"
     << "  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1\n"
     << "  -time-kernels           Emit code that executes each kernel multiple times to get accurate timings\n"
@@ -139,23 +146,43 @@ int main(int argc, char *argv[]) {
       int val;
       buffer >> val;
       if (buffer.fail()) {
-        llvm::errs() << "Expected alignment in bytes for -emit-padding switch.\n";
-        exit(EXIT_FAILURE);
+        llvm::errs() << "ERROR: Expected alignment in bytes for -emit-padding switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
       }
       compilerOptions.setPadding(val);
       ++i;
       continue;
     }
-    if (StringRef(argv[i]) == "-compute-capability") {
-      assert(i<(argc-1) && "Mandatory version parameter for -compute-capability switch missing.");
-      std::istringstream buffer(argv[i+1]);
-      int val;
-      buffer >> val;
-      if (buffer.fail()) {
-        llvm::errs() << "Expected version parameter for -compute-capability switch.\n";
-        exit(EXIT_FAILURE);
+    if (StringRef(argv[i]) == "-target") {
+      assert(i<(argc-1) && "Mandatory code name parameter for -target switch missing.");
+      if (StringRef(argv[i+1]) == "Tesla-10") {
+        compilerOptions.setTargetDevice(TESLA_10);
+      } else if (StringRef(argv[i+1]) == "Tesla-11") {
+        compilerOptions.setTargetDevice(TESLA_11);
+      } else if (StringRef(argv[i+1]) == "Tesla-12") {
+        compilerOptions.setTargetDevice(TESLA_12);
+      } else if (StringRef(argv[i+1]) == "Tesla-13") {
+        compilerOptions.setTargetDevice(TESLA_13);
+      } else if (StringRef(argv[i+1]) == "Fermi-20") {
+        compilerOptions.setTargetDevice(FERMI_20);
+      } else if (StringRef(argv[i+1]) == "Fermi-21") {
+        compilerOptions.setTargetDevice(FERMI_21);
+      } else if (StringRef(argv[i+1]) == "Kepler-30") {
+        compilerOptions.setTargetDevice(KEPLER_30);
+      } else if (StringRef(argv[i+1]) == "Kepler-35") {
+        compilerOptions.setTargetDevice(KEPLER_35);
+      } else if (StringRef(argv[i+1]) == "Evergreen") {
+        compilerOptions.setTargetDevice(EVERGREEN);
+      } else if (StringRef(argv[i+1]) == "NorthernIsland") {
+        compilerOptions.setTargetDevice(NORTHERN_ISLAND);
+      } else if (StringRef(argv[i+1]) == "Midgard") {
+        compilerOptions.setTargetDevice(MIDGARD);
+      } else {
+        llvm::errs() << "ERROR: Expected valid code name specification for -target switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
       }
-      compilerOptions.setTargetDevice((TargetDevice)val);
       ++i;
       continue;
     }
@@ -168,9 +195,9 @@ int main(int argc, char *argv[]) {
       int x=0, y=0, ret=0;
       ret = sscanf(argv[i+1], "%dx%d", &x, &y);
       if (ret!=2) {
-        llvm::errs() << "Expected valid configuration specification for -use-config switch.\n";
+        llvm::errs() << "ERROR: Expected valid configuration specification for -use-config switch.\n\n";
         printUsage();
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
       }
       compilerOptions.setKernelConfig(x, y);
       ++i;
@@ -191,9 +218,9 @@ int main(int argc, char *argv[]) {
       } else if (StringRef(argv[i+1]) == "Array2D") {
         compilerOptions.setTextureMemory(Array2D);
       } else {
-        llvm::errs() << "Expected valid texture memory specification for -use-textures switch.\n";
+        llvm::errs() << "ERROR: Expected valid texture memory specification for -use-textures switch.\n\n";
         printUsage();
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
       }
       ++i;
       continue;
@@ -205,9 +232,9 @@ int main(int argc, char *argv[]) {
       } else if (StringRef(argv[i+1]) == "on") {
         compilerOptions.setLocalMemory(USER_ON);
       } else {
-        llvm::errs() << "Expected valid local memory specification for -use-local switch.\n";
+        llvm::errs() << "ERROR: Expected valid local memory specification for -use-local switch.\n\n";
         printUsage();
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
       }
       ++i;
       continue;
@@ -219,9 +246,9 @@ int main(int argc, char *argv[]) {
       } else if (StringRef(argv[i+1]) == "on") {
         compilerOptions.setVectorizeKernels(USER_ON);
       } else {
-        llvm::errs() << "Expected valid vectorization specification for -use-vectorize switch.\n";
+        llvm::errs() << "ERROR: Expected valid vectorization specification for -use-vectorize switch.\n\n";
         printUsage();
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
       }
       ++i;
       continue;
@@ -232,8 +259,9 @@ int main(int argc, char *argv[]) {
       int val;
       buffer >> val;
       if (buffer.fail()) {
-        llvm::errs() << "Expected integer parameter for -pixels-per-thread switch.\n";
-        exit(EXIT_FAILURE);
+        llvm::errs() << "ERROR: Expected integer parameter for -pixels-per-thread switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
       }
       compilerOptions.setPixelsPerThread(val);
       ++i;
@@ -251,44 +279,66 @@ int main(int argc, char *argv[]) {
     Args.push_back(argv[i]);
   }
 
-  // sanity checks
+  // create target device description from compiler options
   HipaccDevice targetDevice(compilerOptions);
-  if (!targetDevice.isAMDGPU() && !targetDevice.isNVIDIAGPU()) {
-    llvm::errs() << "Wrong compute capability specified: "
-      << compilerOptions.getTargetDevice() << "\n"
-      << "  Supported for NVIDIA devices are 10, 11, 12, 13, 20, 21, 30, and 35.\n"
-      << "  Supported for AMD devices is 58 and 69.\n";
-    exit(EXIT_FAILURE);
-  }
-  if (compilerOptions.useTextureMemory(USER_ON) && compilerOptions.emitOpenCLx86()) {
-      compilerOptions.setTextureMemory(NoTexture);
-      llvm::errs() << "Warning: texture support disabled! x86 devices do not support textures!\n";
-  }
+
+  //
+  // sanity checks
+  //
+
+  // CUDA supported only on NVIDIA devices
   if (compilerOptions.emitCUDA() && !targetDevice.isNVIDIAGPU()) {
-    llvm::errs() << "CUDA code generation selected, but no CUDA-capable target device specified!\n"
-      << "  Please select correct compute capability/code generation backend combination.\n";
+    llvm::errs() << "ERROR: CUDA code generation selected, but no CUDA-capable target device specified!\n"
+                 << "  Please select correct target device/code generation backend combination.\n\n";
+    printUsage();
     return EXIT_FAILURE;
   }
+  // OpenCL (GPU) only supported on GPU devices
+  if (compilerOptions.emitOpenCL() &&
+      !(targetDevice.isARMGPU() || targetDevice.isARMGPU() ||
+        targetDevice.isNVIDIAGPU())) {
+    llvm::errs() << "ERROR: Renderscript (GPU) code generation selected, but no Renderscript-capable target device specified!\n"
+                 << "  Please select correct target device/code generation backend combination.\n\n";
+    printUsage();
+    return EXIT_FAILURE;
+  }
+  // Renderscript (GPU) only supported on ARM devices
+  if (compilerOptions.emitRenderscriptGPU() && !targetDevice.isARMGPU()) {
+    llvm::errs() << "ERROR: Renderscript (GPU) code generation selected, but no Renderscript-capable target device specified!\n"
+                 << "  Please select correct target device/code generation backend combination.\n\n";
+    printUsage();
+    return EXIT_FAILURE;
+  }
+  // Textures in CUDA - writing to Array2D textures introduced with Fermi
   if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory(USER_ON)) {
     if (compilerOptions.getTextureType()==Array2D &&
         compilerOptions.getTargetDevice() < FERMI_20) {
       llvm::errs() << "Warning: 'Array2D' texture memory only supported for Fermi (CC >= 2.0)!"
-        << "  Using 'Linear2D' instead!\n";
+                   << "  Using 'Linear2D' instead!\n";
       compilerOptions.setTextureMemory(Linear2D);
     }
-  } else {
+  }
+  // Textures in OpenCL - no support on x86
+  if (compilerOptions.emitOpenCLx86() && compilerOptions.useTextureMemory(USER_ON)) {
+      compilerOptions.setTextureMemory(NoTexture);
+      llvm::errs() << "Warning: texture support disabled! x86 devices do not support textures!\n";
+  }
+  // Textures in OpenCL - only Array2D textures supported
+  if (compilerOptions.emitOpenCL() && compilerOptions.useTextureMemory(USER_ON)) {
     if (compilerOptions.getTextureType()==Linear1D ||
         compilerOptions.getTextureType()==Linear2D) {
       llvm::errs() << "Warning: 'Linear1D' and 'Linear2D' texture memory not supported by OpenCL!"
-        << "  Using 'Array2D' instead!\n";
+                   << "  Using 'Array2D' instead!\n";
       compilerOptions.setTextureMemory(Array2D);
     }
   }
+  // Invalid specification for kernel configuration
   if (compilerOptions.useKernelConfig(USER_ON)) {
     if (compilerOptions.getKernelConfigX()*compilerOptions.getKernelConfigY() >
         (int)targetDevice.max_threads_per_block) {
-      llvm::errs() << "Invalid kernel configuration: maximum threads for target device are "
-                  << targetDevice.max_threads_per_block << "!\n";
+      llvm::errs() << "ERROR: Invalid kernel configuration: maximum threads for target device are "
+                   << targetDevice.max_threads_per_block << "!\n\n";
+      printUsage();
       return EXIT_FAILURE;
     }
   }
@@ -297,7 +347,6 @@ int main(int argc, char *argv[]) {
     // kernels are timed internally by the runtime in case of exploration
     compilerOptions.setTimeKernels(OFF);
   }
-
 
   // print summary of compiler options
   compilerOptions.printSummary(targetDevice.getTargetDeviceName());
@@ -339,7 +388,7 @@ int main(int argc, char *argv[]) {
   // our error handler
   llvm::install_fatal_error_handler(LLVMErrorHandler,
       static_cast<void *>(&Clang->getDiagnostics()));
-  
+
   DiagsBuffer->FlushDiagnostics(Clang->getDiagnostics());
   if (!success) return EXIT_FAILURE;
 

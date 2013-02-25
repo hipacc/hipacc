@@ -146,6 +146,19 @@ class HipaccDeviceOptions {
           require_textures[UserOperator] = NoTexture;
           vectorization = true;
           break;
+        case MIDGARD:
+          alignment = 512;
+          local_memory_threshold = 9999;
+          default_num_threads_x = 4;
+          pixels_per_thread[PointOperator] = 1;
+          pixels_per_thread[LocalOperator] = 1;
+          pixels_per_thread[GlobalOperator] = 32;
+          require_textures[PointOperator] = NoTexture;
+          require_textures[LocalOperator] = NoTexture;
+          require_textures[GlobalOperator] = NoTexture;
+          require_textures[UserOperator] = NoTexture;
+          vectorization = true;
+          break;
       }
 
       // deactivate for custom operators
@@ -199,7 +212,7 @@ class HipaccDevice : public HipaccDeviceOptions {
       BLOCK,
       WARP
     };
-    TargetDevice compute_capability;
+    TargetDevice target_device;
     unsigned int max_threads_per_warp;
     unsigned int max_threads_per_block;
     unsigned int max_blocks_per_multiprocessor;
@@ -220,14 +233,14 @@ class HipaccDevice : public HipaccDeviceOptions {
   public:
     HipaccDevice(CompilerOptions &options) :
       HipaccDeviceOptions(options),
-      compute_capability(options.getTargetDevice()),
+      target_device(options.getTargetDevice()),
       max_threads_per_warp(32),
       max_blocks_per_multiprocessor(8),
       warp_register_alloc_size(2),
       num_alus(0),
       num_sfus(0)
     {
-      switch (compute_capability) {
+      switch (target_device) {
         case TESLA_10:
         case TESLA_11:
           max_threads_per_block = 512;
@@ -290,7 +303,7 @@ class HipaccDevice : public HipaccDeviceOptions {
           max_threads_per_multiprocessor = 2048;
           max_total_registers = 65536;
           max_total_shared_memory = 49152;
-          if (compute_capability==KEPLER_30) max_register_per_thread = 63;
+          if (target_device==KEPLER_30) max_register_per_thread = 63;
           else max_register_per_thread = 255;
           register_alloc_size = 256;
           shared_memory_alloc_size = 256;
@@ -320,11 +333,25 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_alus = 4; // 5 on 58; 4 on 69
           num_sfus = 1; // 1 sfu -> 1 alu
           break;
+        case MIDGARD:
+          max_threads_per_warp = 4,
+          // max_blocks_per_multiprocessor - unknown
+          max_threads_per_block = 256;
+          max_warps_per_multiprocessor = 64; // unknown
+          max_threads_per_multiprocessor = 256;
+          max_total_registers = 32768; // unknown
+          max_total_shared_memory = 32768;
+          register_alloc_size = 1; // unknown
+          shared_memory_alloc_size = 1; // unknown
+          allocation_granularity = BLOCK; // unknown
+          num_alus = 4; // vector 4
+          num_sfus = 1; // just a guess
+          break;
       }
     }
 
     bool isAMDGPU() {
-      switch (compute_capability) {
+      switch (target_device) {
         default:
           return false;
         case EVERGREEN:
@@ -333,8 +360,17 @@ class HipaccDevice : public HipaccDeviceOptions {
       }
     }
 
+    bool isARMGPU() {
+      switch (target_device) {
+        default:
+          return false;
+        case MIDGARD:
+          return true;
+      }
+    }
+
     bool isNVIDIAGPU() {
-      switch (compute_capability) {
+      switch (target_device) {
         default:
           return false;
         case TESLA_10:
@@ -350,7 +386,7 @@ class HipaccDevice : public HipaccDeviceOptions {
     }
 
     std::string getTargetDeviceName() {
-      switch (compute_capability) {
+      switch (target_device) {
         //case 00:
         //  return "x86_64 CPU";
         case TESLA_10:
@@ -376,6 +412,8 @@ class HipaccDevice : public HipaccDeviceOptions {
           return "AMD Northern Island";
         //case SOUTHERN_ISLAND:
         //  return "AMD Southern Island";
+        case MIDGARD:
+          return "ARM Midgard: Mali-6xx";
       }
     }
 
@@ -389,18 +427,18 @@ class HipaccDevice : public HipaccDeviceOptions {
 
     std::string getCompileOptions(std::string kernel, std::string file, bool
         emitCUDA) {
-      std::stringstream cc_string;
-      cc_string << compute_capability;
+      std::stringstream td_string;
+      td_string << target_device;
 
       if (emitCUDA) {
-        if (compute_capability >= FERMI_20) {
+        if (target_device >= FERMI_20) {
           return " -I " + std::string(RUNTIME_INCLUDES) + " -arch=sm_" +
-            cc_string.str() +
+            td_string.str() +
             " -ftz=true -prec-sqrt=false -prec-div=false -cubin -Xptxas -v " +
             file + ".cu 2>&1";
         } else {
           return " -I " + std::string(RUNTIME_INCLUDES) + " -arch=sm_" +
-            cc_string.str() + " -cubin -Xptxas -v " + file + ".cu 2>&1";
+            td_string.str() + " -cubin -Xptxas -v " + file + ".cu 2>&1";
         }
       } else {
         if (isAMDGPU()) {
