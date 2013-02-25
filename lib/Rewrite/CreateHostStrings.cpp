@@ -510,9 +510,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       break;
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
-    case TARGET_Filterscript:
       blockStr = "work_size" + LSS.str();
       gridStr = "iter_space" + LSS.str();
+      break;
+    case TARGET_Filterscript:
+      blockStr = "work_size" + LSS.str();
+      gridStr = K->getIterationSpace()->getAccessor()->getImage()->getName();
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLx86:
@@ -981,11 +984,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_Filterscript:
         resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
         resultStr += "&ScriptC_" + kernelName + "::forEach_rs" + kernelName;
-        if (options.emitFilterscript()) {
-          resultStr += ", " + K->getIterationSpace()->getAccessor()->getImage()->getName();
-        } else {
-          resultStr += ", " + gridStr;
-        }
+        resultStr += ", " + gridStr;
         resultStr += ", " + blockStr + ");";
         break;
       case TARGET_OpenCL:
