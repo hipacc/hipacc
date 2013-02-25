@@ -41,14 +41,15 @@
 // step 1:
 // reduce a 2D block stored to linear memory and store the reduced value to linear memory
 #define REDUCTION_RS_2D(NAME, DATA_TYPE, ACCESS, REDUCE) \
-void NAME(float *_IS, uint32_t x, uint32_t y) { \
+void NAME(DATA_TYPE *_IS, uint32_t x, uint32_t y) { \
     const int gid_x = x; \
     const int gid_y = y; \
  \
     DATA_TYPE val = neutral; \
  \
     for (int j=0; j<is_height; j++) { \
-        val = REDUCE(val, ACCESS(Input, gid_x + OFFSET_X, j+gid_y + OFFSET_Y, stride, rsGetElementAt##_##DATA_TYPE)); \
+        int tmp = j + gid_y; \
+        val = REDUCE(val, ACCESS(Input, gid_x + OFFSET_X, tmp + OFFSET_Y, stride, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \
     ACCESS(Output, x, 0, 0, *(DATA_TYPE*)rsGetElementAt) = val; \
@@ -58,7 +59,7 @@ void NAME(float *_IS, uint32_t x, uint32_t y) { \
 // reduce a 1D block and store the reduced value to the first element of linear
 // memory
 #define REDUCTION_RS_1D(NAME, DATA_TYPE, ACCESS, REDUCE) \
-void NAME(float *_IS) { \
+void NAME(DATA_TYPE *_IS) { \
     DATA_TYPE val = neutral; \
  \
     for (int j=0; j<num_elements; j++) { \
