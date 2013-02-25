@@ -35,10 +35,12 @@
 #define OFFSET_X 0
 #define OFFSET_Y 0
 #endif
+#define ALL(data, idx_x, idx_y, stride, method) method(data, idx_x, idx_y)
+#define IMG(data, idx_x, idx_y, stride, method) data[(idx_y)*(stride) + (idx_x)]
 
 // step 1:
 // reduce a 2D block stored to linear memory and store the reduced value to linear memory
-#define REDUCTION_RS_2D(NAME, DATA_TYPE, REDUCE) \
+#define REDUCTION_RS_2D(NAME, DATA_TYPE, ACCESS, REDUCE) \
 void NAME(float *_IS, uint32_t x, uint32_t y) { \
     const int gid_x = x; \
     const int gid_y = y; \
@@ -46,24 +48,24 @@ void NAME(float *_IS, uint32_t x, uint32_t y) { \
     DATA_TYPE val = neutral; \
  \
     for (int j=0; j<is_height; j++) { \
-        val = REDUCE(val, input[(j+gid_y + OFFSET_Y)*stride + gid_x + OFFSET_X]); \
+        val = REDUCE(val, ACCESS(Input, gid_x + OFFSET_X, j+gid_y + OFFSET_Y, stride, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \
-    Output[x] = val; \
+    ACCESS(Output, x, 0, 0, *(DATA_TYPE*)rsGetElementAt) = val; \
 }
 
 // step 2:
 // reduce a 1D block and store the reduced value to the first element of linear
 // memory
-#define REDUCTION_RS_1D(NAME, DATA_TYPE, REDUCE) \
+#define REDUCTION_RS_1D(NAME, DATA_TYPE, ACCESS, REDUCE) \
 void NAME(float *_IS) { \
     DATA_TYPE val = neutral; \
  \
     for (int j=0; j<num_elements; j++) { \
-        val = REDUCE(val, Output[j]); \
+        val = REDUCE(val, ACCESS(Output, j, 0, 0, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \
-    Output[0] = val; \
+    ACCESS(Output, 0, 0, 0, *(DATA_TYPE*)rsGetElementAt) = val; \
 }
 
 //#endif  // __HIPACC_RS_RED_HPP__

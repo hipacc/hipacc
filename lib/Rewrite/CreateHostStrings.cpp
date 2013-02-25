@@ -173,7 +173,11 @@ void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
       resultStr += indent;
 
       // store reduction arguments
-      addReductionArgument(GR, "input", Img->getName(), resultStr, true);
+      if (options.emitRenderscriptGPU()) {
+        addReductionArgument(GR, "Input", Img->getName(), resultStr, false);
+      } else {
+        addReductionArgument(GR, "Input", Img->getName(), resultStr, true);
+      }
       addReductionArgument(GR, "neutral", GR->getNeutral(), resultStr, false);
       addReductionArgument(GR, "stride", Img->getStride(), resultStr, false);
 
@@ -1002,6 +1006,7 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
       }
       break;
     case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
       if (options.exploreConfig()) {
         // TODO
       } else {
@@ -1011,7 +1016,11 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
           GR->getFileName() + "2D, ";
         resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
           GR->getFileName() + "1D, ";
-        resultStr += "&ScriptC_" + GR->getFileName() + "::bind_Output, ";
+        if (options.emitRenderscriptGPU()) {
+          resultStr += "&ScriptC_" + GR->getFileName() + "::set_Output, ";
+        } else {
+          resultStr += "&ScriptC_" + GR->getFileName() + "::bind_Output, ";
+        }
         resultStr += "_args" + GR->getFileName() + ", ";
         resultStr += GR->getAccessor()->getImage()->getName() + ", ";
         if (GR->isAccessor()) {
@@ -1021,9 +1030,6 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
         }
       }
       return;
-    case TARGET_RenderscriptGPU:
-      // TODO
-      break;
     case TARGET_OpenCL:
     case TARGET_OpenCLx86:
       if (options.exploreConfig()) {

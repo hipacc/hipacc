@@ -1988,8 +1988,13 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
           << "#pragma rs java_package_name(com.example.android.rs.hipacc)\n\n";
       *OS << "#include \"hipacc_rs_red.hpp\"\n\n";
       // neutral element definition
-      *OS << GR->getAccessor()->getImage()->getPixelType() + " *input;\n";
-      *OS << GR->getAccessor()->getImage()->getPixelType() + " *Output;\n";
+      if (compilerOptions.emitRenderscriptGPU()) {
+        *OS << "rs_allocation Input;\n";
+        *OS << "rs_allocation Output;\n";
+      } else {
+        *OS << GR->getAccessor()->getImage()->getPixelType() + " *Input;\n";
+        *OS << GR->getAccessor()->getImage()->getPixelType() + " *Output;\n";
+      }
       *OS << GR->getAccessor()->getImage()->getPixelType() + " neutral;\n";
       if (GR->isAccessor()) {
         *OS << "int offset_x;\n";
@@ -2094,10 +2099,12 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     case TARGET_RenderscriptGPU:
       *OS << "REDUCTION_RS_2D(rs" << GR->getFileName() << "2D, "
           << D->getResultType().getAsString() << ", "
+          << (char *)(compilerOptions.emitRenderscriptGPU()? "ALL, ":"IMG, ")
           << GR->getName() << "Reduce)\n";
       // 1D reduction
       *OS << "REDUCTION_RS_1D(rs" << GR->getFileName() << "1D, "
           << D->getResultType().getAsString() << ", "
+          << (char *)(compilerOptions.emitRenderscriptGPU()? "ALL, ":"IMG, ")
           << GR->getName() << "Reduce)\n";
       break;
   }
