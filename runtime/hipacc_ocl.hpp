@@ -60,11 +60,12 @@ enum hipaccBoundaryMode {
 };
 
 enum cl_platform_name {
-    AMD = 0x1,
-    APPLE = 0x2,
-    INTEL = 0x4,
-    NVIDIA = 0x8,
-    ALL = (AMD|APPLE|INTEL|NVIDIA)
+    AMD     = 0x1,
+    APPLE   = 0x2,
+    ARM     = 0x4,
+    INTEL   = 0x8,
+    NVIDIA  = 0x10,
+    ALL     = (AMD|APPLE|ARM|INTEL|NVIDIA)
 };
 
 typedef struct hipacc_smem_info {
@@ -406,6 +407,7 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
             // Get platform name
             if (strncmp(pnBuffer, "AMD", 3) == 0) platform_names[i] = AMD;
             else if (strncmp(pnBuffer, "Apple", 3) == 0) platform_names[i] = APPLE;
+            else if (strncmp(pnBuffer, "ARM", 3) == 0) platform_names[i] = ARM;
             else if (strncmp(pnBuffer, "Intel", 3) == 0) platform_names[i] = INTEL;
             else if (strncmp(pnBuffer, "NVIDIA", 3) == 0) platform_names[i] = NVIDIA;
             else platform_names[i] = ALL;
@@ -576,15 +578,12 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
                 options += " -save-temps";
                 #endif
                 break;
-            case APPLE:
-                options += "-cl-single-precision-constant -cl-denorms-are-zero";
-                break;
-            case INTEL:
-                options += "-cl-single-precision-constant -cl-denorms-are-zero";
-                break;
             case NVIDIA:
                 options += "-cl-single-precision-constant -cl-denorms-are-zero -cl-nv-verbose";
                 break;
+            case APPLE:
+            case ARM:
+            case INTEL:
             case ALL:
                 options += "-cl-single-precision-constant -cl-denorms-are-zero";
                 break;
