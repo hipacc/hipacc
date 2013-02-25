@@ -1162,17 +1162,18 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
   // image memory parameter, constant parameter, memory access function
   switch (K->useTextureMemory(Acc)) {
     case NoTexture:
-      resultStr += "IMG_PARM, " + const_parameter
-                + ", IMG" + const_suffix;
+      if (options.emitRenderscriptGPU()) {
+        resultStr += "ALL_PARM, " + const_parameter + ", ALL" + const_suffix;
+      } else {
+        resultStr += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;
+      }
       break;
     case Linear1D:
-      resultStr += "TEX_PARM, " + const_parameter
-                + ", TEX" + const_suffix;
+      resultStr += "TEX_PARM, " + const_parameter + ", TEX" + const_suffix;
       break;
     case Linear2D:
     case Array2D:
-      resultStr += "ARR_PARM, " + const_parameter
-                + ", ARR" + const_suffix;
+      resultStr += "ARR_PARM, " + const_parameter + ", ARR" + const_suffix;
       break;
   }
   // image read function for OpenCL
