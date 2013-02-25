@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 PROJECT(HIPACC)
-OPTION(USE_POLLY "Use Polly for analysis" OFF) 
+OPTION(USE_POLLY "Use Polly for analysis" OFF)
 INCLUDE(CMakeDependentOption)
 CMAKE_DEPENDENT_OPTION(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
@@ -83,7 +83,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -Wall -Wunused ${LLVM_CXXFLAGS
 #ADD_DEFINITIONS(-DTEST_DEFINITION)
 
 
-# set include directory, add src directories 
+# set include directory, add src directories
 INCLUDE_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}/include)

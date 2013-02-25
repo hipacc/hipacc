@@ -1,13 +1,18 @@
 # All Target
 TARGET              := main_opencl
-OPENCL_LIB_DIR      = @OPENCL_LIBRARY_DIR@
-OPENCL_INC_DIR      = @OPENCL_INCLUDE_DIR@
-LDFLAGS             = -lm -ldl -lpthread -lstdc++ @OPENCL_LFLAGS@
-INC                 = -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) @OPENCL_CFLAGS@
+LDFLAGS             = -lm -ldl -lstdc++
+INC                 = -I@RUNTIME_INCLUDES@ -I$(TEST_CASE)
 OFLAGS              := -O3 -Wall -Wunused
 
-CC      := g++
-RM      := rm -rf
+ifeq ($(HIPACC_TARGET),Midgard)
+    CC = @NDK_CXX_COMPILER@ @NDK_CXX_FLAGS@ @NDK_INCLUDE_DIRS_STR@
+    LDFLAGS = @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@ -lm -ldl -lstdc++
+    INC += @EMBEDDED_OPENCL_CFLAGS@
+else
+    LDFLAGS += -lpthread @OPENCL_LFLAGS@
+    INC += @OPENCL_CFLAGS@
+    CC = g++
+endif
 
 
 all: $(TARGET)
@@ -23,6 +28,6 @@ $(TARGET): main.cc
 
 # other Targets
 clean:
-	-$(RM) $(TARGET) 
+	-$(RM) $(TARGET)
 	-@echo ' '
 

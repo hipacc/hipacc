@@ -23,11 +23,30 @@ environment.
 
 The following variables can be set to tell cmake where to look for certain
 components:
-CMAKE_INSTALL_PREFIX    - Installation prefix
-CMAKE_BUILD_TYPE        - Build type (Debug or Release)
-OPENCL_INC_PATH         - OpenCL include path (e.g. -DOPENCL_INC_PATH=/opt/cuda/include)
-OPENCL_LIB_PATH         - OpenCL library path (e.g. -DOPENCL_LIB_PATH=/usr/lib64)
-CUDA_BIN_PATH           - CUDA binary path (e.g. -DCUDA_BIN_PATH=/opt/cuda/bin)
+CMAKE_INSTALL_PREFIX        - Installation prefix
+CMAKE_BUILD_TYPE            - Build type (Debug or Release)
+OPENCL_INC_PATH             - OpenCL include path
+                              e.g. -DOPENCL_INC_PATH=/opt/cuda/include
+OPENCL_LIB_PATH             - OpenCL library path
+                              e.g. -DOPENCL_LIB_PATH=/usr/lib64
+CUDA_BIN_PATH               - CUDA binary path
+                              e.g. -DCUDA_BIN_PATH=/opt/cuda/bin
+
+For Android, the cross compiler etc. have to be specified in addition:
+ANDROID_SOURCE_DIR          - Android source directory
+                              e.g. -DANDROID_SOURCE_DIR=/opt/arndaleboard/android-jb-mr1
+TARGET_NAME                 - Name of the target platform
+                              e.g. -DTARGET_NAME=arndale
+HOST_TYPE                   - Name of the local compile host type
+                              e.g. -DHOST_TYPE=linux-x86
+NDK_TOOLCHAIN_DIR           - Android NDK directory
+                              e.g. -DNDK_TOOLCHAIN_DIR=/opt/android/android-14-toolchain
+EMBEDDED_OPENCL_INC_PATH    - OpenCL include path
+                              e.g. -DEMBEDDED_OPENCL_INC_PATH=/opt/cuda/include
+EMBEDDED_OPENCL_LIB_PATH    - OpenCL library path within the target system
+                              e.g. -DEMBEDDED_OPENCL_LIB_PATH=vendor/lib/egl
+EMBEDDED_OPENCL_LIB         - Name of the embedded OpenCL library
+                              e.g. -DEMBEDDED_OPENCL_LIB=GLES_mali
 
 The following options can be enabled or disabled:
 USE_POLLY               - Use polly for kernel analysis (e.g. -DUSE_POLLY=ON)
