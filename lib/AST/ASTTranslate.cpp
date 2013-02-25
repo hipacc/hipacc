@@ -1114,7 +1114,9 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
         if (Kernel->getNumThreadsY()==1 && Kernel->getPixelsPerThread()==1 &&
             !compilerOptions.exploreConfig()) require_is_check = false;
       }
-      if (require_is_check) {
+      if (require_is_check &&
+          // Not necessary for Filterscript, gid_y has already been checked
+          !compilerOptions.emitFilterscript()) {
         // if (gid_y + p < is_height)
         BinaryOperator *inner_check_bop = createBinaryOperator(Ctx, gidYRef,
             getHeightDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,

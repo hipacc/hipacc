@@ -942,6 +942,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
                                            TARGET_RenderscriptGPU |
                                            TARGET_Filterscript))) {
         resultStr += ", " + infoStr;
+        if (options.emitFilterscript()) {
+            resultStr += ", " + gridStr;
+        }
       } else {
         resultStr += ", _smems" + kernelName;
         if (options.emitCUDA()) {

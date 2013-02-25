@@ -581,7 +581,8 @@ void hipaccLaunchScriptKernelExploration(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
     void(F::*kernel)(sp<const Allocation>) const,
-    hipacc_launch_info &info
+    hipacc_launch_info &info,
+    sp<Allocation> iter_space_fs=sp<Allocation>(NULL)
 ) {
     std::cerr << "<HIPACC:> Exploring configurations for kernel"
               << " '" << kernel << "':" << std::endl;
@@ -592,9 +593,12 @@ void hipaccLaunchScriptKernelExploration(
         work_size[0] = warp_size;
         work_size[1] = 1;
         size_t global_work_size[2];
-
         sp<Allocation> iter_space;
-        hipaccCalcIterSpaceFromBlock<T>(info, work_size, iter_space);
+
+        if (!iter_space_fs.get()) {
+            hipaccCalcIterSpaceFromBlock<T>(info, work_size, iter_space);
+        }
+
         hipaccPrepareKernelLaunch(info, work_size);
 
         float min_dt=FLT_MAX;
@@ -607,7 +611,9 @@ void hipaccLaunchScriptKernelExploration(
             total_time = 0.0f;
 
             // launch kernel
-            hipaccLaunchScriptKernel(script, kernel, iter_space, work_size, false);
+            hipaccLaunchScriptKernel(script, kernel,
+                    (iter_space_fs.get() ? iter_space_fs : iter_space),
+                    work_size, false);
 
             // stop timing
             if (total_time < min_dt) min_dt = total_time;
