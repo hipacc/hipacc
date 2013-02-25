@@ -1698,7 +1698,11 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
       break;
     case TARGET_CUDA:
     case TARGET_OpenCL:
-      jit_compile = true;
+      if (compilerOptions.isARMGPU()) {
+        jit_compile = false;
+      } else {
+        jit_compile = true;
+      }
       break;
   }
 
