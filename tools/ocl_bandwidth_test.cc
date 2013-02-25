@@ -2,23 +2,23 @@
 // Copyright (c) 2012, University of Erlangen-Nuremberg
 // Copyright (c) 2012, Siemens AG
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met: 
-// 
+// modification, are permitted provided that the following conditions are met:
+//
 // 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer. 
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution. 
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
 // ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 // (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -40,7 +40,7 @@
 
 
 void usage(char **argv) {
-    fprintf(stderr, "Usage: %s [-h] [-d GPU|CPU|ALL] [-p AMD|APPLE|INTEL|NVIDIA|ALL] -s <memory_size>\n", argv[0]);
+    fprintf(stderr, "Usage: %s [-h] [-d GPU|CPU|ALL] [-p AMD|APPLE|ARM|INTEL|NVIDIA|ALL] -s <memory_size>\n", argv[0]);
 }
 
 
@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
             case 'p':
                 if (strncmp(optarg, "AMD", 3) == 0) platform_name = AMD;
                 else if (strncmp(optarg, "APPLE", 3) == 0) platform_name = APPLE;
+                else if (strncmp(optarg, "ARM", 3) == 0) platform_name = ARM;
                 else if (strncmp(optarg, "INTEL", 3) == 0) platform_name = INTEL;
                 else if (strncmp(optarg, "NVIDIA", 3) == 0) platform_name = NVIDIA;
                 else fprintf(stderr, "Unknown platform name '%s', using 'ALL' as default ...\n", optarg);
@@ -93,7 +94,7 @@ int main(int argc, char *argv[]) {
 
     // allocate host memory
     unsigned char *host_idata = (unsigned char *)malloc(memory_size);
-        
+
     // initialize the memory
     for (unsigned int i=0; i < memory_size/sizeof(unsigned char); i++) {
         host_idata[i] = (unsigned char) (i & 0xff);
@@ -112,9 +113,9 @@ int main(int argc, char *argv[]) {
         // get time in ms
         float time = hipaccCopyBufferBenchmark(dev_idata, dev_odata, num_device);
         time = time/1000;
-        
-        // calculate bandwidth in MB/s 
-        // this is for kernels that read and write global memory simultaneously 
+
+        // calculate bandwidth in MB/s
+        // this is for kernels that read and write global memory simultaneously
         // obtained throughput for unidirectional block copies will be 1/2 of this #
         bandwidth_MBs = 2.0f * ((double)memory_size)/(time * (double)(1 << 20));
 
