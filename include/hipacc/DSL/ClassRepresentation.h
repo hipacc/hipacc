@@ -743,6 +743,7 @@ class HipaccKernel : public HipaccKernelFeatures {
         case TARGET_OpenCLx86:
         case TARGET_Renderscript:
         case TARGET_RenderscriptGPU:
+        case TARGET_Filterscript:
           return argTypesOpenCL.data();
       }
     }

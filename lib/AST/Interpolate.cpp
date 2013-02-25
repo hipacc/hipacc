@@ -64,6 +64,7 @@ std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
     case TARGET_C:
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
+    case TARGET_Filterscript:
       name += "gmem";
       break;
     case TARGET_CUDA:
@@ -109,6 +110,9 @@ Expr *ASTTranslate::addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x) {
 }
 Expr *ASTTranslate::addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y) {
   // acc_scale_y * (gid_y)
+  if (compilerOptions.emitFilterscript()) {
+    idx_y = removeISOffsetY(idx_y, Acc);
+  }
   return createBinaryOperator(Ctx, Acc->getScaleYDecl(), createParenExpr(Ctx,
         idx_y), BO_Mul, Ctx.FloatTy);
 }
@@ -163,6 +167,7 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
     case TARGET_C:
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
+    case TARGET_Filterscript:
     case TARGET_CUDA:
       break;
     case TARGET_OpenCL:

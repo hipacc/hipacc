@@ -173,6 +173,10 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_x = removeISOffsetX(idx_x, Acc);
       }
+      if (compilerOptions.emitFilterscript() &&
+          Acc!=Kernel->getIterationSpace()->getAccessor()) {
+        idx_y = removeISOffsetY(idx_y, Acc);
+      }
       break;
     case InterpolateNN:
       idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
@@ -261,6 +265,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         RHS = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         break;
       case TARGET_RenderscriptGPU:
+      case TARGET_Filterscript:
         RHS = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
         break;
     }
@@ -347,6 +352,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         break;
       case TARGET_RenderscriptGPU:
+      case TARGET_Filterscript:
         result = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
         break;
     }

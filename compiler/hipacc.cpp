@@ -72,6 +72,7 @@ void printUsage() {
     << "  -emit-opencl-x86        Emit OpenCL code for x86 devices, no padding supported\n"
     << "  -emit-renderscript      Emit Renderscript code for Android\n"
     << "  -emit-renderscript-gpu  Emit Renderscript code for Android (force GPU execution)\n"
+    << "  -emit-filterscript      Emit Filterscript code for Android\n"
     << "  -emit-padding <n>       Emit CUDA/OpenCL/Renderscript image padding, using alignment of <n> bytes for GPU devices\n"
     << "  -target <n>             Generate code for GPUs with code name <n>.\n"
     << "                          Code names for CUDA/OpenCL on NVIDIA devices are:\n"
@@ -138,6 +139,10 @@ int main(int argc, char *argv[]) {
     }
     if (StringRef(argv[i]) == "-emit-renderscript-gpu") {
       compilerOptions.setTargetCode(TARGET_RenderscriptGPU);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-emit-filterscript") {
+      compilerOptions.setTargetCode(TARGET_Filterscript);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-padding") {

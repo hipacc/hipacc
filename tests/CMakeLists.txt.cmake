@@ -5,7 +5,8 @@ list (APPEND CMAKE_MODULE_PATH "@CMAKE_CURRENT_SOURCE_DIR@/cmake/modules")
 find_package (RenderScript REQUIRED)
 
 file (GLOB PROJECT_CPP *.cc)
-file (GLOB PROJECT_RS *.rs)
+file (GLOB PROJECT_RS *.rs
+                      *.fs)
 
 rs_definitions (-DSIZE_X=${SIZE_X}
                 -DSIZE_Y=${SIZE_Y}

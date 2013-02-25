@@ -82,6 +82,18 @@ Expr *ASTTranslate::removeISOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
 }
 
 
+// remove iteration space offset from index
+Expr *ASTTranslate::removeISOffsetY(Expr *idx_y, HipaccAccessor *Acc) {
+  if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
+      idx_y = createBinaryOperator(Ctx, idx_y,
+          getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()), BO_Sub,
+          Ctx.IntTy);
+  }
+
+  return idx_y;
+}
+
+
 // access 1D memory array
 Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     MemoryAccess memAcc, Expr *local_offset_x, Expr *local_offset_y) {
@@ -97,6 +109,10 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     case InterpolateNO:
       if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_x = removeISOffsetX(idx_x, Acc);
+      }
+      if (compilerOptions.emitFilterscript() &&
+          Acc!=Kernel->getIterationSpace()->getAccessor()) {
+        idx_y = removeISOffsetY(idx_y, Acc);
       }
       break;
     case InterpolateNN:
@@ -122,9 +138,13 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // step 3: access the appropriate memory
   switch (memAcc) {
     case WRITE_ONLY:
+      if (compilerOptions.emitFilterscript()) {
+          assert(0 && "Filterscript does not support write access for allocations.");
+      }
     case READ_ONLY:
       // TODO: find a more elegant solution to check for this corner case
-      if (compilerOptions.emitRenderscriptGPU()) {
+      if (compilerOptions.emitRenderscriptGPU() ||
+          compilerOptions.emitFilterscript()) {
         return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
       }
       if (Kernel->useTextureMemory(Acc)) {
@@ -139,7 +159,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     case UNDEFINED:
     case READ_WRITE:
     default:
-      assert(0 && "Unsupported memory access with offset specification!\n");
+      assert(0 && "Unsupported memory access with offset specification!");
       break;
   }
 }
@@ -433,6 +453,7 @@ FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT,
 #undef GET_BUILTIN_FUNCTION
   }
 }
+
 
 
 // access linear texture memory at given index

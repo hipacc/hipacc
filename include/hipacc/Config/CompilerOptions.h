@@ -59,7 +59,8 @@ enum TargetCode {
   TARGET_OpenCLx86       = 0x4,
   TARGET_Renderscript    = 0x8,
   TARGET_RenderscriptGPU = 0x10,
-  TARGET_C               = 0x20
+  TARGET_Filterscript    = 0x20,
+  TARGET_C               = 0x40
 };
 
 class CompilerOptions {
@@ -142,6 +143,10 @@ class CompilerOptions {
     }
     bool emitRenderscriptGPU() {
       if (target_code & TARGET_RenderscriptGPU) return true;
+      return false;
+    }
+    bool emitFilterscript() {
+      if (target_code & TARGET_Filterscript) return true;
       return false;
     }
     bool emitC() {
@@ -245,6 +250,9 @@ class CompilerOptions {
           break;
         case TARGET_RenderscriptGPU:
           llvm::errs() << "Renderscript (GPU)";
+          break;
+        case TARGET_Filterscript:
+          llvm::errs() << "Filterscript";
           break;
         case TARGET_C:
           llvm::errs() << "C/C++";

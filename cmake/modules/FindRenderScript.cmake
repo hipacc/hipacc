@@ -98,7 +98,7 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS (RenderScript REQUIRED_VARS
 
 MACRO (RS_WRAP_SCRIPTS DEST)
   FOREACH (SCRIPT ${ARGN})
-    STRING (REGEX REPLACE "\^.*/([a-zA-Z0-9_.-]*).rs"
+    STRING (REGEX REPLACE "\^.*/([a-zA-Z0-9_.-]*).(rs|fs)"
                          "${CMAKE_CURRENT_BINARY_DIR}/ScriptC_\\1.cpp"
                          SCRIPT ${SCRIPT})
     LIST (APPEND ${DEST} ${SCRIPT})
