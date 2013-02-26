@@ -115,7 +115,11 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
       resultStr += ".cl\", \"cl";
       resultStr += kernelName + suffix;
       resultStr += "\", true, false, false, \"-I ";
-      resultStr += RUNTIME_INCLUDES;
+      if (HipaccDevice(options).isARMGPU()) {
+        resultStr += EMBEDDED_RUNTIME_INCLUDES;
+      } else {
+        resultStr += RUNTIME_INCLUDES;
+      }
       resultStr += "\");\n";
       resultStr += indent;
       break;
