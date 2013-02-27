@@ -942,31 +942,26 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     }
     // additional parameters for exploration
     if (options.exploreConfig()) {
-      if (0 != (options.getTargetCode() & (TARGET_Renderscript |
-                                           TARGET_RenderscriptGPU |
-                                           TARGET_Filterscript))) {
-        resultStr += ", " + infoStr;
-        if (options.emitFilterscript()) {
-            resultStr += ", " + gridStr;
-        }
-      } else {
-        resultStr += ", _smems" + kernelName;
-        if (options.emitCUDA()) {
-          resultStr += ", _consts" + kernelName;
-          resultStr += ", _texs" + kernelName;
-        }
-        resultStr += ", " + infoStr;
-        resultStr += ", " + warp_size.str();
-        resultStr += ", " + max_threads_per_block.str();
-        resultStr += ", " + max_threads_for_kernel.str();
-        resultStr += ", " + max_shared_memory_per_block.str();
-        resultStr += ", " + cX.str();
-        resultStr += ", " + cY.str();
-        if (options.emitCUDA()) {
-          std::stringstream cc_string;
-          cc_string << options.getTargetDevice();
-          resultStr += ", " + cc_string.str();
-        }
+      resultStr += ", _smems" + kernelName;
+      if (options.emitCUDA()) {
+        resultStr += ", _consts" + kernelName;
+        resultStr += ", _texs" + kernelName;
+      }
+      resultStr += ", " + infoStr;
+      resultStr += ", " + warp_size.str();
+      resultStr += ", " + max_threads_per_block.str();
+      resultStr += ", " + max_threads_for_kernel.str();
+      resultStr += ", " + max_shared_memory_per_block.str();
+      resultStr += ", " + cX.str();
+      resultStr += ", " + cY.str();
+      if (options.emitCUDA()) {
+        std::stringstream cc_string;
+        cc_string << options.getTargetDevice();
+        resultStr += ", " + cc_string.str();
+      }
+      if (options.emitFilterscript()) {
+        // Whole image as iteration space
+        resultStr += ", " + gridStr;
       }
     } else {
       resultStr += ", " + gridStr;

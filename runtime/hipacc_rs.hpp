@@ -581,16 +581,21 @@ void hipaccLaunchScriptKernelExploration(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
     void(F::*kernel)(sp<const Allocation>) const,
-    hipacc_launch_info &info,
+    std::vector<hipacc_smem_info> smems, hipacc_launch_info &info,
+    int warp_size, int max_threads_per_block, int max_threads_for_kernel,
+    int max_smem_per_block, int opt_tx, int opt_ty,
     sp<Allocation> iter_space_fs=sp<Allocation>(NULL)
 ) {
     std::cerr << "<HIPACC:> Exploring configurations for kernel"
               << " '" << kernel << "':" << std::endl;
 
-    for (int warp_size = 1; warp_size <= (int)ceil((float)info.is_width/3);
-         warp_size *= 2) {
+    for (int curr_warp_size = 1; curr_warp_size <= (int)ceil((float)info.is_width/3);
+         curr_warp_size += (curr_warp_size < warp_size ? 1 : warp_size)) {
+        // check if we exceed maximum number of threads
+        if (curr_warp_size > max_threads_for_kernel) continue;
+
         size_t work_size[2];
-        work_size[0] = warp_size;
+        work_size[0] = curr_warp_size;
         work_size[1] = 1;
         size_t global_work_size[2];
         sp<Allocation> iter_space;
