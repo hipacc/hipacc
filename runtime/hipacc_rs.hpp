@@ -42,6 +42,7 @@
 #include <sstream>
 #include <utility>
 #include <vector>
+#include <algorithm>
 
 using namespace android;
 using namespace android::renderscriptCpp;
@@ -558,7 +559,8 @@ void hipaccLaunchScriptKernelBenchmark(
     sp<Allocation>& out, size_t *work_size,
     bool print_timing=true
 ) {
-    float min_dt=FLT_MAX;
+    float med_dt;
+    std::vector<float> times;
 
     for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
         // set kernel arguments
@@ -568,10 +570,12 @@ void hipaccLaunchScriptKernelBenchmark(
 
         // launch kernel
         hipaccLaunchScriptKernel(script, kernel, out, work_size, print_timing);
-        if (last_gpu_timing < min_dt) min_dt = last_gpu_timing;
+        times.push_back(last_gpu_timing);
     }
+    std::sort(times.begin(), times.end());
+    med_dt = times.at(HIPACC_NUM_ITERATIONS/2);
 
-    last_gpu_timing = min_dt;
+    last_gpu_timing = med_dt;
 }
 
 
@@ -606,7 +610,8 @@ void hipaccLaunchScriptKernelExploration(
 
         hipaccPrepareKernelLaunch(info, work_size);
 
-        float min_dt=FLT_MAX;
+        float med_dt;
+        std::vector<float> times;
         for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
             for (unsigned int i=0; i<args.size(); i++) {
                 SET_SCRIPT_ARG(script, args.data()[i]);
@@ -621,8 +626,10 @@ void hipaccLaunchScriptKernelExploration(
                     work_size, false);
 
             // stop timing
-            if (total_time < min_dt) min_dt = total_time;
+            times.push_back(total_time);
         }
+        std::sort(times.begin(), times.end());
+        med_dt = times.at(HIPACC_NUM_ITERATIONS/2);
 
         // print timing
         std::cerr << "<HIPACC:> Kernel config: "
@@ -631,7 +638,7 @@ void hipaccLaunchScriptKernelExploration(
                   << std::setw(5-floor(log10(work_size[0]*work_size[1])))
                   << std::right << "(" << work_size[0]*work_size[1] << "): "
                   << std::setw(8) << std::fixed << std::setprecision(4)
-                  << min_dt << " ms" << std::endl;
+                  << med_dt << " ms" << std::endl;
     }
 }
 
