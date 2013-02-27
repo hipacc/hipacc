@@ -60,6 +60,7 @@
 #
 #   EMBEDDED_OPENCL_CFLAGS
 #     OpenCL C compiler flags
+#
 #   EMBEDDED_OPENCL_LFLAGS
 #     OpenCL linker flags
 #

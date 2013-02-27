@@ -78,18 +78,23 @@ opencl:
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
 	TEST_CASE=$(TEST_CASE) make -f Makefile_CL MYFLAGS="$(MYFLAGS)"
+ifneq ($(HIPACC_TARGET),Midgard)
 	@echo 'Executing OpenCL binary'
 	./main_opencl
+endif
 
 opencl_x86:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-opencl-x86 $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
 	TEST_CASE=$(TEST_CASE) make -f Makefile_CL MYFLAGS="$(MYFLAGS)"
+ifneq ($(HIPACC_TARGET),Midgard)
 	@echo 'Executing OpenCL binary'
 	./main_opencl
+endif
 
 renderscript:
+	rm -f *.rs *.fs
 	@echo 'Executing HIPAcc Compiler for Renderscript:'
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_renderscript
@@ -100,6 +105,7 @@ renderscript:
 	cp build_renderscript/main_renderscript .
 
 renderscript_gpu:
+	rm -f *.rs *.fs
 	@echo 'Executing HIPAcc Compiler for Renderscript:'
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript-gpu $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_renderscript
@@ -110,6 +116,7 @@ renderscript_gpu:
 	cp build_renderscript/main_renderscript .
 
 filterscript:
+	rm -f *.rs *.fs
 	@echo 'Executing HIPAcc Compiler for Filterscript:'
 	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-filterscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_filterscript
