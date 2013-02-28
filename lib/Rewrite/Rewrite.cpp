@@ -2075,6 +2075,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
         InterpolationDefinitions.push_back(resultStr);
       }
+    }
+  }
+
   if ((!compilerOptions.emitCUDA() || !emitHints) &&
        InterpolationDefinitions.size()) {
     // sort definitions and remove duplicate definitions
@@ -2088,8 +2091,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
     *OS << "\n";
   } // else: emit interpolation definitions at the beginning at the file
-    }
-  }
 
   if (compilerOptions.emitCUDA()) {
     // write texture declarations
