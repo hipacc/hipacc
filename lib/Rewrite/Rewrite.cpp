@@ -247,7 +247,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   stringCreator.writeHeaders(newStr);
 
   // add interpolation include and define interpolation functions for CUDA
-  if (InterpolationDefinitions.size()) {
+  if (compilerOptions.emitCUDA() && InterpolationDefinitions.size()) {
     newStr += "#include \"hipacc_cuda_interpolate.hpp\"\n";
 
     // sort definitions and remove duplicate definitions
@@ -2271,19 +2271,12 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_C:
             break;
           case TARGET_CUDA:
-            if (!emitHints) {
-              *OS << resultStr;
-            } else {
-              // emit interpolation definitions at the beginning at the file
-              InterpolationDefinitions.push_back(resultStr);
-            }
-            break;
           case TARGET_OpenCL:
           case TARGET_OpenCLx86:
           case TARGET_Renderscript:
           case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
-            *OS << resultStr;
+            InterpolationDefinitions.push_back(resultStr);
             break;
         }
 
@@ -2295,25 +2288,31 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_C:
             break;
           case TARGET_CUDA:
-            if (!emitHints) {
-              *OS << resultStr;
-            } else {
-              // emit interpolation definitions at the beginning at the file
-              InterpolationDefinitions.push_back(resultStr);
-            }
-            break;
           case TARGET_OpenCL:
           case TARGET_OpenCLx86:
           case TARGET_Renderscript:
           case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
-            *OS << resultStr;
+            InterpolationDefinitions.push_back(resultStr);
             break;
         }
       }
     }
   }
 
+  if ((!compilerOptions.emitCUDA() || !emitHints) &&
+       InterpolationDefinitions.size()) {
+    // sort definitions and remove duplicate definitions
+    std::sort(InterpolationDefinitions.begin(), InterpolationDefinitions.end());
+    InterpolationDefinitions.erase(std::unique(InterpolationDefinitions.begin(),
+          InterpolationDefinitions.end()), InterpolationDefinitions.end());
+
+    // add interpolation definitions
+    for (unsigned int i=0, e=InterpolationDefinitions.size(); i!=e; ++i) {
+      *OS << InterpolationDefinitions.data()[i];
+    }
+    *OS << "\n";
+  } // else: emit interpolation definitions at the beginning at the file
 
   // declarations of textures, surfaces, variables, etc.
   for (unsigned int i=0; i<K->getNumArgs(); i++) {
