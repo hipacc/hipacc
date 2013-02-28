@@ -247,7 +247,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   stringCreator.writeHeaders(newStr);
 
   // add interpolation include and define interpolation functions for CUDA
-  if (InterpolationDefinitions.size()) {
+  if (compilerOptions.emitCUDA() && InterpolationDefinitions.size()) {
     newStr += "#include \"hipacc_cuda_interpolate.hpp\"\n";
 
     // sort definitions and remove duplicate definitions
@@ -2066,32 +2066,28 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
             suffix, Acc->getInterpolation(), Acc->getBoundaryHandling(),
             resultStr);
-        if (compilerOptions.emitCUDA()) {
-          if (!emitHints) {
-            *OS << resultStr;
-          } else {
-            // emit interpolation definitions at the beginning at the file
-            InterpolationDefinitions.push_back(resultStr);
-          }
-        } else {
-          *OS << resultStr;
-        }
+
+        InterpolationDefinitions.push_back(resultStr);
 
         resultStr.erase();
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
             suffix, InterpolateNO, BOUNDARY_UNDEFINED, resultStr);
 
-        if (compilerOptions.emitCUDA()) {
-          if (!emitHints) {
-            *OS << resultStr;
-          } else {
-            // emit interpolation definitions at the beginning at the file
-            InterpolationDefinitions.push_back(resultStr);
-          }
-        } else {
-          *OS << resultStr;
-        }
+        InterpolationDefinitions.push_back(resultStr);
       }
+  if ((!compilerOptions.emitCUDA() || !emitHints) &&
+       InterpolationDefinitions.size()) {
+    // sort definitions and remove duplicate definitions
+    std::sort(InterpolationDefinitions.begin(), InterpolationDefinitions.end());
+    InterpolationDefinitions.erase(std::unique(InterpolationDefinitions.begin(),
+          InterpolationDefinitions.end()), InterpolationDefinitions.end());
+
+    // add interpolation definitions
+    for (unsigned int i=0, e=InterpolationDefinitions.size(); i!=e; ++i) {
+      *OS << InterpolationDefinitions.data()[i];
+    }
+    *OS << "\n";
+  } // else: emit interpolation definitions at the beginning at the file
     }
   }
 
