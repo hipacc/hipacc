@@ -38,10 +38,10 @@ typedef float               float4  __attribute__ ((ext_vector_type(4)));
 typedef double              double4 __attribute__ ((ext_vector_type(4)));
 #define MAKE_VEC(NEW_TYPE, BASIC_TYPE)
 #elif defined __CUDACC__
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef unsigned int uint;
-typedef unsigned long ulong;
+typedef unsigned char       uchar;
+typedef unsigned short      ushort;
+typedef unsigned int        uint;
+typedef unsigned long       ulong;
 #define MAKE_VEC(NEW_TYPE, BASIC_TYPE) MAKE_VOPS(NEW_TYPE, BASIC_TYPE)
 #elif defined __GNUC__
 #define MAKE_VEC(NEW_TYPE, BASIC_TYPE) \
@@ -59,13 +59,12 @@ struct NEW_TYPE { \
         x = b; y = b; z = b; w = b; \
     } \
 }; \
-typedef struct NEW_TYPE NEW_TYPE;
-
-#define MAKE_VOPS(NEW_TYPE, BASIC_TYPE) \
+typedef struct NEW_TYPE NEW_TYPE; \
 static __inline__ NEW_TYPE make_##NEW_TYPE(BASIC_TYPE x, BASIC_TYPE y, BASIC_TYPE z, BASIC_TYPE w) { \
     NEW_TYPE t; t.x = x; t.y = y; t.z = z; t.w = w; return t; \
 } \
- \
+
+#define MAKE_VOPS(NEW_TYPE, BASIC_TYPE) \
 static inline NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) \
 { \
     return make_##NEW_TYPE(s, s, s, s); \
