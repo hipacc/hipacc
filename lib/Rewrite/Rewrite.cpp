@@ -2033,10 +2033,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   *OS << "#ifndef " + ifdef + "\n";
   *OS << "#define " + ifdef + "\n\n";
 
-  if (compilerOptions.emitCUDA() && K->vectorize()) {
-    *OS << "#include \"hipacc_cuda_vec.hpp\"\n\n";
-  }
-
   bool inc=false;
   for (unsigned int i=0, e=KC->getNumImages(); i!=e; ++i) {
     FieldDecl *FD = KC->getImgFields().data()[i];

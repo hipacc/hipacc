@@ -45,6 +45,8 @@
 #include <utility>
 #include <vector>
 
+#include "hipacc_types.hpp"
+
 #define HIPACC_NUM_ITERATIONS 10
 
 static float total_time = 0.0f;
