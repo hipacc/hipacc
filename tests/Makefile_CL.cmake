@@ -2,7 +2,7 @@
 TARGET              := main_opencl
 LDFLAGS             = -lm -ldl -lstdc++
 INC                 = -I@RUNTIME_INCLUDES@ -I$(TEST_CASE)
-OFLAGS              := -O3 -Wall -Wunused
+OFLAGS              := -std=c++0x -O3 -Wall -Wunused
 
 ifeq ($(HIPACC_TARGET),Midgard)
     CC = @NDK_CXX_COMPILER@ @NDK_CXX_FLAGS@ @NDK_INCLUDE_DIRS_STR@

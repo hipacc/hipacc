@@ -548,6 +548,7 @@ Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
   if (E->hasArrayFiller()) result->setArrayFiller(Clone(E->getArrayFiller()));
 
   setExprProps(E, result);
+  result->setType(E->getType());
 
   return result;
 }

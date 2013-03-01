@@ -33,11 +33,12 @@ namespace hipacc {
 float hipacc_last_timing = 0.0f;
 }
 
-// include all other Hipacc headers
+// include all other HIPAcc headers
 #include "image.hpp"
 #include "iterationspace.hpp"
 #include "kernel.hpp"
 #include "mask.hpp"
+#include "types.hpp"
 
 namespace hipacc {
 float hipaccGetLastKernelTiming() {
