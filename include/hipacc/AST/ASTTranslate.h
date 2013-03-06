@@ -173,7 +173,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
     FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
     FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
-    FunctionDecl *getOpenCLConvertFunction(const BuiltinType *BT, bool vecType);
+    FunctionDecl *getOpenCLConvertFunction(QualType QT, bool vecType);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
 

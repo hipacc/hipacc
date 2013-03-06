@@ -385,10 +385,13 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
 
 
 // get convert_<type> function for given type
-FunctionDecl *ASTTranslate::getOpenCLConvertFunction(const BuiltinType *BT,
+FunctionDecl *ASTTranslate::getOpenCLConvertFunction(QualType QT,
                                                      bool vecType) {
   assert(vecType && "Only vector types are supported yet.");
-  switch (BT->getKind()) {
+  if (vecType) {
+      QT = QT->getAs<VectorType>()->getElementType();
+  }
+  switch (QT->getAs<BuiltinType>()->getKind()) {
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:
     case BuiltinType::Char16:
@@ -510,17 +513,15 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
 
     QualType QT = Acc->getImage()->getPixelQualType();
     if (QT->isVectorType()) {
-      args.clear();
+      SmallVector<Expr *, 16> args;
       args.push_back(result);
-      result = createFunctionCall(Ctx,
-        getOpenCLConvertFunction(QT->getAs<VectorType>()->getElementType()->getAs<BuiltinType>(), true),
-        args);
+      result =
+          createFunctionCall(Ctx, getOpenCLConvertFunction(QT, true), args);
     } else {
       result = createExtVectorElementExpr(Ctx, QT, result, "x");
     }
   } else {
     QualType QT;
-    SmallVector<Expr *, 16> args;
 
     // determine cast type for write_image functions
     if (image_function == builtins.getBuiltinFunction(OPENCLBIwrite_imagei)) {
@@ -534,18 +535,18 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
 
     // writeImageRHS is set by VisitBinaryOperator - side effect
     if (QT->isVectorType()) {
+      SmallVector<Expr *, 16> args;
       args.push_back(writeImageRHS);
-      writeImageRHS = createFunctionCall(Ctx,
-        getOpenCLConvertFunction(QT->getAs<VectorType>()->getElementType()->getAs<BuiltinType>(), true),
-        args);
-      args.clear();
+      writeImageRHS =
+          createFunctionCall(Ctx, getOpenCLConvertFunction(QT, true), args);
     } else {
       writeImageRHS = createParenExpr(Ctx, writeImageRHS);
-      writeImageRHS = createCStyleCastExpr(Ctx, QT, CK_VectorSplat, writeImageRHS,
-        NULL, Ctx.getTrivialTypeSourceInfo(QT));
+      writeImageRHS = createCStyleCastExpr(Ctx, QT, CK_VectorSplat,
+        writeImageRHS, NULL, Ctx.getTrivialTypeSourceInfo(QT));
     }
 
     // parameters for write_image
+    SmallVector<Expr *, 16> args;
     args.push_back(LHS);
     args.push_back(coord);
     args.push_back(writeImageRHS);

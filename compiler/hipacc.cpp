@@ -79,7 +79,7 @@ void printUsage() {
     << "  -time-kernels           Emit code that executes each kernel multiple times to get accurate timings\n"
     << "  -use-textures <o>       Enable/disable usage of textures (cached) in CUDA/OpenCL to read/write image pixels - for GPU devices only\n"
     << "                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', and 'Array2D'\n"
-    << "                          Valid values for CUDA on NVIDIA devices: 'off' and 'Array2D'\n"
+    << "                          Valid values for OpenCL: 'off' and 'Array2D'\n"
     << "  -use-local <o>          Enable/disable usage of shared/local memory in CUDA/OpenCL to stage image pixels to scratchpad\n"
     << "                          Valid values: 'on' and 'off'\n"
     << "  -vectorize <o>          Enable/disable vectorization of generated CUDA/OpenCL code\n"
