@@ -691,14 +691,15 @@ void hipaccReleaseBuffer(cl_mem buffer) {
 
 // Allocate image - no alignment can be specified
 template<typename T>
-cl_mem hipaccCreateImage(T *host_mem, int width, int height, int *stride, cl_channel_type channel_type) {
+cl_mem hipaccCreateImage(T *host_mem, int width, int height, int *stride,
+                         cl_channel_type channel_type, cl_channel_order channel_order) {
     cl_int err = CL_SUCCESS;
     cl_mem image;
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     cl_image_format image_format;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    image_format.image_channel_order = CL_R;
+    image_format.image_channel_order = channel_order;
     image_format.image_channel_data_type = channel_type;
 
     if (host_mem) {
@@ -730,18 +731,25 @@ cl_mem hipaccCreateImage(T *host_mem, int width, int height, int *stride, cl_cha
 }
 template<typename T>
 cl_mem hipaccCreateImage(T *host_mem, int width, int height, int *stride);
-#define CREATE_IMAGE(DATA_TYPE, CHANNEL_TYPE) \
+#define CREATE_IMAGE(DATA_TYPE, CHANNEL_TYPE, CHANNEL_ORDER) \
 template <> \
 cl_mem hipaccCreateImage<DATA_TYPE>(DATA_TYPE *host_mem, int width, int height, int *stride) { \
-    return hipaccCreateImage(host_mem, width, height, stride, CHANNEL_TYPE); \
+    return hipaccCreateImage(host_mem, width, height, stride, CHANNEL_TYPE, CHANNEL_ORDER); \
 }
-CREATE_IMAGE(char, CL_SIGNED_INT8)
-CREATE_IMAGE(short int, CL_SIGNED_INT16)
-CREATE_IMAGE(int, CL_SIGNED_INT32)
-CREATE_IMAGE(unsigned char, CL_UNSIGNED_INT8)
-CREATE_IMAGE(unsigned short int, CL_UNSIGNED_INT16)
-CREATE_IMAGE(unsigned int, CL_UNSIGNED_INT32)
-CREATE_IMAGE(float, CL_FLOAT)
+CREATE_IMAGE(char,                  CL_SIGNED_INT8,     CL_R)
+CREATE_IMAGE(short int,             CL_SIGNED_INT16,    CL_R)
+CREATE_IMAGE(int,                   CL_SIGNED_INT32,    CL_R)
+CREATE_IMAGE(unsigned char,         CL_UNSIGNED_INT8,   CL_R)
+CREATE_IMAGE(unsigned short int,    CL_UNSIGNED_INT16,  CL_R)
+CREATE_IMAGE(unsigned int,          CL_UNSIGNED_INT32,  CL_R)
+CREATE_IMAGE(float,                 CL_FLOAT,           CL_R)
+CREATE_IMAGE(char4,                 CL_SIGNED_INT8,     CL_RGBA)
+CREATE_IMAGE(short4,                CL_SIGNED_INT16,    CL_RGBA)
+CREATE_IMAGE(int4,                  CL_SIGNED_INT32,    CL_RGBA)
+CREATE_IMAGE(uchar4,                CL_UNSIGNED_INT8,   CL_RGBA)
+CREATE_IMAGE(ushort4,               CL_UNSIGNED_INT16,  CL_RGBA)
+CREATE_IMAGE(uint4,                 CL_UNSIGNED_INT32,  CL_RGBA)
+CREATE_IMAGE(float4,                CL_FLOAT,           CL_RGBA)
 
 
 // Release image

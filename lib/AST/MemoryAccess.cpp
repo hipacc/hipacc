@@ -332,8 +332,12 @@ FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
 // get read_image function for given Accessor
 FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
     memAcc) {
-  const BuiltinType *BT =
-    Acc->getImage()->getPixelQualType()->getAs<BuiltinType>();
+  QualType QT = Acc->getImage()->getPixelQualType();
+
+  if (QT->isVectorType()) {
+      QT = QT->getAs<VectorType>()->getElementType();
+  }
+  const BuiltinType *BT = QT->getAs<BuiltinType>();
 
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
@@ -379,6 +383,46 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
   }
 }
 
+
+// get convert_<type> function for given type
+FunctionDecl *ASTTranslate::getOpenCLConvertFunction(const BuiltinType *BT,
+                                                     bool vecType) {
+  assert(vecType && "Only vector types are supported yet.");
+  switch (BT->getKind()) {
+    case BuiltinType::WChar_U:
+    case BuiltinType::WChar_S:
+    case BuiltinType::Char16:
+    case BuiltinType::Char32:
+    case BuiltinType::ULongLong:
+    case BuiltinType::UInt128:
+    case BuiltinType::LongLong:
+    case BuiltinType::Int128:
+    case BuiltinType::LongDouble:
+    case BuiltinType::Void:
+    case BuiltinType::Bool:
+    case BuiltinType::Long:
+    case BuiltinType::Double:
+    case BuiltinType::ULong:
+    default:
+      assert(0 && "BuiltinType for OpenCL convert not supported.");
+    case BuiltinType::Char_S:
+    case BuiltinType::SChar:
+      return builtins.getBuiltinFunction(OPENCLBIconvert_char4);
+    case BuiltinType::Short:
+      return builtins.getBuiltinFunction(OPENCLBIconvert_short4);
+    case BuiltinType::Int:
+      return builtins.getBuiltinFunction(OPENCLBIconvert_int4);
+    case BuiltinType::Char_U:
+    case BuiltinType::UChar:
+      return builtins.getBuiltinFunction(OPENCLBIconvert_uchar4);
+    case BuiltinType::UShort:
+      return builtins.getBuiltinFunction(OPENCLBIconvert_ushort4);
+    case BuiltinType::UInt:
+      return builtins.getBuiltinFunction(OPENCLBIconvert_uint4);
+    case BuiltinType::Float:
+      return builtins.getBuiltinFunction(OPENCLBIconvert_float4);
+  }
+}
 
 // access linear texture memory at given index
 Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
@@ -463,10 +507,21 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     args.push_back(coord);
 
     result = createFunctionCall(Ctx, image_function, args); 
-    result = createExtVectorElementExpr(Ctx,
-        Acc->getImage()->getPixelQualType(), result, "x");
+
+    QualType QT = Acc->getImage()->getPixelQualType();
+    if (QT->isVectorType()) {
+      args.clear();
+      args.push_back(result);
+      result = createFunctionCall(Ctx,
+        getOpenCLConvertFunction(QT->getAs<VectorType>()->getElementType()->getAs<BuiltinType>(), true),
+        args);
+    } else {
+      result = createExtVectorElementExpr(Ctx, QT, result, "x");
+    }
   } else {
     QualType QT;
+    SmallVector<Expr *, 16> args;
+
     // determine cast type for write_image functions
     if (image_function == builtins.getBuiltinFunction(OPENCLBIwrite_imagei)) {
       QT = simdTypes.getSIMDType(Ctx.IntTy, "int", SIMD4);
@@ -478,11 +533,19 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     }
 
     // writeImageRHS is set by VisitBinaryOperator - side effect
-    writeImageRHS = createParenExpr(Ctx, writeImageRHS);
-    writeImageRHS = createCStyleCastExpr(Ctx, QT, CK_VectorSplat, writeImageRHS,
+    if (QT->isVectorType()) {
+      args.push_back(writeImageRHS);
+      writeImageRHS = createFunctionCall(Ctx,
+        getOpenCLConvertFunction(QT->getAs<VectorType>()->getElementType()->getAs<BuiltinType>(), true),
+        args);
+      args.clear();
+    } else {
+      writeImageRHS = createParenExpr(Ctx, writeImageRHS);
+      writeImageRHS = createCStyleCastExpr(Ctx, QT, CK_VectorSplat, writeImageRHS,
         NULL, Ctx.getTrivialTypeSourceInfo(QT));
+    }
+
     // parameters for write_image
-    SmallVector<Expr *, 16> args;
     args.push_back(LHS);
     args.push_back(coord);
     args.push_back(writeImageRHS);

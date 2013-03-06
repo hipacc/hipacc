@@ -328,6 +328,13 @@ OPENCLBUILTIN(read_imageui,         "V4Uiv*UiV2i",  read_imageui)
 OPENCLBUILTIN(write_imagef,         "vv*V2iV4f",    write_imagef)
 OPENCLBUILTIN(write_imagei,         "vv*V2iV4i",    write_imagei)
 OPENCLBUILTIN(write_imageui,        "vv*V2iV4Ui",   write_imageui)
+OPENCLBUILTIN(convert_char4,        "V4cc",         convert_char4)
+OPENCLBUILTIN(convert_uchar4,       "V4UcUc",       convert_uchar4)
+OPENCLBUILTIN(convert_short4,       "V4ss",         convert_short4)
+OPENCLBUILTIN(convert_ushort4,      "V4UsUs",       convert_ushort4)
+OPENCLBUILTIN(convert_int4,         "V4ii",         convert_int4)
+OPENCLBUILTIN(convert_uint4,        "V4UiUi",       convert_uint4)
+OPENCLBUILTIN(convert_float4,       "V4ff",         convert_float4)
 
 
 
