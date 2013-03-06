@@ -513,7 +513,7 @@ void HipaccKernel::createArgInfo() {
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_y",
+              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_x",
               NULL);
         }
         // offset_y
@@ -521,7 +521,7 @@ void HipaccKernel::createArgInfo() {
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_x",
+              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_y",
               NULL);
         }
 
