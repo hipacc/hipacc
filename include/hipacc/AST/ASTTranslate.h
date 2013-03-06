@@ -227,8 +227,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
     FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
     FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
-    FunctionDecl *getAllocationFunction(const BuiltinType *BT, MemoryAccess
-        memAcc);
+    FunctionDecl *getAllocationFunction(const BuiltinType *BT, bool vecType,
+                                        MemoryAccess memAcc);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
 

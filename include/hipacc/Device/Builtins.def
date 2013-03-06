@@ -509,6 +509,16 @@ RSBUILTIN(rsGetElementAt_long,      "SLiiC*CUiUi",  rsGetElementAt_long)
 RSBUILTIN(rsGetElementAt_ulong,     "ULiiC*CUiUi",  rsGetElementAt_ulong)
 RSBUILTIN(rsGetElementAt_float,     "fiC*CUiUi",    rsGetElementAt_float)
 RSBUILTIN(rsGetElementAt_double,    "diC*CUiUi",    rsGetElementAt_double)
+RSBUILTIN(rsGetElementAt_char4,     "V4SciC*CUiUi",  rsGetElementAt_char4)
+RSBUILTIN(rsGetElementAt_uchar4,    "V4UciC*CUiUi",  rsGetElementAt_uchar4)
+RSBUILTIN(rsGetElementAt_short4,    "V4SsiC*CUiUi",  rsGetElementAt_short4)
+RSBUILTIN(rsGetElementAt_ushort4,   "V4UsiC*CUiUi",  rsGetElementAt_ushort4)
+RSBUILTIN(rsGetElementAt_int4,      "V4SiiC*CUiUi",  rsGetElementAt_int4)
+RSBUILTIN(rsGetElementAt_uint4,     "V4UiiC*CUiUi",  rsGetElementAt_uint4)
+RSBUILTIN(rsGetElementAt_long4,     "V4SLiiC*CUiUi", rsGetElementAt_long4)
+RSBUILTIN(rsGetElementAt_ulong4,    "V4ULiiC*CUiUi", rsGetElementAt_ulong4)
+RSBUILTIN(rsGetElementAt_float4,    "V4fiC*CUiUi",   rsGetElementAt_float4)
+RSBUILTIN(rsGetElementAt_double4,   "V4diC*CUiUi",   rsGetElementAt_double4)
 
 // Builtin Renderscript getters abused for writing.
 // This is a poor workaround, which is used by TARGET_RenderscriptGPU only.
@@ -522,6 +532,16 @@ RSBUILTIN(*(long*)rsGetElementAt,   "SLiiC*CUiUi",  rsGetElementAt_longW)
 RSBUILTIN(*(ulong*)rsGetElementAt,  "ULiiC*CUiUi",  rsGetElementAt_ulongW)
 RSBUILTIN(*(float*)rsGetElementAt,  "fiC*CUiUi",    rsGetElementAt_floatW)
 RSBUILTIN(*(double*)rsGetElementAt, "diC*CUiUi",    rsGetElementAt_doubleW)
+RSBUILTIN(*(char4*)rsGetElementAt,   "V4SciC*CUiUi",  rsGetElementAt_char4W)
+RSBUILTIN(*(uchar4*)rsGetElementAt,  "V4UciC*CUiUi",  rsGetElementAt_uchar4W)
+RSBUILTIN(*(short4*)rsGetElementAt,  "V4SsiC*CUiUi",  rsGetElementAt_short4W)
+RSBUILTIN(*(ushort4*)rsGetElementAt, "V4UsiC*CUiUi",  rsGetElementAt_ushort4W)
+RSBUILTIN(*(int4*)rsGetElementAt,    "V4SiiC*CUiUi",  rsGetElementAt_int4W)
+RSBUILTIN(*(uint4*)rsGetElementAt,   "V4UiiC*CUiUi",  rsGetElementAt_uint4W)
+RSBUILTIN(*(long4*)rsGetElementAt,   "V4SLiiC*CUiUi", rsGetElementAt_long4W)
+RSBUILTIN(*(ulong4*)rsGetElementAt,  "V4ULiiC*CUiUi", rsGetElementAt_ulong4W)
+RSBUILTIN(*(float4*)rsGetElementAt,  "V4fiC*CUiUi",   rsGetElementAt_float4W)
+RSBUILTIN(*(double4*)rsGetElementAt, "V4diC*CUiUi",   rsGetElementAt_double4W)
 
 #undef HIPACCBUILTIN
 #undef CUDABUILTIN

@@ -44,6 +44,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "hipacc_types.hpp"
+
 using namespace android;
 using namespace android::renderscriptCpp;
 
@@ -118,7 +120,15 @@ class hipacc_script_arg {
     CREATE_SCRIPT_ARG(10, float)
     CREATE_SCRIPT_ARG(11, double)
 
-    CREATE_SCRIPT_ARG(12, sp<Allocation>)
+    CREATE_SCRIPT_ARG(12, uchar4)
+    CREATE_SCRIPT_ARG(13, ushort4)
+    CREATE_SCRIPT_ARG(14, uint4)
+
+    CREATE_SCRIPT_ARG(15, char4)
+    CREATE_SCRIPT_ARG(16, short4)
+    CREATE_SCRIPT_ARG(17, int4)
+
+    CREATE_SCRIPT_ARG(18, sp<Allocation>)
 };
 
 
@@ -142,6 +152,12 @@ class hipacc_script_arg {
        case 10: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 10) break; \
        case 11: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 11) break; \
        case 12: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 12) break; \
+       case 13: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 13) break; \
+       case 14: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 14) break; \
+       case 15: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 15) break; \
+       case 16: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 16) break; \
+       case 17: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 17) break; \
+       case 18: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 18) break; \
     }
 
 
@@ -480,6 +496,19 @@ CREATE_ALLOCATION(bool,     Element::BOOLEAN(rs))
 CREATE_ALLOCATION(char,     Element::U8(rs))
 CREATE_ALLOCATION(float,    Element::F32(rs))
 CREATE_ALLOCATION(double,   Element::F64(rs))
+
+CREATE_ALLOCATION(uchar4,   Element::U8_4(rs))
+CREATE_ALLOCATION(ushort4,  Element::U16_4(rs))
+CREATE_ALLOCATION(uint4,    Element::U32_4(rs))
+//CREATE_ALLOCATION(ulong4,   Element::U64_4(rs))
+
+CREATE_ALLOCATION(char4,    Element::I8_4(rs))
+CREATE_ALLOCATION(short4,   Element::I16_4(rs))
+CREATE_ALLOCATION(int4,     Element::I32_4(rs))
+//CREATE_ALLOCATION(long4,    Element::I64_4(rs))
+
+CREATE_ALLOCATION(float4,   Element::F32_4(rs))
+CREATE_ALLOCATION(double4,  Element::F64_4(rs))
 
 
 // Destroy allocation

@@ -409,7 +409,7 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
 
 // get rsGetElementAt_<type> function for given Accessor
 FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT,
-    MemoryAccess memAcc) {
+    bool vecType, MemoryAccess memAcc) {
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:
@@ -425,9 +425,13 @@ FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT,
     default:
       assert(0 && "BuiltinType for Renderscript Allocation not supported.");
 
-#define GET_BUILTIN_FUNCTION(NAME) (memAcc == READ_ONLY ? \
-                                    builtins.getBuiltinFunction(NAME) : \
-                                    builtins.getBuiltinFunction(NAME ## W))
+#define GET_BUILTIN_FUNCTION(NAME) \
+            (memAcc == READ_ONLY ? \
+                (vecType ? builtins.getBuiltinFunction(NAME ## 4) : \
+                    builtins.getBuiltinFunction(NAME)) : \
+                (vecType ? builtins.getBuiltinFunction(NAME ## 4W) : \
+                    builtins.getBuiltinFunction(NAME ## W)))
+
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
       return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_char);
@@ -581,8 +585,17 @@ Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess memAcc,
   // mark image as being used within the kernel
   Kernel->setUsed(LHS->getNameInfo().getAsString());
 
-  const BuiltinType *BT = LHS->getType()->getPointeeType()->getAs<BuiltinType>();
-  FunctionDecl *get_element_function = getAllocationFunction(BT, memAcc);
+  QualType QT = LHS->getType()->getPointeeType();
+  bool isVec = QT->isVectorType();
+
+  if (isVec) {
+    QT = QT->getAs<VectorType>()->getElementType();
+  }
+  const BuiltinType *BT = QT->getAs<BuiltinType>();
+  FunctionDecl *get_element_function = getAllocationFunction(BT, isVec, memAcc);
+
+  //const BuiltinType *BT = LHS->getType()->getPointeeType()->getAs<BuiltinType>();
+  //FunctionDecl *get_element_function = getAllocationFunction(BT, false, memAcc);
 
   // parameters for rsGetElementAt_<type>
   SmallVector<Expr *, 16> args;
