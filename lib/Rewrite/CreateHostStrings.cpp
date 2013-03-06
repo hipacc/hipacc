@@ -1194,7 +1194,8 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
   // image memory parameter, constant parameter, memory access function
   switch (K->useTextureMemory(Acc)) {
     case NoTexture:
-      if (options.emitRenderscriptGPU()) {
+      if (options.emitFilterscript() ||
+          options.emitRenderscriptGPU()) {
         resultStr += "ALL_PARM, " + const_parameter + ", ALL" + const_suffix;
       } else {
         resultStr += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;
