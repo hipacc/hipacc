@@ -78,7 +78,7 @@ void gaussian_filter(uchar4 *in, uchar4 *out, float *filter, int
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
-            uchar4 sum = { 0, 0, 0, 0 };
+            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
@@ -89,7 +89,10 @@ void gaussian_filter(uchar4 *in, uchar4 *out, float *filter, int
                     sum.w += filter[(yf+anchor_y)*size_x + xf+anchor_x]*val.w;
                 }
             }
-            out[y*width + x] = sum;
+            out[y*width + x].x = (unsigned char)sum.x;
+            out[y*width + x].y = (unsigned char)sum.y;
+            out[y*width + x].z = (unsigned char)sum.z;
+            out[y*width + x].w = (unsigned char)sum.w;
         }
     }
 }
@@ -105,7 +108,7 @@ void gaussian_filter_row(uchar4 *in, float4 *out, float *filter, int
     for (int y=0; y<height; ++y) {
         //for (int x=0; x<anchor_x; x++) out[y*width + x] = in[y*width + x];
         for (int x=anchor_x; x<upper_x; ++x) {
-            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
+            float4 sum = { 0.0f, 0.0f, 0.0f, 0.0f };
 
             for (int xf = -anchor_x; xf<=anchor_x; xf++) {
                 uchar4 val = in[(y)*width + x + xf];
@@ -130,7 +133,7 @@ void gaussian_filter_column(float4 *in, uchar4 *out, float *filter, int
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=0; x<width; ++x) {
-            uchar4 sum = { 0, 0, 0, 0 };
+            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 float4 val = in[(y + yf)*width + x];
@@ -139,7 +142,10 @@ void gaussian_filter_column(float4 *in, uchar4 *out, float *filter, int
                 sum.z += filter[yf + anchor_y]*val.z;
                 sum.w += filter[yf + anchor_y]*val.w;
             }
-            out[y*width + x] = sum;
+            out[y*width + x].x = (unsigned char)sum.x;
+            out[y*width + x].y = (unsigned char)sum.y;
+            out[y*width + x].z = (unsigned char)sum.z;
+            out[y*width + x].w = (unsigned char)sum.w;
         }
     }
 }
@@ -166,7 +172,7 @@ class GaussianBlurFilterMask : public Kernel<uchar4> {
         void kernel() {
             const int anchor_x = size_x >> 1;
             const int anchor_y = size_y >> 1;
-            uchar4 sum = { 0, 0, 0, 0 };
+            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
@@ -178,7 +184,13 @@ class GaussianBlurFilterMask : public Kernel<uchar4> {
                 }
             }
 
-            output() = sum;
+            uchar4 out;
+            out.x = (unsigned char)sum.x;
+            out.y = (unsigned char)sum.y;
+            out.z = (unsigned char)sum.z;
+            out.w = (unsigned char)sum.w;
+
+            output() = out;
         }
 };
 #else
@@ -199,7 +211,7 @@ class GaussianBlurFilterMaskRow : public Kernel<float4> {
 
         void kernel() {
             const int anchor = size >> 1;
-            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
+            float4 sum = { 0.0f, 0.0f, 0.0f, 0.0f };
 
             for (int xf = -anchor; xf<=anchor; xf++) {
                 uchar4 val = Input(xf, 0);
@@ -229,7 +241,7 @@ class GaussianBlurFilterMaskColumn : public Kernel<uchar4> {
 
         void kernel() {
             const int anchor = size >> 1;
-            uchar4 sum = { 0, 0, 0, 0 };
+            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
             for (int yf = -anchor; yf<=anchor; yf++) {
                 float4 val = Input(0, yf);
@@ -239,7 +251,13 @@ class GaussianBlurFilterMaskColumn : public Kernel<uchar4> {
                 sum.w += cMask(0, yf)*val.w;
             }
 
-            output() = sum;
+            uchar4 out;
+            out.x = (unsigned char)sum.x;
+            out.y = (unsigned char)sum.y;
+            out.z = (unsigned char)sum.z;
+            out.w = (unsigned char)sum.w;
+
+            output() = out;
         }
 };
 #endif
