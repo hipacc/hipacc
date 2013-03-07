@@ -1946,6 +1946,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                 createBinaryOperator(Ctx, Clone(E->getArg(2)),
                   createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
                   Ctx.IntTy));
+            break;
           case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
             // allocation access: rsGetElementAt(Mask, x+size_x/2, y+size_y/2)
