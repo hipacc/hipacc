@@ -38,8 +38,8 @@
 #include "hipacc.hpp"
 
 // variables set by Makefile
-//#define SIZE_X 3
-//#define SIZE_Y 3
+//#define SIZE_X 5
+//#define SIZE_Y 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
@@ -67,19 +67,18 @@ void box_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int width, int
         height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
     int upper_y = height-size_y+anchor_y;
-#else
+    #else
     int upper_x = width-anchor_x;
     int upper_y = height-anchor_y;
-#endif
+    #endif
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
             int4 sum = { 0, 0, 0, 0 };
 
-            // for even filter sizes use -anchor ... +anchor-1
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
                     sum.x += in[(y + yf)*width + x + xf].x;
@@ -137,6 +136,9 @@ class BoxFilter : public Kernel<uchar4> {
 };
 
 
+/*************************************************************************
+ * Main function                                                         *
+ *************************************************************************/
 int main(int argc, const char **argv) {
     double time0, time1, dt, min_dt;
     const int width = WIDTH;
@@ -147,16 +149,11 @@ int main(int argc, const char **argv) {
     const int offset_y = size_y >> 1;
     float timing = 0.0f;
 
-    // host memory for image of of widthxheight pixels
+    // host memory for image of of width x height pixels
     uchar4 *host_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *host_out = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *reference_out = (uchar4 *)malloc(sizeof(uchar4)*width*height);
-
-    // input and output image of widthxheight pixels
-    Image<uchar4> IN(width, height);
-    Image<uchar4> OUT(width, height);
-    Accessor<uchar4> AccIn(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -174,13 +171,19 @@ int main(int argc, const char **argv) {
         }
     }
 
+
+    // input and output image of width x height pixels
+    Image<uchar4> IN(width, height);
+    Image<uchar4> OUT(width, height);
+    Accessor<uchar4> AccIn(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+
     IterationSpace<uchar4> BIS(OUT, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
     BoxFilter BF(BIS, AccIn, size_x, size_y);
 
     IN = host_in;
     OUT = host_out;
 
-    fprintf(stderr, "Calculating blur filter ...\n");
+    fprintf(stderr, "Calculating HIPAcc blur filter ...\n");
 
     BF.execute();
     timing = hipaccGetLastKernelTiming();
@@ -188,31 +191,22 @@ int main(int argc, const char **argv) {
     // get results
     host_out = OUT.getData();
 
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
+    fprintf(stderr, "HIPACC: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
 
 
-#ifdef OpenCV
-    // OpenCV uses NPP library for filtering
-    // image: 4096x4096
-    // kernel size: 3x3
-    // offset 3x3 shiftet by 1 -> 1x1
-    // output: 4096x4096 - 3x3 -> 4093x4093; start: 1,1; end: 4094,4094
-    //
-    // image: 4096x4096
-    // kernel size: 4x4
-    // offset 4x4 shiftet by 1 -> 2x2
-    // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
-#ifdef CPU
+    #ifdef OpenCV
+    #ifdef CPU
     fprintf(stderr, "\nCalculating OpenCV box filter on the CPU ...\n");
-#else
+    #else
     fprintf(stderr, "\nCalculating OpenCV box filter on the GPU ...\n");
-#endif
+    #endif
 
 
     cv::Mat cv_data_in(height, width, CV_8UC4, host_in);
     cv::Mat cv_data_out(height, width, CV_8UC4, host_out);
     cv::Size ksize(size_x, size_y);
-#ifdef CPU
+
+    #ifdef CPU
     min_dt = DBL_MAX;
     for (int nt=0; nt<10; nt++) {
         time0 = time_ms();
@@ -223,7 +217,7 @@ int main(int argc, const char **argv) {
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
-#else
+    #else
     cv::gpu::GpuMat gpu_in, gpu_out;
     gpu_in.upload(cv_data_in);
 
@@ -239,10 +233,10 @@ int main(int argc, const char **argv) {
     }
 
     gpu_out.download(cv_data_out);
-#endif
+    #endif
 
     fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt, ((width-size_x)*(height-size_y)/min_dt)/1000);
-#endif
+    #endif
 
 
     fprintf(stderr, "\nCalculating reference ...\n");
@@ -257,17 +251,16 @@ int main(int argc, const char **argv) {
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
+    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
 
     fprintf(stderr, "\nComparing results ...\n");
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_y = height-size_y+offset_y;
     int upper_x = width-size_x+offset_x;
-#else
+    #else
     int upper_y = height-offset_y;
     int upper_x = width-offset_x;
-#endif
+    #endif
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
