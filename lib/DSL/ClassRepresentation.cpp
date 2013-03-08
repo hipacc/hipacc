@@ -123,6 +123,11 @@ std::string HipaccImage::getImageReadFunction() {
 
 void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
   QualType QT = getImage()->getPixelQualType();
+
+  bool isVecType = QT->isVectorType();
+  if (isVecType) {
+      QT = QT->getAs<VectorType>()->getElementType();
+  }
   const BuiltinType *BT = QT->getAs<BuiltinType>();
 
   switch (BT->getKind()) {
@@ -143,8 +148,24 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
     case BuiltinType::SChar:
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
-      constExpr = new (Ctx) CharacterLiteral(val.getInt().getSExtValue(),
-          CharacterLiteral::Ascii, QT, SourceLocation());
+      if (isVecType) {
+        SmallVector<Expr *, 16> initExprs;
+
+        for (unsigned int I=0, N=val.getVectorLength(); I!=N; ++I) {
+          APValue lane = val.getVectorElt(I);
+          initExprs.push_back(new (Ctx)
+              CharacterLiteral(lane.getInt().getSExtValue(),
+                CharacterLiteral::Ascii, QT, SourceLocation()));
+        }
+
+        constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(),
+            llvm::makeArrayRef(initExprs.data(), initExprs.size()),
+            SourceLocation());
+        constExpr->setType(getImage()->getPixelQualType());
+      } else {
+        constExpr = new (Ctx) CharacterLiteral(val.getInt().getSExtValue(),
+            CharacterLiteral::Ascii, QT, SourceLocation());
+      }
       break;
     case BuiltinType::Short:
     case BuiltinType::UShort:
@@ -152,13 +173,43 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
     case BuiltinType::UInt:
     case BuiltinType::Long:
     case BuiltinType::ULong:
-      constExpr = new (Ctx) IntegerLiteral(Ctx, val.getInt(), QT,
-          SourceLocation());
+      if (isVecType) {
+        SmallVector<Expr *, 16> initExprs;
+
+        for (unsigned int I=0, N=val.getVectorLength(); I!=N; ++I) {
+          APValue lane = val.getVectorElt(I);
+          initExprs.push_back(new (Ctx) IntegerLiteral(Ctx, lane.getInt(), QT,
+                SourceLocation()));
+        }
+
+        constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(),
+            llvm::makeArrayRef(initExprs.data(), initExprs.size()),
+            SourceLocation());
+        constExpr->setType(getImage()->getPixelQualType());
+      } else {
+        constExpr = new (Ctx) IntegerLiteral(Ctx, val.getInt(), QT,
+            SourceLocation());
+      }
       break;
     case BuiltinType::Float:
     case BuiltinType::Double:
-      constExpr = FloatingLiteral::Create(Ctx, llvm::APFloat(val.getFloat()),
-          false, QT, SourceLocation());
+      if (isVecType) {
+        SmallVector<Expr *, 16> initExprs;
+
+        for (unsigned int I=0, N=val.getVectorLength(); I!=N; ++I) {
+          APValue lane = val.getVectorElt(I);
+          initExprs.push_back(FloatingLiteral::Create(Ctx,
+                llvm::APFloat(lane.getFloat()), false, QT, SourceLocation()));
+        }
+
+        constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(),
+            llvm::makeArrayRef(initExprs.data(), initExprs.size()),
+            SourceLocation());
+        constExpr->setType(getImage()->getPixelQualType());
+      } else {
+        constExpr = FloatingLiteral::Create(Ctx, llvm::APFloat(val.getFloat()),
+            false, QT, SourceLocation());
+      }
       break;
   }
 }

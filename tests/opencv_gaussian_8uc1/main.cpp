@@ -2,23 +2,23 @@
 // Copyright (c) 2012, University of Erlangen-Nuremberg
 // Copyright (c) 2012, Siemens AG
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met: 
-// 
+// modification, are permitted provided that the following conditions are met:
+//
 // 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer. 
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution. 
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
 // ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 // (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -69,13 +69,13 @@ void gaussian_filter(unsigned char *in, unsigned char *out, float *filter, int
         size_x, int size_y, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
     int upper_y = height-size_y+anchor_y;
-#else
+    #else
     int upper_x = width-anchor_x;
     int upper_y = height-anchor_y;
-#endif
+    #endif
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
@@ -93,11 +93,11 @@ void gaussian_filter(unsigned char *in, unsigned char *out, float *filter, int
 void gaussian_filter_row(unsigned char *in, float *out, float *filter, int
         size_x, int width, int height) {
     int anchor_x = size_x >> 1;
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
-#else
+    #else
     int upper_x = width-anchor_x;
-#endif
+    #endif
 
     for (int y=0; y<height; ++y) {
         //for (int x=0; x<anchor_x; x++) out[y*width + x] = in[y*width + x];
@@ -115,11 +115,11 @@ void gaussian_filter_row(unsigned char *in, float *out, float *filter, int
 void gaussian_filter_column(float *in, unsigned char *out, float *filter, int
         size_y, int width, int height) {
     int anchor_y = size_y >> 1;
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_y = height-size_y+anchor_y;
-#else
+    #else
     int upper_y = height-anchor_y;
-#endif
+    #endif
 
     //for (int y=0; y<anchor_y; y++) {
     //    for (int x=0; x<width; ++x) {
@@ -274,10 +274,11 @@ int main(int argc, const char **argv) {
     const int offset_x = size_x >> 1;
     const int offset_y = size_y >> 1;
     std::vector<float> timings;
-    float timing = 0.0f;
+    const double sigma1 = ((size_x-1)*0.5 - 1)*0.3 + 0.8;
+    const double sigma2 = ((size_y-1)*0.5 - 1)*0.3 + 0.8;
 
     // filter coefficients
-#ifdef CONST_MASK
+    #ifdef CONST_MASK
     // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
     if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
         fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3, 5x5, and 7x7!\n");
@@ -330,12 +331,10 @@ int main(int argc, const char **argv) {
         0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841
         #endif
     };
-#else
+    #else
     float *filter_x = (float *)malloc(sizeof(float)*size_x);
     float *filter_y = (float *)malloc(sizeof(float)*size_y);
     float *filter_xy = (float *)malloc(sizeof(float)*size_x*size_y);
-    const double sigma1 = ((size_x-1)*0.5 - 1)*0.3 + 0.8;
-    const double sigma2 = ((size_y-1)*0.5 - 1)*0.3 + 0.8;
 
     double scale2X = -0.5/(sigma1*sigma1);
     double scale2Y = -0.5/(sigma2*sigma2);
@@ -371,7 +370,7 @@ int main(int argc, const char **argv) {
             filter_xy[y*size_x + x] = filter_x[x]*filter_y[y];
         }
     }
-#endif
+    #endif
 
     // host memory for image of of width x height pixels
     unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
@@ -412,8 +411,9 @@ int main(int argc, const char **argv) {
     OUT = host_out;
 
 
-#ifndef OpenCV
+    #ifndef OpenCV
     fprintf(stderr, "Calculating HIPAcc Gaussian filter ...\n");
+    float timing = 0.0f;
 
     // BOUNDARY_UNDEFINED
     #ifdef RUN_UNDEF
@@ -549,16 +549,16 @@ int main(int argc, const char **argv) {
 
     // get results
     host_out = OUT.getData();
-#endif
+    #endif
 
 
 
-#ifdef OpenCV
-#ifdef CPU
+    #ifdef OpenCV
+    #ifdef CPU
     fprintf(stderr, "\nCalculating OpenCV Gaussian filter on the CPU ...\n");
-#else
+    #else
     fprintf(stderr, "\nCalculating OpenCV Gaussian filter on the GPU ...\n");
-#endif
+    #endif
 
 
     cv::Mat cv_data_in(height, width, CV_8UC1, host_in);
@@ -566,7 +566,12 @@ int main(int argc, const char **argv) {
     cv::Size ksize(size_x, size_y);
 
     for (int brd_type=0; brd_type<5; brd_type++) {
-#ifdef CPU
+        #ifdef CPU
+        if (brd_type==cv::BORDER_WRAP) {
+            // BORDER_WRAP is not supported on the CPU by OpenCV
+            timings.push_back(0.0f);
+            continue;
+        }
         min_dt = DBL_MAX;
         for (int nt=0; nt<10; nt++) {
             time0 = time_ms();
@@ -577,7 +582,7 @@ int main(int argc, const char **argv) {
             dt = time1 - time0;
             if (dt < min_dt) min_dt = dt;
         }
-#else
+        #else
         cv::gpu::GpuMat gpu_in, gpu_out;
         gpu_in.upload(cv_data_in);
 
@@ -593,7 +598,7 @@ int main(int argc, const char **argv) {
         }
 
         gpu_out.download(cv_data_out);
-#endif
+        #endif
 
         fprintf(stderr, "OpenCV(");
         switch (brd_type) {
@@ -618,7 +623,7 @@ int main(int argc, const char **argv) {
         timings.push_back(min_dt);
         fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
     }
-#endif
+    #endif
 
     // print statistics
     for (unsigned int i=0; i<timings.size(); i++) {
@@ -647,13 +652,13 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
 
     fprintf(stderr, "\nComparing results ...\n");
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_y = height-size_y+offset_y;
     int upper_x = width-size_x+offset_x;
-#else
+    #else
     int upper_y = height-offset_y;
     int upper_x = width-offset_x;
-#endif
+    #endif
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
