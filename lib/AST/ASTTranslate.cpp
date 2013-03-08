@@ -1671,7 +1671,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             midx_y = convExprY;
           }
 
-          if (emitPolly || compilerOptions.emitCUDA()) {
+          if (emitPolly || compilerOptions.emitCUDA() ||
+              (Mask->isConstant() && compilerOptions.emitOpenCL())) {
             // array subscript: Mask[conv_y][conv_x]
             result = accessMem2DAt(LHS, midx_x, midx_y);
           } else {
@@ -1686,7 +1687,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // 0: -> (this *) Mask class
         // 1: -> x
         // 2: -> y
-        if (emitPolly || compilerOptions.emitCUDA()) {
+        if (emitPolly || compilerOptions.emitCUDA() ||
+            (Mask->isConstant() && compilerOptions.emitOpenCL())) {
           // array subscript: Mask[y+size_y/2][x+size_x/2]
           result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                 Clone(E->getArg(1)), createIntegerLiteral(Ctx,
