@@ -1908,9 +1908,14 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             case TARGET_OpenCL:
             case TARGET_OpenCLx86:
             case TARGET_Renderscript:
-              // array subscript: Mask[(conv_y)*width + conv_x]
-              result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                    (int)Mask->getSizeX()), midx_x, midx_y);
+              if (Mask->isConstant()) {
+                // array subscript: Mask[conv_y][conv_x]
+                result = accessMem2DAt(LHS, midx_x, midx_y);
+              } else {
+                // array subscript: Mask[(conv_y)*width + conv_x]
+                result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
+                      (int)Mask->getSizeX()), midx_x, midx_y);
+              }
               break;
             case TARGET_RenderscriptGPU:
             case TARGET_Filterscript:
@@ -1938,14 +1943,24 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           case TARGET_OpenCL:
           case TARGET_OpenCLx86:
           case TARGET_Renderscript:
-            // array subscript: Mask[(y+size_y/2)*width + x+size_x/2]
-            result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                  (int)Mask->getSizeX()), createBinaryOperator(Ctx,
-                  Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                    (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
-                createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                  createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
-                  Ctx.IntTy));
+            if (Mask->isConstant()) {
+              // array subscript: Mask[y+size_y/2][x+size_x/2]
+              result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
+                    Clone(E->getArg(1)), createIntegerLiteral(Ctx,
+                      (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                  createBinaryOperator(Ctx, Clone(E->getArg(2)),
+                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                    Ctx.IntTy));
+            } else {
+              // array subscript: Mask[(y+size_y/2)*width + x+size_x/2]
+              result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
+                    (int)Mask->getSizeX()), createBinaryOperator(Ctx,
+                    Clone(E->getArg(1)), createIntegerLiteral(Ctx,
+                      (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                  createBinaryOperator(Ctx, Clone(E->getArg(2)),
+                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                    Ctx.IntTy));
+            }
             break;
           case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
