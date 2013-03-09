@@ -332,6 +332,7 @@ void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
             break;
           case TARGET_Renderscript:
           case TARGET_RenderscriptGPU:
+          case TARGET_Filterscript:
             if (!getBuiltinFunction(BuiltinInfo[i].Renderscript)) continue;
             break;
         }
@@ -345,8 +346,10 @@ void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
         continue;
       case TARGET_Renderscript:
       case TARGET_RenderscriptGPU:
+      case TARGET_Filterscript:
         if (target == TARGET_RenderscriptGPU ||
-            target == TARGET_Renderscript) break;
+            target == TARGET_Renderscript ||
+            target == TARGET_Filterscript) break;
         continue;
     }
     Names.push_back(BuiltinInfo[i].Name);
@@ -408,6 +411,7 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
               return getBuiltinFunction(BuiltinInfo[i].OpenCL);
             case TARGET_Renderscript:
             case TARGET_RenderscriptGPU:
+            case TARGET_Filterscript:
               return getBuiltinFunction(BuiltinInfo[i].Renderscript);
           }
           break;
@@ -419,7 +423,10 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
             return BuiltinInfo[i].FD;
         case TARGET_Renderscript:
         case TARGET_RenderscriptGPU:
-          if (target == TARGET_RenderscriptGPU || target == TARGET_Renderscript)
+        case TARGET_Filterscript:
+          if (target == TARGET_RenderscriptGPU ||
+              target == TARGET_Renderscript ||
+              target == TARGET_Filterscript)
             return BuiltinInfo[i].FD;
       }
     }
