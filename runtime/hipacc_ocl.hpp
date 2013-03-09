@@ -851,14 +851,14 @@ void hipaccCopyBuffer(cl_mem src_buffer, cl_mem dst_buffer, int num_device=0) {
 
 
 // Copy from buffer region to buffer region
-void hipaccCopyBufferRegion(cl_mem src_buffer, cl_mem dst_buffer, int src_offset_x, int src_offset_y, int dst_offset_x, int dst_offset_y, int roi_width, int roi_height, int num_device=0) {
+void hipaccCopyBufferRegion(cl_mem src_buffer, cl_mem dst_buffer, size_t src_offset_x, size_t src_offset_y, size_t dst_offset_x, size_t dst_offset_y, size_t roi_width, size_t roi_height, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
     HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src_buffer);
     HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst_buffer);
 
-    int dst_stride = dst_dim.stride * dst_dim.pixel_size;
-    int src_stride = src_dim.stride * src_dim.pixel_size;
+    size_t dst_stride = dst_dim.stride * dst_dim.pixel_size;
+    size_t src_stride = src_dim.stride * src_dim.pixel_size;
 
     const size_t dst_origin[] = { dst_offset_x*dst_dim.pixel_size, dst_offset_y, 0 };
     const size_t src_origin[] = { src_offset_x*src_dim.pixel_size, src_offset_y, 0 };
@@ -918,7 +918,7 @@ void hipaccCopyImage(cl_mem src_image, cl_mem dst_image, int num_device=0) {
     assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height && src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyImage!");
 
     const size_t origin[] = { 0, 0, 0 };
-    const size_t region[] = { src_dim.width, src_dim.height, 1 };
+    const size_t region[] = { (size_t)src_dim.width, (size_t)src_dim.height, 1 };
 
     err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], src_image, dst_image, origin, origin, region, 0, NULL, NULL);
     err |= clFinish(Ctx.get_command_queues()[num_device]);
@@ -927,7 +927,7 @@ void hipaccCopyImage(cl_mem src_image, cl_mem dst_image, int num_device=0) {
 
 
 // Copy from image region to image region
-void hipaccCopyImageRegion(cl_mem src_image, cl_mem dst_image, int src_offset_x, int src_offset_y, int dst_offset_x, int dst_offset_y, int roi_width, int roi_height, int num_device=0) {
+void hipaccCopyImageRegion(cl_mem src_image, cl_mem dst_image, size_t src_offset_x, size_t src_offset_y, size_t dst_offset_x, size_t dst_offset_y, size_t roi_width, size_t roi_height, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
