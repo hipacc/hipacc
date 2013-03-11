@@ -2,23 +2,23 @@
 // Copyright (c) 2012, University of Erlangen-Nuremberg
 // Copyright (c) 2012, Siemens AG
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met: 
-// 
+// modification, are permitted provided that the following conditions are met:
+//
 // 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer. 
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution. 
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
 // ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 // (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -32,6 +32,7 @@
 #include <boost/multi_array.hpp>
 #endif
 #include "iterationspace.hpp"
+#include "types.hpp"
 
 namespace hipacc {
 // forward declaration
@@ -150,54 +151,42 @@ class Mask : public MaskBase {
 
 
 template <typename data_t, typename Function>
-data_t convolve(Mask<data_t> &mask, HipaccConvolutionMode mode, const Function& fun) {
-    data_t tmp = 0, result = 0;
-    bool first = true;
-
+auto convolve(Mask<data_t> &mask, HipaccConvolutionMode mode, const Function& fun) -> decltype(fun()) {
     ElementIterator end = mask.end();
     ElementIterator iter = mask.begin();
 
     // register mask
     mask.setEI(&iter);
 
-    // advance iterator and apply kernel to whole iteration space
+    // initialize result - calculate first iteration
+    auto result = fun();
+    ++iter;
+
+    // advance iterator and apply kernel to remaining iteration space
     while (iter != end) {
         switch (mode) {
             case HipaccSUM:
-                if (first) {
-                    result = fun();
-                } else {
-                    result += fun();
-                }
+                result += fun();
                 break;
             case HipaccMIN:
-                if (first) {
-                    result = fun();
-                } else {
-                    tmp = fun();
-                    if (tmp < result) result = tmp;
+                {
+                auto tmp = fun();
+                result = min(tmp, result);
                 }
                 break;
             case HipaccMAX:
-                if (first) {
-                    result = fun();
-                } else {
-                    tmp = fun();
-                    if (tmp > result) result = tmp;
+                {
+                auto tmp = fun();
+                result = max(tmp, result);
                 }
                 break;
             case HipaccPROD:
-                if (first) {
-                    result = fun();
-                } else {
-                    result *= fun();
-                }
+                result *= fun();
                 break;
             case HipaccMEDIAN:
                 assert(0 && "HipaccMEDIAN not implemented yet!");
                 break;
         }
-        first = false;
         ++iter;
     }
 

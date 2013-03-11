@@ -46,8 +46,8 @@
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
-//#define CONST_MASK
-//#define USE_LAMBDA
+#define CONST_MASK
+#define USE_LAMBDA
 //#define RUN_UNDEF
 //#define NO_SEP
 
@@ -168,6 +168,28 @@ class GaussianBlurFilterMask : public Kernel<uchar4> {
             size_y(size_y)
         { addAccessor(&Input); }
 
+        #ifdef USE_LAMBDA
+        void kernel() {
+            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
+            sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
+                    uchar4 val = Input(cMask);
+                    float4 tmp;
+                    tmp.x = cMask()*val.x;
+                    tmp.y = cMask()*val.y;
+                    tmp.z = cMask()*val.z;
+                    tmp.w = cMask()*val.w;
+                    return tmp;
+                    });
+
+            uchar4 out;
+            out.x = (unsigned char)sum.x;
+            out.y = (unsigned char)sum.y;
+            out.z = (unsigned char)sum.z;
+            out.w = (unsigned char)sum.w;
+
+            output() = out;
+        }
+        #else
         void kernel() {
             const int anchor_x = size_x >> 1;
             const int anchor_y = size_y >> 1;
@@ -191,6 +213,7 @@ class GaussianBlurFilterMask : public Kernel<uchar4> {
 
             output() = out;
         }
+        #endif
 };
 #else
 class GaussianBlurFilterMaskRow : public Kernel<float4> {
@@ -208,6 +231,21 @@ class GaussianBlurFilterMaskRow : public Kernel<float4> {
             size(size)
         { addAccessor(&Input); }
 
+        #ifdef USE_LAMBDA
+        void kernel() {
+            float4 sum = { 0.0f, 0.0f, 0.0f, 0.0f };
+            sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
+                    uchar4 val = Input(cMask);
+                    float4 tmp;
+                    tmp.x = cMask()*val.x;
+                    tmp.y = cMask()*val.y;
+                    tmp.z = cMask()*val.z;
+                    tmp.w = cMask()*val.w;
+                    return tmp;
+                    });
+            output() = sum;
+        }
+        #else
         void kernel() {
             const int anchor = size >> 1;
             float4 sum = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -222,6 +260,7 @@ class GaussianBlurFilterMaskRow : public Kernel<float4> {
 
             output() = sum;
         }
+        #endif
 };
 class GaussianBlurFilterMaskColumn : public Kernel<uchar4> {
     private:
@@ -238,6 +277,27 @@ class GaussianBlurFilterMaskColumn : public Kernel<uchar4> {
             size(size)
         { addAccessor(&Input); }
 
+        #ifdef USE_LAMBDA
+        void kernel() {
+            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
+            sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
+                    float4 val = Input(cMask);
+                    val.x *= cMask();
+                    val.y *= cMask();
+                    val.z *= cMask();
+                    val.w *= cMask();
+                    return val;
+                    });
+
+            uchar4 out;
+            out.x = (unsigned char)sum.x;
+            out.y = (unsigned char)sum.y;
+            out.z = (unsigned char)sum.z;
+            out.w = (unsigned char)sum.w;
+
+            output() = out;
+        }
+        #else
         void kernel() {
             const int anchor = size >> 1;
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
@@ -258,6 +318,7 @@ class GaussianBlurFilterMaskColumn : public Kernel<uchar4> {
 
             output() = out;
         }
+        #endif
 };
 #endif
 
