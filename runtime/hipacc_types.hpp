@@ -31,29 +31,40 @@
 typedef char                char4   __attribute__ ((ext_vector_type(4)));
 typedef short int           short4  __attribute__ ((ext_vector_type(4)));
 typedef int                 int4    __attribute__ ((ext_vector_type(4)));
+typedef long int            long4   __attribute__ ((ext_vector_type(4)));
 typedef unsigned char       uchar4  __attribute__ ((ext_vector_type(4)));
 typedef unsigned short int  ushort4 __attribute__ ((ext_vector_type(4)));
 typedef unsigned int        uint4   __attribute__ ((ext_vector_type(4)));
+typedef unsigned long int   ulong4  __attribute__ ((ext_vector_type(4)));
 typedef float               float4  __attribute__ ((ext_vector_type(4)));
 typedef double              double4 __attribute__ ((ext_vector_type(4)));
 #define ATTRIBUTES inline
-#define MAKE_VEC(NEW_TYPE, BASIC_TYPE)
+#define MAKE_VEC(NEW_TYPE, BASIC_TYPE) \
+    MAKE_COPS(NEW_TYPE, BASIC_TYPE)
 #elif defined __CUDACC__
 typedef unsigned char       uchar;
 typedef unsigned short      ushort;
 typedef unsigned int        uint;
 typedef unsigned long       ulong;
 #define ATTRIBUTES __inline__ __host__ __device__
-#define MAKE_VEC(NEW_TYPE, BASIC_TYPE) MAKE_VOPS(NEW_TYPE, BASIC_TYPE)
+#define MAKE_VEC(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VOPS(NEW_TYPE, BASIC_TYPE)
 #elif defined __GNUC__
+typedef unsigned char       uchar;
+typedef unsigned short      ushort;
+typedef unsigned int        uint;
+typedef unsigned long       ulong;
 #define ATTRIBUTES inline
 #define MAKE_VEC(NEW_TYPE, BASIC_TYPE) \
     MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
+    MAKE_COPS(NEW_TYPE, BASIC_TYPE) \
     MAKE_VOPS(NEW_TYPE, BASIC_TYPE)
 #else
 #error "Only Clang, nvcc, and gcc compilers supported!"
 #endif
 
+
+// vector type definition
 #define MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
 _Pragma("pack(1)") \
 struct NEW_TYPE { \
@@ -62,16 +73,58 @@ struct NEW_TYPE { \
         x = b; y = b; z = b; w = b; \
     } \
 }; \
-typedef struct NEW_TYPE NEW_TYPE; \
+typedef struct NEW_TYPE NEW_TYPE;
+
+
+// custom operators
+#define MAKE_COPS(NEW_TYPE, BASIC_TYPE) \
 static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE x, BASIC_TYPE y, BASIC_TYPE z, BASIC_TYPE w) { \
     NEW_TYPE t; t.x = x; t.y = y; t.z = z; t.w = w; return t; \
 } \
-
-#define MAKE_VOPS(NEW_TYPE, BASIC_TYPE) \
 static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) \
 { \
     return make_##NEW_TYPE(s, s, s, s); \
 } \
+ \
+ /* min */ \
+ \
+ATTRIBUTES BASIC_TYPE min(BASIC_TYPE a, BASIC_TYPE b) { \
+    return (a < b ? a : b); \
+} \
+ \
+ATTRIBUTES NEW_TYPE min(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z),  min(a.w, b.w)); \
+} \
+ \
+ATTRIBUTES NEW_TYPE min(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##NEW_TYPE(min(a.x, b), min(a.y, b), min(a.z, b),  min(a.w, b)); \
+} \
+ \
+ATTRIBUTES NEW_TYPE min(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(min(a, b.x), min(a, b.y), min(a, b.z),  min(a, b.w)); \
+} \
+ \
+ /* max */ \
+ \
+ATTRIBUTES BASIC_TYPE max(BASIC_TYPE a, BASIC_TYPE b) { \
+    return (a > b ? a : b); \
+} \
+ \
+ATTRIBUTES NEW_TYPE max(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z),  max(a.w, b.w)); \
+} \
+ \
+ATTRIBUTES NEW_TYPE max(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##NEW_TYPE(max(a.x, b), max(a.y, b), max(a.z, b),  max(a.w, b)); \
+} \
+ \
+ATTRIBUTES NEW_TYPE max(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(max(a, b.x), max(a, b.y), max(a, b.z),  max(a, b.w)); \
+}
+
+
+// vector operators
+#define MAKE_VOPS(NEW_TYPE, BASIC_TYPE) \
  \
  /* addition */ \
  \
