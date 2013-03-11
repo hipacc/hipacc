@@ -44,7 +44,8 @@
 //  f -> float
 //  d -> double
 //  z -> size_t
-//  V -> Vector, following num elements and a base type.
+//  V -> Vector, followed by the number of elements and the base type.
+//  E -> ext_vector, followed by the number of elements and the base type.
 //  . -> "...".  This may only occur at the end of the function list.
 //
 // Types may be prefixed with the following modifiers:
@@ -130,7 +131,7 @@ OPENCLBUILTIN(erf,                  "ff",       erff)
 HIPACCBUILTIN(exp,                  "dd",       HIPACCBIexp,        HIPACCBIexp)
 HIPACCBUILTIN(expf,                 "ff",       HIPACCBIexpf,       OPENCLBIexpf)
 OPENCLBUILTIN(exp,                  "ff",       expf)
-CUDABUILTIN(expf,                   "V4fV4f",   expf4)
+CUDABUILTIN(expf,                   "E4fE4f",   expf4)
 
 HIPACCBUILTIN(exp2,                 "dd",       HIPACCBIexp2,       HIPACCBIexp2)
 HIPACCBUILTIN(exp2f,                "ff",       HIPACCBIexp2f,      OPENCLBIexp2f)
@@ -322,19 +323,20 @@ OPENCLBUILTIN(get_local_id,         "zUi",          get_local_id)
 OPENCLBUILTIN(get_num_groups,       "zUi",          get_num_groups)
 OPENCLBUILTIN(get_group_id,         "zUi",          get_group_id)
 OPENCLBUILTIN(barrier,              "zUi",          barrier)
-OPENCLBUILTIN(read_imagef,          "V4fv*UiV2i",   read_imagef)
-OPENCLBUILTIN(read_imagei,          "V4iv*UiV2i",   read_imagei)
-OPENCLBUILTIN(read_imageui,         "V4Uiv*UiV2i",  read_imageui)
-OPENCLBUILTIN(write_imagef,         "vv*V2iV4f",    write_imagef)
-OPENCLBUILTIN(write_imagei,         "vv*V2iV4i",    write_imagei)
-OPENCLBUILTIN(write_imageui,        "vv*V2iV4Ui",   write_imageui)
-OPENCLBUILTIN(convert_char4,        "V4cc",         convert_char4)
-OPENCLBUILTIN(convert_uchar4,       "V4UcUc",       convert_uchar4)
-OPENCLBUILTIN(convert_short4,       "V4ss",         convert_short4)
-OPENCLBUILTIN(convert_ushort4,      "V4UsUs",       convert_ushort4)
-OPENCLBUILTIN(convert_int4,         "V4ii",         convert_int4)
-OPENCLBUILTIN(convert_uint4,        "V4UiUi",       convert_uint4)
-OPENCLBUILTIN(convert_float4,       "V4ff",         convert_float4)
+// http://www.khronos.org/registry/cl/sdk/1.2/docs/man/xhtml/imageFunctions.html
+OPENCLBUILTIN(read_imagef,          "E4fv*UiE2i",   read_imagef)
+OPENCLBUILTIN(read_imagei,          "E4iv*UiE2i",   read_imagei)
+OPENCLBUILTIN(read_imageui,         "E4Uiv*UiE2i",  read_imageui)
+OPENCLBUILTIN(write_imagef,         "vv*E2iE4f",    write_imagef)
+OPENCLBUILTIN(write_imagei,         "vv*E2iE4i",    write_imagei)
+OPENCLBUILTIN(write_imageui,        "vv*E2iE4Ui",   write_imageui)
+OPENCLBUILTIN(convert_char4,        "E4cc",         convert_char4)
+OPENCLBUILTIN(convert_uchar4,       "E4UcUc",       convert_uchar4)
+OPENCLBUILTIN(convert_short4,       "E4ss",         convert_short4)
+OPENCLBUILTIN(convert_ushort4,      "E4UsUs",       convert_ushort4)
+OPENCLBUILTIN(convert_int4,         "E4ii",         convert_int4)
+OPENCLBUILTIN(convert_uint4,        "E4UiUi",       convert_uint4)
+OPENCLBUILTIN(convert_float4,       "E4ff",         convert_float4)
 
 
 
@@ -372,16 +374,16 @@ CUDABUILTIN(surf2Dwrite,            "vii*ii",       surf2Dwritei)
 CUDABUILTIN(surf2Dwrite,            "vUiUi*ii",     surf2DwriteUi)
 CUDABUILTIN(surf2Dwrite,            "vff*ii",       surf2Dwritef)
 CUDABUILTIN(__syncthreads,          "v",            __syncthreads)
-CUDABUILTIN(make_char4,             "V4cc",         make_char4)
-CUDABUILTIN(make_uchar4,            "V4UcUc",       make_uchar4)
-CUDABUILTIN(make_short4,            "V4ss",         make_short4)
-CUDABUILTIN(make_ushort4,           "V4UsUs",       make_ushort4)
-CUDABUILTIN(make_int4,              "V4ii",         make_int4)
-CUDABUILTIN(make_uint4,             "V4UiUi",       make_uint4)
-CUDABUILTIN(make_long4,             "V4LiLi",       make_long4)
-CUDABUILTIN(make_ulong4,            "V4ULiULi",     make_ulong4)
-CUDABUILTIN(make_float4,            "V4ff",         make_float4)
-CUDABUILTIN(make_double4,           "V4dd",         make_double4)
+CUDABUILTIN(make_char4,             "E4cc",         make_char4)
+CUDABUILTIN(make_uchar4,            "E4UcUc",       make_uchar4)
+CUDABUILTIN(make_short4,            "E4ss",         make_short4)
+CUDABUILTIN(make_ushort4,           "E4UsUs",       make_ushort4)
+CUDABUILTIN(make_int4,              "E4ii",         make_int4)
+CUDABUILTIN(make_uint4,             "E4UiUi",       make_uint4)
+CUDABUILTIN(make_long4,             "E4LiLi",       make_long4)
+CUDABUILTIN(make_ulong4,            "E4ULiULi",     make_ulong4)
+CUDABUILTIN(make_float4,            "E4ff",         make_float4)
+CUDABUILTIN(make_double4,           "E4dd",         make_double4)
 
 
 #undef HIPACCBUILTIN
