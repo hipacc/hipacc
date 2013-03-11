@@ -37,7 +37,9 @@ typedef unsigned short int  ushort4 __attribute__ ((ext_vector_type(4)));
 typedef unsigned int        uint4   __attribute__ ((ext_vector_type(4)));
 typedef float               float4  __attribute__ ((ext_vector_type(4)));
 typedef double              double4 __attribute__ ((ext_vector_type(4)));
+#define ATTRIBUTES inline
 #elif defined __GNUC__
+#define ATTRIBUTES inline
 #define MAKE_VEC(NEW_TYPE, BASIC_TYPE) \
     MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
     MAKE_VOPS(NEW_TYPE, BASIC_TYPE)
@@ -53,84 +55,84 @@ struct NEW_TYPE { \
 typedef struct NEW_TYPE NEW_TYPE;
 
 #define MAKE_VOPS(NEW_TYPE, BASIC_TYPE) \
-static __inline__ NEW_TYPE make_##NEW_TYPE(BASIC_TYPE x, BASIC_TYPE y, BASIC_TYPE z, BASIC_TYPE w) { \
+static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE x, BASIC_TYPE y, BASIC_TYPE z, BASIC_TYPE w) { \
     NEW_TYPE t; t.x = x; t.y = y; t.z = z; t.w = w; return t; \
 } \
  \
-static inline NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) \
+static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) \
 { \
     return make_##NEW_TYPE(s, s, s, s); \
 } \
  \
  /* addition */ \
  \
-inline NEW_TYPE operator+(NEW_TYPE a, NEW_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator+(NEW_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a.x + b.x, a.y + b.y, a.z + b.z,  a.w + b.w); \
 } \
-inline NEW_TYPE operator+(NEW_TYPE a, BASIC_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator+(NEW_TYPE a, BASIC_TYPE b) { \
     return make_##NEW_TYPE(a.x + b, a.y + b, a.z + b,  a.w + b); \
 } \
-inline NEW_TYPE operator+(BASIC_TYPE a, NEW_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator+(BASIC_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a + b.x, a + b.y, a + b.z,  a + b.w); \
 } \
-inline void operator+=(NEW_TYPE &a, NEW_TYPE b) { \
+ATTRIBUTES void operator+=(NEW_TYPE &a, NEW_TYPE b) { \
     a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w; \
 } \
-inline void operator+=(NEW_TYPE a, BASIC_TYPE b) { \
+ATTRIBUTES void operator+=(NEW_TYPE a, BASIC_TYPE b) { \
     a.x += b, a.y += b, a.z += b,  a.w += b; \
 } \
  \
  /* subtract */ \
  \
-inline NEW_TYPE operator-(NEW_TYPE a, NEW_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator-(NEW_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a.x - b.x, a.y - b.y, a.z - b.z,  a.w - b.w); \
 } \
-inline NEW_TYPE operator-(NEW_TYPE a, BASIC_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator-(NEW_TYPE a, BASIC_TYPE b) { \
     return make_##NEW_TYPE(a.x - b, a.y - b, a.z - b,  a.w - b); \
 } \
-inline NEW_TYPE operator-(BASIC_TYPE a, NEW_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator-(BASIC_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a - b.x, a - b.y, a - b.z,  a - b.w); \
 } \
-inline void operator-=(NEW_TYPE &a, NEW_TYPE b) { \
+ATTRIBUTES void operator-=(NEW_TYPE &a, NEW_TYPE b) { \
     a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w; \
 } \
-inline void operator-=(NEW_TYPE a, BASIC_TYPE b) { \
+ATTRIBUTES void operator-=(NEW_TYPE a, BASIC_TYPE b) { \
     a.x -= b, a.y -= b, a.z -= b,  a.w -= b; \
 } \
  \
  /* multiply */ \
  \
-inline NEW_TYPE operator*(NEW_TYPE a, NEW_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator*(NEW_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a.x * b.x, a.y * b.y, a.z * b.z,  a.w * b.w); \
 } \
-inline NEW_TYPE operator*(NEW_TYPE a, BASIC_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator*(NEW_TYPE a, BASIC_TYPE b) { \
     return make_##NEW_TYPE(a.x * b, a.y * b, a.z * b,  a.w * b); \
 } \
-inline NEW_TYPE operator*(BASIC_TYPE a, NEW_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator*(BASIC_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a * b.x, a * b.y, a * b.z,  a * b.w); \
 } \
-inline void operator*=(NEW_TYPE &a, NEW_TYPE b) { \
+ATTRIBUTES void operator*=(NEW_TYPE &a, NEW_TYPE b) { \
     a.x *= b.x; a.y *= b.y; a.z *= b.z; a.w *= b.w; \
 } \
-inline void operator*=(NEW_TYPE a, BASIC_TYPE b) { \
+ATTRIBUTES void operator*=(NEW_TYPE a, BASIC_TYPE b) { \
     a.x *= b, a.y *= b, a.z *= b,  a.w *= b; \
 } \
  \
  /* divide */ \
  \
-inline NEW_TYPE operator/(NEW_TYPE a, NEW_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator/(NEW_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a.x / b.x, a.y / b.y, a.z / b.z,  a.w / b.w); \
 } \
-inline NEW_TYPE operator/(NEW_TYPE a, BASIC_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator/(NEW_TYPE a, BASIC_TYPE b) { \
     return make_##NEW_TYPE(a.x / b, a.y / b, a.z / b,  a.w / b); \
 } \
-inline NEW_TYPE operator/(BASIC_TYPE a, NEW_TYPE b) { \
+ATTRIBUTES NEW_TYPE operator/(BASIC_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a / b.x, a / b.y, a / b.z,  a / b.w); \
 } \
-inline void operator/=(NEW_TYPE &a, NEW_TYPE b) { \
+ATTRIBUTES void operator/=(NEW_TYPE &a, NEW_TYPE b) { \
     a.x /= b.x; a.y /= b.y; a.z /= b.z; a.w /= b.w; \
 } \
-inline void operator/=(NEW_TYPE a, BASIC_TYPE b) { \
+ATTRIBUTES void operator/=(NEW_TYPE a, BASIC_TYPE b) { \
     a.x /= b, a.y /= b, a.z /= b,  a.w /= b; \
 }
 
