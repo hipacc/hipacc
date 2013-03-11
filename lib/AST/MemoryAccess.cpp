@@ -212,8 +212,25 @@ Expr *ASTTranslate::accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y) {
 // get tex1Dfetch function for given Accessor
 FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
     memAcc) {
-  const BuiltinType *BT =
-    Acc->getImage()->getPixelQualType()->getAs<BuiltinType>();
+  QualType QT = Acc->getImage()->getPixelQualType();
+  bool vecType = QT->isVectorType();
+
+  if (vecType) {
+    QT = QT->getAs<VectorType>()->getElementType();
+  }
+  const BuiltinType *BT = QT->getAs<BuiltinType>();
+
+  bool isLinear;
+  switch (Kernel->useTextureMemory(Acc)) {
+    default:
+    case Linear1D:
+      isLinear = true;
+      break;
+    case Linear2D:
+    case Array2D:
+      isLinear = false;
+      break;
+  }
 
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
@@ -230,101 +247,36 @@ FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
     case BuiltinType::Double:
     default:
       assert(0 && "BuiltinType for CUDA texture not supported.");
+
+#define GET_BUILTIN_FUNCTION(TYPE) \
+      (memAcc == READ_ONLY ? \
+          (isLinear ? \
+              (vecType ? builtins.getBuiltinFunction(CUDABItex1Dfetch ## E4 ## TYPE) : \
+                  builtins.getBuiltinFunction(CUDABItex1Dfetch ## TYPE)) : \
+              (vecType ? builtins.getBuiltinFunction(CUDABItex2D ## E4 ## TYPE) : \
+                  builtins.getBuiltinFunction(CUDABItex2D ## TYPE))) : \
+          (vecType ? builtins.getBuiltinFunction(CUDABIsurf2Dwrite ## E4 ## TYPE) : \
+              builtins.getBuiltinFunction(CUDABIsurf2Dwrite ## TYPE)))
+
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      if (memAcc==READ_ONLY) {
-        switch (Kernel->useTextureMemory(Acc)) {
-          default:
-          case Linear1D:
-            return builtins.getBuiltinFunction(CUDABItex1DfetchSc);
-          case Linear2D:
-          case Array2D:
-            return builtins.getBuiltinFunction(CUDABItex2DSc);
-        }
-      } else {
-        return builtins.getBuiltinFunction(CUDABIsurf2DwriteSc);
-      }
+      return GET_BUILTIN_FUNCTION(Sc);
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
-      if (memAcc==READ_ONLY) {
-        switch (Kernel->useTextureMemory(Acc)) {
-          default:
-          case Linear1D:
-            return builtins.getBuiltinFunction(CUDABItex1DfetchUc);
-          case Linear2D:
-          case Array2D:
-            return builtins.getBuiltinFunction(CUDABItex2DUc);
-        }
-      } else {
-        return builtins.getBuiltinFunction(CUDABIsurf2DwriteUc);
-      }
+      return GET_BUILTIN_FUNCTION(Uc);
     case BuiltinType::Short:
-      if (memAcc==READ_ONLY) {
-        switch (Kernel->useTextureMemory(Acc)) {
-          default:
-          case Linear1D:
-            return builtins.getBuiltinFunction(CUDABItex1Dfetchs);
-          case Linear2D:
-          case Array2D:
-            return builtins.getBuiltinFunction(CUDABItex2Ds);
-        }
-      } else {
-        return builtins.getBuiltinFunction(CUDABIsurf2Dwrites);
-      }
+      return GET_BUILTIN_FUNCTION(s);
     case BuiltinType::Char16:
     case BuiltinType::UShort:
-      if (memAcc==READ_ONLY) {
-        switch (Kernel->useTextureMemory(Acc)) {
-          default:
-          case Linear1D:
-            return builtins.getBuiltinFunction(CUDABItex1DfetchUs);
-          case Linear2D:
-          case Array2D:
-            return builtins.getBuiltinFunction(CUDABItex2DUs);
-        }
-      } else {
-        return builtins.getBuiltinFunction(CUDABIsurf2DwriteUs);
-      }
+      return GET_BUILTIN_FUNCTION(Us);
     case BuiltinType::Int:
-      if (memAcc==READ_ONLY) {
-        switch (Kernel->useTextureMemory(Acc)) {
-          default:
-          case Linear1D:
-            return builtins.getBuiltinFunction(CUDABItex1Dfetchi);
-          case Linear2D:
-          case Array2D:
-            return builtins.getBuiltinFunction(CUDABItex2Di);
-        }
-      } else {
-        return builtins.getBuiltinFunction(CUDABIsurf2Dwritei);
-      }
+      return GET_BUILTIN_FUNCTION(i);
     case BuiltinType::Char32:
     case BuiltinType::UInt:
-      if (memAcc==READ_ONLY) {
-        switch (Kernel->useTextureMemory(Acc)) {
-          default:
-          case Linear1D:
-            return builtins.getBuiltinFunction(CUDABItex1DfetchUi);
-          case Linear2D:
-          case Array2D:
-            return builtins.getBuiltinFunction(CUDABItex2DUi);
-        }
-      } else {
-        return builtins.getBuiltinFunction(CUDABIsurf2DwriteUi);
-      }
+      return GET_BUILTIN_FUNCTION(Ui);
     case BuiltinType::Float:
-      if (memAcc==READ_ONLY) {
-        switch (Kernel->useTextureMemory(Acc)) {
-          default:
-          case Linear1D:
-            return builtins.getBuiltinFunction(CUDABItex1Dfetchf);
-          case Linear2D:
-          case Array2D:
-            return builtins.getBuiltinFunction(CUDABItex2Df);
-        }
-      } else {
-        return builtins.getBuiltinFunction(CUDABIsurf2Dwritef);
-      }
+      return GET_BUILTIN_FUNCTION(f);
+#undef GET_BUILTIN_FUNCTION
   }
 }
 
