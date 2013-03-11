@@ -86,17 +86,17 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
     default: assert(0 && "Unknown builtin type letter!");
     case 'v': // void
       assert(HowLong == 0 && !Signed && !Unsigned &&
-          "Bad modifiers used with 'v'!");
+             "Bad modifiers used with 'v'!");
       Type = Ctx.VoidTy;
       break;
     case 'f': // float
       assert(HowLong == 0 && !Signed && !Unsigned &&
-          "Bad modifiers used with 'f'!");
+             "Bad modifiers used with 'f'!");
       Type = Ctx.FloatTy;
       break;
     case 'd': // double
       assert(HowLong < 2 && !Signed && !Unsigned &&
-          "Bad modifiers used with 'd'!");
+             "Bad modifiers used with 'd'!");
       if (HowLong)
         Type = Ctx.LongDoubleTy;
       else
@@ -148,6 +148,18 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
           VectorType::GenericVector);
       break;
     }
+    case 'E': { // Extended Vector
+      char *End;
+
+      unsigned NumElements = strtoul(Str, &End, 10);
+      assert(End != Str && "Missing vector size");
+      Str = End;
+
+      QualType ElementType = DecodeTypeFromStr(Str, Ctx, false);
+
+      Type = Ctx.getExtVectorType(ElementType, NumElements);
+      break;
+    }
   }
 
   // If there are modifiers and if we're allowed to parse them, go for it.
@@ -177,6 +189,9 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
         break;
       case 'D':
         Type = Ctx.getVolatileType(Type);
+        break;
+      case 'R':
+        Type = Type.withRestrict();
         break;
     }
   }

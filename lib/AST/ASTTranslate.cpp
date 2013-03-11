@@ -1531,7 +1531,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       std::stringstream LSST;
       LSST << "_conv_tmp" << literalCount++;
       VarDecl *conv_tmp = createVarDecl(Ctx, kernelDecl, LSST.str(),
-          E->getCallReturnType(), NULL);
+          LE->getCallOperator()->getResultType(), NULL);
       DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
       DC->addDecl(conv_tmp);
       DeclRefExpr *conv_red = createDeclRefExpr(Ctx, conv_tmp);
