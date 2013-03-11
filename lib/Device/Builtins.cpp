@@ -2,23 +2,23 @@
 // Copyright (c) 2012, University of Erlangen-Nuremberg
 // Copyright (c) 2012, Siemens AG
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met: 
-// 
+// modification, are permitted provided that the following conditions are met:
+//
 // 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer. 
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution. 
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
 // ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 // (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -85,17 +85,17 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
     default: assert(0 && "Unknown builtin type letter!");
     case 'v': // void
       assert(HowLong == 0 && !Signed && !Unsigned &&
-          "Bad modifiers used with 'v'!");
+             "Bad modifiers used with 'v'!");
       Type = Ctx.VoidTy;
       break;
     case 'f': // float
       assert(HowLong == 0 && !Signed && !Unsigned &&
-          "Bad modifiers used with 'f'!");
+             "Bad modifiers used with 'f'!");
       Type = Ctx.FloatTy;
       break;
     case 'd': // double
       assert(HowLong < 2 && !Signed && !Unsigned &&
-          "Bad modifiers used with 'd'!");
+             "Bad modifiers used with 'd'!");
       if (HowLong)
         Type = Ctx.LongDoubleTy;
       else
@@ -147,6 +147,18 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
           VectorType::GenericVector);
       break;
     }
+    case 'E': { // Extended Vector
+      char *End;
+
+      unsigned NumElements = strtoul(Str, &End, 10);
+      assert(End != Str && "Missing vector size");
+      Str = End;
+
+      QualType ElementType = DecodeTypeFromStr(Str, Ctx, false);
+
+      Type = Ctx.getExtVectorType(ElementType, NumElements);
+      break;
+    }
   }
 
   // If there are modifiers and if we're allowed to parse them, go for it.
@@ -176,6 +188,9 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
         break;
       case 'D':
         Type = Ctx.getVolatileType(Type);
+        break;
+      case 'R':
+        Type = Type.withRestrict();
         break;
     }
   }
