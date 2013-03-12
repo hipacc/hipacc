@@ -1964,13 +1964,23 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             break;
           case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
-            // allocation access: rsGetElementAt(Mask, x+size_x/2, y+size_y/2)
-            result = accessMemAllocAt(LHS, memAcc, createBinaryOperator(Ctx,
-                  Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                    (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
-                createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                  createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
-                  Ctx.IntTy));
+            if (Mask->isConstant()) {
+              // array subscript: Mask[y+size_y/2][x+size_x/2]
+              result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
+                    Clone(E->getArg(1)), createIntegerLiteral(Ctx,
+                      (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                  createBinaryOperator(Ctx, Clone(E->getArg(2)),
+                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                    Ctx.IntTy));
+            } else {
+              // allocation access: rsGetElementAt(Mask, x+size_x/2, y+size_y/2)
+              result = accessMemAllocAt(LHS, memAcc, createBinaryOperator(Ctx,
+                    Clone(E->getArg(1)), createIntegerLiteral(Ctx,
+                      (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                  createBinaryOperator(Ctx, Clone(E->getArg(2)),
+                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                    Ctx.IntTy));
+            }
             break;
         }
         break;
