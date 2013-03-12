@@ -274,7 +274,7 @@ void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
     case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       pitchStr = "_" + memName + "stride";
-      resultStr += "int " + pitchStr + ";\n";
+      resultStr += "int " + pitchStr + ";\n" + indent;
     case TARGET_Renderscript:
       resultStr += "sp<Allocation> " + memName + " = hipaccCreateAllocation";
       if (options.emitRenderscript()) {
@@ -631,22 +631,22 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           // sp<Allocation> iter_space
           resultStr += "sp<Allocation> " + gridStr + ";\n\n";
           resultStr += indent;
-
-          // hipaccCalcIterSpaceFromBlock
-          resultStr += "hipaccCalcIterSpaceFromBlock<";
-          resultStr += K->getIterationSpace()->getImage()->getPixelType();
-          resultStr += ">(";
-          resultStr += infoStr + ", ";
-          resultStr += blockStr + ", ";
-          resultStr += gridStr + ");\n";
-          resultStr += indent;
-
-          // hipaccPrepareKernelLaunch
-          resultStr += "hipaccPrepareKernelLaunch(";
-          resultStr += infoStr + ", ";
-          resultStr += blockStr + ");\n\n";
-          resultStr += indent;
         }
+
+        // hipaccCalcIterSpaceFromBlock
+        resultStr += "hipaccCalcIterSpaceFromBlock<";
+        resultStr += K->getIterationSpace()->getImage()->getPixelType();
+        resultStr += ">(";
+        resultStr += infoStr + ", ";
+        resultStr += blockStr + ", ";
+        resultStr += gridStr + ");\n";
+        resultStr += indent;
+
+        // hipaccPrepareKernelLaunch
+        resultStr += "hipaccPrepareKernelLaunch(";
+        resultStr += infoStr + ", ";
+        resultStr += blockStr + ");\n\n";
+        resultStr += indent;
         break;
       case TARGET_OpenCL:
       case TARGET_OpenCLx86:

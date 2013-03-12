@@ -128,7 +128,10 @@ class hipacc_script_arg {
     CREATE_SCRIPT_ARG(16, short4)
     CREATE_SCRIPT_ARG(17, int4)
 
-    CREATE_SCRIPT_ARG(18, sp<Allocation>)
+    CREATE_SCRIPT_ARG(18, float4)
+    CREATE_SCRIPT_ARG(19, double4)
+
+    CREATE_SCRIPT_ARG(20, sp<Allocation>)
 };
 
 
@@ -158,6 +161,8 @@ class hipacc_script_arg {
        case 16: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 16) break; \
        case 17: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 17) break; \
        case 18: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 18) break; \
+       case 19: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 19) break; \
+       case 20: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 20) break; \
     }
 
 
