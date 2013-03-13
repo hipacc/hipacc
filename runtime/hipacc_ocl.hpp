@@ -38,6 +38,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <fstream>
 #include <iomanip>
@@ -45,10 +46,12 @@
 #include <sstream>
 #include <utility>
 #include <vector>
+#include <algorithm>
 
 #include "hipacc_types.hpp"
 
 #define HIPACC_NUM_ITERATIONS 10
+#define GPU_TIMING
 
 static float total_time = 0.0f;
 static float last_gpu_timing = 0.0f;
@@ -130,6 +133,13 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *grid) {
     grid[0] = (int)ceil((float)(info.is_width + info.offset_x)/(block[0]*info.simd_width)) * block[0];
     grid[1] = (int)ceil((float)(info.is_height)/(block[1]*info.pixels_per_thread)) * block[1];
+}
+
+
+long getNanoTime() {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return now.tv_sec*1000000000LL + now.tv_nsec;
 }
 
 
@@ -881,7 +891,11 @@ double hipaccCopyBufferBenchmark(cl_mem src_buffer, cl_mem dst_buffer, int num_d
 
     assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height && src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyBuffer!");
 
-    float min_dt=FLT_MAX;
+    float timing=FLT_MAX;
+    #ifndef GPU_TIMING
+    std::vector<float> times;
+    times.reserve(HIPACC_NUM_ITERATIONS);
+    #endif
     for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
         err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], src_buffer, dst_buffer, 0, 0, src_dim.width*src_dim.height*src_dim.pixel_size, 0, NULL, &event);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
@@ -898,13 +912,21 @@ double hipaccCopyBufferBenchmark(cl_mem src_buffer, cl_mem dst_buffer, int num_d
             std::cerr << "<HIPACC:> Copy timing (" << (src_dim.width*src_dim.height*src_dim.pixel_size) / (float)(1 << 20) << " MB): " << (end-start)*1.0e-6f << "(ms)" << std::endl;
             std::cerr << "          Bandwidth: " << 2.0f * (double)(src_dim.width*src_dim.height*src_dim.pixel_size) / ((end-start)*1.0e-9f * (float)(1 << 30)) << " GB/s" << std::endl;
         }
-        if ((end-start) < min_dt) min_dt = (end-start);
+        #ifdef GPU_TIMING
+        if ((end-start) < timing) timing = (end-start);
+        #else
+        times.push_back(end-start);
+        #endif
     }
     err = clReleaseEvent(event);
     checkErr(err, "clReleaseEvent()");
 
     // return time in ms
-    return min_dt*1.0e-6f;
+    #ifndef GPU_TIMING
+    std::sort(times.begin(), times.end());
+    timing = times.at(HIPACC_NUM_ITERATIONS/2);
+    #endif
+    return timing*1.0e-6f;
 }
 
 
@@ -992,10 +1014,15 @@ void hipaccSetKernelArg(cl_kernel kernel, unsigned int num, size_t size, T param
 // Enqueue and launch kernel
 void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *local_work_size, bool print_timing=true) {
     cl_int err = CL_SUCCESS;
+    #ifdef GPU_TIMING
     cl_event event;
     cl_ulong end, start;
+    #else
+    long end, start;
+    #endif
     HipaccContext &Ctx = HipaccContext::getInstance();
 
+    #ifdef GPU_TIMING
     err = clEnqueueNDRangeKernel(Ctx.get_command_queues()[0], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
     err |= clFinish(Ctx.get_command_queues()[0]);
     checkErr(err, "clEnqueueNDRangeKernel()");
@@ -1005,11 +1032,21 @@ void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *loc
     err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
     err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
     checkErr(err, "clGetEventProfilingInfo()");
+
+    err = clReleaseEvent(event);
+    checkErr(err, "clReleaseEvent()");
+    #else
+    clFinish(Ctx.get_command_queues()[0]);
+    start = getNanoTime();
+    err = clEnqueueNDRangeKernel(Ctx.get_command_queues()[0], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
+    err |= clFinish(Ctx.get_command_queues()[0]);
+    end = getNanoTime();
+    checkErr(err, "clEnqueueNDRangeKernel()");
+    #endif
+
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing (" << local_work_size[0]*local_work_size[1] << ": " << local_work_size[0] << "x" << local_work_size[1] << "): " << (end-start)*1.0e-6f << "(ms)" << std::endl;
     }
-    err = clReleaseEvent(event);
-    checkErr(err, "clReleaseEvent()");
     total_time += (end-start)*1.0e-6f;
     last_gpu_timing = (end-start)*1.0e-6f;
 }
@@ -1142,7 +1179,11 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         cl_kernel exploreReduction2D = hipaccBuildProgramAndKernel(filename, kernel2D, false, false, false, compile_options.c_str());
         cl_kernel exploreReduction1D = hipaccBuildProgramAndKernel(filename, kernel1D, false, false, false, compile_options.c_str());
 
-        float min_dt=FLT_MAX;
+        float timing=FLT_MAX;
+        #ifndef GPU_TIMING
+        std::vector<float> times;
+        times.reserve(HIPACC_NUM_ITERATIONS);
+        #endif
         for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
             // first step: reduce image (region) into linear memory
             size_t local_work_size[2];
@@ -1191,13 +1232,21 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
                 num_blocks = global_work_size[0]/local_work_size[0];
             }
             // stop timing
-            if (total_time < min_dt) min_dt = total_time;
+            #ifdef GPU_TIMING
+            if (total_time < timing) timing = total_time;
+            #else
+            times.push_back(total_time);
+            #endif
         }
 
         // print timing
+        #ifndef GPU_TIMING
+        std::sort(times.begin(), times.end());
+        timing = times.at(HIPACC_NUM_ITERATIONS/2);
+        #endif
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
-                  << min_dt << " ms" << std::endl;
+                  << timing << " ms" << std::endl;
     }
 
     // get reduced value
@@ -1223,7 +1272,11 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 
 // Benchmark timing for a kernel call
 void hipaccEnqueueKernelBenchmark(cl_kernel kernel, std::vector<std::pair<size_t, void *> > args, size_t *global_work_size, size_t *local_work_size, bool print_timing=true) {
-    float min_dt=FLT_MAX;
+    float timing=FLT_MAX;
+    #ifndef GPU_TIMING
+    std::vector<float> times;
+    times.reserve(HIPACC_NUM_ITERATIONS);
+    #endif
 
     for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
         // set kernel arguments
@@ -1233,10 +1286,18 @@ void hipaccEnqueueKernelBenchmark(cl_kernel kernel, std::vector<std::pair<size_t
 
         // launch kernel
         hipaccEnqueueKernel(kernel, global_work_size, local_work_size, print_timing);
-        if (last_gpu_timing < min_dt) min_dt = last_gpu_timing;
+        #ifdef GPU_TIMING
+        if (last_gpu_timing < timing) timing = last_gpu_timing;
+        #else
+        times.push_back(last_gpu_timing);
+        #endif
     }
 
-    last_gpu_timing = min_dt;
+    #ifndef GPU_TIMING
+    std::sort(times.begin(), times.end());
+    timing = times.at(HIPACC_NUM_ITERATIONS/2);
+    #endif
+    last_gpu_timing = timing;
 }
 
 
@@ -1280,7 +1341,11 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             hipaccCalcGridFromBlock(info, local_work_size, global_work_size);
             hipaccPrepareKernelLaunch(info, local_work_size);
 
-            float min_dt=FLT_MAX;
+            float timing=FLT_MAX;
+            #ifndef GPU_TIMING
+            std::vector<float> times;
+            times.reserve(HIPACC_NUM_ITERATIONS);
+            #endif
             for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
                 // set kernel arguments
                 for (unsigned int i=0; i<args.size(); i++) {
@@ -1293,17 +1358,25 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                 hipaccEnqueueKernel(exploreKernel, global_work_size, local_work_size, false);
 
                 // stop timing
-                if (total_time < min_dt) min_dt = total_time;
+                #ifdef GPU_TIMING
+                if (total_time < timing) timing = total_time;
+                #else
+                times.push_back(timing);
+                #endif
             }
 
             // print timing
+            #ifndef GPU_TIMING
+            std::sort(times.begin(), times.end());
+            timing = times.at(HIPACC_NUM_ITERATIONS/2);
+            #endif
             std::cerr << "<HIPACC:> Kernel config: "
                       << std::setw(4) << std::right << tile_size_x << "x"
                       << std::setw(2) << std::left << tile_size_y
                       << std::setw(5-floor(log10(tile_size_x*tile_size_y)))
                       << std::right << "(" << tile_size_x*tile_size_y << "): "
                       << std::setw(8) << std::fixed << std::setprecision(4)
-                      << min_dt << " ms" << std::endl;
+                      << timing << " ms" << std::endl;
         }
     }
 }
