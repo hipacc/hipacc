@@ -427,7 +427,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName, std::string
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     if (Acc) {
       if (options.emitCUDA() && K->useTextureMemory(Acc)) {
-        if (KC->getImgAccess(FD)==READ_ONLY) {
+        if (KC->getImgAccess(FD)==READ_ONLY &&
+            // no texture required for Kepler supporting __ldg() intrinsic
+            !(K->useTextureMemory(Acc) != Array2D &&
+              options.getTargetDevice() >= KEPLER_35)) {
           // bind texture
           if (options.exploreConfig()) {
             resultStr += "_texs" + kernelName + ".push_back(";
