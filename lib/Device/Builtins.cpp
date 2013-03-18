@@ -277,7 +277,8 @@ QualType hipacc::Builtin::Context::getBuiltinType(const char *TypeStr) const {
   EPI.ExtInfo = EI;
   EPI.Variadic = Variadic;
 
-  return Ctx.getFunctionType(ResType, ArgTypes.data(), ArgTypes.size(), EPI);
+  return Ctx.getFunctionType(ResType, ArrayRef<QualType>(ArgTypes.data(),
+        ArgTypes.size()), EPI);
 }
 
 

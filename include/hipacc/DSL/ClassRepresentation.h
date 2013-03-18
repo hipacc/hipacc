@@ -731,20 +731,21 @@ class HipaccKernel : public HipaccKernelFeatures {
       createArgInfo();
       return deviceArgNames.size();
     }
-    QualType *getArgTypes(ASTContext &Ctx, TargetCode target_code) {
+    ArrayRef<QualType> getArgTypes(ASTContext &Ctx, TargetCode target_code) {
       createArgInfo();
 
       switch (target_code) {
         case TARGET_C:
-          return argTypesC.data();
+          return ArrayRef<QualType>(argTypesC.data(), argTypesC.size());
         case TARGET_CUDA:
-          return argTypesCUDA.data();
+          return ArrayRef<QualType>(argTypesCUDA.data(), argTypesCUDA.size());
         case TARGET_OpenCL:
         case TARGET_OpenCLx86:
         case TARGET_Renderscript:
         case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:
-          return argTypesOpenCL.data();
+          return ArrayRef<QualType>(argTypesOpenCL.data(),
+              argTypesOpenCL.size());
       }
     }
     std::string *getArgTypeNames() {
