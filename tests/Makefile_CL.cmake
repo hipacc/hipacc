@@ -6,10 +6,10 @@ OFLAGS              := -std=c++0x -O3 -Wall -Wunused
 
 ifeq ($(HIPACC_TARGET),Midgard)
     CC = @NDK_CXX_COMPILER@ @NDK_CXX_FLAGS@ @NDK_INCLUDE_DIRS_STR@
-    LDFLAGS = @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@ -lm -ldl -lstdc++
+    LDFLAGS += @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@
     INC += @EMBEDDED_OPENCL_CFLAGS@
 else
-    LDFLAGS += -lpthread @OPENCL_LFLAGS@
+    LDFLAGS += -lpthread -lrt @OPENCL_LFLAGS@
     INC += @OPENCL_CFLAGS@
     CC = g++
 endif
