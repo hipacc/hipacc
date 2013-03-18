@@ -247,13 +247,17 @@ FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
   }
   const BuiltinType *BT = QT->getAs<BuiltinType>();
 
-  bool isLinear;
+  bool isLinear = true, isLdg = false;
   switch (Kernel->useTextureMemory(Acc)) {
     default:
     case Linear1D:
+      if (compilerOptions.getTargetDevice() >= KEPLER_35) isLdg = true;
       isLinear = true;
       break;
     case Linear2D:
+      if (compilerOptions.getTargetDevice() >= KEPLER_35) isLdg = true;
+      isLinear = false;
+      break;
     case Array2D:
       isLinear = false;
       break;
@@ -277,11 +281,14 @@ FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
 
 #define GET_BUILTIN_FUNCTION(TYPE) \
       (memAcc == READ_ONLY ? \
-          (isLinear ? \
-              (vecType ? builtins.getBuiltinFunction(CUDABItex1Dfetch ## E4 ## TYPE) : \
-                  builtins.getBuiltinFunction(CUDABItex1Dfetch ## TYPE)) : \
-              (vecType ? builtins.getBuiltinFunction(CUDABItex2D ## E4 ## TYPE) : \
-                  builtins.getBuiltinFunction(CUDABItex2D ## TYPE))) : \
+          (isLdg ? \
+              (vecType ? builtins.getBuiltinFunction(CUDABI__ldg ## E4 ## TYPE) : \
+                  builtins.getBuiltinFunction(CUDABI__ldg ## TYPE)) : \
+              (isLinear ? \
+                  (vecType ? builtins.getBuiltinFunction(CUDABItex1Dfetch ## E4 ## TYPE) : \
+                      builtins.getBuiltinFunction(CUDABItex1Dfetch ## TYPE)) : \
+                  (vecType ? builtins.getBuiltinFunction(CUDABItex2D ## E4 ## TYPE) : \
+                      builtins.getBuiltinFunction(CUDABItex2D ## TYPE)))) : \
           (vecType ? builtins.getBuiltinFunction(CUDABIsurf2Dwrite ## E4 ## TYPE) : \
               builtins.getBuiltinFunction(CUDABIsurf2Dwrite ## TYPE)))
 
@@ -489,23 +496,30 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   LHStex->setObjectKind(LHS->getObjectKind());
   setExprProps(LHS, LHStex);
 
-  // parameters for tex1Dfetch, tex2D, or surf2Dwrite
+  // parameters for __ldg, tex1Dfetch, tex2D, or surf2Dwrite
   SmallVector<Expr *, 16> args;
 
   if (memAcc == READ_ONLY) {
-    args.push_back(LHStex);
-    switch (Kernel->useTextureMemory(Acc)) {
-      default:
-      case Linear1D:
-        args.push_back(createBinaryOperator(Ctx, createBinaryOperator(Ctx,
-                createParenExpr(Ctx, idx_y), getStrideDecl(Acc), BO_Mul,
-                Ctx.IntTy), idx_x, BO_Add, Ctx.IntTy));
-        break;
-      case Linear2D:
-      case Array2D:
-        args.push_back(idx_x);
-        args.push_back(idx_y);
-        break;
+    if (compilerOptions.getTargetDevice() >= KEPLER_35 &&
+        Kernel->useTextureMemory(Acc)!=Array2D) {
+      // __ldg(&arr[idx])
+      args.push_back(createUnaryOperator(Ctx, accessMemArrAt(LHS,
+              getStrideDecl(Acc), idx_x, idx_y), UO_AddrOf, Ctx.IntTy));
+    } else {
+      args.push_back(LHStex);
+      switch (Kernel->useTextureMemory(Acc)) {
+        default:
+        case Linear1D:
+          args.push_back(createBinaryOperator(Ctx, createBinaryOperator(Ctx,
+                  createParenExpr(Ctx, idx_y), getStrideDecl(Acc), BO_Mul,
+                  Ctx.IntTy), idx_x, BO_Add, Ctx.IntTy));
+          break;
+        case Linear2D:
+        case Array2D:
+          args.push_back(idx_x);
+          args.push_back(idx_y);
+          break;
+      }
     }
   } else {
     // writeImageRHS is set by VisitBinaryOperator - side effect
