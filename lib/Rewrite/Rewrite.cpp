@@ -1279,8 +1279,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // kernel declaration
           FunctionDecl *kernelDecl = createFunctionDecl(Context,
               Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
-              K->getNumArgs(), K->getArgTypes(Context,
-                compilerOptions.getTargetCode()), K->getArgNames());
+              K->getArgTypes(Context, compilerOptions.getTargetCode()),
+              K->getArgNames());
 
           // write CUDA/OpenCL kernel function to file clone old body,
           // replacing member variables
@@ -1302,8 +1302,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             // create kernel declaration for Polly
             FunctionDecl *kernelDeclPolly = createFunctionDecl(Context,
                 Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
-                K->getNumArgs(), K->getArgTypes(Context, TARGET_C),
-                K->getArgNames());
+                K->getArgTypes(Context, TARGET_C), K->getArgNames());
 
             // call Polly ...
             ASTTranslate *HipaccPolly = new ASTTranslate(Context, kernelDeclPolly,
@@ -1631,8 +1630,8 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
     // kernel declaration for CUDA
     FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
         Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
-        K->getNumArgs(), K->getArgTypes(Context,
-          compilerOptions.getTargetCode()), K->getArgNames());
+        K->getArgTypes(Context, compilerOptions.getTargetCode()),
+        K->getArgNames());
 
     // create kernel body
     ASTTranslate *HipaccEst = new ASTTranslate(Context, kernelDeclEst, K, KC,

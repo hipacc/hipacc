@@ -39,43 +39,30 @@ namespace hipacc {
 namespace ASTNode {
 
 FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
-    Name, QualType RT, unsigned int numArgs, QualType *ArgTypes, StringRef
-    *ArgNames, bool isVariadic) {
+    Name, QualType RT, ArrayRef<QualType> ArgTypes, StringRef *ArgNames, bool
+    isVariadic) {
   bool hasWrittenPrototype = true;
   QualType T;
-  SmallVector<QualType, 16> ArgTys;
   SmallVector<ParmVarDecl*, 16> Params;
-  Params.reserve(numArgs);
-  ArgTys.reserve(numArgs);
+  Params.reserve(ArgTypes.size());
 
   // first create QualType for parameters
-  if (numArgs == 0) {
+  if (!ArgTypes.size()) {
     // simple void foo(), where the incoming RT is the result type.
     T = Ctx.getFunctionNoProtoType(RT);
     hasWrittenPrototype = false;
   } else {
     // otherwise, we have a function with an argument list
-    for (unsigned int i=0; i<numArgs; ++i) {
+    for (unsigned int i=0; i<ArgTypes.size(); ++i) {
       ParmVarDecl *Param = ParmVarDecl::Create(Ctx, DC, SourceLocation(),
           SourceLocation(), &Ctx.Idents.get(ArgNames[i]), ArgTypes[i], NULL,
           SC_None, SC_None, 0);
-      QualType ArgTy = Param->getType();
-
-      assert(!ArgTy.isNull() && "Couldn't parse type?");
-      if (ArgTy->isPromotableIntegerType()) {
-        ArgTy = Ctx.getPromotedIntegerType(ArgTy);
-      } else if (const BuiltinType* BTy = ArgTy->getAs<BuiltinType>()) {
-        if (BTy->getKind() == BuiltinType::Float) {
-          ArgTy = Ctx.DoubleTy;
-        }
-      }
-      ArgTys.push_back(ArgTy);
       Params.push_back(Param);
     }
 
     FunctionProtoType::ExtProtoInfo FPT = FunctionProtoType::ExtProtoInfo();
     FPT.Variadic = isVariadic;
-    T = Ctx.getFunctionType(RT, ArgTys.data(), ArgTys.size(), FPT);
+    T = Ctx.getFunctionType(RT, ArgTypes, FPT);
   }
 
   // create function name identifier
@@ -90,7 +77,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
 
   // add Decl objects for each parameter to the FunctionDecl
   DeclContext *DCF = FunctionDecl::castToDeclContext(FD);
-  for (unsigned int i=0; i<numArgs; ++i) {
+  for (unsigned int i=0; i<ArgTypes.size(); ++i) {
     Params.data()[i]->setDeclContext(FD);
     DCF->addDecl(Params.data()[i]);
   }
