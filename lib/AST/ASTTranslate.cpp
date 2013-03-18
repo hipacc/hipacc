@@ -347,7 +347,7 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
   tileVars.local_size_y = createIntegerLiteral(Ctx, 0);
 
   if (compilerOptions.emitFilterscript()) {
-    VarDecl *output = createVarDecl(Ctx, kernelDecl, "Output",
+    VarDecl *output = createVarDecl(Ctx, kernelDecl, "OutputVal",
                           Kernel->getIterationSpace()->getImage()->getPixelQualType());
     DC->addDecl(output);
     kernelBody.push_back(createDeclStmt(Ctx, output));
@@ -559,7 +559,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
           // <type>4 *Input4 = (<type>4 *) Input;
           VarDecl *VD = CloneDecl(PVD);
 
-          // update outputImage reference
+          // update output Image reference
           if (name.equals("Output")) outputImage = createDeclRefExpr(Ctx, VD);
 
           VD->setInit(createCStyleCastExpr(Ctx, VD->getType(), CK_BitCast,
@@ -1164,7 +1164,10 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
   }
 
   if (compilerOptions.emitFilterscript()) {
-      kernelBody.push_back(createReturnStmt(Ctx, retValRef));
+      Expr *result = accessMem(outputImage,
+          Kernel->getIterationSpace()->getAccessor(), READ_ONLY);
+      setExprProps(outputImage, result);
+      kernelBody.push_back(createReturnStmt(Ctx, result));
   }
 
   CompoundStmt *CS = createCompoundStmt(Ctx, kernelBody);
@@ -1318,9 +1321,9 @@ Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
   SmallVector<Stmt *, 16> body;
   for (CompoundStmt::const_body_iterator I=S->body_begin(), E=S->body_end();
       I!=E; ++I) {
-    curCompoundStmtVistor = S;
+    curCStmt = S;
     Stmt *newS = Clone(*I);
-    curCompoundStmtVistor = S;
+    curCStmt = S;
 
     if (preStmts.size()) {
       unsigned int num_stmts = 0;
@@ -1337,19 +1340,19 @@ Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
     }
 
     body.push_back(newS);
-  }
 
-  if (postStmts.size()) {
-    unsigned int num_stmts = 0;
-    for (unsigned int i=0, e=postStmts.size(); i!=e; ++i) {
-      if (postCStmt.data()[i]==S) {
-        body.push_back(postStmts.data()[i]);
-        num_stmts++;
+    if (postStmts.size()) {
+      unsigned int num_stmts = 0;
+      for (unsigned int i=0, e=postStmts.size(); i!=e; ++i) {
+        if (postCStmt.data()[i]==S) {
+          body.push_back(postStmts.data()[i]);
+          num_stmts++;
+        }
       }
-    }
-    for (unsigned int i=0; i<num_stmts; i++) {
-      postStmts.pop_back();
-      postCStmt.pop_back();
+      for (unsigned int i=0; i<num_stmts; i++) {
+        postStmts.pop_back();
+        postCStmt.pop_back();
+      }
     }
   }
 
@@ -1527,7 +1530,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       }
 
       // introduce temporary for holding the convolution result
-      CompoundStmt *outerCompountStmt = curCompoundStmtVistor;
+      CompoundStmt *outerCompountStmt = curCStmt;
       std::stringstream LSST;
       LSST << "_conv_tmp" << literalCount++;
       VarDecl *conv_tmp = createVarDecl(Ctx, kernelDecl, LSST.str(),
@@ -2154,8 +2157,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           result = accessMem(LHS, Acc, memAcc);
           break;
         case TARGET_Filterscript:
-          postStmts.push_back(createReturnStmt(Ctx, LHS));
-          postCStmt.push_back(curCompoundStmtVistor);
+          postStmts.push_back(createReturnStmt(Ctx, retValRef));
+          postCStmt.push_back(curCStmt);
           result = retValRef;
           break;
       }

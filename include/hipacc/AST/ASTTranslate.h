@@ -83,7 +83,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     unsigned int literalCount;
     SmallVector<Stmt *, 16> preStmts, postStmts;
     SmallVector<CompoundStmt *, 16> preCStmt, postCStmt;
-    CompoundStmt *curCompoundStmtVistor;
+    CompoundStmt *curCStmt;
     HipaccMask *convMask;
     DeclRefExpr *convRed;
     ConvolutionMode convMode;
@@ -281,7 +281,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       bh_variant(),
       emitEstimation(emitEstimation),
       literalCount(0),
-      curCompoundStmtVistor(NULL),
+      curCStmt(NULL),
       convMask(NULL),
       convRed(NULL),
       convIdxX(0),

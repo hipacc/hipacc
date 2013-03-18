@@ -205,7 +205,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     DC->addDecl(tmp_x);
     idx_x = createDeclRefExpr(Ctx, tmp_x);
     bhStmts.push_back(createDeclStmt(Ctx, tmp_x));
-    bhCStmt.push_back(curCompoundStmtVistor);
+    bhCStmt.push_back(curCStmt);
   }
 
   if (local_offset_y) {
@@ -214,7 +214,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     DC->addDecl(tmp_y);
     idx_y = createDeclRefExpr(Ctx, tmp_y);
     bhStmts.push_back(createDeclStmt(Ctx, tmp_y));
-    bhCStmt.push_back(curCompoundStmtVistor);
+    bhCStmt.push_back(curCStmt);
   }
 
   if (Acc->getBoundaryHandling() == BOUNDARY_CONSTANT) {
@@ -226,7 +226,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     DC->addDecl(tmp_t);
     DeclRefExpr *tmp_t_ref = createDeclRefExpr(Ctx, tmp_t);
     bhStmts.push_back(createDeclStmt(Ctx, tmp_t));
-    bhCStmt.push_back(curCompoundStmtVistor);
+    bhCStmt.push_back(curCStmt);
 
     Expr *bo_constant = NULL;
     if (bh_variant.borders.right && local_offset_x) {
@@ -275,11 +275,11 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     if (bo_constant) {
       bhStmts.push_back(createIfStmt(Ctx, bo_constant, createBinaryOperator(Ctx,
               tmp_t_ref, RHS, BO_Assign, tmp_t_ref->getType()), NULL, NULL));
-      bhCStmt.push_back(curCompoundStmtVistor);
+      bhCStmt.push_back(curCStmt);
     } else {
       bhStmts.push_back(createBinaryOperator(Ctx, tmp_t_ref, RHS, BO_Assign,
             tmp_t_ref->getType()));
-      bhCStmt.push_back(curCompoundStmtVistor);
+      bhCStmt.push_back(curCStmt);
     }
     result = tmp_t_ref;
   } else {
@@ -314,21 +314,21 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     if (upperFun) {
       if (bh_variant.borders.right && local_offset_x) {
         bhStmts.push_back((*this.*upperFun)(Acc, idx_x, upperX));
-        bhCStmt.push_back(curCompoundStmtVistor);
+        bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.bottom && local_offset_y) {
         bhStmts.push_back((*this.*upperFun)(Acc, idx_y, upperY));
-        bhCStmt.push_back(curCompoundStmtVistor);
+        bhCStmt.push_back(curCStmt);
       }
     }
     if (lowerFun) {
       if (bh_variant.borders.left && local_offset_x) {
         bhStmts.push_back((*this.*lowerFun)(Acc, idx_x, lowerX));
-        bhCStmt.push_back(curCompoundStmtVistor);
+        bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.top && local_offset_y) {
         bhStmts.push_back((*this.*lowerFun)(Acc, idx_y, lowerY));
-        bhCStmt.push_back(curCompoundStmtVistor);
+        bhCStmt.push_back(curCStmt);
       }
     }
 
