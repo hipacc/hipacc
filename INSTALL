@@ -46,7 +46,7 @@ EMBEDDED_OPENCL_INC_PATH    - OpenCL include path
 EMBEDDED_OPENCL_LIB_PATH    - OpenCL library path within the target system
                               e.g. -DEMBEDDED_OPENCL_LIB_PATH=vendor/lib/egl
 EMBEDDED_OPENCL_LIB         - Name of the embedded OpenCL library
-                              e.g. -DEMBEDDED_OPENCL_LIB=GLES_mali
+                              e.g. -DEMBEDDED_OPENCL_LIB=libGLES_mali.so
 
 The following options can be enabled or disabled:
 USE_POLLY               - Use polly for kernel analysis (e.g. -DUSE_POLLY=ON)
