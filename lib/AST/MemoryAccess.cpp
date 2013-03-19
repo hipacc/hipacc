@@ -142,19 +142,24 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           assert(0 && "Filterscript does not support write access for allocations.");
       }
     case READ_ONLY:
-      // TODO: find a more elegant solution to check for this corner case
-      if (compilerOptions.emitRenderscriptGPU() ||
-          compilerOptions.emitFilterscript()) {
-        return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
-      }
-      if (Kernel->useTextureMemory(Acc)) {
-        if (compilerOptions.emitCUDA()) {
-          return accessMemTexAt(LHS, Acc, memAcc, idx_x, idx_y);
-        } else {
-          return accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
-        }
-      } else {
-        return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_CUDA:
+          if (Kernel->useTextureMemory(Acc)) {
+            return accessMemTexAt(LHS, Acc, memAcc, idx_x, idx_y);
+          }
+          // fall through
+        case TARGET_OpenCL:
+        case TARGET_OpenCLx86:
+          if (Kernel->useTextureMemory(Acc)) {
+            return accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
+          }
+          // fall through
+        case TARGET_C:
+        case TARGET_Renderscript:
+          return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        case TARGET_RenderscriptGPU:
+        case TARGET_Filterscript:
+          return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
       }
     case UNDEFINED:
     case READ_WRITE:
