@@ -2199,6 +2199,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   unsigned int comma = 0;
   for (unsigned int i=0, e=D->getNumParams(); i!=e; ++i) {
     std::string Name = D->getParamDecl(i)->getNameAsString();
+    QualType T = D->getParamDecl(i)->getType();
+    T.removeLocalConst();
+    T.removeLocalRestrict();
 
     // check if we have a Mask
     FieldDecl *FD = K->getArgFields()[i];
@@ -2209,9 +2212,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       } else {
         if (comma++) *OS << ", ";
         *OS << "__constant ";
-        QualType T = D->getParamDecl(i)->getType();
-        if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
-          T = Parm->getOriginalType();
         T.getAsStringInternal(Name, Policy);
         *OS << Name;
         *OS << " __attribute__ ((max_constant_size (" << Mask->getSizeXStr()
@@ -2242,14 +2242,12 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           // no parameter is emitted for textures
           continue;
         } else {
+          T = T->getPointeeType();
           if (comma++) *OS << ", ";
-          QualType T = D->getParamDecl(i)->getType();
-          if (memAcc==READ_ONLY && !T.isLocalConstQualified()) {
-            *OS << "const ";
-          }
-          if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
-            T = Parm->getOriginalType();
-          T.getAsStringInternal(Name, Policy);
+          if (memAcc==READ_ONLY) *OS << "const ";
+          *OS << T.getAsString();
+          *OS << " * __restrict__ ";
+          *OS << Name;
         }
       } else {
         // __global keyword to specify memory location is only needed for OpenCL
@@ -2262,24 +2260,16 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           }
         } else {
           *OS << "__global ";
-          QualType T = D->getParamDecl(i)->getType();
-          if (memAcc==READ_ONLY && !T.isLocalConstQualified()) {
-            *OS << "const ";
-          }
-          if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
-            T = Parm->getOriginalType();
+          if (memAcc==READ_ONLY) *OS << "const ";
           T.getAsStringInternal(Name, Policy);
         }
+        *OS << Name;
       }
-      *OS << Name;
       continue;
     }
 
     // normal arguments
     if (comma++) *OS << ", ";
-    QualType T = D->getParamDecl(i)->getType();
-    if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
-      T = Parm->getOriginalType();
     T.getAsStringInternal(Name, Policy);
     *OS << Name;
 
