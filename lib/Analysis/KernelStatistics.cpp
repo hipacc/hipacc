@@ -643,10 +643,13 @@ void TransferFunctions::VisitUnaryOperator(UnaryOperator *E) {
     case UO_PostDec:
     case UO_PreInc:
     case UO_PreDec:
-      // not supported - memory inconsistency
-      KS.Diags.Report(E->getOperatorLoc(), KS.DiagIDMemIncons) <<
-        E->getOpcodeStr(E->getOpcode());
-      exit(EXIT_FAILURE);
+      KS.num_ops++;
+      if (checkImageAccess(E->getSubExpr(), READ_WRITE)) {
+        // not supported - memory inconsistency
+        KS.Diags.Report(E->getOperatorLoc(), KS.DiagIDMemIncons) <<
+          E->getOpcodeStr(E->getOpcode());
+        exit(EXIT_FAILURE);
+      }
       break;
     case UO_Plus:
     case UO_Minus:
