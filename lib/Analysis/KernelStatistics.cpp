@@ -61,7 +61,7 @@ class KernelStatsImpl {
     DiagnosticsEngine &Diags;
     unsigned int DiagIDUnsupportedBO, DiagIDUnsupportedUO,
                  DiagIDUnsupportedCSCE, DiagIDUnsupportedTerm,
-                 DiagIDImageAccess;
+                 DiagIDImageAccess, DiagIDMemIncons;
     unsigned int num_ops, num_sops;
     unsigned int num_img_loads, num_img_stores;
     unsigned int num_mask_loads, num_mask_stores;
@@ -91,6 +91,8 @@ class KernelStatsImpl {
             "Unsupported terminal statement: %0.")),
       DiagIDImageAccess(Diags.getCustomDiagID(DiagnosticsEngine::Error,
             "Accessing image pixels only supported via Accessors and output() function: %0.")),
+      DiagIDMemIncons(Diags.getCustomDiagID(DiagnosticsEngine::Error,
+            "Pre/post-increment/decrement not supported to assure memory consistency on GPUs: %0.")),
       num_ops(0),
       num_sops(0),
       num_img_loads(0),
@@ -641,8 +643,10 @@ void TransferFunctions::VisitUnaryOperator(UnaryOperator *E) {
     case UO_PostDec:
     case UO_PreInc:
     case UO_PreDec:
-      KS.num_ops++;
-      checkImageAccess(E->getSubExpr(), READ_WRITE);
+      // not supported - memory inconsistency
+      KS.Diags.Report(E->getOperatorLoc(), KS.DiagIDMemIncons) <<
+        E->getOpcodeStr(E->getOpcode());
+      exit(EXIT_FAILURE);
       break;
     case UO_Plus:
     case UO_Minus:
