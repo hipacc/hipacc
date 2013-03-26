@@ -161,11 +161,21 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
         case TARGET_Filterscript:
           return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
       }
-    case UNDEFINED:
-    case READ_WRITE:
+    case READ_WRITE: {
+      DiagnosticsEngine &Diags = Ctx.getDiagnostics();
+      unsigned int DiagIDRW = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+          "Reading and writing to Image '%0' in kernel '%1' is not supported.");
+      Diags.Report(DiagIDRW) << LHS->getNameInfo().getAsString()
+                             << KernelClass->getName();
+      exit(EXIT_FAILURE); }
     default:
-      assert(0 && "Unsupported memory access with offset specification!");
-      break;
+    case UNDEFINED: {
+      DiagnosticsEngine &Diags = Ctx.getDiagnostics();
+      unsigned int DiagIDU = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+          "Memory access pattern for Image '%0' in kernel '%1' could not be analyzed.");
+      Diags.Report(DiagIDU) << LHS->getNameInfo().getAsString()
+                            << KernelClass->getName();
+      exit(EXIT_FAILURE); }
   }
 }
 

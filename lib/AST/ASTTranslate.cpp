@@ -1848,9 +1848,7 @@ Expr *ASTTranslate::VisitCStyleCastExpr(CStyleCastExpr *E) {
 
 
 Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
-  bool found_mask = false;
   Expr *result = NULL;
-  HipaccMask *Mask = NULL;
 
   // assume that all CXXOperatorCallExpr are memory access functions, since we
   // don't support function calls
@@ -1861,26 +1859,16 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   assert(isa<FieldDecl>(ME->getMemberDecl()) && "Image must be a C++-class member.");
   FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
 
-  // find corresponding Image user class member variable
-  MemoryAccess memAcc = UNDEFINED;
-  if (Kernel->getImgFromMapping(FD)) {
-    memAcc = KernelClass->getImgAccess(FD);
-  }
-
-  // look for Mask user class member variable
-  if (memAcc == UNDEFINED) {
-    if (Kernel->getMaskFromMapping(FD)) {
-      Mask = Kernel->getMaskFromMapping(FD);
-      memAcc = READ_ONLY;
-      found_mask = true;
-    }
-  }
-  assert(memAcc!=UNDEFINED && "Could not find Image/Accessor/Mask Field Decl.");
-
   // MemberExpr is converted to DeclRefExpr when cloning
   DeclRefExpr *LHS = dyn_cast<DeclRefExpr>(Clone(E->getArg(0)));
 
-  if (found_mask) {
+
+  // look for Mask user class member variable
+  if (Kernel->getMaskFromMapping(FD)) {
+    HipaccMask *Mask = Kernel->getMaskFromMapping(FD);
+    MemoryAccess memAcc = KernelClass->getImgAccess(FD);
+    assert(memAcc==READ_ONLY && "mask &readonle supp");
+
     switch (E->getNumArgs()) {
       default:
         assert(0 && "0 or 2 arguments for Mask operator() expected!");
@@ -1988,120 +1976,114 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         }
         break;
     }
-    setExprProps(E, result);
-
-    return result;
   }
 
-  // Masks are handled before - Images are ParmVarDecls
-  ParmVarDecl *PVD = NULL;
-  if (!Kernel->vectorize()) { // Images are replaced by local pointers
-    assert(isa<ParmVarDecl>(LHS->getDecl()) && "Image variable must be a ParmVarDecl!");
-    PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());
-  }
 
-  // get Image class for the current image
-  HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
+  // look for Image user class member variable
+  if (Kernel->getImgFromMapping(FD)) {
+    HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
+    MemoryAccess memAcc = KernelClass->getImgAccess(FD);
 
-  // replace Image accesses by global memory access
-  // Output(EI) = ...
-  // ->
-  // Output[gid_y * width + gid_x] = ...
-  bool use_shared = false;
-  DeclRefExpr *DRE = NULL;
-  if (KernelDeclMapShared[PVD]) {
-    // shared/local memory
-    use_shared = true;
-    VarDecl *VD = KernelDeclMapShared[PVD];
-    DRE = createDeclRefExpr(Ctx, VD);
-  }
+    // Images are ParmVarDecls
+    bool use_shared = false;
+    DeclRefExpr *DRE = NULL;
+    if (!Kernel->vectorize()) { // Images are replaced by local pointers
+      ParmVarDecl *PVD = dyn_cast_or_null<ParmVarDecl>(LHS->getDecl());
+      assert(PVD && "Image variable must be a ParmVarDecl!");
 
-  IntegerLiteral *SY, *TX;
-  if (Acc->getSizeX() > 1) {
-    TX = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
-  } else {
-    TX = createIntegerLiteral(Ctx, 0);
-  }
-  if (Acc->getSizeY() > 1) {
-    SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
-  } else {
-    SY = createIntegerLiteral(Ctx, 0);
-  }
-
-  switch (E->getNumArgs()) {
-    default:
-      assert(0 && "0 or 2 arguments for Accessor operator() expected!\n");
-      break;
-    case 1:
-      // 0: -> (this *) Image Class
-      if (compilerOptions.emitC()) {
-        // no padding is considered, data is accessed as a 2D-array
-        result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
-      } else {
-        if (use_shared) {
-          result = accessMemShared(DRE, TX, SY);
-        } else {
-          result = accessMem(LHS, Acc, memAcc);
-        }
+      if (KernelDeclMapShared[PVD]) {
+        // shared/local memory
+        use_shared = true;
+        VarDecl *VD = KernelDeclMapShared[PVD];
+        DRE = createDeclRefExpr(Ctx, VD);
       }
-      break;
-    case 2:
-      // 0: -> (this *) Image Class
-      // 1: -> Mask
-      assert(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()) && "Accessor operator() with 1 argument requires a convolution Mask.");
-      assert(convMask && convMask==Kernel->getMaskFromMapping(dyn_cast<FieldDecl>(dyn_cast<MemberExpr>(E->getArg(1)->IgnoreImpCasts())->getMemberDecl())) &&
-          "Accessor operator() with 1 argument requires a convolution Mask.");
-      assert(convMask && "0 or 2 arguments for Accessor operator() expected!\n");
-    case 3:
-      // 0: -> (this *) Image Class
-      // 1: -> offset x
-      // 2: -> offset y
-      Expr *offset_x, *offset_y;
-      if (E->getNumArgs()==2) {
-        if (convMask->isConstant()) {
-          offset_x = createIntegerLiteral(Ctx,
-              convIdxX-(int)convMask->getSizeX()/2);
-          offset_y = createIntegerLiteral(Ctx,
-              convIdxY-(int)convMask->getSizeY()/2);
-        } else {
-          offset_x = createBinaryOperator(Ctx, convExprX,
-              createIntegerLiteral(Ctx, (int)convMask->getSizeX()/2), BO_Sub,
-              Ctx.IntTy);
-          offset_y = createBinaryOperator(Ctx, convExprY,
-              createIntegerLiteral(Ctx, (int)convMask->getSizeY()/2), BO_Sub,
-              Ctx.IntTy);
-        }
-      } else {
-        offset_x = Clone(E->getArg(1));
-        offset_y = Clone(E->getArg(2));
-      }
+    }
 
-      if (compilerOptions.emitC()) {
-        // no padding is considered, data is accessed as a 2D-array
-        result = accessMemPolly(LHS, Acc, memAcc, offset_x, offset_y);
-      } else {
-        if (use_shared) {
-          result = accessMemShared(DRE, createBinaryOperator(Ctx, offset_x, TX,
-                BO_Add, Ctx.IntTy), createBinaryOperator(Ctx, offset_y, SY,
-                  BO_Add, Ctx.IntTy));
+    IntegerLiteral *SY, *TX;
+    if (Acc->getSizeX() > 1) {
+      TX = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
+    } else {
+      TX = createIntegerLiteral(Ctx, 0);
+    }
+    if (Acc->getSizeY() > 1) {
+      SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
+    } else {
+      SY = createIntegerLiteral(Ctx, 0);
+    }
+
+    switch (E->getNumArgs()) {
+      default:
+        assert(0 && "0 or 2 arguments for Accessor operator() expected!\n");
+        break;
+      case 1:
+        // 0: -> (this *) Image Class
+        if (compilerOptions.emitC()) {
+          // no padding is considered, data is accessed as a 2D-array
+          result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
         } else {
-          switch (memAcc) {
-            case READ_ONLY:
-              if (bh_variant.borderVal) {
-                return addBorderHandling(LHS, offset_x, offset_y, Acc);
-              }
-              // fall through
-            case WRITE_ONLY:
-              result = accessMem(LHS, Acc, memAcc, offset_x, offset_y);
-              break;
-            case UNDEFINED:
-            case READ_WRITE:
-              assert(0 && "Unsupported memory access with offset specification!\n");
-              break;
+          if (use_shared) {
+            result = accessMemShared(DRE, TX, SY);
+          } else {
+            result = accessMem(LHS, Acc, memAcc);
           }
         }
-      }
-      break;
+        break;
+      case 2:
+        // 0: -> (this *) Image Class
+        // 1: -> Mask
+        assert(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()) && "Accessor operator() with 1 argument requires a convolution Mask.");
+        assert(convMask && convMask==Kernel->getMaskFromMapping(dyn_cast<FieldDecl>(dyn_cast<MemberExpr>(E->getArg(1)->IgnoreImpCasts())->getMemberDecl())) &&
+            "Accessor operator() with 1 argument requires a convolution Mask.");
+        assert(convMask && "0 or 2 arguments for Accessor operator() expected!\n");
+      case 3:
+        // 0: -> (this *) Image Class
+        // 1: -> offset x
+        // 2: -> offset y
+        Expr *offset_x, *offset_y;
+        if (E->getNumArgs()==2) {
+          if (convMask->isConstant()) {
+            offset_x = createIntegerLiteral(Ctx,
+                convIdxX-(int)convMask->getSizeX()/2);
+            offset_y = createIntegerLiteral(Ctx,
+                convIdxY-(int)convMask->getSizeY()/2);
+          } else {
+            offset_x = createBinaryOperator(Ctx, convExprX,
+                createIntegerLiteral(Ctx, (int)convMask->getSizeX()/2), BO_Sub,
+                Ctx.IntTy);
+            offset_y = createBinaryOperator(Ctx, convExprY,
+                createIntegerLiteral(Ctx, (int)convMask->getSizeY()/2), BO_Sub,
+                Ctx.IntTy);
+          }
+        } else {
+          offset_x = Clone(E->getArg(1));
+          offset_y = Clone(E->getArg(2));
+        }
+
+        if (compilerOptions.emitC()) {
+          // no padding is considered, data is accessed as a 2D-array
+          result = accessMemPolly(LHS, Acc, memAcc, offset_x, offset_y);
+        } else {
+          if (use_shared) {
+            result = accessMemShared(DRE, createBinaryOperator(Ctx, offset_x,
+                  TX, BO_Add, Ctx.IntTy), createBinaryOperator(Ctx, offset_y,
+                    SY, BO_Add, Ctx.IntTy));
+          } else {
+            switch (memAcc) {
+              case READ_ONLY:
+                if (bh_variant.borderVal) {
+                  return addBorderHandling(LHS, offset_x, offset_y, Acc);
+                }
+                // fall through
+              case WRITE_ONLY:
+              case READ_WRITE:
+              case UNDEFINED:
+                result = accessMem(LHS, Acc, memAcc, offset_x, offset_y);
+                break;
+            }
+          }
+        }
+        break;
+    }
   }
 
   setExprProps(E, result);
@@ -2177,10 +2159,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     FieldDecl *FD = dyn_cast<FieldDecl>(ImgAcc->getMemberDecl());
 
     Acc = Kernel->getImgFromMapping(FD);
-    if (Kernel->getImgFromMapping(FD)) {
-      memAcc = KernelClass->getImgAccess(FD);
-    }
-    assert(memAcc!=UNDEFINED && "Could not find Image/Accessor Field Decl.");
+    memAcc = KernelClass->getImgAccess(FD);
+    assert(Acc && "Could not find Image/Accessor Field Decl.");
 
     // Acc.getX() method -> acc_scale_x * (gid_x - is_offset_x)
     if (ME->getMemberNameInfo().getAsString() == "getX") {
