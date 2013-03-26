@@ -39,26 +39,34 @@ typedef unsigned long int   ulong4  __attribute__ ((ext_vector_type(4)));
 typedef float               float4  __attribute__ ((ext_vector_type(4)));
 typedef double              double4 __attribute__ ((ext_vector_type(4)));
 #define ATTRIBUTES inline
-#define MAKE_VEC(NEW_TYPE, BASIC_TYPE) \
+#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE) \
     MAKE_COPS(NEW_TYPE, BASIC_TYPE)
+#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE)
 #elif defined __CUDACC__
 typedef unsigned char       uchar;
 typedef unsigned short      ushort;
 typedef unsigned int        uint;
 typedef unsigned long       ulong;
 #define ATTRIBUTES __inline__ __host__ __device__
-#define MAKE_VEC(NEW_TYPE, BASIC_TYPE) \
-    MAKE_VOPS(NEW_TYPE, BASIC_TYPE)
+#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE)
+#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE)
 #elif defined __GNUC__
 typedef unsigned char       uchar;
 typedef unsigned short      ushort;
 typedef unsigned int        uint;
 typedef unsigned long       ulong;
 #define ATTRIBUTES inline
-#define MAKE_VEC(NEW_TYPE, BASIC_TYPE) \
+#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE) \
     MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
     MAKE_COPS(NEW_TYPE, BASIC_TYPE) \
-    MAKE_VOPS(NEW_TYPE, BASIC_TYPE)
+    MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE)
+#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE)
 #else
 #error "Only Clang, nvcc, and gcc compilers supported!"
 #endif
@@ -123,10 +131,10 @@ ATTRIBUTES NEW_TYPE max(BASIC_TYPE a, NEW_TYPE b) { \
 }
 
 
-// vector operators
-#define MAKE_VOPS(NEW_TYPE, BASIC_TYPE) \
+// vector operators for all data types
+#define MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE) \
  \
- /* addition */ \
+ /* binary operator: add */ \
  \
 ATTRIBUTES NEW_TYPE operator+(NEW_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a.x + b.x, a.y + b.y, a.z + b.z,  a.w + b.w); \
@@ -144,7 +152,7 @@ ATTRIBUTES void operator+=(NEW_TYPE a, BASIC_TYPE b) { \
     a.x += b, a.y += b, a.z += b,  a.w += b; \
 } \
  \
- /* subtract */ \
+ /* binary operator: subtract */ \
  \
 ATTRIBUTES NEW_TYPE operator-(NEW_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a.x - b.x, a.y - b.y, a.z - b.z,  a.w - b.w); \
@@ -162,7 +170,7 @@ ATTRIBUTES void operator-=(NEW_TYPE a, BASIC_TYPE b) { \
     a.x -= b, a.y -= b, a.z -= b,  a.w -= b; \
 } \
  \
- /* multiply */ \
+ /* binary operator: multiply */ \
  \
 ATTRIBUTES NEW_TYPE operator*(NEW_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a.x * b.x, a.y * b.y, a.z * b.z,  a.w * b.w); \
@@ -180,7 +188,7 @@ ATTRIBUTES void operator*=(NEW_TYPE a, BASIC_TYPE b) { \
     a.x *= b, a.y *= b, a.z *= b,  a.w *= b; \
 } \
  \
- /* divide */ \
+ /* binary operator: divide */ \
  \
 ATTRIBUTES NEW_TYPE operator/(NEW_TYPE a, NEW_TYPE b) { \
     return make_##NEW_TYPE(a.x / b.x, a.y / b.y, a.z / b.z,  a.w / b.w); \
@@ -196,18 +204,73 @@ ATTRIBUTES void operator/=(NEW_TYPE &a, NEW_TYPE b) { \
 } \
 ATTRIBUTES void operator/=(NEW_TYPE a, BASIC_TYPE b) { \
     a.x /= b, a.y /= b, a.z /= b,  a.w /= b; \
-}
+} \
+ \
+ /* unary operator: plus */ \
+ \
+ATTRIBUTES NEW_TYPE operator+(NEW_TYPE a) { \
+    return make_##NEW_TYPE(+a.x, +a.y, +a.z, +a.w); \
+} \
+ \
+ /* unary operator: minus */ \
+ \
+ATTRIBUTES NEW_TYPE operator-(NEW_TYPE a) { \
+    return make_##NEW_TYPE(-a.x, -a.y, -a.z, -a.w); \
+} \
 
-MAKE_VEC(char4,     char)
-MAKE_VEC(uchar4,    unsigned char)
-MAKE_VEC(short4,    short)
-MAKE_VEC(ushort4,   unsigned short)
-MAKE_VEC(int4,      int)
-MAKE_VEC(uint4,     unsigned int)
-MAKE_VEC(long4,     long)
-MAKE_VEC(ulong4,    unsigned long)
-MAKE_VEC(float4,    float)
-MAKE_VEC(double4,   double)
+
+// vector operators for integer data types only
+// not supported by Clang at the moment
+#define MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE) \
+ \
+ /* binary operator: remainder */ \
+ \
+ATTRIBUTES NEW_TYPE operator%(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a.x % b.x, a.y % b.y, a.z % b.z,  a.w % b.w); \
+} \
+ATTRIBUTES NEW_TYPE operator%(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##NEW_TYPE(a.x % b, a.y % b, a.z % b,  a.w % b); \
+} \
+ATTRIBUTES NEW_TYPE operator%(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a % b.x, a % b.y, a % b.z,  a % b.w); \
+} \
+ATTRIBUTES void operator%=(NEW_TYPE &a, NEW_TYPE b) { \
+    a.x %= b.x; a.y %= b.y; a.z %= b.z; a.w %= b.w; \
+} \
+ATTRIBUTES void operator%=(NEW_TYPE a, BASIC_TYPE b) { \
+    a.x %= b, a.y %= b, a.z %= b,  a.w %= b; \
+} \
+ \
+ /* unary operator: post- and pre-increment */ \
+ \
+ATTRIBUTES NEW_TYPE operator++(NEW_TYPE a) { \
+    return make_##NEW_TYPE(++a.x, ++a.y, ++a.z, ++a.w); \
+} \
+ATTRIBUTES NEW_TYPE operator++(NEW_TYPE a, int) { \
+    return make_##NEW_TYPE(a.x++, a.y++, a.z++, a.w++); \
+} \
+ \
+ /* unary operator: post- and pre-decrement */ \
+ \
+ATTRIBUTES NEW_TYPE operator--(NEW_TYPE a) { \
+    return make_##NEW_TYPE(--a.x, --a.y, --a.z, --a.w); \
+} \
+ATTRIBUTES NEW_TYPE operator--(NEW_TYPE a, int) { \
+    return make_##NEW_TYPE(a.x--, a.y--, a.z--, a.w--); \
+} \
+
+
+MAKE_VEC_I(char4,     char)
+MAKE_VEC_I(uchar4,    unsigned char)
+MAKE_VEC_I(short4,    short)
+MAKE_VEC_I(ushort4,   unsigned short)
+MAKE_VEC_I(int4,      int)
+MAKE_VEC_I(uint4,     unsigned int)
+MAKE_VEC_I(long4,     long)
+MAKE_VEC_I(ulong4,    unsigned long)
+MAKE_VEC_F(float4,    float)
+MAKE_VEC_F(double4,   double)
+
 
 #endif  // __HIPACC_TYPES_HPP__
 
