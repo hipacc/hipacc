@@ -7,7 +7,7 @@ COMPILER_INCLUDES   ?= @PLATFORM_FIXES@ -std=c++11 -stdlib=libc++ \
                         -I/usr/include \
                         -I@DSL_INCLUDES@
 TEST_CASE           ?= ./tests/opencv_blur_8uc1
-MYFLAGS             ?= -DWIDTH=4096 -DHEIGHT=4096 -DSIZE_X=3 -DSIZE_Y=3
+MYFLAGS             ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
 NVCC_FLAGS          = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
                         -ftz=true -prec-sqrt=false -prec-div=false -Xptxas \
                         -v #-keep
@@ -60,17 +60,14 @@ endif
 # set target GPU architecture to the compute capability encoded in target
 GPU_ARCH := $(shell echo $(HIPACC_TARGET) |cut -f2 -d-)
 
-CC      := g++
-RM      := rm -rf
-
 
 all:
 run:
-	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES)
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES)
 
 cuda:
 	@echo 'Executing HIPAcc Compiler for CUDA:'
-	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-cuda $(HIPACC_OPTS) -o main.cu
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-cuda $(HIPACC_OPTS) -o main.cu
 	@echo 'Compiling CUDA file using nvcc:'
 	@NVCC_COMPILER@ $(NVCC_FLAGS) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) @CUDA_LINK@ -O3 main.cu -o main_cuda
 	@echo 'Executing CUDA binary'
@@ -78,7 +75,7 @@ cuda:
 
 opencl:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
-	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
 	TEST_CASE=$(TEST_CASE) make -f Makefile_CL MYFLAGS="$(MYFLAGS)"
 ifneq ($(HIPACC_TARGET),Midgard)
@@ -88,7 +85,7 @@ endif
 
 opencl_x86:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
-	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-opencl-x86 $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-opencl-x86 $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
 	TEST_CASE=$(TEST_CASE) make -f Makefile_CL MYFLAGS="$(MYFLAGS)"
 ifneq ($(HIPACC_TARGET),Midgard)
@@ -99,7 +96,7 @@ endif
 renderscript:
 	rm -f *.rs *.fs
 	@echo 'Executing HIPAcc Compiler for Renderscript:'
-	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_renderscript
 	@echo 'Generating build system current test case:'
 	cd build_renderscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ $(MYFLAGS)
@@ -110,7 +107,7 @@ renderscript:
 renderscript_gpu:
 	rm -f *.rs *.fs
 	@echo 'Executing HIPAcc Compiler for Renderscript:'
-	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript-gpu $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript-gpu $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_renderscript
 	@echo 'Generating build system current test case:'
 	cd build_renderscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=17 $(MYFLAGS)
@@ -121,7 +118,7 @@ renderscript_gpu:
 filterscript:
 	rm -f *.rs *.fs
 	@echo 'Executing HIPAcc Compiler for Filterscript:'
-	./$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-filterscript $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-filterscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_filterscript
 	@echo 'Generating build system current test case:'
 	cd build_filterscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=17 $(MYFLAGS)
@@ -130,6 +127,6 @@ filterscript:
 	cp build_filterscript/main_renderscript ./main_filterscript
 
 clean:
-	-$(RM) main_cuda main_opencl #*.cu *.cubin *.cl *.isa
-	-@echo ' '
+	rm -f main_* *.cu *.cc *.cubin *.cl *.isa *.rs *.fs
+	rm -rf build_*
 

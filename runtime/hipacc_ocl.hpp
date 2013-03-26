@@ -40,6 +40,11 @@
 #include <string.h>
 #include <time.h>
 
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -137,9 +142,20 @@ void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *gr
 
 
 long getNanoTime() {
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return now.tv_sec*1000000000LL + now.tv_nsec;
+    struct timespec ts;
+
+    #ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
+    clock_serv_t cclock;
+    mach_timespec_t mts;
+    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+    clock_get_time(cclock, &mts);
+    mach_port_deallocate(mach_task_self(), cclock);
+    ts.tv_sec = mts.tv_sec;
+    ts.tv_nsec = mts.tv_nsec;
+    #else
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    #endif
+    return ts.tv_sec*1000000000LL + ts.tv_nsec;
 }
 
 

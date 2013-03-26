@@ -66,9 +66,11 @@ IF(APPLE)
         SET(PLATFORM_FIXES "-D NO_BOOST")
     ENDIF("${DARWIN_MAJOR_VERSION}" LESS 11)
     SET(CUDA_LINK "-Xlinker -framework,CUDA")
+    SET(TIME_LINK "")
 ELSE(APPLE)
     SET(PLATFORM_FIXES "-D NO_BOOST")
     SET(CUDA_LINK "-lcuda -lcudart")
+    SET(TIME_LINK "-lrt")
 ENDIF(APPLE)
 
 

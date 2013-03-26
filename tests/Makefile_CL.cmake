@@ -9,9 +9,9 @@ ifeq ($(HIPACC_TARGET),Midgard)
     LDFLAGS += @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@
     INC += @EMBEDDED_OPENCL_CFLAGS@
 else
-    LDFLAGS += -lpthread -lrt @OPENCL_LFLAGS@
+    LDFLAGS += -lpthread @TIME_LING@ @OPENCL_LFLAGS@
     INC += @OPENCL_CFLAGS@
-    CC = g++
+    CC = @CMAKE_CXX_COMPILER@
 endif
 
 
@@ -22,12 +22,5 @@ run: all
 
 $(TARGET): main.cc
 	@echo 'Building target: $@'
-	@echo 'Invoking: GCC C Compiler/Linker'
 	$(CC) $(MYFLAGS) $(OFLAGS) $(INC) -o $@ $< $(LDFLAGS)
-
-
-# other Targets
-clean:
-	-$(RM) $(TARGET)
-	-@echo ' '
 
