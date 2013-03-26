@@ -8,8 +8,9 @@ COMPILER_INCLUDES   ?= @PLATFORM_FIXES@ -std=c++11 -stdlib=libc++ \
                         -I@DSL_INCLUDES@
 TEST_CASE           ?= ./tests/opencv_blur_8uc1
 MYFLAGS             ?= -DWIDTH=4096 -DHEIGHT=4096 -DSIZE_X=3 -DSIZE_Y=3
-C_C                 ?= 13#69
-NVCC_FLAGS          := -gencode=arch=compute_$(C_C),code=\"sm_$(C_C),compute_$(C_C)\" -ftz=true -prec-sqrt=false -prec-div=false -Xptxas -v #-keep 
+NVCC_FLAGS          = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
+                        -ftz=true -prec-sqrt=false -prec-div=false -Xptxas \
+                        -v #-keep
 
 # Source-to-source compiler configuration
 # use local memory -> set HIPACC_LMEM to off|Linear1D|Linear2D|Array2D
@@ -56,6 +57,8 @@ ifeq ($(HIPACC_TIMING),1)
     HIPACC_OPTS+= -time-kernels
 endif
 
+# set target GPU architecture to the compute capability encoded in target
+GPU_ARCH := $(shell echo $(HIPACC_TARGET) |cut -f2 -d-)
 
 CC      := g++
 RM      := rm -rf
