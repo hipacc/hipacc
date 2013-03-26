@@ -2207,9 +2207,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // preprocessor defines
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
-    case TARGET_CUDA:
     case TARGET_OpenCL:
     case TARGET_OpenCLx86:
+      break;
+    case TARGET_CUDA:
+      if (!emitHints) *OS << "#include \"hipacc_types.hpp\"\n\n";
       break;
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
