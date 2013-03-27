@@ -39,24 +39,28 @@ typedef unsigned int        uint4   __attribute__ ((ext_vector_type(4)));
 typedef unsigned long int   ulong4  __attribute__ ((ext_vector_type(4)));
 typedef float               float4  __attribute__ ((ext_vector_type(4)));
 typedef double              double4 __attribute__ ((ext_vector_type(4)));
+typedef unsigned char       uchar;
+typedef unsigned short      ushort;
+typedef unsigned int        uint;
+typedef unsigned long       ulong;
 #define ATTRIBUTES inline
-#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE) \
+#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_COPS(NEW_TYPE, BASIC_TYPE)
-#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE) \
-    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE)
+#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)
 #elif defined __GNUC__
 typedef unsigned char       uchar;
 typedef unsigned short      ushort;
 typedef unsigned int        uint;
 typedef unsigned long       ulong;
 #define ATTRIBUTES inline
-#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE) \
+#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
     MAKE_COPS(NEW_TYPE, BASIC_TYPE) \
-    MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE)
-#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE) \
-    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE) \
-    MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE)
+    MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE, RET_TYPE)
+#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)
 #else
 #error "Only Clang, and gcc compilers supported!"
 #endif
@@ -91,15 +95,15 @@ ATTRIBUTES BASIC_TYPE min(BASIC_TYPE a, BASIC_TYPE b) { \
 } \
  \
 ATTRIBUTES NEW_TYPE min(NEW_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z),  min(a.w, b.w)); \
+    return make_##NEW_TYPE(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w)); \
 } \
  \
 ATTRIBUTES NEW_TYPE min(NEW_TYPE a, BASIC_TYPE b) { \
-    return make_##NEW_TYPE(min(a.x, b), min(a.y, b), min(a.z, b),  min(a.w, b)); \
+    return make_##NEW_TYPE(min(a.x, b), min(a.y, b), min(a.z, b), min(a.w, b)); \
 } \
  \
 ATTRIBUTES NEW_TYPE min(BASIC_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(min(a, b.x), min(a, b.y), min(a, b.z),  min(a, b.w)); \
+    return make_##NEW_TYPE(min(a, b.x), min(a, b.y), min(a, b.z), min(a, b.w)); \
 } \
  \
  /* max */ \
@@ -109,91 +113,91 @@ ATTRIBUTES BASIC_TYPE max(BASIC_TYPE a, BASIC_TYPE b) { \
 } \
  \
 ATTRIBUTES NEW_TYPE max(NEW_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z),  max(a.w, b.w)); \
+    return make_##NEW_TYPE(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w)); \
 } \
  \
 ATTRIBUTES NEW_TYPE max(NEW_TYPE a, BASIC_TYPE b) { \
-    return make_##NEW_TYPE(max(a.x, b), max(a.y, b), max(a.z, b),  max(a.w, b)); \
+    return make_##NEW_TYPE(max(a.x, b), max(a.y, b), max(a.z, b), max(a.w, b)); \
 } \
  \
 ATTRIBUTES NEW_TYPE max(BASIC_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(max(a, b.x), max(a, b.y), max(a, b.z),  max(a, b.w)); \
+    return make_##NEW_TYPE(max(a, b.x), max(a, b.y), max(a, b.z), max(a, b.w)); \
 }
 
 
 // vector operators for all data types
-#define MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE) \
+#define MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
  \
  /* binary operator: add */ \
  \
 ATTRIBUTES NEW_TYPE operator+(NEW_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a.x + b.x, a.y + b.y, a.z + b.z,  a.w + b.w); \
+    return make_##NEW_TYPE(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); \
 } \
 ATTRIBUTES NEW_TYPE operator+(NEW_TYPE a, BASIC_TYPE b) { \
-    return make_##NEW_TYPE(a.x + b, a.y + b, a.z + b,  a.w + b); \
+    return make_##NEW_TYPE(a.x + b, a.y + b, a.z + b, a.w + b); \
 } \
 ATTRIBUTES NEW_TYPE operator+(BASIC_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a + b.x, a + b.y, a + b.z,  a + b.w); \
+    return make_##NEW_TYPE(a + b.x, a + b.y, a + b.z, a + b.w); \
 } \
 ATTRIBUTES void operator+=(NEW_TYPE &a, NEW_TYPE b) { \
     a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w; \
 } \
 ATTRIBUTES void operator+=(NEW_TYPE a, BASIC_TYPE b) { \
-    a.x += b, a.y += b, a.z += b,  a.w += b; \
+    a.x += b, a.y += b, a.z += b, a.w += b; \
 } \
  \
  /* binary operator: subtract */ \
  \
 ATTRIBUTES NEW_TYPE operator-(NEW_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a.x - b.x, a.y - b.y, a.z - b.z,  a.w - b.w); \
+    return make_##NEW_TYPE(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); \
 } \
 ATTRIBUTES NEW_TYPE operator-(NEW_TYPE a, BASIC_TYPE b) { \
-    return make_##NEW_TYPE(a.x - b, a.y - b, a.z - b,  a.w - b); \
+    return make_##NEW_TYPE(a.x - b, a.y - b, a.z - b, a.w - b); \
 } \
 ATTRIBUTES NEW_TYPE operator-(BASIC_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a - b.x, a - b.y, a - b.z,  a - b.w); \
+    return make_##NEW_TYPE(a - b.x, a - b.y, a - b.z, a - b.w); \
 } \
 ATTRIBUTES void operator-=(NEW_TYPE &a, NEW_TYPE b) { \
     a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w; \
 } \
 ATTRIBUTES void operator-=(NEW_TYPE a, BASIC_TYPE b) { \
-    a.x -= b, a.y -= b, a.z -= b,  a.w -= b; \
+    a.x -= b, a.y -= b, a.z -= b, a.w -= b; \
 } \
  \
  /* binary operator: multiply */ \
  \
 ATTRIBUTES NEW_TYPE operator*(NEW_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a.x * b.x, a.y * b.y, a.z * b.z,  a.w * b.w); \
+    return make_##NEW_TYPE(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); \
 } \
 ATTRIBUTES NEW_TYPE operator*(NEW_TYPE a, BASIC_TYPE b) { \
-    return make_##NEW_TYPE(a.x * b, a.y * b, a.z * b,  a.w * b); \
+    return make_##NEW_TYPE(a.x * b, a.y * b, a.z * b, a.w * b); \
 } \
 ATTRIBUTES NEW_TYPE operator*(BASIC_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a * b.x, a * b.y, a * b.z,  a * b.w); \
+    return make_##NEW_TYPE(a * b.x, a * b.y, a * b.z, a * b.w); \
 } \
 ATTRIBUTES void operator*=(NEW_TYPE &a, NEW_TYPE b) { \
     a.x *= b.x; a.y *= b.y; a.z *= b.z; a.w *= b.w; \
 } \
 ATTRIBUTES void operator*=(NEW_TYPE a, BASIC_TYPE b) { \
-    a.x *= b, a.y *= b, a.z *= b,  a.w *= b; \
+    a.x *= b, a.y *= b, a.z *= b, a.w *= b; \
 } \
  \
  /* binary operator: divide */ \
  \
 ATTRIBUTES NEW_TYPE operator/(NEW_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a.x / b.x, a.y / b.y, a.z / b.z,  a.w / b.w); \
+    return make_##NEW_TYPE(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); \
 } \
 ATTRIBUTES NEW_TYPE operator/(NEW_TYPE a, BASIC_TYPE b) { \
-    return make_##NEW_TYPE(a.x / b, a.y / b, a.z / b,  a.w / b); \
+    return make_##NEW_TYPE(a.x / b, a.y / b, a.z / b, a.w / b); \
 } \
 ATTRIBUTES NEW_TYPE operator/(BASIC_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a / b.x, a / b.y, a / b.z,  a / b.w); \
+    return make_##NEW_TYPE(a / b.x, a / b.y, a / b.z, a / b.w); \
 } \
 ATTRIBUTES void operator/=(NEW_TYPE &a, NEW_TYPE b) { \
     a.x /= b.x; a.y /= b.y; a.z /= b.z; a.w /= b.w; \
 } \
 ATTRIBUTES void operator/=(NEW_TYPE a, BASIC_TYPE b) { \
-    a.x /= b, a.y /= b, a.z /= b,  a.w /= b; \
+    a.x /= b, a.y /= b, a.z /= b, a.w /= b; \
 } \
  \
  /* unary operator: plus */ \
@@ -207,27 +211,141 @@ ATTRIBUTES NEW_TYPE operator+(NEW_TYPE a) { \
 ATTRIBUTES NEW_TYPE operator-(NEW_TYPE a) { \
     return make_##NEW_TYPE(-a.x, -a.y, -a.z, -a.w); \
 } \
+ \
+ /* relational operator: greater-than */ \
+ \
+ATTRIBUTES RET_TYPE operator>(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a.x > b.x, a.y > b.y, a.z > b.z, a.w > b.w); \
+} \
+ATTRIBUTES RET_TYPE operator>(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##RET_TYPE(a.x > b, a.y > b, a.z > b, a.w > b); \
+} \
+ATTRIBUTES RET_TYPE operator>(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a > b.x, a > b.y, a > b.z, a > b.w); \
+} \
+ \
+ /* relational operator: less-than */ \
+ \
+ATTRIBUTES RET_TYPE operator<(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a.x < b.x, a.y < b.y, a.z < b.z, a.w < b.w); \
+} \
+ATTRIBUTES RET_TYPE operator<(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##RET_TYPE(a.x < b, a.y < b, a.z < b, a.w < b); \
+} \
+ATTRIBUTES RET_TYPE operator<(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a < b.x, a < b.y, a < b.z, a < b.w); \
+} \
+ \
+ /* relational operator: greater-than or equal-to */ \
+ \
+ATTRIBUTES RET_TYPE operator>=(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a.x >= b.x, a.y >= b.y, a.z >= b.z, a.w >= b.w); \
+} \
+ATTRIBUTES RET_TYPE operator>=(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##RET_TYPE(a.x >= b, a.y >= b, a.z >= b, a.w >= b); \
+} \
+ATTRIBUTES RET_TYPE operator>=(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a >= b.x, a >= b.y, a >= b.z, a >= b.w); \
+} \
+ \
+ /* relational operator: less-than or equal-to */ \
+ \
+ATTRIBUTES RET_TYPE operator<=(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a.x <= b.x, a.y <= b.y, a.z <= b.z, a.w <= b.w); \
+} \
+ATTRIBUTES RET_TYPE operator<=(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##RET_TYPE(a.x <= b, a.y <= b, a.z <= b, a.w <= b); \
+} \
+ATTRIBUTES RET_TYPE operator<=(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a <= b.x, a <= b.y, a <= b.z, a <= b.w); \
+} \
+ \
+ /* equality operator: equal */ \
+ \
+ATTRIBUTES RET_TYPE operator==(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a.x == b.x, a.y == b.y, a.z == b.z, a.w == b.w); \
+} \
+ATTRIBUTES RET_TYPE operator==(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##RET_TYPE(a.x == b, a.y == b, a.z == b, a.w == b); \
+} \
+ATTRIBUTES RET_TYPE operator==(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a == b.x, a == b.y, a == b.z, a == b.w); \
+} \
+ \
+ /* equality operator: not equal */ \
+ \
+ATTRIBUTES RET_TYPE operator!=(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a.x != b.x, a.y != b.y, a.z != b.z, a.w != b.w); \
+} \
+ATTRIBUTES RET_TYPE operator!=(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##RET_TYPE(a.x != b, a.y != b, a.z != b, a.w != b); \
+} \
+ATTRIBUTES RET_TYPE operator!=(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a != b.x, a != b.y, a != b.z, a != b.w); \
+} \
+ \
+ /* logical operator: and */ \
+ \
+ATTRIBUTES RET_TYPE operator&&(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a.x && b.x, a.y && b.y, a.z && b.z, a.w && b.w); \
+} \
+ATTRIBUTES RET_TYPE operator&&(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##RET_TYPE(a.x && b, a.y && b, a.z && b, a.w && b); \
+} \
+ATTRIBUTES RET_TYPE operator&&(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a && b.x, a && b.y, a && b.z, a && b.w); \
+} \
+ \
+ /* logical operator: or */ \
+ \
+ATTRIBUTES RET_TYPE operator||(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a.x || b.x, a.y || b.y, a.z || b.z, a.w || b.w); \
+} \
+ATTRIBUTES RET_TYPE operator||(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##RET_TYPE(a.x || b, a.y || b, a.z || b, a.w || b); \
+} \
+ATTRIBUTES RET_TYPE operator||(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##RET_TYPE(a || b.x, a || b.y, a || b.z, a || b.w); \
+} \
+ \
+ /* logical unary operator: not */ \
+ \
+ATTRIBUTES RET_TYPE operator!(NEW_TYPE a) { \
+    return make_##RET_TYPE(!a.x, !a.y, !a.z, !a.w); \
+} \
+ \
+ /* operator: comma */ \
+ \
+ATTRIBUTES NEW_TYPE operator,(NEW_TYPE a, NEW_TYPE b) { \
+    return b; \
+} \
+ATTRIBUTES BASIC_TYPE operator,(NEW_TYPE a, BASIC_TYPE b) { \
+    return b; \
+} \
+ATTRIBUTES NEW_TYPE operator,(BASIC_TYPE a, NEW_TYPE b) { \
+    return b; \
+}
 
 
 // vector operators for integer data types only
-#define MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE) \
+#define MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
  \
  /* binary operator: remainder */ \
  \
 ATTRIBUTES NEW_TYPE operator%(NEW_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a.x % b.x, a.y % b.y, a.z % b.z,  a.w % b.w); \
+    return make_##NEW_TYPE(a.x % b.x, a.y % b.y, a.z % b.z, a.w % b.w); \
 } \
 ATTRIBUTES NEW_TYPE operator%(NEW_TYPE a, BASIC_TYPE b) { \
-    return make_##NEW_TYPE(a.x % b, a.y % b, a.z % b,  a.w % b); \
+    return make_##NEW_TYPE(a.x % b, a.y % b, a.z % b, a.w % b); \
 } \
 ATTRIBUTES NEW_TYPE operator%(BASIC_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(a % b.x, a % b.y, a % b.z,  a % b.w); \
+    return make_##NEW_TYPE(a % b.x, a % b.y, a % b.z, a % b.w); \
 } \
 ATTRIBUTES void operator%=(NEW_TYPE &a, NEW_TYPE b) { \
     a.x %= b.x; a.y %= b.y; a.z %= b.z; a.w %= b.w; \
 } \
 ATTRIBUTES void operator%=(NEW_TYPE a, BASIC_TYPE b) { \
-    a.x %= b, a.y %= b, a.z %= b,  a.w %= b; \
+    a.x %= b, a.y %= b, a.z %= b, a.w %= b; \
 } \
  \
  /* unary operator: post- and pre-increment */ \
@@ -247,18 +365,114 @@ ATTRIBUTES NEW_TYPE operator--(NEW_TYPE a) { \
 ATTRIBUTES NEW_TYPE operator--(NEW_TYPE a, int) { \
     return make_##NEW_TYPE(a.x--, a.y--, a.z--, a.w--); \
 } \
+ \
+ /* bitwise operator: and */ \
+ \
+ATTRIBUTES NEW_TYPE operator&(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a.x & b.x, a.y & b.y, a.z & b.z, a.w & b.w); \
+} \
+ATTRIBUTES NEW_TYPE operator&(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##NEW_TYPE(a.x & b, a.y & b, a.z & b, a.w & b); \
+} \
+ATTRIBUTES NEW_TYPE operator&(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a & b.x, a & b.y, a & b.z, a & b.w); \
+} \
+ATTRIBUTES void operator&=(NEW_TYPE &a, NEW_TYPE b) { \
+    a.x &= b.x; a.y &= b.y; a.z &= b.z; a.w &= b.w; \
+} \
+ATTRIBUTES void operator&=(NEW_TYPE a, BASIC_TYPE b) { \
+    a.x &= b, a.y &= b, a.z &= b, a.w &= b; \
+} \
+ \
+ /* bitwise operator: or */ \
+ \
+ATTRIBUTES NEW_TYPE operator|(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w); \
+} \
+ATTRIBUTES NEW_TYPE operator|(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##NEW_TYPE(a.x | b, a.y | b, a.z | b, a.w | b); \
+} \
+ATTRIBUTES NEW_TYPE operator|(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a | b.x, a | b.y, a | b.z, a | b.w); \
+} \
+ATTRIBUTES void operator|=(NEW_TYPE &a, NEW_TYPE b) { \
+    a.x |= b.x; a.y |= b.y; a.z |= b.z; a.w |= b.w; \
+} \
+ATTRIBUTES void operator|=(NEW_TYPE a, BASIC_TYPE b) { \
+    a.x |= b, a.y |= b, a.z |= b, a.w |= b; \
+} \
+ \
+ /* bitwise operator: exclusive or */ \
+ \
+ATTRIBUTES NEW_TYPE operator^(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w); \
+} \
+ATTRIBUTES NEW_TYPE operator^(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##NEW_TYPE(a.x ^ b, a.y ^ b, a.z ^ b, a.w ^ b); \
+} \
+ATTRIBUTES NEW_TYPE operator^(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a ^ b.x, a ^ b.y, a ^ b.z, a ^ b.w); \
+} \
+ATTRIBUTES void operator^=(NEW_TYPE &a, NEW_TYPE b) { \
+    a.x ^= b.x; a.y ^= b.y; a.z ^= b.z; a.w ^= b.w; \
+} \
+ATTRIBUTES void operator^=(NEW_TYPE a, BASIC_TYPE b) { \
+    a.x ^= b, a.y ^= b, a.z ^= b, a.w ^= b; \
+} \
+ \
+ /* bitwise operator: not */ \
+ \
+ATTRIBUTES NEW_TYPE operator~(NEW_TYPE a) { \
+    return make_##NEW_TYPE(~a.x, ~a.y, ~a.z, ~a.w); \
+} \
+ \
+ /* operator: right-shift */ \
+ \
+ATTRIBUTES NEW_TYPE operator>>(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a.x >> b.x, a.y >> b.y, a.z >> b.z, a.w >> b.w); \
+} \
+ATTRIBUTES NEW_TYPE operator>>(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##NEW_TYPE(a.x >> b, a.y >> b, a.z >> b, a.w >> b); \
+} \
+ATTRIBUTES NEW_TYPE operator>>(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a >> b.x, a >> b.y, a >> b.z, a >> b.w); \
+} \
+ATTRIBUTES void operator>>=(NEW_TYPE &a, NEW_TYPE b) { \
+    a.x >>= b.x; a.y >>= b.y; a.z >>= b.z; a.w >>= b.w; \
+} \
+ATTRIBUTES void operator>>=(NEW_TYPE a, BASIC_TYPE b) { \
+    a.x >>= b, a.y >>= b, a.z >>= b, a.w >>= b; \
+} \
+ \
+ /* operator: left-shift */ \
+ \
+ATTRIBUTES NEW_TYPE operator<<(NEW_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a.x << b.x, a.y << b.y, a.z << b.z, a.w << b.w); \
+} \
+ATTRIBUTES NEW_TYPE operator<<(NEW_TYPE a, BASIC_TYPE b) { \
+    return make_##NEW_TYPE(a.x << b, a.y << b, a.z << b, a.w << b); \
+} \
+ATTRIBUTES NEW_TYPE operator<<(BASIC_TYPE a, NEW_TYPE b) { \
+    return make_##NEW_TYPE(a << b.x, a << b.y, a << b.z, a << b.w); \
+} \
+ATTRIBUTES void operator<<=(NEW_TYPE &a, NEW_TYPE b) { \
+    a.x <<= b.x; a.y <<= b.y; a.z <<= b.z; a.w <<= b.w; \
+} \
+ATTRIBUTES void operator<<=(NEW_TYPE a, BASIC_TYPE b) { \
+    a.x <<= b, a.y <<= b, a.z <<= b, a.w <<= b; \
+}
 
 
-MAKE_VEC_I(char4,     char)
-MAKE_VEC_I(uchar4,    unsigned char)
-MAKE_VEC_I(short4,    short)
-MAKE_VEC_I(ushort4,   unsigned short)
-MAKE_VEC_I(int4,      int)
-MAKE_VEC_I(uint4,     unsigned int)
-MAKE_VEC_I(long4,     long)
-MAKE_VEC_I(ulong4,    unsigned long)
-MAKE_VEC_F(float4,    float)
-MAKE_VEC_F(double4,   double)
+MAKE_VEC_I(char4,     char,     char4)
+MAKE_VEC_I(uchar4,    uchar,    char4)
+MAKE_VEC_I(short4,    short,    short4)
+MAKE_VEC_I(ushort4,   ushort,   short4)
+MAKE_VEC_I(int4,      int,      int4)
+MAKE_VEC_I(uint4,     uint,     int4)
+MAKE_VEC_I(long4,     long,     long4)
+MAKE_VEC_I(ulong4,    ulong,    long4)
+MAKE_VEC_F(float4,    float,    int4)
+MAKE_VEC_F(double4,   double,   long4)
 
 }
 

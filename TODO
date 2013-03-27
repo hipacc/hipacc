@@ -10,4 +10,6 @@ KNOWN BUGS:
   int4 a;
   a++;
   error: cannot increment value of type 'int __attribute__((ext_vector_type(4)))'
+- ternary operators cannot be overloaded, that is, there is no support for ?: on
+  vector types
 
