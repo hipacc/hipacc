@@ -145,6 +145,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     VarDecl *CloneVarDecl(VarDecl *D);
     VarDecl *CloneDeclTex(ParmVarDecl *D, std::string prefix);
     void setExprProps(Expr *orig, Expr *clone);
+    void setExprPropsClone(Expr *orig, Expr *clone);
     void setCastPath(CastExpr *orig, CXXCastPath &castPath);
     void initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S);
     void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
@@ -318,7 +319,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         // debug
       }
 
-    Stmt* Hipacc(Stmt *S);
+    Stmt *Hipacc(Stmt *S);
 
   public:
     // dump all available statement visitors

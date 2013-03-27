@@ -135,7 +135,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 };
 }
 ASTConsumer *CreateRewrite(CompilerInstance &CI, CompilerOptions &options,
-    llvm::raw_ostream* out) {
+    llvm::raw_ostream *out) {
   return new Rewrite(CI, options, out);
 }
 

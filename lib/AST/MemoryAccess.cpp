@@ -508,7 +508,6 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
       LHS->getFoundDecl(),
       LHS->getNumTemplateArgs()?&templateArgs:0);
 
-  LHStex->setObjectKind(LHS->getObjectKind());
   setExprProps(LHS, LHStex);
 
   // parameters for __ldg, tex1Dfetch, tex2D, or surf2Dwrite

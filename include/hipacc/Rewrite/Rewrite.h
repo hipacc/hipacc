@@ -78,7 +78,7 @@ class HipaccRewriteAction : public ASTFrontendAction {
       InFile);
 };
 ASTConsumer *CreateHipaccRewriteAction(CompilerInstance &CI, CompilerOptions
-    &options, llvm::raw_ostream* out);
+    &options, llvm::raw_ostream *out);
 } // end namespace hipacc
 } // end namespace clang
 

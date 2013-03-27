@@ -101,7 +101,7 @@ Stmt *ASTTranslate::addMirrorLower(HipaccAccessor *Acc, Expr *idx, Expr *lower) 
 
 // add border handling: CONSTANT
 Expr *ASTTranslate::addConstantUpper(HipaccAccessor *Acc, Expr *idx, Expr
-    *upper, Expr* cond) {
+    *upper, Expr *cond) {
   // (idx < upper)
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_LT, Ctx.BoolTy);
 
@@ -112,7 +112,7 @@ Expr *ASTTranslate::addConstantUpper(HipaccAccessor *Acc, Expr *idx, Expr
   }
 }
 Expr *ASTTranslate::addConstantLower(HipaccAccessor *Acc, Expr *idx, Expr
-    *lower, Expr* cond) {
+    *lower, Expr *cond) {
   // (idx >= lower)
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_GE, Ctx.BoolTy);
 

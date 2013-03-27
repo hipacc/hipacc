@@ -79,7 +79,7 @@ void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   gidYRef = tileVars.global_id_y;
 
   // convert the function body to kernel syntax
-  Stmt* clonedStmt = Clone(S);
+  Stmt *clonedStmt = Clone(S);
   assert(isa<CompoundStmt>(clonedStmt) && "CompoundStmt for kernel function body expected!");
 
   //
@@ -356,7 +356,7 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
 }
 
 
-Stmt* ASTTranslate::Hipacc(Stmt *S) {
+Stmt *ASTTranslate::Hipacc(Stmt *S) {
   if (S == NULL) return NULL;
 
   // search for image width and height parameters
@@ -1093,7 +1093,7 @@ Stmt* ASTTranslate::Hipacc(Stmt *S) {
       }
 
       // convert kernel function body to CUDA/OpenCL kernel syntax
-      Stmt* clonedStmt = Clone(S);
+      Stmt *clonedStmt = Clone(S);
       assert(isa<CompoundStmt>(clonedStmt) && "CompoundStmt for kernel function body expected!");
 
       // add iteration space check when calculating multiple pixels per thread,
@@ -1315,7 +1315,7 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D, std::string prefix) {
 #ifdef NO_TRANSLATION
 #else
 Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
-  CompoundStmt* result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
+  CompoundStmt *result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
       S->getLBracLoc(), S->getLBracLoc());
 
   SmallVector<Stmt *, 16> body;
@@ -1563,7 +1563,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
         DC->addDecl(conv_y);
 
         // convert the lambda-function body to kernel syntax
-        Stmt* convIterations = Clone(LE->getBody());
+        Stmt *convIterations = Clone(LE->getBody());
 
         //
         // for (int _conv_y=0; _conv_y<size_y; _conv_y++) {
@@ -1760,7 +1760,7 @@ Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
 
   QualType QT;
   // use the type of LHS in case of vectorization
-  if (LHS->getType()->isVectorType() || LHS->getType()->isExtVectorType()) {
+  if (!E->getType()->isExtVectorType() && LHS->getType()->isVectorType()) {
     QT = LHS->getType();
   } else {
     QT = E->getType();

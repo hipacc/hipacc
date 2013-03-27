@@ -45,7 +45,17 @@ void ASTTranslate::setExprProps(Expr *orig, Expr *clone) {
   clone->setTypeDependent(orig->isTypeDependent());
   clone->setValueDependent(orig->isValueDependent());
   clone->setInstantiationDependent(orig->isInstantiationDependent());
+  clone->setContainsUnexpandedParameterPack(orig->containsUnexpandedParameterPack());
+  clone->setValueKind(orig->getValueKind());
+  clone->setObjectKind(orig->getObjectKind());
 }
+
+
+void ASTTranslate::setExprPropsClone(Expr *orig, Expr *clone) {
+  clone->setType(orig->getType());
+  setExprProps(orig, clone);
+}
+
 
 void ASTTranslate::setCastPath(CastExpr *orig, CXXCastPath &castPath) {
   for (CastExpr::path_iterator PI = orig->path_begin(), PE = orig->path_end();
@@ -67,7 +77,7 @@ Stmt *ASTTranslate::VisitNullStmt(NullStmt *S) {
 
 #ifdef NO_TRANSLATION
 Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
-  CompoundStmt* result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
+  CompoundStmt *result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
       S->getLBracLoc(), S->getLBracLoc());
 
   SmallVector<Stmt *, 16> body;
@@ -98,7 +108,7 @@ Stmt *ASTTranslate::VisitIfStmt(IfStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitSwitchStmt(SwitchStmt *S) {
-  SwitchStmt* result = new (Ctx) SwitchStmt(Ctx,
+  SwitchStmt *result = new (Ctx) SwitchStmt(Ctx,
       CloneDecl(S->getConditionVariable()), Clone(S->getCond()));
 
   result->setBody(Clone(S->getBody()));
@@ -173,7 +183,7 @@ Stmt *ASTTranslate::VisitSwitchCase(SwitchCase *S) {
 }
 
 Stmt *ASTTranslate::VisitCaseStmt(CaseStmt *S) {
-  CaseStmt* result = new (Ctx) CaseStmt(Clone(S->getLHS()), Clone(S->getRHS()),
+  CaseStmt *result = new (Ctx) CaseStmt(Clone(S->getLHS()), Clone(S->getRHS()),
       S->getCaseLoc(), S->getEllipsisLoc(), S->getColonLoc());
 
   result->setSubStmt(Clone(S->getSubStmt()));
@@ -251,10 +261,10 @@ Expr *ASTTranslate::VisitExpr(Expr *E) {
 }
 
 Expr *ASTTranslate::VisitPredefinedExpr(PredefinedExpr *E) {
-  Expr* result = new (Ctx) PredefinedExpr(E->getLocation(), E->getType(),
+  Expr *result = new (Ctx) PredefinedExpr(E->getLocation(), E->getType(),
       E->getIdentType());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -272,8 +282,7 @@ Expr *ASTTranslate::VisitDeclRefExpr(DeclRefExpr *E) {
       E->getLocation(), VD->getType(), E->getValueKind(), E->getFoundDecl(),
       E->getNumTemplateArgs()?&templateArgs:0);
 
-  result->setObjectKind(E->getObjectKind());
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -282,7 +291,7 @@ Expr *ASTTranslate::VisitIntegerLiteral(IntegerLiteral *E) {
   Expr *result = IntegerLiteral::Create(Ctx, E->getValue(), E->getType(),
       E->getLocation());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -291,7 +300,7 @@ Expr *ASTTranslate::VisitFloatingLiteral(FloatingLiteral *E) {
   Expr *result = FloatingLiteral::Create(Ctx, E->getValue(), E->isExact(),
       E->getType(), E->getLocation());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -300,7 +309,7 @@ Expr *ASTTranslate::VisitImaginaryLiteral(ImaginaryLiteral *E) {
   Expr *result = new (Ctx) ImaginaryLiteral(Clone(E->getSubExpr()),
       E->getType());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -313,7 +322,7 @@ Expr *ASTTranslate::VisitStringLiteral(StringLiteral *E) {
       E->isPascal(), E->getType(), concatLocations.data(),
       concatLocations.size());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -322,7 +331,7 @@ Expr *ASTTranslate::VisitCharacterLiteral(CharacterLiteral *E) {
   Expr *result = new (Ctx) CharacterLiteral(E->getValue(), E->getKind(),
       E->getType(), E->getLocation());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -331,7 +340,7 @@ Expr *ASTTranslate::VisitParenExpr(ParenExpr *E) {
   Expr *result = new (Ctx) ParenExpr(E->getLParen(), E->getRParen(),
       Clone(E->getSubExpr()));
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -340,7 +349,7 @@ Expr *ASTTranslate::VisitUnaryOperator(UnaryOperator *E) {
   Expr *result = new (Ctx) UnaryOperator(Clone(E->getSubExpr()), E->getOpcode(),
       E->getType(), E->getValueKind(), E->getObjectKind(), E->getOperatorLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -349,7 +358,6 @@ Expr *ASTTranslate::VisitOffsetOfExpr(OffsetOfExpr *E) {
   OffsetOfExpr *result = OffsetOfExpr::CreateEmpty(Ctx, E->getNumExpressions(),
       E->getNumComponents());
 
-  result->setType(E->getType());
   result->setOperatorLoc(E->getOperatorLoc());
   result->setTypeSourceInfo(E->getTypeSourceInfo());
   result->setRParenLoc(E->getRParenLoc());
@@ -362,7 +370,7 @@ Expr *ASTTranslate::VisitOffsetOfExpr(OffsetOfExpr *E) {
     result->setIndexExpr(I, Clone(E->getIndexExpr(I)));
   }
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -380,7 +388,7 @@ Expr *ASTTranslate::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
         E->getRParenLoc());
   }
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -391,7 +399,7 @@ Expr *ASTTranslate::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
       Clone(E->getRHS()), E->getType(), E->getValueKind(), E->getObjectKind(),
       E->getRBracketLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -408,7 +416,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       llvm::makeArrayRef(args.data(), args.size()), E->getType(),
       E->getValueKind(), E->getRParenLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -418,7 +426,7 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
       CloneDecl(E->getMemberDecl()), E->getMemberNameInfo(), E->getType(),
       E->getValueKind(), E->getObjectKind());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -435,7 +443,7 @@ Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
       Clone(E->getRHS()), E->getOpcode(), E->getType(), E->getValueKind(),
       E->getObjectKind(), E->getOperatorLoc(), E->isFPContractable());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -448,7 +456,7 @@ Expr *ASTTranslate::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
       E->getComputationResultType(), E->getOperatorLoc(),
       E->isFPContractable());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -463,7 +471,7 @@ Expr *ASTTranslate::VisitConditionalOperator(ConditionalOperator *E) {
       E->getQuestionLoc(), Clone(E->getLHS()), E->getColonLoc(),
       Clone(E->getRHS()), E->getType(), E->getValueKind(), E->getObjectKind());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -475,7 +483,7 @@ Expr *ASTTranslate::VisitBinaryConditionalOperator(BinaryConditionalOperator *E)
       Clone(E->getFalseExpr()), E->getQuestionLoc(), E->getColonLoc(),
       E->getType(), E->getValueKind(), E->getObjectKind());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -488,7 +496,7 @@ Expr *ASTTranslate::VisitImplicitCastExpr(ImplicitCastExpr *E) {
   ImplicitCastExpr *result = ImplicitCastExpr::Create(Ctx, E->getType(),
       E->getCastKind(), Clone(E->getSubExpr()), &castPath, E->getValueKind());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -508,7 +516,7 @@ Expr *ASTTranslate::VisitCStyleCastExpr(CStyleCastExpr *E) {
       E->getValueKind(), E->getCastKind(), Clone(E->getSubExpr()), &castPath,
       E->getTypeInfoAsWritten(), E->getLParenLoc(), E->getRParenLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -519,7 +527,7 @@ Expr *ASTTranslate::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
       E->getTypeSourceInfo(), E->getType(), E->getValueKind(),
       Clone(E->getInitializer()), E->isFileScope());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -528,7 +536,7 @@ Expr *ASTTranslate::VisitExtVectorElementExpr(ExtVectorElementExpr *E) {
   Expr *result = new (Ctx) ExtVectorElementExpr(E->getType(), E->getValueKind(),
       Clone(E->getBase()), E->getAccessor(), E->getAccessorLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -540,15 +548,14 @@ Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
     initExprs.push_back(Clone(E->getInit(I)));
   }
 
-  InitListExpr* result = new (Ctx) InitListExpr(Ctx, E->getLBraceLoc(),
+  InitListExpr *result = new (Ctx) InitListExpr(Ctx, E->getLBraceLoc(),
       llvm::makeArrayRef(initExprs.data(), initExprs.size()),
       E->getRBraceLoc());
 
   result->setInitializedFieldInUnion(E->getInitializedFieldInUnion());
   if (E->hasArrayFiller()) result->setArrayFiller(Clone(E->getArrayFiller()));
 
-  setExprProps(E, result);
-  result->setType(E->getType());
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -565,7 +572,7 @@ Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
       indexExprs, E->getEqualOrColonLoc(), E->usesGNUSyntax(),
       Clone(E->getInit()));
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -573,7 +580,7 @@ Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
 Expr *ASTTranslate::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
   Expr *result = new (Ctx) ImplicitValueInitExpr(E->getType());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -588,7 +595,7 @@ Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
   Expr *result = new (Ctx) ParenListExpr(Ctx, E->getLParenLoc(),
       llvm::makeArrayRef(Exprs.data(), Exprs.size()), E->getRParenLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -597,7 +604,7 @@ Expr *ASTTranslate::VisitVAArgExpr(VAArgExpr *E) {
   Expr *result = new (Ctx) VAArgExpr(E->getBuiltinLoc(), Clone(E->getSubExpr()),
       E->getWrittenTypeInfo(), E->getRParenLoc(), E->getType());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -624,7 +631,7 @@ Expr *ASTTranslate::VisitAtomicExpr(AtomicExpr *E) {
   Expr *result = new (Ctx) AtomicExpr(E->getBuiltinLoc(), Args, E->getType(),
       E->getOp(), E->getRParenLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -635,7 +642,7 @@ Expr *ASTTranslate::VisitAddrLabelExpr(AddrLabelExpr *E) {
   Expr *result = new (Ctx) AddrLabelExpr(E->getAmpAmpLoc(), E->getLabelLoc(),
       E->getLabel(), E->getType());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -644,7 +651,7 @@ Expr *ASTTranslate::VisitStmtExpr(StmtExpr *E) {
   Expr *result = new (Ctx) StmtExpr(Clone(E->getSubStmt()), E->getType(),
       E->getLParenLoc(), E->getRParenLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -655,7 +662,7 @@ Expr *ASTTranslate::VisitChooseExpr(ChooseExpr *E) {
       E->getObjectKind(), E->getRParenLoc(), E->isTypeDependent(),
       E->isValueDependent());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -663,7 +670,7 @@ Expr *ASTTranslate::VisitChooseExpr(ChooseExpr *E) {
 Expr *ASTTranslate::VisitGNUNullExpr(GNUNullExpr *E) {
   Expr *result = new (Ctx) GNUNullExpr(E->getType(), E->getTokenLocation());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -683,7 +690,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         args.size()), E->getType(), E->getValueKind(), E->getRParenLoc(),
       E->isFPContractable());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -699,7 +706,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     result->setArg(I, Clone(E->getArg(I)));
   }
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -719,7 +726,7 @@ Expr *ASTTranslate::VisitCXXStaticCastExpr(CXXStaticCastExpr *E) {
       E->getTypeInfoAsWritten(), E->getOperatorLoc(), E->getRParenLoc(),
       E->getAngleBrackets());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -733,7 +740,7 @@ Expr *ASTTranslate::VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E) {
       E->getTypeInfoAsWritten(), E->getOperatorLoc(), E->getRParenLoc(),
       E->getAngleBrackets());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -747,7 +754,7 @@ Expr *ASTTranslate::VisitCXXReinterpretCastExpr(CXXReinterpretCastExpr *E) {
       &castPath, E->getTypeInfoAsWritten(), E->getOperatorLoc(),
       E->getRParenLoc(), E->getAngleBrackets());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -757,7 +764,7 @@ Expr *ASTTranslate::VisitCXXConstCastExpr(CXXConstCastExpr *E) {
       E->getValueKind(), Clone(E->getSubExpr()), E->getTypeInfoAsWritten(),
       E->getOperatorLoc(), E->getRParenLoc(), E->getAngleBrackets());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -771,7 +778,7 @@ Expr *ASTTranslate::VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E) {
       E->getTypeBeginLoc(), E->getCastKind(), Clone(E->getSubExpr()), &castPath,
       E->getRParenLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -790,7 +797,7 @@ Expr *ASTTranslate::VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E) {
   Expr *result = new (Ctx) CXXBoolLiteralExpr(E->getValue(), E->getType(),
       E->getSourceRange().getBegin());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -799,7 +806,7 @@ Expr *ASTTranslate::VisitCXXNullPtrLiteralExpr(CXXNullPtrLiteralExpr *E) {
   Expr *result = new (Ctx) CXXNullPtrLiteralExpr(E->getType(),
       E->getSourceRange().getBegin());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -809,7 +816,7 @@ Expr *ASTTranslate::VisitCXXThisExpr(CXXThisExpr *E) {
   Expr *result = new (Ctx) CXXThisExpr(E->getSourceRange().getBegin(),
       E->getType(), E->isImplicit());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -818,7 +825,7 @@ Expr *ASTTranslate::VisitCXXThrowExpr(CXXThrowExpr *E) {
   Expr *result = new (Ctx) CXXThrowExpr(Clone(E->getSubExpr()), E->getType(),
       E->getThrowLoc(), E->isThrownVariableInScope());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -962,7 +969,7 @@ Expr *ASTTranslate::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
   MaterializeTemporaryExpr *result = new (Ctx) MaterializeTemporaryExpr(E->getType(),
       Clone(E->GetTemporaryExpr()), E->isBoundToLvalueReference());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -1007,7 +1014,7 @@ Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
       arrayIndexVars, arrayIndexStarts, E->getBody()->getLocEnd(),
       E->containsUnexpandedParameterPack());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -1025,7 +1032,7 @@ Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
       Clone(E->getConfig()), Args, E->getType(), E->getValueKind(),
       E->getRParenLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -1042,7 +1049,7 @@ Expr *ASTTranslate::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
   Expr *result = new (Ctx) ShuffleVectorExpr(Ctx, body, E->getType(),
       E->getBuiltinLoc(), E->getRParenLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
@@ -1054,7 +1061,7 @@ Expr *ASTTranslate::VisitAsTypeExpr(AsTypeExpr *E) {
       E->getValueKind(), E->getObjectKind(), E->getBuiltinLoc(),
       E->getRParenLoc());
 
-  setExprProps(E, result);
+  setExprPropsClone(E, result);
 
   return result;
 }
