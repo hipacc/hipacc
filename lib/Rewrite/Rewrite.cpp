@@ -1822,8 +1822,10 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
   if (reg == 0) {
     unsigned int DiagIDCompile =
       Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-          "Compiling kernel in file '%0.cu' failed, using default kernel configuration:\n%1");
-    Diags.Report(DiagIDCompile) << K->getFileName() << command.c_str();
+          "Compiling kernel in file '%0.%1' failed, using default kernel configuration:\n%2");
+    Diags.Report(DiagIDCompile)
+      << K->getFileName() << (const char*)(compilerOptions.emitCUDA()?"cu":"cl")
+      << command.c_str();
     for (unsigned int i=0, e=lines.size(); i!=e; ++i) {
       llvm::errs() << lines.data()[i];
     }
