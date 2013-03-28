@@ -474,6 +474,40 @@ MAKE_VEC_I(ulong4,    ulong,    long4)
 MAKE_VEC_F(float4,    float,    int4)
 MAKE_VEC_F(double4,   double,   long4)
 
+
+// conversion function
+#define MAKE_CONV_FUNC(BASIC_TYPE, RET_TYPE, VEC_TYPE) \
+RET_TYPE convert_##RET_TYPE(VEC_TYPE vec) { \
+    return {(BASIC_TYPE)vec.x, (BASIC_TYPE)vec.y, \
+            (BASIC_TYPE)vec.z, (BASIC_TYPE)vec.w}; \
+}
+
+// generate conversion functions for types
+#define MAKE_CONV(VEC_TYPE) \
+    MAKE_CONV_FUNC(char,   char4,   VEC_TYPE) \
+    MAKE_CONV_FUNC(uchar,  uchar4,  VEC_TYPE) \
+    MAKE_CONV_FUNC(short,  short4,  VEC_TYPE) \
+    MAKE_CONV_FUNC(ushort, ushort4, VEC_TYPE) \
+    MAKE_CONV_FUNC(int,    int4,    VEC_TYPE) \
+    MAKE_CONV_FUNC(uint,   uint4,   VEC_TYPE) \
+    MAKE_CONV_FUNC(long,   long4,   VEC_TYPE) \
+    MAKE_CONV_FUNC(ulong,  ulong4,  VEC_TYPE) \
+    MAKE_CONV_FUNC(float,  float4,  VEC_TYPE) \
+    MAKE_CONV_FUNC(double, double4, VEC_TYPE)
+
+
+MAKE_CONV(char4)
+MAKE_CONV(uchar4)
+MAKE_CONV(short4)
+MAKE_CONV(ushort4)
+MAKE_CONV(int4)
+MAKE_CONV(uint4)
+MAKE_CONV(long4)
+MAKE_CONV(ulong4)
+MAKE_CONV(float4)
+MAKE_CONV(double4)
+
+
 }
 
 #endif // __TYPES_HPP__
