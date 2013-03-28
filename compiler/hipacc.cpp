@@ -37,13 +37,16 @@ using namespace clang;
 using namespace hipacc;
 
 
-static void LLVMErrorHandler(void *userData, const std::string &message) {
+static void LLVMErrorHandler(void *userData, const std::string &message, bool
+    genCrashDiag) {
   DiagnosticsEngine &Diags = *static_cast<DiagnosticsEngine *>(userData);
 
   Diags.Report(diag::err_fe_error_backend) << message;
 
-  // we cannot recover from llvm errors.
-  exit(EXIT_FAILURE);
+  // We cannot recover from llvm errors.  When reporting a fatal error, exit
+  // with status 70 to generate crash diagnostics.  For BSD systems this is
+  // defined as an internal software error.  Otherwise, exit with status 1.
+  exit(genCrashDiag ? 70 : EXIT_FAILURE);
 }
 
 
