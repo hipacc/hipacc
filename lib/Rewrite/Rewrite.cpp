@@ -2299,7 +2299,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
   }
 
-  if ((!compilerOptions.emitCUDA() || !emitHints) &&
+  if ((!compilerOptions.emitCUDA() || !emitHints) && inc &&
        InterpolationDefinitions.size()) {
     // sort definitions and remove duplicate definitions
     std::sort(InterpolationDefinitions.begin(), InterpolationDefinitions.end());
