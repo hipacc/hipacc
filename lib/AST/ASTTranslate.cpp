@@ -1786,32 +1786,51 @@ Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
 
 Expr *ASTTranslate::VisitImplicitCastExpr(ImplicitCastExpr *E) {
   Expr *subExpr = Clone(E->getSubExpr());
-  QualType QT;
 
-  // in case of constant propagation, lvalue-to-rvalue casts are invalid
-  if (E->getCastKind() == CK_LValueToRValue &&
-      (isa<IntegerLiteral>(subExpr->IgnoreParenCasts()) ||
-      isa<FloatingLiteral>(subExpr->IgnoreParenCasts()) ||
-      isa<CharacterLiteral>(subExpr->IgnoreParenCasts()))) {
-    return subExpr;
-  }
-
-  // in case of vectorization, the cast type may change for the cloned subExpr
-  switch (E->getCastKind()) {
-    default:
-      QT = E->getType();
-      break;
-    case CK_LValueToRValue:
-    case CK_NoOp:
-      QT = subExpr->getType();
-      break;
-  }
+  QualType QT = E->getType();
+  CastKind CK = E->getCastKind();
 
   CXXCastPath castPath;
   setCastPath(E, castPath);
 
-  Expr *result = ImplicitCastExpr::Create(Ctx, QT, E->getCastKind(), subExpr,
-      &castPath, E->getValueKind());
+  Expr *litExpr = subExpr->IgnoreImpCasts();
+  if (isa<UnaryOperator>(litExpr)) {
+    litExpr = ((UnaryOperator *)litExpr)->getSubExpr();
+  }
+
+  if (E->getCastKind() == CK_LValueToRValue &&
+      (isa<IntegerLiteral>(litExpr->IgnoreParenCasts()) ||
+       isa<FloatingLiteral>(litExpr->IgnoreParenCasts()) ||
+       isa<CharacterLiteral>(litExpr->IgnoreParenCasts()))) {
+    // in case of constant propagation, lvalue-to-rvalue casts are invalid
+    if (subExpr->getType() == E->getType()) return subExpr;
+
+    if (isa<FloatingLiteral>(litExpr->IgnoreParenCasts())) {
+      if (E->getType()->isFloatingType()) {
+        CK = CK_FloatingCast;
+      } else {
+        CK = CK_FloatingToIntegral;
+      }
+    } else {
+      if (E->getType()->isFloatingType()) {
+        CK = CK_IntegralToFloating;
+      } else {
+        CK = CK_IntegralCast;
+      }
+    }
+  } else {
+    // in case of vectorization, the cast type may change for the cloned subExpr
+    switch (CK) {
+      default: break;
+      case CK_LValueToRValue:
+      case CK_NoOp:
+        QT = subExpr->getType();
+        break;
+    }
+  }
+
+  Expr *result = ImplicitCastExpr::Create(Ctx, QT, CK, subExpr, &castPath,
+      E->getValueKind());
 
   setExprProps(E, result);
 
