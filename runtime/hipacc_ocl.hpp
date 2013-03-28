@@ -987,7 +987,7 @@ void hipaccWriteImage(cl_mem image, T *host_mem, int num_device=0) {
     HipaccContext::cl_dims dim = Ctx.get_mem_dims(image);
 
     const size_t origin[] = { 0, 0, 0 };
-    const size_t region[] = { dim.width, dim.height, 1 };
+    const size_t region[] = { (size_t)dim.width, (size_t)dim.height, 1 };
     // no stride supported for images in OpenCL
     const size_t input_row_pitch = dim.width*sizeof(T);
     const size_t input_slice_pitch = 0;
@@ -1006,7 +1006,7 @@ void hipaccReadImage(T *host_mem, cl_mem image, int num_device=0) {
     HipaccContext::cl_dims dim = Ctx.get_mem_dims(image);
 
     const size_t origin[] = { 0, 0, 0 };
-    const size_t region[] = { dim.width, dim.height, 1 };
+    const size_t region[] = { (size_t)dim.width, (size_t)dim.height, 1 };
     // no stride supported for images in OpenCL
     const size_t row_pitch = dim.width*sizeof(T);
     const size_t slice_pitch = 0;
