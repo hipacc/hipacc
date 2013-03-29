@@ -431,6 +431,17 @@ HIPACCBUILTIN(labs,                 "LiLi",     HIPACCBIlabs,       OPENCLBIlabs
 OPENCLBUILTIN(abs,                  "LiLi",     labs)
 RSBUILTIN(abs,                      "LiLi",     labs)
 
+// convert functions provided by framework
+HIPACCBUILTIN(convert_char4,        "E4cc",     HIPACCBIconvert_char4,      HIPACCBIconvert_char4,      HIPACCBIconvert_char4)
+HIPACCBUILTIN(convert_uchar4,       "E4UcUc",   HIPACCBIconvert_uchar4,     HIPACCBIconvert_uchar4,     HIPACCBIconvert_uchar4)
+HIPACCBUILTIN(convert_short4,       "E4ss",     HIPACCBIconvert_short4,     HIPACCBIconvert_short4,     HIPACCBIconvert_short4)
+HIPACCBUILTIN(convert_ushort4,      "E4UsUs",   HIPACCBIconvert_ushort4,    HIPACCBIconvert_ushort4,    HIPACCBIconvert_ushort4)
+HIPACCBUILTIN(convert_int4,         "E4ii",     HIPACCBIconvert_int4,       HIPACCBIconvert_int4,       HIPACCBIconvert_int4)
+HIPACCBUILTIN(convert_uint4,        "E4UiUi",   HIPACCBIconvert_uint4,      HIPACCBIconvert_uint4,      HIPACCBIconvert_uint4)
+HIPACCBUILTIN(convert_long4,        "E4LiLi",   HIPACCBIconvert_long4,      HIPACCBIconvert_long4,      HIPACCBIconvert_long4)
+HIPACCBUILTIN(convert_ulong4,       "E4ULiULi", HIPACCBIconvert_ulong4,     HIPACCBIconvert_ulong4,     HIPACCBIconvert_ulong4)
+HIPACCBUILTIN(convert_float4,       "E4ff",     HIPACCBIconvert_float4,     HIPACCBIconvert_float4,     HIPACCBIconvert_float4)
+HIPACCBUILTIN(convert_double4,      "E4dd",     HIPACCBIconvert_double4,    HIPACCBIconvert_double4,    HIPACCBIconvert_double4)
 
 // Builtin OpenCL functions
 // OpenCL work-item built-in functions
@@ -452,13 +463,6 @@ OPENCLBUILTIN(read_imageui,         "E4Uiv*UiE2i",  read_imageui)
 OPENCLBUILTIN(write_imagef,         "vv*E2iE4f",    write_imagef)
 OPENCLBUILTIN(write_imagei,         "vv*E2iE4i",    write_imagei)
 OPENCLBUILTIN(write_imageui,        "vv*E2iE4Ui",   write_imageui)
-OPENCLBUILTIN(convert_char4,        "E4cc",         convert_char4)
-OPENCLBUILTIN(convert_uchar4,       "E4UcUc",       convert_uchar4)
-OPENCLBUILTIN(convert_short4,       "E4ss",         convert_short4)
-OPENCLBUILTIN(convert_ushort4,      "E4UsUs",       convert_ushort4)
-OPENCLBUILTIN(convert_int4,         "E4ii",         convert_int4)
-OPENCLBUILTIN(convert_uint4,        "E4UiUi",       convert_uint4)
-OPENCLBUILTIN(convert_float4,       "E4ff",         convert_float4)
 
 
 
@@ -541,16 +545,6 @@ CUDABUILTIN(make_long4,             "E4LiLi",       make_long4)
 CUDABUILTIN(make_ulong4,            "E4ULiULi",     make_ulong4)
 CUDABUILTIN(make_float4,            "E4ff",         make_float4)
 CUDABUILTIN(make_double4,           "E4dd",         make_double4)
-CUDABUILTIN(convert_char4,          "E4cc",         convert_char4)
-CUDABUILTIN(convert_uchar4,         "E4UcUc",       convert_uchar4)
-CUDABUILTIN(convert_short4,         "E4ss",         convert_short4)
-CUDABUILTIN(convert_ushort4,        "E4UsUs",       convert_ushort4)
-CUDABUILTIN(convert_int4,           "E4ii",         convert_int4)
-CUDABUILTIN(convert_uint4,          "E4UiUi",       convert_uint4)
-CUDABUILTIN(convert_long4,          "E4LiLi",       convert_long4)
-CUDABUILTIN(convert_ulong4,         "E4ULiULi",     convert_ulong4)
-CUDABUILTIN(convert_float4,         "E4ff",         convert_float4)
-CUDABUILTIN(convert_double4,        "E4dd",         convert_double4)
 
 RSBUILTIN(rsGetElementAt_char,      "SciC*CUiUi",   rsGetElementAt_char)
 RSBUILTIN(rsGetElementAt_uchar,     "UciC*CUiUi",   rsGetElementAt_uchar)

@@ -438,11 +438,10 @@ FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT,
 
 
 // get convert_<type> function for given type
-FunctionDecl *ASTTranslate::getOpenCLConvertFunction(QualType QT,
-                                                     bool vecType) {
+FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool vecType) {
   assert(vecType && "Only vector types are supported yet.");
   if (vecType) {
-      QT = QT->getAs<VectorType>()->getElementType();
+    QT = QT->getAs<VectorType>()->getElementType();
   }
   switch (QT->getAs<BuiltinType>()->getKind()) {
     case BuiltinType::WChar_U:
@@ -460,23 +459,23 @@ FunctionDecl *ASTTranslate::getOpenCLConvertFunction(QualType QT,
     case BuiltinType::Double:
     case BuiltinType::ULong:
     default:
-      assert(0 && "BuiltinType for OpenCL convert not supported.");
+      assert(0 && "BuiltinType for 'convert' function not supported.");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      return builtins.getBuiltinFunction(OPENCLBIconvert_char4);
+      return builtins.getBuiltinFunction(HIPACCBIconvert_char4);
     case BuiltinType::Short:
-      return builtins.getBuiltinFunction(OPENCLBIconvert_short4);
+      return builtins.getBuiltinFunction(HIPACCBIconvert_short4);
     case BuiltinType::Int:
-      return builtins.getBuiltinFunction(OPENCLBIconvert_int4);
+      return builtins.getBuiltinFunction(HIPACCBIconvert_int4);
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
-      return builtins.getBuiltinFunction(OPENCLBIconvert_uchar4);
+      return builtins.getBuiltinFunction(HIPACCBIconvert_uchar4);
     case BuiltinType::UShort:
-      return builtins.getBuiltinFunction(OPENCLBIconvert_ushort4);
+      return builtins.getBuiltinFunction(HIPACCBIconvert_ushort4);
     case BuiltinType::UInt:
-      return builtins.getBuiltinFunction(OPENCLBIconvert_uint4);
+      return builtins.getBuiltinFunction(HIPACCBIconvert_uint4);
     case BuiltinType::Float:
-      return builtins.getBuiltinFunction(OPENCLBIconvert_float4);
+      return builtins.getBuiltinFunction(HIPACCBIconvert_float4);
   }
 }
 
@@ -580,8 +579,7 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     if (QT->isVectorType()) {
       SmallVector<Expr *, 16> args;
       args.push_back(result);
-      result =
-          createFunctionCall(Ctx, getOpenCLConvertFunction(QT, true), args);
+      result = createFunctionCall(Ctx, getConvertFunction(QT, true), args);
     } else {
       result = createExtVectorElementExpr(Ctx, QT, result, "x");
     }
@@ -602,8 +600,8 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     if (QT->isVectorType()) {
       SmallVector<Expr *, 16> args;
       args.push_back(writeImageRHS);
-      writeImageRHS =
-          createFunctionCall(Ctx, getOpenCLConvertFunction(QT, true), args);
+      writeImageRHS = createFunctionCall(Ctx, getConvertFunction(QT, true),
+          args);
     } else {
       writeImageRHS = createParenExpr(Ctx, writeImageRHS);
       writeImageRHS = createCStyleCastExpr(Ctx, QT, CK_VectorSplat,
