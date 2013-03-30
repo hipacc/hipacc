@@ -150,7 +150,6 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
     }
     case 'E': { // Extended Vector
       char *End;
-
       unsigned NumElements = strtoul(Str, &End, 10);
       assert(End != Str && "Missing vector size");
       Str = End;
@@ -295,23 +294,25 @@ const hipacc::Builtin::Info &hipacc::Builtin::Context::getRecord(unsigned int
 // such.
 void hipacc::Builtin::Context::InitializeBuiltins() {
 #if 0
-  Builtin::Context &bctx = Ctx.BuiltinInfo;
+  clang::Builtin::Context &bctx = Ctx.BuiltinInfo;
 
   llvm::errs() << "==================\n"
                << "Standard Builtins:\n"
                << "==================\n";
-  for (unsigned int i = Builtin::NotBuiltin+1; i != Builtin::FirstTSBuiltin; ++i) {
+  for (unsigned int i = clang::Builtin::NotBuiltin+1; i !=
+      clang::Builtin::FirstTSBuiltin; ++i) {
     llvm::errs() << i << ": " << bctx.GetName(i) << "\n";
   }
 
-  const Builtin::Info *lTSRecords = 0;
+  const clang::Builtin::Info *lTSRecords = 0;
   unsigned int lNumTSRecords = 0;
   Ctx.getTargetInfo().getTargetBuiltins(lTSRecords, lNumTSRecords);
   llvm::errs() << "================\n"
                << "Target Builtins:\n"
                << "================\n";
   for (unsigned int i = 0, e = lNumTSRecords; i != e; ++i) {
-    llvm::errs() << i << ": " << bctx.GetName(i+Builtin::FirstTSBuiltin) << "\n";
+    llvm::errs() << i << ": "
+                 << bctx.GetName(i+clang::Builtin::FirstTSBuiltin) << "\n";
   }
   llvm::errs() << "================\n"
                << "Hipacc Builtins:\n"
