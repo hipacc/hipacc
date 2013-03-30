@@ -47,7 +47,7 @@
 #ifdef CPU
 #define OFFSET_CV 0.5f
 #else
-#define OFFSET_CV 0
+#define OFFSET_CV 0.0f
 #endif
 
 using namespace hipacc;
@@ -81,16 +81,10 @@ void box_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int width, int
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum.x += in[(y + yf)*width + x + xf].x;
-                    sum.y += in[(y + yf)*width + x + xf].y;
-                    sum.z += in[(y + yf)*width + x + xf].z;
-                    sum.w += in[(y + yf)*width + x + xf].w;
+                    sum += convert_int4(in[(y + yf)*width + x + xf]);
                 }
             }
-            out[y*width + x].x = (unsigned char) (1.0f/(float)(size_x*size_y)*sum.x + OFFSET_CV);
-            out[y*width + x].y = (unsigned char) (1.0f/(float)(size_x*size_y)*sum.y + OFFSET_CV);
-            out[y*width + x].z = (unsigned char) (1.0f/(float)(size_x*size_y)*sum.z + OFFSET_CV);
-            out[y*width + x].w = (unsigned char) (1.0f/(float)(size_x*size_y)*sum.w + OFFSET_CV);
+            out[y*width + x] = convert_uchar4(1.0f/(float)(size_x*size_y)*convert_float4(sum) + OFFSET_CV);
         }
     }
 }
@@ -119,19 +113,10 @@ class BoxFilter : public Kernel<uchar4> {
             // for even filter sizes use -anchor ... +anchor-1
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    uchar4 in_p = Input(xf, yf);
-                    sum.x += in_p.x;
-                    sum.y += in_p.y;
-                    sum.z += in_p.z;
-                    sum.w += in_p.w;
+                    sum += convert_int4(Input(xf, yf));
                 }
             }
-            uchar4 out_p;
-            out_p.x = (unsigned char) (1.0f/(float)(size_x*size_y)*sum.x + OFFSET_CV);
-            out_p.y = (unsigned char) (1.0f/(float)(size_x*size_y)*sum.y + OFFSET_CV);
-            out_p.z = (unsigned char) (1.0f/(float)(size_x*size_y)*sum.z + OFFSET_CV);
-            out_p.w = (unsigned char) (1.0f/(float)(size_x*size_y)*sum.w + OFFSET_CV);
-            output() = out_p;
+            output() = convert_uchar4(1.0f/(float)(size_x*size_y)*convert_float4(sum) + OFFSET_CV);
         }
 };
 
@@ -158,16 +143,15 @@ int main(int argc, const char **argv) {
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x].x = (unsigned char)(y*width + x + 1) % 256;
-            host_in[y*width + x].y = (unsigned char)(y*width + x + 2) % 256;
-            host_in[y*width + x].z = (unsigned char)(y*width + x + 3) % 256;
-            host_in[y*width + x].w = (unsigned char)(y*width + x + 4) % 256;
-            reference_in[y*width + x] = host_in[y*width + x];
-            host_out[y*width + x].x = 0;
-            host_out[y*width + x].y = 0;
-            host_out[y*width + x].z = 0;
-            host_out[y*width + x].w = 0;
-            reference_out[y*width + x] = host_out[y*width + x];
+            uchar4 val;
+            val.x = (y*width + x + 1) % 256;
+            val.y = (y*width + x + 2) % 256;
+            val.z = (y*width + x + 3) % 256;
+            val.w = (y*width + x + 4) % 256;
+            host_in[y*width + x] = val;
+            reference_in[y*width + x] = val;
+            host_out[y*width + x] = (uchar4){ 0, 0, 0, 0 };
+            reference_out[y*width + x] = (uchar4){ 0, 0, 0, 0 };
         }
     }
 
@@ -195,6 +179,16 @@ int main(int argc, const char **argv) {
 
 
     #ifdef OpenCV
+    // OpenCV uses NPP library for filtering
+    // image: 4096x4096
+    // kernel size: 3x3
+    // offset 3x3 shifted by 1 -> 1x1
+    // output: 4096x4096 - 3x3 -> 4093x4093; start: 1,1; end: 4094,4094
+    //
+    // image: 4096x4096
+    // kernel size: 4x4
+    // offset 4x4 shifted by 1 -> 2x2
+    // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
     #ifdef CPU
     fprintf(stderr, "\nCalculating OpenCV box filter on the CPU ...\n");
     #else
@@ -264,10 +258,10 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x].x != host_out[y*width +x].x ||
-                reference_out[y*width + x].y != host_out[y*width +x].y ||
-                reference_out[y*width + x].z != host_out[y*width +x].z ||
-                reference_out[y*width + x].w != host_out[y*width +x].w) {
+            if (reference_out[y*width + x].x != host_out[y*width + x].x ||
+                reference_out[y*width + x].y != host_out[y*width + x].y ||
+                reference_out[y*width + x].z != host_out[y*width + x].z ||
+                reference_out[y*width + x].w != host_out[y*width + x].w) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %hhu,%hhu,%hhu,%hhu vs. %hhu,%hhu,%hhu,%hhu\n",
                         x, y,
                         reference_out[y*width + x].x,

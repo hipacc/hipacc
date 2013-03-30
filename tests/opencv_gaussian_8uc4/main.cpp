@@ -157,8 +157,7 @@ class GaussianBlurFilterMask : public Kernel<uchar4> {
         void kernel() {
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
             sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
-                    uchar4 val = Input(cMask);
-                    return cMask() * convert_float4(val); //TODO: line merge fails
+                    return cMask() * convert_float4(Input(cMask));
                     });
 
             output() = convert_uchar4(sum);
@@ -171,8 +170,7 @@ class GaussianBlurFilterMask : public Kernel<uchar4> {
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    uchar4 val = Input(xf, yf);
-                    sum += cMask(xf, yf) * convert_float4(val); //TODO: line merge fails
+                    sum += cMask(xf, yf) * convert_float4(Input(xf, yf));
                 }
             }
 
@@ -200,8 +198,7 @@ class GaussianBlurFilterMaskRow : public Kernel<float4> {
         void kernel() {
             float4 sum = { 0.0f, 0.0f, 0.0f, 0.0f };
             sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
-                    uchar4 val = Input(cMask);
-                    return cMask() * convert_float4(val); //TODO: line merge fails
+                    return cMask() * convert_float4(Input(cMask));
                     });
             output() = sum;
         }
@@ -211,8 +208,7 @@ class GaussianBlurFilterMaskRow : public Kernel<float4> {
             float4 sum = { 0.0f, 0.0f, 0.0f, 0.0f };
 
             for (int xf = -anchor; xf<=anchor; xf++) {
-                uchar4 val = Input(xf, 0);
-                sum += cMask(xf, 0) * convert_float4(val); //TODO: line merge fails
+                sum += cMask(xf, 0) * convert_float4(Input(xf, 0));
             }
 
             output() = sum;
@@ -238,8 +234,7 @@ class GaussianBlurFilterMaskColumn : public Kernel<uchar4> {
         void kernel() {
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
             sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
-                    float4 val = Input(cMask);
-                    return cMask() * convert_float4(val); //TODO: line merge fails
+                    return cMask() * convert_float4(Input(cMask));
                     });
 
             output() = convert_uchar4(sum);
@@ -250,8 +245,7 @@ class GaussianBlurFilterMaskColumn : public Kernel<uchar4> {
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
             for (int yf = -anchor; yf<=anchor; yf++) {
-                float4 val = Input(0, yf);
-                sum += cMask(0, yf) * convert_float4(val); //TODO: line merge fails
+                sum += cMask(0, yf) * convert_float4(Input(0, yf));
             }
 
             output() = convert_uchar4(sum);
@@ -381,9 +375,13 @@ int main(int argc, const char **argv) {
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            unsigned char val = (y*width + x) % 256;
-            host_in[y*width + x] = (uchar4){ val, val, val, val };
-            reference_in[y*width + x] = (uchar4){ val, val, val, val };
+            uchar4 val;
+            val.x = (y*width + x + 1) % 256;
+            val.y = (y*width + x + 2) % 256;
+            val.z = (y*width + x + 3) % 256;
+            val.w = (y*width + x + 4) % 256;
+            host_in[y*width + x] = val;
+            reference_in[y*width + x] = val;
             host_out[y*width + x] = (uchar4){ 0, 0, 0, 0 };
             reference_out[y*width + x] = (uchar4){ 0, 0, 0, 0 };
             reference_tmp[y*width + x] = (float4){ 0.0f, 0.0f, 0.0f, 0.0f };

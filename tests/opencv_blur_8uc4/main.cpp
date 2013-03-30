@@ -1,6 +1,5 @@
 //
-// Copyright (c) 2012, University of Erlangen-Nuremberg
-// Copyright (c) 2012, Siemens AG
+// Copyright (c) 2013, University of Erlangen-Nuremberg
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -77,7 +76,7 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
-            int4 sum = {0,0,0,0};
+            int4 sum = { 0, 0, 0, 0 };
 
             // for even filter sizes use -anchor ... +anchor-1
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
@@ -108,7 +107,7 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
 
     for (int x=anchor_x; x<upper_x; ++x) {
         for (int t0=anchor_y; t0<upper_y; t0+=t) {
-            int4 sum = {0,0,0,0};
+            int4 sum = { 0, 0, 0, 0 };
 
             // first phase: convolution
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
@@ -172,7 +171,7 @@ class BlurFilter : public Kernel<uchar4> {
         void kernel() {
             int anchor_x = size_x >> 1;
             int anchor_y = size_y >> 1;
-            int4 sum = {0,0,0,0};
+            int4 sum = { 0, 0, 0, 0 };
 
             #ifdef SIMPLE
             // for even filter sizes use -anchor ... +anchor-1
@@ -232,11 +231,15 @@ int main(int argc, const char **argv) {
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            uchar val = (y*width + x) % 256;
-            host_in[y*width + x] = (uchar4){val,val,val,val};
-            reference_in[y*width + x] = (uchar4){val,val,val,val};
-            host_out[y*width + x] = (uchar4){0,0,0,0};
-            reference_out[y*width + x] = (uchar4){0,0,0,0};
+            uchar4 val;
+            val.x = (y*width + x + 1) % 256;
+            val.y = (y*width + x + 2) % 256;
+            val.z = (y*width + x + 3) % 256;
+            val.w = (y*width + x + 4) % 256;
+            host_in[y*width + x] = val;
+            reference_in[y*width + x] = val;
+            host_out[y*width + x] = (uchar4){ 0, 0, 0, 0 };
+            reference_out[y*width + x] = (uchar4){ 0, 0, 0, 0 };
         }
     }
 
@@ -266,12 +269,12 @@ int main(int argc, const char **argv) {
     // OpenCV uses NPP library for filtering
     // image: 4096x4096
     // kernel size: 3x3
-    // offset 3x3 shiftet by 1 -> 1x1
+    // offset 3x3 shifted by 1 -> 1x1
     // output: 4096x4096 - 3x3 -> 4093x4093; start: 1,1; end: 4094,4094
     //
     // image: 4096x4096
     // kernel size: 4x4
-    // offset 4x4 shiftet by 1 -> 2x2
+    // offset 4x4 shifted by 1 -> 2x2
     // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
 #ifdef CPU
     fprintf(stderr, "\nCalculating OpenCV blur filter on the CPU ...\n");
@@ -346,10 +349,10 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x].x != host_out[y*width +x].x &&
-                reference_out[y*width + x].y != host_out[y*width +x].y &&
-                reference_out[y*width + x].z != host_out[y*width +x].z &&
-                reference_out[y*width + x].w != host_out[y*width +x].w) {
+            if (reference_out[y*width + x].x != host_out[y*width + x].x &&
+                reference_out[y*width + x].y != host_out[y*width + x].y &&
+                reference_out[y*width + x].z != host_out[y*width + x].z &&
+                reference_out[y*width + x].w != host_out[y*width + x].w) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): "
                         "%hhu,%hhu,%hhu,%hhu vs. %hhu,%hhu,%hhu,%hhu\n", x, y,
                         reference_out[y*width + x].x, host_out[y*width +x].x,
