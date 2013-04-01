@@ -1426,8 +1426,6 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
 
 
 Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
-  FunctionDecl *targetFD;
-
   if (E->getDirectCallee()) {
     QualType QT = E->getCallReturnType();
     if (Kernel->vectorize() && !compilerOptions.emitC()) {
@@ -1610,11 +1608,60 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
 
     // lookup if this function call is supported and choose appropriate
     // function, e.g. exp() instead of expf() in case of OpenCL
+    FunctionDecl *targetFD = NULL;
     if (compilerOptions.emitC()) {
       targetFD = E->getDirectCallee();
     } else {
-      targetFD = builtins.getBuiltinFunction(E->getDirectCallee()->getName(),
-          QT, compilerOptions.getTargetCode());
+      DeclContext *DC = E->getDirectCallee()->getEnclosingNamespaceContext();
+      if (DC->isNamespace()) {
+        NamespaceDecl *NS = dyn_cast<NamespaceDecl>(DC);
+        if (NS->getNameAsString() == "math") {
+          DC = DC->getParent();
+          if (DC) NS = dyn_cast<NamespaceDecl>(DC);
+
+          if (NS->getNameAsString() == "hipacc") {
+            // namespace hipacc::math
+            targetFD = E->getDirectCallee();
+            bool doUpdate = false;
+
+            if (!compilerOptions.emitCUDA()) {
+              std::string name = E->getDirectCallee()->getNameAsString();
+              if (name.at(name.length()-1)=='f') {
+                if (name!="modf" && name!="erf") {
+                  // remove trailing f
+                  name.resize(name.size() - 1);
+                  doUpdate = true;
+                }
+              } else if (name.at(0)=='l' && name=="labs") {
+                // remove leading l
+                name.erase(0, 1);
+                doUpdate = true;
+              }
+
+              if (doUpdate) {
+                SmallVector<QualType, 16> argTypes;
+                SmallVector<std::string, 16> argNames;
+
+                for (FunctionDecl::param_iterator P=targetFD->param_begin(),
+                    PEnd=targetFD->param_end(); P!=PEnd; ++P) {
+                  argTypes.push_back((*P)->getType());
+                  argNames.push_back((*P)->getName());
+                }
+
+                targetFD = createFunctionDecl(Ctx,
+                    Ctx.getTranslationUnitDecl(), name,
+                    targetFD->getResultType(), makeArrayRef(argTypes),
+                    makeArrayRef(argNames));
+              }
+            }
+          }
+        }
+      }
+
+      if (!targetFD) {
+        targetFD = builtins.getBuiltinFunction(E->getDirectCallee()->getName(),
+            QT, compilerOptions.getTargetCode());
+      }
     }
 
     if (!targetFD) {
@@ -1633,28 +1680,28 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       }
       exit(EXIT_FAILURE);
     }
+
+    // add ICE for CodeGen
+    ImplicitCastExpr *ICE = createImplicitCastExpr(Ctx,
+        Ctx.getPointerType(targetFD->getType()), CK_FunctionToPointerDecay,
+        createDeclRefExpr(Ctx, targetFD), NULL, VK_RValue);
+
+    // create CallExpr
+    CallExpr *result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(),
+        E->getType(), E->getValueKind(), E->getRParenLoc());
+
+    result->setNumArgs(Ctx, E->getNumArgs());
+
+    for (unsigned int I=0, N=E->getNumArgs(); I<N; ++I) {
+      result->setArg(I, Clone(E->getArg(I)));
+    }
+
+    setExprProps(E, result);
+
+    return result;
   } else {
     assert(0 && "CallExpr without FunctionDecl as Callee!");
   }
-
-  // add ICE for CodeGen
-  ImplicitCastExpr *ICE = createImplicitCastExpr(Ctx,
-      Ctx.getPointerType(targetFD->getType()), CK_FunctionToPointerDecay,
-      createDeclRefExpr(Ctx, targetFD), NULL, VK_RValue);
-
-  // create CallExpr
-  CallExpr *result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(), E->getType(),
-      E->getValueKind(), E->getRParenLoc());
-
-  result->setNumArgs(Ctx, E->getNumArgs());
-
-  for (unsigned int I=0, N=E->getNumArgs(); I<N; ++I) {
-    result->setArg(I, Clone(E->getArg(I)));
-  }
-
-  setExprProps(E, result);
-
-  return result;
 }
 
 
