@@ -2,7 +2,7 @@ CC = clang++
 CC = g++
 
 MYFLAGS ?= -D WIDTH=4096 -D HEIGHT=4096 -D SIZE_X=5 -D SIZE_Y=5
-CFLAGS = $(MYFLAGS) -Wall -Wunused -I../../include/dsl -D OpenCV -I/opt/local/include/opencv -I/opt/local/include
+CFLAGS = $(MYFLAGS) -Wall -Wunused -I../../include/dsl -I/opt/local/include/opencv -I/opt/local/include
 LDFLAGS = -lm -L/opt/local/lib -lopencv_core -lopencv_gpu -lopencv_imgproc
 OFLAGS = -O3
 
@@ -12,7 +12,7 @@ CFLAGS += -D NO_BOOST -std=c++11 -stdlib=libc++ -nostdinc -I`clang -print-file-n
 LDFLAGS += -L`llvm-config --libdir` -lc++
 else
 CFLAGS += -std=c++0x
-LDFLAGS += -lstdc++ 
+LDFLAGS += -lstdc++
 endif
 
 

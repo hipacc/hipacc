@@ -26,7 +26,6 @@
 
 #include <iostream>
 #include <float.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -47,9 +46,9 @@
 
 #define NT 100
 #define SIMPLE
-#define min(a,b) (((a) < (b)) ? (a) : (b))
 
 using namespace hipacc;
+using namespace hipacc::math;
 
 
 // get time in milliseconds
@@ -169,9 +168,7 @@ class BlurFilter : public Kernel<unsigned char> {
             , nt(nt),
             height(height)
             #endif
-        {
-            addAccessor(&Input);
-        }
+        { addAccessor(&Input); }
 
         void kernel() {
             int anchor_x = size_x >> 1;
@@ -353,9 +350,9 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x] != host_out[y*width +x]) {
+            if (reference_out[y*width + x] != host_out[y*width + x]) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %hhu vs. %hhu\n", x,
-                        y, reference_out[y*width + x], host_out[y*width +x]);
+                        y, reference_out[y*width + x], host_out[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }

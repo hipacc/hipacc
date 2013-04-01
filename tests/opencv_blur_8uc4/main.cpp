@@ -25,7 +25,6 @@
 
 #include <iostream>
 #include <float.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -46,9 +45,9 @@
 
 #define NT 100
 #define SIMPLE
-#define min(a,b) (((a) < (b)) ? (a) : (b))
 
 using namespace hipacc;
+using namespace hipacc::math;
 
 
 // get time in milliseconds
@@ -164,9 +163,7 @@ class BlurFilter : public Kernel<uchar4> {
             , nt(nt),
             height(height)
             #endif
-        {
-            addAccessor(&Input);
-        }
+        { addAccessor(&Input); }
 
         void kernel() {
             int anchor_x = size_x >> 1;
@@ -358,10 +355,10 @@ int main(int argc, const char **argv) {
                 reference_out[y*width + x].w != host_out[y*width + x].w) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): "
                         "%hhu,%hhu,%hhu,%hhu vs. %hhu,%hhu,%hhu,%hhu\n", x, y,
-                        reference_out[y*width + x].x, host_out[y*width +x].x,
-                        reference_out[y*width + x].y, host_out[y*width +x].y,
-                        reference_out[y*width + x].z, host_out[y*width +x].z,
-                        reference_out[y*width + x].w, host_out[y*width +x].w);
+                        reference_out[y*width + x].x, host_out[y*width + x].x,
+                        reference_out[y*width + x].y, host_out[y*width + x].y,
+                        reference_out[y*width + x].z, host_out[y*width + x].z,
+                        reference_out[y*width + x].w, host_out[y*width + x].w);
                 exit(EXIT_FAILURE);
             }
         }

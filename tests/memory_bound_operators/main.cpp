@@ -28,7 +28,6 @@
 #include <vector>
 
 #include <float.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -43,6 +42,7 @@
 #endif
 
 using namespace hipacc;
+using namespace hipacc::math;
 
 
 // get time in milliseconds

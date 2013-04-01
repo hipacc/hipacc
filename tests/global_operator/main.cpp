@@ -27,7 +27,6 @@
 #include <iostream>
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -39,6 +38,7 @@
 //#define HEIGHT 4096
 
 using namespace hipacc;
+using namespace hipacc::math;
 
 
 // get time in milliseconds
@@ -53,15 +53,15 @@ double time_ms () {
 template<typename data_t>
 data_t calc_min_pixel(data_t *in, data_t neutral, int width, int height, int
         offset_x, int offset_y, int is_width, int is_height) {
-    data_t min = neutral;
+    data_t min_val = neutral;
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
         for (int x=offset_x; x<offset_x+is_width; ++x) {
-            if (in[x + y*width] < min) min = in[x + y*width];
+            min_val = min(min_val, in[x + y*width]);
         }
     }
 
-    return min;
+    return min_val;
 }
 template<typename data_t>
 data_t calc_min_pixel(data_t *in, data_t neutral, int width, int height) {
@@ -72,15 +72,15 @@ data_t calc_min_pixel(data_t *in, data_t neutral, int width, int height) {
 template<typename data_t>
 float calc_max_pixel(data_t *in, data_t neutral, int width, int height, int
         offset_x, int offset_y, int is_width, int is_height) {
-    data_t max = neutral;
+    data_t max_val = neutral;
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
         for (int x=offset_x; x<offset_x+is_width; ++x) {
-            if (in[x + y*width] > max) max = in[x + y*width];
+            max_val = max(max_val, in[x + y*width]);
         }
     }
 
-    return max;
+    return max_val;
 }
 template<typename data_t>
 float calc_max_pixel(data_t *in, data_t neutral, int width, int height) {
@@ -122,8 +122,7 @@ struct MinReduction : public GlobalReduction<data_t> {
         {}
 
         data_t reduce(data_t left, data_t right) {
-            if (left < right) return left;
-            else return right;
+            return min(left, right);
         }
 };
 template<typename data_t>
@@ -139,8 +138,7 @@ struct MaxReduction : public GlobalReduction<data_t> {
         {}
 
         data_t reduce(data_t left, data_t right) {
-            if (left > right) return left;
-            else return right;
+            return max(left, right);
         }
 };
 template<typename data_t>
@@ -279,13 +277,11 @@ int main(int argc, const char **argv) {
 #else
     // global operation
     float min_pixel = reduce(IN, FLT_MAX, [&] (float left, float right) {
-            if (left < right) return left;
-            else return right;
+            return min(left, right);
             });
     fprintf(stderr, "reduction, min: %f\n", min_pixel);
     float max_pixel = reduce(IN, FLT_MIN, [&] (float left, float right) {
-            if (left > right) return left;
-            else return right;
+            return max(left, right);
             });
     fprintf(stderr, "reduction, max: %f\n", max_pixel);
     float sum_pixel = reduce(IN, 0.0f, [&] (float left, float right) {

@@ -294,7 +294,7 @@ int main(int argc, const char **argv) {
             float derr = reference_out[y*width + x] - host_out[y*width +x];
             rms_err += derr*derr;
 
-            if (abs(derr) > EPS) {
+            if (fabs(derr) > EPS) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
                         reference_out[y*width + x], host_out[y*width +x]);
                 exit(EXIT_FAILURE);

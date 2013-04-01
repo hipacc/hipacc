@@ -26,7 +26,6 @@
 
 #include <iostream>
 #include <float.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -46,6 +45,7 @@
 //#define CPU
 
 using namespace hipacc;
+using namespace hipacc::math;
 
 
 // get time in milliseconds
@@ -76,9 +76,7 @@ void erode_filter(unsigned char *in, unsigned char *out, int size_x, int size_y,
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    if (min_val > in[(y + yf)*width + x + xf]) {
-                        min_val = in[(y + yf)*width + x + xf];
-                    }
+                    min_val = min(min_val, in[(y + yf)*width + x + xf]);
                 }
             }
             out[y*width + x] = min_val;
@@ -111,9 +109,7 @@ class ErodeFilter : public Kernel<unsigned char> {
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    if (min_val > Input(xf, yf)) {
-                        min_val = Input(xf, yf);
-                    }
+                    min_val = min(min_val, Input(xf, yf));
                 }
             }
             output() = min_val;

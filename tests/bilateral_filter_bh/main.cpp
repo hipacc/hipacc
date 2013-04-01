@@ -25,7 +25,6 @@
 //
 
 #include <iostream>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -45,6 +44,7 @@
 #define CONSTANT 1.0f
 
 using namespace hipacc;
+using namespace hipacc::math;
 
 
 // get time in milliseconds
@@ -66,8 +66,8 @@ template<typename data_t> data_t get_data(data_t *array, int x, int y, int width
             ret = array[x + y*width];
             break;
         case BOUNDARY_CLAMP:
-            x = std::min(std::max(x, 0), width-1);
-            y = std::min(std::max(y, 0), height-1);
+            x = min(max(x, 0), width-1);
+            y = min(max(y, 0), height-1);
             ret = array[x + y*width];
             break;
         case BOUNDARY_REPEAT:
@@ -334,12 +334,10 @@ class BilateralFilterBHCLAMP : public Kernel<float> {
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
                 int iy = Input.getY() + yf;
-                if (iy < 0) iy = 0;
-                if (iy >= height) iy = height-1;
+                iy = min(max(iy, 0), height-1);
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
                     int ix = Input.getX() + xf;
-                    if (ix < 0) ix = 0;
-                    if (ix >= width) ix = width-1;
+                    ix = min(max(ix, 0), width-1);
                     float diff = Input.getPixel(ix, iy) - Input();
 
                     s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) * expf(-c_d
@@ -681,7 +679,7 @@ int main(int argc, const char **argv) {
             float derr = reference_out[y*width + x] - host_out[y*width +x];
             rms_err += derr*derr;
 
-            if (abs(derr) > EPS) {
+            if (fabs(derr) > EPS) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
                         reference_out[y*width + x], host_out[y*width +x]);
                 exit(EXIT_FAILURE);

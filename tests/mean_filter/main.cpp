@@ -26,14 +26,12 @@
 //
 
 #include <iostream>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 
 #include "hipacc.hpp"
 
-#define min(a,b) (((a) < (b)) ? (a) : (b))
 //#define HSCAN
 //#define SIMPLE
 #define EPS 0.02f
@@ -44,6 +42,7 @@
 #define HEIGHT 3200
 
 using namespace hipacc;
+using namespace hipacc::math;
 
 
 // get time in milliseconds
@@ -323,7 +322,7 @@ int main(int argc, const char **argv) {
             float derr = reference_out[y*width + x] - host_out[y*width +x];
             rms_err += derr*derr;
 
-            if (abs(derr) > EPS) {
+            if (fabs(derr) > EPS) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
                         reference_out[y*width + x], host_out[y*width +x]);
                 exit(EXIT_FAILURE);
@@ -343,7 +342,7 @@ int main(int argc, const char **argv) {
             float derr = reference_out[y*width + x] - host_out[y*width +x];
             rms_err += derr*derr;
 
-            if (abs(derr) > EPS) {
+            if (fabs(derr) > EPS) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
                         reference_out[y*width + x], host_out[y*width +x]);
                 exit(EXIT_FAILURE);
