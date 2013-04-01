@@ -494,8 +494,7 @@ ATTRIBUTES RET_TYPE convert_##RET_TYPE(VEC_TYPE vec) { \
 #else //__CUDACC__
 #define MAKE_CONV_FUNC(BASIC_TYPE, RET_TYPE, VEC_TYPE) \
 RET_TYPE convert_##RET_TYPE(VEC_TYPE vec) { \
-    return {(BASIC_TYPE)vec.x, (BASIC_TYPE)vec.y, \
-            (BASIC_TYPE)vec.z, (BASIC_TYPE)vec.w}; \
+    return make_##RET_TYPE(vec.x, vec.y, vec.z, vec.w); \
 }
 #endif //__CUDACC__
 
