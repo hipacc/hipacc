@@ -232,7 +232,10 @@ int main(int argc, const char **argv) {
     // input and output image of widthxheight pixels
     Image<unsigned char> IN(width, height);
     Image<unsigned char> OUT(width, height);
-    Accessor<unsigned char> AccIn(IN, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    // use undefined boundary handling to access image pixels beyond region
+    // defined by Accessor
+    BoundaryCondition<unsigned char> BcIn(IN, size_x, size_y, BOUNDARY_UNDEFINED);
+    Accessor<unsigned char> AccIn(BcIn, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
 
     // initialize data
     for (int y=0; y<height; ++y) {

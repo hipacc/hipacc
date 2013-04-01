@@ -255,8 +255,11 @@ int main(int argc, const char **argv) {
 
     fprintf(stderr, "Calculating bilateral filter ...\n");
 
+    // use undefined boundary handling to access image pixels beyond region
+    // defined by Accessor
+    BoundaryCondition<float> BcIn(IN, 4*sigma_d, 4*sigma_d, BOUNDARY_UNDEFINED);
     // Image without border
-    Accessor<float> AccIn(IN, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
+    Accessor<float> AccIn(BcIn, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
 #ifdef CONVOLUTION_MASK
     BilateralFilterMask BF(BIS, AccIn, M, sigma_d, sigma_r);
 #else
