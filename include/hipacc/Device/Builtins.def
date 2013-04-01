@@ -155,7 +155,6 @@ HIPACCBUILTIN(exp,                  "dd",       HIPACCBIexp,        HIPACCBIexp,
 HIPACCBUILTIN(expf,                 "ff",       HIPACCBIexpf,       OPENCLBIexpf,       RSBIexpf)
 OPENCLBUILTIN(exp,                  "ff",       expf)
 RSBUILTIN(exp,                      "ff",       expf)
-CUDABUILTIN(expf,                   "E4fE4f",   expf4)
 
 HIPACCBUILTIN(exp2,                 "dd",       HIPACCBIexp2,       HIPACCBIexp2,       HIPACCBIexp2)
 HIPACCBUILTIN(exp2f,                "ff",       HIPACCBIexp2f,      OPENCLBIexp2f,      RSBIexp2f)
@@ -225,10 +224,10 @@ HIPACCBUILTIN(hypotf,               "fff",      HIPACCBIhypotf,     OPENCLBIhypo
 OPENCLBUILTIN(hypot,                "fff",      hypotf)
 RSBUILTIN(hypot,                    "fff",      hypotf)
 
-HIPACCBUILTIN(ilogb,                "dd",       HIPACCBIilogb,      HIPACCBIilogb,      HIPACCBIilogb)
-HIPACCBUILTIN(ilogbf,               "ff",       HIPACCBIilogbf,     OPENCLBIilogbf,     RSBIilogbf)
-OPENCLBUILTIN(ilogb,                "ff",       ilogbf)
-RSBUILTIN(ilogb,                    "ff",       ilogbf)
+HIPACCBUILTIN(ilogb,                "id",       HIPACCBIilogb,      HIPACCBIilogb,      HIPACCBIilogb)
+HIPACCBUILTIN(ilogbf,               "if",       HIPACCBIilogbf,     OPENCLBIilogbf,     RSBIilogbf)
+OPENCLBUILTIN(ilogb,                "if",       ilogbf)
+RSBUILTIN(ilogb,                    "if",       ilogbf)
 
 // CUDA only
 HIPACCBUILTIN(isfinite,             "bf",       HIPACCBIisfinite,   FirstBuiltin,       FirstBuiltin)
@@ -315,15 +314,15 @@ HIPACCBUILTIN(powf,                 "fff",      HIPACCBIpowf,       OPENCLBIpowf
 OPENCLBUILTIN(pow,                  "fff",      powf)
 RSBUILTIN(pow,                      "fff",      powf)
 
-HIPACCBUILTIN(pown,                 "dd",       HIPACCBIpown,       HIPACCBIpown,       HIPACCBIpown)
-HIPACCBUILTIN(pownf,                "ff",       HIPACCBIpownf,      OPENCLBIpownf,      RSBIpownf)
-OPENCLBUILTIN(pown,                 "ff",       pownf)
-RSBUILTIN(pown,                     "ff",       pownf)
+HIPACCBUILTIN(pown,                 "ddi",      HIPACCBIpown,       HIPACCBIpown,       HIPACCBIpown)
+HIPACCBUILTIN(pownf,                "ffi",      HIPACCBIpownf,      OPENCLBIpownf,      RSBIpownf)
+OPENCLBUILTIN(pown,                 "ffi",      pownf)
+RSBUILTIN(pown,                     "ffi",      pownf)
 
-HIPACCBUILTIN(powr,                 "dd",       HIPACCBIpowr,       HIPACCBIpowr,       HIPACCBIpowr)
-HIPACCBUILTIN(powrf,                "ff",       HIPACCBIpowrf,      OPENCLBIpowrf,      RSBIpowrf)
-OPENCLBUILTIN(powr,                 "ff",       powrf)
-RSBUILTIN(powr,                     "ff",       powrf)
+HIPACCBUILTIN(powr,                 "ddd",      HIPACCBIpowr,       HIPACCBIpowr,       HIPACCBIpowr)
+HIPACCBUILTIN(powrf,                "fff",      HIPACCBIpowrf,      OPENCLBIpowrf,      RSBIpowrf)
+OPENCLBUILTIN(powr,                 "fff",      powrf)
+RSBUILTIN(powr,                     "fff",      powrf)
 
 // CUDA
 //HIPACCBUILTIN(rcbrt,              "dd",         HIPACCBI,           FirstBuiltin,       FirstBuiltin)
@@ -334,9 +333,9 @@ HIPACCBUILTIN(remainderf,           "fff",      HIPACCBIremainderf, OPENCLBIrema
 OPENCLBUILTIN(remainder,            "fff",      remainderf)
 RSBUILTIN(remainder,                "fff",      remainderf)
 
-HIPACCBUILTIN(remquo,               "dddc*C",   HIPACCBIremquo,     HIPACCBIremquo,     FirstBuiltin)
-HIPACCBUILTIN(remquof,              "fffc*C",   HIPACCBIremquof,    OPENCLBIremquof,    FirstBuiltin)
-OPENCLBUILTIN(remquo,               "fffc*C",   remquof)
+HIPACCBUILTIN(remquo,               "dddi*",    HIPACCBIremquo,     HIPACCBIremquo,     FirstBuiltin)
+HIPACCBUILTIN(remquof,              "fffi*",    HIPACCBIremquof,    OPENCLBIremquof,    FirstBuiltin)
+OPENCLBUILTIN(remquo,               "fffi*",    remquof)
 
 HIPACCBUILTIN(rint,                 "dd",       HIPACCBIrint,       HIPACCBIrint,       HIPACCBIrint)
 HIPACCBUILTIN(rintf,                "ff",       HIPACCBIrintf,      OPENCLBIrintf,      RSBIrintf)
