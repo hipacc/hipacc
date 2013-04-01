@@ -82,9 +82,9 @@ class KernelStatsImpl {
       compilerClasses(compilerClasses),
       Diags(ac.getASTContext().getDiagnostics()),
       DiagIDUnsupportedBO(Diags.getCustomDiagID(DiagnosticsEngine::Error,
-            "Unsupported binary operator: %0.")),
+            "Unsupported binary operator on Accessors: %0.")),
       DiagIDUnsupportedUO(Diags.getCustomDiagID(DiagnosticsEngine::Error,
-            "Unsupported unary operator: %0.")),
+            "Unsupported unary operator on Accessors: %0.")),
       DiagIDUnsupportedCSCE(Diags.getCustomDiagID(DiagnosticsEngine::Error,
             "Unsupported cast operator: %0.")),
       DiagIDUnsupportedTerm(Diags.getCustomDiagID(DiagnosticsEngine::Error,
@@ -509,9 +509,14 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
     case BO_PtrMemD:
     case BO_PtrMemI:
     default:
-      KS.Diags.Report(E->getOperatorLoc(), KS.DiagIDUnsupportedBO) <<
-        E->getOpcodeStr();
-      exit(EXIT_FAILURE);
+      KS.num_ops++;
+      if (checkImageAccess(E->getLHS(), READ_WRITE) ||
+          checkImageAccess(E->getRHS(), READ_WRITE)) {
+        // not supported on image objects
+        KS.Diags.Report(E->getOperatorLoc(), KS.DiagIDUnsupportedBO) <<
+          E->getOpcodeStr();
+        exit(EXIT_FAILURE);
+      }
     case BO_Mul:
     case BO_Div:
     case BO_Rem:
@@ -636,9 +641,13 @@ void TransferFunctions::VisitUnaryOperator(UnaryOperator *E) {
     case UO_Imag:
     case UO_Extension:
     default:
-      KS.Diags.Report(E->getOperatorLoc(), KS.DiagIDUnsupportedUO) <<
-        E->getOpcodeStr(E->getOpcode());
-      exit(EXIT_FAILURE);
+      KS.num_ops++;
+      if (checkImageAccess(E->getSubExpr(), READ_WRITE)) {
+        // not supported on image objects
+        KS.Diags.Report(E->getOperatorLoc(), KS.DiagIDUnsupportedUO) <<
+          E->getOpcodeStr(E->getOpcode());
+        exit(EXIT_FAILURE);
+      }
     case UO_PostInc:
     case UO_PostDec:
     case UO_PreInc:
