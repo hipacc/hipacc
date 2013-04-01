@@ -39,8 +39,8 @@ namespace hipacc {
 namespace ASTNode {
 
 FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
-    Name, QualType RT, ArrayRef<QualType> ArgTypes, std::string *ArgNames, bool
-    isVariadic) {
+    Name, QualType RT, ArrayRef<QualType> ArgTypes, ArrayRef<std::string>
+    ArgNames, bool isVariadic) {
   bool hasWrittenPrototype = true;
   QualType T;
   SmallVector<ParmVarDecl*, 16> Params;

@@ -489,7 +489,7 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
 void CreateHostStrings::writeKernelCall(std::string kernelName,
     HipaccKernelClass *KC, HipaccKernel *K, std::string &resultStr) {
   std::string *argTypeNames = K->getArgTypeNames();
-  std::string *deviceArgNames = K->getDeviceArgNames();
+  ArrayRef<std::string> deviceArgNames = K->getDeviceArgNames();
   std::string *hostArgNames = K->getHostArgNames();
 
   std::stringstream LSS;

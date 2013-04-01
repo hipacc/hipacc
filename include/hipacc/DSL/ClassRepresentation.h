@@ -753,9 +753,9 @@ class HipaccKernel : public HipaccKernelFeatures {
       if (options.emitCUDA()) return argTypeNamesCUDA.data();
       else return argTypeNamesOpenCL.data();
     }
-    std::string *getDeviceArgNames() {
+    ArrayRef<std::string> getDeviceArgNames() {
       createArgInfo();
-      return deviceArgNames.data();
+      return makeArrayRef(deviceArgNames);
     }
     void setHostArgNames(ArrayRef<Expr *>hostArgs, std::string
         &hostLiterals, unsigned int &literalCount) {
