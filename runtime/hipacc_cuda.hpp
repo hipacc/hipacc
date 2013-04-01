@@ -43,6 +43,7 @@
 #include <vector>
 
 #include "hipacc_types.hpp"
+#include "hipacc_math_functions.hpp"
 
 #define HIPACC_NUM_ITERATIONS 10
 

@@ -39,6 +39,7 @@ float hipacc_last_timing = 0.0f;
 #include "kernel.hpp"
 #include "mask.hpp"
 #include "types.hpp"
+#include "math_functions.hpp"
 
 namespace hipacc {
 float hipaccGetLastKernelTiming() {

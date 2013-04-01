@@ -45,6 +45,7 @@
 #include <algorithm>
 
 #include "hipacc_types.hpp"
+#include "hipacc_math_functions.hpp"
 
 using namespace android;
 using namespace android::renderscriptCpp;

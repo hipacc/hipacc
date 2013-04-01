@@ -87,42 +87,6 @@ static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) \
 { \
     return make_##NEW_TYPE(s, s, s, s); \
 } \
- \
- /* min */ \
- \
-ATTRIBUTES BASIC_TYPE min(BASIC_TYPE a, BASIC_TYPE b) { \
-    return (a < b ? a : b); \
-} \
- \
-ATTRIBUTES NEW_TYPE min(NEW_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w)); \
-} \
- \
-ATTRIBUTES NEW_TYPE min(NEW_TYPE a, BASIC_TYPE b) { \
-    return make_##NEW_TYPE(min(a.x, b), min(a.y, b), min(a.z, b), min(a.w, b)); \
-} \
- \
-ATTRIBUTES NEW_TYPE min(BASIC_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(min(a, b.x), min(a, b.y), min(a, b.z), min(a, b.w)); \
-} \
- \
- /* max */ \
- \
-ATTRIBUTES BASIC_TYPE max(BASIC_TYPE a, BASIC_TYPE b) { \
-    return (a > b ? a : b); \
-} \
- \
-ATTRIBUTES NEW_TYPE max(NEW_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w)); \
-} \
- \
-ATTRIBUTES NEW_TYPE max(NEW_TYPE a, BASIC_TYPE b) { \
-    return make_##NEW_TYPE(max(a.x, b), max(a.y, b), max(a.z, b), max(a.w, b)); \
-} \
- \
-ATTRIBUTES NEW_TYPE max(BASIC_TYPE a, NEW_TYPE b) { \
-    return make_##NEW_TYPE(max(a, b.x), max(a, b.y), max(a, b.z), max(a, b.w)); \
-}
 
 
 // vector operators for all data types
@@ -478,8 +442,7 @@ MAKE_VEC_F(double4,   double,   long4)
 // conversion function
 #define MAKE_CONV_FUNC(BASIC_TYPE, RET_TYPE, VEC_TYPE) \
 RET_TYPE convert_##RET_TYPE(VEC_TYPE vec) { \
-    return {(BASIC_TYPE)vec.x, (BASIC_TYPE)vec.y, \
-            (BASIC_TYPE)vec.z, (BASIC_TYPE)vec.w}; \
+    return make_##RET_TYPE(vec.x, vec.y, vec.z, vec.w); \
 }
 
 // generate conversion functions for types
@@ -507,8 +470,7 @@ MAKE_CONV(ulong4)
 MAKE_CONV(float4)
 MAKE_CONV(double4)
 
-
-}
+} // end namespace hipacc
 
 #endif // __TYPES_HPP__
 
