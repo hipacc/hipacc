@@ -2213,7 +2213,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case TARGET_OpenCLCPU:
       break;
     case TARGET_CUDA:
-      if (!emitHints) *OS << "#include \"hipacc_types.hpp\"\n\n";
+      if (!emitHints) *OS << "#include \"hipacc_types.hpp\"\n"
+                          << "#include \"hipacc_math_functions.hpp\"\n\n";
       break;
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
