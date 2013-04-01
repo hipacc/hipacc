@@ -21,6 +21,9 @@ Copyright (c) 2012, Siemens AG
 Copyright (c) 2010, ARM Limited
 All rights reserved.
 
+ERROR: Renderscript (GPU) code generation selected, but no Renderscript-capable target device specified!
+  Please select correct target device/code generation backend combination.
+
 OVERVIEW: HIPAcc - Heterogeneous Image Processing Acceleration framework
 
 USAGE:  hipacc [options] <input>
@@ -28,7 +31,7 @@ USAGE:  hipacc [options] <input>
 OPTIONS:
 
   -emit-cuda              Emit CUDA code; default is OpenCL code
-  -emit-opencl-x86        Emit OpenCL code for x86 devices, no padding supported
+  -emit-opencl-cpu        Emit OpenCL code for CPU devices, no padding supported
   -emit-renderscript      Emit Renderscript code for Android
   -emit-renderscript-gpu  Emit Renderscript code for Android (force GPU execution)
   -emit-filterscript      Emit Filterscript code for Android

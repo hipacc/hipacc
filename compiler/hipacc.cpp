@@ -72,7 +72,7 @@ void printUsage() {
     << "USAGE:  hipacc [options] <input>\n\n"
     << "OPTIONS:\n\n"
     << "  -emit-cuda              Emit CUDA code; default is OpenCL code\n"
-    << "  -emit-opencl-x86        Emit OpenCL code for x86 devices, no padding supported\n"
+    << "  -emit-opencl-cpu        Emit OpenCL code for CPU devices, no padding supported\n"
     << "  -emit-renderscript      Emit Renderscript code for Android\n"
     << "  -emit-renderscript-gpu  Emit Renderscript code for Android (force GPU execution)\n"
     << "  -emit-filterscript      Emit Filterscript code for Android\n"
@@ -132,8 +132,8 @@ int main(int argc, char *argv[]) {
       compilerOptions.setTargetCode(TARGET_CUDA);
       continue;
     }
-    if (StringRef(argv[i]) == "-emit-opencl-x86") {
-      compilerOptions.setTargetCode(TARGET_OpenCLx86);
+    if (StringRef(argv[i]) == "-emit-opencl-cpu") {
+      compilerOptions.setTargetCode(TARGET_OpenCLCPU);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-renderscript") {
@@ -305,13 +305,15 @@ int main(int argc, char *argv[]) {
   if (compilerOptions.emitOpenCL() &&
       !(targetDevice.isARMGPU() || targetDevice.isARMGPU() ||
         targetDevice.isNVIDIAGPU())) {
-    llvm::errs() << "ERROR: Renderscript (GPU) code generation selected, but no Renderscript-capable target device specified!\n"
+    llvm::errs() << "ERROR: OpenCL (GPU) code generation selected, but no OpenCL-capable target device specified!\n"
                  << "  Please select correct target device/code generation backend combination.\n\n";
     printUsage();
     return EXIT_FAILURE;
   }
-  // Renderscript (GPU) only supported on ARM devices
-  if (compilerOptions.emitRenderscriptGPU() && !targetDevice.isARMGPU()) {
+  // Renderscript only supported on ARM devices
+  if ((compilerOptions.emitRenderscript() ||
+       compilerOptions.emitRenderscriptGPU() ||
+       compilerOptions.emitFilterscript()) && !targetDevice.isARMGPU()) {
     llvm::errs() << "ERROR: Renderscript (GPU) code generation selected, but no Renderscript-capable target device specified!\n"
                  << "  Please select correct target device/code generation backend combination.\n\n";
     printUsage();
@@ -326,10 +328,10 @@ int main(int argc, char *argv[]) {
       compilerOptions.setTextureMemory(Linear2D);
     }
   }
-  // Textures in OpenCL - no support on x86
-  if (compilerOptions.emitOpenCLx86() && compilerOptions.useTextureMemory(USER_ON)) {
+  // Textures in OpenCL - no support on CPU
+  if (compilerOptions.emitOpenCLCPU() && compilerOptions.useTextureMemory(USER_ON)) {
       compilerOptions.setTextureMemory(NoTexture);
-      llvm::errs() << "Warning: texture support disabled! x86 devices do not support textures!\n";
+      llvm::errs() << "Warning: texture support disabled! CPU devices do not support textures!\n";
   }
   // Textures in OpenCL - only Array2D textures supported
   if (compilerOptions.emitOpenCL() && compilerOptions.useTextureMemory(USER_ON)) {

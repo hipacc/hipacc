@@ -1326,7 +1326,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             case TARGET_CUDA:
               name = "cu"; break;
             case TARGET_OpenCL:
-            case TARGET_OpenCLx86:
+            case TARGET_OpenCLCPU:
               name = "cl"; break;
             case TARGET_Renderscript:
             case TARGET_RenderscriptGPU:
@@ -1689,7 +1689,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
   switch (compilerOptions.getTargetCode()) {
     default:
     case TARGET_C:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
@@ -1922,7 +1922,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     case TARGET_CUDA:
       Policy.LangOpts.CUDA = 1; break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       Policy.LangOpts.OpenCL = 1; break;
     case TARGET_C:
     case TARGET_Renderscript:
@@ -1942,7 +1942,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
       filename += ".cu";
       ifdef += "CU_"; break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       filename += ".cl";
       ifdef += "CL_"; break;
     case TARGET_Renderscript:
@@ -1984,7 +1984,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     case TARGET_C:
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       *OS << "#include \"hipacc_ocl_red.hpp\"\n\n";
       break;
     case TARGET_CUDA:
@@ -2025,7 +2025,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       break;
     case TARGET_CUDA:
       *OS << "extern \"C\" {\n";
@@ -2062,7 +2062,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     case TARGET_C:
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       // 2D reduction
       if (compilerOptions.useTextureMemory()) {
         *OS << "REDUCTION_OCL_2D_IMAGE(cl";
@@ -2156,7 +2156,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case TARGET_CUDA:
       Policy.LangOpts.CUDA = 1; break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       Policy.LangOpts.OpenCL = 1; break;
     case TARGET_C:
     case TARGET_Renderscript:
@@ -2176,7 +2176,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       filename += ".cu";
       ifdef += "CU_"; break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       filename += ".cl";
       ifdef += "CL_"; break;
     case TARGET_Renderscript:
@@ -2210,7 +2210,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       break;
     case TARGET_CUDA:
       if (!emitHints) *OS << "#include \"hipacc_types.hpp\"\n\n";
@@ -2244,7 +2244,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             }
             break;
           case TARGET_OpenCL:
-          case TARGET_OpenCLx86:
+          case TARGET_OpenCLCPU:
             *OS << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
             break;
           case TARGET_Renderscript:
@@ -2273,7 +2273,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             break;
           case TARGET_CUDA:
           case TARGET_OpenCL:
-          case TARGET_OpenCLx86:
+          case TARGET_OpenCLCPU:
           case TARGET_Renderscript:
           case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
@@ -2290,7 +2290,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             break;
           case TARGET_CUDA:
           case TARGET_OpenCL:
-          case TARGET_OpenCLx86:
+          case TARGET_OpenCLCPU:
           case TARGET_Renderscript:
           case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
@@ -2326,7 +2326,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           break;
         case TARGET_CUDA:
           // surface declaration
@@ -2357,7 +2357,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           break;
         case TARGET_CUDA:
           // texture declaration
@@ -2401,7 +2401,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       if (Mask->isConstant()) {
         switch (compilerOptions.getTargetCode()) {
           case TARGET_OpenCL:
-          case TARGET_OpenCLx86:
+          case TARGET_OpenCLCPU:
             *OS << "__constant ";
             break;
           case TARGET_CUDA:
@@ -2442,7 +2442,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         // for other back ends, the mask will be added as kernel parameter
         switch (compilerOptions.getTargetCode()) {
           case TARGET_OpenCL:
-          case TARGET_OpenCLx86:
+          case TARGET_OpenCLCPU:
             break;
           case TARGET_CUDA:
             *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
@@ -2490,7 +2490,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       }
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       if (compilerOptions.useTextureMemory() &&
           compilerOptions.getTextureType()==Array2D) {
         *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
@@ -2538,7 +2538,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (Mask) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           if (!Mask->isConstant()) {
             if (comma++) *OS << ", ";
             *OS << "__constant ";
@@ -2570,7 +2570,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           break;
         case TARGET_CUDA:
           if (compilerOptions.useTextureMemory() &&
@@ -2601,7 +2601,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (Acc) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           // __global keyword to specify memory location is only needed for OpenCL
           if (comma++) *OS << ", ";
           if (K->useTextureMemory(Acc)) {

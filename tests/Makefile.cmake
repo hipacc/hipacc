@@ -83,9 +83,9 @@ ifneq ($(HIPACC_TARGET),Midgard)
 	./main_opencl
 endif
 
-opencl_x86:
+opencl_cpu:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-opencl-x86 $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-opencl-cpu $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
 	TEST_CASE=$(TEST_CASE) make -f Makefile_CL MYFLAGS="$(MYFLAGS)"
 ifneq ($(HIPACC_TARGET),Midgard)

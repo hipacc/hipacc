@@ -740,7 +740,7 @@ class HipaccKernel : public HipaccKernelFeatures {
         case TARGET_CUDA:
           return ArrayRef<QualType>(argTypesCUDA.data(), argTypesCUDA.size());
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
         case TARGET_Renderscript:
         case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:

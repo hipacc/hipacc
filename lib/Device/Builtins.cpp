@@ -344,7 +344,7 @@ void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
             if (!getBuiltinFunction(BuiltinInfo[i].CUDA)) continue;
             break;
           case TARGET_OpenCL:
-          case TARGET_OpenCLx86:
+          case TARGET_OpenCLCPU:
             if (!getBuiltinFunction(BuiltinInfo[i].OpenCL)) continue;
             break;
           case TARGET_Renderscript:
@@ -358,8 +358,8 @@ void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
         if (target == TARGET_CUDA) break;
         continue;
       case TARGET_OpenCL:
-      case TARGET_OpenCLx86:
-        if (target == TARGET_OpenCL || target == TARGET_OpenCLx86) break;
+      case TARGET_OpenCLCPU:
+        if (target == TARGET_OpenCL || target == TARGET_OpenCLCPU) break;
         continue;
       case TARGET_Renderscript:
       case TARGET_RenderscriptGPU:
@@ -424,7 +424,7 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
             case TARGET_CUDA:
               return getBuiltinFunction(BuiltinInfo[i].CUDA);
             case TARGET_OpenCL:
-            case TARGET_OpenCLx86:
+            case TARGET_OpenCLCPU:
               return getBuiltinFunction(BuiltinInfo[i].OpenCL);
             case TARGET_Renderscript:
             case TARGET_RenderscriptGPU:
@@ -435,8 +435,8 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
         case TARGET_CUDA:
           if (target == TARGET_CUDA) return BuiltinInfo[i].FD;
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
-          if (target == TARGET_OpenCL || target == TARGET_OpenCLx86)
+        case TARGET_OpenCLCPU:
+          if (target == TARGET_OpenCL || target == TARGET_OpenCLCPU)
             return BuiltinInfo[i].FD;
         case TARGET_Renderscript:
         case TARGET_RenderscriptGPU:

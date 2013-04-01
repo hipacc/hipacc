@@ -149,7 +149,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           }
           // fall through
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           if (Kernel->useTextureMemory(Acc)) {
             return accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
           }

@@ -82,7 +82,7 @@ std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
       }
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       switch (Kernel->useTextureMemory(Acc)) {
         case NoTexture:
         case Linear1D:
@@ -171,7 +171,7 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
     case TARGET_CUDA:
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       // no function overloading supported in OpenCL -> add type specifier to function name
       name += "_" + builtins.EncodeTypeIntoStr(Acc->getImage()->getPixelQualType(), Ctx);
       break;

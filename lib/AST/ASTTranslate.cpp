@@ -487,7 +487,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       barrier = builtins.getBuiltinFunction(CUDABI__syncthreads);
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       initOpenCL(kernelBody);
       // void barrier(cl_mem_fence_flags);
       barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
@@ -662,7 +662,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           VD->addAttr(new (Ctx) CUDASharedAttr(SourceLocation(), Ctx));
           break;
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           VD = createVarDecl(Ctx, DC, sharedName, Ctx.getAddrSpaceQualType(QT,
                 LangAS::opencl_local), NULL);
           break;
@@ -1061,7 +1061,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           labelBody.push_back(createFunctionCall(Ctx, barrier, args));
           break;
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           // TODO: pass CLK_LOCAL_MEM_FENCE argument to barrier()
           args.push_back(createIntegerLiteral(Ctx, 0));
           labelBody.push_back(createFunctionCall(Ctx, barrier, args));
@@ -1963,7 +1963,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               result = accessMem2DAt(LHS, midx_x, midx_y);
               break;
             case TARGET_OpenCL:
-            case TARGET_OpenCLx86:
+            case TARGET_OpenCLCPU:
             case TARGET_Renderscript:
               if (Mask->isConstant()) {
                 // array subscript: Mask[conv_y][conv_x]
@@ -1998,7 +1998,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                   Ctx.IntTy));
             break;
           case TARGET_OpenCL:
-          case TARGET_OpenCLx86:
+          case TARGET_OpenCLCPU:
           case TARGET_Renderscript:
             if (Mask->isConstant()) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
@@ -2199,7 +2199,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           break;
         case TARGET_CUDA:
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
         case TARGET_Renderscript:
         case TARGET_RenderscriptGPU:
           result = accessMem(LHS, Acc, memAcc);
@@ -2280,7 +2280,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         }
         break;
       case TARGET_OpenCL:
-      case TARGET_OpenCLx86:
+      case TARGET_OpenCLCPU:
         if (Kernel->useTextureMemory(Acc)) {
           result = accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
         } else {

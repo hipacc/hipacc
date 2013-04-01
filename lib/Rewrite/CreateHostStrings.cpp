@@ -47,7 +47,7 @@ void CreateHostStrings::writeHeaders(std::string &resultStr) {
       resultStr += "#include \"hipacc_cuda.hpp\"\n\n";
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       resultStr += "#include \"hipacc_ocl.hpp\"\n\n";
       break;
     case TARGET_Renderscript:
@@ -69,9 +69,9 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
       resultStr += indent;
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       resultStr += "hipaccInitPlatformsAndDevices(";
-      if (options.emitOpenCLx86()) {
+      if (options.emitOpenCLCPU()) {
         resultStr += "CL_DEVICE_TYPE_CPU";
       } else {
         resultStr += "CL_DEVICE_TYPE_GPU";
@@ -108,7 +108,7 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
       resultStr += indent;
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       resultStr += "cl_kernel " + kernelName + suffix;
       resultStr += " = hipaccBuildProgramAndKernel(\"";
       resultStr += kernelName;
@@ -156,7 +156,7 @@ void CreateHostStrings::writeReductionCompilation(HipaccGlobalReduction *GR,
       writeKernelCompilation(GR->getFileName(), resultStr);
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       writeKernelCompilation(GR->getFileName(), resultStr, "2D");
       writeKernelCompilation(GR->getFileName(), resultStr, "1D");
       break;
@@ -172,7 +172,7 @@ void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
     case TARGET_C:
     case TARGET_CUDA:
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       break;
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
@@ -236,7 +236,7 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
       resultStr += "hipaccCreateAllocation((" + type + "*)NULL, ";
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       resultStr += indent + "cl_mem " + memName + " = ";
       if (options.useTextureMemory()) {
         resultStr += "hipaccCreateImage<" + type + ">(NULL, ";
@@ -289,7 +289,7 @@ void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
       resultStr += ");";
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       resultStr += "cl_mem " + memName + " = hipaccCreateBufferConstant<" + type + ">(";
       resultStr += width;
       resultStr += ", " + height;
@@ -319,7 +319,7 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
           resultStr += "hipaccWriteAllocation(";
           break;
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           if (options.useTextureMemory() && options.getTextureType()==Array2D) {
             resultStr += "hipaccWriteImage(";
           } else {
@@ -347,7 +347,7 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
           resultStr += "hipaccReadAllocation(";
           break;
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           if (options.useTextureMemory()) {
             resultStr += "hipaccReadImage(";
           } else {
@@ -371,7 +371,7 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
           }
           break;
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           if (options.useTextureMemory() && options.getTextureType()==Array2D) {
             resultStr += "hipaccCopyImage(";
           } else {
@@ -410,7 +410,7 @@ void CreateHostStrings::writeMemoryTransferRegion(HipaccImage *SrcImg,
       }
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       if (options.useTextureMemory() && options.getTextureType()==Array2D) {
         resultStr += "hipaccCopyImageRegion(";
       } else {
@@ -478,7 +478,7 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
       resultStr += ", (" + Mask->getTypeStr() + " *)" + mem + ");";
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       resultStr += "hipaccWriteBuffer(" + Mask->getName();
       resultStr += ", (" + Mask->getTypeStr() + " *)" + mem + ");";
       break;
@@ -522,7 +522,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       gridStr = K->getIterationSpace()->getAccessor()->getImage()->getName();
       break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       blockStr = "local_work_size" + LSS.str();
       gridStr = "global_work_size" + LSS.str();
       break;
@@ -546,7 +546,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += indent + "std::vector<hipacc_tex_info> _texs" + kernelName + ";\n";
         break;
       case TARGET_OpenCL:
-      case TARGET_OpenCLx86:
+      case TARGET_OpenCLCPU:
         resultStr += indent + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
         break;
       case TARGET_Renderscript:
@@ -649,7 +649,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += indent;
         break;
       case TARGET_OpenCL:
-      case TARGET_OpenCLx86:
+      case TARGET_OpenCLCPU:
         // size_t block
         resultStr += "size_t " + blockStr + "[2];\n";
         resultStr += indent + blockStr + "[0] = " + cX.str() + ";\n";
@@ -825,7 +825,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += indent;
           break;
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           resultStr += "std::make_pair(sizeof(" + argTypeNames[i];
           resultStr += "), (void *)" + hostArgNames[i] + "));\n";
           resultStr += indent;
@@ -860,7 +860,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += indent;
           break;
         case TARGET_OpenCL:
-        case TARGET_OpenCLx86:
+        case TARGET_OpenCLCPU:
           LSS.str("");
           LSS.clear();
           LSS << curArg++;
@@ -929,7 +929,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         }
         break;
       case TARGET_OpenCL:
-      case TARGET_OpenCLx86:
+      case TARGET_OpenCLCPU:
         if (options.timeKernels()) {
           resultStr += "hipaccEnqueueKernelBenchmark(" + kernelName;
         } else {
@@ -993,7 +993,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += ", " + blockStr + ");";
         break;
       case TARGET_OpenCL:
-      case TARGET_OpenCLx86:
+      case TARGET_OpenCLCPU:
         resultStr += "hipaccEnqueueKernel(";
         resultStr += kernelName;
         break;
@@ -1065,7 +1065,7 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
       return;
     case TARGET_Filterscript:
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       if (options.exploreConfig()) {
         resultStr += "hipaccApplyReductionExploration<" + GR->getType() + ">(";
         resultStr += "\"" + GR->getFileName() + ".cl\", ";
@@ -1165,7 +1165,7 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
     case TARGET_CUDA:
       resultStr += "_CUDA, "; break;
     case TARGET_OpenCL:
-    case TARGET_OpenCLx86:
+    case TARGET_OpenCLCPU:
       resultStr += "_OPENCL, "; break;
   }
   // data type
