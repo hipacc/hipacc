@@ -553,23 +553,30 @@ void hipaccDumpBinary(cl_program program, cl_device_id device) {
     err |= clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, num_devices * sizeof(size_t), binary_sizes, NULL);
 
     // Get the binaries
-    char **binary = (char **)malloc(num_devices * sizeof(char *));
+    unsigned char **binary = (unsigned char **)malloc(num_devices * sizeof(unsigned char *));
     for (unsigned int i=0; i<num_devices; i++) {
-        binary[i]= (char *)malloc(binary_sizes[i]);
+        binary[i] = (unsigned char *)malloc(binary_sizes[i]);
     }
-    err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES, 0, binary, NULL);
+    err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES,  sizeof(unsigned char *)*num_devices, binary, NULL);
     checkErr(err, "clGetProgramInfo()");
 
     for (unsigned int i=0; i<num_devices; i++) {
         if (devices[i] == device) {
-            std::cerr << "OpenCL binary : " << std::endl << binary[i] << std::endl;
+            std::cerr << "OpenCL binary : " << std::endl;
+            // binary can contain any character, emit char by char
+            for (unsigned int n=0; n<binary_sizes[i]; n++) {
+                std::cerr << binary[i][n];
+            }
+            std::cerr << std::endl;
         }
     }
 
     for (unsigned int i=0; i<num_devices; i++) {
         free(binary[i]);
     }
+    free(binary);
     free(binary_sizes);
+    free(devices);
 }
 
 
