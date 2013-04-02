@@ -303,7 +303,7 @@ int main(int argc, char *argv[]) {
   }
   // OpenCL (GPU) only supported on GPU devices
   if (compilerOptions.emitOpenCL() &&
-      !(targetDevice.isARMGPU() || targetDevice.isARMGPU() ||
+      !(targetDevice.isAMDGPU() || targetDevice.isARMGPU() ||
         targetDevice.isNVIDIAGPU())) {
     llvm::errs() << "ERROR: OpenCL (GPU) code generation selected, but no OpenCL-capable target device specified!\n"
                  << "  Please select correct target device/code generation backend combination.\n\n";
