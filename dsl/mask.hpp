@@ -171,13 +171,13 @@ auto convolve(Mask<data_t> &mask, HipaccConvolutionMode mode, const Function& fu
             case HipaccMIN:
                 {
                 auto tmp = fun();
-                result = min(tmp, result);
+                result = hipacc::math::min(tmp, result);
                 }
                 break;
             case HipaccMAX:
                 {
                 auto tmp = fun();
-                result = max(tmp, result);
+                result = hipacc::math::max(tmp, result);
                 }
                 break;
             case HipaccPROD:
