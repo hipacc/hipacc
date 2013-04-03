@@ -12,7 +12,6 @@ also LLVM and libcxx are required. Using Polly is optional.
     \item \href{http://llvm.org}{LLVM compiler infrastructure}
     \item \href{http://libcxx.llvm.org}{libc++: C++ standard library}
     \item \href{http://polly.llvm.org}{Polly: polyhedral optimizations for LLVM} (optional)
-    %\item \href{http://www.cloog.org}{CLooG: the chunky loop generator} (optional)
 \end{itemize}
 
 Installation of dependencies:
@@ -32,8 +31,8 @@ cd <source_dir>/llvm/tools
 git clone http://llvm.org/git/polly.git
 cd polly && git checkout <polly_revision>
 \end{lstlisting}
-Configure and install the software packages using {\tt ./configure} and {\tt
-make install}.\\
+Configure the software packages using CMake, build and install using {\tt make
+install}.\\
 Note: On GNU/Linux systems, libc++ has to be built using clang/clang++. The
 easiest way to do this is to use CMake and to specify the compilers at the command
 line: \verb|CXX=clang++ CC=clang cmake ../ -DCMAKE_INSTALL_PREFIX=/opt/local| \\
@@ -84,4 +83,21 @@ mkdir install_dir
 cmake ../ -DCMAKE_INSTALL_PREFIX=./install_dir
 make && make install
 \end{lstlisting}
+
+
+\paragraph{Android Cross Compilation:}
+Generating target code for Android requires cross compilation. Therefore,
+additional variables are recognized for cross compilation for Android (given
+are examples to target the Arndale Board with a Samsung Exynos 5 Dual (ARM
+Cortex-A15 \& ARM Mali T604 GPU):
+
+\begin{itemize}
+    \item ANDROID\_SOURCE\_DIR:         Android source directory\\(e.g. -DANDROID\_SOURCE\_DIR=/opt/arndaleboard/android-jb-mr1)
+    \item TARGET\_NAME:                 Name of the target platform\\(e.g. -DTARGET\_NAME=arndale)
+    \item HOST\_TYPE:                   Name of the local compile host type\\(e.g. -DHOST\_TYPE=linux-x86)
+    \item NDK\_TOOLCHAIN\_DIR           Android NDK directory\\(e.g. -DNDK\_TOOLCHAIN\_DIR=/opt/android/android-14-toolchain)
+    \item EMBEDDED\_OPENCL\_INC\_PATH:  OpenCL include path\\(e.g. -DEMBEDDED\_OPENCL\_INC\_PATH=/opt/cuda/include)
+    \item EMBEDDED\_OPENCL\_LIB\_PATH:  OpenCL library path within the target system\\(e.g. -DEMBEDDED\_OPENCL\_LIB\_PATH=vendor/lib/egl)
+    \item EMBEDDED\_OPENCL\_LIB:        Name of the embedded OpenCL library\\(e.g. -DEMBEDDED\_OPENCL\_LIB=libGLES\_mali.so)
+\end{itemize}
 

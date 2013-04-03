@@ -6,11 +6,11 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[english]{babel}
+\usepackage{microtype}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{graphicx}
 \usepackage{calc}
 \usepackage{color}
-\usepackage{cite}
 \usepackage{multirow}
 \usepackage{hyperref}
 \usepackage[section]{placeins}
@@ -18,11 +18,16 @@
 \usepackage{alltt}
 \usepackage{listings}
 \usepackage{pgf}
-\usepackage{tikz}
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
+\usepackage{tikz}
 \usepackage[lined,ruled,linesnumbered]{algorithm2e}
 \usepackage{ctable}
+
+% biblatex + biber
+\usepackage[autostyle]{csquotes}
+\usepackage[backend=biber,doi=false]{biblatex}
+\addbibresource[]{literature.bib}
 
 \ifx\shipout\UnDeFiNeD % HTML only
 \newcommand{\ifhtml}[2]{#1}

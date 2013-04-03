@@ -4,6 +4,8 @@
 
 TEXINPUTS:=.//:$(TEXINPUTS)
 PDFLATEX=pdflatex -shell-escape
+# use biber instead of bibtex
+BIBLATEX = biber
 
 ifeq ($(shell echo -e x), -e x)
     ECHO = echo
@@ -29,12 +31,8 @@ $(PDF): *.tex $(BIB)
 	@$(ECHO) " *\n * pdflatex: $(TEX) > $@ \n *"; \
 	( \
 	TEXINPUTS=$(TEXINPUTS) $(PDFLATEX) $(TEX); \
+	$(BIBLATEX) $(TEX:.tex=); \
 	TEXINPUTS=$(TEXINPUTS) $(PDFLATEX) $(TEX); \
-	if grep -q "There were undefined references." $(TEX:.tex=.log); \
-	then \
-		bibtex $(TEX:.tex=); \
-		TEXINPUTS=$(TEXINPUTS) $(PDFLATEX) $(TEX); \
-	fi; \
 	if grep -q "There were undefined references." $(TEX:.tex=.log); \
 	then \
 		TEXINPUTS=$(TEXINPUTS) $(PDFLATEX) $(TEX); \

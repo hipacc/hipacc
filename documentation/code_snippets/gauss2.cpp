@@ -8,12 +8,10 @@ class GaussianFilter : public Kernel<float> {
       Kernel(IS),
       Input(Input),
       cMask(cMask)
-    {
-      addAccessor(&Input);
-    }
+    { addAccessor(&Input); }
 
     void kernel() {
-      output() = convolve(cMask, HipaccSUM, [&] () {
+      output() = convolve(cMask, HipaccSUM, [&] () -> float {
         return cMask()*Input(cMask);
         });
     }

@@ -1,6 +1,6 @@
 \section{Framework Usage}
 In order to generate target code for a \ac{GPU} accelerator, the user invokes the \verb|hipacc| compiler providing an input file and specifying the output file using the \verb|-o <file>| option.
-In addition, the \verb|-target <n>| option specifies the target hardware. Supported devices are listed in Table~\ref{tab:cc}.
+In addition, the \verb|-target <n>| option specifies the target hardware. Supported devices are listed in Table~\ref{tab:devices}.
 
 \subsection{Optimization Selection}
 The code variant (i.\,e., combination of optimizations) for a particular target device is automatically chosen by the \ac{HIPAcc} framework according to an expert system and based on heuristics.
@@ -88,10 +88,10 @@ export HIPACC_TARGET=Tesla-13
 The target hardware as supported by \ac{HIPAcc} is categorized according to a
 target architecture. The target architecture corresponds to the code name of
 NVIDIA GPUs with compute capability appended and corresponds to the series
-specification for GPUs from AMD and ARM. Table~\ref{tab:cc} lists the devices
+specification for GPUs from AMD and ARM. Table~\ref{tab:devices} lists the devices
 currently supported by the \ac{HIPAcc} framework.
 
-%\ctable[pos=hb, caption={Compute capabilities and sample GPU devices supported by the compiler.},label={tab:cc}]{ll}{}{
+%\ctable[pos=hb, caption={Compute capabilities and sample GPU devices supported by the compiler.},label={tab:devices}]{ll}{}{
 %\FL
 %target architecture & supported devices \ML
 %Tesla-10                & NVIDIA GeForce 8800 GTX, 9800 GT, Tesla C870 \NN
@@ -128,6 +128,6 @@ Midgard                 & ARM Mali T6xx \\
 \hline
     \end{tabular}
     \caption{Target architecture and sample GPU devices supported by the
-    \ac{HIPAcc} framework.}\label{tab:cc}
+    \ac{HIPAcc} framework.}\label{tab:devices}
 \end{table}
 

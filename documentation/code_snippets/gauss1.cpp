@@ -11,14 +11,12 @@ class GaussianFilter : public Kernel<float> {
       cMask(cMask),
       size_x(size_x),
       size_y(size_y)
-    {
-      addAccessor(&Input);
-    }
+    { addAccessor(&Input); }
 
     void kernel() {
       const int ax = size_x >> 1;
       const int ay = size_y >> 1;
-      float sum = 0.0f;
+      float sum = 0;
 
       for (int yf = -ay; yf<=ay; yf++) {
         for (int xf = -ax; xf<=ax; xf++) {

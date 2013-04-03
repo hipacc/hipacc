@@ -2,7 +2,10 @@
 The \ac{DSL} can be separated into two parts: a) host code that describes the binding to standard C/C++ code and b) device code that describes the calculation on the graphics card.
 
 
-\subsection{Built-in C++ Classes}\label{sec:framework_classes}
+%
+% Built-in C++ Classes
+%
+\subsection{Built-in C++ Classes}\label{sec:framework:classes}
 The library consists of built-in C++ classes that describe the following three basic components required to express image processing on an abstract level:
 \begin{itemize}
     \item {\em Image}:
@@ -93,7 +96,10 @@ AccessorNN<type>(BoundaryCondition, width, height, offset_x, offset_y);
 \end{itemize}
 
 
-\subsection{Example: Gaussian Filter}\label{sec:gaussian_filter}
+%
+% Example: Gaussian Filter
+%
+\subsection{Defining Image Operators}\label{sec:framework:kernels}
 In the following, the \ac{HIPAcc} framework is illustrated using a Gaussian filter, smoothing an image. By doing so, the Gaussian filter reduces image noise and detail. This filter is a local operator that is applied to a neighborhood ($\sigma$) of each pixel to produce a smoothed image (see Equation~\ifhtml{(1)}{\eqref{eq:01}}). The filter mask of the Gaussian filter as described in Equation~\ifhtml{(2)}{\eqref{eq:02}} depends only on the size of the considered neighborhood ($\sigma$) and is otherwise constant for the image. Therefore, the filter mask is typically precalculated and stored in a lookup table to avoid redundant calculations for each image pixel.
 \begin{align}
     I_{Out}(x,y) = \sum_{ox=-\sigma}^{+\sigma} \sum_{oy=-\sigma}^{+\sigma} &G((x,y),(x+ox,y+oy)) *\nonumber\\
@@ -116,4 +122,107 @@ As an alternative, the convolution can be expressed using the \verb|convolve| me
 \paragraph{Host Code:}
 In Listing~\ifhtml{4}{\ref{lst:gauss_host_code}}, the input and output {\em Image} objects {\tt IN} and {\tt OUT} are defined as two-dimensional $W \times H$ grayscale images, having pixels represented as floating-point numbers (lines 10--11). The {\em Image} object {\tt IN} is initialized with the {\tt host\_in} pointer to a plain C array (line 14). The Gaussian filter {\em Mask} object {\tt GMask} is defined (line 17) and is initialized (line 18) for the filter size. Because of accessing neighboring pixels in the Gaussian filter, border handling is required. In line 21, a {\em Boundary Condition} object specifying mirroring as boundary mode for the filter size is defined. The region of interest {\tt IsOut} contains the whole image (line 24) and the {\em Accessor} {\tt AccIn} is defined on the input image taking the boundary condition into account (line 27). The kernel is initialized with the iteration space, accessor, and filter mask objects as well as filter size parameters $size\_x$ and $size\_y$ (line 30), and executed by a call to the {\tt execute()} method (line 33). To retrieve the output image, the {\tt host\_out} pointer is assigned the {\em Image} object {\tt OUT}, invoking the {\tt getData()} operator (line 36).
 \includecodefile{code_snippets/gauss_host.cpp}{Host code, instantiating and executing the Gaussian filter.}{lst:gauss_host_code}{4}
+
+
+%
+% Memory Management
+%
+\subsection{Memory Management}\label{sec:memory:management}
+For each {\em Image} defined in the \ac{DSL}, memory is allocated on the compute device (e.\,g., GPU). Synchronization between the memory allocated on the compute device and the data assigned to the {\em Image} instance is explicitly done by the programmer. Assigning a memory pointer to an {\em Image} triggers the memory transfer from the host to the compute device. Copying the data back to the host is initiated by the {\tt getData()} operator.
+
+Once the data is on the compute device, data can be directly copied between {\em Images} and {\em Accessors}. Listing~\ifhtml{6}{\ref{lst:memory:management}} shows the possibilities of memory assignments between {\em Images} and {\em Accessors} as well as the data transfer to and from the compute device.
+\includecodefile{code_snippets/memory_management.cpp}{Data transfer possibilities in \ac{HIPAcc}.}{lst:memory:management}{5}
+
+
+%
+% Data Types and Operations
+%
+\subsection{Supported Data Types and Operations}\label{sec:data:types:operations}
+
+\paragraph{Data Types:}
+\ac{HIPAcc} supports all built-in (primitive) data types supported in C/C++ and
+provides vector types (currently only with 4 vector elements) for these data
+types. Table~\ref{tab:types} lists the supported built-in data types in C/C++
+and the corresponding scalar and vector data types in \ac{HIPAcc}.
+
+
+%\ctable[pos=hb, caption={Supported built-in types and vector types by the \ac{HIPAcc} framework.},label={tab:types}]{lll}{}{
+%\FL
+%C/C++ built-in type & scalar type   & vector type \ML
+%char                & char          & char4 \NN
+%unsigned char       & uchar         & uchar4 \NN
+%short               & short         & short4 \NN
+%unsigned short      & ushort        & ushort4 \NN
+%int                 & int           & int4 \NN
+%unsigned int        & uint          & uint4 \NN
+%long                & long          & long4 \NN
+%unsigned long       & ulong         & ulong4 \NN
+%float               & float         & float4 \NN
+%double              & double        & double4 \LL
+%}
+\begin{table}
+    \centering
+    \begin{tabular}{lll}
+\hline
+C/C++ built-in type \qquad & scalar type \qquad & vector type \\
+\hline
+char                & char          & char4 \\
+unsigned char       & uchar         & uchar4 \\
+short               & short         & short4 \\
+unsigned short      & ushort        & ushort4 \\
+int                 & int           & int4 \\
+unsigned int        & uint          & uint4 \\
+long                & long          & long4 \\
+unsigned long       & ulong         & ulong4 \\
+float               & float         & float4 \\
+double              & double        & double4 \\
+\hline
+    \end{tabular}
+    \caption{Supported built-in types and vector types by the \ac{HIPAcc}
+    framework.}\label{tab:types}
+\end{table}
+
+
+\paragraph{Convert Functions:}
+While casting and implicit conversion between built-in scalar data types is
+provided by the C/C++ languages, no such support is provided for vector data
+types. In order to convert between different vector data types, {\em convert}
+functions are provided by the \ac{HIPAcc} framework (see
+Table~\ref{tab:convert}).
+
+\begin{table}
+    \centering
+    \begin{tabular}{lll}
+\hline
+convert function \qquad & return type \qquad & argument type \\
+\hline
+convert\_char4      & char4     & any vector data type \\
+convert\_uchar4     & uchar4    & any vector data type \\
+convert\_short4     & short4    & any vector data type \\
+convert\_ushort4    & ushort4   & any vector data type \\
+convert\_int4       & int4      & any vector data type \\
+convert\_uint4      & uint4     & any vector data type \\
+convert\_long4      & long4     & any vector data type \\
+convert\_ulong4     & ulong4    & any vector data type \\
+convert\_float4     & float4    & any vector data type \\
+convert\_double4    & double4   & any vector data type \\
+\hline
+    \end{tabular}
+    \caption{Convert functions for vector types provided by the \ac{HIPAcc}
+    framework.}\label{tab:convert}
+\end{table}
+
+
+\paragraph{Math Functions:}
+Standard math functions (math.h / cmath) are supported on scalar data types. For
+vector data types, corresponding math functions are provided by \ac{HIPAcc} in
+the {\em hipacc::math} namespace. Listing~\ifhtml{6}{\ref{lst:vector}} shows
+the usage of vector types and math functions on vector types.
+
+\includecodefile{code_snippets/vector_support.cpp}{Example usage of vector types and math functions.}{lst:vector}{6}
+
+Using vector types, the Gaussian filter can be also applied to images using
+4-channel pixels as shown in Listing~\ifhtml{7}{\ref{lst:gauss3}}.
+
+\includecodefile{code_snippets/gauss3.cpp}{Gaussian filter on 4 channel pixels, using the convolve function.}{lst:gauss3}{7}
 
