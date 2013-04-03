@@ -449,18 +449,12 @@ MAKE_VEC_F(float4,    float,    int4)
 MAKE_VEC_F(double4,   double,   long4)
 
 
-#ifdef __CUDACC__
+
 // conversion function
 #define MAKE_CONV_FUNC(BASIC_TYPE, RET_TYPE, VEC_TYPE) \
 ATTRIBUTES RET_TYPE convert_##RET_TYPE(VEC_TYPE vec) { \
     return make_##RET_TYPE(vec.x, vec.y, vec.z, vec.w); \
 }
-#else //__CUDACC__
-#define MAKE_CONV_FUNC(BASIC_TYPE, RET_TYPE, VEC_TYPE) \
-RET_TYPE convert_##RET_TYPE(VEC_TYPE vec) { \
-    return make_##RET_TYPE(vec.x, vec.y, vec.z, vec.w); \
-}
-#endif //__CUDACC__
 
 // generate conversion functions for types
 #define MAKE_CONV(VEC_TYPE) \
