@@ -52,6 +52,7 @@
 //#define RUN_UNDEF
 
 using namespace hipacc;
+using namespace hipacc::math;
 
 
 // get time in milliseconds
@@ -88,8 +89,8 @@ void laplace_filter(unsigned char *in, unsigned char *out, int *filter, int
                 }
             }
 
-            if (sum > 255) sum = 255;
-            else if (sum < 0) sum = 0;
+            sum = min(sum, 255);
+            sum = max(sum, 0);
             out[y*width + x] = sum;
         }
     }
@@ -117,8 +118,8 @@ class LaplaceFilter : public Kernel<unsigned char> {
             int sum = convolve(cMask, HipaccSUM, [&] () -> int {
                     return cMask() * Input(cMask);
                     });
-            if (sum > 255) sum = 255;
-            else if (sum < 0) sum = 0;
+            sum = min(sum, 255);
+            sum = max(sum, 0);
             output() = (unsigned char) (sum);
         }
         #else
@@ -132,8 +133,8 @@ class LaplaceFilter : public Kernel<unsigned char> {
                 }
             }
 
-            if (sum > 255) sum = 255;
-            else if (sum < 0) sum = 0;
+            sum = min(sum, 255);
+            sum = max(sum, 0);
             output() = (unsigned char) (sum);
         }
         #endif
@@ -371,7 +372,7 @@ int main(int argc, const char **argv) {
         time0 = time_ms();
 
         // calculate reference
-        laplace_filter(reference_in, reference_out, mask, size_x, width, height);
+        laplace_filter(reference_in, reference_out, (int *)mask, size_x, width, height);
 
         time1 = time_ms();
         dt = time1 - time0;

@@ -164,10 +164,9 @@ class SobelFilterMask : public Kernel<short int> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            int sum = convolve(cMask, HipaccSUM, [&] () -> int {
+            output() = (short int)(convolve(cMask, HipaccSUM, [&] () -> int {
                     return cMask() * Input(cMask);
-                    });
-            output() = (short int) (sum);
+                    }));
         }
         #else
         void kernel() {
@@ -202,10 +201,9 @@ class SobelFilterMaskRow : public Kernel<short int> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            int sum = convolve(cMask, HipaccSUM, [&] () -> int {
+            output() = (short int)(convolve(cMask, HipaccSUM, [&] () -> int {
                     return cMask() * Input(cMask);
-                    });
-            output() = (short int) sum;
+                    }));
         }
         #else
         void kernel() {
@@ -237,10 +235,9 @@ class SobelFilterMaskColumn : public Kernel<short int> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            int sum = convolve(cMask, HipaccSUM, [&] () -> int {
+            output() = (short int)(convolve(cMask, HipaccSUM, [&] () -> int {
                     return cMask() * Input(cMask);
-                    });
-            output() = (short int) (sum);
+                    }));
         }
         #else
         void kernel() {
@@ -306,6 +303,9 @@ int main(int argc, const char **argv) {
          1,  6,   15,  20,   15,  6,   1,
         #endif
     };
+    #ifdef CONST_MASK
+    const
+    #endif
     int mask_x[] = {
         #if SIZE_X==3
         1, 2, 1,
@@ -317,6 +317,9 @@ int main(int argc, const char **argv) {
         1, 6, 15, 20, 15, 6, 1,
         #endif
     };
+    #ifdef CONST_MASK
+    const
+    #endif
     int mask_y[] = {
         #if SIZE_X==3
         -1, 0, +1,
@@ -355,6 +358,9 @@ int main(int argc, const char **argv) {
         -1,  -4,  -5,   0, 5,   4,  1,
         #endif
     };
+    #ifdef CONST_MASK
+    const
+    #endif
     int mask_x[] = {
         #if SIZE_X==3
         -1, 0, +1,
@@ -366,6 +372,9 @@ int main(int argc, const char **argv) {
         -1, -4, -5, 0, 5, 4, 1,
         #endif
     };
+    #ifdef CONST_MASK
+    const
+    #endif
     int mask_y[] = {
         #if SIZE_X==3
         1, 2, 1,
@@ -655,10 +664,10 @@ int main(int argc, const char **argv) {
 
         // calculate reference
         #ifdef NO_SEP
-        sobel_filter(reference_in, reference_out, mask, size_x, size_y, width, height);
+        sobel_filter(reference_in, reference_out, (int *)mask, size_x, size_y, width, height);
         #else
-        sobel_filter_row(reference_in, reference_tmp, mask_x, size_x, width, height);
-        sobel_filter_column(reference_tmp, reference_out, mask_y, size_y, width, height);
+        sobel_filter_row(reference_in, reference_tmp, (int *)mask_x, size_x, width, height);
+        sobel_filter_column(reference_tmp, reference_out, (int *)mask_y, size_y, width, height);
         #endif
 
         time1 = time_ms();

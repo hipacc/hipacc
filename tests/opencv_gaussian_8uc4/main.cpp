@@ -155,12 +155,9 @@ class GaussianBlurFilterMask : public Kernel<uchar4> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
-            sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
+            output() = convert_uchar4(convolve(cMask, HipaccSUM, [&] () -> float4 {
                     return cMask() * convert_float4(Input(cMask));
-                    });
-
-            output() = convert_uchar4(sum);
+                    }) + 0.5f);
         }
         #else
         void kernel() {
@@ -196,11 +193,9 @@ class GaussianBlurFilterMaskRow : public Kernel<float4> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            float4 sum = { 0.0f, 0.0f, 0.0f, 0.0f };
-            sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
+            output() = convolve(cMask, HipaccSUM, [&] () -> float4 {
                     return cMask() * convert_float4(Input(cMask));
                     });
-            output() = sum;
         }
         #else
         void kernel() {
@@ -232,12 +227,9 @@ class GaussianBlurFilterMaskColumn : public Kernel<uchar4> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
-            sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
+            output() = convert_uchar4(convolve(cMask, HipaccSUM, [&] () -> float4 {
                     return cMask() * convert_float4(Input(cMask));
-                    });
-
-            output() = convert_uchar4(sum);
+                    }) + 0.5f);
         }
         #else
         void kernel() {

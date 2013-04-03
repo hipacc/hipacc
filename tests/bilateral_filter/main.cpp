@@ -148,11 +148,11 @@ class BilateralFilterMask : public Kernel<float> {
             float p = 0.0f;
 
             #if 0
-            d = convolve(sMask, HipaccSUM, [&] () {
+            d = convolve(sMask, HipaccSUM, [&] () -> float {
                     float diff = Input(sMask) - Input();
                     return expf(-c_r * diff*diff) * sMask();
                     });
-            p = convolve(sMask, HipaccSUM, [&] () {
+            p = convolve(sMask, HipaccSUM, [&] () -> float {
                     float diff = Input(sMask) - Input();
                     return expf(-c_r * diff*diff) * sMask() * Input(sMask);
                     });
