@@ -4,8 +4,8 @@
 
 TEXINPUTS:=.//:$(TEXINPUTS)
 PDFLATEX=pdflatex -shell-escape
-# use biber instead of bibtex
-BIBLATEX = biber
+# use bibtex
+BIBLATEX = bibtex
 
 ifeq ($(shell echo -e x), -e x)
     ECHO = echo
