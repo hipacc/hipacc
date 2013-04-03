@@ -1603,7 +1603,9 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       convIdxX = convIdxY = 0;
       convExprX = convExprY = NULL;
 
-      return conv_red;
+      // add ICE for CodeGen
+      return createImplicitCastExpr(Ctx, conv_red->getType(), CK_LValueToRValue,
+          conv_red, NULL, VK_RValue);
     }
 
     // lookup if this function call is supported and choose appropriate
