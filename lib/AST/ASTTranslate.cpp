@@ -1246,7 +1246,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
   if (!result) {
     result = VarDecl::Create(Ctx, DC, VD->getInnerLocStart(), VD->getLocation(),
         &Ctx.Idents.get(name), QT, VD->getTypeSourceInfo(),
-        VD->getStorageClass(), VD->getStorageClassAsWritten());
+        VD->getStorageClass());
     // set VarDecl as being used - required for CodeGen
     result->setUsed(true);
 
@@ -1296,7 +1296,7 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D, std::string prefix) {
     texName += Kernel->getName();
     result = VarDecl::Create(Ctx, DC, D->getInnerLocStart(), D->getLocation(),
         &Ctx.Idents.get(texName), D->getType(), D->getTypeSourceInfo(),
-        D->getStorageClass(), D->getStorageClassAsWritten());
+        D->getStorageClass());
 
     result->setInit(Clone(D->getInit()));
     result->setThreadSpecified(D->isThreadSpecified());

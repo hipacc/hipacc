@@ -396,8 +396,7 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
     SmallVector<ParmVarDecl *, 16> Params;
     for (unsigned int i = 0, e = FT->getNumArgs(); i != e; ++i) {
       ParmVarDecl *parm = ParmVarDecl::Create(Ctx, New, SourceLocation(),
-          SourceLocation(), 0, FT->getArgType(i), /*TInfo=*/0, SC_None,
-          SC_None, 0);
+          SourceLocation(), 0, FT->getArgType(i), /*TInfo=*/0, SC_None, 0);
       parm->setScopeInfo(0, i);
       Params.push_back(parm);
     }

@@ -56,7 +56,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
     for (unsigned int i=0; i<ArgTypes.size(); ++i) {
       ParmVarDecl *Param = ParmVarDecl::Create(Ctx, DC, SourceLocation(),
           SourceLocation(), &Ctx.Idents.get(ArgNames[i]), ArgTypes[i], NULL,
-          SC_None, SC_None, 0);
+          SC_None, 0);
       Params.push_back(Param);
     }
 
@@ -206,7 +206,7 @@ DeclStmt *createDeclStmt(ASTContext &Ctx, Decl *VD) {
 VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
     QualType T, Expr *init) {
   VarDecl *VD = VarDecl::Create(Ctx, NULL, SourceLocation(), SourceLocation(),
-      NULL, QualType(), NULL, SC_None, SC_None);
+      NULL, QualType(), NULL, SC_None);
 
   VD->setDeclContext(DC);
   VD->setLocation(SourceLocation());
