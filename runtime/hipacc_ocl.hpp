@@ -387,7 +387,7 @@ float hipaccGetLastKernelTiming() {
 // Select platform and device for execution
 void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name platform_name=ALL) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024];
+    char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024];
     int platform_number = -1, device_number = -1;
     cl_uint num_platforms, num_devices, num_devices_type;
     cl_platform_id *platforms;
@@ -443,15 +443,13 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
 
             // Use first platform supporting desired device type
             if (platform_number==-1 && num_devices_type > 0 && (platform_names[i] & platform_name)) {
-                std::cerr << "  [*] Name: " << pnBuffer << std::endl;
-                std::cerr << "      Vendor: " << pvBuffer << std::endl;
-                std::cerr << "      Version: " << pv2Buffer << std::endl;
+                std::cerr << "  [*] Platform Name: " << pnBuffer << std::endl;
                 platform_number = i;
             } else {
-                std::cerr << "  [ ] Name: " << pnBuffer << std::endl;
-                std::cerr << "      Vendor: " << pvBuffer << std::endl;
-                std::cerr << "      Version: " << pv2Buffer << std::endl;
+                std::cerr << "  [ ] Platform Name: " << pnBuffer << std::endl;
             }
+            std::cerr << "      Platform Vendor: " << pvBuffer << std::endl;
+            std::cerr << "      Platform Version: " << pv2Buffer << std::endl;
 
             devices = (cl_device_id *)malloc(sizeof(cl_device_id) * num_devices);
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, num_devices, devices, &num_devices);
@@ -460,29 +458,36 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
             // Get device info for each device
             for (unsigned int j=0; j<num_devices; ++j) {
                 cl_device_type this_dev_type;
+                cl_uint device_vendor_id;
 
                 err = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(pnBuffer), &pnBuffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(pvBuffer), &pvBuffer, NULL);
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR_ID, sizeof(device_vendor_id), &device_vendor_id, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(this_dev_type), &this_dev_type, NULL);
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(pdBuffer), &pdBuffer, NULL);
+                err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(pd2Buffer), &pd2Buffer, NULL);
                 checkErr(err, "clGetDeviceInfo()");
 
                 // Use first device of desired type
-                if (platform_number == (int)i && device_number == -1 && (this_dev_type == dev_type || dev_type == CL_DEVICE_TYPE_ALL)) {
+                if (platform_number == (int)i && device_number == -1 && (this_dev_type & dev_type)) {
                     std::cerr << "      [*] ";
                     Ctx.add_device(devices[j]);
                     device_number = j;
                 } else {
                     std::cerr << "      [ ] ";
                 }
-                switch (this_dev_type) {
-                    case CL_DEVICE_TYPE_CPU:
-                        std::cerr << "Name: " << pnBuffer << " (CL_DEVICE_TYPE_CPU)" << std::endl;
-                        break;
-                    case CL_DEVICE_TYPE_GPU:
-                        std::cerr << "Name: " << pnBuffer << " (CL_DEVICE_TYPE_GPU)" << std::endl;
-                        break;
-                }
-                std::cerr << "          Vendor: " << pvBuffer << std::endl;
+                std::cerr << "Device Name: " << pnBuffer << " (";
+                if (this_dev_type & CL_DEVICE_TYPE_CPU) std::cerr << "CL_DEVICE_TYPE_CPU";
+                if (this_dev_type & CL_DEVICE_TYPE_GPU) std::cerr << "CL_DEVICE_TYPE_GPU";
+                if (this_dev_type & CL_DEVICE_TYPE_ACCELERATOR) std::cerr << "CL_DEVICE_TYPE_ACCELERATOR";
+                #ifdef CL_VERSION_1_2
+                if (this_dev_type & CL_DEVICE_TYPE_CUSTOM) std::cerr << "CL_DEVICE_TYPE_CUSTOM";
+                #endif
+                if (this_dev_type & CL_DEVICE_TYPE_DEFAULT) std::cerr << "|CL_DEVICE_TYPE_DEFAULT";
+                std::cerr << ")" << std::endl;
+                std::cerr << "          Device Vendor: " << pvBuffer << " (ID: " << device_vendor_id << ")" << std::endl;
+                std::cerr << "          Device OpenCL Version: " << pdBuffer << std::endl;
+                std::cerr << "          Device Driver Version: " << pd2Buffer << std::endl;
 
                 // Store all devices in a separate array
                 if (platform_number == (int)i) Ctx.add_device_all(devices[j]);
