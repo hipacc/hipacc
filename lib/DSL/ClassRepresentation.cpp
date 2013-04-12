@@ -38,7 +38,11 @@ using namespace hipacc;
 
 
 std::string HipaccImage::getTextureType() {
-  const BuiltinType *BT = type->getAs<BuiltinType>();
+  QualType QT = type;
+  if (type->isVectorType()) {
+    QT = QT->getAs<VectorType>()->getElementType();
+  }
+  const BuiltinType *BT = QT->getAs<BuiltinType>();
 
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
@@ -82,7 +86,11 @@ std::string HipaccImage::getTextureType() {
 
 
 std::string HipaccImage::getImageReadFunction() {
-  const BuiltinType *BT = type->getAs<BuiltinType>();
+  QualType QT = type;
+  if (type->isVectorType()) {
+    QT = QT->getAs<VectorType>()->getElementType();
+  }
+  const BuiltinType *BT = QT->getAs<BuiltinType>();
 
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
