@@ -324,11 +324,18 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
       HipaccMask *Mask = it->second;
       if (Mask->isPrinted()) continue;
 
-      newStr += "__device__ __constant__ ";
-      newStr += Mask->getTypeStr();
-      newStr += " " + Mask->getName();
-      newStr += "[" + Mask->getSizeYStr() + "][" + Mask->getSizeXStr() +
-        "];\n";
+      SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
+      for (unsigned int i=0; i<kernels.size(); i++) {
+        HipaccKernel *K = kernels[i];
+
+        if (i) newStr += "\n" + stringCreator.getIndent();
+
+        newStr += "__device__ __constant__ ";
+        newStr += Mask->getTypeStr();
+        newStr += " " + Mask->getName() + K->getName();
+        newStr += "[" + Mask->getSizeYStr() + "][" + Mask->getSizeXStr() +
+          "];\n";
+      }
     }
   }
   // rewrite header section
