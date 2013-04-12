@@ -689,8 +689,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     }
   }
 
-  // activate boundary handling for exploration in case shared memory is used
-  if (compilerOptions.exploreConfig() && use_shared) {
+  // activate boundary handling for exploration
+  if (compilerOptions.exploreConfig()) {
     border_handling = true;
     kernel_x = true;
     kernel_y = true;
