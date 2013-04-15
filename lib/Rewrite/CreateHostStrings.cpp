@@ -182,29 +182,33 @@ void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
       resultStr += indent;
 
       // store reduction arguments
+      std::stringstream LSS;
+      LSS << literalCountGridBock++;
+      resultStr += "sp<Allocation> alloc_" + LSS.str() + " = (Allocation  *)";
+      resultStr += Img->getName() + ".mem;\n" + indent;
       if (options.emitRenderscriptGPU()) {
-        addReductionArgument(GR, "Input", Img->getName(), resultStr, false);
+        addReductionArgument(GR, "Input", "alloc_" + LSS.str(), resultStr, false);
       } else {
-        addReductionArgument(GR, "Input", Img->getName(), resultStr, true);
+        addReductionArgument(GR, "Input", "alloc_" + LSS.str(), resultStr, true);
       }
       addReductionArgument(GR, "neutral", GR->getNeutral(), resultStr, false);
-      addReductionArgument(GR, "stride", Img->getStride(), resultStr, false);
+      addReductionArgument(GR, "stride", Img->getName() + ".stride", resultStr, false);
 
       // print optional offset_x/offset_y and iteration space width/height
       if (GR->isAccessor()) {
-        addReductionArgument(GR, "offset_y", GR->getAccessor()->getOffsetY(),
-            resultStr, false);
-        addReductionArgument(GR, "offset_x", GR->getAccessor()->getOffsetX(),
-            resultStr, false);
-        addReductionArgument(GR, "is_height", GR->getAccessor()->getHeight(),
-            resultStr, false);
-        addReductionArgument(GR, "num_elements", GR->getAccessor()->getWidth(),
-            resultStr, false);
+        addReductionArgument(GR, "offset_x", GR->getAccessor()->getName() +
+            ".offset_x", resultStr, false);
+        addReductionArgument(GR, "offset_y", GR->getAccessor()->getName() +
+            ".offset_y", resultStr, false);
+        addReductionArgument(GR, "is_height", GR->getAccessor()->getName() +
+            ".height", resultStr, false);
+        addReductionArgument(GR, "num_elements", GR->getAccessor()->getName() +
+            ".width", resultStr, false);
       } else {
-        addReductionArgument(GR, "is_height", Img->getHeight(), resultStr,
-            false);
-        addReductionArgument(GR, "num_elements", Img->getWidth(), resultStr,
-            false);
+        addReductionArgument(GR, "is_height", Img->getName() + ".height",
+            resultStr, false);
+        addReductionArgument(GR, "num_elements", Img->getName() + ".width",
+            resultStr, false);
       }
       break;
   }
@@ -212,42 +216,35 @@ void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
 
 
 void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
-    type, std::string width, std::string height, std::string &pitchStr,
-    std::string &resultStr, HipaccDevice &targetDevice) {
-  pitchStr = "_" + memName + "stride";
-  resultStr += "int " + pitchStr + ";\n";
+    type, std::string width, std::string height, std::string &resultStr,
+    HipaccDevice &targetDevice) {
+  resultStr += "HipaccImage " + memName + " = ";
   switch (options.getTargetCode()) {
     default:
     case TARGET_C:
     case TARGET_CUDA:
       // texture is bound at kernel launch
       if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-        resultStr += indent + "cudaArray *" + memName + " = ";
-        resultStr += "hipaccCreateArray2D<" + type + ">(NULL, ";
+        resultStr += "hipaccCreateArray2D<" + type + ">(";
       } else {
-        resultStr += indent + type + " *" + memName + " = ";
-        resultStr += "hipaccCreateMemory<" + type + ">(NULL, ";
+        resultStr += "hipaccCreateMemory<" + type + ">(";
       }
       break;
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
-      resultStr += indent + "sp<Allocation> " + memName + " = ";
-      resultStr += "hipaccCreateAllocation((" + type + "*)NULL, ";
+      resultStr += "hipaccCreateAllocation((" + type + "*)";
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
-      resultStr += indent + "cl_mem " + memName + " = ";
       if (options.useTextureMemory()) {
-        resultStr += "hipaccCreateImage<" + type + ">(NULL, ";
+        resultStr += "hipaccCreateImage<" + type + ">(";
       } else {
-        resultStr += "hipaccCreateBuffer<" + type + ">(NULL, ";
+        resultStr += "hipaccCreateBuffer<" + type + ">(";
       }
       break;
   }
-  resultStr += "(int) " + width;
-  resultStr += ", (int) " + height;
-  resultStr += ", &" + pitchStr;
+  resultStr += "NULL, " + width + ", " + height;
   if (options.useTextureMemory() && options.getTextureType()==Array2D) {
     // OpenCL Image objects and CUDA Arrays don't support padding
   } else {
@@ -263,37 +260,29 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
 
 void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
     std::string type, std::string width, std::string height, std::string
-    &pitchStr, std::string &resultStr) {
+    &resultStr) {
 
+  resultStr += "HipaccImage " + memName + " = ";
   switch (options.getTargetCode()) {
     default:
     case TARGET_C:
     case TARGET_CUDA:
       assert(0 && "constant memory allocation not required in CUDA!");
       break;
+    case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
-      pitchStr = "_" + memName + "stride";
-      resultStr += "int " + pitchStr + ";\n" + indent;
-    case TARGET_Renderscript:
-      resultStr += "sp<Allocation> " + memName + " = hipaccCreateAllocation";
+      resultStr += "hipaccCreateAllocation";
       if (options.emitRenderscript()) {
         resultStr += "Constant";
       }
       resultStr += "((" + type + "*)NULL";
-      resultStr += ", (int)" + width;
-      resultStr += ", (int)" + height;
-      if (!options.emitRenderscript()) {
-        resultStr += ", &" + pitchStr;
-      }
-      resultStr += ");";
+      resultStr += ", (int)" + width + ", (int)" + height + ");";
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
-      resultStr += "cl_mem " + memName + " = hipaccCreateBufferConstant<" + type + ">(";
-      resultStr += width;
-      resultStr += ", " + height;
-      resultStr += ");";
+      resultStr += "hipaccCreateBufferConstant<" + type + ">(";
+      resultStr += width + ", " + height + ");";
       break;
   }
 }
@@ -303,87 +292,17 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
     MemoryTransferDirection direction, std::string &resultStr) {
   switch (direction) {
     case HOST_TO_DEVICE:
-      switch (options.getTargetCode()) {
-        default:
-        case TARGET_C:
-        case TARGET_CUDA:
-          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-            resultStr += "hipaccWriteArray2D(";
-          } else {
-            resultStr += "hipaccWriteMemory(";
-          }
-          break;
-        case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
-        case TARGET_Filterscript:
-          resultStr += "hipaccWriteAllocation(";
-          break;
-        case TARGET_OpenCL:
-        case TARGET_OpenCLCPU:
-          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-            resultStr += "hipaccWriteImage(";
-          } else {
-            resultStr += "hipaccWriteBuffer(";
-          }
-          break;
-      }
+      resultStr += "hipaccWriteMemory(";
       resultStr += Img->getName();
       resultStr += ", " + mem + ");";
       break;
     case DEVICE_TO_HOST:
-      switch (options.getTargetCode()) {
-        default:
-        case TARGET_C:
-        case TARGET_CUDA:
-          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-            resultStr += "hipaccReadArray2D(";
-          } else {
-            resultStr += "hipaccReadMemory(";
-          }
-          break;
-        case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
-        case TARGET_Filterscript:
-          resultStr += "hipaccReadAllocation(";
-          break;
-        case TARGET_OpenCL:
-        case TARGET_OpenCLCPU:
-          if (options.useTextureMemory()) {
-            resultStr += "hipaccReadImage(";
-          } else {
-            resultStr += "hipaccReadBuffer(";
-          }
-          break;
-      }
+      resultStr += "hipaccReadMemory(";
       resultStr += mem;
       resultStr += ", " + Img->getName() + ");";
       break;
     case DEVICE_TO_DEVICE:
-      switch (options.getTargetCode()) {
-        default:
-        case TARGET_C:
-          break;
-        case TARGET_CUDA:
-          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-            resultStr += "hipaccCopyArray2D(";
-          } else {
-            resultStr += "hipaccCopyMemory(";
-          }
-          break;
-        case TARGET_OpenCL:
-        case TARGET_OpenCLCPU:
-          if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-            resultStr += "hipaccCopyImage(";
-          } else {
-            resultStr += "hipaccCopyBuffer(";
-          }
-          break;
-        case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
-        case TARGET_Filterscript:
-          resultStr += "hipaccCopyAllocation(";
-          break;
-      }
+      resultStr += "hipaccCopyMemory(";
       resultStr += mem + ", ";
       resultStr += Img->getName() + ");";
       break;
@@ -394,40 +313,10 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
 }
 
 
-void CreateHostStrings::writeMemoryTransferRegion(HipaccImage *SrcImg,
-    HipaccImage *DstImg, std::string src_ox, std::string src_oy, std::string
-    dst_ox, std::string dst_oy, std::string roi_width, std::string roi_height,
-    std::string &resultStr) {
-  switch (options.getTargetCode()) {
-    default:
-    case TARGET_C:
-      break;
-    case TARGET_CUDA:
-      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-        resultStr += "hipaccCopyArray2DRegion(";
-      } else {
-        resultStr += "hipaccCopyMemoryRegion(";
-      }
-      break;
-    case TARGET_OpenCL:
-    case TARGET_OpenCLCPU:
-      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-        resultStr += "hipaccCopyImageRegion(";
-      } else {
-        resultStr += "hipaccCopyBufferRegion(";
-      }
-      break;
-    case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
-    case TARGET_Filterscript:
-      resultStr += "hipaccCopyAllocationRegion(";
-      break;
-  }
-  resultStr += SrcImg->getName() + ", ";
-  resultStr += DstImg->getName() + ", ";
-  resultStr += src_ox + ", " + src_oy + ", ";
-  resultStr += dst_ox + ", " + dst_oy + ", ";
-  resultStr += roi_width + ", " + roi_height + ");";
+void CreateHostStrings::writeMemoryTransferRegion(std::string dst, std::string
+    src, std::string &resultStr) {
+  resultStr += "hipaccCopyMemoryRegion(";
+  resultStr += src + ", " + dst + ");";
 }
 
 
@@ -474,12 +363,9 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
-      resultStr += "hipaccWriteAllocation(" + Mask->getName();
-      resultStr += ", (" + Mask->getTypeStr() + " *)" + mem + ");";
-      break;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
-      resultStr += "hipaccWriteBuffer(" + Mask->getName();
+      resultStr += "hipaccWriteMemory(" + Mask->getName();
       resultStr += ", (" + Mask->getTypeStr() + " *)" + mem + ");";
       break;
   }
@@ -560,18 +446,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   resultStr += "hipacc_launch_info " + infoStr + "(";
   resultStr += maxSizeXStr.str() + ", ";
   resultStr += maxSizeYStr.str() + ", ";
-  resultStr += K->getIterationSpace()->getWidth() + ", ";
-  resultStr += K->getIterationSpace()->getHeight() + ", ";
-  if (K->getIterationSpace()->getOffsetX().empty()) {
-    resultStr += "0, ";
-  } else {
-    resultStr += K->getIterationSpace()->getOffsetX() + ", ";
-  }
-  if (K->getIterationSpace()->getOffsetY().empty()) {
-    resultStr += "0, ";
-  } else {
-    resultStr += K->getIterationSpace()->getOffsetY() + ", ";
-  }
+  resultStr += K->getIterationSpace()->getName() + ", ";
   resultStr += PPTSS.str() + ", ";
   if (K->vectorize()) {
     // TODO set and calculate per kernel simd width ...
@@ -674,34 +549,11 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += "_texs" + kernelName + ".push_back(";
             resultStr += "hipacc_tex_info(std::string(\"_tex" + deviceArgNames[i] + K->getName() + "\"), ";
             resultStr += K->getImgFromMapping(FD)->getImage()->getTextureType() + ", ";
-            resultStr += "(void *)" + hostArgNames[i] + ", ";
-            switch (K->useTextureMemory(Acc)) {
-              default:
-              case Linear1D:
-                resultStr += "Linear1D";
-                break;
-              case Linear2D:
-                resultStr += "Linear2D";
-                break;
-              case Array2D:
-                resultStr += "Array2D";
-                break;
-            }
-            resultStr += "));\n";
+            resultStr += hostArgNames[i] + "));\n";
           } else {
-            switch (K->useTextureMemory(Acc)) {
-              default:
-              case Linear1D:
-                resultStr += "hipaccBindTexture";
-                break;
-              case Linear2D:
-                resultStr += "hipaccBindTexture2D";
-                break;
-              case Array2D:
-                resultStr += "hipaccBindTextureToArray";
-                break;
-            }
-            resultStr += "<" + argTypeNames[i] + ">(_tex" + deviceArgNames[i] + K->getName() + ", " + hostArgNames[i] + ");\n";
+            resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(_tex";
+            resultStr += deviceArgNames[i] + K->getName() + ", ";
+            resultStr += hostArgNames[i] + ");\n";
           }
           resultStr += indent;
         }
@@ -739,9 +591,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       resultStr += "_texs" + kernelName + ".push_back(";
       resultStr += "hipacc_tex_info(std::string(\"_surfOutput" + K->getName() + "\"), ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTextureType() + ", ";
-      resultStr += "(void *)" + K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface));\n";
+      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface));\n";
     } else {
-      resultStr += "hipaccBindSurfaceToArray<";
+      resultStr += "hipaccBindSurface<";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getPixelType();
       resultStr += ">(_surfOutput" + K->getName() + ", ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ");\n";
@@ -753,8 +605,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   for (unsigned int i=0; i<KC->getNumImages(); i++) {
     HipaccAccessor *Acc = K->getImgFromMapping(KC->getImgFields().data()[i]);
     // emit assertion
-    resultStr += "assert(" + Acc->getWidth() + "==" + K->getIterationSpace()->getWidth() + " && \"Acc width != IS width\");\n" + indent;
-    resultStr += "assert(" + Acc->getHeight() + "==" + K->getIterationSpace()->getHeight() + " && \"Acc height != IS height\");\n" + indent;
+    resultStr += "assert(" + Acc->getName() + ".width==" + K->getIterationSpace()->getName() + ".width && \"Acc width != IS width\");\n" + indent;
+    resultStr += "assert(" + Acc->getName() + ".height==" + K->getIterationSpace()->getName() + ".height && \"Acc height != IS height\");\n" + indent;
   }
   #endif
 
@@ -786,35 +638,46 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       // textures are handled separately
       continue;
     }
+    std::string img_mem("");
+    if (Acc || i==0) img_mem = ".mem";
 
     // skip unused variables
     if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
 
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument
-      resultStr += "_args" + kernelName + ".push_back(";
       switch (options.getTargetCode()) {
         default:
         case TARGET_C:
           break;
         case TARGET_CUDA:
+          resultStr += "_args" + kernelName + ".push_back(";
           if (options.exploreConfig()) {
-            resultStr += "(void *)&" + hostArgNames[i] + ");\n";
+            resultStr += "(void *)&" + hostArgNames[i] + img_mem + ");\n";
           } else {
             resultStr += "std::make_pair(sizeof(" + argTypeNames[i];
-            resultStr += "), (void *)&" + hostArgNames[i] + "));\n";
+            resultStr += "), (void *)&" + hostArgNames[i] + img_mem + "));\n";
           }
           resultStr += indent;
           break;
         case TARGET_OpenCL:
         case TARGET_OpenCLCPU:
+          resultStr += "_args" + kernelName + ".push_back(";
           resultStr += "std::make_pair(sizeof(" + argTypeNames[i];
-          resultStr += "), (void *)" + hostArgNames[i] + "));\n";
+          resultStr += "), (void *)" + hostArgNames[i] + img_mem + "));\n";
           resultStr += indent;
           break;
         case TARGET_Renderscript:
         case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:
+          if (Acc || Mask || i==0) {
+            LSS.str("");
+            LSS.clear();
+            LSS << literalCountGridBock++;
+            resultStr += "sp<Allocation> alloc_" + LSS.str() + " = (Allocation  *)";
+            resultStr += hostArgNames[i] + img_mem + ";\n" + indent;
+          }
+          resultStr += "_args" + kernelName + ".push_back(";
           resultStr += "hipacc_script_arg<ScriptC_" + kernelName + ">(";
           resultStr += "&ScriptC_" + kernelName;
           if ((Acc || Mask || i==0) && options.emitRenderscript()) {
@@ -822,8 +685,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           } else {
             resultStr += "::set_";
           }
-          resultStr += deviceArgNames[i];
-          resultStr += ", &" + hostArgNames[i] + "));\n";
+          resultStr += deviceArgNames[i] + ", &";
+          if (Acc || Mask || i==0) {
+            resultStr += "alloc_" + LSS.str() + "));\n";
+          } else {
+            resultStr += hostArgNames[i] + "));\n";
+          }
           resultStr += indent;
           break;
       }
@@ -835,7 +702,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           break;
         case TARGET_CUDA:
           resultStr += "hipaccSetupArgument(&";
-          resultStr += hostArgNames[i];
+          resultStr += hostArgNames[i] + img_mem;
           resultStr += ", sizeof(" + argTypeNames[i] + "), ";
           resultStr += offsetStr;
           resultStr += ");\n";
@@ -852,7 +719,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += ", ";
           resultStr += LSS.str();
           resultStr += ", sizeof(" + argTypeNames[i] + "), ";
-          resultStr += hostArgNames[i];
+          resultStr += hostArgNames[i] + img_mem;
           resultStr += ");\n";
           resultStr += indent;
           break;
@@ -867,7 +734,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += "::set_";
           }
           resultStr += deviceArgNames[i] + ", ";
-          resultStr += hostArgNames[i] + ");\n";
+          if (Acc || Mask || i==0) {
+            resultStr += "sp<Allocation>(((Allocation *)" + hostArgNames[i];
+            resultStr += img_mem + ")));\n";
+          } else {
+            resultStr += hostArgNames[i] + img_mem + ");\n";
+          }
           resultStr += indent;
           break;
       }
@@ -944,16 +816,13 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         cc_string << options.getTargetDevice();
         resultStr += ", " + cc_string.str();
       }
-      if (options.emitFilterscript()) {
-        // Whole image as iteration space
+      if (0 != (options.getTargetCode() & (TARGET_Renderscript |
+                                           TARGET_RenderscriptGPU |
+                                           TARGET_Filterscript))) {
         resultStr += ", " + gridStr;
       }
     } else {
-      if (options.emitRenderscript() || options.emitRenderscriptGPU()) {// || options.emitFilterscript()) {
-        resultStr += ", " + K->getIterationSpace()->getAccessor()->getImage()->getName();
-      } else {
-        resultStr += ", " + gridStr;
-      }
+      resultStr += ", " + gridStr;
       resultStr += ", " + blockStr;
       resultStr += ", true";
     }
@@ -975,7 +844,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_Filterscript:
         resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
         resultStr += "&ScriptC_" + kernelName + "::forEach_rs" + kernelName;
-        resultStr += ", " + K->getIterationSpace()->getAccessor()->getImage()->getName();
+        resultStr += ", " + gridStr;
         resultStr += ", " + blockStr + ");";
         break;
       case TARGET_OpenCL:
@@ -1026,6 +895,7 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
       break;
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
+    case TARGET_Filterscript:
       if (options.exploreConfig()) {
         // TODO
       } else {
@@ -1041,15 +911,13 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
           resultStr += "&ScriptC_" + GR->getFileName() + "::bind_Output, ";
         }
         resultStr += "_args" + GR->getFileName() + ", ";
-        resultStr += GR->getAccessor()->getImage()->getName() + ", ";
         if (GR->isAccessor()) {
-          resultStr += GR->getAccessor()->getWidth() + ");\n";
+          resultStr += GR->getAccessor()->getName() + ".width);\n";
         } else {
-          resultStr += GR->getAccessor()->getImage()->getWidth() + ");\n";
+          resultStr += GR->getAccessor()->getImage()->getName() + ".width);\n";
         }
       }
       return;
-    case TARGET_Filterscript:
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
       if (options.exploreConfig()) {
@@ -1066,57 +934,23 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
   }
 
   // print image name
-  resultStr += "(void *)" + GR->getAccessor()->getImage()->getName() + ", ";
+  if (GR->isAccessor()) {
+    resultStr += GR->getAccessor()->getName() + ", ";
+  } else {
+    resultStr += GR->getAccessor()->getImage()->getName() + ", ";
+  }
   // print neutral element
   resultStr += GR->getNeutral() + ", ";
-  // print width, height, and stride
-  resultStr += GR->getAccessor()->getImage()->getWidth() + ", ";
-  resultStr += GR->getAccessor()->getImage()->getHeight() + ", ";
-  resultStr += GR->getAccessor()->getImage()->getStride() + ", ";
-
-  // print optional offset_x/offset_y and iteration space width/height
-  if (GR->isAccessor()) {
-    resultStr += GR->getAccessor()->getOffsetX() + ", ";
-    resultStr += GR->getAccessor()->getOffsetY() + ", ";
-    resultStr += GR->getAccessor()->getWidth() + ", ";
-    resultStr += GR->getAccessor()->getHeight() + ", ";
-  }
 
   // print pixels per thread
   GRSS << GR->getNumThreads() << ", " << GR->getPixelsPerThread();
   resultStr += GRSS.str();
 
-  if (options.emitCUDA()) {
-    if (options.exploreConfig()) {
-      // print 2D CUDA array texture information - this parameter is only used
-      // if the texture type is Array2D
-      resultStr += ", hipacc_tex_info(std::string(\"_tex" + GR->getAccessor()->getImage()->getName() + GR->getName() + "\"), ";
-      resultStr += GR->getAccessor()->getImage()->getTextureType() + ", ";
-      resultStr += "(void *)" + GR->getAccessor()->getImage()->getName() + ", ";
-      if (options.emitCUDA() && options.useTextureMemory() &&
-          options.getTextureType()==Array2D) {
-        resultStr += "Array2D";
-      } else {
-          resultStr += "NoTexture";
-      }
-      resultStr += "), ";
-
-      // print compute capability in case of configuration exploration
-      std::stringstream cc_string;
-      cc_string << options.getTargetDevice();
-      resultStr += cc_string.str();
-    } else {
-      // print 2D CUDA array name - this parameter is only used if the next
-      // parameter is Array2D
-      resultStr += ", _tex" + GR->getAccessor()->getImage()->getName() + GR->getName() + ", ";
-      // print what type of input image we have - Array2D or NoTexture
-      if (options.emitCUDA() && options.useTextureMemory() &&
-          options.getTextureType()==Array2D) {
-        resultStr += "Array2D";
-      } else {
-        resultStr += "NoTexture";
-      }
-    }
+  if (options.emitCUDA() && options.exploreConfig()) {
+    // print compute capability in case of configuration exploration
+    std::stringstream cc_string;
+    cc_string << options.getTargetDevice();
+    resultStr += cc_string.str();
   }
   resultStr += ");";
 }

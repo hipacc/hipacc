@@ -44,63 +44,66 @@
 #include <vector>
 #include <algorithm>
 
-#include "hipacc_types.hpp"
-#include "hipacc_math_functions.hpp"
+#include "hipacc_base.hpp"
 
 using namespace android;
 using namespace android::renderscriptCpp;
 
-#define HIPACC_NUM_ITERATIONS 10
+class HipaccContext : public HipaccContextBase {
+    private:
+        RenderScript context;
+        std::vector<std::pair<sp<Allocation>, HipaccImage> > allocs;
 
-static float total_time = 0.0f;
-static float last_gpu_timing = 0.0f;
+    public:
+        static HipaccContext &getInstance() {
+            static HipaccContext instance;
 
-enum hipaccBoundaryMode {
-    BOUNDARY_UNDEFINED,
-    BOUNDARY_CLAMP,
-    BOUNDARY_REPEAT,
-    BOUNDARY_MIRROR,
-    BOUNDARY_CONSTANT
+            return instance;
+        }
+        void add_image(HipaccImage &img, sp<Allocation> id) {
+            imgs.push_back(img);
+            allocs.push_back(std::make_pair(id, img));
+        }
+        void del_image(HipaccImage &img) {
+            unsigned int num=0;
+            std::vector<std::pair<sp<Allocation>, HipaccImage> >::const_iterator i;
+            for (i=allocs.begin(); i!=allocs.end(); ++i, ++num) {
+                if (i->second == img) {
+                    allocs.erase(allocs.begin() + num);
+                    HipaccContextBase::del_image(img);
+                    return;
+                }
+            }
+
+            std::cerr << "ERROR: Unknown Allocation requested: "
+                      << img.mem << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        const sp<Allocation> *get_allocation(HipaccImage &img) {
+            std::vector<std::pair<sp<Allocation>, HipaccImage> >::const_iterator i;
+            for (i=allocs.begin(); i!=allocs.end(); ++i) {
+                if (i->second == img) {
+                    return &i->first;
+                }
+            }
+            exit(EXIT_FAILURE);
+        }
+        RenderScript* get_context() { return &context; }
 };
-
-typedef struct hipacc_smem_info {
-    hipacc_smem_info(int size_x, int size_y, int pixel_size) :
-        size_x(size_x), size_y(size_y), pixel_size(pixel_size) {}
-    int size_x, size_y;
-    int pixel_size;
-} hipacc_smem_info;
-
-typedef struct hipacc_launch_info {
-    hipacc_launch_info(int size_x, int size_y, int is_width, int is_height, int
-            offset_x, int offset_y, int pixels_per_thread, int simd_width) :
-        size_x(size_x), size_y(size_y), is_width(is_width),
-        is_height(is_height), offset_x(offset_x), offset_y(offset_y),
-        pixels_per_thread(pixels_per_thread), simd_width(simd_width),
-        bh_start_left(0), bh_start_right(0), bh_start_top(0),
-        bh_start_bottom(0), bh_fall_back(0) {}
-    int size_x, size_y;
-    int is_width, is_height;
-    int offset_x, offset_y;
-    int pixels_per_thread, simd_width;
-    // calculated later on
-    int bh_start_left, bh_start_right;
-    int bh_start_top, bh_start_bottom;
-    int bh_fall_back;
-} hipacc_launch_info;
 
 
 template<typename F>
 class hipacc_script_arg {
   private:
     int id;
-    void* valptr;
+    void *valptr;
     void(F::*memptr)();
 
   public:
     int getId() { return id; }
 
 #define CREATE_SCRIPT_ARG(ID, T) \
-    hipacc_script_arg(void(F::*setter)(T), T const* arg) \
+    hipacc_script_arg(void(F::*setter)(T), T const *arg) \
         : id(ID), memptr((void(F::*)())setter), valptr((void*)arg) {} \
     std::pair<void(F::*)(T), T*> get ## ID() { \
         return std::make_pair((void(F::*)(T))memptr, (T*)valptr); \
@@ -166,6 +169,10 @@ class hipacc_script_arg {
        case 20: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 20) break; \
     }
 
+const sp<Allocation> *hipaccGetAllocation(HipaccImage &img) {
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    return Ctx.get_allocation(img);
+}
 
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
     // calculate item id of a) first work item that requires no border handling
@@ -248,67 +255,6 @@ RenderScript::ErrorHandlerFunc_t errorHandler(uint32_t errorNum,
 }
 
 
-class HipaccContext {
-    public:
-        typedef struct {
-            int width;
-            int height;
-            int stride;
-            int alignment;
-            int pixel_size;
-        } rs_dims;
-
-    private:
-        RenderScript context;
-        std::vector<std::pair<sp<Allocation>, rs_dims> > mems;
-
-        HipaccContext() {};
-        HipaccContext(HipaccContext const &);
-        void operator=(HipaccContext const &);
-
-    public:
-        static HipaccContext &getInstance() {
-            static HipaccContext instance;
-
-            return instance;
-        }
-        void add_memory(sp<Allocation> id, rs_dims dim) {
-            mems.push_back(std::make_pair(id, dim));
-        }
-        void del_memory(sp<Allocation> id) {
-            unsigned int num=0;
-            std::vector<std::pair<sp<Allocation>, rs_dims> >::const_iterator i;
-            for (i=mems.begin(); i!=mems.end(); ++i, ++num) {
-                if (i->first == id) {
-                    mems.erase(mems.begin() + num);
-                    return;
-                }
-            }
-
-            std::cerr << "ERROR: Unknown Allocation requested: "
-                      << id.get() << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        RenderScript* get_context() { return &context; }
-        rs_dims get_mem_dims(sp<Allocation> id) {
-            std::vector<std::pair<sp<Allocation>, rs_dims> >::const_iterator i;
-            for (i=mems.begin(); i!=mems.end(); ++i) {
-                if (i->first == id) return i->second;
-            }
-
-            std::cerr << "ERROR: Unknown Allocation requested: "
-                      << id.get() << std::endl;
-            exit(EXIT_FAILURE);
-        }
-};
-
-
-// Get GPU timing of last executed Kernel in ms
-float hipaccGetLastKernelTiming() {
-    return last_gpu_timing;
-}
-
-
 // Create RenderScript context
 void hipaccInitRenderScript(int targetAPI) {
     HipaccContext &Ctx = HipaccContext::getInstance();
@@ -333,13 +279,12 @@ T hipaccInitScript() {
 
 // Write to allocation
 template<typename T>
-void hipaccWriteAllocation(sp<Allocation> allocation, T *host_mem) {
+void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::rs_dims dim = Ctx.get_mem_dims(allocation);
 
-    int width = dim.width;
-    int height = dim.height;
-    int stride = dim.stride;
+    int width = img.width;
+    int height = img.height;
+    int stride = img.stride;
 
     if (stride > width) {
         T* buff = new T[stride * height];
@@ -347,113 +292,111 @@ void hipaccWriteAllocation(sp<Allocation> allocation, T *host_mem) {
             memcpy(buff + (i * stride), host_mem + (i * width),
                    sizeof(T) * width);
         }
-        allocation->copyFromUnchecked(buff, sizeof(T) * stride * height);
+        ((Allocation *)img.mem)->copyFromUnchecked(buff, sizeof(T) * stride * height);
         delete[] buff;
     } else {
-        allocation->copyFromUnchecked(host_mem, sizeof(T) * width * height);
+        ((Allocation *)img.mem)->copyFromUnchecked(host_mem, sizeof(T) * width * height);
     }
 }
 
 
 // Read from allocation
 template<typename T>
-void hipaccReadAllocation(T *host_mem, sp<Allocation> allocation) {
+void hipaccReadMemory(T *host_mem, HipaccImage &img) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::rs_dims dim = Ctx.get_mem_dims(allocation);
 
-    int width = dim.width;
-    int height = dim.height;
-    int stride = dim.stride;
+    int width = img.width;
+    int height = img.height;
+    int stride = img.stride;
 
     if (stride > width) {
         T* buff = new T[stride * height];
-        allocation->copyToUnchecked(buff, sizeof(T) * stride * height);
+        ((Allocation *)img.mem)->copyToUnchecked(buff, sizeof(T) * stride * height);
         for (int i = 0; i < height; i++) {
             memcpy(host_mem + (i * width), buff + (i * stride),
                    sizeof(T) * width);
         }
         delete[] buff;
     } else {
-        allocation->copyToUnchecked(host_mem, sizeof(T) * width * height);
+        ((Allocation *)img.mem)->copyToUnchecked(host_mem, sizeof(T) * width * height);
     }
 }
 
 
 // Copy from allocation to allocation
-void hipaccCopyAllocation(sp<Allocation> src, sp<Allocation> dst) {
+void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::rs_dims src_dim = Ctx.get_mem_dims(src);
-    HipaccContext::rs_dims dst_dim = Ctx.get_mem_dims(dst);
 
-    assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height &&
-           src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyAllocation!");
+    assert(src.width == dst.width && src.height == dst.height &&
+           src.pixel_size == dst.pixel_size && "Invalid CopyAllocation!");
 
-    int height = src_dim.height;
-    int stride = src_dim.stride;
-
-    dst->copy1DRangeFrom(0, stride*height, src, 0);
+    ((Allocation *)dst.mem)->copy1DRangeFrom(0, src.stride*src.height, (Allocation *)src.mem, 0);
 }
 
 
 // Copy from allocation region to allocation region
-void hipaccCopyAllocationRegion(sp<Allocation> src, sp<Allocation> dst, int src_offset_x, int src_offset_y, int dst_offset_x, int dst_offset_y, int roi_width, int roi_height) {
+void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst) {
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    dst->copy2DRangeFrom(dst_offset_x, dst_offset_y, roi_width, roi_height, src, roi_width*roi_height, src_offset_x, src_offset_y);
+    ((Allocation *)dst.img.mem)->copy2DRangeFrom(dst.offset_x, dst.offset_y,
+        src.width, src.height, (Allocation *)src.img.mem, src.width*src.height,
+        src.offset_x, src.offset_y);
 }
 
 
 #define CREATE_ALLOCATION(T, E) \
 /* Allocate memory with alignment specified */ \
-sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
-                                      int *stride, int alignment) { \
+HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, \
+                                      int alignment) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
     RenderScript* rs = Ctx.get_context(); \
 \
-    *stride = (int)ceil((float)(width) / (alignment / sizeof(T))) \
+    int stride = (int)ceil((float)(width) / (alignment / sizeof(T))) \
                    * (alignment / sizeof(T)); \
 \
     Type::Builder type(rs, E); \
-    type.setX(*stride); \
+    type.setX(stride); \
     type.setY(height); \
 \
     sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
-    HipaccContext::rs_dims dim = { width, height, *stride, \
-                                   alignment, sizeof(T) }; \
-    Ctx.add_memory(allocation, dim); \
+\
+    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), \
+                                  (void *)allocation.get()); \
+    Ctx.add_image(img, allocation); \
 \
     if (host_mem) { \
-        hipaccWriteAllocation(allocation, host_mem); \
+        hipaccWriteMemory(img, host_mem); \
     } \
 \
-    return allocation; \
+    return img; \
 } \
 \
 /* Allocate memory without any alignment considerations */ \
-sp<Allocation> hipaccCreateAllocation(T *host_mem, int width, int height, \
-                                      int *stride) { \
+HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
     RenderScript* rs = Ctx.get_context(); \
 \
-    *stride = width; \
+    int stride = width; \
 \
     Type::Builder type(rs, E); \
-    type.setX(*stride); \
+    type.setX(stride); \
     type.setY(height); \
 \
     sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
-    HipaccContext::rs_dims dim = { width, height, width, 0, sizeof(T) }; \
-    Ctx.add_memory(allocation, dim); \
+\
+    HipaccImage img = HipaccImage(width, height, stride, 0, sizeof(T), \
+                                  (void *)allocation.get()); \
+    Ctx.add_image(img, allocation); \
 \
     if (host_mem) { \
-        hipaccWriteAllocation(allocation, host_mem); \
+        hipaccWriteMemory(img, host_mem); \
     } \
 \
-    return allocation; \
+    return img; \
 } \
 \
 /* Allocate memory in GPU constant memory space */ \
-sp<Allocation> hipaccCreateAllocationConstant(T *host_mem, \
+HipaccImage hipaccCreateAllocationConstant(T *host_mem, \
                                               int width, int height) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
     RenderScript* rs = Ctx.get_context(); \
@@ -465,14 +408,16 @@ sp<Allocation> hipaccCreateAllocationConstant(T *host_mem, \
     sp<Allocation> allocation = \
         Allocation::createTyped(rs, type.create(), \
                                 RS_ALLOCATION_USAGE_GRAPHICS_CONSTANTS); \
-    HipaccContext::rs_dims dim = { width, height, width, 0, sizeof(T) }; \
-    Ctx.add_memory(allocation, dim); \
+\
+    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), \
+                                  (void *)allocation.get()); \
+    Ctx.add_image(img, allocation); \
 \
     if (host_mem) { \
-        hipaccWriteAllocation(allocation, host_mem); \
+        hipaccWriteMemory(img, host_mem); \
     } \
 \
-    return allocation; \
+    return img; \
 }
 
 
@@ -505,10 +450,14 @@ CREATE_ALLOCATION(float4,   Element::F32_4(rs))
 CREATE_ALLOCATION(double4,  Element::F64_4(rs))
 
 
-// Destroy allocation
-//void hipaccDestroyAllocation(sp<Allocation> mem) {
+// Release memory
+void hipaccReleaseMemory(HipaccImage &img) {
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
     // TODO: Clarify proper removal of allocations
-//}
+    // since strong pointers are used, memory should be freed automatically
+    Ctx.del_image(img);
+}
 
 
 // Set a single argument of script
@@ -523,7 +472,7 @@ template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
     void(F::*kernel)(sp<const Allocation>) const,
-    sp<Allocation>& out, size_t *work_size, bool print_timing=true
+    HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
@@ -531,7 +480,7 @@ void hipaccLaunchScriptKernel(
 
     rs->finish();
     start = getNanoTime();
-    (script->*kernel)(out);
+    (script->*kernel)((Allocation *)out.mem);
     rs->finish();
     end = getNanoTime();
 
@@ -550,8 +499,7 @@ template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
     void(F::*kernel)(sp<const Allocation>, sp<const Allocation>) const,
-    sp<Allocation>& in, sp<Allocation>& out, size_t *work_size,
-    bool print_timing=true
+    HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
@@ -559,7 +507,7 @@ void hipaccLaunchScriptKernel(
 
     rs->finish();
     start = getNanoTime();
-    (script->*kernel)(in, out);
+    (script->*kernel)((Allocation *)in.mem, (Allocation *)out.mem);
     rs->finish();
     end = getNanoTime();
 
@@ -579,7 +527,7 @@ void hipaccLaunchScriptKernelBenchmark(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
     void(F::*kernel)(sp<const Allocation>) const,
-    sp<Allocation>& out, size_t *work_size,
+    HipaccImage &out, size_t *work_size,
     bool print_timing=true
 ) {
     float med_dt;
@@ -611,7 +559,7 @@ void hipaccLaunchScriptKernelExploration(
     std::vector<hipacc_smem_info> smems, hipacc_launch_info &info,
     int warp_size, int max_threads_per_block, int max_threads_for_kernel,
     int max_smem_per_block, int opt_tx, int opt_ty,
-    sp<Allocation> iter_space_fs
+    HipaccImage &iter_space
 ) {
     std::cerr << "<HIPACC:> Exploring configurations for kernel"
               << " '" << kernel << "':" << std::endl;
@@ -625,7 +573,6 @@ void hipaccLaunchScriptKernelExploration(
         work_size[0] = curr_warp_size;
         work_size[1] = 1;
         size_t global_work_size[2];
-        sp<Allocation> iter_space;
 
         hipaccPrepareKernelLaunch(info, work_size);
 
@@ -640,9 +587,8 @@ void hipaccLaunchScriptKernelExploration(
             total_time = 0.0f;
 
             // launch kernel
-            hipaccLaunchScriptKernel(script, kernel,
-                    (iter_space_fs.get() ? iter_space_fs : iter_space),
-                    work_size, false);
+            hipaccLaunchScriptKernel(script, kernel, iter_space , work_size,
+                    false);
 
             // stop timing
             times.push_back(total_time);
@@ -670,7 +616,7 @@ T hipaccApplyReduction(
     void(F::*kernel1D)(sp<const Allocation>) const,
     void(F::*setter)(sp<Allocation>),
     std::vector<hipacc_script_arg<F> > args,
-    sp<Allocation>& input, int is_width, bool print_timing=true
+    int is_width, bool print_timing=true
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     RenderScript* rs = Ctx.get_context();
@@ -679,14 +625,16 @@ T hipaccApplyReduction(
     T result;                   // host result
 
     // allocate temporary memory
-    int stride_output;
-    output = hipaccCreateAllocation((T*)NULL, is_width, 1, &stride_output);
+    HipaccImage out_img = hipaccCreateAllocationConstant((T*)NULL, is_width, 1);
+    output = (Allocation *)out_img.mem;
     (script->*setter)(output);
 
     // allocation for 1st reduction step
-    sp<Allocation> is1 = hipaccCreateAllocation((T*)NULL, is_width, 1, &stride_output);
+    HipaccImage is1_img = hipaccCreateAllocationConstant((T*)NULL, is_width, 1);
+    sp<Allocation> is1 = (Allocation *)is1_img.mem;
     // allocation for 2nd reduction step
-    sp<Allocation> is2 = hipaccCreateAllocation((T*)NULL, 1, 1, &stride_output);
+    HipaccImage is2_img = hipaccCreateAllocationConstant((T*)NULL, 1, 1);
+    sp<Allocation> is2 = (Allocation *)is2_img.mem;
 
     // set arguments
     for (unsigned int i=0; i<args.size(); i++) {

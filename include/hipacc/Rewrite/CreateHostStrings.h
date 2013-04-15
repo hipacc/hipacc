@@ -80,16 +80,13 @@ class CreateHostStrings {
     void writeReductionDeclaration(HipaccGlobalReduction *GR, std::string
         &resultStr);
     void writeMemoryAllocation(std::string memName, std::string type,
-        std::string width, std::string height, std::string &pitchStr,
-        std::string &resultStr, HipaccDevice &targetDevice);
+        std::string width, std::string height, std::string &resultStr,
+        HipaccDevice &targetDevice);
     void writeMemoryAllocationConstant(std::string memName, std::string type,
-        std::string width, std::string height, std::string &pitchStr,
-        std::string &resultStr);
+        std::string width, std::string height, std::string &resultStr);
     void writeMemoryTransfer(HipaccImage *Img, std::string mem,
         MemoryTransferDirection direction, std::string &resultStr);
-    void writeMemoryTransferRegion(HipaccImage *SrcImg, HipaccImage *DstImg,
-        std::string src_ox, std::string src_oy, std::string dst_ox, std::string
-        dst_oy, std::string roi_width, std::string roi_height, std::string
+    void writeMemoryTransferRegion(std::string dst, std::string src, std::string
         &resultStr);
     void writeMemoryTransferSymbol(HipaccMask *Mask, std::string mem,
         MemoryTransferDirection direction, std::string &resultStr);

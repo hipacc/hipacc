@@ -53,22 +53,9 @@
 #include <vector>
 #include <algorithm>
 
-#include "hipacc_types.hpp"
-#include "hipacc_math_functions.hpp"
+#include "hipacc_base.hpp"
 
-#define HIPACC_NUM_ITERATIONS 10
 #define GPU_TIMING
-
-static float total_time = 0.0f;
-static float last_gpu_timing = 0.0f;
-
-enum hipaccBoundaryMode {
-    BOUNDARY_UNDEFINED,
-    BOUNDARY_CLAMP,
-    BOUNDARY_REPEAT,
-    BOUNDARY_MIRROR,
-    BOUNDARY_CONSTANT
-};
 
 enum cl_platform_name {
     AMD     = 0x1,
@@ -79,30 +66,36 @@ enum cl_platform_name {
     ALL     = (AMD|APPLE|ARM|INTEL|NVIDIA)
 };
 
-typedef struct hipacc_smem_info {
-    hipacc_smem_info(int size_x, int size_y, int pixel_size) :
-        size_x(size_x), size_y(size_y), pixel_size(pixel_size) {}
-    int size_x, size_y;
-    int pixel_size;
-} hipacc_smem_info;
 
-typedef struct hipacc_launch_info {
-    hipacc_launch_info(int size_x, int size_y, int is_width, int is_height, int
-            offset_x, int offset_y, int pixels_per_thread, int simd_width) :
-        size_x(size_x), size_y(size_y), is_width(is_width),
-        is_height(is_height), offset_x(offset_x), offset_y(offset_y),
-        pixels_per_thread(pixels_per_thread), simd_width(simd_width),
-        bh_start_left(0), bh_start_right(0), bh_start_top(0),
-        bh_start_bottom(0), bh_fall_back(0) {}
-    int size_x, size_y;
-    int is_width, is_height;
-    int offset_x, offset_y;
-    int pixels_per_thread, simd_width;
-    // calculated later on
-    int bh_start_left, bh_start_right;
-    int bh_start_top, bh_start_bottom;
-    int bh_fall_back;
-} hipacc_launch_info;
+class HipaccContext : public HipaccContextBase {
+    private:
+        std::vector<cl_platform_id> platforms;
+        std::vector<cl_platform_name> platform_names;
+        std::vector<cl_device_id> devices, devices_all;
+        std::vector<cl_context> contexts;
+        std::vector<cl_command_queue> queues;
+
+    public:
+        static HipaccContext &getInstance() {
+            static HipaccContext instance;
+
+            return instance;
+        }
+        void add_platform(cl_platform_id id, cl_platform_name name) {
+            platforms.push_back(id);
+            platform_names.push_back(name);
+        }
+        void add_device(cl_device_id id) { devices.push_back(id); }
+        void add_device_all(cl_device_id id) { devices_all.push_back(id); }
+        void add_context(cl_context id) { contexts.push_back(id); }
+        void add_command_queue(cl_command_queue id) { queues.push_back(id); }
+        std::vector<cl_platform_id> get_platforms() { return platforms; }
+        std::vector<cl_platform_name> get_platform_names() { return platform_names; }
+        std::vector<cl_device_id> get_devices() { return devices; }
+        std::vector<cl_device_id> get_devices_all() { return devices_all; }
+        std::vector<cl_context> get_contexts() { return contexts; }
+        std::vector<cl_command_queue> get_command_queues() { return queues; }
+};
 
 
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
@@ -308,80 +301,6 @@ inline void checkErr(cl_int err, const char *name) {
     }
 }
 #endif
-
-
-class HipaccContext {
-    public:
-        typedef struct {
-            int width;
-            int height;
-            int stride;
-            int alignment;
-            int pixel_size;
-        } cl_dims;
-
-    private:
-        std::vector<cl_platform_id> platforms;
-        std::vector<cl_platform_name> platform_names;
-        std::vector<cl_device_id> devices, devices_all;
-        std::vector<cl_context> contexts;
-        std::vector<cl_command_queue> queues;
-        std::vector<std::pair<cl_mem, cl_dims> > mems;
-
-        HipaccContext() {};
-        HipaccContext(HipaccContext const &);
-        void operator=(HipaccContext const &);
-
-    public:
-        static HipaccContext &getInstance() {
-            static HipaccContext instance;
-
-            return instance;
-        }
-        void add_platform(cl_platform_id id, cl_platform_name name) {
-            platforms.push_back(id);
-            platform_names.push_back(name);
-        }
-        void add_device(cl_device_id id) { devices.push_back(id); }
-        void add_device_all(cl_device_id id) { devices_all.push_back(id); }
-        void add_context(cl_context id) { contexts.push_back(id); }
-        void add_command_queue(cl_command_queue id) { queues.push_back(id); }
-        void add_memory(cl_mem id, cl_dims dim) { mems.push_back(std::make_pair(id, dim)); }
-        void del_memory(cl_mem id) {
-            unsigned int num=0;
-            std::vector<std::pair<cl_mem, cl_dims> >::const_iterator i;
-            for (i=mems.begin(); i!=mems.end(); ++i, ++num) {
-                if (i->first == id) {
-                    mems.erase(mems.begin() + num);
-                    return;
-                }
-            }
-
-            std::cerr << "ERROR: Unknown cl_mem requested: " << id << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        std::vector<cl_platform_id> get_platforms() { return platforms; }
-        std::vector<cl_platform_name> get_platform_names() { return platform_names; }
-        std::vector<cl_device_id> get_devices() { return devices; }
-        std::vector<cl_device_id> get_devices_all() { return devices_all; }
-        std::vector<cl_context> get_contexts() { return contexts; }
-        std::vector<cl_command_queue> get_command_queues() { return queues; }
-        cl_dims get_mem_dims(cl_mem id) {
-            std::vector<std::pair<cl_mem, cl_dims> >::const_iterator i;
-            for (i=mems.begin(); i!=mems.end(); ++i) {
-                if (i->first == id) return i->second;
-            }
-
-            std::cerr << "ERROR: Unknown cl_mem requested: " << id << std::endl;
-            exit(EXIT_FAILURE);
-        }
-};
-
-
-// Get GPU timing of last executed Kernel in ms
-float hipaccGetLastKernelTiming() {
-    return last_gpu_timing;
-}
 
 
 // Select platform and device for execution
@@ -674,7 +593,7 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
 
 // Allocate memory with alignment specified
 template<typename T>
-cl_mem hipaccCreateBuffer(T *host_mem, int width, int height, int *stride, int alignment) {
+HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height, int alignment) {
     cl_int err = CL_SUCCESS;
     cl_mem buffer;
     cl_mem_flags flags = CL_MEM_READ_WRITE;
@@ -683,20 +602,20 @@ cl_mem hipaccCreateBuffer(T *host_mem, int width, int height, int *stride, int a
     if (host_mem) {
         flags |= CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR;
     }
-    *stride = (int)ceil((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
-    buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*(*stride)*height, host_mem, &err);
+    int stride = (int)ceil((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
+    buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*stride*height, host_mem, &err);
     checkErr(err, "clCreateBuffer()");
 
-    HipaccContext::cl_dims dim = { width, height, *stride, alignment, sizeof(T) };
-    Ctx.add_memory(buffer, dim);
+    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), (void *)buffer);
+    Ctx.add_image(img);
 
-    return buffer;
+    return img;
 }
 
 
 // Allocate memory without any alignment considerations
 template<typename T>
-cl_mem hipaccCreateBuffer(T *host_mem, int width, int height, int *stride) {
+HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height) {
     cl_int err = CL_SUCCESS;
     cl_mem buffer;
     cl_mem_flags flags = CL_MEM_READ_WRITE;
@@ -705,33 +624,39 @@ cl_mem hipaccCreateBuffer(T *host_mem, int width, int height, int *stride) {
     if (host_mem) {
         flags |= CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR;
     }
-    *stride = width;
+    int stride = width;
     buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*width*height, host_mem, &err);
     checkErr(err, "clCreateBuffer()");
 
-    HipaccContext::cl_dims dim = { width, height, width, 0, sizeof(T) };
-    Ctx.add_memory(buffer, dim);
+    HipaccImage img = HipaccImage(width, height, stride, 0, sizeof(T), (void *)buffer);
+    Ctx.add_image(img);
 
-    return buffer;
+    return img;
 }
 
 
-// Release buffer
-void hipaccReleaseBuffer(cl_mem buffer) {
+// Allocate constant buffer
+template<typename T>
+HipaccImage hipaccCreateBufferConstant(int width, int height) {
     cl_int err = CL_SUCCESS;
+    cl_mem buffer;
+    cl_mem_flags flags = CL_MEM_READ_ONLY;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    err = clReleaseMemObject(buffer);
-    checkErr(err, "clReleaseMemObject()");
+    buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*width*height, NULL, &err);
+    checkErr(err, "clCreateBuffer()");
 
-    Ctx.del_memory(buffer);
+    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), (void *)buffer);
+    Ctx.add_image(img);
+
+    return img;
 }
 
 
 // Allocate image - no alignment can be specified
 template<typename T>
-cl_mem hipaccCreateImage(T *host_mem, int width, int height, int *stride,
-                         cl_channel_type channel_type, cl_channel_order channel_order) {
+HipaccImage hipaccCreateImage(T *host_mem, int width, int height,
+        cl_channel_type channel_type, cl_channel_order channel_order) {
     cl_int err = CL_SUCCESS;
     cl_mem image;
     cl_mem_flags flags = CL_MEM_READ_WRITE;
@@ -744,7 +669,7 @@ cl_mem hipaccCreateImage(T *host_mem, int width, int height, int *stride,
     if (host_mem) {
         flags |= CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR;
     }
-    *stride = width;
+    int stride = width;
     #ifdef CL_VERSION_1_2
     cl_image_desc image_desc;
     memset(&image_desc, '\0', sizeof(cl_image_desc));
@@ -763,17 +688,17 @@ cl_mem hipaccCreateImage(T *host_mem, int width, int height, int *stride,
     checkErr(err, "clCreateImage2D()");
     #endif
 
-    HipaccContext::cl_dims dim = { width, height, *stride, 0, sizeof(T) };
-    Ctx.add_memory(image, dim);
+    HipaccImage img = HipaccImage(width, height, stride, 0, sizeof(T), (void *)image, Array2D);
+    Ctx.add_image(img);
 
-    return image;
+    return img;
 }
 template<typename T>
-cl_mem hipaccCreateImage(T *host_mem, int width, int height, int *stride);
+HipaccImage hipaccCreateImage(T *host_mem, int width, int height);
 #define CREATE_IMAGE(DATA_TYPE, CHANNEL_TYPE, CHANNEL_ORDER) \
 template <> \
-cl_mem hipaccCreateImage<DATA_TYPE>(DATA_TYPE *host_mem, int width, int height, int *stride) { \
-    return hipaccCreateImage(host_mem, width, height, stride, CHANNEL_TYPE, CHANNEL_ORDER); \
+HipaccImage hipaccCreateImage<DATA_TYPE>(DATA_TYPE *host_mem, int width, int height) { \
+    return hipaccCreateImage(host_mem, width, height, CHANNEL_TYPE, CHANNEL_ORDER); \
 }
 CREATE_IMAGE(char,                  CL_SIGNED_INT8,     CL_R)
 CREATE_IMAGE(short int,             CL_SIGNED_INT16,    CL_R)
@@ -791,12 +716,6 @@ CREATE_IMAGE(uint4,                 CL_UNSIGNED_INT32,  CL_RGBA)
 CREATE_IMAGE(float4,                CL_FLOAT,           CL_RGBA)
 
 
-// Release image
-void hipaccReleaseImage(cl_mem image) {
-    hipaccReleaseBuffer(image);
-}
-
-
 // Create sampler object
 cl_sampler hipaccCreateSampler(cl_bool normalized_coords, cl_addressing_mode addressing_mode, cl_filter_mode filter_mode) {
     cl_int err = CL_SUCCESS;
@@ -810,115 +729,146 @@ cl_sampler hipaccCreateSampler(cl_bool normalized_coords, cl_addressing_mode add
 }
 
 
-// Allocate constant buffer
-template<typename T>
-cl_mem hipaccCreateBufferConstant(int width, int height) {
+// Release buffer or image
+void hipaccReleaseMemory(HipaccImage &img) {
     cl_int err = CL_SUCCESS;
-    cl_mem buffer;
-    cl_mem_flags flags = CL_MEM_READ_ONLY;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*width*height, NULL, &err);
-    checkErr(err, "clCreateBuffer()");
+    err = clReleaseMemObject((cl_mem)img.mem);
+    checkErr(err, "clReleaseMemObject()");
 
-    HipaccContext::cl_dims dim = { width, height, width, 0, sizeof(T) };
-    Ctx.add_memory(buffer, dim);
-
-    return buffer;
+    Ctx.del_image(img);
 }
 
 
-// Write to buffer
+// Write to memory
 template<typename T>
-void hipaccWriteBuffer(cl_mem buffer, T *host_mem, int num_device=0) {
+void hipaccWriteMemory(HipaccImage &img, T *host_mem, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::cl_dims dim = Ctx.get_mem_dims(buffer);
 
-    int width = dim.width;
-    int height = dim.height;
-    int stride = dim.stride;
+    if (img.mem_type >= Array2D) {
+        const size_t origin[] = { 0, 0, 0 };
+        const size_t region[] = { (size_t)img.width, (size_t)img.height, 1 };
+        // no stride supported for images in OpenCL
+        const size_t input_row_pitch = img.width*sizeof(T);
+        const size_t input_slice_pitch = 0;
 
-    if (stride > width) {
-        for (int i=0; i<height; i++) {
-            err |= clEnqueueWriteBuffer(Ctx.get_command_queues()[num_device], buffer, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &host_mem[i*width], 0, NULL, NULL);
-        }
+        err = clEnqueueWriteImage(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, origin, region, input_row_pitch, input_slice_pitch, host_mem, 0, NULL, NULL);
+        err |= clFinish(Ctx.get_command_queues()[num_device]);
+        checkErr(err, "clEnqueueWriteImage()");
     } else {
-        err = clEnqueueWriteBuffer(Ctx.get_command_queues()[num_device], buffer, CL_FALSE, 0, sizeof(T)*width*height, host_mem, 0, NULL, NULL);
-    }
-    err |= clFinish(Ctx.get_command_queues()[num_device]);
-    checkErr(err, "clEnqueueWriteBuffer()");
-}
+        int width = img.width;
+        int height = img.height;
+        int stride = img.stride;
 
-
-// Read from buffer
-template<typename T>
-void hipaccReadBuffer(T *host_mem, cl_mem buffer, int num_device=0) {
-    cl_int err = CL_SUCCESS;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::cl_dims dim = Ctx.get_mem_dims(buffer);
-
-    int width = dim.width;
-    int height = dim.height;
-    int stride = dim.stride;
-
-    if (stride > width) {
-        for (int i=0; i<height; i++) {
-            err |= clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], buffer, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &host_mem[i*width], 0, NULL, NULL);
+        if (stride > width) {
+            for (int i=0; i<height; i++) {
+                err |= clEnqueueWriteBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &host_mem[i*width], 0, NULL, NULL);
+            }
+        } else {
+            err = clEnqueueWriteBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, 0, sizeof(T)*width*height, host_mem, 0, NULL, NULL);
         }
-    } else {
-        err = clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], buffer, CL_FALSE, 0, sizeof(T)*width*height, host_mem, 0, NULL, NULL);
+        err |= clFinish(Ctx.get_command_queues()[num_device]);
+        checkErr(err, "clEnqueueWriteBuffer()");
     }
-    err |= clFinish(Ctx.get_command_queues()[num_device]);
-    checkErr(err, "clEnqueueReadBuffer()");
 }
 
 
-// Copy between buffers
-void hipaccCopyBuffer(cl_mem src_buffer, cl_mem dst_buffer, int num_device=0) {
+// Read from memory
+template<typename T>
+void hipaccReadMemory(T *host_mem, HipaccImage &img, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src_buffer);
-    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst_buffer);
 
-    assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height && src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyBuffer!");
+    if (img.mem_type >= Array2D) {
+        const size_t origin[] = { 0, 0, 0 };
+        const size_t region[] = { (size_t)img.width, (size_t)img.height, 1 };
+        // no stride supported for images in OpenCL
+        const size_t row_pitch = img.width*sizeof(T);
+        const size_t slice_pitch = 0;
 
-    err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], src_buffer, dst_buffer, 0, 0, src_dim.width*src_dim.height*src_dim.pixel_size, 0, NULL, NULL);
-    err |= clFinish(Ctx.get_command_queues()[num_device]);
-    checkErr(err, "clEnqueueCopyBuffer()");
+        err = clEnqueueReadImage(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, origin, region, row_pitch, slice_pitch, host_mem, 0, NULL, NULL);
+        err |= clFinish(Ctx.get_command_queues()[num_device]);
+        checkErr(err, "clEnqueueReadImage()");
+    } else {
+        int width = img.width;
+        int height = img.height;
+        int stride = img.stride;
+
+        if (stride > width) {
+            for (int i=0; i<height; i++) {
+                err |= clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &host_mem[i*width], 0, NULL, NULL);
+            }
+        } else {
+            err = clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, 0, sizeof(T)*width*height, host_mem, 0, NULL, NULL);
+        }
+        err |= clFinish(Ctx.get_command_queues()[num_device]);
+        checkErr(err, "clEnqueueReadBuffer()");
+    }
 }
 
 
-// Copy from buffer region to buffer region
-void hipaccCopyBufferRegion(cl_mem src_buffer, cl_mem dst_buffer, size_t src_offset_x, size_t src_offset_y, size_t dst_offset_x, size_t dst_offset_y, size_t roi_width, size_t roi_height, int num_device=0) {
+// Copy between memory
+void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src_buffer);
-    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst_buffer);
 
-    size_t dst_stride = dst_dim.stride * dst_dim.pixel_size;
-    size_t src_stride = src_dim.stride * src_dim.pixel_size;
+    assert(src.width == dst.width && src.height == dst.height && src.pixel_size == dst.pixel_size && "Invalid CopyBuffer or CopyImage!");
 
-    const size_t dst_origin[] = { dst_offset_x*dst_dim.pixel_size, dst_offset_y, 0 };
-    const size_t src_origin[] = { src_offset_x*src_dim.pixel_size, src_offset_y, 0 };
-    const size_t region[] = { roi_width*dst_dim.pixel_size, roi_height, 1 };
+    if (src.mem_type >= Array2D) {
+        const size_t origin[] = { 0, 0, 0 };
+        const size_t region[] = { (size_t)src.width, (size_t)src.height, 1 };
 
-    err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device], src_buffer, dst_buffer, src_origin, dst_origin, region, src_stride, 0, dst_stride, 0, 0, NULL, NULL);
-    err |= clFinish(Ctx.get_command_queues()[num_device]);
-    checkErr(err, "clEnqueueCopyBufferRect()");
+        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, origin, origin, region, 0, NULL, NULL);
+        err |= clFinish(Ctx.get_command_queues()[num_device]);
+        checkErr(err, "clEnqueueCopyImage()");
+    } else {
+        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, NULL);
+        err |= clFinish(Ctx.get_command_queues()[num_device]);
+        checkErr(err, "clEnqueueCopyBuffer()");
+    }
+}
+
+
+// Copy from memory region to memory region
+void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst, int num_device=0) {
+    cl_int err = CL_SUCCESS;
+    HipaccContext &Ctx = HipaccContext::getInstance();
+
+    if (src.img.mem_type >= Array2D) {
+        const size_t dst_origin[] = { (size_t)dst.offset_x, (size_t)dst.offset_y, 0 };
+        const size_t src_origin[] = { (size_t)src.offset_x, (size_t)src.offset_y, 0 };
+        const size_t region[] = { (size_t)dst.width, (size_t)dst.height, 1 };
+
+        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device],
+                (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin,
+                region, 0, NULL, NULL);
+        err |= clFinish(Ctx.get_command_queues()[num_device]);
+        checkErr(err, "clEnqueueCopyImage()");
+    } else {
+        const size_t dst_origin[] = { (size_t)dst.offset_x*dst.img.pixel_size, (size_t)dst.offset_y, 0 };
+        const size_t src_origin[] = { (size_t)src.offset_x*src.img.pixel_size, (size_t)src.offset_y, 0 };
+        const size_t region[] = { (size_t)dst.width*dst.img.pixel_size, (size_t)dst.height, 1 };
+
+        err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device],
+                (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin,
+                region, src.img.stride*src.img.pixel_size, 0,
+                dst.img.stride*dst.img.pixel_size, 0, 0, NULL, NULL);
+        err |= clFinish(Ctx.get_command_queues()[num_device]);
+        checkErr(err, "clEnqueueCopyBufferRect()");
+    }
 }
 
 
 // Copy between buffers and return time
-double hipaccCopyBufferBenchmark(cl_mem src_buffer, cl_mem dst_buffer, int num_device=0, bool print_timing=false) {
+double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_device=0, bool print_timing=false) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src_buffer);
-    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst_buffer);
 
-    assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height && src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyBuffer!");
+    assert(src.width == dst.width && src.height == dst.height && src.pixel_size == dst.pixel_size && "Invalid CopyBuffer!");
 
     float timing=FLT_MAX;
     #ifndef GPU_TIMING
@@ -926,7 +876,7 @@ double hipaccCopyBufferBenchmark(cl_mem src_buffer, cl_mem dst_buffer, int num_d
     times.reserve(HIPACC_NUM_ITERATIONS);
     #endif
     for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
-        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], src_buffer, dst_buffer, 0, 0, src_dim.width*src_dim.height*src_dim.pixel_size, 0, NULL, &event);
+        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, &event);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyBuffer()");
 
@@ -938,8 +888,8 @@ double hipaccCopyBufferBenchmark(cl_mem src_buffer, cl_mem dst_buffer, int num_d
         checkErr(err, "clGetEventProfilingInfo()");
 
         if (print_timing) {
-            std::cerr << "<HIPACC:> Copy timing (" << (src_dim.width*src_dim.height*src_dim.pixel_size) / (float)(1 << 20) << " MB): " << (end-start)*1.0e-6f << "(ms)" << std::endl;
-            std::cerr << "          Bandwidth: " << 2.0f * (double)(src_dim.width*src_dim.height*src_dim.pixel_size) / ((end-start)*1.0e-9f * (float)(1 << 30)) << " GB/s" << std::endl;
+            std::cerr << "<HIPACC:> Copy timing (" << (src.width*src.height*src.pixel_size) / (float)(1 << 20) << " MB): " << (end-start)*1.0e-6f << "(ms)" << std::endl;
+            std::cerr << "          Bandwidth: " << 2.0f * (double)(src.width*src.height*src.pixel_size) / ((end-start)*1.0e-9f * (float)(1 << 30)) << " GB/s" << std::endl;
         }
         #ifdef GPU_TIMING
         if ((end-start) < timing) timing = (end-start);
@@ -956,77 +906,6 @@ double hipaccCopyBufferBenchmark(cl_mem src_buffer, cl_mem dst_buffer, int num_d
     timing = times.at(HIPACC_NUM_ITERATIONS/2);
     #endif
     return timing*1.0e-6f;
-}
-
-
-// Copy between images
-void hipaccCopyImage(cl_mem src_image, cl_mem dst_image, int num_device=0) {
-    cl_int err = CL_SUCCESS;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::cl_dims src_dim = Ctx.get_mem_dims(src_image);
-    HipaccContext::cl_dims dst_dim = Ctx.get_mem_dims(dst_image);
-
-    assert(src_dim.width == dst_dim.width && src_dim.height == dst_dim.height && src_dim.pixel_size == dst_dim.pixel_size && "Invalid CopyImage!");
-
-    const size_t origin[] = { 0, 0, 0 };
-    const size_t region[] = { (size_t)src_dim.width, (size_t)src_dim.height, 1 };
-
-    err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], src_image, dst_image, origin, origin, region, 0, NULL, NULL);
-    err |= clFinish(Ctx.get_command_queues()[num_device]);
-    checkErr(err, "clEnqueueCopyImage()");
-}
-
-
-// Copy from image region to image region
-void hipaccCopyImageRegion(cl_mem src_image, cl_mem dst_image, size_t src_offset_x, size_t src_offset_y, size_t dst_offset_x, size_t dst_offset_y, size_t roi_width, size_t roi_height, int num_device=0) {
-    cl_int err = CL_SUCCESS;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    const size_t dst_origin[] = { dst_offset_x, dst_offset_y, 0 };
-    const size_t src_origin[] = { src_offset_x, src_offset_y, 0 };
-    const size_t region[] = { roi_width, roi_height, 1 };
-
-    err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], src_image, dst_image, src_origin, dst_origin, region, 0, NULL, NULL);
-    err |= clFinish(Ctx.get_command_queues()[num_device]);
-    checkErr(err, "clEnqueueCopyImage()");
-}
-
-
-// Write to image
-template<typename T>
-void hipaccWriteImage(cl_mem image, T *host_mem, int num_device=0) {
-    cl_int err = CL_SUCCESS;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::cl_dims dim = Ctx.get_mem_dims(image);
-
-    const size_t origin[] = { 0, 0, 0 };
-    const size_t region[] = { (size_t)dim.width, (size_t)dim.height, 1 };
-    // no stride supported for images in OpenCL
-    const size_t input_row_pitch = dim.width*sizeof(T);
-    const size_t input_slice_pitch = 0;
-
-    err = clEnqueueWriteImage(Ctx.get_command_queues()[num_device], image, CL_FALSE, origin, region, input_row_pitch, input_slice_pitch, host_mem, 0, NULL, NULL);
-    err |= clFinish(Ctx.get_command_queues()[num_device]);
-    checkErr(err, "clEnqueueWriteImage()");
-}
-
-
-// Read from image
-template<typename T>
-void hipaccReadImage(T *host_mem, cl_mem image, int num_device=0) {
-    cl_int err = CL_SUCCESS;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    HipaccContext::cl_dims dim = Ctx.get_mem_dims(image);
-
-    const size_t origin[] = { 0, 0, 0 };
-    const size_t region[] = { (size_t)dim.width, (size_t)dim.height, 1 };
-    // no stride supported for images in OpenCL
-    const size_t row_pitch = dim.width*sizeof(T);
-    const size_t slice_pitch = 0;
-
-    err = clEnqueueReadImage(Ctx.get_command_queues()[num_device], image, CL_FALSE, origin, region, row_pitch, slice_pitch, host_mem, 0, NULL, NULL);
-    err |= clFinish(Ctx.get_command_queues()[num_device]);
-    checkErr(err, "clEnqueueReadImage()");
 }
 
 
@@ -1081,28 +960,10 @@ void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *loc
 }
 
 
-unsigned int nextPow2(unsigned int x) {
-    --x;
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    ++x;
-
-    // get at least the warp size
-    if (x < 32) x = 32;
-
-    return x;
-}
-
-
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, void *image, T
-        neutral, unsigned int width, unsigned int height, unsigned int stride,
-        unsigned int offset_x, unsigned int offset_y, unsigned int is_width,
-        unsigned int is_height, unsigned int max_threads, unsigned int
+T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
+        &acc, T neutral, unsigned int max_threads, unsigned int
         pixels_per_thread) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_mem_flags flags = CL_MEM_READ_WRITE;
@@ -1115,25 +976,26 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, void *image, T
     local_work_size[0] = max_threads;
     local_work_size[1] = 1;
     size_t global_work_size[2];
-    global_work_size[0] = (int)ceil((float)(width)/(local_work_size[0]*2))*local_work_size[0];
-    global_work_size[1] = (int)ceil((float)(is_height)/(local_work_size[1]*pixels_per_thread))*local_work_size[1];
+    global_work_size[0] = (int)ceil((float)(acc.img.width)/(local_work_size[0]*2))*local_work_size[0];
+    global_work_size[1] = (int)ceil((float)(acc.height)/(local_work_size[1]*pixels_per_thread))*local_work_size[1];
 
     unsigned int num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
     output = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*num_blocks, NULL, &err);
     checkErr(err, "clCreateBuffer()");
 
-    hipaccSetKernelArg(kernel2D, 0, sizeof(cl_mem), image);
+    hipaccSetKernelArg(kernel2D, 0, sizeof(cl_mem), acc.img.mem);
     hipaccSetKernelArg(kernel2D, 1, sizeof(cl_mem), output);
     hipaccSetKernelArg(kernel2D, 2, sizeof(T), neutral);
-    hipaccSetKernelArg(kernel2D, 3, sizeof(unsigned int), width);
-    hipaccSetKernelArg(kernel2D, 4, sizeof(unsigned int), height);
-    hipaccSetKernelArg(kernel2D, 5, sizeof(unsigned int), stride);
+    hipaccSetKernelArg(kernel2D, 3, sizeof(unsigned int), acc.img.width);
+    hipaccSetKernelArg(kernel2D, 4, sizeof(unsigned int), acc.img.height);
+    hipaccSetKernelArg(kernel2D, 5, sizeof(unsigned int), acc.img.stride);
     // check if the reduction is applied to the whole image
-    if ((offset_x || offset_y) && (is_width!=width || is_height!=height)) {
-        hipaccSetKernelArg(kernel2D, 6, sizeof(unsigned int), offset_x);
-        hipaccSetKernelArg(kernel2D, 7, sizeof(unsigned int), offset_y);
-        hipaccSetKernelArg(kernel2D, 8, sizeof(unsigned int), is_width);
-        hipaccSetKernelArg(kernel2D, 9, sizeof(unsigned int), is_height);
+    if ((acc.offset_x || acc.offset_y) &&
+        (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+        hipaccSetKernelArg(kernel2D, 6, sizeof(unsigned int), acc.offset_x);
+        hipaccSetKernelArg(kernel2D, 7, sizeof(unsigned int), acc.offset_y);
+        hipaccSetKernelArg(kernel2D, 8, sizeof(unsigned int), acc.width);
+        hipaccSetKernelArg(kernel2D, 9, sizeof(unsigned int), acc.height);
     }
 
     hipaccEnqueueKernel(kernel2D, global_work_size, local_work_size);
@@ -1170,35 +1032,32 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, void *image, T
 }
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, void *image, T
-        neutral, unsigned int width, unsigned int height, unsigned int stride,
-        unsigned int max_threads, unsigned int pixels_per_thread) {
-    return hipaccApplyReduction<T>(kernel2D, kernel1D, image, neutral, width,
-            height, stride, 0, 0, width, height, max_threads,
-            pixels_per_thread);
+T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccImage &img,
+        T neutral, unsigned int max_threads, unsigned int pixels_per_thread) {
+    HipaccAccessor acc(img);
+    return hipaccApplyReduction<T>(kernel2D, kernel1D, acc, neutral,
+            max_threads, pixels_per_thread);
 }
 
 
 // Perform exploration of global reduction and return result
 template<typename T>
 T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, void *image, T neutral, unsigned int width,
-        unsigned int height, unsigned int stride, unsigned int offset_x,
-        unsigned int offset_y, unsigned int is_width, unsigned int is_height,
-        unsigned int max_threads, unsigned int pixels_per_thread) {
+        const char *kernel1D, HipaccAccessor &acc, T neutral, unsigned int
+        max_threads, unsigned int pixels_per_thread) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     cl_int err = CL_SUCCESS;
     cl_mem output;  // GPU memory for reduction
     T result;       // host result
 
-    unsigned int num_blocks = (int)ceil((float)(width)/(max_threads*2))*is_height;
+    unsigned int num_blocks = (int)ceil((float)(acc.img.width)/(max_threads*2))*acc.height;
     output = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*num_blocks, NULL, &err);
     checkErr(err, "clCreateBuffer()");
 
     std::cerr << "<HIPACC:> Exploring pixels per thread for '" << kernel2D << ", " << kernel1D << "'" << std::endl;
 
-    for (unsigned int ppt=1; ppt<=is_height; ppt++) {
+    for (unsigned int ppt=1; ppt<=acc.height; ppt++) {
         std::stringstream num_ppt_ss;
         std::stringstream num_bs_ss;
         num_ppt_ss << ppt;
@@ -1219,25 +1078,26 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
             local_work_size[0] = max_threads;
             local_work_size[1] = 1;
             size_t global_work_size[2];
-            global_work_size[0] = (int)ceil((float)(width)/(local_work_size[0]*2))*local_work_size[0];
-            global_work_size[1] = (int)ceil((float)(is_height)/(local_work_size[1]*ppt))*local_work_size[1];
+            global_work_size[0] = (int)ceil((float)(acc.img.width)/(local_work_size[0]*2))*local_work_size[0];
+            global_work_size[1] = (int)ceil((float)(acc.height)/(local_work_size[1]*ppt))*local_work_size[1];
             num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
 
             // start timing
             total_time = 0.0f;
 
-            hipaccSetKernelArg(exploreReduction2D, 0, sizeof(cl_mem), image);
+            hipaccSetKernelArg(exploreReduction2D, 0, sizeof(cl_mem), acc.img.mem);
             hipaccSetKernelArg(exploreReduction2D, 1, sizeof(cl_mem), output);
             hipaccSetKernelArg(exploreReduction2D, 2, sizeof(T), neutral);
-            hipaccSetKernelArg(exploreReduction2D, 3, sizeof(unsigned int), width);
-            hipaccSetKernelArg(exploreReduction2D, 4, sizeof(unsigned int), height);
-            hipaccSetKernelArg(exploreReduction2D, 5, sizeof(unsigned int), stride);
+            hipaccSetKernelArg(exploreReduction2D, 3, sizeof(unsigned int), acc.img.width);
+            hipaccSetKernelArg(exploreReduction2D, 4, sizeof(unsigned int), acc.img.height);
+            hipaccSetKernelArg(exploreReduction2D, 5, sizeof(unsigned int), acc.img.stride);
             // check if the reduction is applied to the whole image
-            if ((offset_x || offset_y) && (is_width!=width || is_height!=height)) {
-                hipaccSetKernelArg(exploreReduction2D, 6, sizeof(unsigned int), offset_x);
-                hipaccSetKernelArg(exploreReduction2D, 7, sizeof(unsigned int), offset_y);
-                hipaccSetKernelArg(exploreReduction2D, 8, sizeof(unsigned int), is_width);
-                hipaccSetKernelArg(exploreReduction2D, 9, sizeof(unsigned int), is_height);
+            if ((acc.offset_x || acc.offset_y) &&
+                (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+                hipaccSetKernelArg(exploreReduction2D, 6, sizeof(unsigned int), acc.offset_x);
+                hipaccSetKernelArg(exploreReduction2D, 7, sizeof(unsigned int), acc.offset_y);
+                hipaccSetKernelArg(exploreReduction2D, 8, sizeof(unsigned int), acc.width);
+                hipaccSetKernelArg(exploreReduction2D, 9, sizeof(unsigned int), acc.height);
             }
 
             hipaccEnqueueKernel(exploreReduction2D, global_work_size, local_work_size, false);
@@ -1290,12 +1150,11 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 }
 template<typename T>
 T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, void *image, T neutral, unsigned int width,
-        unsigned int height, unsigned int stride, unsigned int max_threads,
-        unsigned int pixels_per_thread) {
-    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, image,
-            neutral, width, height, stride, 0, 0, width, height, max_threads,
-            pixels_per_thread);
+        const char *kernel1D, HipaccImage &img, T neutral, unsigned int
+        max_threads, unsigned int pixels_per_thread) {
+    HipaccAccessor acc(img);
+    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc,
+            neutral, max_threads, pixels_per_thread);
 }
 
 

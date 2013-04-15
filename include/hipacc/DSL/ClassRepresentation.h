@@ -91,9 +91,6 @@ class HipaccImage {
     ASTContext &Ctx;
     VarDecl *VD;
     std::string name;
-    // width, height, and stride initialization strings on the host side
-    std::string width, height, stride;
-    std::string widthType, heightType;
     QualType type;
     std::string pixelType;
     unsigned int pixelSize;
@@ -103,33 +100,18 @@ class HipaccImage {
       Ctx(Ctx),
       VD(VD),
       name(VD->getNameAsString()),
-      width(""), height(""), stride(""),
-      widthType(""), heightType(""),
       type(),
       pixelType(""),
       pixelSize(0)
     {}
 
     const std::string &getName() const { return name; }
-    void setWidth(std::string w) { width = w; }
-    void setHeight(std::string h) { height = h; }
-    void setStride(std::string s) { stride = s; }
-    void setWidthType(std::string wt) { widthType = wt; }
-    void setHeightType(std::string ht) { heightType = ht; }
     void setPixelType(QualType QT) {
       type = QT;
       pixelType = QT.getAsString();
       pixelSize = Ctx.getTypeSize(QT)/8;
     }
     VarDecl *getDecl() { return VD; }
-    std::string getWidth() { return width; }
-    std::string getHeight() { return height; }
-    std::string getStride() {
-      if (stride.empty()) return width;
-      else return stride;
-    }
-    std::string getWidthType() { return widthType; }
-    std::string getHeightType() { return heightType; }
     std::string getPixelType() { return pixelType; }
     unsigned int getPixelSize() { return pixelSize; }
     QualType getPixelQualType() { return type; }
@@ -196,11 +178,6 @@ class HipaccAccessor {
     VarDecl *VD;
     std::string name;
     bool crop;
-    // width, height, and offset initialization strings on the host side
-    std::string width, height;
-    std::string offset_x, offset_y;
-    std::string widthType, heightType;
-    std::string offsetXType, offsetYType;
     // kernel parameter name for width, height, and stride
     DeclRefExpr *widthDecl, *heightDecl, *strideDecl, *scaleXDecl, *scaleYDecl;
     DeclRefExpr *offsetXDecl, *offsetYDecl;
@@ -213,20 +190,10 @@ class HipaccAccessor {
       VD(VD),
       name(VD->getNameAsString()),
       crop(true),
-      width(""), height(""), offset_x(""), offset_y(""),
-      widthType(""), heightType(""), offsetXType(""), offsetYType(""),
       widthDecl(NULL), heightDecl(NULL), strideDecl(NULL),
       scaleXDecl(NULL), scaleYDecl(NULL), offsetXDecl(NULL), offsetYDecl(NULL)
     {}
 
-    void setWidth(std::string w) { width = w; }
-    void setHeight(std::string h) { height = h; }
-    void setOffsetX(std::string x) { offset_x = x; }
-    void setOffsetY(std::string y) { offset_y = y; }
-    void setWidthType(std::string wt) { widthType = wt; }
-    void setHeightType(std::string ht) { heightType = ht; }
-    void setOffsetXType(std::string oxt) { offsetXType = oxt; }
-    void setOffsetYType(std::string oyt) { offsetYType = oyt; }
     void setWidthDecl(DeclRefExpr *width) { widthDecl = width; }
     void setHeightDecl(DeclRefExpr *height) { heightDecl = height; }
     void setStrideDecl(DeclRefExpr *stride) { strideDecl = stride; }
@@ -239,19 +206,11 @@ class HipaccAccessor {
     const std::string &getName() const { return name; }
     HipaccBoundaryCondition *getBC() { return bc; }
     InterpolationMode getInterpolation() { return interpolation; }
-    std::string getWidth() { return width; }
-    std::string getHeight() { return height; }
-    std::string getOffsetX() { return offset_x; }
-    std::string getOffsetY() { return offset_y; }
     HipaccImage *getImage() { return bc->getImage(); }
     unsigned int getSizeX() { return bc->getSizeX(); }
     unsigned int getSizeY() { return bc->getSizeY(); }
     std::string getSizeXStr() { return bc->getSizeXStr(); }
     std::string getSizeYStr() { return bc->getSizeYStr(); }
-    std::string getWidthType() { return widthType; }
-    std::string getHeightType() { return heightType; }
-    std::string getOffsetXType() { return offsetXType; }
-    std::string getOffsetYType() { return offsetYType; }
     DeclRefExpr *getWidthDecl() { return widthDecl; }
     DeclRefExpr *getHeightDecl() { return heightDecl; }
     DeclRefExpr *getStrideDecl() { return strideDecl; }
@@ -275,14 +234,8 @@ class HipaccIterationSpace {
   private:
     HipaccImage *img;
     VarDecl *VD;
-    std::string width;
-    std::string height;
-    std::string offsetX;
-    std::string offsetY;
-    std::string widthType;
-    std::string heightType;
-    std::string offsetXType;
-    std::string offsetYType;
+    std::string name;
+    bool crop;
     // Accessor used during ASTTranslate to access the Output image
     HipaccAccessor *acc;
 
@@ -292,38 +245,19 @@ class HipaccIterationSpace {
     HipaccIterationSpace(HipaccImage *img, VarDecl *VD) :
       img(img),
       VD(VD),
-      width(""),
-      height(""),
-      offsetX(""),
-      offsetY(""),
-      widthType(""),
-      heightType(""),
-      offsetXType(""),
-      offsetYType(""),
+      name(VD->getNameAsString()),
+      crop(true),
       acc(NULL)
     {
       createOutputAccessor();
     }
 
-    void setWidth(std::string w) { width = w; }
-    void setHeight(std::string h) { height = h; }
-    void setOffsetX(std::string ox) { offsetX = ox; }
-    void setOffsetY(std::string oy) { offsetY = oy; }
-    void setWidthType(std::string wt) { widthType = wt; }
-    void setHeightType(std::string ht) { heightType = ht; }
-    void setOffsetXType(std::string oxt) { offsetXType = oxt; }
-    void setOffsetYType(std::string oyt) { offsetYType = oyt; }
+    void setNoCrop() { crop = false; }
     VarDecl *getDecl() { return VD; }
+    const std::string &getName() const { return name; }
     HipaccImage *getImage() { return img; }
     HipaccAccessor *getAccessor() { return acc; }
-    std::string getWidth() { return width; }
-    std::string getHeight() { return height; }
-    std::string getOffsetX() { return offsetX; }
-    std::string getOffsetY() { return offsetY; }
-    std::string getWidthType() { return widthType; }
-    std::string getHeightType() { return heightType; }
-    std::string getOffsetXType() { return offsetXType; }
-    std::string getOffsetYType() { return offsetYType; }
+    bool isCrop() { return crop; }
 };
 
 

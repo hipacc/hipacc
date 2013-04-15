@@ -719,26 +719,21 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccImage *Img = new HipaccImage(Context, VD);
 
         std::string newStr;
-        std::string pitchStr;
 
         // get the text string for the image width
         std::string widthStr;
         llvm::raw_string_ostream WS(widthStr);
         CCE->getArg(0)->printPretty(WS, 0, PrintingPolicy(CI.getLangOpts()));
-        Img->setWidth(WS.str());
-        Img->setWidthType(CCE->getArg(0)->getType().getAsString());
 
         // get the text string for the image height
         std::string heightStr;
         llvm::raw_string_ostream HS(heightStr);
         CCE->getArg(1)->printPretty(HS, 0, PrintingPolicy(CI.getLangOpts()));
-        Img->setHeight(HS.str());
-        Img->setHeightType(CCE->getArg(1)->getType().getAsString());
 
         // create memory allocation string
         stringCreator.writeMemoryAllocation(VD->getName(),
             compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
-            WS.str(), HS.str(), pitchStr, newStr, targetDevice);
+            WS.str(), HS.str(), newStr, targetDevice);
 
         // rewrite Image definition
         // get the start location and compute the semi location.
@@ -749,7 +744,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         // store Image definition
         Img->setPixelType(compilerClasses.getFirstTemplateType(VD->getType()));
-        Img->setStride(pitchStr);
         ImgDeclMap[VD] = Img;
 
         break;
@@ -964,60 +958,20 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         Acc = new HipaccAccessor(BC, mode, VD);
 
-        // get text string for arguments, argument order is:
         // img|bc
         // img|bc, width, height, xf, yf
-        for (unsigned int i=1; i < 5; i++) {
-          std::string Str, Var, Decl;
+        if (CCE->getNumArgs()<4) Acc->setNoCrop();
+
+        // get text string for arguments, argument order is:
+        std::string Parms = Acc->getImage()->getName();
+        for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
+          std::string Str;
           llvm::raw_string_ostream SS(Str);
 
-          if (i < CCE->getNumArgs()) {
-            CCE->getArg(i)->printPretty(SS, 0,
-                PrintingPolicy(CI.getLangOpts()));
-            Decl = CCE->getArg(i)->getType().getAsString();
-          } else if (i < 3) {
-            // get width/height from image
-            if (i==1) {
-              SS << Acc->getImage()->getWidth();
-              Decl = Acc->getImage()->getWidthType();
-            } else {
-              SS << Acc->getImage()->getHeight();
-              Decl = Acc->getImage()->getHeightType();
-            }
-          } else {
-            // omit offset_x and offset_y if not specified
-            Acc->setNoCrop();
-            break;
-          }
-
-          switch (i) {
-            case 1:
-              Var = "_" + VD->getNameAsString() + "width";
-              Acc->setWidth(Var);
-              Acc->setWidthType(Decl);
-              break;
-            case 2:
-              Var = "_" + VD->getNameAsString() + "height";
-              Acc->setHeight(Var);
-              Acc->setHeightType(Decl);
-              break;
-            case 3:
-              Var = "_" + VD->getNameAsString() + "offset_x";
-              Acc->setOffsetX(Var);
-              Acc->setOffsetXType(Decl);
-              break;
-            case 4:
-              Var = "_" + VD->getNameAsString() + "offset_y";
-              Acc->setOffsetY(Var);
-              Acc->setOffsetYType(Decl);
-              break;
-            default:
-              llvm::errs() << "Only four arguments for Accessor supported\n";
-          }
-
-          Decl += " " + Var + " = " + SS.str() + ";\n";
-          newStr += Decl + stringCreator.getIndent();
+          CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+          Parms += ", " + SS.str();
         }
+        newStr += "HipaccAccessor " + Acc->getName() + "(" + Parms + ");\n";
 
         // replace Accessor decl by variables for width/height and offsets
         // get the start location and compute the semi location.
@@ -1059,59 +1013,19 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         IS = new HipaccIterationSpace(Img, VD);
 
-        // get text string for arguments, argument order is:
         // img[, is_width, is_height[, offset_x, offset_y]]
-        for (unsigned int i=1; i < 5; i++) {
-          std::string Str, Var, Decl;
+        if (CCE->getNumArgs()<4) IS->setNoCrop();
+
+        // get text string for arguments, argument order is:
+        std::string Parms = IS->getImage()->getName();
+        for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
+          std::string Str;
           llvm::raw_string_ostream SS(Str);
 
-          if (i < CCE->getNumArgs()) {
-            CCE->getArg(i)->printPretty(SS, 0,
-                PrintingPolicy(CI.getLangOpts()));
-            Decl = CCE->getArg(i)->getType().getAsString();
-          } else {
-            if (i==1) {
-              // use width of image
-              SS << Img->getWidth();
-              Decl = Img->getWidthType();
-            } else if (i==2) {
-              // use height of image
-              SS << Img->getHeight();
-              Decl = Img->getHeightType();
-            } else {
-              // omit offset_x and offset_y if not specified
-              break;
-            }
-          }
-
-          switch (i) {
-            case 1:
-              Var = "_is_width_" + LSS.str();
-              IS->setWidth(Var);
-              IS->setWidthType(Decl);
-              break;
-            case 2:
-              Var = "_is_height_" + LSS.str();
-              IS->setHeight(Var);
-              IS->setHeightType(Decl);
-              break;
-            case 3:
-              Var = "_is_offset_x_" + LSS.str();
-              IS->setOffsetX(Var);
-              IS->setOffsetXType(Decl);
-              break;
-            case 4:
-              Var = "_is_offset_y_" + LSS.str();
-              IS->setOffsetY(Var);
-              IS->setOffsetYType(Decl);
-              break;
-            default:
-              llvm::errs() << "Only four arguments for IterationSpace supported\n";
-          }
-
-          Decl += " " + Var + " = " + SS.str() + ";\n";
-          newStr += Decl + stringCreator.getIndent();
+          CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+          Parms += ", " + SS.str();
         }
+        newStr += "HipaccAccessor " + IS->getName() + "(" + Parms + ");\n";
 
         // store IterationSpace
         ISDeclMap[VD] = IS;
@@ -1163,11 +1077,11 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // remove Mask definition
           TextRewriter.RemoveText(D->getSourceRange());
         } else {
-          std::string newStr, pitchStr;
+          std::string newStr;
           // create Buffer for Mask
           stringCreator.writeMemoryAllocationConstant(Mask->getName(),
               Mask->getTypeStr(), Mask->getSizeXStr(), Mask->getSizeYStr(),
-              pitchStr, newStr);
+              newStr);
 
           // replace Mask declaration by Buffer allocation
           // get the start location and compute the semi location.
@@ -1458,15 +1372,6 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
       if (ImgLHS || AccLHS) {
         std::string newStr;
-        std::string srcOX("0"), srcOY("0"), dstOX("0"), dstOY("0");
-        if (AccLHS) {
-          if (!AccLHS->getOffsetX().empty()) dstOX = AccLHS->getOffsetX();
-          if (!AccLHS->getOffsetY().empty()) dstOY = AccLHS->getOffsetY();
-        }
-        if (AccRHS) {
-          if (!AccRHS->getOffsetX().empty()) srcOX = AccRHS->getOffsetX();
-          if (!AccRHS->getOffsetY().empty()) srcOY = AccRHS->getOffsetY();
-        }
 
         if (ImgLHS && ImgRHS) {
           // Img1 = Img2;
@@ -1474,28 +1379,49 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               DEVICE_TO_DEVICE, newStr);
         } else if (ImgLHS && AccRHS) {
           // Img1 = Acc2;
-          stringCreator.writeMemoryTransferRegion(AccRHS->getImage(), ImgLHS,
-              srcOX, srcOY, dstOX, dstOY, AccRHS->getWidth(),
-              AccRHS->getHeight(), newStr);
+          stringCreator.writeMemoryTransferRegion("HipaccAccessor(" +
+              ImgLHS->getName() + ")", AccRHS->getName(), newStr);
         } else if (AccLHS && ImgRHS) {
           // Acc1 = Img2;
-          stringCreator.writeMemoryTransferRegion(ImgRHS, AccLHS->getImage(),
-              srcOX, srcOY, dstOX, dstOY, AccLHS->getWidth(),
-              AccLHS->getHeight(), newStr);
+          stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
+              "HipaccAccessor(" + ImgRHS->getName() + ")", newStr);
         } else if (AccLHS && AccRHS) {
           // Acc1 = Acc2;
-          stringCreator.writeMemoryTransferRegion(AccRHS->getImage(),
-              AccLHS->getImage(), srcOX, srcOY, dstOX, dstOY,
-              AccLHS->getWidth(), AccLHS->getHeight(), newStr);
+          stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
+              AccRHS->getName(), newStr);
         } else {
-          // get the text string for the memory transfer src
-          std::string dataStr;
-          llvm::raw_string_ostream DS(dataStr);
-          E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
+          bool write_pointer = true;
+          // Img1 = Img2.getData();
+          if (isa<CXXMemberCallExpr>(E->getArg(1))) {
+            CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getArg(1));
 
-          // create memory transfer string
-          stringCreator.writeMemoryTransfer(ImgLHS, DS.str(), HOST_TO_DEVICE,
-              newStr);
+            // match only getData calls to Image instances
+            if (MCE->getDirectCallee()->getNameAsString() == "getData" &&
+                isa<DeclRefExpr>(MCE->getImplicitObjectArgument())) {
+              DeclRefExpr *DRE =
+                dyn_cast<DeclRefExpr>(MCE->getImplicitObjectArgument());
+
+              // check if we have an Image
+              if (ImgDeclMap.count(DRE->getDecl())) {
+                HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
+
+                stringCreator.writeMemoryTransfer(ImgLHS, Img->getName(),
+                    DEVICE_TO_DEVICE, newStr);
+                write_pointer = false;
+              }
+            }
+          }
+
+          if (write_pointer) {
+            // get the text string for the memory transfer src
+            std::string dataStr;
+            llvm::raw_string_ostream DS(dataStr);
+            E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
+
+            // create memory transfer string
+            stringCreator.writeMemoryTransfer(ImgLHS, DS.str(), HOST_TO_DEVICE,
+                newStr);
+          }
         }
 
         // rewrite Image assignment to memory transfer
@@ -1585,7 +1511,7 @@ bool Rewrite::VisitBinaryOperator(BinaryOperator *E) {
 
   // convert Image assignments to a variable into memory transfer,
   // e.g. in_ptr = IN.getData();
-  if (isa<CXXMemberCallExpr>(E->getRHS())) {
+  if (E->getOpcode() == BO_Assign && isa<CXXMemberCallExpr>(E->getRHS())) {
     CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getRHS());
 
     // match only getData calls to Image instances

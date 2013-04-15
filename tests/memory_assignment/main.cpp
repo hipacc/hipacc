@@ -151,6 +151,11 @@ int main(int argc, const char **argv) {
     host_img2 = IMG2.getData();
     compare_results(host_img0, host_img2, acc_roi0, img_roi2);
 
+    // Image = Image.getData()
+    IMG1 = IMG0.getData();
+    host_img1 = IMG1.getData();
+    compare_results(host_img0, host_img1, img_roi, img_roi);
+
 
     // memory cleanup
     //free(host_img0);

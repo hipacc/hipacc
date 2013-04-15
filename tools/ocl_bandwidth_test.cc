@@ -101,14 +101,13 @@ int main(int argc, char *argv[]) {
     }
 
     // allocate device input and output memory
-    int stride = 0;
-    cl_mem dev_idata = hipaccCreateBuffer<unsigned char>(NULL, memory_size, 1, &stride);
-    cl_mem dev_odata = hipaccCreateBuffer<unsigned char>(NULL, memory_size, 1, &stride);
+    HipaccImage dev_idata = hipaccCreateBuffer<unsigned char>(NULL, memory_size, 1);
+    HipaccImage dev_odata = hipaccCreateBuffer<unsigned char>(NULL, memory_size, 1);
 
     std::cout << std::endl << "Bandwidth test, memory size [MB]: " << memory_size/(1024*1024) << std::endl;
     for (unsigned int num_device=0; num_device<devices_all.size(); num_device++) {
         // copy data to device
-        hipaccWriteBuffer<unsigned char>(dev_idata, host_idata, num_device);
+        hipaccWriteMemory<unsigned char>(dev_idata, host_idata, num_device);
 
         // get time in ms
         float time = hipaccCopyBufferBenchmark(dev_idata, dev_odata, num_device);
@@ -129,8 +128,8 @@ int main(int argc, char *argv[]) {
     free(host_idata);
 
     // clean up memory on device
-    hipaccReleaseBuffer(dev_idata);
-    hipaccReleaseBuffer(dev_odata);
+    hipaccReleaseMemory(dev_idata);
+    hipaccReleaseMemory(dev_odata);
 
     return EXIT_SUCCESS;
 }

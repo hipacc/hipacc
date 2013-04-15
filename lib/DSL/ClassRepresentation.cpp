@@ -567,16 +567,13 @@ void HipaccKernel::createArgInfo() {
               NULL);
         }
 
-        // offset_x
-        if (!getImgFromMapping(FD)->getOffsetX().empty()) {
+        // offset_x, offset_y
+        if (getImgFromMapping(FD)->isCrop()) {
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
               Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_x",
               NULL);
-        }
-        // offset_y
-        if (!getImgFromMapping(FD)->getOffsetY().empty()) {
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
@@ -615,7 +612,7 @@ void HipaccKernel::createArgInfo() {
       Ctx.getConstType(Ctx.IntTy).getAsString(), "is_height", NULL);
 
   // is_offset_x, is_offset_y
-  if (!iterationSpace->getOffsetX().empty()) {
+  if (iterationSpace->isCrop()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
         Ctx.getConstType(Ctx.IntTy).getAsString(), "is_offset_x", NULL);
@@ -692,49 +689,48 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
         break;
       case HipaccKernelClass::IterationSpace:
         // output image
-        hostArgNames.push_back(iterationSpace->getImage()->getName());
+        hostArgNames.push_back(iterationSpace->getName() + ".img");
 
         break;
-      case HipaccKernelClass::Image:
+      case HipaccKernelClass::Image: {
         // image
-        hostArgNames.push_back(getImgFromMapping(FD)->getImage()->getName());
+        HipaccAccessor *Acc = getImgFromMapping(FD);
+        hostArgNames.push_back(Acc->getName() + ".img");
 
         // width, height
-        hostArgNames.push_back(getImgFromMapping(FD)->getWidth());
-        hostArgNames.push_back(getImgFromMapping(FD)->getHeight());
+        hostArgNames.push_back(Acc->getName() + ".width");
+        hostArgNames.push_back(Acc->getName() + ".height");
 
         // stride
-        if (options.emitPadding() || getImgFromMapping(FD)->isCrop()) {
-          hostArgNames.push_back(getImgFromMapping(FD)->getImage()->getStride());
+        if (options.emitPadding() || Acc->isCrop()) {
+          hostArgNames.push_back(Acc->getName() + ".img.stride");
         }
 
-        // offset_x
-        if (!getImgFromMapping(FD)->getOffsetX().empty()) {
-          hostArgNames.push_back(getImgFromMapping(FD)->getOffsetX());
-        }
-        // offset_y
-        if (!getImgFromMapping(FD)->getOffsetY().empty()) {
-          hostArgNames.push_back(getImgFromMapping(FD)->getOffsetY());
+        // offset_x, offset_y
+        if (Acc->isCrop()) {
+          hostArgNames.push_back(Acc->getName() + ".offset_x");
+          hostArgNames.push_back(Acc->getName() + ".offset_y");
         }
 
         break;
+        }
       case HipaccKernelClass::Mask:
-        hostArgNames.push_back(getMaskFromMapping(FD)->getName());
+        hostArgNames.push_back(getMaskFromMapping(FD)->getName() + ".mem");
 
         break;
     }
   }
   // is_stride
-  hostArgNames.push_back(iterationSpace->getImage()->getStride());
+  hostArgNames.push_back(iterationSpace->getName() + ".img.stride");
 
   // is_width, is_height
-  hostArgNames.push_back(iterationSpace->getWidth());
-  hostArgNames.push_back(iterationSpace->getHeight());
+  hostArgNames.push_back(iterationSpace->getName() + ".width");
+  hostArgNames.push_back(iterationSpace->getName() + ".height");
 
   // is_offset_x, is_offset_y
-  if (!iterationSpace->getOffsetX().empty()) {
-    hostArgNames.push_back(iterationSpace->getOffsetX());
-    hostArgNames.push_back(iterationSpace->getOffsetY());
+  if (iterationSpace->isCrop()) {
+    hostArgNames.push_back(iterationSpace->getName() + ".offset_x");
+    hostArgNames.push_back(iterationSpace->getName() + ".offset_y");
   }
 
   setInfoStr();
