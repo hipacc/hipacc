@@ -1256,7 +1256,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
     } else {
       result->setInit(Clone(VD->getInit()));
     }
-    result->setThreadSpecified(VD->isThreadSpecified());
+    result->setTLSKind(VD->getTLSKind());
     result->setInitStyle(VD->getInitStyle());
 
     // store mapping between original VarDecl and cloned VarDecl
@@ -1299,7 +1299,7 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D, std::string prefix) {
         D->getStorageClass());
 
     result->setInit(Clone(D->getInit()));
-    result->setThreadSpecified(D->isThreadSpecified());
+    result->setTLSKind(D->getTLSKind());
     result->setInitStyle(D->getInitStyle());
 
     // store mapping between original VarDecl and cloned VarDecl
