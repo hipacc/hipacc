@@ -1057,7 +1057,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 
     std::cerr << "<HIPACC:> Exploring pixels per thread for '" << kernel2D << ", " << kernel1D << "'" << std::endl;
 
-    for (unsigned int ppt=1; ppt<=acc.height; ppt++) {
+    for (int ppt=1; ppt<=acc.height; ppt++) {
         std::stringstream num_ppt_ss;
         std::stringstream num_bs_ss;
         num_ppt_ss << ppt;
