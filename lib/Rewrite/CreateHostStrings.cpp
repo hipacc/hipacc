@@ -514,9 +514,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       break;
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
-      blockStr = "work_size" + LSS.str();
-      gridStr = "iter_space" + LSS.str();
-      break;
     case TARGET_Filterscript:
       blockStr = "work_size" + LSS.str();
       gridStr = K->getIterationSpace()->getAccessor()->getImage()->getName();
@@ -625,21 +622,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += "size_t " + blockStr + "[2];\n";
         resultStr += indent + blockStr + "[0] = " + cX.str() + ";\n";
         resultStr += indent + blockStr + "[1] = " + cY.str() + ";\n";
-        resultStr += indent;
-
-        if (!options.emitFilterscript()) {
-          // sp<Allocation> iter_space
-          resultStr += "sp<Allocation> " + gridStr + ";\n\n";
-          resultStr += indent;
-        }
-
-        // hipaccCalcIterSpaceFromBlock
-        resultStr += "hipaccCalcIterSpaceFromBlock<";
-        resultStr += K->getIterationSpace()->getImage()->getPixelType();
-        resultStr += ">(";
-        resultStr += infoStr + ", ";
-        resultStr += blockStr + ", ";
-        resultStr += gridStr + ");\n";
         resultStr += indent;
 
         // hipaccPrepareKernelLaunch
@@ -967,7 +949,11 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += ", " + gridStr;
       }
     } else {
-      resultStr += ", " + gridStr;
+      if (options.emitRenderscript() || options.emitRenderscriptGPU()) {// || options.emitFilterscript()) {
+        resultStr += ", " + K->getIterationSpace()->getAccessor()->getImage()->getName();
+      } else {
+        resultStr += ", " + gridStr;
+      }
       resultStr += ", " + blockStr;
       resultStr += ", true";
     }
@@ -989,7 +975,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_Filterscript:
         resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
         resultStr += "&ScriptC_" + kernelName + "::forEach_rs" + kernelName;
-        resultStr += ", " + gridStr;
+        resultStr += ", " + K->getIterationSpace()->getAccessor()->getImage()->getName();
         resultStr += ", " + blockStr + ");";
         break;
       case TARGET_OpenCL:

@@ -207,18 +207,6 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 }
 
 
-template<typename T>
-void hipaccCalcIterSpaceFromBlock(hipacc_launch_info &info, size_t *block,
-                           sp<Allocation> &is) {
-    int width = (int)ceil((float)(info.is_width + info.offset_x)
-                          / (block[0]*info.simd_width)) * block[0];
-    int height = (int)ceil((float)(info.is_height)
-                           / (block[1]*info.pixels_per_thread)) * block[1];
-    int stride;
-    is = hipaccCreateAllocation((T*)NULL, width, height, &stride);
-}
-
-
 long getNanoTime() {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
@@ -623,7 +611,7 @@ void hipaccLaunchScriptKernelExploration(
     std::vector<hipacc_smem_info> smems, hipacc_launch_info &info,
     int warp_size, int max_threads_per_block, int max_threads_for_kernel,
     int max_smem_per_block, int opt_tx, int opt_ty,
-    sp<Allocation> iter_space_fs=sp<Allocation>(NULL)
+    sp<Allocation> iter_space_fs
 ) {
     std::cerr << "<HIPACC:> Exploring configurations for kernel"
               << " '" << kernel << "':" << std::endl;
@@ -638,10 +626,6 @@ void hipaccLaunchScriptKernelExploration(
         work_size[1] = 1;
         size_t global_work_size[2];
         sp<Allocation> iter_space;
-
-        if (!iter_space_fs.get()) {
-            hipaccCalcIterSpaceFromBlock<T>(info, work_size, iter_space);
-        }
 
         hipaccPrepareKernelLaunch(info, work_size);
 
