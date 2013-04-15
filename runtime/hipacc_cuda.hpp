@@ -43,7 +43,7 @@
 #include <utility>
 #include <vector>
 
-#include "hipacc_types.hpp"
+#include "hipacc_base.hpp"
 
 class HipaccContext : public HipaccContextBase {
     public:
