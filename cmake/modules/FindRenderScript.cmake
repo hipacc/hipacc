@@ -40,6 +40,9 @@
 #   RS_INCLUDE_DIRS
 #     Specifies the RenderScript include directories.
 #
+#   RS_SOURCES
+#     RenderScript source files.
+#
 #   NDK_CXX_COMPILER
 #     Specifies the NDK C++ compiler executable.
 #
@@ -85,6 +88,8 @@ SET (RS_FLAGS -allow-rs-prefix -reflect-c++ -target-api ${RS_TARGET_API} -o .)
 
 SET (RS_INCLUDE_DIRS -I${ANDROID_SOURCE_DIR}/frameworks/rs/scriptc
                      -I${ANDROID_SOURCE_DIR}/external/clang/lib/Headers)
+
+SET (RS_SOURCES "")
 
 FIND_PROGRAM(NDK_CXX_EXECUTABLE
   NAME arm-linux-androideabi-g++
@@ -154,6 +159,7 @@ MARK_AS_ADVANCED(NDK_INCLUDE_DIRS_STR NDK_LINK_LIBRARIES_STR)
 
 MACRO (RS_WRAP_SCRIPTS DEST)
   FOREACH (SCRIPT ${ARGN})
+    LIST (APPEND RS_SOURCES ${SCRIPT})
     STRING (REGEX REPLACE "\^.*/([a-zA-Z0-9_.-]*).(rs|fs)"
                          "${CMAKE_CURRENT_BINARY_DIR}/ScriptC_\\1.cpp"
                          SCRIPT ${SCRIPT})
@@ -173,11 +179,18 @@ MACRO (RS_INCLUDE_DIRECTORIES)
 ENDMACRO ()
 
 MACRO (RS_ADD_EXECUTABLE NAME)
-  ADD_CUSTOM_TARGET (${NAME} ALL
-    COMMAND ${RS_COMPILER} ${RS_FLAGS} ${RS_INCLUDE_DIRS} ${PROJECT_RS}
-    COMMAND ${NDK_CXX_COMPILER} ${NDK_CXX_FLAGS} ${NDK_DEFINITIONS}
-            ${NDK_INCLUDE_DIRS} ${NDK_LINK_LIBRARIES} ${ARGN} -o ${NAME}
-            ${NDK_LINK_LIBRARIES_${NAME}})
+  IF (RS_SOURCES STREQUAL "")
+    ADD_CUSTOM_TARGET (${NAME} ALL
+      COMMAND ${NDK_CXX_COMPILER} ${NDK_CXX_FLAGS} ${NDK_DEFINITIONS}
+              ${NDK_INCLUDE_DIRS} ${NDK_LINK_LIBRARIES} ${ARGN} -o ${NAME}
+              ${NDK_LINK_LIBRARIES_${NAME}})
+  ELSE ()
+    ADD_CUSTOM_TARGET (${NAME} ALL
+      COMMAND ${RS_COMPILER} ${RS_FLAGS} ${RS_INCLUDE_DIRS} ${RS_SOURCES}
+      COMMAND ${NDK_CXX_COMPILER} ${NDK_CXX_FLAGS} ${NDK_DEFINITIONS}
+              ${NDK_INCLUDE_DIRS} ${NDK_LINK_LIBRARIES} ${ARGN} -o ${NAME}
+              ${NDK_LINK_LIBRARIES_${NAME}})
+  ENDIF ()
 ENDMACRO ()
 
 MACRO (RS_LINK_LIBRARIES NAME)
