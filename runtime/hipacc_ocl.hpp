@@ -1194,10 +1194,12 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
         std::vector<std::pair<size_t, void *> > args,
         std::vector<hipacc_smem_info> smems, hipacc_launch_info &info, int
         warp_size, int max_threads_per_block, int max_threads_for_kernel, int
-        max_smem_per_block, int opt_tx, int opt_ty) {
+        max_smem_per_block, int heu_tx, int heu_ty) {
+    int opt_tx, opt_ty;
+    float opt_time = FLT_MAX;
 
-    std::cerr << "<HIPACC:> Exploring configurations for kernel '" << kernel << "': optimal configuration ";
-    std::cerr << opt_tx*opt_ty << "(" << opt_tx << "x" << opt_ty << "). " << std::endl;
+    std::cerr << "<HIPACC:> Exploring configurations for kernel '" << kernel << "': configuration provided by heuristic ";
+    std::cerr << heu_tx*heu_ty << " (" << heu_tx << "x" << heu_ty << "). " << std::endl;
 
     for (int tile_size_x=warp_size; tile_size_x<=max_threads_per_block; tile_size_x+=warp_size) {
         for (int tile_size_y=1; tile_size_y<=max_threads_per_block; tile_size_y++) {
@@ -1252,12 +1254,17 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                 times.push_back(timing);
                 #endif
             }
-
-            // print timing
             #ifndef GPU_TIMING
             std::sort(times.begin(), times.end());
             timing = times.at(HIPACC_NUM_ITERATIONS/2);
             #endif
+            if (timing < opt_time) {
+                opt_time = timing;
+                opt_tx = tile_size_x;
+                opt_ty = tile_size_y;
+            }
+
+            // print timing
             std::cerr << "<HIPACC:> Kernel config: "
                       << std::setw(4) << std::right << tile_size_x << "x"
                       << std::setw(2) << std::left << tile_size_y
@@ -1267,6 +1274,8 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                       << timing << " ms" << std::endl;
         }
     }
+    std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': ";
+    std::cerr << opt_tx*opt_ty << " (" << opt_tx << "x" << opt_ty << "): " << opt_time << " ms" << std::endl;
 }
 
 #endif  // __HIPACC_OCL_HPP__
