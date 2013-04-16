@@ -333,7 +333,7 @@ HipaccImage hipaccCreateArray2D(T *host_mem, int width, int height,
     err = cudaMallocArray(&array, &format, width, height, flags);
     checkErr(err, "cudaMallocArray()");
 
-    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), (void *)array);
+    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), (void *)array, Array2D);
     Ctx.add_image(img);
 
     return img;
