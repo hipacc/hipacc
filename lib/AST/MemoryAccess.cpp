@@ -735,11 +735,15 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
       }
 
       Expr *global_offset_x = NULL, *global_offset_y = NULL;
-      IntegerLiteral *SX2;
+      Expr *SX2;
       SmallVector<Stmt *, 16> ifBody;
 
       if (Acc->getSizeX() > 1) {
-        SX2 = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
+        if (compilerOptions.exploreConfig()) {
+          SX2 = tileVars.local_size_x;
+        } else {
+          SX2 = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
+        }
       } else {
         SX2 = createIntegerLiteral(Ctx, 0);
       }

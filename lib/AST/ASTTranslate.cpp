@@ -607,18 +607,24 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
         SX = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
               "BSX_EXPLORE", Ctx.IntTy, NULL));
+        if (Acc->getSizeX() > 1) {
+          // 3*BSX
+          SX = createBinaryOperator(Ctx, createIntegerLiteral(Ctx, 3), SX,
+              BO_Mul, Ctx.IntTy);
+        }
+        // add padding to avoid bank conflicts
+        SX = createBinaryOperator(Ctx, SX, createIntegerLiteral(Ctx, 1), BO_Add,
+            Ctx.IntTy);
+
+        // TODO: set the same as below at runtime
         SY = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
               "BSY_EXPLORE", Ctx.IntTy, NULL));
-        // TODO: set the same as below at runtime
+
         if (Kernel->getPixelsPerThread() > 1) {
           SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx,
                 (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
         }
 
-        if (Acc->getSizeX() > 1) {
-          SX = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                (int)Acc->getSizeX()), SX, BO_Add, Ctx.IntTy);
-        }
         if (Acc->getSizeY() > 1) {
           SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx,
                 (int)Acc->getSizeY()-1), BO_Add, Ctx.IntTy);
@@ -633,6 +639,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         llvm::APInt SX, SY;
         SX = llvm::APInt(32, Kernel->getNumThreadsX());
         if (Acc->getSizeX() > 1) {
+          // 3*BSX
           SX *= llvm::APInt(32, 3);
         }
         // add padding to avoid bank conflicts
@@ -2067,9 +2074,13 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       }
     }
 
-    IntegerLiteral *SY, *TX;
+    Expr *SY, *TX;
     if (Acc->getSizeX() > 1) {
-      TX = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
+      if (compilerOptions.exploreConfig()) {
+        TX = tileVars.local_size_x;
+      } else {
+        TX = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
+      }
     } else {
       TX = createIntegerLiteral(Ctx, 0);
     }
