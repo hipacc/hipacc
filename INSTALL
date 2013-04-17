@@ -41,6 +41,8 @@ HOST_TYPE                   - Name of the local compile host type
                               e.g. -DHOST_TYPE=linux-x86
 NDK_TOOLCHAIN_DIR           - Android NDK directory
                               e.g. -DNDK_TOOLCHAIN_DIR=/opt/android/android-14-toolchain
+RS_TARGET_API               - Android API level
+                              e.g. -DRS_TARGET_API=16
 EMBEDDED_OPENCL_INC_PATH    - OpenCL include path
                               e.g. -DEMBEDDED_OPENCL_INC_PATH=/opt/cuda/include
 EMBEDDED_OPENCL_LIB_PATH    - OpenCL library path within the target system

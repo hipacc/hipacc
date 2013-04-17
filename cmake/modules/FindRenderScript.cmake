@@ -21,11 +21,11 @@
 #   EMBEDDED_OPENCL_INC_PATH
 #     Path to OpenCL include files for Android
 #
-#   EMBEDDED_OPENCL_LIB
-#     Name to link against for Android - GLES_mali for Mali.
-#
 #   EMBEDDED_OPENCL_LIB_PATH
 #     Path to OpenCL library directory for Android - system/vendor/lib/egl for Mali.
+#
+#   EMBEDDED_OPENCL_LIB
+#     Name to link against for Android - GLES_mali for Mali.
 #
 # Read-only variables:
 #   RENDERSCRIPT_FOUND
@@ -70,7 +70,17 @@
 
 INCLUDE (FindPackageHandleStandardArgs)
 
-FIND_PATH (RS_INCLUDE_DIR
+SET(ANDROID_SOURCE_DIR          $ENV{ANDROID_SOURCE_DIR}        CACHE PATH      "Android source directory.")
+SET(HOST_TYPE                   $ENV{HOST_TYPE}                 CACHE STRING    "Name of target platform.")
+SET(TARGET_NAME                 $ENV{TARGET_NAME}               CACHE STRING    "Name of the local compile host type.")
+SET(NDK_TOOLCHAIN_DIR           $ENV{NDK_TOOLCHAIN_DIR}         CACHE PATH      "Android NDK directory.")
+SET(RS_TARGET_API               $ENV{RS_TARGET_API}             CACHE STRING    "Android API level.")
+
+SET(EMBEDDED_OPENCL_INC_PATH    $ENV{EMBEDDED_OPENCL_INC_PATH}  CACHE PATH      "Embedded OpenCL header files directory.")
+SET(EMBEDDED_OPENCL_LIB_PATH    $ENV{EMBEDDED_OPENCL_LIB_PATH}  CACHE STRING    "Embedded OpenCL library directory within the target system.")
+SET(EMBEDDED_OPENCL_LIB         $ENV{EMBEDDED_OPENCL_LIB}       CACHE STRING    "Embedded OpenCL library name.")
+
+FIND_PATH(RS_INCLUDE_DIR
   NAMES frameworks/rs/scriptc/rs_core.rsh
   HINTS ${ANDROID_SOURCE_DIR}
   DOC "RenderScript include directory")
@@ -154,8 +164,10 @@ ELSE(EMBEDDED_OPENCL_INCLUDE_DIR AND EMBEDDED_OPENCL_LIBRARY_DIR)
     SET(EMBEDDED_OPENCL_FOUND false)
 ENDIF(EMBEDDED_OPENCL_INCLUDE_DIR AND EMBEDDED_OPENCL_LIBRARY_DIR)
 
-MARK_AS_ADVANCED(NDK_INCLUDE_DIRS_STR NDK_LINK_LIBRARIES_STR)
+MARK_AS_ADVANCED(NDK_INCLUDE_DIRS_STR NDK_LINK_LIBRARIES_STR
+    EMBEDDED_OPENCL_LIBRARY_DIR EMBEDDED_OPENCL_INCLUDE_DIR)
 # End embedded OpenCL
+
 
 MACRO (RS_WRAP_SCRIPTS DEST)
   FOREACH (SCRIPT ${ARGN})
