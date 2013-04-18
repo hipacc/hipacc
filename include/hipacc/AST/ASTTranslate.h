@@ -358,6 +358,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Stmt *VisitSwitchCase(SwitchCase *S);
     Stmt *VisitCaseStmt(CaseStmt *S);
     Stmt *VisitDefaultStmt(DefaultStmt *S);
+    Stmt *VisitCapturedStmt(CapturedStmt *S);
 
     // Asm Statements
     Stmt *VisitAsmStmt(AsmStmt *S) {  // abstract base class
@@ -573,6 +574,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     }
 
     // Microsoft Extensions
+    Expr *VisitMSPropertyRefExpr(MSPropertyRefExpr *E) {
+      HIPACC_NOT_SUPPORTED(MSPropertyRefExpr);
+      return NULL;
+    }
     Expr *VisitCXXUuidofExpr(CXXUuidofExpr *E) {
       HIPACC_NOT_SUPPORTED(CXXUuidofExpr);
       return NULL;

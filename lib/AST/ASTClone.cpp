@@ -196,6 +196,10 @@ Stmt *ASTTranslate::VisitDefaultStmt(DefaultStmt *S) {
       Clone(S->getSubStmt()));
 }
 
+Stmt *ASTTranslate::VisitCapturedStmt(CapturedStmt *S) {
+  llvm_unreachable("not implemented yet");
+}
+
 
 // Asm Statements
 Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
