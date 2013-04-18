@@ -521,10 +521,6 @@ class HipaccKernelFeatures : public HipaccDevice {
       return NoTexture;
     }
 
-    bool propagateConstants() {
-      return true;
-    }
-
     bool vectorize() {
       return vectorization;
     }
@@ -580,7 +576,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       options(options),
       name(VD->getNameAsString()),
       kernelName(KC->getName()),
-      fileName(""),
+      fileName(KC->getName() + VD->getNameAsString()),
       infoStr(""),
       infoStrCnt(0),
       iterationSpace(NULL),
@@ -603,9 +599,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       num_lmem(0),
       num_smem(0),
       num_cmem(0)
-    {
-      fileName = KC->getName() + VD->getNameAsString();
-    }
+    {}
 
     VarDecl *getDecl() const { return VD; }
     HipaccKernelClass *getKernelClass() const { return KC; }
@@ -721,8 +715,6 @@ class HipaccKernel : public HipaccKernelFeatures {
 
     void printStats() {
       llvm::errs() << "Statistics for Kernel '" << fileName << "'\n";
-      llvm::errs() << "  Loop unrolling & constant propagation: " <<
-        propagateConstants() << "\n";
       llvm::errs() << "  Vectorization: " << vectorize() << "\n";
       llvm::errs() << "  Pixels per thread: " << getPixelsPerThread() << "\n";
 

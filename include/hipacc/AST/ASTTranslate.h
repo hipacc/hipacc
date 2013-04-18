@@ -88,7 +88,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     DeclRefExpr *convRed;
     ConvolutionMode convMode;
     int convIdxX, convIdxY;
-    Expr *convExprX, *convExprY;
 
     DeclRefExpr *bh_start_left, *bh_start_right, *bh_start_top,
                 *bh_start_bottom, *bh_fall_back;
@@ -287,8 +286,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       convRed(NULL),
       convIdxX(0),
       convIdxY(0),
-      convExprX(NULL),
-      convExprY(NULL),
       bh_start_left(NULL),
       bh_start_right(NULL),
       bh_start_top(NULL),

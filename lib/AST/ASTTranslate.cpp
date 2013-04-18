@@ -1406,25 +1406,12 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
         break;
     }
 
-    if (convMask->isConstant()) {
-      if (convIdxX + convIdxY == 0) {
-        // conv_tmp = ...
-        return convInitExpr;
-      } else {
-        // conv_tmp += ...
-        return convRedExpr;
-      }
+    if (convIdxX + convIdxY == 0) {
+      // conv_tmp = ...
+      return convInitExpr;
     } else {
-      // if (conv_x == 0 && conv_y == 0) {
-      //   conv_tmp = ...
-      // } else {
-      //   conv_tmp += ...
-      // }
-      return createIfStmt(Ctx, createBinaryOperator(Ctx,
-            createBinaryOperator(Ctx, convExprX, createIntegerLiteral(Ctx, 0),
-              BO_EQ, Ctx.BoolTy), createBinaryOperator(Ctx, convExprY,
-                createIntegerLiteral(Ctx, 0), BO_EQ, Ctx.BoolTy), BO_LAnd,
-            Ctx.BoolTy), convInitExpr, convRedExpr);
+      // conv_tmp += ...
+      return convRedExpr;
     }
   } else {
     return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
@@ -1464,20 +1451,6 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
         Mask = Kernel->getMaskFromMapping(FD);
       }
       assert(Mask && "Could not find Mask Field Decl.");
-
-      // check if Mask is initialized with constants and only for the first
-      // iteration (gidYRef is a DeclRefExpr and not a BinaryOperator)
-      if (!Mask->isConstant() && isa<DeclRefExpr>(gidYRef) &&
-          !bh_variant.borderVal) { // emit only once for the different code variants
-        unsigned int DiagIDConstMask =
-          Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-              "Unable to unroll convolution loop and propagate constants: Mask '%0' for 'convolve' call needs to be initialized using constants.");
-        Diags.Report(E->getArg(0)->getExprLoc(), DiagIDConstMask) << FD->getName();
-        unsigned int DiagIDConstMaskInit =
-          Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-              "With the following Mask declaration:");
-        Diags.Report(Mask->getDecl()->getLocation(), DiagIDConstMaskInit);
-      }
 
       // second parameter: convolution mode
       assert(isa<DeclRefExpr>(E->getArg(1)) && "Second parameter to 'convolve' call must be the convolution mode.");
@@ -1544,71 +1517,26 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       DC->addDecl(conv_tmp);
       DeclRefExpr *conv_red = createDeclRefExpr(Ctx, conv_tmp);
       convRed = conv_red;
+      convMask = Mask;
       preStmts.push_back(createDeclStmt(Ctx, conv_tmp));
       preCStmt.push_back(outerCompountStmt);
 
       // unroll convolution
-      convMask = Mask;
-
-      if (!Mask->isConstant()) {
-        // int _conv_x = 0;
-        VarDecl *conv_x = createVarDecl(Ctx, kernelDecl, "_conv_x", Ctx.IntTy,
-            createIntegerLiteral(Ctx, 0));
-        DeclStmt *conv_x_stmt = createDeclStmt(Ctx, conv_x);
-        convExprX  = createDeclRefExpr(Ctx, conv_x);
-        LambdaDeclMap[conv_x] = conv_x;
-        DC->addDecl(conv_x);
-
-        // int _conv_y = 0;
-        VarDecl *conv_y = createVarDecl(Ctx, kernelDecl, "_conv_y", Ctx.IntTy,
-            createIntegerLiteral(Ctx, 0));
-        DeclStmt *conv_y_stmt = createDeclStmt(Ctx, conv_y);
-        convExprY = createDeclRefExpr(Ctx, conv_y);
-        LambdaDeclMap[conv_y] = conv_y;
-        DC->addDecl(conv_y);
-
-        // convert the lambda-function body to kernel syntax
-        Stmt *convIterations = Clone(LE->getBody());
-
-        //
-        // for (int _conv_y=0; _conv_y<size_y; _conv_y++) {
-        //     for (int _conv_x=0; _conv_x<size_x; _conv_x++) {
-        //         lambda-function body / iteration
-        //     }
-        // }
-        //
-        ForStmt *innerLoop = createForStmt(Ctx, conv_x_stmt,
-            createBinaryOperator(Ctx, convExprX, createIntegerLiteral(Ctx,
-                (int)Mask->getSizeX()), BO_LT, Ctx.BoolTy),
-            createUnaryOperator(Ctx, convExprX, UO_PostInc,
-              convExprX->getType()), convIterations);
-        ForStmt *outerLoop = createForStmt(Ctx, conv_y_stmt,
-            createBinaryOperator(Ctx, convExprY, createIntegerLiteral(Ctx,
-                (int)Mask->getSizeY()), BO_LT, Ctx.BoolTy),
-            createUnaryOperator(Ctx, convExprY, UO_PostInc,
-              convExprY->getType()), innerLoop);
-
-        preStmts.push_back(outerLoop);
-        preCStmt.push_back(outerCompountStmt);
-        LambdaDeclMap.clear();
-      } else {
-        for (unsigned int y=0; y<Mask->getSizeY(); y++) {
-          for (unsigned int x=0; x<Mask->getSizeX(); x++) {
-            convIdxX = x;
-            convIdxY = y;
-            Stmt *convIteration = Clone(LE->getBody());
-            preStmts.push_back(convIteration);
-            preCStmt.push_back(outerCompountStmt);
-            // clear decls added while cloning last iteration
-            LambdaDeclMap.clear();
-          }
+      for (unsigned int y=0; y<Mask->getSizeY(); y++) {
+        for (unsigned int x=0; x<Mask->getSizeX(); x++) {
+          convIdxX = x;
+          convIdxY = y;
+          Stmt *convIteration = Clone(LE->getBody());
+          preStmts.push_back(convIteration);
+          preCStmt.push_back(outerCompountStmt);
+          // clear decls added while cloning last iteration
+          LambdaDeclMap.clear();
         }
       }
 
       convMask = NULL;
       convRed = NULL;
       convIdxX = convIdxY = 0;
-      convExprX = convExprY = NULL;
 
       // add ICE for CodeGen
       return createImplicitCastExpr(Ctx, conv_red->getType(), CK_LValueToRValue,
@@ -1950,20 +1878,15 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         break;
       case 1:
         assert(convMask && convMask==Mask && "0 arguments for Mask operator() only allowed within convolution lambda-function.");
-        if (Mask->isConstant() && Kernel->propagateConstants()) {
-          // within convolute lambda-function propagate constant
+        // within convolute lambda-function
+        if (Mask->isConstant()) {
+          // propagate constants
           result = Clone(Mask->getInitList()->getInit(Mask->getSizeY() *
                 convIdxX + convIdxY)->IgnoreParenCasts());
         } else {
-          Expr *midx_x = NULL, *midx_y = NULL;
-
-          if (Mask->isConstant()) {
-            midx_x = createIntegerLiteral(Ctx, convIdxX);
-            midx_y = createIntegerLiteral(Ctx, convIdxY);
-          } else {
-            midx_x = convExprX;
-            midx_y = convExprY;
-          }
+          // access mask elements
+          Expr *midx_x = createIntegerLiteral(Ctx, convIdxX);
+          Expr *midx_y = createIntegerLiteral(Ctx, convIdxY);
 
           switch (compilerOptions.getTargetCode()) {
             case TARGET_C:
@@ -2120,19 +2043,10 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // 2: -> offset y
         Expr *offset_x, *offset_y;
         if (E->getNumArgs()==2) {
-          if (convMask->isConstant()) {
-            offset_x = createIntegerLiteral(Ctx,
-                convIdxX-(int)convMask->getSizeX()/2);
-            offset_y = createIntegerLiteral(Ctx,
-                convIdxY-(int)convMask->getSizeY()/2);
-          } else {
-            offset_x = createBinaryOperator(Ctx, convExprX,
-                createIntegerLiteral(Ctx, (int)convMask->getSizeX()/2), BO_Sub,
-                Ctx.IntTy);
-            offset_y = createBinaryOperator(Ctx, convExprY,
-                createIntegerLiteral(Ctx, (int)convMask->getSizeY()/2), BO_Sub,
-                Ctx.IntTy);
-          }
+          offset_x = createIntegerLiteral(Ctx,
+              convIdxX-(int)convMask->getSizeX()/2);
+          offset_y = createIntegerLiteral(Ctx,
+              convIdxY-(int)convMask->getSizeY()/2);
         } else {
           offset_x = Clone(E->getArg(1));
           offset_y = Clone(E->getArg(2));
