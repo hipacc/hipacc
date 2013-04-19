@@ -78,7 +78,7 @@ RET_TYPE NAME(IS_PARM) { \
         val = REDUCE(val, ACCESS(Output, j, 0, 0, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \
-    RETURN(_IS[0], val); \
+    RETURN(*_IS, val); \
 }
 
 //#endif  // __HIPACC_RS_RED_HPP__
