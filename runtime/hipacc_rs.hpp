@@ -621,17 +621,15 @@ T hipaccApplyReduction(
     HipaccContext &Ctx = HipaccContext::getInstance();
     RenderScript* rs = Ctx.get_context();
     long end, start;
-    sp<Allocation> output;      // memory for reduction
-    T result;                   // host result
 
     // allocate temporary memory
     HipaccImage out_img = hipaccCreateAllocationConstant((T*)NULL, is_width, 1);
-    output = (Allocation *)out_img.mem;
-    (script->*setter)(output);
 
     // allocation for 1st reduction step
     HipaccImage is1_img = hipaccCreateAllocationConstant((T*)NULL, is_width, 1);
     sp<Allocation> is1 = (Allocation *)is1_img.mem;
+    (script->*setter)(is1);
+
     // allocation for 2nd reduction step
     HipaccImage is2_img = hipaccCreateAllocationConstant((T*)NULL, 1, 1);
     sp<Allocation> is2 = (Allocation *)is2_img.mem;
@@ -655,16 +653,8 @@ T hipaccApplyReduction(
     }
 
     // download result of reduction
-    // FIXME: the current Renderscript implementation copies the whole array
-    // regardless of the size specified by the user
-    #if 0
-    output->copyTo(&result, sizeof(T));
-    #else
-    T* buff = new T[is_width];
-    output->copyTo(buff, sizeof(T)*is_width);
-    result = buff[0];
-    delete[] buff;
-    #endif
+    T result;
+    is2->copyTo(&result, sizeof(T));
 
     return result;
 }

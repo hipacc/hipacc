@@ -186,7 +186,7 @@ void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
       LSS << literalCountGridBock++;
       resultStr += "sp<Allocation> alloc_" + LSS.str() + " = (Allocation  *)";
       resultStr += Img->getName() + ".mem;\n" + indent;
-      if (options.emitRenderscriptGPU()) {
+      if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
         addReductionArgument(GR, "Input", "alloc_" + LSS.str(), resultStr, false);
       } else {
         addReductionArgument(GR, "Input", "alloc_" + LSS.str(), resultStr, true);
@@ -905,7 +905,7 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
           GR->getFileName() + "2D, ";
         resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
           GR->getFileName() + "1D, ";
-        if (options.emitRenderscriptGPU()) {
+        if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
           resultStr += "&ScriptC_" + GR->getFileName() + "::set_Output, ";
         } else {
           resultStr += "&ScriptC_" + GR->getFileName() + "::bind_Output, ";
@@ -1017,8 +1017,7 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
   // image memory parameter, constant parameter, memory access function
   switch (K->useTextureMemory(Acc)) {
     case NoTexture:
-      if (options.emitFilterscript() ||
-          options.emitRenderscriptGPU()) {
+      if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
         resultStr += "ALL_PARM, " + const_parameter + ", ALL" + const_suffix;
       } else {
         resultStr += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;

@@ -38,10 +38,22 @@
 #define ALL(data, idx_x, idx_y, stride, method) method(data, idx_x, idx_y)
 #define IMG(data, idx_x, idx_y, stride, method) data[(idx_y)*(stride) + (idx_x)]
 
+#ifdef FS
+#define RET_TYPE DATA_TYPE __attribute__((kernel))
+#define IS_PARM
+#define COMMA
+#define RETURN(method, val) return val
+#else
+#define RET_TYPE void
+#define COMMA ,
+#define IS_PARM DATA_TYPE *_IS
+#define RETURN(method, val) method = val
+#endif
+
 // step 1:
 // reduce a 2D block stored to linear memory and store the reduced value to linear memory
 #define REDUCTION_RS_2D(NAME, DATA_TYPE, ACCESS, REDUCE) \
-void NAME(DATA_TYPE *_IS, uint32_t x, uint32_t y) { \
+RET_TYPE NAME(IS_PARM COMMA uint32_t x, uint32_t y) { \
     const int gid_x = x; \
     const int gid_y = y; \
  \
@@ -52,21 +64,21 @@ void NAME(DATA_TYPE *_IS, uint32_t x, uint32_t y) { \
         val = REDUCE(val, ACCESS(Input, gid_x + OFFSET_X, tmp + OFFSET_Y, stride, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \
-    ACCESS(Output, x, 0, 0, *(DATA_TYPE*)rsGetElementAt) = val; \
+    RETURN(ACCESS(Output, x, 0, 0, *(DATA_TYPE*)rsGetElementAt), val); \
 }
 
 // step 2:
 // reduce a 1D block and store the reduced value to the first element of linear
 // memory
 #define REDUCTION_RS_1D(NAME, DATA_TYPE, ACCESS, REDUCE) \
-void NAME(DATA_TYPE *_IS) { \
+RET_TYPE NAME(IS_PARM) { \
     DATA_TYPE val = neutral; \
  \
     for (int j=0; j<num_elements; j++) { \
         val = REDUCE(val, ACCESS(Output, j, 0, 0, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \
-    ACCESS(Output, 0, 0, 0, *(DATA_TYPE*)rsGetElementAt) = val; \
+    RETURN(_IS[0], val); \
 }
 
 //#endif  // __HIPACC_RS_RED_HPP__

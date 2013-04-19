@@ -1908,7 +1908,9 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   // preprocessor defines
   if (!compilerOptions.exploreConfig()) {
     *OS << "#define BS " << GR->getNumThreads() << "\n"
-        << "#define PPT " << GR->getPixelsPerThread() << "\n";
+        << "#define PPT " << GR->getPixelsPerThread() << "\n"
+        << "#define DATA_TYPE " << GR->getAccessor()->getImage()->getPixelType()
+        << "\n";
   }
   if (GR->isAccessor()) {
     *OS << "#define USE_OFFSETS\n";
@@ -1933,9 +1935,13 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     case TARGET_Filterscript:
       *OS << "#pragma version(1)\n"
           << "#pragma rs java_package_name(com.example.android.rs.hipacc)\n\n";
+      if (compilerOptions.emitFilterscript()) {
+        *OS << "#define FS\n";
+      }
       *OS << "#include \"hipacc_rs_red.hpp\"\n\n";
       // neutral element definition
-      if (compilerOptions.emitRenderscriptGPU()) {
+      if (compilerOptions.emitRenderscriptGPU() ||
+          compilerOptions.emitFilterscript()) {
         *OS << "rs_allocation Input;\n";
         *OS << "rs_allocation Output;\n";
       } else {
@@ -2048,12 +2054,12 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     case TARGET_Filterscript:
       *OS << "REDUCTION_RS_2D(rs" << GR->getFileName() << "2D, "
           << D->getResultType().getAsString() << ", "
-          << (char *)(compilerOptions.emitRenderscriptGPU()? "ALL, ":"IMG, ")
+          << (char *)(compilerOptions.emitRenderscript()? "IMG, ":"ALL, ")
           << GR->getName() << "Reduce)\n";
       // 1D reduction
       *OS << "REDUCTION_RS_1D(rs" << GR->getFileName() << "1D, "
           << D->getResultType().getAsString() << ", "
-          << (char *)(compilerOptions.emitRenderscriptGPU()? "ALL, ":"IMG, ")
+          << (char *)(compilerOptions.emitRenderscript()? "IMG, ":"ALL, ")
           << GR->getName() << "Reduce)\n";
       break;
   }
