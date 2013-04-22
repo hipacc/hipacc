@@ -558,9 +558,12 @@ void hipaccLaunchScriptKernelExploration(
     void(F::*kernel)(sp<const Allocation>) const,
     std::vector<hipacc_smem_info> smems, hipacc_launch_info &info,
     int warp_size, int max_threads_per_block, int max_threads_for_kernel,
-    int max_smem_per_block, int opt_tx, int opt_ty,
+    int max_smem_per_block, int heu_tx, int heu_ty,
     HipaccImage &iter_space
 ) {
+    int opt_ws=1;
+    float opt_time = FLT_MAX;
+
     std::cerr << "<HIPACC:> Exploring configurations for kernel"
               << " '" << kernel << "':" << std::endl;
 
@@ -596,6 +599,11 @@ void hipaccLaunchScriptKernelExploration(
         std::sort(times.begin(), times.end());
         med_dt = times.at(HIPACC_NUM_ITERATIONS/2);
 
+        if (med_dt < opt_time) {
+            opt_time = med_dt;
+            opt_ws = curr_warp_size;
+        }
+
         // print timing
         std::cerr << "<HIPACC:> Kernel config: "
                   << std::setw(4) << std::right << work_size[0] << "x"
@@ -605,6 +613,8 @@ void hipaccLaunchScriptKernelExploration(
                   << std::setw(8) << std::fixed << std::setprecision(4)
                   << med_dt << " ms" << std::endl;
     }
+    std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
+              << opt_ws << ": " << opt_time << " ms" << std::endl;
 }
 
 

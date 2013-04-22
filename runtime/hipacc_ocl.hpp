@@ -1195,11 +1195,12 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
         std::vector<hipacc_smem_info> smems, hipacc_launch_info &info, int
         warp_size, int max_threads_per_block, int max_threads_for_kernel, int
         max_smem_per_block, int heu_tx, int heu_ty) {
-    int opt_tx, opt_ty;
+    int opt_tx=warp_size, opt_ty=1;
     float opt_time = FLT_MAX;
 
-    std::cerr << "<HIPACC:> Exploring configurations for kernel '" << kernel << "': configuration provided by heuristic ";
-    std::cerr << heu_tx*heu_ty << " (" << heu_tx << "x" << heu_ty << "). " << std::endl;
+    std::cerr << "<HIPACC:> Exploring configurations for kernel '" << kernel
+              << "': configuration provided by heuristic " << heu_tx*heu_ty
+              << " (" << heu_tx << "x" << heu_ty << "). " << std::endl;
 
     for (int tile_size_x=warp_size; tile_size_x<=max_threads_per_block; tile_size_x+=warp_size) {
         for (int tile_size_y=1; tile_size_y<=max_threads_per_block; tile_size_y++) {
@@ -1274,8 +1275,9 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                       << timing << " ms" << std::endl;
         }
     }
-    std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': ";
-    std::cerr << opt_tx*opt_ty << " (" << opt_tx << "x" << opt_ty << "): " << opt_time << " ms" << std::endl;
+    std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
+              << opt_tx*opt_ty << " (" << opt_tx << "x" << opt_ty << "): "
+              << opt_time << " ms" << std::endl;
 }
 
 #endif  // __HIPACC_OCL_HPP__
