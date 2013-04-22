@@ -112,7 +112,7 @@ dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
 }
 
 
-const char *getCUDAErrorCodeStr(int errorCode) {
+const char *getCUDAErrorCodeStrDrv(int errorCode) {
     switch (errorCode) {
         case CUDA_SUCCESS:
             return "CUDA_SUCCESS";
@@ -166,6 +166,10 @@ const char *getCUDAErrorCodeStr(int errorCode) {
             return "CUDA_ERROR_UNSUPPORTED_LIMIT";
         case CUDA_ERROR_CONTEXT_ALREADY_IN_USE:
             return "CUDA_ERROR_CONTEXT_ALREADY_IN_USE";
+        #if CUDA_VERSION >= 5000
+        case CUDA_ERROR_PEER_ACCESS_UNSUPPORTED:
+            return "CUDA_ERROR_PEER_ACCESS_UNSUPPORTED";
+        #endif
         case CUDA_ERROR_INVALID_SOURCE:
             return "CUDA_ERROR_INVALID_SOURCE";
         case CUDA_ERROR_FILE_NOT_FOUND:
@@ -206,6 +210,12 @@ const char *getCUDAErrorCodeStr(int errorCode) {
             return "CUDA_ERROR_HOST_MEMORY_ALREADY_REGISTERED";
         case CUDA_ERROR_HOST_MEMORY_NOT_REGISTERED:
             return "CUDA_ERROR_HOST_MEMORY_NOT_REGISTERED";
+        #if CUDA_VERSION >= 5000
+        case CUDA_ERROR_NOT_PERMITTED:
+            return "CUDA_ERROR_NOT_PERMITTED";
+        case CUDA_ERROR_NOT_SUPPORTED:
+            return "CUDA_ERROR_NOT_SUPPORTED";
+        #endif
         case CUDA_ERROR_UNKNOWN:
             return "CUDA_ERROR_UNKNOWN";
         default:
@@ -217,14 +227,14 @@ const char *getCUDAErrorCodeStr(int errorCode) {
 #define checkErrDrv(err, name) \
     if (err != CUDA_SUCCESS) { \
         std::cerr << "ERROR: " << name << " (" << (err) << ")" << " [file " << __FILE__ << ", line " << __LINE__ << "]: "; \
-        std::cerr << getCUDAErrorCodeStr(err) << std::endl; \
+        std::cerr << getCUDAErrorCodeStrDrv(err) << std::endl; \
         exit(EXIT_FAILURE); \
     }
 #else
 inline void checkErrDrv(CUresult err, const char *name) {
     if (err != CUDA_SUCCESS) { \
         std::cerr << "ERROR: " << name << " (" << (err) << "): "; \
-        std::cerr << getCUDAErrorCodeStr(err) << std::endl; \
+        std::cerr << getCUDAErrorCodeStrDrv(err) << std::endl; \
         exit(EXIT_FAILURE); \
     }
 }
