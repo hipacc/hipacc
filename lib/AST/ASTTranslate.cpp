@@ -1434,6 +1434,8 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
     if (E->getDirectCallee()->getName().equals("convolve")) {
       DiagnosticsEngine &Diags = Ctx.getDiagnostics();
 
+      assert(convMask == NULL && "Nested convolution calls are not supported.");
+
       // convolve(mask, mode, [&] () { lambda-function; });
       assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'convolve' call.");
 
