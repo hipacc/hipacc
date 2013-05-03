@@ -2092,6 +2092,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
   DeclRefExpr *LHS;
   HipaccAccessor *Acc = NULL;
+  HipaccMask *Mask = NULL;
   MemoryAccess memAcc = UNDEFINED;
   Expr *result;
 
@@ -2152,37 +2153,49 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     FieldDecl *FD = dyn_cast<FieldDecl>(ImgAcc->getMemberDecl());
 
     Acc = Kernel->getImgFromMapping(FD);
+    Mask = Kernel->getMaskFromMapping(FD);
     memAcc = KernelClass->getImgAccess(FD);
-    assert(Acc && "Could not find Image/Accessor Field Decl.");
+    assert((Acc || Mask) && "Could not find Image/Accessor/Mask Field Decl.");
 
-    // Acc.getX() method -> acc_scale_x * (gid_x - is_offset_x)
-    if (ME->getMemberNameInfo().getAsString() == "getX") {
-      Expr *idx_x = gidXRef;
-      // remove is_offset_x and scale index to Accessor size
-      if (Acc->getInterpolation()!=InterpolateNO) {
-        idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-            createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL,
-            Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
-      } else {
-        idx_x = createParenExpr(Ctx, removeISOffsetX(gidXRef, Acc));
+    if (Acc != NULL) {
+      // Acc.getX() method -> acc_scale_x * (gid_x - is_offset_x)
+      if (ME->getMemberNameInfo().getAsString() == "getX") {
+        Expr *idx_x = gidXRef;
+        // remove is_offset_x and scale index to Accessor size
+        if (Acc->getInterpolation()!=InterpolateNO) {
+          idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+              createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL,
+              Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
+        } else {
+          idx_x = createParenExpr(Ctx, removeISOffsetX(gidXRef, Acc));
+        }
+
+        return idx_x;
       }
 
-      return idx_x;
-    }
+      // Acc.getY() method -> acc_scale_y * gid_y
+      if (ME->getMemberNameInfo().getAsString() == "getY") {
+        Expr *idx_y = gidYRef;
+        // scale index to Accessor size
+        if (Acc->getInterpolation()!=InterpolateNO) {
+          idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+              createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
+              Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
+        } else if (compilerOptions.emitFilterscript()) {
+          idx_y = createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
+        }
 
-    // Acc.getY() method -> acc_scale_y * gid_y
-    if (ME->getMemberNameInfo().getAsString() == "getY") {
-      Expr *idx_y = gidYRef;
-      // scale index to Accessor size
-      if (Acc->getInterpolation()!=InterpolateNO) {
-        idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-            createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
-            Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
-      } else if (compilerOptions.emitFilterscript()) {
-        idx_y = createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
+        return idx_y;
       }
-
-      return idx_y;
+    } else {
+      assert(Mask == convMask && "Getting Mask convolution IDs is only allowed within convolution lambda-function.");
+      // within convolute lambda-function
+      if (ME->getMemberNameInfo().getAsString() == "getX") {
+        return createIntegerLiteral(Ctx, convIdxX-(int)convMask->getSizeX()/2);
+      }
+      if (ME->getMemberNameInfo().getAsString() == "getY") {
+        return createIntegerLiteral(Ctx, convIdxY-(int)convMask->getSizeY()/2);
+      }
     }
   }
 
