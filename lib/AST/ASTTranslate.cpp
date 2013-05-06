@@ -38,6 +38,7 @@ using namespace hipacc;
 using namespace ASTNode;
 using namespace hipacc::Builtin;
 
+static bool first_iteration = true;
 
 //===----------------------------------------------------------------------===//
 // Statement/expression transformations
@@ -1263,7 +1264,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
     } else {
       result->setInit(Clone(VD->getInit()));
     }
-    result->setTLSKind(VD->getTLSKind());
+    result->setTSCSpec(VD->getTSCSpec());
     result->setInitStyle(VD->getInitStyle());
 
     // store mapping between original VarDecl and cloned VarDecl
@@ -1306,7 +1307,7 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D, std::string prefix) {
         D->getStorageClass());
 
     result->setInit(Clone(D->getInit()));
-    result->setTLSKind(D->getTLSKind());
+    result->setTSCSpec(D->getTSCSpec());
     result->setInitStyle(D->getInitStyle());
 
     // store mapping between original VarDecl and cloned VarDecl
@@ -1406,8 +1407,10 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
         break;
     }
 
-    if (convIdxX + convIdxY == 0) {
+    //if (convIdxX + convIdxY == 0) {
+    if (first_iteration) {
       // conv_tmp = ...
+      first_iteration = false;
       return convInitExpr;
     } else {
       // conv_tmp += ...
@@ -1522,8 +1525,26 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       preCStmt.push_back(outerCompountStmt);
 
       // unroll convolution
+      first_iteration = true;
       for (unsigned int y=0; y<Mask->getSizeY(); y++) {
         for (unsigned int x=0; x<Mask->getSizeX(); x++) {
+          if (Mask->isConstant()) {
+            // check if element is 0 and SUM ...
+            Expr *Ex = Mask->getInitList()->getInit(y*Mask->getSizeX() + x)->IgnoreParenCasts();
+
+            if (isa<IntegerLiteral>(Ex->IgnoreParenCasts())) {
+              IntegerLiteral *IL = dyn_cast<IntegerLiteral>(Ex);
+              if (IL->getValue().getSExtValue()==0) continue;
+            } else if (isa<FloatingLiteral>(Ex->IgnoreParenCasts())) {
+              FloatingLiteral *FL = dyn_cast<FloatingLiteral>(Ex);
+              llvm::APFloat APF = FL->getValue();
+              if (APF.isZero()) continue;
+            } else if (isa<CharacterLiteral>((Ex)->IgnoreParenCasts())) {
+              CharacterLiteral *CL = dyn_cast<CharacterLiteral>(Ex);
+              if (CL->getValue()==0) continue;
+            }
+          }
+
           convIdxX = x;
           convIdxY = y;
           Stmt *convIteration = Clone(LE->getBody());
