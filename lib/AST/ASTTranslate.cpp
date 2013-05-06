@@ -1569,6 +1569,8 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
     // lookup if this function call is supported and choose appropriate
     // function, e.g. exp() instead of expf() in case of OpenCL
     FunctionDecl *targetFD = NULL;
+    FunctionDecl *convert = NULL;
+    bool addConvert = false;
     if (compilerOptions.emitC()) {
       targetFD = E->getDirectCallee();
     } else {
@@ -1592,10 +1594,17 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
                   name.resize(name.size() - 1);
                   doUpdate = true;
                 }
-              } else if (name.at(0)=='l' && name=="labs") {
+              } else if (name=="labs") {
                 // remove leading l
                 name.erase(0, 1);
                 doUpdate = true;
+                // require convert function ulong -> long
+                addConvert = true;
+                convert = builtins.getBuiltinFunction(HIPACCBIconvert_long4);
+              } else if (name=="abs") {
+                // require convert function uint -> int
+                addConvert = true;
+                convert = builtins.getBuiltinFunction(HIPACCBIconvert_int4);
               }
 
               if (doUpdate) {
@@ -1657,6 +1666,21 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
     }
 
     setExprProps(E, result);
+
+    if (addConvert) {
+      // add ICE for CodeGen
+      ImplicitCastExpr *ICE = createImplicitCastExpr(Ctx,
+          Ctx.getPointerType(convert->getType()), CK_FunctionToPointerDecay,
+          createDeclRefExpr(Ctx, convert), NULL, VK_RValue);
+
+      // create CallExpr
+      CallExpr *conv_result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(),
+          E->getType(), E->getValueKind(), E->getRParenLoc());
+      conv_result->setNumArgs(Ctx, 1);
+      conv_result->setArg(0, result);
+      result = conv_result;
+      setExprProps(E, result);
+    }
 
     return result;
   } else {

@@ -389,17 +389,15 @@ MAKE_MATH_BI_GEN(double4,   double)
 
 
 // integer math operators: abs, labs
-// TODO: return type is not the same for OpenCL vs. cmath, CUDA, Renderscript
-#if 0
 #define MAKE_MATH_BI_INT(NEW_TYPE, BASIC_TYPE, RET_TYPE, PREFIX) \
  /* abs */ \
 ATTRIBUTES RET_TYPE PREFIX##abs(NEW_TYPE a) { \
     return make_##RET_TYPE(std::abs(a.x), std::abs(a.y), std::abs(a.z), std::abs(a.w)); \
-} \
+}
 
 MAKE_MATH_BI_INT(int4,  int,    int4,    )
 MAKE_MATH_BI_INT(long4, long,   long4,  l)
-#endif
+
 } // end namespace math
 } // end namespace hipacc
 

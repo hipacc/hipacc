@@ -455,9 +455,6 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool vecType) {
     case BuiltinType::LongDouble:
     case BuiltinType::Void:
     case BuiltinType::Bool:
-    case BuiltinType::Long:
-    case BuiltinType::Double:
-    case BuiltinType::ULong:
     default:
       assert(0 && "BuiltinType for 'convert' function not supported.");
     case BuiltinType::Char_S:
@@ -467,6 +464,8 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool vecType) {
       return builtins.getBuiltinFunction(HIPACCBIconvert_short4);
     case BuiltinType::Int:
       return builtins.getBuiltinFunction(HIPACCBIconvert_int4);
+    case BuiltinType::Long:
+      return builtins.getBuiltinFunction(HIPACCBIconvert_long4);
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
       return builtins.getBuiltinFunction(HIPACCBIconvert_uchar4);
@@ -474,8 +473,12 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool vecType) {
       return builtins.getBuiltinFunction(HIPACCBIconvert_ushort4);
     case BuiltinType::UInt:
       return builtins.getBuiltinFunction(HIPACCBIconvert_uint4);
+    case BuiltinType::ULong:
+      return builtins.getBuiltinFunction(HIPACCBIconvert_ulong4);
     case BuiltinType::Float:
       return builtins.getBuiltinFunction(HIPACCBIconvert_float4);
+    case BuiltinType::Double:
+      return builtins.getBuiltinFunction(HIPACCBIconvert_double4);
   }
 }
 
