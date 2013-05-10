@@ -705,7 +705,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   }
 
   // activate boundary handling for exploration
-  if (compilerOptions.exploreConfig()) {
+  if (compilerOptions.exploreConfig() && use_shared) {
     border_handling = true;
     kernel_x = true;
     kernel_y = true;
@@ -1128,7 +1128,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // code variant for column filter not processing the bottom
         if (kernel_y && !bh_variant.borders.bottom) require_is_check = false;
         // code variant without border handling
-        if (!bh_variant.borderVal) require_is_check = false;
+        if (!bh_variant.borderVal && !compilerOptions.exploreConfig())
+          require_is_check = false;
         // number of threads is 1 and no exploration
         if (Kernel->getNumThreadsY()==1 && Kernel->getPixelsPerThread()==1 &&
             !compilerOptions.exploreConfig())
