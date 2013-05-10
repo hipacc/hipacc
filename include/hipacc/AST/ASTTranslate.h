@@ -260,6 +260,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         *global_offset_x, Expr *global_offset_y);
     void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int
         p);
+    void stageIterationToSharedMemoryExploration(SmallVector<Stmt *, 16>
+        &stageBody);
 
     // default error message for unsupported expressions and statements.
     #define HIPACC_NOT_SUPPORTED(MSG) \

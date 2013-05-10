@@ -78,7 +78,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
     // (left, top) and b) first block that requires border handling (right,
     // bottom)
     if (info.size_x > 0) {
-        info.bh_start_left = (int)ceil((float)(info.offset_x + info.size_x) / (block.x * info.simd_width));
+        info.bh_start_left = (int)ceilf((float)(info.offset_x + info.size_x) / (block.x * info.simd_width));
         info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / (block.x * info.simd_width));
     } else {
         info.bh_start_left = 0;
@@ -89,7 +89,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
         // only required if shared memory is used, otherwise, info.size_y would
         // be sufficient
         int p_add = (int)ceilf(2*info.size_y / (float)block.y);
-        info.bh_start_top = (int)ceil((float)(info.size_y) / (info.pixels_per_thread * block.y));
+        info.bh_start_top = (int)ceilf((float)(info.size_y) / (info.pixels_per_thread * block.y));
         info.bh_start_bottom = (int)floor((float)(info.is_height - p_add*block.y) / (block.y * info.pixels_per_thread));
     } else {
         info.bh_start_top = 0;
@@ -106,8 +106,8 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
 
 dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
     return dim3(
-            (int)ceil((float)(info.is_width + info.offset_x)/(block.x*info.simd_width)),
-            (int)ceil((float)(info.is_height)/(block.y*info.pixels_per_thread))
+            (int)ceilf((float)(info.is_width + info.offset_x)/(block.x*info.simd_width)),
+            (int)ceilf((float)(info.is_height)/(block.y*info.pixels_per_thread))
             );
 }
 
@@ -302,7 +302,7 @@ HipaccImage hipaccCreateMemory(T *host_mem, int width, int height, int alignment
     T *mem;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    int stride = (int)ceil((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
+    int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
     err = cudaMalloc((void **) &mem, sizeof(T)*stride*height);
     //err = cudaMallocPitch((void **) &mem, &stride, stride*sizeof(float), height);
     checkErr(err, "cudaMalloc()");
@@ -928,7 +928,7 @@ T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
 
     // first step: reduce image (region) into linear memory
     dim3 block(max_threads, 1);
-    dim3 grid((int)ceil((float)(acc.img.width)/(block.x*2)), (int)ceil((float)(acc.height)/pixels_per_thread));
+    dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/pixels_per_thread));
     unsigned int num_blocks = grid.x*grid.y;
 
     err = cudaMalloc((void **) &output, sizeof(T)*num_blocks);
@@ -1020,7 +1020,7 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, const char
     // single step reduction: reduce image (region) into linear memory and
     // reduce the linear memory using memory fence operations
     dim3 block(max_threads, 1);
-    dim3 grid((int)ceil((float)(acc.img.width)/(block.x*2)), (int)ceil((float)(acc.height)/pixels_per_thread));
+    dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/pixels_per_thread));
     unsigned int num_blocks = grid.x*grid.y;
 
     err = cudaMalloc((void **) &output, sizeof(T)*num_blocks);
@@ -1085,7 +1085,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
     T *output;  // GPU memory for reduction
     T result;   // host result
 
-    unsigned int num_blocks = (int)ceil((float)(acc.img.width)/(max_threads*2))*acc.height;
+    unsigned int num_blocks = (int)ceilf((float)(acc.img.width)/(max_threads*2))*acc.height;
     err = cudaMalloc((void **) &output, sizeof(T)*num_blocks);
     checkErr(err, "cudaMalloc()");
 
@@ -1135,7 +1135,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         float min_dt=FLT_MAX;
         for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
             dim3 block(max_threads, 1);
-            dim3 grid((int)ceil((float)(acc.img.width)/(block.x*2)), (int)ceil((float)(acc.height)/ppt));
+            dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/ppt));
             num_blocks = grid.x*grid.y;
 
             // start timing
@@ -1157,7 +1157,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
             while (num_blocks > 1) {
                 block.x = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2) :
                     max_threads;
-                grid.x = (int)ceil((float)(num_blocks)/(block.x*ppt));
+                grid.x = (int)ceilf((float)(num_blocks)/(block.x*ppt));
 
                 void *argsReduction1D[] = {
                     (void *)&output,
@@ -1229,6 +1229,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                 used_smem += (tile_size_x + smems.data()[i].size_x)*(tile_size_y + smems.data()[i].size_y - 1) * smems.data()[i].pixel_size;
             }
             if (used_smem >= max_smem_per_block) continue;
+            if (used_smem && tile_size_x > warp_size) continue;
 
             std::stringstream num_threads_x_ss, num_threads_y_ss;
             num_threads_x_ss << tile_size_x;

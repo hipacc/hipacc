@@ -617,18 +617,25 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         SX = createBinaryOperator(Ctx, SX, createIntegerLiteral(Ctx, 1), BO_Add,
             Ctx.IntTy);
 
-        // TODO: set the same as below at runtime
-        SY = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
+        // size_y = ceil((PPT*BSY+SY-1)/BSY)
+        // -> PPT*BSY + ((SY-2)/BSY + 1) * BSY
+        DeclRefExpr *DSY = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
               "BSY_EXPLORE", Ctx.IntTy, NULL));
 
         if (Kernel->getPixelsPerThread() > 1) {
-          SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx,
+          SY = createBinaryOperator(Ctx, DSY, createIntegerLiteral(Ctx,
                 (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
+        } else {
+          SY = DSY;
         }
 
         if (Acc->getSizeY() > 1) {
-          SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx,
-                (int)Acc->getSizeY()-1), BO_Add, Ctx.IntTy);
+          SY = createBinaryOperator(Ctx, SY, createBinaryOperator(Ctx,
+                createParenExpr(Ctx, createBinaryOperator(Ctx,
+                    createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
+                        (int)Acc->getSizeY()-2), DSY, BO_Div, Ctx.IntTy),
+                    createIntegerLiteral(Ctx, 1), BO_Add, Ctx.IntTy)), DSY,
+                BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
         }
 
         QT = Acc->getImage()->getPixelQualType();
@@ -646,11 +653,11 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // add padding to avoid bank conflicts
         SX += llvm::APInt(32, 1);
 
-        // size_y = ceil((PPT*BSY+SX-1)/BSY)
+        // size_y = ceil((PPT*BSY+SY-1)/BSY)
         int smem_size_y =
           (int)ceilf((float)(Kernel->getPixelsPerThread()*Kernel->getNumThreadsY()
                 + Acc->getSizeY()-1)/(float)Kernel->getNumThreadsY());
-        SY = llvm::APInt(32, smem_size_y *Kernel->getNumThreadsY());
+        SY = llvm::APInt(32, smem_size_y*Kernel->getNumThreadsY());
 
         QT = Acc->getImage()->getPixelQualType();
         QT = Ctx.getConstantArrayType(QT, SX, ArrayType::Normal,
@@ -1036,6 +1043,15 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     }
     SmallVector<Stmt *, 16> labelBody;
     for (int p=0; use_shared && p<(int)Kernel->getPixelsPerThread()+p_add; p++) {
+      if (compilerOptions.exploreConfig()) {
+        // initialize lid_y and gid_y
+        lidYRef = tileVars.local_id_y;
+        gidYRef = tileVars.global_id_y;
+        // all iterations
+        stageIterationToSharedMemoryExploration(labelBody);
+
+        break;
+      }
       if (p==0) {
         // initialize lid_y and gid_y
         lidYRef = tileVars.local_id_y;

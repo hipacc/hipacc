@@ -103,7 +103,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
     // (left, top) and b) first block that requires border handling (right,
     // bottom)
     if (info.size_x > 0) {
-        info.bh_start_left = (int)ceil((float)(info.offset_x + info.size_x) / (block[0] * info.simd_width));
+        info.bh_start_left = (int)ceilf((float)(info.offset_x + info.size_x) / (block[0] * info.simd_width));
         info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / (block[0] * info.simd_width));
     } else {
         info.bh_start_left = 0;
@@ -114,7 +114,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
         // only required if shared memory is used, otherwise, info.size_y would
         // be sufficient
         int p_add = (int)ceilf(2*info.size_y / (float)block[1]);
-        info.bh_start_top = (int)ceil((float)(info.size_y) / (info.pixels_per_thread * block[1]));
+        info.bh_start_top = (int)ceilf((float)(info.size_y) / (info.pixels_per_thread * block[1]));
         info.bh_start_bottom = (int)floor((float)(info.is_height - p_add*block[1]) / (block[1] * info.pixels_per_thread));
     } else {
         info.bh_start_top = 0;
@@ -130,8 +130,8 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 
 
 void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *grid) {
-    grid[0] = (int)ceil((float)(info.is_width + info.offset_x)/(block[0]*info.simd_width)) * block[0];
-    grid[1] = (int)ceil((float)(info.is_height)/(block[1]*info.pixels_per_thread)) * block[1];
+    grid[0] = (int)ceilf((float)(info.is_width + info.offset_x)/(block[0]*info.simd_width)) * block[0];
+    grid[1] = (int)ceilf((float)(info.is_height)/(block[1]*info.pixels_per_thread)) * block[1];
 }
 
 
@@ -602,7 +602,7 @@ HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height, int alignment
     if (host_mem) {
         flags |= CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR;
     }
-    int stride = (int)ceil((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
+    int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
     buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*stride*height, host_mem, &err);
     checkErr(err, "clCreateBuffer()");
 
@@ -976,8 +976,8 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
     local_work_size[0] = max_threads;
     local_work_size[1] = 1;
     size_t global_work_size[2];
-    global_work_size[0] = (int)ceil((float)(acc.img.width)/(local_work_size[0]*2))*local_work_size[0];
-    global_work_size[1] = (int)ceil((float)(acc.height)/(local_work_size[1]*pixels_per_thread))*local_work_size[1];
+    global_work_size[0] = (int)ceilf((float)(acc.img.width)/(local_work_size[0]*2))*local_work_size[0];
+    global_work_size[1] = (int)ceilf((float)(acc.height)/(local_work_size[1]*pixels_per_thread))*local_work_size[1];
 
     unsigned int num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
     output = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*num_blocks, NULL, &err);
@@ -1051,7 +1051,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
     cl_mem output;  // GPU memory for reduction
     T result;       // host result
 
-    unsigned int num_blocks = (int)ceil((float)(acc.img.width)/(max_threads*2))*acc.height;
+    unsigned int num_blocks = (int)ceilf((float)(acc.img.width)/(max_threads*2))*acc.height;
     output = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*num_blocks, NULL, &err);
     checkErr(err, "clCreateBuffer()");
 
@@ -1078,8 +1078,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
             local_work_size[0] = max_threads;
             local_work_size[1] = 1;
             size_t global_work_size[2];
-            global_work_size[0] = (int)ceil((float)(acc.img.width)/(local_work_size[0]*2))*local_work_size[0];
-            global_work_size[1] = (int)ceil((float)(acc.height)/(local_work_size[1]*ppt))*local_work_size[1];
+            global_work_size[0] = (int)ceilf((float)(acc.img.width)/(local_work_size[0]*2))*local_work_size[0];
+            global_work_size[1] = (int)ceilf((float)(acc.height)/(local_work_size[1]*ppt))*local_work_size[1];
             num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
 
             // start timing
@@ -1108,7 +1108,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
             while (num_blocks > 1) {
                 local_work_size[0] = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2) :
                     max_threads;
-                global_work_size[0] = (int)ceil((float)(num_blocks)/(local_work_size[0]*ppt))*local_work_size[0];
+                global_work_size[0] = (int)ceilf((float)(num_blocks)/(local_work_size[0]*ppt))*local_work_size[0];
 
                 hipaccSetKernelArg(exploreReduction1D, 0, sizeof(cl_mem), output);
                 hipaccSetKernelArg(exploreReduction1D, 1, sizeof(cl_mem), output);
@@ -1213,6 +1213,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                 used_smem += (tile_size_x + smems.data()[i].size_x)*(tile_size_y + smems.data()[i].size_y - 1) * smems.data()[i].pixel_size;
             }
             if (used_smem >= max_smem_per_block) continue;
+            if (used_smem && tile_size_x > warp_size) continue;
 
             std::stringstream num_threads_x_ss, num_threads_y_ss;
             num_threads_x_ss << tile_size_x;

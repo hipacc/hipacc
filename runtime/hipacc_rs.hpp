@@ -179,7 +179,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
     // (left, top) and b) first work item that requires border handling (right,
     // bottom)
     if (info.size_x > 0) {
-        info.bh_start_left = (int)ceil((float)(info.offset_x + info.size_x)
+        info.bh_start_left = (int)ceilf((float)(info.offset_x + info.size_x)
                                        / (block[0] * info.simd_width))
                                   * block[0];
         info.bh_start_right =
@@ -192,7 +192,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
                                    * block[0];
     }
     if (info.size_y > 0) {
-        info.bh_start_top = (int)ceil((float)(info.size_y)
+        info.bh_start_top = (int)ceilf((float)(info.size_y)
                                       / (info.pixels_per_thread * block[1]))
                                  * block[1];
         info.bh_start_bottom = (int)floor((float)(info.is_height - info.size_y)
@@ -351,7 +351,7 @@ HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
     RenderScript* rs = Ctx.get_context(); \
 \
-    int stride = (int)ceil((float)(width) / (alignment / sizeof(T))) \
+    int stride = (int)ceilf((float)(width) / (alignment / sizeof(T))) \
                    * (alignment / sizeof(T)); \
 \
     Type::Builder type(rs, E); \
@@ -567,7 +567,7 @@ void hipaccLaunchScriptKernelExploration(
     std::cerr << "<HIPACC:> Exploring configurations for kernel"
               << " '" << kernel << "':" << std::endl;
 
-    for (int curr_warp_size = 1; curr_warp_size <= (int)ceil((float)info.is_width/3);
+    for (int curr_warp_size = 1; curr_warp_size <= (int)ceilf((float)info.is_width/3);
          curr_warp_size += (curr_warp_size < warp_size ? 1 : warp_size)) {
         // check if we exceed maximum number of threads
         if (curr_warp_size > max_threads_for_kernel) continue;
