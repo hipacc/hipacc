@@ -423,7 +423,7 @@ MAKE_MATH_BI_GEN(double4,   double)
 #define MAKE_MATH_BI_INT(NEW_TYPE, BASIC_TYPE, RET_TYPE, PREFIX) \
  /* abs */ \
 ATTRIBUTES RET_TYPE PREFIX##abs(NEW_TYPE a) { \
-    return make_##RET_TYPE(abs(a.x), abs(a.y), abs(a.z), abs(a.w)); \
+    return make_##RET_TYPE(PREFIX##abs(a.x), PREFIX##abs(a.y), PREFIX##abs(a.z), PREFIX##abs(a.w)); \
 }
 
 MAKE_MATH_BI_INT(int4,  int,    int4,    )
