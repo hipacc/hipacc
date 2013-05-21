@@ -39,9 +39,9 @@
 #define _KERNELSTATISTICS_H_
 
 #include <clang/AST/ASTContext.h>
+#include <clang/AST/StmtVisitor.h>
 #include <clang/Analysis/AnalysisContext.h>
 #include <clang/Analysis/Analyses/PostOrderCFGView.h>
-#include <clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h>
 #include <clang/Basic/Diagnostic.h>
 
 #include "hipacc/Device/TargetDescription.h"
