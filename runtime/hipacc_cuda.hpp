@@ -943,7 +943,7 @@ T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
             hipaccSetupArgument(&acc.img.mem, sizeof(T *), offset);
             break;
         case Array2D:
-            hipaccBindTextureToArray(tex, acc.img);
+            hipaccBindTexture(tex, acc.img);
             break;
     }
 
@@ -1035,7 +1035,7 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, const char
             hipaccSetupArgument(&acc.img.mem, sizeof(T *), offset);
             break;
         case Array2D:
-            hipaccBindTextureToArray(tex, acc.img);
+            hipaccBindTexture(tex, acc.img);
             break;
     }
 
