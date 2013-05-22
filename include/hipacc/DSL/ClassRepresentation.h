@@ -775,7 +775,6 @@ class HipaccGlobalReduction : public HipaccDevice {
     std::string fileName;
     CXXMethodDecl *reductionFunction;
     bool is_accessor;
-    bool is_printed;
     unsigned int num_threads;
 
   public:
@@ -792,7 +791,6 @@ class HipaccGlobalReduction : public HipaccDevice {
       fileName(""),
       reductionFunction(NULL),
       is_accessor(is_accessor),
-      is_printed(false),
       num_threads(256)
     {
       fileName = GRC->getName() + VD->getNameAsString();
@@ -801,14 +799,12 @@ class HipaccGlobalReduction : public HipaccDevice {
     void setType(std::string t) { type = t; }
     void setNeutral(std::string n) { neutral = n; }
     void setReductionFunction(CXXMethodDecl *fun) { reductionFunction = fun; }
-    void setIsPrinted(bool p) { is_printed = p; }
 
     const std::string &getName() const { return name; }
     const std::string getType() { return type; }
     const std::string getNeutral() { return neutral; }
     const std::string &getFileName() const { return fileName; }
     bool isAccessor() { return is_accessor; }
-    bool isPrinted() { return is_printed; }
 
     VarDecl *getDecl() { return VD; }
     HipaccAccessor *getAccessor() { return acc; }

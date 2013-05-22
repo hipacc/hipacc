@@ -76,7 +76,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     SmallVector<CXXMemberCallExpr *, 16> ReductionCalls;
     SmallVector<HipaccGlobalReduction *, 16> InvokedReductions;
     // store interpolation methods required for CUDA
-    std::vector<std::string> InterpolationDefinitions;
+    SmallVector<std::string, 16> InterpolationDefinitions;
 
     // pointer to main function
     FunctionDecl *mainFD;
@@ -295,7 +295,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   // include .cu or .h files for global reduction kernels
   for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
     HipaccGlobalReduction *GR = InvokedReductions.data()[i];
-    if (GR->isPrinted()) continue;
 
     switch (compilerOptions.getTargetCode()) {
       case TARGET_CUDA:
@@ -314,7 +313,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
       default:
         break;
     }
-    GR->setIsPrinted(true);
   }
 
   // write constant memory declarations
@@ -365,20 +363,10 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   }
 
   // load OpenCL reduction kernel files and compile the OpenCL reduction kernels
-  if (!compilerOptions.exploreConfig()) {
-    // set all reduction kernels as not being printed
-    for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
-      HipaccGlobalReduction *GR = InvokedReductions.data()[i];
-      GR->setIsPrinted(false);
-    }
+  for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
+    HipaccGlobalReduction *GR = InvokedReductions.data()[i];
 
-    for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
-      HipaccGlobalReduction *GR = InvokedReductions.data()[i];
-      if (GR->isPrinted()) continue;
-
-      stringCreator.writeReductionCompilation(GR, initStr);
-      GR->setIsPrinted(true);
-    }
+    stringCreator.writeReductionCompilation(GR, initStr);
   }
 
   // write Mask transfers to Symbol in CUDA
@@ -1796,6 +1784,7 @@ void Rewrite::generateReductionKernels() {
       std::string newStr;
       HipaccGlobalReduction *GR = GlobalReductionDeclMap[DRE->getDecl()];
 
+      // only add reduction once
       if (!GR->getReductionFunction()) {
         VarDecl *VD = GR->getDecl();
 
@@ -1908,9 +1897,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   // preprocessor defines
   if (!compilerOptions.exploreConfig()) {
     *OS << "#define BS " << GR->getNumThreads() << "\n"
-        << "#define PPT " << GR->getPixelsPerThread() << "\n"
-        << "#define DATA_TYPE " << GR->getAccessor()->getImage()->getPixelType()
-        << "\n";
+        << "#define PPT " << GR->getPixelsPerThread() << "\n";
   }
   if (GR->isAccessor()) {
     *OS << "#define USE_OFFSETS\n";
@@ -1938,7 +1925,9 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
       if (compilerOptions.emitFilterscript()) {
         *OS << "#define FS\n";
       }
-      *OS << "#include \"hipacc_rs_red.hpp\"\n\n";
+      *OS << "#define DATA_TYPE "
+          << GR->getAccessor()->getImage()->getPixelType() << "\n"
+          << "#include \"hipacc_rs_red.hpp\"\n\n";
       // neutral element definition
       if (compilerOptions.emitRenderscriptGPU() ||
           compilerOptions.emitFilterscript()) {

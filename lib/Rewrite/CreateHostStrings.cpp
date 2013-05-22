@@ -157,8 +157,10 @@ void CreateHostStrings::writeReductionCompilation(HipaccGlobalReduction *GR,
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
-      writeKernelCompilation(GR->getFileName(), resultStr, "2D");
-      writeKernelCompilation(GR->getFileName(), resultStr, "1D");
+      if (!options.exploreConfig()) {
+        writeKernelCompilation(GR->getFileName(), resultStr, "2D");
+        writeKernelCompilation(GR->getFileName(), resultStr, "1D");
+      }
       break;
   }
 }
