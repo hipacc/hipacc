@@ -72,7 +72,7 @@ IF(APPLE)
 ELSE(APPLE)
     SET(PLATFORM_FIXES "-D NO_BOOST")
     SET(CUDA_LINK "-lcuda -lcudart")
-    SET(TIME_LINK "-lrt")
+    SET(TIME_LINK "-lrt -lm -lstdc++")
 ENDIF(APPLE)
 
 
