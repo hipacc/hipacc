@@ -1057,6 +1057,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 
     std::cerr << "<HIPACC:> Exploring pixels per thread for '" << kernel2D << ", " << kernel1D << "'" << std::endl;
 
+    float opt_time = FLT_MAX;
+    int opt_ppt = 1;
     for (int ppt=1; ppt<=acc.height; ppt++) {
         std::stringstream num_ppt_ss;
         std::stringstream num_bs_ss;
@@ -1133,10 +1135,18 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         std::sort(times.begin(), times.end());
         timing = times.at(HIPACC_NUM_ITERATIONS/2);
         #endif
+        if (timing < opt_time) {
+            opt_time = timing;
+            opt_ppt = ppt;
+        }
+
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
                   << timing << " ms" << std::endl;
     }
+    std::cerr << "<HIPACC:> Best unroll factor for reduction kernel '"
+              << kernel2D << "/" << kernel1D << "': "
+              << opt_ppt << ": " << opt_time << " ms" << std::endl;
 
     // get reduced value
     err = clEnqueueReadBuffer(Ctx.get_command_queues()[0], output, CL_FALSE, 0, sizeof(T), &result, 0, NULL, NULL);
