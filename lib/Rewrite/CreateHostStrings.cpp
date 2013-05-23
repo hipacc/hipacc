@@ -948,19 +948,26 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
   GRSS << GR->getNumThreads() << ", " << GR->getPixelsPerThread();
   resultStr += GRSS.str();
 
-  if (options.emitCUDA() && options.exploreConfig()) {
+  if (options.emitCUDA()) {
     // print 2D CUDA array texture information - this parameter is only used if
     // the texture type is Array2D
-    resultStr += ", hipacc_tex_info(std::string(\"_tex";
-    resultStr += GR->getAccessor()->getImage()->getName() + GR->getName();
-    resultStr += "\"), ";
-    resultStr += GR->getAccessor()->getImage()->getTextureType() + ", ";
-    resultStr += GR->getAccessor()->getImage()->getName() + "), ";
+    if (options.exploreConfig()) {
+      resultStr += ", hipacc_tex_info(std::string(\"_tex";
+      resultStr += GR->getAccessor()->getImage()->getName() + GR->getName();
+      resultStr += "\"), ";
+      resultStr += GR->getAccessor()->getImage()->getTextureType() + ", ";
+      resultStr += GR->getAccessor()->getImage()->getName() + "), ";
+    } else {
+      resultStr += ", _tex";
+      resultStr += GR->getAccessor()->getImage()->getName() + GR->getName();
+    }
 
-    // print compute capability in case of configuration exploration
-    std::stringstream cc_string;
-    cc_string << options.getTargetDevice();
-    resultStr += cc_string.str();
+    if (options.exploreConfig()) {
+      // print compute capability in case of configuration exploration
+      std::stringstream cc_string;
+      cc_string << options.getTargetDevice();
+      resultStr += cc_string.str();
+    }
   }
   resultStr += ");";
 }
