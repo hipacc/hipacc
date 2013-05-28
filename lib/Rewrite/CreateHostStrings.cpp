@@ -898,26 +898,24 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
-      if (options.exploreConfig()) {
-        // TODO
+      // no exploration supported atm since this involves lots of memory
+      // reallocations in Renderscript
+      resultStr += "hipaccApplyReduction<ScriptC_" + GR->getFileName() + ", ";
+      resultStr += GR->getType() + ">(&" + GR->getFileName() + ", ";
+      resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
+        GR->getFileName() + "2D, ";
+      resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
+        GR->getFileName() + "1D, ";
+      if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
+        resultStr += "&ScriptC_" + GR->getFileName() + "::set_Output, ";
       } else {
-        resultStr += "hipaccApplyReduction<ScriptC_" + GR->getFileName() + ", ";
-        resultStr += GR->getType() + ">(&" + GR->getFileName() + ", ";
-        resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
-          GR->getFileName() + "2D, ";
-        resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
-          GR->getFileName() + "1D, ";
-        if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
-          resultStr += "&ScriptC_" + GR->getFileName() + "::set_Output, ";
-        } else {
-          resultStr += "&ScriptC_" + GR->getFileName() + "::bind_Output, ";
-        }
-        resultStr += "_args" + GR->getFileName() + ", ";
-        if (GR->isAccessor()) {
-          resultStr += GR->getAccessor()->getName() + ".width);\n";
-        } else {
-          resultStr += GR->getAccessor()->getImage()->getName() + ".width);\n";
-        }
+        resultStr += "&ScriptC_" + GR->getFileName() + "::bind_Output, ";
+      }
+      resultStr += "_args" + GR->getFileName() + ", ";
+      if (GR->isAccessor()) {
+        resultStr += GR->getAccessor()->getName() + ".width);\n";
+      } else {
+        resultStr += GR->getAccessor()->getImage()->getName() + ".width);\n";
       }
       return;
     case TARGET_OpenCL:
