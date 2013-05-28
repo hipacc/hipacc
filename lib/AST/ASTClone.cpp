@@ -197,7 +197,27 @@ Stmt *ASTTranslate::VisitDefaultStmt(DefaultStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitCapturedStmt(CapturedStmt *S) {
-  llvm_unreachable("not implemented yet");
+  SmallVector<CapturedStmt::Capture, 16> Captures;
+  SmallVector<Expr *, 16> CaptureInits;
+
+  // Capture inits
+  for (CapturedStmt::capture_init_iterator I = S->capture_init_begin(), E =
+      S->capture_init_end(); I != E; ++I) {
+    CaptureInits.push_back(Clone(*I));
+  }
+
+  // Captures
+  for (CapturedStmt::capture_iterator I = S->capture_begin(), E =
+      S->capture_end(); I != E; ++I) {
+    Captures.push_back(CapturedStmt::Capture(I->getLocation(),
+          I->getCaptureKind(), CloneDecl(I->getCapturedVar())));
+  }
+
+  return CapturedStmt::Create(Ctx, Clone(S->getCapturedStmt()),
+      S->getCapturedRegionKind(), llvm::makeArrayRef(Captures.data(),
+        Captures.size()), llvm::makeArrayRef(CaptureInits.data(),
+        CaptureInits.size()), S->getCapturedDecl(), (RecordDecl
+        *)S->getCapturedRecordDecl());
 }
 
 
@@ -836,6 +856,11 @@ Expr *ASTTranslate::VisitCXXThrowExpr(CXXThrowExpr *E) {
 
 Expr *ASTTranslate::VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXDefaultArgExpr);
+  return NULL;
+}
+
+Expr *ASTTranslate::VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E) {
+  HIPACC_NOT_SUPPORTED(CXXDefaultInitExpr);
   return NULL;
 }
 

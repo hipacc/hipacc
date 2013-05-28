@@ -468,6 +468,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitCXXThisExpr(CXXThisExpr *E);
     Expr *VisitCXXThrowExpr(CXXThrowExpr *E);
     Expr *VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E);
+    Expr *VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E);
     Expr *VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E);
     Expr *VisitCXXNewExpr(CXXNewExpr *E);
     Expr *VisitCXXDeleteExpr(CXXDeleteExpr *E);
