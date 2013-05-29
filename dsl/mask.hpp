@@ -31,6 +31,7 @@
 #include <boost/exception/all.hpp>
 #include <boost/multi_array.hpp>
 #endif
+
 #include "iterationspace.hpp"
 #include "types.hpp"
 

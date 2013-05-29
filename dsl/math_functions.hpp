@@ -26,7 +26,9 @@
 #ifndef __MATH_FUNCTIONS_HPP__
 #define __MATH_FUNCTIONS_HPP__
 
+#include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 #include "types.hpp"
 

@@ -26,7 +26,9 @@
 #ifndef __HIPACC_MATH_FUNCTIONS_HPP__
 #define __HIPACC_MATH_FUNCTIONS_HPP__
 
+#include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 #include "hipacc_types.hpp"
 

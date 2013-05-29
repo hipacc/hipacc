@@ -32,7 +32,9 @@
 #include <boost/exception/all.hpp>
 #include <boost/multi_array.hpp>
 #endif
+#include <algorithm>
 #include <cmath>
+
 #include "iterationspace.hpp"
 #include "mask.hpp"
 
