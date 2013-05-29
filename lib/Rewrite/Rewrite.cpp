@@ -959,7 +959,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
           Parms += ", " + SS.str();
         }
-        newStr += "HipaccAccessor " + Acc->getName() + "(" + Parms + ");\n";
+        newStr += "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";
 
         // replace Accessor decl by variables for width/height and offsets
         // get the start location and compute the semi location.
@@ -1013,7 +1013,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
           Parms += ", " + SS.str();
         }
-        newStr += "HipaccAccessor " + IS->getName() + "(" + Parms + ");\n";
+        newStr += "HipaccAccessor " + IS->getName() + "(" + Parms + ");";
 
         // store IterationSpace
         ISDeclMap[VD] = IS;
@@ -1145,7 +1145,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             LSS << "_tmpLiteral" << literalCount++;
 
             newStr += neutralExpr->getType().getAsString() + " ";
-            newStr += LSS.str() + " = " + NS.str() + ";\n";
+            newStr += LSS.str() + " = " + NS.str() + ";";
             newStr += stringCreator.getIndent();
             GR->setNeutral(LSS.str());
           }

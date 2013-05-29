@@ -179,6 +179,7 @@ void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
     case TARGET_Renderscript:
     case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
+      resultStr += "\n" + indent;
       resultStr += "std::vector<hipacc_script_arg<ScriptC_" + GR->getFileName();
       resultStr += "> > _args" + GR->getFileName() + ";\n";
       resultStr += indent;
