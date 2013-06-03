@@ -162,6 +162,175 @@ unsigned int nextPow2(unsigned int x) {
     return x;
 }
 
+class HipaccPyramid {
+  public:
+    const int depth_;
+    int level_;
+    std::vector<HipaccImage> imgs_;
+
+  public:
+    HipaccPyramid(const int depth)
+        : depth_(depth), level_(0) {
+    }
+
+    void add(HipaccImage img) {
+      imgs_.push_back(img);
+    }
+
+    HipaccImage &operator()(int relative) {
+      assert(level_ + relative >= 0 && level_ + relative < imgs_.size() &&
+             "Accessed pyramid stage is out of bounds.");
+      return imgs_.at(level_+relative);
+    }
+
+    int getLevel() {
+      return level_;
+    }
+
+    bool isTopLevel() {
+      return level_ == 0;
+    }
+
+    bool isBottomLevel() {
+      return level_ == depth_-1;
+    }
+};
+
+
+// forward declaration
+template<typename T>
+HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height, int alignment);
+template<typename T>
+HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height);
+
+template<typename data_t>
+HipaccPyramid hipaccCreatePyramid(HipaccImage &img, int depth) {
+  HipaccPyramid p(depth);
+  p.add(img);
+
+  int height = img.height/2;
+  int width = img.width/2;
+  for (int i = 1; i < depth; ++i) {
+    assert(width * height > 0 && "Pyramid stages to deep for image size");
+    p.add(hipaccCreateBuffer<data_t>(NULL, width, height, img.alignment));
+    height /= 2;
+    width /= 2;
+  }
+  return p;
+}
+
+
+std::function<void()> hipaccTraverseFunc;
+std::vector<HipaccPyramid*> hipaccPyramids;
+
+
+void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1,
+              const std::function<void()> func) {
+    assert(p0.depth_ == p1.depth_ &&
+           "Pyramid depths do not match.");
+
+    hipaccTraverseFunc = func;
+    hipaccPyramids.clear();
+
+    p0.level_ = 0;
+    p1.level_ = 0;
+    hipaccPyramids.push_back(&p0);
+    hipaccPyramids.push_back(&p1);
+
+    hipaccTraverseFunc();
+}
+
+
+void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
+                    const std::function<void()> func) {
+    assert(p0.depth_ == p1.depth_ &&
+           p1.depth_ == p2.depth_ &&
+           "Pyramid depths do not match.");
+
+    hipaccTraverseFunc = func;
+    hipaccPyramids.clear();
+
+    p0.level_ = 0;
+    p1.level_ = 0;
+    p2.level_ = 0;
+    hipaccPyramids.push_back(&p0);
+    hipaccPyramids.push_back(&p1);
+    hipaccPyramids.push_back(&p2);
+
+    hipaccTraverseFunc();
+}
+
+
+void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
+                    HipaccPyramid &p3, const std::function<void()> func) {
+    assert(p0.depth_ == p1.depth_ &&
+           p1.depth_ == p2.depth_ &&
+           p2.depth_ == p3.depth_ &&
+           "Pyramid depths do not match.");
+
+    hipaccTraverseFunc = func;
+    hipaccPyramids.clear();
+
+    p0.level_ = 0;
+    p1.level_ = 0;
+    p2.level_ = 0;
+    p3.level_ = 0;
+    hipaccPyramids.push_back(&p0);
+    hipaccPyramids.push_back(&p1);
+    hipaccPyramids.push_back(&p2);
+    hipaccPyramids.push_back(&p3);
+
+    hipaccTraverseFunc();
+}
+
+
+void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
+                    HipaccPyramid &p3, HipaccPyramid &p4,
+                    const std::function<void()> func) {
+    assert(p0.depth_ == p1.depth_ &&
+           p1.depth_ == p2.depth_ &&
+           p2.depth_ == p3.depth_ &&
+           p3.depth_ == p4.depth_ &&
+           "Pyramid depths do not match.");
+
+    hipaccTraverseFunc = func;
+    hipaccPyramids.clear();
+
+    p0.level_ = 0;
+    p1.level_ = 0;
+    p2.level_ = 0;
+    p3.level_ = 0;
+    p4.level_ = 0;
+    hipaccPyramids.push_back(&p0);
+    hipaccPyramids.push_back(&p1);
+    hipaccPyramids.push_back(&p2);
+    hipaccPyramids.push_back(&p3);
+    hipaccPyramids.push_back(&p4);
+
+    hipaccTraverseFunc();
+}
+
+
+void hipaccTraverse(unsigned int loop=1) {
+  assert(!hipaccPyramids.empty() &&
+         "Traverse recursion called outside of traverse.");
+
+  if (!hipaccPyramids.at(0)->isBottomLevel()) {
+    for (std::vector<HipaccPyramid*>::iterator it = hipaccPyramids.begin();
+           it != hipaccPyramids.end(); ++it) {
+      ++((*it)->level_);
+    }
+
+    for (int i = 0; i < loop; i++) {
+      hipaccTraverseFunc();
+    }
+
+    for (std::vector<HipaccPyramid*>::iterator it = hipaccPyramids.begin();
+         it != hipaccPyramids.end(); ++it) {
+      --((*it)->level_);
+    }
+  }
+}
 
 #endif  // __HIPACC_BASE_HPP__
 
