@@ -40,6 +40,7 @@ float hipacc_last_timing = 0.0f;
 #include "iterationspace.hpp"
 #include "kernel.hpp"
 #include "mask.hpp"
+#include "pyramid.hpp"
 
 namespace hipacc {
 float hipaccGetLastKernelTiming() {
