@@ -85,9 +85,14 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     SmallVector<CompoundStmt *, 16> preCStmt, postCStmt;
     CompoundStmt *curCStmt;
     HipaccMask *convMask;
-    DeclRefExpr *convRed;
+    DeclRefExpr *convTmp;
     ConvolutionMode convMode;
     int convIdxX, convIdxY;
+
+    SmallVector<HipaccDomain*, 4> redDomains;
+    SmallVector<DeclRefExpr*, 4> redTmps;
+    SmallVector<ConvolutionMode, 4> redModes;
+    SmallVector<int, 4> redIdxX, redIdxY;
 
     DeclRefExpr *bh_start_left, *bh_start_right, *bh_start_top,
                 *bh_start_bottom, *bh_fall_back;
@@ -285,7 +290,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       literalCount(0),
       curCStmt(NULL),
       convMask(NULL),
-      convRed(NULL),
+      convTmp(NULL),
       convIdxX(0),
       convIdxY(0),
       bh_start_left(NULL),

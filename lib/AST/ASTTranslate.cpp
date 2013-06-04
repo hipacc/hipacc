@@ -1390,34 +1390,34 @@ Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
 Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
   // within convolve lambda-functions, return statements are replaced by
   // reductions
-  if (convMask && convRed) {
-    Stmt *convInitExpr, *convRedExpr;
+  if (convMask && convTmp) {
+    Stmt *convInitExpr, *convTmpExpr;
     Expr *retVal = Clone(S->getRetValue());
 
-    convInitExpr = createBinaryOperator(Ctx, convRed, retVal, BO_Assign,
-        convRed->getType());
+    convInitExpr = createBinaryOperator(Ctx, convTmp, retVal, BO_Assign,
+        convTmp->getType());
     switch (convMode) {
       case HipaccSUM:
         // red += val;
-        convRedExpr = createCompoundAssignOperator(Ctx, convRed, retVal,
-            BO_AddAssign, convRed->getType());
+        convTmpExpr = createCompoundAssignOperator(Ctx, convTmp, retVal,
+            BO_AddAssign, convTmp->getType());
         break;
       case HipaccMIN:
         // if (val < red) red = val;
-        convRedExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
-              convRed, BO_LT, Ctx.BoolTy), createBinaryOperator(Ctx, convRed,
-                retVal, BO_Assign, convRed->getType()));
+        convTmpExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
+              convTmp, BO_LT, Ctx.BoolTy), createBinaryOperator(Ctx, convTmp,
+                retVal, BO_Assign, convTmp->getType()));
         break;
       case HipaccMAX:
         // if (val > red) red = val;
-        convRedExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
-              convRed, BO_GT, Ctx.BoolTy), createBinaryOperator(Ctx, convRed,
-                retVal, BO_Assign, convRed->getType()));
+        convTmpExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
+              convTmp, BO_GT, Ctx.BoolTy), createBinaryOperator(Ctx, convTmp,
+                retVal, BO_Assign, convTmp->getType()));
         break;
       case HipaccPROD:
         // red *= val;
-        convRedExpr = createCompoundAssignOperator(Ctx, convRed, retVal,
-            BO_MulAssign, convRed->getType());
+        convTmpExpr = createCompoundAssignOperator(Ctx, convTmp, retVal,
+            BO_MulAssign, convTmp->getType());
         break;
       case HipaccMEDIAN:
         assert(0 && "Unsupported convolution mode.");
@@ -1431,7 +1431,48 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
       return convInitExpr;
     } else {
       // conv_tmp += ...
-      return convRedExpr;
+      return convTmpExpr;
+    }
+  } else if (!redDomains.empty() && !redTmps.empty()) {
+    Stmt *redInitExpr, *redTmpExpr;
+    Expr *retVal = Clone(S->getRetValue());
+
+    redInitExpr = createBinaryOperator(Ctx, redTmps.back(), retVal, BO_Assign,
+        redTmps.back()->getType());
+    switch (redModes.back()) {
+      case HipaccSUM:
+        // red += val;
+        redTmpExpr = createCompoundAssignOperator(Ctx, redTmps.back(), retVal,
+            BO_AddAssign, redTmps.back()->getType());
+        break;
+      case HipaccMIN:
+        // if (val < red) red = val;
+        redTmpExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
+              redTmps.back(), BO_LT, Ctx.BoolTy), createBinaryOperator(Ctx, redTmps.back(),
+                retVal, BO_Assign, redTmps.back()->getType()));
+        break;
+      case HipaccMAX:
+        // if (val > red) red = val;
+        redTmpExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
+              redTmps.back(), BO_GT, Ctx.BoolTy), createBinaryOperator(Ctx, redTmps.back(),
+                retVal, BO_Assign, redTmps.back()->getType()));
+        break;
+      case HipaccPROD:
+        // red *= val;
+        redTmpExpr = createCompoundAssignOperator(Ctx, redTmps.back(), retVal,
+            BO_MulAssign, redTmps.back()->getType());
+        break;
+      case HipaccMEDIAN:
+        assert(0 && "Unsupported reduction mode.");
+        break;
+    }
+
+    if (redIdxX.back() + redIdxY.back() == 0) {
+      // red_tmp = ...
+      return redInitExpr;
+    } else {
+      // red_tmp += ...
+      return redTmpExpr;
     }
   } else {
     return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
@@ -1533,14 +1574,14 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       CompoundStmt *outerCompountStmt = curCStmt;
       std::stringstream LSST;
       LSST << "_conv_tmp" << literalCount++;
-      VarDecl *conv_tmp = createVarDecl(Ctx, kernelDecl, LSST.str(),
+      VarDecl *conv_tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(),
           LE->getCallOperator()->getResultType(), NULL);
       DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
-      DC->addDecl(conv_tmp);
-      DeclRefExpr *conv_red = createDeclRefExpr(Ctx, conv_tmp);
-      convRed = conv_red;
+      DC->addDecl(conv_tmp_decl);
+      DeclRefExpr *conv_tmp = createDeclRefExpr(Ctx, conv_tmp_decl);
+      convTmp = conv_tmp;
       convMask = Mask;
-      preStmts.push_back(createDeclStmt(Ctx, conv_tmp));
+      preStmts.push_back(createDeclStmt(Ctx, conv_tmp_decl));
       preCStmt.push_back(outerCompountStmt);
 
       // unroll convolution
@@ -1575,12 +1616,142 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       }
 
       convMask = NULL;
-      convRed = NULL;
+      convTmp = NULL;
       convIdxX = convIdxY = 0;
 
       // add ICE for CodeGen
-      return createImplicitCastExpr(Ctx, conv_red->getType(), CK_LValueToRValue,
-          conv_red, NULL, VK_RValue);
+      return createImplicitCastExpr(Ctx, conv_tmp->getType(), CK_LValueToRValue,
+          conv_tmp, NULL, VK_RValue);
+    }
+
+    // check if this is a reduce function call
+    if (E->getDirectCallee()->getName().equals("reduce")) {
+      DiagnosticsEngine &Diags = Ctx.getDiagnostics();
+
+      // reduce(domain, mode, [&] () { lambda-function; });
+      assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'reduce' call.");
+
+      // first parameter: Domain reference
+      HipaccDomain *Domain = NULL;
+      assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
+             "First parameter to 'reduce' call must be a Domain.");
+      MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(0)->IgnoreImpCasts());
+
+      // get FieldDecl of the MemberExpr
+      assert(isa<FieldDecl>(ME->getMemberDecl()) &&
+             "Domain must be a C++-class member.");
+      FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
+
+      // look for Domain user class member variable
+      if (Kernel->getDomainFromMapping(FD)) {
+        Domain = Kernel->getDomainFromMapping(FD);
+      }
+      assert(Domain && "Could not find Domain Field Decl.");
+
+      // second parameter: reduction mode
+      assert(isa<DeclRefExpr>(E->getArg(1)) &&
+             "Second parameter to 'reduce' call must be the reduction mode.");
+      DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E->getArg(1));
+
+      if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
+          DRE->getDecl()->getType().getAsString() ==
+          "enum hipacc::HipaccConvolutionMode") {
+        int64_t mode = E->getArg(1)->EvaluateKnownConstInt(Ctx).getSExtValue();
+        switch (mode) {
+          case HipaccSUM:
+            redModes.push_back(HipaccSUM);
+            break;
+          case HipaccMIN:
+            redModes.push_back(HipaccMIN);
+            break;
+          case HipaccMAX:
+            redModes.push_back(HipaccMAX);
+            break;
+          case HipaccPROD:
+            redModes.push_back(HipaccPROD);
+            break;
+          case HipaccMEDIAN:
+            redModes.push_back(HipaccMEDIAN);
+          default:
+            unsigned int DiagIDConvMode =
+              Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                  "Reduction mode not supported, allowed modes are: "
+                  "HipaccSUM, HipaccMIN, HipaccMAX, and HipaccPROD.");
+            Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode);
+            break;
+        }
+      } else {
+        unsigned int DiagIDConvMode =
+          Diags.getCustomDiagID(DiagnosticsEngine::Error,
+              "Unknown reduction mode detected.");
+        Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode);
+      }
+
+      // third parameter: lambda-function
+      assert(isa<MaterializeTemporaryExpr>(E->getArg(2)) &&
+             isa<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(
+                 E->getArg(2))->GetTemporaryExpr()->IgnoreImpCasts()) &&
+             "Third parameter to 'reduce' call must be a lambda-function.");
+      LambdaExpr *LE = dyn_cast<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(
+                           E->getArg(2))->GetTemporaryExpr()->IgnoreImpCasts());
+
+      // check default capture kind
+      for (LambdaExpr::capture_iterator II=LE->capture_begin(),
+                                        EE=LE->capture_end(); II!=EE; ++II) {
+        LambdaExpr::Capture cap = *II;
+
+        if (cap.capturesVariable() && cap.getCaptureKind()==LCK_ByCopy) {
+          unsigned int DiagIDCapture =
+            Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                "Capture by copy [=] is not supported for reduce "
+                "lambda-function (variable %0), use capture by reference [&] "
+                "instead.");
+          Diags.Report(LE->getExprLoc(), DiagIDCapture) << cap.getCapturedVar();
+        }
+      }
+
+      // introduce temporary for holding the convolution result
+      CompoundStmt *outerCompountStmt = curCStmt;
+      std::stringstream LSST;
+      LSST << "_red_tmp" << literalCount++;
+      VarDecl *red_tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(),
+          LE->getCallOperator()->getResultType(), NULL);
+      DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+      DC->addDecl(red_tmp_decl);
+      DeclRefExpr *red_tmp = createDeclRefExpr(Ctx, red_tmp_decl);
+      redTmps.push_back(red_tmp);
+      redDomains.push_back(Domain);
+      preStmts.push_back(createDeclStmt(Ctx, red_tmp_decl));
+      preCStmt.push_back(outerCompountStmt);
+
+      // unroll reduction
+      for (unsigned int y=0; y<Domain->getSizeY(); y++) {
+        for (unsigned int x=0; x<Domain->getSizeX(); x++) {
+          Expr* E = Domain->getInitList()
+                          ->getInit(Domain->getSizeY() * x + y)
+                          ->IgnoreParenCasts();
+          if (isa<IntegerLiteral>(E) &&
+              dyn_cast<IntegerLiteral>(E)->getValue() != 0) {
+            redIdxX.push_back(x);
+            redIdxY.push_back(y);
+            Stmt *redIteration = Clone(LE->getBody());
+            redIdxX.pop_back();
+            redIdxY.pop_back();
+            preStmts.push_back(redIteration);
+            preCStmt.push_back(outerCompountStmt);
+            // clear decls added while cloning last iteration
+            LambdaDeclMap.clear();
+          }
+        }
+      }
+
+      redDomains.pop_back();
+      redModes.pop_back();
+      redTmps.pop_back();
+
+      // add ICE for CodeGen
+      return createImplicitCastExpr(Ctx, red_tmp->getType(), CK_LValueToRValue,
+          red_tmp, NULL, VK_RValue);
     }
 
     // lookup if this function call is supported and choose appropriate
@@ -1783,6 +1954,36 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
             DC->addDecl(maskVar);
           }
           paramDecl = maskVar;
+        }
+      }
+    }
+    for (unsigned int i=0; i<KernelClass->getNumDomains(); i++) {
+      FieldDecl *FD = KernelClass->getDomainFields().data()[i];
+
+      if (paramDecl->getName().equals(FD->getName())) {
+        HipaccDomain *Domain = Kernel->getDomainFromMapping(FD);
+
+        //TODO: Handle non-constant domains
+        if (Domain) {// && (Domain->isConstant() || compilerOptions.emitCUDA())) {
+          VarDecl *domainVar = NULL;
+          // get Domain reference
+          for (DeclContext::lookup_result Lookup =
+              Ctx.getTranslationUnitDecl()->lookup(DeclarationName(&Ctx.Idents.get(Domain->getName()+Kernel->getName())));
+              !Lookup.empty(); Lookup=Lookup.slice(1)) {
+            domainVar = cast_or_null<VarDecl>(Lookup.front());
+
+            if (domainVar) break;
+          }
+
+          /*if (!domainVar) {
+            domainVar = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
+                Domain->getName()+Kernel->getName(), paramDecl->getType());
+
+            DeclContext *DC =
+              TranslationUnitDecl::castToDeclContext(Ctx.getTranslationUnitDecl());
+            DC->addDecl(domainVar);
+          }
+          paramDecl = domainVar;*/
         }
       }
     }
@@ -2157,6 +2358,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   DeclRefExpr *LHS;
   HipaccAccessor *Acc = NULL;
   HipaccMask *Mask = NULL;
+  HipaccDomain *Domain = NULL;
   MemoryAccess memAcc = UNDEFINED;
   Expr *result;
 
@@ -2218,8 +2420,10 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
     Acc = Kernel->getImgFromMapping(FD);
     Mask = Kernel->getMaskFromMapping(FD);
+    Domain = Kernel->getDomainFromMapping(FD);
     memAcc = KernelClass->getImgAccess(FD);
-    assert((Acc || Mask) && "Could not find Image/Accessor/Mask Field Decl.");
+    assert((Acc || Mask || Domain) &&
+           "Could not find Image/Accessor/Mask/Domain Field Decl.");
 
     if (Acc != NULL) {
       // Acc.getX() method -> acc_scale_x * (gid_x - is_offset_x)
@@ -2251,14 +2455,39 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
         return idx_y;
       }
-    } else {
-      assert(Mask == convMask && "Getting Mask convolution IDs is only allowed within convolution lambda-function.");
+    } else if (Mask != NULL) {
+      assert(Mask == convMask && "Getting Mask convolution IDs is only allowed "
+                                 "within convolution lambda-function.");
       // within convolute lambda-function
       if (ME->getMemberNameInfo().getAsString() == "getX") {
         return createIntegerLiteral(Ctx, convIdxX-(int)convMask->getSizeX()/2);
       }
       if (ME->getMemberNameInfo().getAsString() == "getY") {
         return createIntegerLiteral(Ctx, convIdxY-(int)convMask->getSizeY()/2);
+      }
+    } else {
+      bool isDomainValid = false;
+      int redDepth = 0;
+
+      // Search corresponding domain
+      for (unsigned int i=0, e=redDomains.size(); i!=e; ++i) {
+        if (Domain == redDomains[i]) {
+          isDomainValid = true;
+          redDepth = i;
+          break;
+        }
+      }
+
+      assert(isDomainValid && "Getting Domain reduction IDs is only allow "
+                              "within reduction lambda-function.");
+      // within convolute lambda-function
+      if (ME->getMemberNameInfo().getAsString() == "getX") {
+        return createIntegerLiteral(
+            Ctx, redIdxX[redDepth] - (int)redDomains[redDepth]->getSizeX()/2);
+      }
+      if (ME->getMemberNameInfo().getAsString() == "getY") {
+        return createIntegerLiteral(
+            Ctx, redIdxY[redDepth] - (int)redDomains[redDepth]->getSizeY()/2);
       }
     }
   }

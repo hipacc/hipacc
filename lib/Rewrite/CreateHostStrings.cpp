@@ -629,6 +629,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       }
     }
 
+    HipaccDomain *Domain = K->getDomainFromMapping(FD);
+    if (Domain) {
+      // TODO: Assume always constant
+      continue;
+    }
+
     if (options.emitCUDA() && i==0 && options.useTextureMemory() &&
         options.getTextureType()==Array2D) {
       // surface is handled separately

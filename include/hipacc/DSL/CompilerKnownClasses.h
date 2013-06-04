@@ -55,6 +55,7 @@ class CompilerKnownClasses {
     CXXRecordDecl *Kernel;
     CXXRecordDecl *GlobalReduction;
     CXXRecordDecl *Mask;
+    CXXRecordDecl *Domain;
     // End of Parsing
     CXXRecordDecl *HipaccEoP;
 
@@ -74,8 +75,21 @@ class CompilerKnownClasses {
       Kernel(NULL),
       GlobalReduction(NULL),
       Mask(NULL),
+      Domain(NULL),
       HipaccEoP(NULL)
     {}
+
+    bool isTypeOfClass(QualType QT, CXXRecordDecl *CRD) {
+      if (QT->isReferenceType()) {
+        QT = QT->getPointeeType();
+      }
+
+      if (QT == CRD->getTypeForDecl()->getCanonicalTypeInternal()) {
+        return true;
+      }
+
+      return false;
+    }
 
     bool isTypeOfTemplateClass(QualType QT, CXXRecordDecl *CRD) {
       if (QT->isReferenceType()) {

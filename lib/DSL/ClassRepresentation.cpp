@@ -595,6 +595,19 @@ void HipaccKernel::createArgInfo() {
         }
 
         break;
+
+      case HipaccKernelClass::Domain:
+        QTtmp = Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
+                getDomainFromMapping(FD)->getSizeX()), ArrayType::Normal, false));
+        // OpenCL non-constant domain TODO: Always non-const for now
+        /*if (!getDomainFromMapping(FD)->isConstant()) {
+          addParam(QTtmp, Ctx.getPointerType(QT), QTtmp, QTtmp.getAsString(),
+              Ctx.getPointerType(QT).getAsString(), name, FD);
+        } else*/ {
+          addParam(QTtmp, QTtmp, QTtmp, QTtmp.getAsString(),
+              QTtmp.getAsString(), name, FD);
+        }
+        break;
     }
   }
 
@@ -717,6 +730,10 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
       case HipaccKernelClass::Mask:
         hostArgNames.push_back(getMaskFromMapping(FD)->getName() + ".mem");
 
+        break;
+
+      case HipaccKernelClass::Domain:
+        hostArgNames.push_back(getDomainFromMapping(FD)->getName() + ".mem");
         break;
     }
   }

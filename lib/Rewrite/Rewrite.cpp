@@ -70,6 +70,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     llvm::DenseMap<ValueDecl *, HipaccIterationSpace *> ISDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccKernel *> KernelDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccMask *> MaskDeclMap;
+    llvm::DenseMap<ValueDecl *, HipaccDomain *> DomainDeclMap;
 
     // store .reduce() calls - the kernels are created when the TranslationUnit
     // is handled
@@ -166,6 +167,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   assert(compilerClasses.Kernel && "Kernel class not found!");
   assert(compilerClasses.GlobalReduction && "GlobalReduction class not found!");
   assert(compilerClasses.Mask && "Mask class not found!");
+  assert(compilerClasses.Domain && "Domain class not found!");
   assert(compilerClasses.HipaccEoP && "HipaccEoP class not found!");
 
   // generate reduction kernel calls
@@ -467,6 +469,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
         if (D->getNameAsString() == "GlobalReduction")
           compilerClasses.GlobalReduction = D;
         if (D->getNameAsString() == "Mask") compilerClasses.Mask = D;
+        if (D->getNameAsString() == "Domain") compilerClasses.Domain = D;
         if (D->getNameAsString() == "HipaccEoP") compilerClasses.HipaccEoP = D;
       }
     }
@@ -561,6 +564,16 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
                   compilerClasses.Mask)) {
               QT = compilerClasses.getFirstTemplateType(FD->getType());
               KC->addMaskArg(FD, QT, FD->getName());
+
+              break;
+            }
+
+            // reference to Domain variable ?
+            if (compilerClasses.isTypeOfClass(FD->getType(),
+                                              compilerClasses.Domain)) {
+              QT = FD->getType(); //FIXME: Actually, type is irrelevant here.
+                                  //       Not sure what it is used for later?
+              KC->addDomainArg(FD, QT, FD->getName());
 
               break;
             }
@@ -680,16 +693,18 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   //    Accessor<int> AccIN(BcIN);
   // d) save Mask declarations, e.g.
   //    Mask<float> M(2*sigma_d+1, 2*sigma_d+1);
-  // d) save user kernel declarations, and replace it by kernel compilation
+  // e) save Domain declarations, e.g.
+  //    Domain D(3, 3)
+  // f) save user kernel declarations, and replace it by kernel compilation
   //    for OpenCL, e.g.
   //    AddKernel K(IS, IN, OUT, 23);
   //    - create CUDA/OpenCL kernel AST by replacing accesses to Image data by
   //      global memory access and by replacing references to class member
   //      variables by kernel parameter variables.
   //    - print the CUDA/OpenCL kernel to a file.
-  // e) save IterationSpace declarations, e.g.
+  // g) save IterationSpace declarations, e.g.
   //    IterationSpace<int> VIS(OUT, width, height);
-  // f) save GlobalReduction declarations, e.g.
+  // h) save GlobalReduction declarations, e.g.
   //    MinReduction<float> redMinIN(IN, FLT_MAX);
   for (DeclStmt::decl_iterator DI=D->decl_begin(), DE=D->decl_end(); DI!=DE;
       ++DI) {
@@ -1085,6 +1100,68 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         break;
       }
 
+      // found Domain decl
+      if (compilerClasses.isTypeOfClass(VD->getType(),
+                                        compilerClasses.Domain)) {
+        assert(VD->hasInit() &&
+               "Currently only Domain definitions are supported, no "
+               "declarations!");
+        assert(isa<CXXConstructExpr>(VD->getInit()) &&
+               "Currently only Domain definitions are supported, no "
+               "declarations!");
+
+        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+        assert((CCE->getNumArgs() == 2) &&
+               "Domain definition requires exactly two arguments!");
+
+        HipaccDomain *Domain = new HipaccDomain(VD);
+
+        Expr::EvalResult constVal;
+        unsigned int DiagIDConstant =
+            Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                                  "Constant expression for %ordinal0 parameter "
+                                  "to Domain %1 required.");
+
+        // check if the parameters can be resolved to a constant
+        if (!CCE->getArg(0)->isEvaluatable(Context)) {
+          Diags.Report(CCE->getArg(0)->getExprLoc(), DiagIDConstant) << 1 <<
+              VD->getName();
+        }
+        Domain->setSizeX(
+            CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue());
+
+        if (!CCE->getArg(1)->isEvaluatable(Context)) {
+          Diags.Report(CCE->getArg(1)->getExprLoc(), DiagIDConstant) << 2 <<
+              VD->getName();
+        }
+        Domain->setSizeY(
+            CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue());
+
+        // TODO: Replace by buffer for non-const
+        //if (compilerOptions.emitCUDA()) {// || Domain->isConstant()) {
+          // remove Domain definition
+          TextRewriter.RemoveText(D->getSourceRange());
+        /*} else {
+          std::string newStr;
+          // create Buffer for Domain
+          stringCreator.writeMemoryAllocationConstant(Domain->getName(),
+              Domain->getTypeStr(), Domain->getSizeXStr(), Domain->getSizeYStr(),
+              newStr);
+
+          // replace Domain declaration by Buffer allocation
+          // get the start location and compute the semi location.
+          SourceLocation startLoc = D->getLocStart();
+          const char *startBuf = SM->getCharacterData(startLoc);
+          const char *semiPtr = strchr(startBuf, ';');
+          TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+        }*/
+
+        // store Domain definition
+        DomainDeclMap[VD] = Domain;
+
+        break;
+      }
+
       // found GlobalReduction decl
       for (llvm::DenseMap<RecordDecl *, HipaccGlobalReductionClass *>::iterator
           it=GlobalReductionClassDeclMap.begin(),
@@ -1187,9 +1264,10 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               "Currently only Image definitions are supported, no declarations!");
           CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
-          unsigned int num_img = 0, num_mask = 0;
+          unsigned int num_img = 0, num_mask = 0, num_domain = 0;
           SmallVector<FieldDecl *, 16> imgFields = KC->getImgFields();
           SmallVector<FieldDecl *, 16> maskFields = KC->getMaskFields();
+          SmallVector<FieldDecl *, 16> domainFields = KC->getDomainFields();
           for (unsigned int i=0; i<CCE->getNumArgs(); i++) {
             if (isa<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts())) {
               DeclRefExpr *DRE =
@@ -1216,6 +1294,14 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                 K->insertMapping(maskFields.data()[num_mask],
                     MaskDeclMap[DRE->getDecl()]);
                 num_mask++;
+                continue;
+              }
+
+              // check if we have a Domain
+              if (DomainDeclMap.count(DRE->getDecl())) {
+                K->insertMapping(domainFields.data()[num_domain],
+                    DomainDeclMap[DRE->getDecl()]);
+                num_domain++;
                 continue;
               }
 
@@ -1321,10 +1407,12 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   // convert overloaded operator 'operator=' function into memory transfer,
   // a) Img = host_array;
   // b) Mask = host_array;
-  // c) Img = Img;
-  // d) Img = Acc;
-  // e) Acc = Acc;
-  // f) Acc = Img;
+  // c) Domain = host_array;
+  // d) Img = Img;
+  // e) Img = Acc;
+  // f) Acc = Acc;
+  // g) Acc = Img;
+  // h) Domain(x, y) = literal;
   if (E->getOperator() == OO_Equal) {
     if (E->getNumArgs() != 2) return true;
 
@@ -1480,6 +1568,97 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
         // rewrite Mask assignment to memory transfer
         // get the start location and compute the semi location.
+        SourceLocation startLoc = E->getLocStart();
+        const char *startBuf = SM->getCharacterData(startLoc);
+        const char *semiPtr = strchr(startBuf, ';');
+        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+
+        return true;
+      }
+
+      // check if we have a Domain
+      if (DomainDeclMap.count(DRE_LHS->getDecl())) {
+        HipaccDomain *Domain = DomainDeclMap[DRE_LHS->getDecl()];
+        std::string newStr;
+
+        // get the text string for the memory transfer src
+        std::string dataStr;
+        llvm::raw_string_ostream DS(dataStr);
+        E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
+
+        DeclRefExpr *DREVar =
+          dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts());
+        if (DREVar) {
+          if (VarDecl *V = dyn_cast<VarDecl>(DREVar->getDecl())) {
+            bool isDomainConstant = V->getType().isConstant(Context);
+
+            if (!isDomainConstant) {
+              unsigned int DiagIDConstant = Diags.getCustomDiagID(
+                  DiagnosticsEngine::Warning,
+                  "Domain '%0': Constant propagation only supported if "
+                  "coefficient array is declared as constant.");
+              Diags.Report(V->getLocation(), DiagIDConstant)
+                  << Domain->getName();
+            }
+
+            // loop over initializers and check if each initializer is a
+            // constant
+            if (isDomainConstant && isa<InitListExpr>(V->getInit())) {
+              InitListExpr *ILE = dyn_cast<InitListExpr>(V->getInit());
+              Domain->setInitList(ILE);
+
+              for (unsigned int i=0; i<ILE->getNumInits(); ++i) {
+                if (!ILE->getInit(i)->isConstantInitializer(Context, false)) {
+                  isDomainConstant = false;
+                  break;
+                }
+              }
+            }
+            //TODO: Add memory transfer for non-const domains
+            /*Domain->setIsConstant(isDomainConstant);
+
+            // create memory transfer string for memory upload to constant
+            // memory
+            if (!isDomainConstant) {
+              if (compilerOptions.emitCUDA()) {
+                // store memory pointer and source location. The string is
+                // replaced later on.
+                Domain->setHostMemName(V->getName());
+                Domain->setHostMemExpr(E);
+
+                return true;
+              } else {
+                stringCreator.writeMemoryTransferSymbol(Domain, V->getName(),
+                    HOST_TO_DEVICE, newStr);
+              }
+            }*/
+          }
+        }
+
+        // rewrite Domain assignment to memory transfer
+        // get the start location and compute the semi location.
+        SourceLocation startLoc = E->getLocStart();
+        const char *startBuf = SM->getCharacterData(startLoc);
+        const char *semiPtr = strchr(startBuf, ';');
+        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+
+        return true;
+      }
+    }
+  }
+
+  if (E->getOperator() == OO_Call) {
+    if (E->getNumArgs() != 3) return true;
+
+    if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
+      DeclRefExpr *DRE_LHS =
+        dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts());
+
+      if (DomainDeclMap.count(DRE_LHS->getDecl())) {
+        //TODO: Add memory transfer for non-const domains
+        HipaccDomain *Domain = DomainDeclMap[DRE_LHS->getDecl()];
+        std::string newStr;
+
         SourceLocation startLoc = E->getLocStart();
         const char *startBuf = SM->getCharacterData(startLoc);
         const char *semiPtr = strchr(startBuf, ';');
@@ -2486,6 +2665,37 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:
           // mask is declared as static memory
+          break;
+      }
+      continue;
+    }
+
+    // check if we have a Domain
+    HipaccDomain *Domain = K->getDomainFromMapping(FD);
+    if (Domain) {
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_OpenCL:
+        case TARGET_OpenCLCPU:
+          //TODO: Handle non-constant domain
+          /*if (!Domain->isConstant()) {
+            if (comma++) *OS << ", ";
+            *OS << "__constant ";
+            T.getAsStringInternal(Name, Policy);
+            *OS << Name;
+            *OS << " __attribute__ ((max_constant_size ("
+                << Domain->getSizeXStr()
+                << "*" << Domain->getSizeYStr() << "*sizeof("
+                << Domain->getTypeStr() << "))))";
+            }*/
+          break;
+        case TARGET_CUDA:
+          // domain is declared as constant memory
+          break;
+        case TARGET_C:
+        case TARGET_Renderscript:
+        case TARGET_RenderscriptGPU:
+        case TARGET_Filterscript:
+          // domain is declared as static memory
           break;
       }
       continue;
