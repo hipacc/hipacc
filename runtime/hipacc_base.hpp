@@ -182,7 +182,7 @@ class HipaccPyramid {
     }
 
     HipaccImage &operator()(int relative) {
-      assert(level_ + relative >= 0 && level_ + relative < imgs_.size() &&
+      assert(level_ + relative >= 0 && level_ + relative < (int)imgs_.size() &&
              "Accessed pyramid stage is out of bounds.");
       return imgs_.at(level_+relative);
     }
@@ -327,7 +327,7 @@ void hipaccTraverse(unsigned int loop=1) {
       ++((*it)->level_);
     }
 
-    for (int i = 0; i < loop; i++) {
+    for (unsigned int i = 0; i < loop; i++) {
       hipaccTraverseFunc();
     }
 
