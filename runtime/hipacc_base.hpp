@@ -26,7 +26,6 @@
 #ifndef __HIPACC_BASE_HPP__
 #define __HIPACC_BASE_HPP__
 
-#include "hipacc_base.hpp"
 #include "hipacc_math_functions.hpp"
 
 #ifndef __CUDACC__
