@@ -1121,7 +1121,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           Parms += "(" + LSS.str() + ")";
         } else if (BC) {
           // add call expression to pyramid argument (from boundary condition)
-          Parms += "(" + pyrIndex + ")";
+          //Parms += "(" + pyrIndex + ")";
         }
 
         newStr += "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";
