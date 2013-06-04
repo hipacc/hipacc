@@ -4,6 +4,7 @@ IF(OPENCL_FOUND)
         ${HIPACC_SOURCE_DIR}/runtime)
 
     SET(ocl_compile_SOURCES ocl_compile.cc)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
     ADD_EXECUTABLE(ocl_compile ${ocl_compile_SOURCES})
     TARGET_LINK_LIBRARIES(ocl_compile ${OPENCL_LFLAGS} ${TIME_LINK})
 
