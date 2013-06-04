@@ -29,7 +29,9 @@
 #include "hipacc_base.hpp"
 #include "hipacc_math_functions.hpp"
 
+#ifndef __CUDACC__
 #include <functional>
+#endif // __CUDACC__
 
 #define HIPACC_NUM_ITERATIONS 10
 
@@ -199,6 +201,8 @@ class HipaccPyramid {
 };
 
 
+#ifndef __CUDACC__
+
 // forward declaration
 template<typename T>
 HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height, int alignment);
@@ -334,5 +338,7 @@ void hipaccTraverse(unsigned int loop=1) {
   }
 }
 
-#endif  // __HIPACC_BASE_HPP__
+#endif // __CUDACC__
+
+#endif // __HIPACC_BASE_HPP__
 

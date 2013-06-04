@@ -8,8 +8,7 @@ COMPILER_INCLUDES   ?= @PLATFORM_FIXES@ -std=c++11 -stdlib=libc++ \
                         -I@DSL_INCLUDES@
 TEST_CASE           ?= ./tests/opencv_blur_8uc1
 MYFLAGS             ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
-NVCC_FLAGS          = --compiler-options='-std=c++0x' \
-                      -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
+NVCC_FLAGS          = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
                         -ftz=true -prec-sqrt=false -prec-div=false -Xptxas \
                         -v #-keep
 
