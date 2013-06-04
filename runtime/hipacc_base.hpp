@@ -29,6 +29,8 @@
 #include "hipacc_base.hpp"
 #include "hipacc_math_functions.hpp"
 
+#include <functional>
+
 #define HIPACC_NUM_ITERATIONS 10
 
 static float total_time = 0.0f;

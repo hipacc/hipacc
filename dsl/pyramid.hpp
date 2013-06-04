@@ -31,7 +31,7 @@
 #include "image.hpp"
 
 #include <vector>
-#include <algorithm>
+#include <functional>
 
 namespace hipacc {
 
