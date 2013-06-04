@@ -67,6 +67,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     llvm::DenseMap<ValueDecl *, HipaccBoundaryCondition *> BCDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccGlobalReduction *> GlobalReductionDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccImage *> ImgDeclMap;
+    llvm::DenseMap<ValueDecl *, HipaccPyramid *> PyrDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccIterationSpace *> ISDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccKernel *> KernelDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccMask *> MaskDeclMap;
@@ -112,6 +113,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     bool VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
     bool VisitBinaryOperator(BinaryOperator *E);
     bool VisitCXXMemberCallExpr(CXXMemberCallExpr *E);
+    bool VisitCallExpr (CallExpr *E);
 
     //bool shouldVisitTemplateInstantiations() const { return true; }
 
@@ -168,6 +170,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   assert(compilerClasses.GlobalReduction && "GlobalReduction class not found!");
   assert(compilerClasses.Mask && "Mask class not found!");
   assert(compilerClasses.Domain && "Domain class not found!");
+  assert(compilerClasses.Pyramid && "Pyramid class not found!");
   assert(compilerClasses.HipaccEoP && "HipaccEoP class not found!");
 
   // generate reduction kernel calls
@@ -470,6 +473,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
           compilerClasses.GlobalReduction = D;
         if (D->getNameAsString() == "Mask") compilerClasses.Mask = D;
         if (D->getNameAsString() == "Domain") compilerClasses.Domain = D;
+        if (D->getNameAsString() == "Pyramid") compilerClasses.Pyramid = D;
         if (D->getNameAsString() == "HipaccEoP") compilerClasses.HipaccEoP = D;
       }
     }
@@ -682,29 +686,34 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
 bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   if (!compilerClasses.HipaccEoP) return true;
+  std::string pyrIndex;
 
   // a) convert Image declarations into memory allocations, e.g.
   //    Image<int> IN(width, height);
   //    =>
   //    int *IN = hipaccCreateMemory<int>(NULL, width, height, &stride, padding);
-  // b) save BoundaryCondition declarations, e.g.
+  // b) convert Pyramid declarations into pyramid creation, e.g.
+  //    Pyramid<int> P(IN, 3);
+  //    =>
+  //    Pyramid P = hipaccCreatePyramid<int>(IN, 3);
+  // c) save BoundaryCondition declarations, e.g.
   //    BoundaryCondition<int> BcIN(IN, 5, 5, BOUNDARY_MIRROR);
-  // c) save Accessor declarations, e.g.
+  // d) save Accessor declarations, e.g.
   //    Accessor<int> AccIN(BcIN);
-  // d) save Mask declarations, e.g.
+  // e) save Mask declarations, e.g.
   //    Mask<float> M(2*sigma_d+1, 2*sigma_d+1);
-  // e) save Domain declarations, e.g.
+  // f) save Domain declarations, e.g.
   //    Domain D(3, 3)
-  // f) save user kernel declarations, and replace it by kernel compilation
+  // g) save user kernel declarations, and replace it by kernel compilation
   //    for OpenCL, e.g.
   //    AddKernel K(IS, IN, OUT, 23);
   //    - create CUDA/OpenCL kernel AST by replacing accesses to Image data by
   //      global memory access and by replacing references to class member
   //      variables by kernel parameter variables.
   //    - print the CUDA/OpenCL kernel to a file.
-  // g) save IterationSpace declarations, e.g.
+  // h) save IterationSpace declarations, e.g.
   //    IterationSpace<int> VIS(OUT, width, height);
-  // h) save GlobalReduction declarations, e.g.
+  // i) save GlobalReduction declarations, e.g.
   //    MinReduction<float> redMinIN(IN, FLT_MAX);
   for (DeclStmt::decl_iterator DI=D->decl_begin(), DE=D->decl_end(); DI!=DE;
       ++DI) {
@@ -752,6 +761,45 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         break;
       }
 
+      // found Pyramid decl
+      if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
+            compilerClasses.Pyramid)) {
+        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+        assert(CCE->getNumArgs() == 2 && "Pyramid definition requires exactly two arguments!");
+
+        HipaccPyramid *Pyr = new HipaccPyramid(Context, VD);
+
+        std::string newStr;
+
+        // get the text string for the pyramid image
+        std::string imageStr;
+        llvm::raw_string_ostream IS(imageStr);
+        CCE->getArg(0)->printPretty(IS, 0, PrintingPolicy(CI.getLangOpts()));
+
+        // get the text string for the pyramid depth
+        std::string depthStr;
+        llvm::raw_string_ostream DS(depthStr);
+        CCE->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
+
+        // create memory allocation string
+        stringCreator.writePyramidAllocation(VD->getName(),
+            compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
+            IS.str(), DS.str(), newStr, targetDevice);
+
+        // rewrite Pyramid definition
+        // get the start location and compute the semi location.
+        SourceLocation startLoc = D->getLocStart();
+        const char *startBuf = SM->getCharacterData(startLoc);
+        const char *semiPtr = strchr(startBuf, ';');
+        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+
+        // store Pyramid definition
+        Pyr->setPixelType(compilerClasses.getFirstTemplateType(VD->getType()));
+        PyrDeclMap[VD] = Pyr;
+
+        break;
+      }
+
       // found BoundaryCondition decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.BoundaryCondition)) {
@@ -761,6 +809,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         HipaccBoundaryCondition *BC = NULL;
         HipaccImage *Img = NULL;
+        HipaccPyramid *Pyr = NULL;
 
         // check if the first argument is an Image
         if (isa<DeclRefExpr>(CCE->getArg(0))) {
@@ -769,19 +818,61 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get the Image from the DRE if we have one
           if (ImgDeclMap.count(DRE->getDecl())) {
             Img = ImgDeclMap[DRE->getDecl()];
+            BC = new HipaccBoundaryCondition(Img, VD);
           }
         }
-        assert(Img && "Expected Image as first argument to BoundaryCondition.");
 
-        BC = new HipaccBoundaryCondition(Img, VD);
+        // check if the first argument is a Pyramid call
+        if (isa<CallExpr>(CCE->getArg(0)) &&
+            isa<DeclRefExpr>(dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0))) {
+          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
+              dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0));
+
+          // get the Pyramid from the DRE if we have one
+          if (PyrDeclMap.count(DRE->getDecl())) {
+            Pyr = PyrDeclMap[DRE->getDecl()];
+            BC = new HipaccBoundaryCondition(Pyr, VD);
+
+            // add call expression to pyramid argument
+            IntegerLiteral *IL = NULL;
+            UnaryOperator *UO = NULL;
+
+            if (dyn_cast<IntegerLiteral>(
+                    dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
+              IL = dyn_cast<IntegerLiteral>(
+                    dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+            } else if (dyn_cast<UnaryOperator>(
+                           dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
+              UO = dyn_cast<UnaryOperator>(
+                       dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+              // only support unary operators '+' and '-'
+              if (UO && (UO->getOpcode() == UO_Plus ||
+                         UO->getOpcode() == UO_Minus)) {
+                IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+              }
+            }
+
+            assert(IL && "Missing integer literal in pyramid call expression.");
+
+            std::stringstream LSS;
+            if (UO && UO->getOpcode() == UO_Minus) {
+              LSS << "-";
+            }
+            LSS << *(IL->getValue().getRawData());
+            pyrIndex = LSS.str();
+          }
+        }
+
+        assert((Img || Pyr) && "Expected first argument of BoundaryCondition "
+                               "to be Image or Pyramid call.");
 
         // get text string for arguments, argument order is:
-        // img, size_x, size_y, mode
-        // img, size, mode
-        // img, mask, mode
-        // img, size_x, size_y, mode, const_val
-        // img, size, mode, const_val
-        // img, mask, mode, const_val
+        // img/pyramid-call, size_x, size_y, mode
+        // img/pyramid-call, size, mode
+        // img/pyramid-call, mask, mode
+        // img/pyramid-call, size_x, size_y, mode, const_val
+        // img/pyramid-call, size, mode, const_val
+        // img/pyramid-call, mask, mode, const_val
         Expr::EvalResult constVal;
         unsigned int DiagIDConstant =
           Diags.getCustomDiagID(DiagnosticsEngine::Error,
@@ -923,6 +1014,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         std::string newStr;
         HipaccAccessor *Acc = NULL;
         HipaccBoundaryCondition *BC = NULL;
+        HipaccImage *Img = NULL;
+        HipaccPyramid *Pyr = NULL;
 
         // check if the first argument is an Image
         if (isa<DeclRefExpr>(CCE->getArg(0))) {
@@ -936,7 +1029,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // in case we have no BoundaryCondition, check if an Image is
           // specified and construct a BoundaryCondition
           if (!BC && ImgDeclMap.count(DRE->getDecl())) {
-            HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
+            Img = ImgDeclMap[DRE->getDecl()];
             BC = new HipaccBoundaryCondition(Img, VD);
             BC->setSizeX(1);
             BC->setSizeY(1);
@@ -946,7 +1039,28 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             BCDeclMap[VD] = BC;
           }
         }
-        assert(BC && "Expected BoundaryCondition or Image as first argument to Accessor.");
+
+        // check if the first argument is a Pyramid call
+        if (isa<CallExpr>(CCE->getArg(0)) &&
+            isa<DeclRefExpr>(dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0))) {
+          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
+              dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0));
+
+          // get the Pyramid from the DRE if we have one
+          if (PyrDeclMap.count(DRE->getDecl())) {
+            Pyr = PyrDeclMap[DRE->getDecl()];
+            BC = new HipaccBoundaryCondition(Pyr, VD);
+            BC->setSizeX(1);
+            BC->setSizeY(1);
+            BC->setBoundaryHandling(BOUNDARY_CLAMP);
+
+            // Fixme: store BoundaryCondition???
+            BCDeclMap[VD] = BC;
+          }
+        }
+
+        assert(BC && "Expected BoundaryCondition, Image or Pyramid call as "
+                     "first argument to Accessor.");
 
         InterpolationMode mode;
         if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
@@ -961,19 +1075,55 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         Acc = new HipaccAccessor(BC, mode, VD);
 
-        // img|bc
-        // img|bc, width, height, xf, yf
-        if (CCE->getNumArgs()<4) Acc->setNoCrop();
-
-        // get text string for arguments, argument order is:
+        // get text string for arguments
         std::string Parms = Acc->getImage()->getName();
-        for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
-          std::string Str;
-          llvm::raw_string_ostream SS(Str);
 
-          CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-          Parms += ", " + SS.str();
+        if (Img) {
+          // img|bc
+          // img|bc, width, height, xf, yf
+          if (CCE->getNumArgs()<4) Acc->setNoCrop();
+
+          // get text string for arguments, argument order is:
+          for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
+            std::string Str;
+            llvm::raw_string_ostream SS(Str);
+
+            CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+            Parms += ", " + SS.str();
+          }
+        } else if (Pyr) {
+          // add call expression to pyramid argument
+          IntegerLiteral *IL = NULL;
+          UnaryOperator *UO = NULL;
+
+          if (dyn_cast<IntegerLiteral>(
+                  dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
+            IL = dyn_cast<IntegerLiteral>(
+                  dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+          } else if (dyn_cast<UnaryOperator>(
+                         dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
+            UO = dyn_cast<UnaryOperator>(
+                     dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+            // only support unary operators '+' and '-'
+            if (UO && (UO->getOpcode() == UO_Plus ||
+                       UO->getOpcode() == UO_Minus)) {
+              IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+            }
+          }
+
+          assert(IL && "Missing integer literal in pyramid call expression.");
+
+          std::stringstream LSS;
+          if (UO && UO->getOpcode() == UO_Minus) {
+            LSS << "-";
+          }
+          LSS << *(IL->getValue().getRawData());
+          Parms += "(" + LSS.str() + ")";
+        } else if (BC) {
+          // add call expression to pyramid argument (from boundary condition)
+          Parms += "(" + pyrIndex + ")";
         }
+
         newStr += "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";
 
         // replace Accessor decl by variables for width/height and offsets
@@ -1002,6 +1152,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         HipaccIterationSpace *IS = NULL;
         HipaccImage *Img = NULL;
+        HipaccPyramid *Pyr = NULL;
 
         // check if the first argument is an Image
         if (isa<DeclRefExpr>(CCE->getArg(0))) {
@@ -1010,24 +1161,71 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get the Image from the DRE if we have one
           if (ImgDeclMap.count(DRE->getDecl())) {
             Img = ImgDeclMap[DRE->getDecl()];
+            IS = new HipaccIterationSpace(Img, VD);
           }
         }
-        assert(Img && "Expected Image as first argument to IterationSpace.");
 
-        IS = new HipaccIterationSpace(Img, VD);
+        // check if the first argument is a Pyramid call
+        if (isa<CallExpr>(CCE->getArg(0)) &&
+            isa<DeclRefExpr>(dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0))) {
+          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
+              dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0));
 
-        // img[, is_width, is_height[, offset_x, offset_y]]
-        if (CCE->getNumArgs()<4) IS->setNoCrop();
-
-        // get text string for arguments, argument order is:
-        std::string Parms = IS->getImage()->getName();
-        for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
-          std::string Str;
-          llvm::raw_string_ostream SS(Str);
-
-          CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-          Parms += ", " + SS.str();
+          // get the Pyramid from the DRE if we have one
+          if (PyrDeclMap.count(DRE->getDecl())) {
+            Pyr = PyrDeclMap[DRE->getDecl()];
+            IS = new HipaccIterationSpace(Pyr, VD);
+          }
         }
+
+        assert((Img || Pyr) && "Expected first argument of IterationSpace to "
+                               "be Image or Pyramid call.");
+
+        // get text string for arguments
+        std::string Parms = IS->getImage()->getName();
+
+        if (Img) {
+          // img[, is_width, is_height[, offset_x, offset_y]]
+          if (CCE->getNumArgs()<4) IS->setNoCrop();
+
+          // get text string for arguments, argument order is:
+          for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
+            std::string Str;
+            llvm::raw_string_ostream SS(Str);
+
+            CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+            Parms += ", " + SS.str();
+          }
+        } else if (Pyr) {
+          // add call expression to pyramid argument
+          IntegerLiteral *IL = NULL;
+          UnaryOperator *UO = NULL;
+
+          if (dyn_cast<IntegerLiteral>(
+                  dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
+            IL = dyn_cast<IntegerLiteral>(
+                  dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+          } else if (dyn_cast<UnaryOperator>(
+                         dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
+            UO = dyn_cast<UnaryOperator>(
+                     dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+            // only support unary operators '+' and '-'
+            if (UO && (UO->getOpcode() == UO_Plus ||
+                       UO->getOpcode() == UO_Minus)) {
+              IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+            }
+          }
+
+          assert(IL && "Missing integer literal in pyramid call expression.");
+
+          std::stringstream LSS;
+          if (UO && UO->getOpcode() == UO_Minus) {
+            LSS << "-";
+          }
+          LSS << *(IL->getValue().getRawData());
+          Parms += "(" + LSS.str() + ")";
+        }
+
         newStr += "HipaccAccessor " + IS->getName() + "(" + Parms + ");";
 
         // store IterationSpace
@@ -1778,6 +1976,22 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     }
   }
 
+  return true;
+}
+
+
+bool Rewrite::VisitCallExpr (CallExpr *E) {
+  // rewrite function calls 'traverse' to 'hipaccTraverse'
+  if (isa<ImplicitCastExpr>(E->getCallee())) {
+    DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(dyn_cast<ImplicitCastExpr>(
+                           E->getCallee())->getSubExpr());
+    if (DRE && DRE->getDecl()->getNameAsString() == "traverse") {
+      SourceLocation startLoc = E->getLocStart();
+      const char *startBuf = SM->getCharacterData(startLoc);
+      const char *semiPtr = strchr(startBuf, '(');
+      TextRewriter.ReplaceText(startLoc, semiPtr-startBuf, "hipaccTraverse");
+    }
+  }
   return true;
 }
 

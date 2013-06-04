@@ -97,6 +97,9 @@ class CreateHostStrings {
     void writeInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,
         std::string function_name, std::string type_suffix, InterpolationMode
         ip_mode, BoundaryMode bh_mode, std::string &resultStr);
+    void writePyramidAllocation(std::string pyrName, std::string type,
+        std::string img, std::string depth, std::string &resultStr,
+        HipaccDevice &targetDevice);
 };
 } // end namespace hipacc
 } // end namespace clang

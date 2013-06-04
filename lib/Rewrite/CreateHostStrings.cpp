@@ -1060,5 +1060,40 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
   resultStr += ")\n";
 }
 
+
+void CreateHostStrings::writePyramidAllocation(std::string pyrName, std::string
+    type, std::string img, std::string depth, std::string &resultStr,
+    HipaccDevice &targetDevice) {
+  resultStr += "HipaccPyramid " + pyrName + " = ";
+  resultStr += "hipaccCreatePyramid<" + type + ">(";
+  // TODO: Support multple memory types
+  /*switch (options.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_CUDA:
+      // texture is bound at kernel launch
+      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+        resultStr += "hipaccCreateArray2D<" + type + ">(";
+      } else {
+        resultStr += "hipaccCreateMemory<" + type + ">(";
+      }
+      break;
+    case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
+    case TARGET_Filterscript:
+      resultStr += "hipaccCreateAllocation((" + type + "*)";
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLCPU:
+      if (options.useTextureMemory()) {
+        resultStr += "hipaccCreateImage<" + type + ">(";
+      } else {
+        resultStr += "hipaccCreateBuffer<" + type + ">(";
+      }
+      break;
+  }*/
+  resultStr += img + ", " + depth + ");";
+}
+
 // vim: set ts=2 sw=2 sts=2 et ai:
 

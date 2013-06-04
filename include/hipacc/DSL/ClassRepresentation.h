@@ -120,6 +120,14 @@ class HipaccImage {
 };
 
 
+class HipaccPyramid : public HipaccImage {
+  public:
+    HipaccPyramid(ASTContext &Ctx, VarDecl *VD)
+        : HipaccImage(Ctx, VD) {
+    }
+};
+
+
 class HipaccBoundaryCondition {
   private:
     HipaccImage *img;

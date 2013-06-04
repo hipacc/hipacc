@@ -56,6 +56,7 @@ class CompilerKnownClasses {
     CXXRecordDecl *GlobalReduction;
     CXXRecordDecl *Mask;
     CXXRecordDecl *Domain;
+    CXXRecordDecl *Pyramid;
     // End of Parsing
     CXXRecordDecl *HipaccEoP;
 
@@ -76,6 +77,7 @@ class CompilerKnownClasses {
       GlobalReduction(NULL),
       Mask(NULL),
       Domain(NULL),
+      Pyramid(NULL),
       HipaccEoP(NULL)
     {}
 
