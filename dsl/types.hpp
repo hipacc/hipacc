@@ -28,6 +28,14 @@
 
 namespace hipacc {
 
+enum HipaccConvolutionMode {
+    HipaccSUM,
+    HipaccMIN,
+    HipaccMAX,
+    HipaccPROD,
+    HipaccMEDIAN
+};
+
 #if defined __clang__
 typedef char                char4   __attribute__ ((ext_vector_type(4)));
 typedef short int           short4  __attribute__ ((ext_vector_type(4)));

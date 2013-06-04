@@ -38,13 +38,6 @@
 namespace hipacc {
 // forward declaration
 template<typename data_t> class BoundaryCondition;
-enum HipaccConvolutionMode {
-    HipaccSUM,
-    HipaccMIN,
-    HipaccMAX,
-    HipaccPROD,
-    HipaccMEDIAN
-};
 
 class MaskBase {
     protected:
