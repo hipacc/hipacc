@@ -686,7 +686,6 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
 bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   if (!compilerClasses.HipaccEoP) return true;
-  std::string pyrIndex;
 
   // a) convert Image declarations into memory allocations, e.g.
   //    Image<int> IN(width, height);
@@ -765,7 +764,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Pyramid)) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert(CCE->getNumArgs() == 2 && "Pyramid definition requires exactly two arguments!");
+        assert(CCE->getNumArgs() == 2 &&
+               "Pyramid definition requires exactly two arguments!");
 
         HipaccPyramid *Pyr = new HipaccPyramid(Context, VD);
 
@@ -859,7 +859,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               LSS << "-";
             }
             LSS << *(IL->getValue().getRawData());
-            pyrIndex = LSS.str();
+            BC->setPyramidIndex(LSS.str());
           }
         }
 
@@ -867,12 +867,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                                "to be Image or Pyramid call.");
 
         // get text string for arguments, argument order is:
-        // img/pyramid-call, size_x, size_y, mode
-        // img/pyramid-call, size, mode
-        // img/pyramid-call, mask, mode
-        // img/pyramid-call, size_x, size_y, mode, const_val
-        // img/pyramid-call, size, mode, const_val
-        // img/pyramid-call, mask, mode, const_val
+        // img|pyramid-call, size_x, size_y, mode
+        // img|pyramid-call, size, mode
+        // img|pyramid-call, mask, mode
+        // img|pyramid-call, size_x, size_y, mode, const_val
+        // img|pyramid-call, size, mode, const_val
+        // img|pyramid-call, mask, mode, const_val
         Expr::EvalResult constVal;
         unsigned int DiagIDConstant =
           Diags.getCustomDiagID(DiagnosticsEngine::Error,
@@ -1078,20 +1078,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         // get text string for arguments
         std::string Parms = Acc->getImage()->getName();
 
-        if (Img) {
-          // img|bc
-          // img|bc, width, height, xf, yf
-          if (CCE->getNumArgs()<4) Acc->setNoCrop();
-
-          // get text string for arguments, argument order is:
-          for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
-            std::string Str;
-            llvm::raw_string_ostream SS(Str);
-
-            CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-            Parms += ", " + SS.str();
-          }
-        } else if (Pyr) {
+        if (Pyr) {
           // add call expression to pyramid argument
           IntegerLiteral *IL = NULL;
           UnaryOperator *UO = NULL;
@@ -1119,9 +1106,24 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           }
           LSS << *(IL->getValue().getRawData());
           Parms += "(" + LSS.str() + ")";
-        } else if (BC) {
-          // add call expression to pyramid argument (from boundary condition)
-          //Parms += "(" + pyrIndex + ")";
+        } else {
+          if (BC->containsPyramid()) {
+            // add call expression to pyramid argument (from boundary condition)
+            Parms += "(" + BC->getPyramidIndex() + ")";
+          }
+
+          // img|bc|pyramid-call
+          // img|bc|pyramid-call, width, height, xf, yf
+          if (CCE->getNumArgs()<4) Acc->setNoCrop();
+
+          // get text string for arguments, argument order is:
+          for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
+            std::string Str;
+            llvm::raw_string_ostream SS(Str);
+
+            CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+            Parms += ", " + SS.str();
+          }
         }
 
         newStr += "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";

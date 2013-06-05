@@ -135,6 +135,8 @@ class HipaccBoundaryCondition {
     unsigned int size_x, size_y;
     std::string size_x_str, size_y_str;
     BoundaryMode boundaryHandling;
+    std::string pyr_idx_str;
+    bool is_pyramid;
     Expr *constExpr;
     void setConstExpr(APValue &val, ASTContext &Ctx);
 
@@ -147,6 +149,8 @@ class HipaccBoundaryCondition {
       size_x_str(""),
       size_y_str(""),
       boundaryHandling(BOUNDARY_UNDEFINED),
+      pyr_idx_str(""),
+      is_pyramid(false),
       constExpr(NULL)
     {}
 
@@ -164,6 +168,10 @@ class HipaccBoundaryCondition {
       size_y_str = SS.str();
       size_y = y;
     }
+    void setPyramidIndex(std::string idx) {
+      is_pyramid = true;
+      pyr_idx_str = idx;
+    }
     void setBoundaryHandling(BoundaryMode m) { boundaryHandling = m; }
     void setConstVal(APValue &val, ASTContext &Ctx) {
       setConstExpr(val, Ctx);
@@ -175,6 +183,8 @@ class HipaccBoundaryCondition {
     std::string getSizeXStr() { return size_x_str; }
     std::string getSizeYStr() { return size_y_str; }
     BoundaryMode getBoundaryHandling() { return boundaryHandling; }
+    std::string getPyramidIndex() { return pyr_idx_str; }
+    bool containsPyramid() { return is_pyramid; }
     Expr *getConstExpr() { return constExpr; }
 };
 
