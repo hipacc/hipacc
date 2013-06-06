@@ -1930,6 +1930,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   //    Image width, height, and stride -> kernel parameters
   // b) convert invocation of 'reduce' member function into kernel launch, e.g.
   //    float min = MinReduction.reduce();
+  // c) convert getWidth/getHeight calls
 
   if (E->getImplicitObjectArgument() &&
       isa<DeclRefExpr>(E->getImplicitObjectArgument()->IgnoreParenCasts())) {
@@ -1975,6 +1976,42 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       // created before the translation unit is handled; reduction kernels are
       // generated then
       ReductionCalls.push_back(E);
+    }
+  }
+
+  // getWidth/getHeight MemberExpr calls
+  if (isa<MemberExpr>(E->getCallee())) {
+    MemberExpr *ME = dyn_cast<MemberExpr>(E->getCallee());
+
+    if (isa<DeclRefExpr>(ME->getBase()->IgnoreImpCasts())) {
+      DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ME->getBase()->IgnoreImpCasts());
+      std::string newStr;
+
+      // get the Image from the DRE if we have one
+      if (ImgDeclMap.count(DRE->getDecl())) {
+        // match for supported member calls
+        if (ME->getMemberNameInfo().getAsString() == "getWidth") {
+          newStr = "width";
+        } else if (ME->getMemberNameInfo().getAsString() == "getHeight") {
+          newStr = "height";
+        } 
+      }
+
+      // get the Accessor from the DRE if we have one
+      if (AccDeclMap.count(DRE->getDecl())) {
+        // match for supported member calls
+        if (ME->getMemberNameInfo().getAsString() == "getWidth") {
+          newStr = "img.width";
+        } else if (ME->getMemberNameInfo().getAsString() == "getHeight") {
+          newStr = "img.height";
+        } 
+      }
+
+      if (!newStr.empty()) {
+        // replace member function invocation
+        SourceRange range(ME->getMemberLoc(), E->getLocEnd());
+        TextRewriter.ReplaceText(range, newStr);
+      }
     }
   }
 
