@@ -995,8 +995,9 @@ Expr *ASTTranslate::VisitFunctionParmPackExpr(FunctionParmPackExpr *E) {
 }
 
 Expr *ASTTranslate::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
-  MaterializeTemporaryExpr *result = new (Ctx) MaterializeTemporaryExpr(E->getType(),
-      Clone(E->GetTemporaryExpr()), E->isBoundToLvalueReference());
+  MaterializeTemporaryExpr *result = new (Ctx)
+    MaterializeTemporaryExpr(E->getType(), Clone(E->GetTemporaryExpr()),
+        E->isBoundToLvalueReference(), E->getExtendingDecl());
 
   setExprPropsClone(E, result);
 
