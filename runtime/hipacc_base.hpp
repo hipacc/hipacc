@@ -217,7 +217,11 @@ HipaccPyramid hipaccCreatePyramid(HipaccImage &img, int depth) {
   int width = img.width/2;
   for (int i = 1; i < depth; ++i) {
     assert(width * height > 0 && "Pyramid stages to deep for image size");
-    p.add(hipaccCreateBuffer<data_t>(NULL, width, height, img.alignment));
+    if (img.alignment > 0) {
+      p.add(hipaccCreateBuffer<data_t>(NULL, width, height, img.alignment));
+    } else {
+      p.add(hipaccCreateBuffer<data_t>(NULL, width, height));
+    }
     height /= 2;
     width /= 2;
   }
