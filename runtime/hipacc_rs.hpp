@@ -669,5 +669,15 @@ T hipaccApplyReduction(
     return result;
 }
 
+
+template<typename T>
+HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height) {
+  if (base.alignment > 0) {
+    return hipaccCreateAllocation((T*)NULL, width, height, base.alignment);
+  } else {
+    return hipaccCreateAllocation((T*)NULL, width, height);
+  }
+}
+
 #endif  // __HIPACC_RS_HPP__
 
