@@ -823,10 +823,11 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         }
 
         // check if the first argument is a Pyramid call
-        if (isa<CallExpr>(CCE->getArg(0)) &&
-            isa<DeclRefExpr>(dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0))) {
+        if (isa<CXXOperatorCallExpr>(CCE->getArg(0)) &&
+            isa<DeclRefExpr>(dyn_cast<CXXOperatorCallExpr>(
+                CCE->getArg(0))->getArg(0))) {
           DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
-              dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0));
+              dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0))->getArg(0));
 
           // get the Pyramid from the DRE if we have one
           if (PyrDeclMap.count(DRE->getDecl())) {
@@ -837,14 +838,14 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             IntegerLiteral *IL = NULL;
             UnaryOperator *UO = NULL;
 
-            if (dyn_cast<IntegerLiteral>(
-                    dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
-              IL = dyn_cast<IntegerLiteral>(
-                    dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
-            } else if (dyn_cast<UnaryOperator>(
-                           dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
-              UO = dyn_cast<UnaryOperator>(
-                       dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+            if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
+                    CCE->getArg(0))->getArg(1))) {
+              IL = dyn_cast<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
+                       CCE->getArg(0))->getArg(1));
+            } else if (isa<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
+                           CCE->getArg(0))->getArg(1))) {
+              UO = dyn_cast<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
+                       CCE->getArg(0))->getArg(1));
               // only support unary operators '+' and '-'
               if (UO && (UO->getOpcode() == UO_Plus ||
                          UO->getOpcode() == UO_Minus)) {
@@ -1041,10 +1042,11 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         }
 
         // check if the first argument is a Pyramid call
-        if (isa<CallExpr>(CCE->getArg(0)) &&
-            isa<DeclRefExpr>(dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0))) {
+        if (isa<CXXOperatorCallExpr>(CCE->getArg(0)) &&
+            isa<DeclRefExpr>(dyn_cast<CXXOperatorCallExpr>(
+                CCE->getArg(0))->getArg(0))) {
           DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
-              dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0));
+              dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0))->getArg(0));
 
           // get the Pyramid from the DRE if we have one
           if (PyrDeclMap.count(DRE->getDecl())) {
@@ -1083,14 +1085,14 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           IntegerLiteral *IL = NULL;
           UnaryOperator *UO = NULL;
 
-          if (dyn_cast<IntegerLiteral>(
-                  dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
-            IL = dyn_cast<IntegerLiteral>(
-                  dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
-          } else if (dyn_cast<UnaryOperator>(
-                         dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
-            UO = dyn_cast<UnaryOperator>(
-                     dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+          if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
+                  CCE->getArg(0))->getArg(1))) {
+            IL = dyn_cast<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
+                     CCE->getArg(0))->getArg(1));
+          } else if (isa<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
+                         CCE->getArg(0))->getArg(1))) {
+            UO = dyn_cast<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
+                     CCE->getArg(0))->getArg(1));
             // only support unary operators '+' and '-'
             if (UO && (UO->getOpcode() == UO_Plus ||
                        UO->getOpcode() == UO_Minus)) {
@@ -1107,7 +1109,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           LSS << *(IL->getValue().getRawData());
           Parms += "(" + LSS.str() + ")";
         } else {
-          if (BC->containsPyramid()) {
+          if (BC->isPyramid()) {
             // add call expression to pyramid argument (from boundary condition)
             Parms += "(" + BC->getPyramidIndex() + ")";
           }
@@ -1168,10 +1170,11 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         }
 
         // check if the first argument is a Pyramid call
-        if (isa<CallExpr>(CCE->getArg(0)) &&
-            isa<DeclRefExpr>(dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0))) {
+        if (isa<CXXOperatorCallExpr>(CCE->getArg(0)) &&
+            isa<DeclRefExpr>(dyn_cast<CXXOperatorCallExpr>(
+                CCE->getArg(0))->getArg(0))) {
           DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
-              dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0));
+              dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0))->getArg(0));
 
           // get the Pyramid from the DRE if we have one
           if (PyrDeclMap.count(DRE->getDecl())) {
@@ -1203,14 +1206,14 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           IntegerLiteral *IL = NULL;
           UnaryOperator *UO = NULL;
 
-          if (dyn_cast<IntegerLiteral>(
-                  dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
-            IL = dyn_cast<IntegerLiteral>(
-                  dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
-          } else if (dyn_cast<UnaryOperator>(
-                         dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
-            UO = dyn_cast<UnaryOperator>(
-                     dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+          if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
+                  CCE->getArg(0))->getArg(1))) {
+            IL = dyn_cast<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
+                     CCE->getArg(0))->getArg(1));
+          } else if (isa<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
+                         CCE->getArg(0))->getArg(1))) {
+            UO = dyn_cast<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
+                     CCE->getArg(0))->getArg(1));
             // only support unary operators '+' and '-'
             if (UO && (UO->getOpcode() == UO_Plus ||
                        UO->getOpcode() == UO_Minus)) {
@@ -1375,6 +1378,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           HipaccGlobalReduction *GR = NULL;
           HipaccImage *Img = NULL;
+          HipaccPyramid *Pyr = NULL;
           HipaccAccessor *Acc = NULL;
           std::string newStr;
 
@@ -1392,12 +1396,33 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               Acc = AccDeclMap[DRE->getDecl()];
             }
           }
-          assert((Img || Acc) && "Expected an Image or Accessor as first argument to GlobalReduction.");
+
+          // check if the first argument is a Pyramid call
+          if (isa<CXXOperatorCallExpr>(CCE->getArg(0)) &&
+              isa<DeclRefExpr>(dyn_cast<CXXOperatorCallExpr>(
+                  CCE->getArg(0))->getArg(0))) {
+            DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
+                dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0))->getArg(0));
+
+            // get the Pyramid from the DRE if we have one
+            if (PyrDeclMap.count(DRE->getDecl())) {
+              Pyr = PyrDeclMap[DRE->getDecl()];
+            }
+          }
+
+          assert((Img || Acc || Pyr) &&
+                 "Expected an Image or Accessor or Pyramid call as first "
+                 "argument to GlobalReduction.");
           assert(CCE->getNumArgs()==2 && "Expected exactly two arguments to GlobalReduction.");
 
           // create Accessor if none was provided
           if (!Acc) {
-            HipaccBoundaryCondition *BC = new HipaccBoundaryCondition(Img, VD);
+            HipaccBoundaryCondition *BC = NULL;
+            if (Img) {
+              BC = new HipaccBoundaryCondition(Img, VD);
+            } else {
+              BC = new HipaccBoundaryCondition(Pyr, VD);
+            }
             BC->setSizeX(0);
             BC->setSizeY(0);
             BC->setBoundaryHandling(BOUNDARY_UNDEFINED);
@@ -1407,7 +1432,37 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           // create GlobalReduction
           GR = new HipaccGlobalReduction(Acc, VD, it->second, compilerOptions,
-              !Img);
+              (!Img && !Pyr));
+
+          // get relative index of pyramid call
+          if (Pyr) {
+            IntegerLiteral *IL = NULL;
+            UnaryOperator *UO = NULL;
+
+            if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
+                    CCE->getArg(0))->getArg(1))) {
+              IL = dyn_cast<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
+                       CCE->getArg(0))->getArg(1));
+            } else if (isa<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
+                           CCE->getArg(0))->getArg(1))) {
+              UO = dyn_cast<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
+                       CCE->getArg(0))->getArg(1));
+              // only support unary operators '+' and '-'
+              if (UO && (UO->getOpcode() == UO_Plus ||
+                         UO->getOpcode() == UO_Minus)) {
+                IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+              }
+            }
+
+            assert(IL && "Missing integer literal in pyramid call expression.");
+
+            std::stringstream LSS;
+            if (UO && UO->getOpcode() == UO_Minus) {
+              LSS << "-";
+            }
+            LSS << *(IL->getValue().getRawData());
+            GR->setPyramidIndex(LSS.str());
+          }
 
           // get the string representation of the neutral element
           std::string neutralStr;
@@ -1606,22 +1661,31 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
   // convert overloaded operator 'operator=' function into memory transfer,
   // a) Img = host_array;
-  // b) Mask = host_array;
-  // c) Domain = host_array;
-  // d) Img = Img;
-  // e) Img = Acc;
-  // f) Acc = Acc;
-  // g) Acc = Img;
-  // h) Domain(x, y) = literal;
+  // b) Pyr(x) = host_array;
+  // c) Mask = host_array;
+  // d) Domain = host_array;
+  // e) Img = Img;
+  // f) Img = Acc;
+  // g) Img = Pyr(x);
+  // h) Acc = Acc;
+  // i) Acc = Img;
+  // j) Acc = Pyr(x);
+  // k) Pyr(x) = Img;
+  // l) Pyr(x) = Acc;
+  // m) Pyr(x) = Pyr(x);
+  // n) Domain(x, y) = literal;
   if (E->getOperator() == OO_Equal) {
     if (E->getNumArgs() != 2) return true;
 
+    HipaccImage *ImgLHS = NULL, *ImgRHS = NULL;
+    HipaccAccessor *AccLHS = NULL, *AccRHS = NULL;
+    HipaccPyramid *PyrLHS = NULL, *PyrRHS = NULL;
+    std::string PyrIdxLHS = "", PyrIdxRHS = "";
+
+    // check first parameter
     if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
       DeclRefExpr *DRE_LHS =
         dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts());
-
-      HipaccImage *ImgLHS = NULL, *ImgRHS = NULL;
-      HipaccAccessor *AccLHS = NULL, *AccRHS = NULL;
 
       // check if we have an Image at the LHS
       if (ImgDeclMap.count(DRE_LHS->getDecl())) {
@@ -1631,49 +1695,150 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       if (AccDeclMap.count(DRE_LHS->getDecl())) {
         AccLHS = AccDeclMap[DRE_LHS->getDecl()];
       }
+    } else if (isa<CXXOperatorCallExpr>(E->getArg(0))) {
+      CXXOperatorCallExpr *CE = dyn_cast<CXXOperatorCallExpr>(E->getArg(0));
 
-      if (isa<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts())) {
-        DeclRefExpr *DRE_RHS =
-          dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts());
+      // check if we have an Pyramid call at the LHS
+      if (isa<DeclRefExpr>(CE->getArg(0))) {
+        DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CE->getArg(0));
 
-        // check if we have an Image at the RHS
-        if (ImgDeclMap.count(DRE_RHS->getDecl())) {
-          ImgRHS = ImgDeclMap[DRE_RHS->getDecl()];
-        }
-        // check if we have an Accessor at the RHS
-        if (AccDeclMap.count(DRE_RHS->getDecl())) {
-          AccRHS = AccDeclMap[DRE_RHS->getDecl()];
+        // get the Pyramid from the DRE if we have one
+        if (PyrDeclMap.count(DRE->getDecl())) {
+          PyrLHS = PyrDeclMap[DRE->getDecl()];
+
+          // add call expression to pyramid argument
+          IntegerLiteral *IL = NULL;
+          UnaryOperator *UO = NULL;
+
+          if (isa<IntegerLiteral>(CE->getArg(1))) {
+            IL = dyn_cast<IntegerLiteral>(CE->getArg(1));
+          } else if (isa<UnaryOperator>(CE->getArg(1))) {
+            UO = dyn_cast<UnaryOperator>(CE->getArg(1));
+            // only support unary operators '+' and '-'
+            if (UO && (UO->getOpcode() == UO_Plus ||
+                       UO->getOpcode() == UO_Minus)) {
+              IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+            }
+          }
+
+          assert(IL && "Missing integer literal in pyramid call expression.");
+
+          std::stringstream LSS;
+          if (UO && UO->getOpcode() == UO_Minus) {
+            LSS << "-";
+          }
+          LSS << *(IL->getValue().getRawData());
+          PyrIdxLHS = LSS.str();
         }
       }
+    }
 
-      if (ImgLHS || AccLHS) {
-        std::string newStr;
+    // check second parameter
+    if (isa<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts())) {
+      DeclRefExpr *DRE_RHS =
+        dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts());
 
-        if (ImgLHS && ImgRHS) {
-          // Img1 = Img2;
-          stringCreator.writeMemoryTransfer(ImgLHS, ImgRHS->getName(),
-              DEVICE_TO_DEVICE, newStr);
-        } else if (ImgLHS && AccRHS) {
-          // Img1 = Acc2;
-          stringCreator.writeMemoryTransferRegion("HipaccAccessor(" +
-              ImgLHS->getName() + ")", AccRHS->getName(), newStr);
-        } else if (AccLHS && ImgRHS) {
-          // Acc1 = Img2;
-          stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
-              "HipaccAccessor(" + ImgRHS->getName() + ")", newStr);
-        } else if (AccLHS && AccRHS) {
-          // Acc1 = Acc2;
-          stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
-              AccRHS->getName(), newStr);
-        } else {
-          bool write_pointer = true;
-          // Img1 = Img2.getData();
-          if (isa<CXXMemberCallExpr>(E->getArg(1))) {
-            CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getArg(1));
+      // check if we have an Image at the RHS
+      if (ImgDeclMap.count(DRE_RHS->getDecl())) {
+        ImgRHS = ImgDeclMap[DRE_RHS->getDecl()];
+      }
+      // check if we have an Accessor at the RHS
+      if (AccDeclMap.count(DRE_RHS->getDecl())) {
+        AccRHS = AccDeclMap[DRE_RHS->getDecl()];
+      }
+    } else if (isa<CXXOperatorCallExpr>(E->getArg(1))) {
+      CXXOperatorCallExpr *CE = dyn_cast<CXXOperatorCallExpr>(E->getArg(1));
 
-            // match only getData calls to Image instances
-            if (MCE->getDirectCallee()->getNameAsString() == "getData" &&
-                isa<DeclRefExpr>(MCE->getImplicitObjectArgument())) {
+      // check if we have an Pyramid call at the RHS
+      if (isa<DeclRefExpr>(CE->getArg(0))) {
+        DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CE->getArg(0));
+
+        // get the Pyramid from the DRE if we have one
+        if (PyrDeclMap.count(DRE->getDecl())) {
+          PyrRHS = PyrDeclMap[DRE->getDecl()];
+
+          // add call expression to pyramid argument
+          IntegerLiteral *IL = NULL;
+          UnaryOperator *UO = NULL;
+
+          if (isa<IntegerLiteral>(CE->getArg(1))) {
+            IL = dyn_cast<IntegerLiteral>(CE->getArg(1));
+          } else if (isa<UnaryOperator>(CE->getArg(1))) {
+            UO = dyn_cast<UnaryOperator>(CE->getArg(1));
+            // only support unary operators '+' and '-'
+            if (UO && (UO->getOpcode() == UO_Plus ||
+                       UO->getOpcode() == UO_Minus)) {
+              IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+            }
+          }
+
+          assert(IL && "Missing integer literal in pyramid call expression.");
+
+          std::stringstream LSS;
+          if (UO && UO->getOpcode() == UO_Minus) {
+            LSS << "-";
+          }
+          LSS << *(IL->getValue().getRawData());
+          PyrIdxRHS = LSS.str();
+        }
+      }
+    }
+
+    if (ImgLHS || AccLHS || PyrLHS) {
+      std::string newStr;
+
+      if (ImgLHS && ImgRHS) {
+        // Img1 = Img2;
+        stringCreator.writeMemoryTransfer(ImgLHS, ImgRHS->getName(),
+            DEVICE_TO_DEVICE, newStr);
+      } else if (ImgLHS && AccRHS) {
+        // Img1 = Acc2;
+        stringCreator.writeMemoryTransferRegion("HipaccAccessor(" +
+            ImgLHS->getName() + ")", AccRHS->getName(), newStr);
+      } else if (ImgLHS && PyrRHS) {
+        // Img1 = Pyr2(x2);
+        stringCreator.writeMemoryTransfer(ImgLHS,
+            PyrRHS->getName() + "(" + PyrIdxRHS + ")",
+            DEVICE_TO_DEVICE, newStr);
+      } else if (AccLHS && ImgRHS) {
+        // Acc1 = Img2;
+        stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
+            "HipaccAccessor(" + ImgRHS->getName() + ")", newStr);
+      } else if (AccLHS && AccRHS) {
+        // Acc1 = Acc2;
+        stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
+            AccRHS->getName(), newStr);
+      } else if (AccLHS && PyrRHS) {
+        // Acc1 = Pyr2(x2);
+        stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
+            "HipaccAccessor(" + PyrRHS->getName() + "(" + PyrIdxRHS + "))",
+            newStr);
+      } else if (PyrLHS && ImgRHS) {
+        // Pyr1(x1) = Img2
+        stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS, ImgRHS->getName(),
+            DEVICE_TO_DEVICE, newStr);
+      } else if (PyrLHS && AccRHS) {
+        // Pyr1(x1) = Acc2
+        stringCreator.writeMemoryTransferRegion(
+            "HipaccAccessor(" + PyrLHS->getName() + "(" + PyrIdxLHS + "))",
+            AccRHS->getName(), newStr);
+      } else if (PyrLHS && PyrRHS) {
+        // Pyr1(x1) = Pyr2(x2)
+        stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS,
+            PyrRHS->getName() + "(" + PyrIdxRHS + ")",
+            DEVICE_TO_DEVICE, newStr);
+      } else {
+        bool write_pointer = true;
+        // Img1 = Img2.getData();
+        // Img1 = Pyr2(x2).getData();
+        // Pyr1(x1) = Img2.getData();
+        // Pyr1(x1) = Pyr2(x2).getData();
+        if (isa<CXXMemberCallExpr>(E->getArg(1))) {
+          CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getArg(1));
+
+          // match only getData calls to Image instances
+          if (MCE->getDirectCallee()->getNameAsString() == "getData") {
+            if (isa<DeclRefExpr>(MCE->getImplicitObjectArgument())) {
               DeclRefExpr *DRE =
                 dyn_cast<DeclRefExpr>(MCE->getImplicitObjectArgument());
 
@@ -1681,35 +1846,98 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               if (ImgDeclMap.count(DRE->getDecl())) {
                 HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
 
-                stringCreator.writeMemoryTransfer(ImgLHS, Img->getName(),
-                    DEVICE_TO_DEVICE, newStr);
+                if (PyrLHS) {
+                  stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS,
+                      Img->getName(), DEVICE_TO_DEVICE, newStr);
+                } else {
+                  stringCreator.writeMemoryTransfer(ImgLHS, Img->getName(),
+                      DEVICE_TO_DEVICE, newStr);
+                }
                 write_pointer = false;
+              }
+            } else if (isa<CXXOperatorCallExpr>(
+                           MCE->getImplicitObjectArgument())) {
+              CXXOperatorCallExpr *CE = dyn_cast<CXXOperatorCallExpr>(
+                                            MCE->getImplicitObjectArgument());
+
+              // check if we have an Pyramid call
+              if (isa<DeclRefExpr>(CE->getArg(0))) {
+                DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CE->getArg(0));
+
+                // get the Pyramid from the DRE if we have one
+                if (PyrDeclMap.count(DRE->getDecl())) {
+                  HipaccPyramid *Pyr = PyrDeclMap[DRE->getDecl()];
+
+                  // add call expression to pyramid argument
+                  IntegerLiteral *IL = NULL;
+                  UnaryOperator *UO = NULL;
+
+                  if (isa<IntegerLiteral>(CE->getArg(1))) {
+                    IL = dyn_cast<IntegerLiteral>(CE->getArg(1));
+                  } else if (isa<UnaryOperator>(CE->getArg(1))) {
+                    UO = dyn_cast<UnaryOperator>(CE->getArg(1));
+                    // only support unary operators '+' and '-'
+                    if (UO && (UO->getOpcode() == UO_Plus ||
+                               UO->getOpcode() == UO_Minus)) {
+                      IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+                    }
+                  }
+
+                  assert(IL && "Missing integer literal in pyramid call "
+                               "expression.");
+
+                  std::stringstream LSS;
+                  if (UO && UO->getOpcode() == UO_Minus) {
+                    LSS << "-";
+                  }
+                  LSS << *(IL->getValue().getRawData());
+
+                  if (PyrLHS) {
+                    stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS,
+                        Pyr->getName() + "(" + LSS.str() + ")",
+                        DEVICE_TO_DEVICE, newStr);
+                  } else {
+                    stringCreator.writeMemoryTransfer(ImgLHS,
+                        Pyr->getName() + "(" + LSS.str() + ")",
+                        DEVICE_TO_DEVICE, newStr);
+                  }
+                  write_pointer = false;
+                }
               }
             }
           }
+        }
 
-          if (write_pointer) {
-            // get the text string for the memory transfer src
-            std::string dataStr;
-            llvm::raw_string_ostream DS(dataStr);
-            E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
+        if (write_pointer) {
+          // get the text string for the memory transfer src
+          std::string dataStr;
+          llvm::raw_string_ostream DS(dataStr);
+          E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
 
-            // create memory transfer string
+          // create memory transfer string
+          if (PyrLHS) {
+            stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS, DS.str(),
+                HOST_TO_DEVICE, newStr);
+          } else {
             stringCreator.writeMemoryTransfer(ImgLHS, DS.str(), HOST_TO_DEVICE,
                 newStr);
           }
         }
-
-        // rewrite Image assignment to memory transfer
-        // get the start location and compute the semi location.
-        SourceLocation startLoc = E->getLocStart();
-        const char *startBuf = SM->getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
-
-        return true;
       }
 
+      // rewrite Image assignment to memory transfer
+      // get the start location and compute the semi location.
+      SourceLocation startLoc = E->getLocStart();
+      const char *startBuf = SM->getCharacterData(startLoc);
+      const char *semiPtr = strchr(startBuf, ';');
+      TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+
+      return true;
+    }
+
+    if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
+      DeclRefExpr *DRE_LHS =
+        dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts());
       // check if we have a Mask
       if (MaskDeclMap.count(DRE_LHS->getDecl())) {
         HipaccMask *Mask = MaskDeclMap[DRE_LHS->getDecl()];

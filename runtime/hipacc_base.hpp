@@ -204,9 +204,7 @@ class HipaccPyramid {
 
 // forward declaration
 template<typename T>
-HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height, int alignment);
-template<typename T>
-HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height);
+HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height);
 
 template<typename data_t>
 HipaccPyramid hipaccCreatePyramid(HipaccImage &img, int depth) {
@@ -217,7 +215,7 @@ HipaccPyramid hipaccCreatePyramid(HipaccImage &img, int depth) {
   int width = img.width/2;
   for (int i = 1; i < depth; ++i) {
     assert(width * height > 0 && "Pyramid stages to deep for image size");
-    p.add(hipaccCreateBuffer<data_t>(NULL, width, height, img.alignment));
+    p.add(hipaccCreatePyramidImage<data_t>(img, width, height));
     height /= 2;
     width /= 2;
   }

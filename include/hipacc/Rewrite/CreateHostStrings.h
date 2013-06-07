@@ -86,6 +86,9 @@ class CreateHostStrings {
         std::string width, std::string height, std::string &resultStr);
     void writeMemoryTransfer(HipaccImage *Img, std::string mem,
         MemoryTransferDirection direction, std::string &resultStr);
+    void writeMemoryTransfer(HipaccPyramid *Pyr, std::string idx,
+        std::string mem, MemoryTransferDirection direction,
+        std::string &resultStr);
     void writeMemoryTransferRegion(std::string dst, std::string src, std::string
         &resultStr);
     void writeMemoryTransferSymbol(HipaccMask *Mask, std::string mem,

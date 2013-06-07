@@ -1291,5 +1291,21 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
               << opt_time << " ms" << std::endl;
 }
 
+
+template<typename T>
+HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height) {
+  switch (base.mem_type) {
+    case Array2D:
+      return hipaccCreateImage<T>(NULL, width, height);
+
+    default:
+      if (base.alignment > 0) {
+        return hipaccCreateBuffer<T>(NULL, width, height, base.alignment);
+      } else {
+        return hipaccCreateBuffer<T>(NULL, width, height);
+      }
+  }
+}
+
 #endif  // __HIPACC_OCL_HPP__
 

@@ -316,6 +316,32 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
 }
 
 
+void CreateHostStrings::writeMemoryTransfer(
+    HipaccPyramid *Pyr, std::string idx, std::string mem,
+    MemoryTransferDirection direction, std::string &resultStr) {
+  switch (direction) {
+    case HOST_TO_DEVICE:
+      resultStr += "hipaccWriteMemory(";
+      resultStr += Pyr->getName() + "(" + idx + ")";
+      resultStr += ", " + mem + ");";
+      break;
+    case DEVICE_TO_HOST:
+      resultStr += "hipaccReadMemory(";
+      resultStr += mem;
+      resultStr += ", " + Pyr->getName() + "(" + idx + "));";
+      break;
+    case DEVICE_TO_DEVICE:
+      resultStr += "hipaccCopyMemory(";
+      resultStr += mem + ", ";
+      resultStr += Pyr->getName() + "(" + idx + "));";
+      break;
+    case HOST_TO_HOST:
+      assert(0 && "Unsupported memory transfer direction!");
+      break;
+  }
+}
+
+
 void CreateHostStrings::writeMemoryTransferRegion(std::string dst, std::string
     src, std::string &resultStr) {
   resultStr += "hipaccCopyMemoryRegion(";
@@ -943,6 +969,9 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
   // print image name
   if (GR->isAccessor()) {
     resultStr += GR->getAccessor()->getName() + ", ";
+  } else if (GR->isPyramid()) {
+    resultStr += GR->getAccessor()->getImage()->getName();
+    resultStr += "(" + GR->getPyramidIndex() + "), ";
   } else {
     resultStr += GR->getAccessor()->getImage()->getName() + ", ";
   }
@@ -1066,32 +1095,6 @@ void CreateHostStrings::writePyramidAllocation(std::string pyrName, std::string
     HipaccDevice &targetDevice) {
   resultStr += "HipaccPyramid " + pyrName + " = ";
   resultStr += "hipaccCreatePyramid<" + type + ">(";
-  // TODO: Support multple memory types
-  /*switch (options.getTargetCode()) {
-    default:
-    case TARGET_C:
-    case TARGET_CUDA:
-      // texture is bound at kernel launch
-      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-        resultStr += "hipaccCreateArray2D<" + type + ">(";
-      } else {
-        resultStr += "hipaccCreateMemory<" + type + ">(";
-      }
-      break;
-    case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
-    case TARGET_Filterscript:
-      resultStr += "hipaccCreateAllocation((" + type + "*)";
-      break;
-    case TARGET_OpenCL:
-    case TARGET_OpenCLCPU:
-      if (options.useTextureMemory()) {
-        resultStr += "hipaccCreateImage<" + type + ">(";
-      } else {
-        resultStr += "hipaccCreateBuffer<" + type + ">(";
-      }
-      break;
-  }*/
   resultStr += img + ", " + depth + ");";
 }
 
