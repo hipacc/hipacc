@@ -42,21 +42,21 @@ protected:
   const int size_x, size_y;
   const int offset_x, offset_y;
   IterationSpaceBase iteration_space;
-  uchar* domain_space;
+  uchar *domain_space;
   DomainIterator *DI;
 
 public:
   class DomainIterator : public ElementIterator {
   private:
-    uchar* domain_space;
+    uchar *domain_space;
 
   public:
     DomainIterator(int width=0, int height=0,
                    int offsetx=0, int offsety=0,
-                   const IterationSpaceBase* iterspace=NULL,
-                   uchar* domain_space=NULL)
-        : domain_space(domain_space),
-          ElementIterator(width, height, offsetx, offsety, iterspace) {
+                   const IterationSpaceBase *iterspace=NULL,
+                   uchar *domain_space=NULL)
+        : ElementIterator(width, height, offsetx, offsety, iterspace),
+        domain_space(domain_space) {
       if (domain_space != NULL) {
         // set current coordinate before domain
         coord.x = min_x-1;
@@ -107,6 +107,17 @@ public:
     }
   }
 
+  Domain(Domain &domain)
+      : size_x(domain.size_x),
+        size_y(domain.size_y),
+        offset_x(domain.offset_x),
+        offset_y(domain.offset_y),
+        iteration_space(domain.size_x, domain.size_y),
+        domain_space(new uchar[domain.size_x*domain.size_y]),
+        DI(NULL) {
+    operator=(domain.domain_space);
+  }
+
   ~Domain() {
     if (domain_space != NULL) {
       delete[] domain_space;
@@ -136,17 +147,17 @@ public:
     DI = di;
   }
 
-  uchar& operator()(unsigned int x, unsigned int y) {
+  uchar &operator()(unsigned int x, unsigned int y) {
     x += size_x >> 1;
     y += size_y >> 1;
-    if (x < size_x && y < size_y) {
+    if ((int)x < size_x && (int)y < size_y) {
       return domain_space[y * size_x + x];
     } else {
       return domain_space[0];
     }
   }
 
-  Domain &operator=(const uchar* other) {
+  Domain &operator=(const uchar *other) {
     for (int y=0; y<size_y; ++y) {
       for (int x=0; x<size_x; ++x) {
         domain_space[y * size_x + x] = other[y * size_x + x];
@@ -159,8 +170,27 @@ public:
 
 
 template <typename Function>
+void iterate(Domain &domain, const Function &fun) {
+  Domain::DomainIterator end = domain.end();
+  Domain::DomainIterator iter = domain.begin();
+
+  // register domain
+  domain.setDI(&iter);
+
+  // advance iterator and apply kernel to iteration space
+  while (iter != end) {
+    fun();
+    ++iter;
+  }
+
+  // de-register domain
+  domain.setDI(NULL);
+}
+
+
+template <typename Function>
 auto reduce(Domain &domain, HipaccConvolutionMode mode,
-            const Function& fun) -> decltype(fun()) {
+            const Function &fun) -> decltype(fun()) {
   Domain::DomainIterator end = domain.end();
   Domain::DomainIterator iter = domain.begin();
 
