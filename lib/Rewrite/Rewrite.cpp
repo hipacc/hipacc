@@ -1107,7 +1107,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           LSS << *(IL->getValue().getRawData());
           Parms += "(" + LSS.str() + ")";
         } else {
-          if (BC->containsPyramid()) {
+          if (BC->isPyramid()) {
             // add call expression to pyramid argument (from boundary condition)
             Parms += "(" + BC->getPyramidIndex() + ")";
           }
@@ -1375,6 +1375,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           HipaccGlobalReduction *GR = NULL;
           HipaccImage *Img = NULL;
+          HipaccPyramid *Pyr = NULL;
           HipaccAccessor *Acc = NULL;
           std::string newStr;
 
@@ -1392,12 +1393,32 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               Acc = AccDeclMap[DRE->getDecl()];
             }
           }
-          assert((Img || Acc) && "Expected an Image or Accessor as first argument to GlobalReduction.");
+
+          // check if the first argument is a Pyramid call
+          if (isa<CallExpr>(CCE->getArg(0)) &&
+              isa<DeclRefExpr>(dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0))) {
+            DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
+                dyn_cast<CallExpr>(CCE->getArg(0))->getArg(0));
+
+            // get the Pyramid from the DRE if we have one
+            if (PyrDeclMap.count(DRE->getDecl())) {
+              Pyr = PyrDeclMap[DRE->getDecl()];
+            }
+          }
+
+          assert((Img || Acc || Pyr) &&
+                 "Expected an Image or Accessor or Pyramid call as first "
+                 "argument to GlobalReduction.");
           assert(CCE->getNumArgs()==2 && "Expected exactly two arguments to GlobalReduction.");
 
           // create Accessor if none was provided
           if (!Acc) {
-            HipaccBoundaryCondition *BC = new HipaccBoundaryCondition(Img, VD);
+            HipaccBoundaryCondition *BC = NULL;
+            if (Img) {
+              BC = new HipaccBoundaryCondition(Img, VD);
+            } else {
+              BC = new HipaccBoundaryCondition(Pyr, VD);
+            }
             BC->setSizeX(0);
             BC->setSizeY(0);
             BC->setBoundaryHandling(BOUNDARY_UNDEFINED);
@@ -1407,7 +1428,37 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           // create GlobalReduction
           GR = new HipaccGlobalReduction(Acc, VD, it->second, compilerOptions,
-              !Img);
+              (!Img && !Pyr));
+
+          // get relative index of pyramid call
+          if (Pyr) {
+            IntegerLiteral *IL = NULL;
+            UnaryOperator *UO = NULL;
+
+            if (dyn_cast<IntegerLiteral>(
+                    dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
+              IL = dyn_cast<IntegerLiteral>(
+                    dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+            } else if (dyn_cast<UnaryOperator>(
+                           dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1))) {
+              UO = dyn_cast<UnaryOperator>(
+                       dyn_cast<CallExpr>(CCE->getArg(0))->getArg(1));
+              // only support unary operators '+' and '-'
+              if (UO && (UO->getOpcode() == UO_Plus ||
+                         UO->getOpcode() == UO_Minus)) {
+                IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+              }
+            }
+
+            assert(IL && "Missing integer literal in pyramid call expression.");
+
+            std::stringstream LSS;
+            if (UO && UO->getOpcode() == UO_Minus) {
+              LSS << "-";
+            }
+            LSS << *(IL->getValue().getRawData());
+            GR->setPyramidIndex(LSS.str());
+          }
 
           // get the string representation of the neutral element
           std::string neutralStr;

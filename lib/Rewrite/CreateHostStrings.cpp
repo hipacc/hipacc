@@ -943,6 +943,9 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
   // print image name
   if (GR->isAccessor()) {
     resultStr += GR->getAccessor()->getName() + ", ";
+  } else if (GR->isPyramid()) {
+    resultStr += GR->getAccessor()->getImage()->getName();
+    resultStr += "(" + GR->getPyramidIndex() + "), ";
   } else {
     resultStr += GR->getAccessor()->getImage()->getName() + ", ";
   }

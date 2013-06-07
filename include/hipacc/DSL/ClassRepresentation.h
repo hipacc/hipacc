@@ -184,7 +184,7 @@ class HipaccBoundaryCondition {
     std::string getSizeYStr() { return size_y_str; }
     BoundaryMode getBoundaryHandling() { return boundaryHandling; }
     std::string getPyramidIndex() { return pyr_idx_str; }
-    bool containsPyramid() { return is_pyramid; }
+    bool isPyramid() { return is_pyramid; }
     Expr *getConstExpr() { return constExpr; }
 };
 
@@ -888,6 +888,8 @@ class HipaccGlobalReduction : public HipaccDevice {
     std::string fileName;
     CXXMethodDecl *reductionFunction;
     bool is_accessor;
+    bool is_pyramid;
+    std::string pyr_idx_str;
     unsigned int num_threads;
 
   public:
@@ -904,6 +906,8 @@ class HipaccGlobalReduction : public HipaccDevice {
       fileName(""),
       reductionFunction(NULL),
       is_accessor(is_accessor),
+      is_pyramid(false),
+      pyr_idx_str(""),
       num_threads(256)
     {
       fileName = GRC->getName() + VD->getNameAsString();
@@ -912,12 +916,18 @@ class HipaccGlobalReduction : public HipaccDevice {
     void setType(std::string t) { type = t; }
     void setNeutral(std::string n) { neutral = n; }
     void setReductionFunction(CXXMethodDecl *fun) { reductionFunction = fun; }
+    void setPyramidIndex(std::string idx) {
+      is_pyramid = true;
+      pyr_idx_str = idx;
+    }
 
     const std::string &getName() const { return name; }
     const std::string getType() { return type; }
     const std::string getNeutral() { return neutral; }
     const std::string &getFileName() const { return fileName; }
     bool isAccessor() { return is_accessor; }
+    bool isPyramid() { return is_pyramid; }
+    const std::string getPyramidIndex() { return pyr_idx_str; }
 
     VarDecl *getDecl() { return VD; }
     HipaccAccessor *getAccessor() { return acc; }
