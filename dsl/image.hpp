@@ -36,6 +36,7 @@
 #include <cmath>
 
 #include "iterationspace.hpp"
+#include "domain.hpp"
 #include "mask.hpp"
 
 namespace hipacc {
@@ -79,15 +80,30 @@ class Image {
             width(width),
             height(height),
             #ifdef NO_BOOST
-            array((data_t *)malloc(sizeof(data_t)*width*height))
+            array(new data_t[width*height])
             #else
             array(boost::extents[height][width])
             #endif
         {}
 
+        Image(Image &image) :
+            width(image.width),
+            height(image.height),
+            #ifdef NO_BOOST
+            array(new data_t[image.width*image.height])
+            #else
+            array(boost::extents[image.height][image.width])
+            #endif
+        {
+            operator=(image.data);
+        }
+
         ~Image() {
             #ifdef NO_BOOST
-            //free(array);
+            if (array != NULL) {
+              delete[] array;
+              array = NULL;
+            }
             #else
             #endif
         }
@@ -352,6 +368,11 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
         data_t &operator()(const int xf, const int yf) {
             assert(EI && "ElementIterator not set!");
             return interpolate(EI->getX(), EI->getY(), xf, yf);
+        }
+
+        data_t &operator()(Domain &D) {
+            assert(EI && "ElementIterator not set!");
+            return interpolate(EI->getX(), EI->getY(), D.getX(), D.getY());
         }
 
         data_t &operator()(MaskBase &M) {
