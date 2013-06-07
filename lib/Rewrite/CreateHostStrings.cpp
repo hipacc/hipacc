@@ -316,6 +316,32 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
 }
 
 
+void CreateHostStrings::writeMemoryTransfer(
+    HipaccPyramid *Pyr, std::string idx, std::string mem,
+    MemoryTransferDirection direction, std::string &resultStr) {
+  switch (direction) {
+    case HOST_TO_DEVICE:
+      resultStr += "hipaccWriteMemory(";
+      resultStr += Pyr->getName() + "(" + idx + ")";
+      resultStr += ", " + mem + ");";
+      break;
+    case DEVICE_TO_HOST:
+      resultStr += "hipaccReadMemory(";
+      resultStr += mem;
+      resultStr += ", " + Pyr->getName() + "(" + idx + "));";
+      break;
+    case DEVICE_TO_DEVICE:
+      resultStr += "hipaccCopyMemory(";
+      resultStr += mem + ", ";
+      resultStr += Pyr->getName() + "(" + idx + "));";
+      break;
+    case HOST_TO_HOST:
+      assert(0 && "Unsupported memory transfer direction!");
+      break;
+  }
+}
+
+
 void CreateHostStrings::writeMemoryTransferRegion(std::string dst, std::string
     src, std::string &resultStr) {
   resultStr += "hipaccCopyMemoryRegion(";
