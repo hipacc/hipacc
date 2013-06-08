@@ -1298,12 +1298,16 @@ HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height) {
     case Array2D:
       return hipaccCreateImage<T>(NULL, width, height);
 
-    default:
+    case Global:
       if (base.alignment > 0) {
         return hipaccCreateBuffer<T>(NULL, width, height, base.alignment);
       } else {
         return hipaccCreateBuffer<T>(NULL, width, height);
       }
+
+    default:
+      assert("Memory type is not supported for target OpenCL");
+      return base;
   }
 }
 
