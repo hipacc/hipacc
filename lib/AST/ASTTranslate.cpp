@@ -1998,7 +1998,12 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
 
 Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
   Expr *result;
+
+  // remember the current CompoundStmt, which has to be the same for the LHS and
+  // the RHS (the current CompoundStmt might change during cloning LHS or RHS)
+  CompoundStmt *CStmt = curCStmt;
   Expr *RHS = Clone(E->getRHS());
+  curCStmt = CStmt;
 
   // check if we have a binary assignment and an Image object on the left-hand
   // side. In case we need built-in function to write to the Image (e.g.
