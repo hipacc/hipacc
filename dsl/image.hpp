@@ -86,7 +86,7 @@ class Image {
             #endif
         {}
 
-        Image(Image &image) :
+        Image(const Image &image) :
             width(image.width),
             height(image.height),
             #ifdef NO_BOOST
@@ -95,7 +95,7 @@ class Image {
             array(boost::extents[image.height][image.width])
             #endif
         {
-            operator=(image.data);
+            operator=(image.array);
         }
 
         ~Image() {

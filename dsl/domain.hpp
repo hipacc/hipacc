@@ -107,7 +107,7 @@ public:
     }
   }
 
-  Domain(Domain &domain)
+  Domain(const Domain &domain)
       : size_x(domain.size_x),
         size_y(domain.size_y),
         offset_x(domain.offset_x),
