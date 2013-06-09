@@ -97,7 +97,8 @@ class Pyramid : public PyramidBase {
       int width = img.getWidth()/2;
       for (int i = 1; i < depth; ++i) {
         assert(width * height > 0 && "Pyramid stages to deep for image size.");
-        imgs_.push_back(Image<data_t>(width, height));
+        Image<data_t> img(width, height);
+        imgs_.push_back(img);
         height /= 2;
         width /= 2;
       }
