@@ -112,25 +112,34 @@ class Pyramid : public PyramidBase {
 };
 
 
-std::function<void()> gTraverse;
-std::vector<PyramidBase*> gPyramids;
+std::vector<const std::function<void()>*> gTraverse;
+std::vector<std::vector<PyramidBase*> > gPyramids;
 
 
 template <typename data_t>
 class Traversal {
+  private:
+    std::function<void()> func_;
+    std::vector<PyramidBase*> pyrs_;
+
   public:
-    Traversal(const std::function<void()> func) {
-      gTraverse = func;
-      gPyramids.clear();
+    Traversal(const std::function<void()> func)
+        : func_(func) {
     }
 
     void add(Pyramid<data_t> &p) {
       p.setLevel(0);
-      gPyramids.push_back((PyramidBase*)&p);
+      pyrs_.push_back((PyramidBase*)&p);
     }
 
     void run() {
-      gTraverse();
+      gPyramids.push_back(pyrs_);
+      gTraverse.push_back(&func_);
+
+      (*gTraverse.back())();
+
+      gPyramids.pop_back();
+      gTraverse.pop_back();
     }
 };
 
@@ -138,25 +147,38 @@ class Traversal {
 class Recursion {
   public:
     Recursion() {
-      for (std::vector<PyramidBase*>::iterator it = gPyramids.begin();
-           it != gPyramids.end(); ++it) {
+      std::vector<PyramidBase*> pyrs = gPyramids.back();
+      for (std::vector<PyramidBase*>::iterator it = pyrs.begin();
+           it != pyrs.end(); ++it) {
         (*it)->increment();
       }
     }
 
     ~Recursion() {
-      for (std::vector<PyramidBase*>::iterator it = gPyramids.begin();
-           it != gPyramids.end(); ++it) {
+      std::vector<PyramidBase*> pyrs = gPyramids.back();
+      for (std::vector<PyramidBase*>::iterator it = pyrs.begin();
+           it != pyrs.end(); ++it) {
         (*it)->decrement();
       }
     }
 
     void run(int loop) {
-      for (int i = 0; i < loop; i++) {
-        gTraverse();
+      std::vector<PyramidBase*> pyrs = gPyramids.back();
+      if (pyrs.at(0)->getLevel() < pyrs.at(0)->getDepth()-1) {
+        for (int i = 0; i < loop; i++) {
+          (*gTraverse.back())();
+        }
       }
     }
 };
+
+
+template <typename data_t>
+void traverse(Pyramid<data_t> &p0, const std::function<void()> func) {
+    Traversal<data_t> t(func);
+    t.add(p0);
+    t.run();
+}
 
 
 template <typename data_t>
@@ -228,10 +250,8 @@ void traverse(unsigned int loop=1) {
   assert(!gPyramids.empty() &&
          "Traverse recursion called outside of traverse.");
 
-  if (!gPyramids.at(0)->isBottomLevel()) {
-    Recursion r;
-    r.run(loop);
-  }
+  Recursion r;
+  r.run(loop);
 }
 
 } // end namespace hipacc
