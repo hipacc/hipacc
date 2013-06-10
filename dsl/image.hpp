@@ -95,7 +95,11 @@ class Image {
             array(boost::extents[image.height][image.width])
             #endif
         {
+            #ifdef NO_BOOST
             operator=(image.array);
+            #else
+            array = image.array;
+            #endif
         }
 
         ~Image() {
