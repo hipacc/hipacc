@@ -346,7 +346,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
   while (isa<ImplicitCastExpr>(E))
     E = dyn_cast<ImplicitCastExpr>(E)->getSubExpr();
 
-  // match Image(), Accessor(), and Mask() calls
+  // match Image(), Accessor(), Mask(), and Domain() calls
   if (isa<CXXOperatorCallExpr>(E)) {
     CXXOperatorCallExpr *COCE = dyn_cast<CXXOperatorCallExpr>(E);
 
@@ -384,8 +384,8 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
               if (KS.kernelType < PointOperator) KS.kernelType = PointOperator;
               break;
             case 2:
-              // TODO: check for Mask as parameter and check if we need only
-              // STRIDE_X or STRIDE_Y
+              // TODO: check for Mask or Domain as parameter and check if we
+              // need only STRIDE_X or STRIDE_Y
               memAccDetail = (MemoryAccessDetail) (memAccDetail|STRIDE_XY);
               if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
               break;
@@ -414,7 +414,33 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
             memAccDetail = (MemoryAccessDetail) (memAccDetail|STRIDE_XY);
             if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
           } else {
-            assert(COCE->getNumArgs()==3 && "Mask access requires x and y parameters!");
+            assert(COCE->getNumArgs()==3 &&
+                "Mask access requires x and y parameters!");
+            memAccDetail = (MemoryAccessDetail)
+              (memAccDetail|checkStride(COCE->getArg(1), COCE->getArg(2)));
+            if (memAccDetail > NO_STRIDE && KS.kernelType < LocalOperator) {
+              KS.kernelType = LocalOperator;
+            }
+          }
+          KS.imagesToAccessDetail[FD] = memAccDetail;
+
+          return false;
+        }
+
+        // access to Domain
+        if (KS.compilerClasses.isTypeOfClass(FD->getType(),
+              KS.compilerClasses.Domain)) {
+          if (curMemAcc & READ_ONLY) KS.num_mask_loads++;
+          if (curMemAcc & WRITE_ONLY) KS.num_mask_stores++;
+
+          if (KS.inLambdaFunction) {
+            // TODO: check for Domain as parameter and check if we need only
+            // STRIDE_X or STRIDE_Y
+            memAccDetail = (MemoryAccessDetail) (memAccDetail|STRIDE_XY);
+            if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
+          } else {
+            assert(COCE->getNumArgs()==3 &&
+                "Domain access requires x and y parameters!");
             memAccDetail = (MemoryAccessDetail)
               (memAccDetail|checkStride(COCE->getArg(1), COCE->getArg(2)));
             if (memAccDetail > NO_STRIDE && KS.kernelType < LocalOperator) {
