@@ -280,9 +280,15 @@ class HipaccIterationSpace {
 
 
 class HipaccMask {
+  public:
+    enum MaskType {
+      Mask,
+      Domain
+    };
   private:
     VarDecl *VD;
     std::string name;
+    MaskType mask_type;
     InitListExpr *init_list;
     unsigned int size_x, size_y;
     std::string size_x_str, size_y_str;
@@ -295,9 +301,10 @@ class HipaccMask {
     Expr *hostMemExpr;
 
   public:
-    HipaccMask(VarDecl *VD) :
+    HipaccMask(VarDecl *VD, MaskType type) :
       VD(VD),
       name("_const" + VD->getNameAsString()),
+      mask_type(type),
       init_list(NULL),
       size_x(0),
       size_y(0),
@@ -341,6 +348,7 @@ class HipaccMask {
     QualType getType() { return type; }
     std::string getTypeStr() { return typeStr; }
     VarDecl *getDecl() { return VD; }
+    bool isDomain() { return (mask_type & Domain); }
     bool isConstant() { return is_constant; }
     bool isPrinted() { return is_printed; }
     InitListExpr *getInitList() { return init_list; }
@@ -353,80 +361,6 @@ class HipaccMask {
 };
 
 
-class HipaccDomain {
-  private:
-    VarDecl *VD;
-    std::string name;
-    InitListExpr *init_list;
-    unsigned int size_x, size_y;
-    std::string size_x_str, size_y_str;
-    //QualType type;
-    //std::string typeStr;
-    //bool is_constant;
-    //bool is_printed;
-    SmallVector<HipaccKernel *, 16> kernels;
-    //std::string hostMemName;
-    //Expr *hostMemExpr;
-
-  public:
-    HipaccDomain(VarDecl *VD) :
-      VD(VD),
-      name("_const" + VD->getNameAsString()),
-      init_list(NULL),
-      size_x(0),
-      size_y(0),
-      size_x_str(""),
-      size_y_str(""),
-      //type(),
-      //typeStr(""),
-      //is_constant(false),
-      //is_printed(false),
-      kernels(0)//,
-      //hostMemName(""),
-      //hostMemExpr(NULL)
-    {}
-
-    const std::string &getName() const { return name; }
-    void setSizeX(unsigned int x) {
-      std::string Str;
-      llvm::raw_string_ostream SS(Str);
-      SS << x;
-      size_x_str = SS.str();
-      size_x = x;
-    }
-    void setSizeY(unsigned int y) {
-      std::string Str;
-      llvm::raw_string_ostream SS(Str);
-      SS << y;
-      size_y_str = SS.str();
-      size_y = y;
-    }
-    //void setType(QualType QT) {
-      //type = QT;
-      //typeStr = QT.getAsString();
-    //}
-    //void setIsConstant(bool c) { is_constant = c; }
-    //void setIsPrinted(bool p) { is_printed = p; }
-    void setInitList(InitListExpr *il) { init_list = il; }
-    unsigned int getSizeX() { return size_x; }
-    unsigned int getSizeY() { return size_y; }
-    std::string getSizeXStr() { return size_x_str; }
-    std::string getSizeYStr() { return size_y_str; }
-    //QualType getType() { return type; }
-    //std::string getTypeStr() { return typeStr; }
-    VarDecl *getDecl() { return VD; }
-    //bool isConstant() { return is_constant; }
-    //bool isPrinted() { return is_printed; }
-    InitListExpr *getInitList() { return init_list; }
-    void addKernel(HipaccKernel *K) { kernels.push_back(K); }
-    SmallVector<HipaccKernel *, 16> &getKernels() { return kernels; }
-    //void setHostMemName(std::string name) { hostMemName = name; }
-    //std::string getHostMemName() { return hostMemName; }
-    //void setHostMemExpr(Expr *expr) { hostMemExpr = expr; }
-    //Expr *getHostMemExpr() { return hostMemExpr; }
-};
-
-
 class HipaccKernelClass {
   private:
     // type of argument
@@ -434,8 +368,7 @@ class HipaccKernelClass {
       Normal,
       IterationSpace,
       Image,
-      Mask,
-      Domain
+      Mask
     };
     // argument information
     struct argumentInfo {
@@ -504,11 +437,6 @@ class HipaccKernelClass {
       arguments.push_back(a);
       maskFields.push_back(FD);
     }
-    void addDomainArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      argumentInfo a = {Domain, FD, QT, Name};
-      arguments.push_back(a);
-      domainFields.push_back(FD);
-    }
     void addISArg(FieldDecl *FD, QualType QT, StringRef Name) {
       argumentInfo a = {IterationSpace, FD, QT, Name};
       arguments.push_back(a);
@@ -517,12 +445,10 @@ class HipaccKernelClass {
     unsigned int getNumArgs() { return arguments.size(); }
     unsigned int getNumImages() { return imgFields.size(); }
     unsigned int getNumMasks() { return maskFields.size(); }
-    unsigned int getNumDomains() { return domainFields.size(); }
 
     SmallVector<argumentInfo, 16> &getArguments() { return arguments; }
     SmallVector<FieldDecl *, 16> &getImgFields() { return imgFields; }
     SmallVector<FieldDecl *, 16> &getMaskFields() { return maskFields; }
-    SmallVector<FieldDecl *, 16> &getDomainFields() { return domainFields; }
 
     friend class HipaccKernel;
 };
@@ -646,7 +572,6 @@ class HipaccKernel : public HipaccKernelFeatures {
     HipaccIterationSpace *iterationSpace;
     std::map<FieldDecl *, HipaccAccessor *> imgMap;
     std::map<FieldDecl *, HipaccMask *> maskMap;
-    std::map<FieldDecl *, HipaccDomain *> domainMap;
     SmallVector<QualType, 16> argTypesC;
     SmallVector<QualType, 16> argTypesCUDA;
     SmallVector<QualType, 16> argTypesOpenCL;
@@ -685,7 +610,6 @@ class HipaccKernel : public HipaccKernelFeatures {
       iterationSpace(NULL),
       imgMap(),
       maskMap(),
-      domainMap(),
       argTypesC(),
       argTypesCUDA(),
       argTypesOpenCL(),
@@ -745,9 +669,6 @@ class HipaccKernel : public HipaccKernelFeatures {
     void insertMapping(FieldDecl *decl, HipaccMask *mask) {
       maskMap.insert(std::pair<FieldDecl *, HipaccMask *>(decl, mask));
     }
-    void insertMapping(FieldDecl *decl, HipaccDomain *domain) {
-      domainMap.insert(std::pair<FieldDecl *, HipaccDomain *>(decl, domain));
-    }
 
     HipaccAccessor *getImgFromMapping(FieldDecl *decl) {
       std::map<FieldDecl *, HipaccAccessor *>::iterator iter = imgMap.find(decl);
@@ -759,12 +680,6 @@ class HipaccKernel : public HipaccKernelFeatures {
       std::map<FieldDecl *, HipaccMask *>::iterator iter = maskMap.find(decl);
 
       if (iter == maskMap.end()) return NULL;
-      else return iter->second;
-    }
-    HipaccDomain *getDomainFromMapping(FieldDecl *decl) {
-      std::map<FieldDecl*, HipaccDomain*>::iterator iter = domainMap.find(decl);
-
-      if (iter == domainMap.end()) return NULL;
       else return iter->second;
     }
 

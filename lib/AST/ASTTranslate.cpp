@@ -38,7 +38,6 @@ using namespace hipacc;
 using namespace ASTNode;
 using namespace hipacc::Builtin;
 
-static bool first_iteration = true;
 
 //===----------------------------------------------------------------------===//
 // Statement/expression transformations
@@ -1424,10 +1423,8 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
         break;
     }
 
-    //if (convIdxX + convIdxY == 0) {
-    if (first_iteration) {
+    if (convIdxX + convIdxY == 0) {
       // conv_tmp = ...
-      first_iteration = false;
       return convInitExpr;
     } else {
       // conv_tmp += ...
@@ -1585,26 +1582,8 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       preCStmt.push_back(outerCompountStmt);
 
       // unroll convolution
-      first_iteration = true;
       for (unsigned int y=0; y<Mask->getSizeY(); y++) {
         for (unsigned int x=0; x<Mask->getSizeX(); x++) {
-          if (Mask->isConstant()) {
-            // check if element is 0 and SUM ...
-            Expr *Ex = Mask->getInitList()->getInit(y*Mask->getSizeX() + x)->IgnoreParenCasts();
-
-            if (isa<IntegerLiteral>(Ex->IgnoreParenCasts())) {
-              IntegerLiteral *IL = dyn_cast<IntegerLiteral>(Ex);
-              if (IL->getValue().getSExtValue()==0) continue;
-            } else if (isa<FloatingLiteral>(Ex->IgnoreParenCasts())) {
-              FloatingLiteral *FL = dyn_cast<FloatingLiteral>(Ex);
-              llvm::APFloat APF = FL->getValue();
-              if (APF.isZero()) continue;
-            } else if (isa<CharacterLiteral>((Ex)->IgnoreParenCasts())) {
-              CharacterLiteral *CL = dyn_cast<CharacterLiteral>(Ex);
-              if (CL->getValue()==0) continue;
-            }
-          }
-
           convIdxX = x;
           convIdxY = y;
           Stmt *convIteration = Clone(LE->getBody());
@@ -1632,7 +1611,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'reduce' call.");
 
       // first parameter: Domain reference
-      HipaccDomain *Domain = NULL;
+      HipaccMask *Domain = NULL;
       assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
              "First parameter to 'reduce' call must be a Domain.");
       MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(0)->IgnoreImpCasts());
@@ -1643,10 +1622,11 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
 
       // look for Domain user class member variable
-      if (Kernel->getDomainFromMapping(FD)) {
-        Domain = Kernel->getDomainFromMapping(FD);
+      if (Kernel->getMaskFromMapping(FD)) {
+        Domain = Kernel->getMaskFromMapping(FD);
       }
-      assert(Domain && "Could not find Domain Field Decl.");
+      assert(Domain && Domain->isDomain() &&
+          "Could not find Domain Field Decl.");
 
       // second parameter: reduction mode
       assert(isa<DeclRefExpr>(E->getArg(1)) &&
@@ -1727,11 +1707,18 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       // unroll reduction
       for (unsigned int y=0; y<Domain->getSizeY(); y++) {
         for (unsigned int x=0; x<Domain->getSizeX(); x++) {
-          Expr* E = Domain->getInitList()
-                          ->getInit(Domain->getSizeY() * x + y)
-                          ->IgnoreParenCasts();
-          if (isa<IntegerLiteral>(E) &&
-              dyn_cast<IntegerLiteral>(E)->getValue() != 0) {
+          bool doIterate = true;
+          if (Domain->isConstant()) {
+            Expr *E = Domain->getInitList()
+                            ->getInit(Domain->getSizeY() * x + y)
+                            ->IgnoreParenCasts();
+            if (isa<IntegerLiteral>(E) &&
+                dyn_cast<IntegerLiteral>(E)->getValue() == 0) {
+              doIterate = false;
+            }
+          }
+
+          if (doIterate) {
             redIdxX.push_back(x);
             redIdxY.push_back(y);
             Stmt *redIteration = Clone(LE->getBody());
@@ -1936,7 +1923,7 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
 
         if (Mask && (Mask->isConstant() || compilerOptions.emitCUDA())) {
           VarDecl *maskVar = NULL;
-          // get Mask reference
+          // get Mask/Domain reference
           for (DeclContext::lookup_result Lookup =
               Ctx.getTranslationUnitDecl()->lookup(DeclarationName(&Ctx.Idents.get(Mask->getName()+Kernel->getName())));
               !Lookup.empty(); Lookup=Lookup.slice(1)) {
@@ -1954,36 +1941,6 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
             DC->addDecl(maskVar);
           }
           paramDecl = maskVar;
-        }
-      }
-    }
-    for (unsigned int i=0; i<KernelClass->getNumDomains(); i++) {
-      FieldDecl *FD = KernelClass->getDomainFields().data()[i];
-
-      if (paramDecl->getName().equals(FD->getName())) {
-        HipaccDomain *Domain = Kernel->getDomainFromMapping(FD);
-
-        //TODO: Handle non-constant domains
-        if (Domain) {// && (Domain->isConstant() || compilerOptions.emitCUDA())) {
-          VarDecl *domainVar = NULL;
-          // get Domain reference
-          for (DeclContext::lookup_result Lookup =
-              Ctx.getTranslationUnitDecl()->lookup(DeclarationName(&Ctx.Idents.get(Domain->getName()+Kernel->getName())));
-              !Lookup.empty(); Lookup=Lookup.slice(1)) {
-            domainVar = cast_or_null<VarDecl>(Lookup.front());
-
-            if (domainVar) break;
-          }
-
-          /*if (!domainVar) {
-            domainVar = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-                Domain->getName()+Kernel->getName(), paramDecl->getType());
-
-            DeclContext *DC =
-              TranslationUnitDecl::castToDeclContext(Ctx.getTranslationUnitDecl());
-            DC->addDecl(domainVar);
-          }
-          paramDecl = domainVar;*/
         }
       }
     }
@@ -2140,14 +2097,17 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   if (Kernel->getMaskFromMapping(FD)) {
     HipaccMask *Mask = Kernel->getMaskFromMapping(FD);
     MemoryAccess memAcc = KernelClass->getImgAccess(FD);
-    assert(memAcc==READ_ONLY && "mask &readonle supp");
+    assert(memAcc==READ_ONLY &&
+        "only read-only memory access to Mask supported");
 
     switch (E->getNumArgs()) {
       default:
         assert(0 && "0 or 2 arguments for Mask operator() expected!");
         break;
       case 1:
-        assert(convMask && convMask==Mask && "0 arguments for Mask operator() only allowed within convolution lambda-function.");
+        assert(convMask && convMask==Mask &&
+            "0 arguments for Mask operator() only allowed within"
+            "convolution lambda-function.");
         // within convolute lambda-function
         if (Mask->isConstant()) {
           // propagate constants
@@ -2283,6 +2243,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       SY = createIntegerLiteral(Ctx, 0);
     }
 
+    HipaccMask *Mask = NULL;
+    int mask_idx_x = 0, mask_idx_y = 0;
     switch (E->getNumArgs()) {
       default:
         assert(0 && "0 or 2 arguments for Accessor operator() expected!\n");
@@ -2302,11 +2264,28 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         break;
       case 2:
         // 0: -> (this *) Image Class
-        // 1: -> Mask
-        assert(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()) && "Accessor operator() with 1 argument requires a convolution Mask.");
-        assert(convMask && convMask==Kernel->getMaskFromMapping(dyn_cast<FieldDecl>(dyn_cast<MemberExpr>(E->getArg(1)->IgnoreImpCasts())->getMemberDecl())) &&
-            "Accessor operator() with 1 argument requires a convolution Mask.");
-        assert(convMask && "0 or 2 arguments for Accessor operator() expected!\n");
+        // 1: -> Mask | Domain
+        {
+        assert(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()) &&
+            "Accessor operator() with 1 argument requires a"
+            "convolution Mask or Domain as parameter.");
+        MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(1)->IgnoreImpCasts());
+        FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
+        Mask = Kernel->getMaskFromMapping(FD);
+        }
+        if (convMask) {
+          assert(convMask==Mask &&
+              "the Mask parameter for Accessor operator(Mask) has to be"
+              "the Mask parameter of the convolve method.");
+          mask_idx_x = convIdxX;
+          mask_idx_y = convIdxY;
+        } else {
+          assert(Mask==redDomains.back() &&
+              "the Domain parameter for Accessor operator(Domain) has to be"
+              "the Domain parameter of the reduce method.");
+          mask_idx_x = redIdxX.back();
+          mask_idx_y = redIdxY.back();
+        }
       case 3:
         // 0: -> (this *) Image Class
         // 1: -> offset x
@@ -2314,9 +2293,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         Expr *offset_x, *offset_y;
         if (E->getNumArgs()==2) {
           offset_x = createIntegerLiteral(Ctx,
-              convIdxX-(int)convMask->getSizeX()/2);
+              mask_idx_x-(int)Mask->getSizeX()/2);
           offset_y = createIntegerLiteral(Ctx,
-              convIdxY-(int)convMask->getSizeY()/2);
+              mask_idx_y-(int)Mask->getSizeY()/2);
         } else {
           offset_x = Clone(E->getArg(1));
           offset_y = Clone(E->getArg(2));
@@ -2363,7 +2342,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   DeclRefExpr *LHS;
   HipaccAccessor *Acc = NULL;
   HipaccMask *Mask = NULL;
-  HipaccDomain *Domain = NULL;
   MemoryAccess memAcc = UNDEFINED;
   Expr *result;
 
@@ -2425,9 +2403,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
     Acc = Kernel->getImgFromMapping(FD);
     Mask = Kernel->getMaskFromMapping(FD);
-    Domain = Kernel->getDomainFromMapping(FD);
     memAcc = KernelClass->getImgAccess(FD);
-    assert((Acc || Mask || Domain) &&
+    assert((Acc || Mask) &&
            "Could not find Image/Accessor/Mask/Domain Field Decl.");
 
     if (Acc != NULL) {
@@ -2461,38 +2438,42 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         return idx_y;
       }
     } else if (Mask != NULL) {
-      assert(Mask == convMask && "Getting Mask convolution IDs is only allowed "
-                                 "within convolution lambda-function.");
-      // within convolute lambda-function
-      if (ME->getMemberNameInfo().getAsString() == "getX") {
-        return createIntegerLiteral(Ctx, convIdxX-(int)convMask->getSizeX()/2);
-      }
-      if (ME->getMemberNameInfo().getAsString() == "getY") {
-        return createIntegerLiteral(Ctx, convIdxY-(int)convMask->getSizeY()/2);
-      }
-    } else {
-      bool isDomainValid = false;
-      int redDepth = 0;
+      if (Mask->isDomain()) {
+        bool isDomainValid = false;
+        int redDepth = 0;
 
-      // Search corresponding domain
-      for (unsigned int i=0, e=redDomains.size(); i!=e; ++i) {
-        if (Domain == redDomains[i]) {
-          isDomainValid = true;
-          redDepth = i;
-          break;
+        // search corresponding domain
+        for (unsigned int i=0, e=redDomains.size(); i!=e; ++i) {
+          if (Mask == redDomains[i]) {
+            isDomainValid = true;
+            redDepth = i;
+            break;
+          }
         }
-      }
 
-      assert(isDomainValid && "Getting Domain reduction IDs is only allow "
-                              "within reduction lambda-function.");
-      // within convolute lambda-function
-      if (ME->getMemberNameInfo().getAsString() == "getX") {
-        return createIntegerLiteral(
-            Ctx, redIdxX[redDepth] - (int)redDomains[redDepth]->getSizeX()/2);
-      }
-      if (ME->getMemberNameInfo().getAsString() == "getY") {
-        return createIntegerLiteral(
-            Ctx, redIdxY[redDepth] - (int)redDomains[redDepth]->getSizeY()/2);
+        assert(isDomainValid && "Getting Domain reduction IDs is only allow "
+                                "within reduction lambda-function.");
+        // within convolute lambda-function
+        if (ME->getMemberNameInfo().getAsString() == "getX") {
+          return createIntegerLiteral(Ctx,
+              redIdxX[redDepth] - (int)redDomains[redDepth]->getSizeX()/2);
+        }
+        if (ME->getMemberNameInfo().getAsString() == "getY") {
+          return createIntegerLiteral(Ctx,
+              redIdxY[redDepth] - (int)redDomains[redDepth]->getSizeY()/2);
+        }
+      } else {
+        assert(Mask==convMask && "Getting Mask convolution IDs is only allowed "
+                                 "allowed within convolution lambda-function.");
+        // within convolute lambda-function
+        if (ME->getMemberNameInfo().getAsString() == "getX") {
+          return createIntegerLiteral(Ctx,
+              convIdxX - (int)convMask->getSizeX()/2);
+        }
+        if (ME->getMemberNameInfo().getAsString() == "getY") {
+          return createIntegerLiteral(Ctx,
+              convIdxY - (int)convMask->getSizeY()/2);
+        }
       }
     }
   }

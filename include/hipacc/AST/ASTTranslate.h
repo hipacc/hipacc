@@ -89,8 +89,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     ConvolutionMode convMode;
     int convIdxX, convIdxY;
 
-    SmallVector<HipaccDomain*, 4> redDomains;
-    SmallVector<DeclRefExpr*, 4> redTmps;
+    SmallVector<HipaccMask *, 4> redDomains;
+    SmallVector<DeclRefExpr *, 4> redTmps;
     SmallVector<ConvolutionMode, 4> redModes;
     SmallVector<int, 4> redIdxX, redIdxY;
 
