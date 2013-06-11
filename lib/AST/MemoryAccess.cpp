@@ -110,7 +110,9 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_x = removeISOffsetX(idx_x, Acc);
       }
-      if (compilerOptions.emitFilterscript() &&
+      if ((compilerOptions.emitRenderscript() ||
+           compilerOptions.emitRenderscriptGPU() ||
+           compilerOptions.emitFilterscript()) &&
           Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_y = removeISOffsetY(idx_y, Acc);
       }
@@ -133,7 +135,12 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
     idx_x = addGlobalOffsetX(idx_x, Acc);
   }
-  idx_y = addGlobalOffsetY(idx_y, Acc);
+  if ((!compilerOptions.emitRenderscript() &&
+       !compilerOptions.emitRenderscriptGPU() &&
+       !compilerOptions.emitFilterscript()) ||
+      Acc!=Kernel->getIterationSpace()->getAccessor()) {
+    idx_y = addGlobalOffsetY(idx_y, Acc);
+  }
 
   // step 3: access the appropriate memory
   switch (memAcc) {
@@ -218,6 +225,13 @@ Expr *ASTTranslate::accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // no interpolation & boundary handling for Polly
   if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
     idx_x = removeISOffsetX(idx_x, Acc);
+  }
+
+  if ((compilerOptions.emitRenderscript() ||
+       compilerOptions.emitRenderscriptGPU() ||
+       compilerOptions.emitFilterscript()) &&
+      Acc!=Kernel->getIterationSpace()->getAccessor()) {
+    idx_y = removeISOffsetY(idx_y, Acc);
   }
 
   // step 2: add global Accessor/Iteration Space offset

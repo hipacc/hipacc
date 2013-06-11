@@ -173,7 +173,9 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_x = removeISOffsetX(idx_x, Acc);
       }
-      if (compilerOptions.emitFilterscript() &&
+      if ((compilerOptions.emitRenderscript() ||
+           compilerOptions.emitRenderscriptGPU() ||
+           compilerOptions.emitFilterscript()) &&
           Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_y = removeISOffsetY(idx_y, Acc);
       }

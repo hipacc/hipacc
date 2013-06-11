@@ -948,10 +948,12 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           check_bop = check_tmp;
         }
       }
-      // Filterscript iteration space is always the whole image, so we need to
+      // Renderscript iteration space is always the whole image, so we need to
       // check the y-dimension as well:
       // if (gid_y >= is_offset_y && gid_y < is_height+is_offset_y)
-      if (compilerOptions.emitFilterscript()) {
+      if (compilerOptions.emitRenderscript() ||
+          compilerOptions.emitRenderscriptGPU() ||
+          compilerOptions.emitFilterscript()) {
         // if (gid_y >= is_offset_y)
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl() &&
             !(kernel_y && !bh_variant.borders.left) && bh_variant.borderVal) {
@@ -1004,9 +1006,12 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
             getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
             Ctx.BoolTy);
       }
-      // Filterscript iteration space is always the whole image, so we need to
+      // if (gid_y >= is_offset_y && gid_y < is_height+is_offset_y)
+      // Renderscript iteration space is always the whole image, so we need to
       // check the y-dimension as well.
-      if (compilerOptions.emitFilterscript()) {
+      if (compilerOptions.emitRenderscript() ||
+          compilerOptions.emitRenderscriptGPU() ||
+          compilerOptions.emitFilterscript()) {
         // if (gid_y < is_height+is_offset_y)
         BinaryOperator *check_tmp = NULL;
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
@@ -2358,7 +2363,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
     // getY() method -> gid_y
     if (ME->getMemberNameInfo().getAsString() == "getY") {
-      if (compilerOptions.emitFilterscript()) {
+      if (compilerOptions.emitRenderscript() ||
+          compilerOptions.emitRenderscriptGPU() ||
+          compilerOptions.emitFilterscript()) {
         return createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
       } else {
         return gidYRef;
@@ -2431,7 +2438,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
               createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
-        } else if (compilerOptions.emitFilterscript()) {
+        } else if (compilerOptions.emitRenderscript() ||
+            compilerOptions.emitRenderscriptGPU() ||
+            compilerOptions.emitFilterscript()) {
           idx_y = createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
         }
 
