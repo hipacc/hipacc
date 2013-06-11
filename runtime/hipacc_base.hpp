@@ -28,9 +28,9 @@
 
 #include "hipacc_math_functions.hpp"
 
-#ifndef __CUDACC__
+#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 #include <functional>
-#endif // __CUDACC__
+#endif // defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 
 #define HIPACC_NUM_ITERATIONS 10
 
@@ -166,7 +166,7 @@ unsigned int nextPow2(unsigned int x) {
 }
 
 
-#ifndef __CUDACC__
+#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 
 class HipaccPyramid {
   public:
@@ -374,7 +374,7 @@ void hipaccTraverse(unsigned int loop=1) {
   }
 }
 
-#endif // __CUDACC__
+#endif // defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 
 #endif // __HIPACC_BASE_HPP__
 
