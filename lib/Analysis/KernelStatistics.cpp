@@ -137,6 +137,7 @@ class TransferFunctions : public StmtVisitor<TransferFunctions> {
     void VisitDeclStmt(DeclStmt *S);
     void VisitDeclRefExpr(DeclRefExpr *E);
     void VisitLambdaExpr(LambdaExpr *E);
+    void VisitReturnStmt(ReturnStmt *S);
 
     // TODO
     #ifdef DEBUG_ANALYSIS
@@ -717,7 +718,6 @@ void TransferFunctions::VisitDeclStmt(DeclStmt *S) {
   KS.curStmtVectorize = SCALAR;
 }
 
-
 void TransferFunctions::VisitDeclRefExpr(DeclRefExpr *E) {
   if (isa<VarDecl>(E->getDecl())) {
     VarDecl *VD = dyn_cast<VarDecl>(E->getDecl());
@@ -730,7 +730,6 @@ void TransferFunctions::VisitDeclRefExpr(DeclRefExpr *E) {
     }
   }
 }
-
 
 void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
   AnalysisDeclContext AC(/* AnalysisDeclContextManager */ 0, E->getCallOperator());
@@ -750,6 +749,10 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
   #ifdef DEBUG_ANALYSIS
   cfg->viewCFG(KS.Ctx.getLangOpts());
   #endif
+}
+
+void TransferFunctions::VisitReturnStmt(ReturnStmt *S) {
+  checkImageAccess(S->getRetValue(), READ_ONLY);
 }
 
 
