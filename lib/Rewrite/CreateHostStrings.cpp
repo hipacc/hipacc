@@ -693,7 +693,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         case TARGET_OpenCLCPU:
           resultStr += "_args" + kernelName + ".push_back(";
           resultStr += "std::make_pair(sizeof(" + argTypeNames[i];
-          resultStr += "), (void *)" + hostArgNames[i] + img_mem + "));\n";
+          resultStr += "), (void *)&" + hostArgNames[i] + img_mem + "));\n";
           resultStr += indent;
           break;
         case TARGET_Renderscript:
@@ -748,7 +748,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += ", ";
           resultStr += LSS.str();
           resultStr += ", sizeof(" + argTypeNames[i] + "), ";
-          resultStr += hostArgNames[i] + img_mem;
+          resultStr += "&" + hostArgNames[i] + img_mem;
           resultStr += ");\n";
           resultStr += indent;
           break;
