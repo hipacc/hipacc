@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
   // first, print the Copyright notice
   printCopyright();
 
-  // get stack trace on SigFaults
+  // get stack trace on SegFaults
   llvm::sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram X(argc, argv);
 
