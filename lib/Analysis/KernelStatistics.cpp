@@ -320,15 +320,15 @@ KernelType KernelStatistics::getKernelType() {
 MemoryAccessDetail TransferFunctions::checkStride(Expr *EX, Expr *EY) {
   bool stride_x=true, stride_y=true;
 
-  if (isa<IntegerLiteral>(EX->IgnoreParenCasts())) {
-    IntegerLiteral *IL = dyn_cast<IntegerLiteral>(EX->IgnoreParenCasts());
+  if (isa<IntegerLiteral>(EX->IgnoreParenImpCasts())) {
+    IntegerLiteral *IL = dyn_cast<IntegerLiteral>(EX->IgnoreParenImpCasts());
     if (IL->getValue().getSExtValue()==0) {
       stride_x = false;
     }
   }
 
-  if (isa<IntegerLiteral>(EY->IgnoreParenCasts())) {
-    IntegerLiteral *IL = dyn_cast<IntegerLiteral>(EY->IgnoreParenCasts());
+  if (isa<IntegerLiteral>(EY->IgnoreParenImpCasts())) {
+    IntegerLiteral *IL = dyn_cast<IntegerLiteral>(EY->IgnoreParenImpCasts());
     if (IL->getValue().getSExtValue()==0) {
       stride_y = false;
     }
@@ -342,9 +342,8 @@ MemoryAccessDetail TransferFunctions::checkStride(Expr *EX, Expr *EY) {
 
 
 bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
-  // discard implicit casts
-  while (isa<ImplicitCastExpr>(E))
-    E = dyn_cast<ImplicitCastExpr>(E)->getSubExpr();
+  // discard implicit casts and paren expressions
+  E = E->IgnoreParenImpCasts();
 
   // match Image(), Accessor(), Mask(), and Domain() calls
   if (isa<CXXOperatorCallExpr>(E)) {
@@ -575,8 +574,8 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
       if (checkImageAccess(E->getRHS(), READ_ONLY)) {
         KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
       } else {
-        if (isa<DeclRefExpr>(E->getRHS()->IgnoreImpCasts())) {
-          DRE = dyn_cast<DeclRefExpr>(E->getRHS()->IgnoreImpCasts());
+        if (isa<DeclRefExpr>(E->getRHS()->IgnoreParenImpCasts())) {
+          DRE = dyn_cast<DeclRefExpr>(E->getRHS()->IgnoreParenImpCasts());
 
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
@@ -622,8 +621,8 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
       if (checkImageAccess(E->getRHS(), READ_ONLY)) {
         KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
       } else {
-        if (isa<DeclRefExpr>(E->getRHS()->IgnoreImpCasts())) {
-          DRE = dyn_cast<DeclRefExpr>(E->getRHS()->IgnoreImpCasts());
+        if (isa<DeclRefExpr>(E->getRHS()->IgnoreParenImpCasts())) {
+          DRE = dyn_cast<DeclRefExpr>(E->getRHS()->IgnoreParenImpCasts());
 
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
@@ -701,7 +700,7 @@ void TransferFunctions::VisitUnaryOperator(UnaryOperator *E) {
 
 void TransferFunctions::VisitCallExpr(CallExpr *E) {
   for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
-    checkImageAccess(E->getArg(I)->IgnoreParenCasts(), READ_ONLY);
+    checkImageAccess(E->getArg(I), READ_ONLY);
   }
   KS.num_sops++;
 }
@@ -723,6 +722,7 @@ void TransferFunctions::VisitCStyleCastExpr(CStyleCastExpr *E) {
         E->getCastKindName();
       exit(EXIT_FAILURE);
   }
+  checkImageAccess(E->getSubExpr(), READ_ONLY);
 }
 
 void TransferFunctions::VisitDeclStmt(DeclStmt *S) {
