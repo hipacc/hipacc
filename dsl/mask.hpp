@@ -46,7 +46,6 @@ class MaskBase {
         IterationSpaceBase iteration_space;
         ElementIterator *EI;
 
-
     public:
         MaskBase(int size_x, int size_y) :
             size_x(size_x),
@@ -93,7 +92,7 @@ class Mask : public MaskBase {
         Mask(int size_x, int size_y) :
             MaskBase(size_x, size_y),
             #ifdef NO_BOOST
-            array((data_t *)malloc(sizeof(data_t)*size_x*size_y))
+            array(new data_t[size_x*size_y])
             #else
             array(boost::extents[size_y][size_x])
             #endif
@@ -101,9 +100,27 @@ class Mask : public MaskBase {
             assert(size_x>0 && size_y>0 && "size for Mask must be positive!");
         }
 
+        Mask(const Mask &mask) :
+            MaskBase(mask.size_x, mask.size_y),
+            #ifdef NO_BOOST
+            array(new data_t[mask.size_x*mask.size_y])
+            #else
+            array(boost::extents[mask.size_y][mask.size_x])
+            #endif
+        {
+            #ifdef NO_BOOST
+            operator=(mask.array);
+            #else
+            array = mask.array;
+            #endif
+        }
+
         ~Mask() {
             #ifdef NO_BOOST
-            free(array);
+            if (array != NULL) {
+              delete[] array;
+              array = NULL;
+            }
             #else
             #endif
         }
