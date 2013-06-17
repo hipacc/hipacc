@@ -135,7 +135,7 @@ void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *gr
 }
 
 
-long getNanoTime() {
+long getMicroTime() {
     struct timespec ts;
 
     #ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
@@ -149,7 +149,7 @@ long getNanoTime() {
     #else
     clock_gettime(CLOCK_MONOTONIC, &ts);
     #endif
-    return ts.tv_sec*1000000000LL + ts.tv_nsec;
+    return ts.tv_sec*1000000LL + ts.tv_nsec * 1e-3;
 }
 
 
@@ -864,18 +864,20 @@ void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst, int num_devi
 // Copy between buffers and return time
 double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_device=0, bool print_timing=false) {
     cl_int err = CL_SUCCESS;
-    cl_event event;
     cl_ulong end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
     assert(src.width == dst.width && src.height == dst.height && src.pixel_size == dst.pixel_size && "Invalid CopyBuffer!");
 
     float timing=FLT_MAX;
-    #ifndef GPU_TIMING
+    #ifdef GPU_TIMING
+    cl_event event;
+    #else
     std::vector<float> times;
     times.reserve(HIPACC_NUM_ITERATIONS);
     #endif
     for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
+        #ifdef GPU_TIMING
         err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, &event);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyBuffer()");
@@ -886,10 +888,20 @@ double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_dev
         err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
         err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
         checkErr(err, "clGetEventProfilingInfo()");
+        start *= 1e-3;
+        end *= 1e-3;
+        #else
+        clFinish(Ctx.get_command_queues()[num_device]);
+        start = getMicroTime();
+        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, NULL);
+        err |= clFinish(Ctx.get_command_queues()[num_device]);
+        end = getMicroTime();
+        checkErr(err, "clEnqueueNDRangeKernel()");
+        #endif
 
         if (print_timing) {
-            std::cerr << "<HIPACC:> Copy timing (" << (src.width*src.height*src.pixel_size) / (float)(1 << 20) << " MB): " << (end-start)*1.0e-6f << "(ms)" << std::endl;
-            std::cerr << "          Bandwidth: " << 2.0f * (double)(src.width*src.height*src.pixel_size) / ((end-start)*1.0e-9f * (float)(1 << 30)) << " GB/s" << std::endl;
+            std::cerr << "<HIPACC:> Copy timing (" << (src.width*src.height*src.pixel_size) / (float)(1 << 20) << " MB): " << (end-start)*1.0e-3f << "(ms)" << std::endl;
+            std::cerr << "          Bandwidth: " << 2.0f * (double)(src.width*src.height*src.pixel_size) / ((end-start)*1.0e-6f * (float)(1 << 30)) << " GB/s" << std::endl;
         }
         #ifdef GPU_TIMING
         if ((end-start) < timing) timing = (end-start);
@@ -897,15 +909,17 @@ double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_dev
         times.push_back(end-start);
         #endif
     }
-    err = clReleaseEvent(event);
-    checkErr(err, "clReleaseEvent()");
 
     // return time in ms
-    #ifndef GPU_TIMING
+    #ifdef GPU_TIMING
+    err = clReleaseEvent(event);
+    checkErr(err, "clReleaseEvent()");
+    #else
     std::sort(times.begin(), times.end());
     timing = times.at(HIPACC_NUM_ITERATIONS/2);
     #endif
-    return timing*1.0e-6f;
+
+    return timing*1.0e-3f;
 }
 
 
@@ -940,23 +954,25 @@ void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *loc
     err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
     err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
     checkErr(err, "clGetEventProfilingInfo()");
+    start *= 1e-3;
+    end *= 1e-3;
 
     err = clReleaseEvent(event);
     checkErr(err, "clReleaseEvent()");
     #else
     clFinish(Ctx.get_command_queues()[0]);
-    start = getNanoTime();
+    start = getMicroTime();
     err = clEnqueueNDRangeKernel(Ctx.get_command_queues()[0], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
     err |= clFinish(Ctx.get_command_queues()[0]);
-    end = getNanoTime();
+    end = getMicroTime();
     checkErr(err, "clEnqueueNDRangeKernel()");
     #endif
 
     if (print_timing) {
-        std::cerr << "<HIPACC:> Kernel timing (" << local_work_size[0]*local_work_size[1] << ": " << local_work_size[0] << "x" << local_work_size[1] << "): " << (end-start)*1.0e-6f << "(ms)" << std::endl;
+        std::cerr << "<HIPACC:> Kernel timing (" << local_work_size[0]*local_work_size[1] << ": " << local_work_size[0] << "x" << local_work_size[1] << "): " << (end-start)*1.0e-3f << "(ms)" << std::endl;
     }
-    total_time += (end-start)*1.0e-6f;
-    last_gpu_timing = (end-start)*1.0e-6f;
+    total_time += (end-start)*1.0e-3f;
+    last_gpu_timing = (end-start)*1.0e-3f;
 }
 
 

@@ -110,7 +110,8 @@ int main(int argc, char *argv[]) {
         hipaccWriteMemory<unsigned char>(dev_idata, host_idata, num_device);
 
         // get time in ms
-        float time = hipaccCopyBufferBenchmark(dev_idata, dev_odata, num_device);
+        double time = hipaccCopyBufferBenchmark(dev_idata, dev_odata, num_device);
+        // time in s
         time = time/1000;
 
         // calculate bandwidth in MB/s

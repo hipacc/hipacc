@@ -214,10 +214,10 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 }
 
 
-long getNanoTime() {
+long getMicroTime() {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    return now.tv_sec*1000000000LL + now.tv_nsec;
+    return now.tv_sec*1000000LL + now.tv_nsec * 1e-3;
 }
 
 
@@ -479,18 +479,18 @@ void hipaccLaunchScriptKernel(
     RenderScript* rs = Ctx.get_context();
 
     rs->finish();
-    start = getNanoTime();
+    start = getMicroTime();
     (script->*kernel)((Allocation *)out.mem);
     rs->finish();
-    end = getNanoTime();
+    end = getMicroTime();
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing (" << work_size[0] * work_size[1]
                   << ": " << work_size[0] << "x" << work_size[1] << "): "
-                  << (end - start) * 1.0e-6f << "(ms)" << std::endl;
+                  << (end - start) * 1.0e-3f << "(ms)" << std::endl;
     }
-    total_time += (end - start) * 1.0e-6f;
-    last_gpu_timing = (end - start) * 1.0e-6f;
+    total_time += (end - start) * 1.0e-3f;
+    last_gpu_timing = (end - start) * 1.0e-3f;
 }
 
 
@@ -506,18 +506,18 @@ void hipaccLaunchScriptKernel(
     RenderScript* rs = Ctx.get_context();
 
     rs->finish();
-    start = getNanoTime();
+    start = getMicroTime();
     (script->*kernel)((Allocation *)in.mem, (Allocation *)out.mem);
     rs->finish();
-    end = getNanoTime();
+    end = getMicroTime();
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing (" << work_size[0] * work_size[1]
                   << ": " << work_size[0] << "x" << work_size[1] << "): "
-                  << (end - start) * 1.0e-6f << "(ms)" << std::endl;
+                  << (end - start) * 1.0e-3f << "(ms)" << std::endl;
     }
-    total_time += (end - start) * 1.0e-6f;
-    last_gpu_timing = (end - start) * 1.0e-6f;
+    total_time += (end - start) * 1.0e-3f;
+    last_gpu_timing = (end - start) * 1.0e-3f;
 }
 
 
@@ -650,16 +650,16 @@ T hipaccApplyReduction(
     }
 
     rs->finish();
-    start = getNanoTime();
+    start = getMicroTime();
     (script->*kernel2D)(is1);   // first step: reduce image (region) into linear memory
     (script->*kernel1D)(is2);   // second step: reduce linear memory
     rs->finish();
-    end = getNanoTime();
-    last_gpu_timing = (end - start) * 1.0e-6f;
+    end = getMicroTime();
+    last_gpu_timing = (end - start) * 1.0e-3f;
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Reduction timing: "
-                  << (end - start) * 1.0e-6f << "(ms)" << std::endl;
+                  << (end - start) * 1.0e-3f << "(ms)" << std::endl;
     }
 
     // download result of reduction
