@@ -183,7 +183,8 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
       !Lookup.empty(); Lookup=Lookup.slice(1)) {
     FunctionDecl *Decl = cast_or_null<FunctionDecl>(Lookup.front());
 
-    if (Decl && Decl->getResultType() == Acc->getImage()->getPixelQualType()) {
+    if (Decl && Decl->getResultType() ==
+        Acc->getImage()->getPixelQualType().getDesugaredType(Ctx)) {
       interpolateDecl = Decl;
       break;
     }

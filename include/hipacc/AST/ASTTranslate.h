@@ -226,6 +226,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addConstantLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, Expr
         *cond);
 
+    // Convolution.cpp
+    Stmt *getConvolutionStmt(ConvolutionMode mode, DeclRefExpr *tmp_var, Expr
+        *ret_val);
+    FunctionDecl *getConvolutionFunction(std::string name, QualType QT);
+
     // Interpolation.cpp
     Expr *addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x);
     Expr *addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y);

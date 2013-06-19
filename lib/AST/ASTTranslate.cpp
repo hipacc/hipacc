@@ -1395,38 +1395,11 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
   // within convolve lambda-functions, return statements are replaced by
   // reductions
   if (convMask && convTmp) {
-    Stmt *convInitExpr, *convTmpExpr;
     Expr *retVal = Clone(S->getRetValue());
 
-    convInitExpr = createBinaryOperator(Ctx, convTmp, retVal, BO_Assign,
+    Stmt *convInitExpr = createBinaryOperator(Ctx, convTmp, retVal, BO_Assign,
         convTmp->getType());
-    switch (convMode) {
-      case HipaccSUM:
-        // red += val;
-        convTmpExpr = createCompoundAssignOperator(Ctx, convTmp, retVal,
-            BO_AddAssign, convTmp->getType());
-        break;
-      case HipaccMIN:
-        // if (val < red) red = val;
-        convTmpExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
-              convTmp, BO_LT, Ctx.BoolTy), createBinaryOperator(Ctx, convTmp,
-                retVal, BO_Assign, convTmp->getType()));
-        break;
-      case HipaccMAX:
-        // if (val > red) red = val;
-        convTmpExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
-              convTmp, BO_GT, Ctx.BoolTy), createBinaryOperator(Ctx, convTmp,
-                retVal, BO_Assign, convTmp->getType()));
-        break;
-      case HipaccPROD:
-        // red *= val;
-        convTmpExpr = createCompoundAssignOperator(Ctx, convTmp, retVal,
-            BO_MulAssign, convTmp->getType());
-        break;
-      case HipaccMEDIAN:
-        assert(0 && "Unsupported convolution mode.");
-        break;
-    }
+    Stmt *convTmpExpr = getConvolutionStmt(convMode, convTmp, retVal);
 
     if (convIdxX + convIdxY == 0) {
       // conv_tmp = ...
@@ -1436,38 +1409,12 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
       return convTmpExpr;
     }
   } else if (!redDomains.empty() && !redTmps.empty()) {
-    Stmt *redInitExpr, *redTmpExpr;
     Expr *retVal = Clone(S->getRetValue());
 
-    redInitExpr = createBinaryOperator(Ctx, redTmps.back(), retVal, BO_Assign,
-        redTmps.back()->getType());
-    switch (redModes.back()) {
-      case HipaccSUM:
-        // red += val;
-        redTmpExpr = createCompoundAssignOperator(Ctx, redTmps.back(), retVal,
-            BO_AddAssign, redTmps.back()->getType());
-        break;
-      case HipaccMIN:
-        // if (val < red) red = val;
-        redTmpExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
-              redTmps.back(), BO_LT, Ctx.BoolTy), createBinaryOperator(Ctx, redTmps.back(),
-                retVal, BO_Assign, redTmps.back()->getType()));
-        break;
-      case HipaccMAX:
-        // if (val > red) red = val;
-        redTmpExpr = createIfStmt(Ctx, createBinaryOperator(Ctx, retVal,
-              redTmps.back(), BO_GT, Ctx.BoolTy), createBinaryOperator(Ctx, redTmps.back(),
-                retVal, BO_Assign, redTmps.back()->getType()));
-        break;
-      case HipaccPROD:
-        // red *= val;
-        redTmpExpr = createCompoundAssignOperator(Ctx, redTmps.back(), retVal,
-            BO_MulAssign, redTmps.back()->getType());
-        break;
-      case HipaccMEDIAN:
-        assert(0 && "Unsupported reduction mode.");
-        break;
-    }
+    Stmt *redInitExpr = createBinaryOperator(Ctx, redTmps.back(), retVal,
+        BO_Assign, redTmps.back()->getType());
+    Stmt *redTmpExpr = getConvolutionStmt(redModes.back(), redTmps.back(),
+        retVal);
 
     if (redIdxX.back() + redIdxY.back() == 0) {
       // red_tmp = ...
