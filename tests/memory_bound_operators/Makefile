@@ -12,7 +12,7 @@ CFLAGS += -D NO_BOOST -std=c++11 -stdlib=libc++ -nostdinc -I`clang -print-file-n
 LDFLAGS += -L`llvm-config --libdir` -lc++
 else
 CFLAGS += -std=c++0x
-LDFLAGS += -lstdc++ 
+LDFLAGS += -lstdc++
 endif
 
 
