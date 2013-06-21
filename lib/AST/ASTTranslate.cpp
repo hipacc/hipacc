@@ -1409,8 +1409,43 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
       return convTmpExpr;
     }
   } else if (!redDomains.empty() && !redTmps.empty()) {
-    return getConvolutionStmt(redModes.back(), redTmps.back(),
+    Stmt *convTmpExpr = getConvolutionStmt(redModes.back(), redTmps.back(),
         Clone(S->getRetValue()));
+
+    HipaccMask *Domain = redDomains.back();
+    if (Domain->isConstant()) {
+      return convTmpExpr;
+    } else {
+      Expr *dom_acc = NULL;
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_C:
+        case TARGET_CUDA:
+          // array subscript: Domain[y][x]
+          dom_acc = accessMem2DAt(redDomRefs.back(), createIntegerLiteral(Ctx,
+                redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
+          break;
+        case TARGET_OpenCL:
+        case TARGET_OpenCLCPU:
+        case TARGET_Renderscript:
+          // array subscript: Domain[y*width + x]
+          dom_acc = accessMemArrAt(redDomRefs.back(), createIntegerLiteral(Ctx,
+                (int)Domain->getSizeX()), createIntegerLiteral(Ctx,
+                redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
+          break;
+        case TARGET_RenderscriptGPU:
+        case TARGET_Filterscript:
+          // allocation access: rsGetElementAt(Domain, x, y)
+          dom_acc = accessMemAllocAt(redDomRefs.back(), READ_ONLY,
+              createIntegerLiteral(Ctx, redIdxX.back()),
+              createIntegerLiteral(Ctx, redIdxY.back()));
+          break;
+      }
+      // if (dom(x, y) > 0)
+      BinaryOperator *check_dom = createBinaryOperator(Ctx, dom_acc, new (Ctx)
+          CharacterLiteral(0, CharacterLiteral::Ascii, Ctx.UnsignedCharTy,
+            SourceLocation()), BO_GT, Ctx.BoolTy);
+      return createIfStmt(Ctx, check_dom, convTmpExpr);
+    }
   } else {
     return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
   }
@@ -1644,6 +1679,8 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       DeclRefExpr *red_tmp = createDeclRefExpr(Ctx, red_tmp_decl);
       redTmps.push_back(red_tmp);
       redDomains.push_back(Domain);
+      // get DeclRefExpr for Domain when visiting the MemberExpr
+      redDomRefs.push_back(dyn_cast_or_null<DeclRefExpr>(VisitMemberExpr(ME)));
       preStmts.push_back(createDeclStmt(Ctx, red_tmp_decl));
       preCStmt.push_back(outerCompountStmt);
 
@@ -1676,6 +1713,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       }
 
       redDomains.pop_back();
+      redDomRefs.pop_back();
       redModes.pop_back();
       redTmps.pop_back();
 
