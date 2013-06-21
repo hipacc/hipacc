@@ -104,7 +104,6 @@ void Polly::analyzeKernel() {
 
   Passes.add(llvm::createPromoteMemoryToRegisterPass());
   Passes.add(llvm::createFunctionInliningPass());
-  Passes.add(llvm::createSimplifyLibCallsPass());
   Passes.add(llvm::createCFGSimplificationPass());
   Passes.add(llvm::createInstructionCombiningPass());
   Passes.add(llvm::createTailCallEliminationPass());
