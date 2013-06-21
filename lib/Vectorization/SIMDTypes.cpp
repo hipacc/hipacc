@@ -230,8 +230,6 @@ Expr *SIMDTypes::propagate(VarDecl *VD, Expr *E) {
 
   FunctionDecl *make_vec = NULL;
   switch (BT->getKind()) {
-    case BuiltinType::Void:
-    case BuiltinType::Bool:
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:
     case BuiltinType::ULongLong:
@@ -239,6 +237,8 @@ Expr *SIMDTypes::propagate(VarDecl *VD, Expr *E) {
     case BuiltinType::LongLong:
     case BuiltinType::Int128:
     case BuiltinType::LongDouble:
+    case BuiltinType::Void:
+    case BuiltinType::Bool:
     default:
       Ctx.getDiagnostics().Report(E->getExprLoc(), DiagIDType) <<
         BT->getName(PrintingPolicy(Ctx.getLangOpts())) << VD->getName();

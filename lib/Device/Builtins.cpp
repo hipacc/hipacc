@@ -208,8 +208,6 @@ std::string hipacc::Builtin::Context::EncodeTypeIntoStr(QualType QT, const
   switch (BT->getKind()) {
     case BuiltinType::WChar_S:
     case BuiltinType::WChar_U:
-    case BuiltinType::Char16:
-    case BuiltinType::Char32:
     case BuiltinType::ULongLong:
     case BuiltinType::UInt128:
     case BuiltinType::LongLong:
@@ -227,10 +225,12 @@ std::string hipacc::Builtin::Context::EncodeTypeIntoStr(QualType QT, const
       return "Uc";
     case BuiltinType::Short:
       return "s";
+    case BuiltinType::Char16:
     case BuiltinType::UShort:
       return "Us";
     case BuiltinType::Int:
       return "i";
+    case BuiltinType::Char32:
     case BuiltinType::UInt:
       return "Ui";
     case BuiltinType::Long:

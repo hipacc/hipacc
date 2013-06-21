@@ -405,8 +405,6 @@ FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT, bool
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:
-    case BuiltinType::Char16:
-    case BuiltinType::Char32:
     case BuiltinType::ULongLong:
     case BuiltinType::UInt128:
     case BuiltinType::LongLong:
@@ -436,8 +434,10 @@ FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT, bool
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
       return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_uchar);
+    case BuiltinType::Char16:
     case BuiltinType::UShort:
       return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_ushort);
+    case BuiltinType::Char32:
     case BuiltinType::UInt:
       return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_uint);
     case BuiltinType::ULong:
@@ -460,8 +460,6 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool isVecType) {
   switch (QT->getAs<BuiltinType>()->getKind()) {
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:
-    case BuiltinType::Char16:
-    case BuiltinType::Char32:
     case BuiltinType::ULongLong:
     case BuiltinType::UInt128:
     case BuiltinType::LongLong:
@@ -483,8 +481,10 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool isVecType) {
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
       return builtins.getBuiltinFunction(HIPACCBIconvert_uchar4);
+    case BuiltinType::Char16:
     case BuiltinType::UShort:
       return builtins.getBuiltinFunction(HIPACCBIconvert_ushort4);
+    case BuiltinType::Char32:
     case BuiltinType::UInt:
       return builtins.getBuiltinFunction(HIPACCBIconvert_uint4);
     case BuiltinType::ULong:
