@@ -1409,20 +1409,8 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
       return convTmpExpr;
     }
   } else if (!redDomains.empty() && !redTmps.empty()) {
-    Expr *retVal = Clone(S->getRetValue());
-
-    Stmt *redInitExpr = createBinaryOperator(Ctx, redTmps.back(), retVal,
-        BO_Assign, redTmps.back()->getType());
-    Stmt *redTmpExpr = getConvolutionStmt(redModes.back(), redTmps.back(),
-        retVal);
-
-    if (redIdxX.back() + redIdxY.back() == 0) {
-      // red_tmp = ...
-      return redInitExpr;
-    } else {
-      // red_tmp += ...
-      return redTmpExpr;
-    }
+    return getConvolutionStmt(redModes.back(), redTmps.back(),
+        Clone(S->getRetValue()));
   } else {
     return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
   }
@@ -1646,8 +1634,11 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
       CompoundStmt *outerCompountStmt = curCStmt;
       std::stringstream LSST;
       LSST << "_red_tmp" << literalCount++;
+      // init temporary variable depending on aggregation mode
+      Expr *init = getInitExpr(redModes.back(),
+          LE->getCallOperator()->getResultType());
       VarDecl *red_tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(),
-          LE->getCallOperator()->getResultType(), NULL);
+          LE->getCallOperator()->getResultType(), init);
       DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
       DC->addDecl(red_tmp_decl);
       DeclRefExpr *red_tmp = createDeclRefExpr(Ctx, red_tmp_decl);

@@ -29,6 +29,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+// includes for FLT_MAX, INT_MAX, etc.
+#include <limits.h>
+#include <float.h>
+
 #include "hipacc/AST/ASTTranslate.h"
 
 using namespace clang;
@@ -115,6 +119,106 @@ FunctionDecl *ASTTranslate::getConvolutionFunction(std::string name, QualType
 
   QualType FT = builtins.getBuiltinType(funcTypeSpecifier.c_str());
   result = builtins.CreateBuiltin(FT, name.c_str());
+
+  return result;
+}
+
+
+// create init expression for given aggregation mode and type
+Expr *ASTTranslate::getInitExpr(ConvolutionMode mode, QualType QT) {
+  Expr *result = NULL, *initExpr = NULL;
+
+  QualType EQT = QT;
+  bool isVecType = QT->isVectorType();
+
+  if (isVecType) {
+    EQT = QT->getAs<VectorType>()->getElementType();
+  }
+  const BuiltinType *BT = EQT->getAs<BuiltinType>();
+
+  assert(mode!=HipaccMEDIAN && "Median currently not supported.");
+
+  switch (BT->getKind()) {
+    case BuiltinType::WChar_U:
+    case BuiltinType::WChar_S:
+    case BuiltinType::ULongLong:
+    case BuiltinType::UInt128:
+    case BuiltinType::LongLong:
+    case BuiltinType::Int128:
+    case BuiltinType::LongDouble:
+    case BuiltinType::Void:
+    case BuiltinType::Bool:
+    default:
+      assert(0 && "BuiltinType for reduce function not supported.");
+
+    #define GET_INIT_CONSTANT(MODE, SUM, MIN, MAX, PROD) \
+      (MODE == HipaccSUM ? (SUM) : \
+        (MODE == HipaccMIN ? (MIN) : \
+          (MODE == HipaccMAX ? (MAX) : (PROD) )))
+
+    case BuiltinType::Char_S:
+    case BuiltinType::SChar:
+      initExpr = new (Ctx) CharacterLiteral(GET_INIT_CONSTANT(mode, 0,
+            SCHAR_MAX, SCHAR_MIN, 1), CharacterLiteral::Ascii, QT,
+          SourceLocation());
+      break;
+    case BuiltinType::Char_U:
+    case BuiltinType::UChar:
+      initExpr = new (Ctx) CharacterLiteral(GET_INIT_CONSTANT(mode, 0,
+            UCHAR_MAX, 0, 1), CharacterLiteral::Ascii, QT, SourceLocation());
+      break;
+    case BuiltinType::Short: {
+      llvm::APInt init(16, GET_INIT_CONSTANT(mode, 0, SHRT_MAX, SHRT_MIN, 1));
+      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      break; }
+    case BuiltinType::Char16:
+    case BuiltinType::UShort: {
+      llvm::APInt init(16, GET_INIT_CONSTANT(mode, 0, USHRT_MAX, 0, 1));
+      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      break; }
+    case BuiltinType::Int: {
+      llvm::APInt init(32, GET_INIT_CONSTANT(mode, 0, INT_MAX, INT_MIN, 1));
+      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      break; }
+    case BuiltinType::Char32:
+    case BuiltinType::UInt: {
+      llvm::APInt init(32, GET_INIT_CONSTANT(mode, 0, UINT_MAX, 0, 1));
+      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      break; }
+    case BuiltinType::Long: {
+      llvm::APInt init(64, GET_INIT_CONSTANT(mode, 0, LONG_MAX, LONG_MIN, 1));
+      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      break; }
+    case BuiltinType::ULong: {
+      llvm::APInt init(64, GET_INIT_CONSTANT(mode, 0, ULONG_MAX, 0, 1));
+      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      break; }
+    case BuiltinType::Float: {
+      llvm::APFloat init(GET_INIT_CONSTANT(mode, 0, FLT_MAX, FLT_MIN, 1));
+      initExpr = FloatingLiteral::Create(Ctx, init, false, EQT, SourceLocation());
+      break; }
+    case BuiltinType::Double: {
+      llvm::APFloat init(GET_INIT_CONSTANT(mode, 0, DBL_MAX, DBL_MIN, 1));
+      initExpr = FloatingLiteral::Create(Ctx, init, false, EQT, SourceLocation());
+      break; }
+    #undef GET_INIT_CONSTANT
+  }
+
+  if (isVecType) {
+    SmallVector<Expr *, 16> initExprs;
+    int lanes = QT->getAs<VectorType>()->getNumElements();
+
+    for (unsigned int I=0, N=lanes; I!=N; ++I) {
+      initExprs.push_back(initExpr);
+    }
+
+    result = new (Ctx) InitListExpr(Ctx, SourceLocation(),
+        llvm::makeArrayRef(initExprs.data(), initExprs.size()),
+        SourceLocation());
+    result->setType(QT);
+  } else {
+    result = initExpr;
+  }
 
   return result;
 }

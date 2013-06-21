@@ -230,6 +230,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Stmt *getConvolutionStmt(ConvolutionMode mode, DeclRefExpr *tmp_var, Expr
         *ret_val);
     FunctionDecl *getConvolutionFunction(std::string name, QualType QT);
+    Expr *getInitExpr(ConvolutionMode mode, QualType QT);
 
     // Interpolation.cpp
     Expr *addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x);
@@ -237,9 +238,9 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
     FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
     FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
-    FunctionDecl *getAllocationFunction(const BuiltinType *BT, bool vecType,
+    FunctionDecl *getAllocationFunction(const BuiltinType *BT, bool isVecType,
                                         MemoryAccess memAcc);
-    FunctionDecl *getConvertFunction(QualType QT, bool vecType);
+    FunctionDecl *getConvertFunction(QualType QT, bool isVecType);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
 

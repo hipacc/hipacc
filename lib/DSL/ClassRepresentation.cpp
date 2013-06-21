@@ -141,8 +141,6 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
   switch (BT->getKind()) {
     case BuiltinType::WChar_S:
     case BuiltinType::WChar_U:
-    case BuiltinType::Char16:
-    case BuiltinType::Char32:
     case BuiltinType::ULongLong:
     case BuiltinType::UInt128:
     case BuiltinType::LongLong:
@@ -175,6 +173,8 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
             CharacterLiteral::Ascii, QT, SourceLocation());
       }
       break;
+    case BuiltinType::Char16:
+    case BuiltinType::Char32:
     case BuiltinType::Short:
     case BuiltinType::UShort:
     case BuiltinType::Int:

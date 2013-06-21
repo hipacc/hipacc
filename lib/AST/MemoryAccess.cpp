@@ -269,9 +269,9 @@ Expr *ASTTranslate::accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y) {
 FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
     memAcc) {
   QualType QT = Acc->getImage()->getPixelQualType();
-  bool vecType = QT->isVectorType();
+  bool isVecType = QT->isVectorType();
 
-  if (vecType) {
+  if (isVecType) {
     QT = QT->getAs<VectorType>()->getElementType();
   }
   const BuiltinType *BT = QT->getAs<BuiltinType>();
@@ -311,14 +311,14 @@ FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
 #define GET_BUILTIN_FUNCTION(TYPE) \
       (memAcc == READ_ONLY ? \
           (isLdg ? \
-              (vecType ? builtins.getBuiltinFunction(CUDABI__ldg ## E4 ## TYPE) : \
+              (isVecType ? builtins.getBuiltinFunction(CUDABI__ldg ## E4 ## TYPE) : \
                   builtins.getBuiltinFunction(CUDABI__ldg ## TYPE)) : \
               (isLinear ? \
-                  (vecType ? builtins.getBuiltinFunction(CUDABItex1Dfetch ## E4 ## TYPE) : \
+                  (isVecType ? builtins.getBuiltinFunction(CUDABItex1Dfetch ## E4 ## TYPE) : \
                       builtins.getBuiltinFunction(CUDABItex1Dfetch ## TYPE)) : \
-                  (vecType ? builtins.getBuiltinFunction(CUDABItex2D ## E4 ## TYPE) : \
+                  (isVecType ? builtins.getBuiltinFunction(CUDABItex2D ## E4 ## TYPE) : \
                       builtins.getBuiltinFunction(CUDABItex2D ## TYPE)))) : \
-          (vecType ? builtins.getBuiltinFunction(CUDABIsurf2Dwrite ## E4 ## TYPE) : \
+          (isVecType ? builtins.getBuiltinFunction(CUDABIsurf2Dwrite ## E4 ## TYPE) : \
               builtins.getBuiltinFunction(CUDABIsurf2Dwrite ## TYPE)))
 
     case BuiltinType::Char_S:
@@ -400,8 +400,8 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
 
 
 // get rsGetElementAt_<type> function for given Accessor
-FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT,
-    bool vecType, MemoryAccess memAcc) {
+FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT, bool
+    isVecType, MemoryAccess memAcc) {
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:
@@ -419,9 +419,9 @@ FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT,
 
 #define GET_BUILTIN_FUNCTION(NAME) \
             (memAcc == READ_ONLY ? \
-                (vecType ? builtins.getBuiltinFunction(NAME ## 4) : \
+                (isVecType ? builtins.getBuiltinFunction(NAME ## 4) : \
                     builtins.getBuiltinFunction(NAME)) : \
-                (vecType ? builtins.getBuiltinFunction(NAME ## 4W) : \
+                (isVecType ? builtins.getBuiltinFunction(NAME ## 4W) : \
                     builtins.getBuiltinFunction(NAME ## W)))
 
     case BuiltinType::Char_S:
@@ -452,9 +452,9 @@ FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT,
 
 
 // get convert_<type> function for given type
-FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool vecType) {
-  assert(vecType && "Only vector types are supported yet.");
-  if (vecType) {
+FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool isVecType) {
+  assert(isVecType && "Only vector types are supported yet.");
+  if (isVecType) {
     QT = QT->getAs<VectorType>()->getElementType();
   }
   switch (QT->getAs<BuiltinType>()->getKind()) {
