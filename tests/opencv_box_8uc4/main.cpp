@@ -25,7 +25,6 @@
 
 #include <iostream>
 #include <float.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -43,6 +42,8 @@
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
+#define CONST_MASK
+#define USE_LAMBDA
 
 #ifdef CPU
 #define OFFSET_CV 0.5f
@@ -93,31 +94,41 @@ void box_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int width, int
 // Kernel description in HIPAcc
 class BoxFilter : public Kernel<uchar4> {
     private:
-        Accessor<uchar4> &Input;
+        Accessor<uchar4> &in;
+        Domain &dom;
         int size_x, size_y;
 
     public:
-        BoxFilter(IterationSpace<uchar4> &IS, Accessor<uchar4> &Input, int
-                size_x, int size_y) :
-            Kernel(IS),
-            Input(Input),
+        BoxFilter(IterationSpace<uchar4> &iter, Accessor<uchar4> &in, Domain
+                &dom, int size_x, int size_y) :
+            Kernel(iter),
+            in(in),
+            dom(dom),
             size_x(size_x),
             size_y(size_y)
-        { addAccessor(&Input); }
+        { addAccessor(&in); }
 
+        #ifdef USE_LAMBDA
+        void kernel() {
+            output() = convert_uchar4( (1/(float)(size_x*size_y)) *
+                    (convert_float4(reduce(dom, HipaccSUM, [&] () -> int4 {
+                    return convert_int4(in(dom));
+                    })) + OFFSET_CV));
+        }
+        #else
         void kernel() {
             int anchor_x = size_x >> 1;
             int anchor_y = size_y >> 1;
             int4 sum = { 0, 0, 0, 0 };
 
-            // for even filter sizes use -anchor ... +anchor-1
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum += convert_int4(Input(xf, yf));
+                    sum += convert_int4(in(xf, yf));
                 }
             }
             output() = convert_uchar4(1.0f/(float)(size_x*size_y)*convert_float4(sum) + OFFSET_CV);
         }
+        #endif
 };
 
 
@@ -134,7 +145,13 @@ int main(int argc, const char **argv) {
     const int offset_y = size_y >> 1;
     float timing = 0.0f;
 
-    // host memory for image of of width x height pixels
+    // only filter kernel sizes 3x3 and 5x5 implemented
+    if (size_x != size_y && (size_x != 3 || size_x != 5)) {
+        fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // host memory for image of width x height pixels
     uchar4 *host_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *host_out = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
@@ -156,27 +173,48 @@ int main(int argc, const char **argv) {
     }
 
 
+    // define Domain for box filter
+    Domain dom(size_x, size_y);
+    #ifdef CONST_MASK
+    const
+    #endif
+    uchar domain[] = { 
+        #if SIZE_X==3
+        1, 1, 1,
+        1, 1, 1,
+        1, 1, 1
+        #endif
+        #if SIZE_X==5
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1
+        #endif
+    };
+    dom = domain;
+
     // input and output image of width x height pixels
-    Image<uchar4> IN(width, height);
-    Image<uchar4> OUT(width, height);
+    Image<uchar4> in(width, height);
+    Image<uchar4> out(width, height);
     // use undefined boundary handling to access image pixels beyond region
     // defined by Accessor
-    BoundaryCondition<uchar4> BcIn(IN, size_x, size_y, BOUNDARY_UNDEFINED);
-    Accessor<uchar4> AccIn(BcIn, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    BoundaryCondition<uchar4> bound(in, size_x, size_y, BOUNDARY_UNDEFINED);
+    Accessor<uchar4> acc(bound, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
 
-    IterationSpace<uchar4> BIS(OUT, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
-    BoxFilter BF(BIS, AccIn, size_x, size_y);
+    IterationSpace<uchar4> iter(out, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    BoxFilter filter(iter, acc, dom, size_x, size_y);
 
-    IN = host_in;
-    OUT = host_out;
+    in = host_in;
+    out = host_out;
 
-    fprintf(stderr, "Calculating HIPAcc blur filter ...\n");
+    fprintf(stderr, "Calculating HIPAcc box filter ...\n");
 
-    BF.execute();
+    filter.execute();
     timing = hipaccGetLastKernelTiming();
 
     // get results
-    host_out = OUT.getData();
+    host_out = out.getData();
 
     fprintf(stderr, "HIPACC: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
 
@@ -265,8 +303,8 @@ int main(int argc, const char **argv) {
                 reference_out[y*width + x].y != host_out[y*width + x].y ||
                 reference_out[y*width + x].z != host_out[y*width + x].z ||
                 reference_out[y*width + x].w != host_out[y*width + x].w) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): %hhu,%hhu,%hhu,%hhu vs. %hhu,%hhu,%hhu,%hhu\n",
-                        x, y,
+                fprintf(stderr, "Test FAILED, at (%d,%d): "
+                        "%hhu,%hhu,%hhu,%hhu vs. %hhu,%hhu,%hhu,%hhu\n", x, y,
                         reference_out[y*width + x].x,
                         reference_out[y*width + x].y,
                         reference_out[y*width + x].z,

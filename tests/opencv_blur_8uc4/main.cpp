@@ -37,11 +37,13 @@
 #include "hipacc.hpp"
 
 // variables set by Makefile
-//#define SIZE_X 3
-//#define SIZE_Y 3
+//#define SIZE_X 5
+//#define SIZE_Y 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
+#define CONST_MASK
+#define USE_LAMBDA
 
 #define NT 100
 #define SIMPLE
@@ -65,25 +67,24 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
         int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
     int upper_y = height-size_y+anchor_y;
-#else
+    #else
     int upper_x = width-anchor_x;
     int upper_y = height-anchor_y;
-#endif
+    #endif
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
             int4 sum = { 0, 0, 0, 0 };
 
-            // for even filter sizes use -anchor ... +anchor-1
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
                     sum += convert_int4(in[(y + yf)*width + x + xf]);
                 }
             }
-            #if defined(CPU) && defined (OpenCV)
+            #ifdef OpenCV
             out[y*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum) + 0.5f);
             #else
             out[y*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
@@ -92,17 +93,17 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
     }
 }
 #else
-void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
-        int t, int width, int height) {
+void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int t, int
+        width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
     int upper_y = height-size_y+anchor_y;
-#else
+    #else
     int upper_x = width-anchor_x;
     int upper_y = height-anchor_y;
-#endif
+    #endif
 
     for (int x=anchor_x; x<upper_x; ++x) {
         for (int t0=anchor_y; t0<upper_y; t0+=t) {
@@ -114,7 +115,7 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
                     sum += convert_int4(in[(t0 + yf)*width + x + xf]);
                 }
             }
-            #if defined(CPU) && defined(OpenCV)
+            #ifdef OpenCV
             out[t0*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum) + 0.5f);
             #else
             out[t0*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
@@ -127,7 +128,7 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
                     sum -= convert_int4(in[(t-anchor_y-1)*width + x + xf]);
                     sum += convert_int4(in[(t-anchor_y-1+size_y)*width + x + xf]);
                 }
-                #if defined(CPU) && defined(OpenCV)
+                #ifdef OpenCV
                 out[t*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum) + 0.5f);
                 #else
                 out[t*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
@@ -142,49 +143,65 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
 // Kernel description in HIPAcc
 class BlurFilter : public Kernel<uchar4> {
     private:
-        Accessor<uchar4> &Input;
+        Accessor<uchar4> &in;
+        Domain &dom;
         int size_x, size_y;
-#ifndef SIMPLE
+        #ifndef SIMPLE
         int nt, height;
-#endif
+        #endif
 
     public:
-        BlurFilter(IterationSpace<uchar4> &IS, Accessor<uchar4>
-                &Input, int size_x, int size_y
+        BlurFilter(IterationSpace<uchar4> &iter, Accessor<uchar4> &in, Domain
+                &dom, int size_x, int size_y
                 #ifndef SIMPLE
                 , int nt, int height
                 #endif
                 ) :
-            Kernel(IS),
-            Input(Input),
+            Kernel(iter),
+            in(in),
+            dom(dom),
             size_x(size_x),
             size_y(size_y)
             #ifndef SIMPLE
             , nt(nt),
             height(height)
             #endif
-        { addAccessor(&Input); }
+        { addAccessor(&in); }
 
+        #ifdef SIMPLE
+        void kernel() {
+            #ifdef USE_LAMBDA
+            output() = convert_uchar4( (1/(float)(size_x*size_y)) *
+                    convert_float4(reduce(dom, HipaccSUM, [&] () -> int4 {
+                    return convert_int4(in(dom));
+                    })));
+            #else
+            int anchor_x = size_x >> 1;
+            int anchor_y = size_y >> 1;
+            int4 sum = { 0, 0, 0, 0 };
+
+            // for even filter sizes use -anchor ... +anchor-1
+            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
+                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+                    sum += convert_int4(in(xf, yf));
+                }
+            }
+
+            output() = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
+            #endif
+        }
+        #else
         void kernel() {
             int anchor_x = size_x >> 1;
             int anchor_y = size_y >> 1;
             int4 sum = { 0, 0, 0, 0 };
 
-            #ifdef SIMPLE
-            // for even filter sizes use -anchor ... +anchor-1
-            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum += convert_int4(Input(xf, yf));
-                }
-            }
-            output() = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
-            #else
             int t0 = getY();
 
             // first phase: convolution
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum += convert_int4(Input.getPixel(Input.getX() + xf, t0*nt + yf));
+                    sum += convert_int4(in.getPixel(in.getX() + xf, t0*nt + yf));
                 }
             }
             outputAtPixel(getX(), t0*nt) = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
@@ -193,16 +210,19 @@ class BlurFilter : public Kernel<uchar4> {
             for (int dt=1; dt<min(nt, height-2*anchor_y-(t0*nt)); ++dt) {
                 int t = t0*nt + dt;
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum -= convert_int4(Input.getPixel(Input.getX() + xf, t-anchor_y-1));
-                    sum += convert_int4(Input.getPixel(Input.getX() + xf, t-anchor_y-1+size_y));
+                    sum -= convert_int4(in.getPixel(in.getX() + xf, t-anchor_y-1));
+                    sum += convert_int4(in.getPixel(in.getX() + xf, t-anchor_y-1+size_y));
                 }
                 outputAtPixel(getX(), t) = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
             }
-            #endif
         }
+        #endif
 };
 
 
+/*************************************************************************
+ * Main function                                                         *
+ *************************************************************************/
 int main(int argc, const char **argv) {
     double time0, time1, dt, min_dt;
     const int width = WIDTH;
@@ -214,19 +234,17 @@ int main(int argc, const char **argv) {
     const int t = NT;
     float timing = 0.0f;
 
-    // host memory for image of of widthxheight pixels
+    // only filter kernel sizes 3x3 and 5x5 implemented
+    if (size_x != size_y && (size_x != 3 || size_x != 5)) {
+        fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // host memory for image of width x height pixels
     uchar4 *host_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *host_out = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *reference_out = (uchar4 *)malloc(sizeof(uchar4)*width*height);
-
-    // input and output image of widthxheight pixels
-    Image<uchar4> IN(width, height);
-    Image<uchar4> OUT(width, height);
-    // use undefined boundary handling to access image pixels beyond region
-    // defined by Accessor
-    BoundaryCondition<uchar4> BcIn(IN, size_x, size_y, BOUNDARY_UNDEFINED);
-    Accessor<uchar4> AccIn(BcIn, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -243,29 +261,59 @@ int main(int argc, const char **argv) {
         }
     }
 
+
+    // define Domain for blur filter
+    Domain dom(size_x, size_y);
+    #ifdef CONST_MASK
+    const
+    #endif
+    uchar domain[] = { 
+        #if SIZE_X==3
+        1, 1, 1,
+        1, 1, 1,
+        1, 1, 1
+        #endif
+        #if SIZE_X==5
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1
+        #endif
+    };
+    dom = domain;
+
+    // input and output image of width x height pixels
+    Image<uchar4> in(width, height);
+    Image<uchar4> out(width, height);
+    // use undefined boundary handling to access image pixels beyond region
+    // defined by Accessor
+    BoundaryCondition<uchar4> bound(in, size_x, size_y, BOUNDARY_UNDEFINED);
+    Accessor<uchar4> acc(bound, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+
     #ifdef SIMPLE
-    IterationSpace<uchar4> BIS(OUT, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
-    BlurFilter BF(BIS, AccIn, size_x, size_y);
+    IterationSpace<uchar4> iter(out, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    BlurFilter filter(iter, acc, dom, size_x, size_y);
     #else
-    IterationSpace<uchar4> BIS(OUT, width-2*offset_x, (int)ceil((float)(height-2*offset_y)/t), offset_x, offset_y);
-    BlurFilter BF(BIS, AccIn, size_x, size_y, t, height);
+    IterationSpace<uchar4> iter(out, width-2*offset_x, (int)ceil((float)(height-2*offset_y)/t), offset_x, offset_y);
+    BlurFilter filter(iter, acc, dom, size_x, size_y, t, height);
     #endif
 
-    IN = host_in;
-    OUT = host_out;
+    in = host_in;
+    out = host_out;
 
-    fprintf(stderr, "Calculating blur filter ...\n");
+    fprintf(stderr, "Calculating HIPAcc blur filter ...\n");
 
-    BF.execute();
+    filter.execute();
     timing = hipaccGetLastKernelTiming();
 
     // get results
-    host_out = OUT.getData();
+    host_out = out.getData();
 
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
+    fprintf(stderr, "HIPACC: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
 
 
-#ifdef OpenCV
+    #ifdef OpenCV
     // OpenCV uses NPP library for filtering
     // image: 4096x4096
     // kernel size: 3x3
@@ -276,17 +324,18 @@ int main(int argc, const char **argv) {
     // kernel size: 4x4
     // offset 4x4 shifted by 1 -> 2x2
     // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
-#ifdef CPU
+    #ifdef CPU
     fprintf(stderr, "\nCalculating OpenCV blur filter on the CPU ...\n");
-#else
+    #else
     fprintf(stderr, "\nCalculating OpenCV blur filter on the GPU ...\n");
-#endif
+    #endif
 
 
     cv::Mat cv_data_in(height, width, CV_8UC4, host_in);
     cv::Mat cv_data_out(height, width, CV_8UC4, host_out);
     cv::Size ksize(size_x, size_y);
-#ifdef CPU
+
+    #ifdef CPU
     min_dt = DBL_MAX;
     for (int nt=0; nt<10; nt++) {
         time0 = time_ms();
@@ -297,7 +346,7 @@ int main(int argc, const char **argv) {
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
-#else
+    #else
     cv::gpu::GpuMat gpu_in, gpu_out;
     gpu_in.upload(cv_data_in);
 
@@ -313,10 +362,10 @@ int main(int argc, const char **argv) {
     }
 
     gpu_out.download(cv_data_out);
-#endif
+    #endif
 
     fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt, ((width-size_x)*(height-size_y)/min_dt)/1000);
-#endif
+    #endif
 
 
     fprintf(stderr, "\nCalculating reference ...\n");
@@ -335,30 +384,33 @@ int main(int argc, const char **argv) {
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt,
-            ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
+    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
 
     fprintf(stderr, "\nComparing results ...\n");
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_y = height-size_y+offset_y;
     int upper_x = width-size_x+offset_x;
-#else
+    #else
     int upper_y = height-offset_y;
     int upper_x = width-offset_x;
-#endif
+    #endif
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x].x != host_out[y*width + x].x &&
-                reference_out[y*width + x].y != host_out[y*width + x].y &&
-                reference_out[y*width + x].z != host_out[y*width + x].z &&
+            if (reference_out[y*width + x].x != host_out[y*width + x].x ||
+                reference_out[y*width + x].y != host_out[y*width + x].y ||
+                reference_out[y*width + x].z != host_out[y*width + x].z ||
                 reference_out[y*width + x].w != host_out[y*width + x].w) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): "
                         "%hhu,%hhu,%hhu,%hhu vs. %hhu,%hhu,%hhu,%hhu\n", x, y,
-                        reference_out[y*width + x].x, host_out[y*width + x].x,
-                        reference_out[y*width + x].y, host_out[y*width + x].y,
-                        reference_out[y*width + x].z, host_out[y*width + x].z,
-                        reference_out[y*width + x].w, host_out[y*width + x].w);
+                        reference_out[y*width + x].x,
+                        reference_out[y*width + x].y,
+                        reference_out[y*width + x].z,
+                        reference_out[y*width + x].w,
+                        host_out[y*width + x].x,
+                        host_out[y*width + x].y,
+                        host_out[y*width + x].z,
+                        host_out[y*width + x].z);
                 exit(EXIT_FAILURE);
             }
         }
