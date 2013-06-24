@@ -1369,7 +1369,7 @@ Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
       }
     }
 
-    body.push_back(newS);
+    if (newS) body.push_back(newS);
 
     if (postStmts.size()) {
       unsigned int num_stmts = 0;
