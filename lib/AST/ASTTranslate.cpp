@@ -1254,7 +1254,8 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
       VD = static_cast<VarDecl *>(D);
 
       result = KernelDeclMap[VD];
-      if (!result && convMask) result = LambdaDeclMap[VD];
+      if (!result && (convMask || !redDomains.empty()))
+        result = LambdaDeclMap[VD];
 
       if (!result) {
         QT = VD->getType();
@@ -1292,7 +1293,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
     if (PVD) {
       KernelDeclMapVector[PVD] = result;
     } else {
-      if (convMask) {
+      if (convMask || !redDomains.empty()) {
         LambdaDeclMap[VD] = result;
         LambdaDeclMap[result] = result;
       } else {
