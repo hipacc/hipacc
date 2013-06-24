@@ -26,7 +26,7 @@
 //
 
 #include <iostream>
-#include <math.h>
+#include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -34,12 +34,13 @@
 #include "hipacc.hpp"
 
 // variables set by Makefile
-//#define SIGMA_D 3
+#define SIGMA_D 3
 //#define SIGMA_R 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
-//#define CONST_MASK
-#define SIGMA_D SIZE_X
+#define CONST_MASK
+#define USE_LAMBDA
+//#define SIGMA_D SIZE_X
 #define SIGMA_R SIZE_Y
 #define CONVOLUTION_MASK
 #define EPS 0.02f
@@ -61,116 +62,118 @@ void bilateral_filter(float *in, float *out, int sigma_d, int sigma_r, int
         width, int height) {
     float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
     float c_d = 1.0f/(2.0f*sigma_d*sigma_d);
-    float s = 0.0f;
 
     for (int y=2*sigma_d; y<(height-2*sigma_d); ++y) {
         for (int x=2*sigma_d; x<width-2*sigma_d; ++x) {
-            float d = 0.0f;
-            float p = 0.0f;
+            float d = 0;
+            float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
                     float diff = in[(y + yf)*width + x + xf] - in[y*width + x];
 
-                    s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) * expf(-c_d
-                            * yf*yf);
+                    float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
+                        expf(-c_d * yf*yf);
                     d += s;
                     p += s * in[(y + yf)*width + x + xf];
                 }
             }
-            out[y*width + x] = (float) (p / d);
+            out[y*width + x] = p/d;
         }
     }
 }
 
 
 // Kernel description in HIPAcc
-#ifndef CONVOLUTION_MASK
+#ifdef CONVOLUTION_MASK
+class BilateralFilterMask : public Kernel<float> {
+    private:
+        Accessor<float> &in;
+        Mask<float> &mask;
+        Domain &dom;
+        int sigma_d, sigma_r;
+
+    public:
+        BilateralFilterMask(IterationSpace<float> &iter, Accessor<float> &in,
+                Mask<float> &mask, Domain &dom, int sigma_d, int sigma_r) :
+            Kernel(iter),
+            in(in),
+            mask(mask),
+            dom(dom),
+            sigma_d(sigma_d),
+            sigma_r(sigma_r)
+        { addAccessor(&in); }
+
+        #ifdef USE_LAMBDA
+        void kernel() {
+            float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
+            float d = 0;
+            float p = 0;
+
+            iterate(dom, [&] () -> void {
+                    float diff = in(dom) - in();
+
+                    float s = expf(-c_r * diff*diff) * mask(dom);
+                    d += s;
+                    p += s * in(dom);
+                    });
+
+            output() = p/d;
+        }
+        #else
+        void kernel() {
+            float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
+            float d = 0;
+            float p = 0;
+
+            for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
+                for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
+                    float diff = in(xf, yf) - in();
+
+                    float s = expf(-c_r * diff*diff) * mask(xf, yf);
+                    d += s;
+                    p += s * in(xf, yf);
+                }
+            }
+
+            output() = p/d;
+        }
+        #endif
+};
+#else
 class BilateralFilter : public Kernel<float> {
     private:
-        Accessor<float> &Input;
+        Accessor<float> &in;
         int sigma_d;
         int sigma_r;
 
     public:
-        BilateralFilter(IterationSpace<float> &IS, Accessor<float> &Input, int
+        BilateralFilter(IterationSpace<float> &iter, Accessor<float> &in, int
                 sigma_d, int sigma_r) :
-            Kernel(IS),
-            Input(Input),
+            Kernel(iter),
+            in(in),
             sigma_d(sigma_d),
             sigma_r(sigma_r)
-        {
-            addAccessor(&Input);
-        }
+        { addAccessor(&in); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
             float c_d = 1.0f/(2.0f*sigma_d*sigma_d);
-            float d = 0.0f;
-            float p = 0.0f;
-            float s = 0.0f;
+            float d = 0;
+            float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    float diff = Input(xf, yf) - Input();
+                    float diff = in(xf, yf) - in();
 
-                    s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) * expf(-c_d
-                            * yf*yf);
+                    float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
+                        expf(-c_d * yf*yf);
                     d += s;
-                    p += s * Input(xf, yf);
+                    p += s * in(xf, yf);
                 }
             }
-            output() = (float) (p / d);
-        }
-};
-#else
-class BilateralFilterMask : public Kernel<float> {
-    private:
-        Accessor<float> &Input;
-        Mask<float> &sMask;
-        int sigma_d, sigma_r;
 
-    public:
-        BilateralFilterMask(IterationSpace<float> &IS, Accessor<float> &Input,
-                Mask<float> &sMask, int sigma_d, int sigma_r) :
-            Kernel(IS),
-            Input(Input),
-            sMask(sMask),
-            sigma_d(sigma_d),
-            sigma_r(sigma_r)
-        {
-            addAccessor(&Input);
-        }
-
-        void kernel() {
-            float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
-            float d = 0.0f;
-            float p = 0.0f;
-
-            #if 0
-            d = convolve(sMask, HipaccSUM, [&] () -> float {
-                    float diff = Input(sMask) - Input();
-                    return expf(-c_r * diff*diff) * sMask();
-                    });
-            p = convolve(sMask, HipaccSUM, [&] () -> float {
-                    float diff = Input(sMask) - Input();
-                    return expf(-c_r * diff*diff) * sMask() * Input(sMask);
-                    });
-            #else
-            float s = 0.0f;
-
-            for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    float diff = Input(xf, yf) - Input();
-
-                    s = expf(-c_r * diff*diff) * sMask(xf, yf);
-                    d += s;
-                    p += s * Input(xf, yf);
-                }
-            }
-            #endif
-
-            output() = (float) (p / d);
+            output() = p/d;
         }
 };
 #endif
@@ -184,14 +187,8 @@ int main(int argc, const char **argv) {
     const int sigma_r = SIGMA_R;
     float timing = 0.0f;
 
-    // host memory for image of of width x height pixels
-    float *host_in = (float *)malloc(sizeof(float)*width*height);
-    float *host_out = (float *)malloc(sizeof(float)*width*height);
-    float *reference_in = (float *)malloc(sizeof(float)*width*height);
-    float *reference_out = (float *)malloc(sizeof(float)*width*height);
-
-#ifdef CONST_MASK
-    const float mask[] = {
+    #ifdef CONST_MASK
+    const float filter_mask[] = {
         #if SIGMA_D==1
         0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f,
         0.082085f, 0.367879f, 0.606531f, 0.367879f, 0.082085f,
@@ -200,44 +197,43 @@ int main(int argc, const char **argv) {
         0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f,
         #endif
         #if SIGMA_D==3
-        0.018316, 0.033746, 0.055638, 0.082085, 0.108368, 0.128022, 0.135335, 0.128022, 0.108368, 0.082085, 0.055638, 0.033746, 0.018316,
-        0.033746, 0.062177, 0.102512, 0.151240, 0.199666, 0.235877, 0.249352, 0.235877, 0.199666, 0.151240, 0.102512, 0.062177, 0.033746,
-        0.055638, 0.102512, 0.169013, 0.249352, 0.329193, 0.388896, 0.411112, 0.388896, 0.329193, 0.249352, 0.169013, 0.102512, 0.055638,
-        0.082085, 0.151240, 0.249352, 0.367879, 0.485672, 0.573753, 0.606531, 0.573753, 0.485672, 0.367879, 0.249352, 0.151240, 0.082085,
-        0.108368, 0.199666, 0.329193, 0.485672, 0.641180, 0.757465, 0.800737, 0.757465, 0.641180, 0.485672, 0.329193, 0.199666, 0.108368,
-        0.128022, 0.235877, 0.388896, 0.573753, 0.757465, 0.894839, 0.945959, 0.894839, 0.757465, 0.573753, 0.388896, 0.235877, 0.128022,
-        0.135335, 0.249352, 0.411112, 0.606531, 0.800737, 0.945959, 1.000000, 0.945959, 0.800737, 0.606531, 0.411112, 0.249352, 0.135335,
-        0.128022, 0.235877, 0.388896, 0.573753, 0.757465, 0.894839, 0.945959, 0.894839, 0.757465, 0.573753, 0.388896, 0.235877, 0.128022,
-        0.108368, 0.199666, 0.329193, 0.485672, 0.641180, 0.757465, 0.800737, 0.757465, 0.641180, 0.485672, 0.329193, 0.199666, 0.108368,
-        0.082085, 0.151240, 0.249352, 0.367879, 0.485672, 0.573753, 0.606531, 0.573753, 0.485672, 0.367879, 0.249352, 0.151240, 0.082085,
-        0.055638, 0.102512, 0.169013, 0.249352, 0.329193, 0.388896, 0.411112, 0.388896, 0.329193, 0.249352, 0.169013, 0.102512, 0.055638,
-        0.033746, 0.062177, 0.102512, 0.151240, 0.199666, 0.235877, 0.249352, 0.235877, 0.199666, 0.151240, 0.102512, 0.062177, 0.033746,
-        0.018316, 0.033746, 0.055638, 0.082085, 0.108368, 0.128022, 0.135335, 0.128022, 0.108368, 0.082085, 0.055638, 0.033746, 0.018316,
+        0.018316f, 0.033746f, 0.055638f, 0.082085f, 0.108368f, 0.128022f, 0.135335f, 0.128022f, 0.108368f, 0.082085f, 0.055638f, 0.033746f, 0.018316f,
+        0.033746f, 0.062177f, 0.102512f, 0.151240f, 0.199666f, 0.235877f, 0.249352f, 0.235877f, 0.199666f, 0.151240f, 0.102512f, 0.062177f, 0.033746f,
+        0.055638f, 0.102512f, 0.169013f, 0.249352f, 0.329193f, 0.388896f, 0.411112f, 0.388896f, 0.329193f, 0.249352f, 0.169013f, 0.102512f, 0.055638f,
+        0.082085f, 0.151240f, 0.249352f, 0.367879f, 0.485672f, 0.573753f, 0.606531f, 0.573753f, 0.485672f, 0.367879f, 0.249352f, 0.151240f, 0.082085f,
+        0.108368f, 0.199666f, 0.329193f, 0.485672f, 0.641180f, 0.757465f, 0.800737f, 0.757465f, 0.641180f, 0.485672f, 0.329193f, 0.199666f, 0.108368f,
+        0.128022f, 0.235877f, 0.388896f, 0.573753f, 0.757465f, 0.894839f, 0.945959f, 0.894839f, 0.757465f, 0.573753f, 0.388896f, 0.235877f, 0.128022f,
+        0.135335f, 0.249352f, 0.411112f, 0.606531f, 0.800737f, 0.945959f, 1.000000f, 0.945959f, 0.800737f, 0.606531f, 0.411112f, 0.249352f, 0.135335f,
+        0.128022f, 0.235877f, 0.388896f, 0.573753f, 0.757465f, 0.894839f, 0.945959f, 0.894839f, 0.757465f, 0.573753f, 0.388896f, 0.235877f, 0.128022f,
+        0.108368f, 0.199666f, 0.329193f, 0.485672f, 0.641180f, 0.757465f, 0.800737f, 0.757465f, 0.641180f, 0.485672f, 0.329193f, 0.199666f, 0.108368f,
+        0.082085f, 0.151240f, 0.249352f, 0.367879f, 0.485672f, 0.573753f, 0.606531f, 0.573753f, 0.485672f, 0.367879f, 0.249352f, 0.151240f, 0.082085f,
+        0.055638f, 0.102512f, 0.169013f, 0.249352f, 0.329193f, 0.388896f, 0.411112f, 0.388896f, 0.329193f, 0.249352f, 0.169013f, 0.102512f, 0.055638f,
+        0.033746f, 0.062177f, 0.102512f, 0.151240f, 0.199666f, 0.235877f, 0.249352f, 0.235877f, 0.199666f, 0.151240f, 0.102512f, 0.062177f, 0.033746f,
+        0.018316f, 0.033746f, 0.055638f, 0.082085f, 0.108368f, 0.128022f, 0.135335f, 0.128022f, 0.108368f, 0.082085f, 0.055638f, 0.033746f, 0.018316f,
         #endif
     };
-#else
-    float mask[(2*2*sigma_d+1)*(2*2*sigma_d+1)];
+    #else
+    float filter_mask[(2*2*sigma_d+1)*(2*2*sigma_d+1)];
     float mask_tmp[2*2*sigma_d+1];
     for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
         mask_tmp[xf+2*sigma_d] = expf(-1/(2.0f*sigma_d*sigma_d)*(xf*xf));
     }
     for (int yf=-2*sigma_d; yf<=2*sigma_d; yf++) {
         for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
-            mask[(yf+2*sigma_d)*(2*2*sigma_d+1) + xf+2*sigma_d] = mask_tmp[yf+2*sigma_d] * mask_tmp[xf+2*SIGMA_D];
-            fprintf(stderr, "%f, ", mask[(yf+2*sigma_d)*(2*2*sigma_d+1) + xf+2*sigma_d]);
+            filter_mask[(yf+2*sigma_d)*(2*2*sigma_d+1) + xf+2*sigma_d] = mask_tmp[yf+2*sigma_d] * mask_tmp[xf+2*SIGMA_D];
+            fprintf(stderr, "%f, ", filter_mask[(yf+2*sigma_d)*(2*2*sigma_d+1) + xf+2*sigma_d]);
         }
         fprintf(stderr, "\n");
     }
-#endif
-    Mask<float> M(4*sigma_d+1, 4*sigma_d+1);
-    M = mask;
+    #endif
+    Mask<float> mask(4*sigma_d+1, 4*sigma_d+1);
+    mask = filter_mask;
 
-    // input and output image of width x height pixels
-    Image<float> IN(width, height);
-    Image<float> OUT(width, height);
-
-    // iteration space
-    IterationSpace<float> BIS(OUT, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
+    // host memory for image of width x height pixels
+    float *host_in = (float *)malloc(sizeof(float)*width*height);
+    float *host_out = (float *)malloc(sizeof(float)*width*height);
+    float *reference_in = (float *)malloc(sizeof(float)*width*height);
+    float *reference_out = (float *)malloc(sizeof(float)*width*height);
 
     // initialize data
     #define DELTA 0.001f
@@ -250,30 +246,68 @@ int main(int argc, const char **argv) {
         }
     }
 
-    IN = host_in;
-    OUT = host_out;
 
-    fprintf(stderr, "Calculating bilateral filter ...\n");
+    // define Domain for blur filter
+    Domain dom(4*sigma_d+1, 4*sigma_d+1);
+    #ifdef CONST_MASK
+    const
+    #endif
+    uchar domain[] = {
+        #if SIGMA_D==1
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1
+        #endif
+        #if SIGMA_D==3
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        #endif
+    };
+    dom = domain;
 
+    // input and output image of width x height pixels
+    Image<float> in(width, height);
+    Image<float> out(width, height);
     // use undefined boundary handling to access image pixels beyond region
     // defined by Accessor
-    BoundaryCondition<float> BcIn(IN, 4*sigma_d, 4*sigma_d, BOUNDARY_UNDEFINED);
+    BoundaryCondition<float> bound(in, 4*sigma_d, 4*sigma_d, BOUNDARY_UNDEFINED);
     // Image without border
-    Accessor<float> AccIn(BcIn, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
-#ifdef CONVOLUTION_MASK
-    BilateralFilterMask BF(BIS, AccIn, M, sigma_d, sigma_r);
-#else
-    BilateralFilter BF(BIS, AccIn, sigma_d, sigma_r);
-#endif
+    Accessor<float> acc(bound, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
 
+    // iteration space
+    IterationSpace<float> iter(out, width-4*sigma_d, height-4*sigma_d, 2*sigma_d, 2*sigma_d);
 
-    BF.execute();
+    #ifdef CONVOLUTION_MASK
+    BilateralFilterMask filter(iter, acc, mask, dom, sigma_d, sigma_r);
+    #else
+    BilateralFilter filter(iter, acc, sigma_d, sigma_r);
+    #endif
+
+    in = host_in;
+    out = host_out;
+
+    fprintf(stderr, "Calculating HIPAcc bilateral filter ...\n");
+
+    filter.execute();
     timing = hipaccGetLastKernelTiming();
 
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-4*sigma_d)*(height-4*sigma_d)/timing)/1000);
-
     // get results
-    host_out = OUT.getData();
+    host_out = out.getData();
+
+    fprintf(stderr, "HIPACC: %.3f ms, %.3f Mpixel/s\n", timing, ((width-4*sigma_d)*(height-4*sigma_d)/timing)/1000);
 
 
     fprintf(stderr, "\nCalculating reference ...\n");
