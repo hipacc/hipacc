@@ -223,5 +223,42 @@ Expr *ASTTranslate::getInitExpr(ConvolutionMode mode, QualType QT) {
   return result;
 }
 
+
+// check if the current index of the domain space should be processed
+Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
+    Stmt *stmt) {
+  assert(domain_var && "Domain.");
+
+  Expr *dom_acc = NULL;
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+    case TARGET_CUDA:
+      // array subscript: Domain[y][x]
+      dom_acc = accessMem2DAt(domain_var, createIntegerLiteral(Ctx,
+            redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
+      break;
+    case TARGET_OpenCL:
+    case TARGET_OpenCLCPU:
+    case TARGET_Renderscript:
+      // array subscript: Domain[y*width + x]
+      dom_acc = accessMemArrAt(domain_var, createIntegerLiteral(Ctx,
+            (int)Domain->getSizeX()), createIntegerLiteral(Ctx, redIdxX.back()),
+          createIntegerLiteral(Ctx, redIdxY.back()));
+      break;
+    case TARGET_RenderscriptGPU:
+    case TARGET_Filterscript:
+      // allocation access: rsGetElementAt(Domain, x, y)
+      dom_acc = accessMemAllocAt(domain_var, READ_ONLY, createIntegerLiteral(Ctx,
+            redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
+      break;
+  }
+  // if (dom(x, y) > 0)
+  BinaryOperator *check_dom = createBinaryOperator(Ctx, dom_acc, new (Ctx)
+      CharacterLiteral(0, CharacterLiteral::Ascii, Ctx.UnsignedCharTy,
+        SourceLocation()), BO_GT, Ctx.BoolTy);
+
+  return createIfStmt(Ctx, check_dom, stmt);
+}
+
 // vim: set ts=2 sw=2 sts=2 et ai:
 

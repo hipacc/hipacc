@@ -69,20 +69,20 @@ enum BoundaryMode {
 
 // reduction modes for convolutions
 enum ConvolutionMode {
-    HipaccSUM,
-    HipaccMIN,
-    HipaccMAX,
-    HipaccPROD,
-    HipaccMEDIAN
+  HipaccSUM,
+  HipaccMIN,
+  HipaccMAX,
+  HipaccPROD,
+  HipaccMEDIAN
 };
 
 // interpolation modes for accessors
 enum InterpolationMode {
-    InterpolateNO,
-    InterpolateNN,
-    InterpolateLF,
-    InterpolateCF,
-    InterpolateL3
+  InterpolateNO,
+  InterpolateNN,
+  InterpolateLF,
+  InterpolateCF,
+  InterpolateL3
 };
 
 

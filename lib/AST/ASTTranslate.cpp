@@ -1410,43 +1410,8 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
       return convTmpExpr;
     }
   } else if (!redDomains.empty() && !redTmps.empty()) {
-    Stmt *convTmpExpr = getConvolutionStmt(redModes.back(), redTmps.back(),
+    return getConvolutionStmt(redModes.back(), redTmps.back(),
         Clone(S->getRetValue()));
-
-    HipaccMask *Domain = redDomains.back();
-    if (Domain->isConstant()) {
-      return convTmpExpr;
-    } else {
-      Expr *dom_acc = NULL;
-      switch (compilerOptions.getTargetCode()) {
-        case TARGET_C:
-        case TARGET_CUDA:
-          // array subscript: Domain[y][x]
-          dom_acc = accessMem2DAt(redDomRefs.back(), createIntegerLiteral(Ctx,
-                redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
-          break;
-        case TARGET_OpenCL:
-        case TARGET_OpenCLCPU:
-        case TARGET_Renderscript:
-          // array subscript: Domain[y*width + x]
-          dom_acc = accessMemArrAt(redDomRefs.back(), createIntegerLiteral(Ctx,
-                (int)Domain->getSizeX()), createIntegerLiteral(Ctx,
-                redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
-          break;
-        case TARGET_RenderscriptGPU:
-        case TARGET_Filterscript:
-          // allocation access: rsGetElementAt(Domain, x, y)
-          dom_acc = accessMemAllocAt(redDomRefs.back(), READ_ONLY,
-              createIntegerLiteral(Ctx, redIdxX.back()),
-              createIntegerLiteral(Ctx, redIdxY.back()));
-          break;
-      }
-      // if (dom(x, y) > 0)
-      BinaryOperator *check_dom = createBinaryOperator(Ctx, dom_acc, new (Ctx)
-          CharacterLiteral(0, CharacterLiteral::Ascii, Ctx.UnsignedCharTy,
-            SourceLocation()), BO_GT, Ctx.BoolTy);
-      return createIfStmt(Ctx, check_dom, convTmpExpr);
-    }
   } else {
     return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
   }
@@ -1465,191 +1430,129 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
     }
 
     // check if this is a convolve function call
+    ConvolveMethod method;
+    bool isConvolution = true;
     if (E->getDirectCallee()->getName().equals("convolve")) {
+      method = Convolve;
+      assert(convMask == NULL && "Nested convolution calls are not supported.");
+    } else if (E->getDirectCallee()->getName().equals("reduce")) {
+      method = Reduce;
+    } else if (E->getDirectCallee()->getName().equals("iterate")) {
+      method = Iterate;
+    } else isConvolution = false;
+
+    if (isConvolution) {
       DiagnosticsEngine &Diags = Ctx.getDiagnostics();
 
-      assert(convMask == NULL && "Nested convolution calls are not supported.");
+      switch (method) {
+        case Convolve:
+          // convolve(mask, mode, [&] () { lambda-function; });
+          assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'convolve' call.");
+          break;
+        case Reduce:
+          // reduce(domain, mode, [&] () { lambda-function; });
+          assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'reduce' call.");
+          break;
+        case Iterate:
+          // reduce(domain, [&] () { lambda-function; });
+          assert(E->getNumArgs() == 2 && "Expected 2 arguments to 'iterate' call.");
+          break;
+      }
 
-      // convolve(mask, mode, [&] () { lambda-function; });
-      assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'convolve' call.");
-
-      // first parameter: Mask<type> reference
+      // first parameter: Mask<type> or Domain reference
       HipaccMask *Mask = NULL;
-      assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) && "First parameter to 'convolve' call must be a Mask.");
+      if (method==Convolve)
+        assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
+            isa<FieldDecl>(dyn_cast<MemberExpr>(
+                E->getArg(0)->IgnoreImpCasts())->getMemberDecl()) &&
+               "First parameter to 'convolve' call must be a Mask.");
+      else
+        assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
+            isa<FieldDecl>(dyn_cast<MemberExpr>(
+                E->getArg(0)->IgnoreImpCasts())->getMemberDecl()) &&
+               "First parameter to 'reduce'/'iterate' call must be a Domain.");
       MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(0)->IgnoreImpCasts());
-
-      // get FieldDecl of the MemberExpr
-      assert(isa<FieldDecl>(ME->getMemberDecl()) && "Mask must be a C++-class member.");
       FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
 
-      // look for Mask user class member variable
+      // look for Mask/Domain user class member variable
       if (Kernel->getMaskFromMapping(FD)) {
         Mask = Kernel->getMaskFromMapping(FD);
       }
-      assert(Mask && "Could not find Mask Field Decl.");
-
-      // second parameter: convolution mode
-      assert(isa<DeclRefExpr>(E->getArg(1)) && "Second parameter to 'convolve' call must be the convolution mode.");
-      DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E->getArg(1));
-
-      if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
-          DRE->getDecl()->getType().getAsString() ==
-          "enum hipacc::HipaccConvolutionMode") {
-        int64_t mode = E->getArg(1)->EvaluateKnownConstInt(Ctx).getSExtValue();
-        switch (mode) {
-          case HipaccSUM:
-            convMode = HipaccSUM;
-            break;
-          case HipaccMIN:
-            convMode = HipaccMIN;
-            break;
-          case HipaccMAX:
-            convMode = HipaccMAX;
-            break;
-          case HipaccPROD:
-            convMode = HipaccPROD;
-            break;
-          case HipaccMEDIAN:
-            convMode = HipaccMEDIAN;
-          default:
-            unsigned int DiagIDConvMode =
-              Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                  "Convolution mode not supported, allowed modes are: HipaccSUM, HipaccMIN, HipaccMAX, and HipaccPROD.");
-            Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode);
-            break;
-        }
-      } else {
-        unsigned int DiagIDConvMode =
-          Diags.getCustomDiagID(DiagnosticsEngine::Error,
-              "Unknown convolution mode detected.");
-        Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode);
+      switch (method) {
+        case Convolve:
+          assert(Mask && !Mask->isDomain() &&
+              "Could not find Mask Field Decl.");
+          break;
+        case Reduce:
+        case Iterate:
+          assert(Mask && Mask->isDomain() &&
+              "Could not find Domain Field Decl.");
+          break;
       }
 
-      // third parameter: lambda-function
-      assert(isa<MaterializeTemporaryExpr>(E->getArg(2)) && "Third parameter to 'convolve' call must be a lambda-function.");
-      assert(isa<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(E->getArg(2))->GetTemporaryExpr()->IgnoreImpCasts()) &&
-          "Third parameter to 'convolve' call must be a lambda-function.");
-      LambdaExpr *LE = dyn_cast<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(E->getArg(2))->GetTemporaryExpr()->IgnoreImpCasts());
+      // second parameter: convolution/reduction mode
+      if (method==Convolve || method==Reduce) {
+        if (method==Convolve)
+          assert(isa<DeclRefExpr>(E->getArg(1)) &&
+              "Second parameter to 'convolve' call must be the convolution mode.");
+        if (method==Reduce)
+          assert(isa<DeclRefExpr>(E->getArg(1)) &&
+              "Second parameter to 'reduce' call must be the reduction mode.");
+        DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E->getArg(1));
 
-      // check default capture kind
-      for (LambdaExpr::capture_iterator II=LE->capture_begin(), EE=LE->capture_end(); II!=EE; ++II) {
-        LambdaExpr::Capture cap = *II;
-
-        if (cap.capturesVariable() && cap.getCaptureKind()==LCK_ByCopy) {
-          unsigned int DiagIDCapture =
+        if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
+            DRE->getDecl()->getType().getAsString() ==
+            "enum hipacc::HipaccConvolutionMode") {
+          int64_t mode = E->getArg(1)->EvaluateKnownConstInt(Ctx).getSExtValue();
+          switch (mode) {
+            case HipaccSUM:
+              if (method==Convolve) convMode = HipaccSUM;
+              else redModes.push_back(HipaccSUM);
+              break;
+            case HipaccMIN:
+              if (method==Convolve) convMode = HipaccMIN;
+              else redModes.push_back(HipaccMIN);
+              break;
+            case HipaccMAX:
+              if (method==Convolve) convMode = HipaccMAX;
+              else redModes.push_back(HipaccMAX);
+              break;
+            case HipaccPROD:
+              if (method==Convolve) convMode = HipaccPROD;
+              else redModes.push_back(HipaccPROD);
+              break;
+            case HipaccMEDIAN:
+              if (method==Convolve) convMode = HipaccMEDIAN;
+              else redModes.push_back(HipaccMEDIAN);
+            default:
+              unsigned int DiagIDConvMode =
+                Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                    "%0 mode not supported, allowed modes are: "
+                    "HipaccSUM, HipaccMIN, HipaccMAX, and HipaccPROD.");
+              Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode)
+                << (const char *)(Mask->isDomain()?"reduction":"convolution");
+              break;
+          }
+        } else {
+          unsigned int DiagIDConvMode =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Capture by copy [=] is not supported for convolve lambda-function (variable %0), use capture by reference [&] instead.");
-          Diags.Report(LE->getExprLoc(), DiagIDCapture) << cap.getCapturedVar();
+                "Unknown %0 mode detected.");
+          Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode)
+            << (const char *)(Mask->isDomain()?"reduction":"convolution");
         }
-      }
-
-      // introduce temporary for holding the convolution result
-      CompoundStmt *outerCompountStmt = curCStmt;
-      std::stringstream LSST;
-      LSST << "_conv_tmp" << literalCount++;
-      VarDecl *conv_tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(),
-          LE->getCallOperator()->getResultType(), NULL);
-      DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
-      DC->addDecl(conv_tmp_decl);
-      DeclRefExpr *conv_tmp = createDeclRefExpr(Ctx, conv_tmp_decl);
-      convTmp = conv_tmp;
-      convMask = Mask;
-      preStmts.push_back(createDeclStmt(Ctx, conv_tmp_decl));
-      preCStmt.push_back(outerCompountStmt);
-
-      // unroll convolution
-      for (unsigned int y=0; y<Mask->getSizeY(); y++) {
-        for (unsigned int x=0; x<Mask->getSizeX(); x++) {
-          convIdxX = x;
-          convIdxY = y;
-          Stmt *convIteration = Clone(LE->getBody());
-          preStmts.push_back(convIteration);
-          preCStmt.push_back(outerCompountStmt);
-          // clear decls added while cloning last iteration
-          LambdaDeclMap.clear();
-        }
-      }
-
-      convMask = NULL;
-      convTmp = NULL;
-      convIdxX = convIdxY = 0;
-
-      // add ICE for CodeGen
-      return createImplicitCastExpr(Ctx, conv_tmp->getType(), CK_LValueToRValue,
-          conv_tmp, NULL, VK_RValue);
-    }
-
-    // check if this is a reduce function call
-    if (E->getDirectCallee()->getName().equals("reduce")) {
-      DiagnosticsEngine &Diags = Ctx.getDiagnostics();
-
-      // reduce(domain, mode, [&] () { lambda-function; });
-      assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'reduce' call.");
-
-      // first parameter: Domain reference
-      HipaccMask *Domain = NULL;
-      assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
-             "First parameter to 'reduce' call must be a Domain.");
-      MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(0)->IgnoreImpCasts());
-
-      // get FieldDecl of the MemberExpr
-      assert(isa<FieldDecl>(ME->getMemberDecl()) &&
-             "Domain must be a C++-class member.");
-      FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
-
-      // look for Domain user class member variable
-      if (Kernel->getMaskFromMapping(FD)) {
-        Domain = Kernel->getMaskFromMapping(FD);
-      }
-      assert(Domain && Domain->isDomain() &&
-          "Could not find Domain Field Decl.");
-
-      // second parameter: reduction mode
-      assert(isa<DeclRefExpr>(E->getArg(1)) &&
-             "Second parameter to 'reduce' call must be the reduction mode.");
-      DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E->getArg(1));
-
-      if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
-          DRE->getDecl()->getType().getAsString() ==
-          "enum hipacc::HipaccConvolutionMode") {
-        int64_t mode = E->getArg(1)->EvaluateKnownConstInt(Ctx).getSExtValue();
-        switch (mode) {
-          case HipaccSUM:
-            redModes.push_back(HipaccSUM);
-            break;
-          case HipaccMIN:
-            redModes.push_back(HipaccMIN);
-            break;
-          case HipaccMAX:
-            redModes.push_back(HipaccMAX);
-            break;
-          case HipaccPROD:
-            redModes.push_back(HipaccPROD);
-            break;
-          case HipaccMEDIAN:
-            redModes.push_back(HipaccMEDIAN);
-          default:
-            unsigned int DiagIDConvMode =
-              Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                  "Reduction mode not supported, allowed modes are: "
-                  "HipaccSUM, HipaccMIN, HipaccMAX, and HipaccPROD.");
-            Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode);
-            break;
-        }
-      } else {
-        unsigned int DiagIDConvMode =
-          Diags.getCustomDiagID(DiagnosticsEngine::Error,
-              "Unknown reduction mode detected.");
-        Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode);
       }
 
       // third parameter: lambda-function
-      assert(isa<MaterializeTemporaryExpr>(E->getArg(2)) &&
+      int li = 2;
+      if (method==Iterate) li = 1;
+
+      assert(isa<MaterializeTemporaryExpr>(E->getArg(li)) &&
              isa<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(
-                 E->getArg(2))->GetTemporaryExpr()->IgnoreImpCasts()) &&
-             "Third parameter to 'reduce' call must be a lambda-function.");
+                 E->getArg(li))->GetTemporaryExpr()->IgnoreImpCasts()) &&
+             "Third parameter to 'reduce' or 'iterate' call must be a"
+             "lambda-function.");
       LambdaExpr *LE = dyn_cast<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(
-                           E->getArg(2))->GetTemporaryExpr()->IgnoreImpCasts());
+                           E->getArg(li))->GetTemporaryExpr()->IgnoreImpCasts());
 
       // check default capture kind
       for (LambdaExpr::capture_iterator II=LE->capture_begin(),
@@ -1659,40 +1562,58 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
         if (cap.capturesVariable() && cap.getCaptureKind()==LCK_ByCopy) {
           unsigned int DiagIDCapture =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Capture by copy [=] is not supported for reduce "
-                "lambda-function (variable %0), use capture by reference [&] "
-                "instead.");
-          Diags.Report(LE->getExprLoc(), DiagIDCapture) << cap.getCapturedVar();
+                "Capture by copy [=] is not supported for %0 lambda-function"
+                "(variable %1), use capture by reference [&] instead.");
+          Diags.Report(LE->getExprLoc(), DiagIDCapture)
+            << (const char *)(method==Convolve ? "convolve" : method==Reduce ?
+                "reduce" : "iterate")
+            << cap.getCapturedVar();
         }
       }
 
-      // introduce temporary for holding the convolution result
+      // introduce temporary for holding the convolution/reduction result
       CompoundStmt *outerCompountStmt = curCStmt;
       std::stringstream LSST;
-      LSST << "_red_tmp" << literalCount++;
-      // init temporary variable depending on aggregation mode
-      Expr *init = getInitExpr(redModes.back(),
-          LE->getCallOperator()->getResultType());
-      VarDecl *red_tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(),
+      LSST << "_tmp" << literalCount++;
+      Expr *init = NULL;
+      if (method==Reduce) {
+        // init temporary variable depending on aggregation mode
+        init = getInitExpr(redModes.back(),
+            LE->getCallOperator()->getResultType());
+      }
+      VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(),
           LE->getCallOperator()->getResultType(), init);
       DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
-      DC->addDecl(red_tmp_decl);
-      DeclRefExpr *red_tmp = createDeclRefExpr(Ctx, red_tmp_decl);
-      redTmps.push_back(red_tmp);
-      redDomains.push_back(Domain);
-      // get DeclRefExpr for Domain when visiting the MemberExpr
-      redDomRefs.push_back(dyn_cast_or_null<DeclRefExpr>(VisitMemberExpr(ME)));
-      preStmts.push_back(createDeclStmt(Ctx, red_tmp_decl));
-      preCStmt.push_back(outerCompountStmt);
+      DC->addDecl(tmp_decl);
+      DeclRefExpr *tmp_dre = createDeclRefExpr(Ctx, tmp_decl);
 
-      // unroll reduction
-      for (unsigned int y=0; y<Domain->getSizeY(); y++) {
-        for (unsigned int x=0; x<Domain->getSizeX(); x++) {
+      switch (method) {
+        case Convolve:
+          convTmp = tmp_dre;
+          convMask = Mask;
+          preStmts.push_back(createDeclStmt(Ctx, tmp_decl));
+          preCStmt.push_back(outerCompountStmt);
+          break;
+        case Reduce:
+          redTmps.push_back(tmp_dre);
+          redDomains.push_back(Mask);
+          preStmts.push_back(createDeclStmt(Ctx, tmp_decl));
+          preCStmt.push_back(outerCompountStmt);
+          break;
+        case Iterate:
+          redDomains.push_back(Mask);
+          break;
+      }
+
+      // unroll Mask/Domain
+      for (unsigned int y=0; y<Mask->getSizeY(); y++) {
+        for (unsigned int x=0; x<Mask->getSizeX(); x++) {
           bool doIterate = true;
-          if (Domain->isConstant()) {
-            Expr *E = Domain->getInitList()
-                            ->getInit(Domain->getSizeY() * x + y)
-                            ->IgnoreParenCasts();
+
+          if (Mask->isDomain() && Mask->isConstant()) {
+            Expr *E = Mask->getInitList()
+                          ->getInit(Mask->getSizeY() * x + y)
+                          ->IgnoreParenCasts();
             if (isa<IntegerLiteral>(E) &&
                 dyn_cast<IntegerLiteral>(E)->getValue() == 0) {
               doIterate = false;
@@ -1700,12 +1621,31 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
           }
 
           if (doIterate) {
-            redIdxX.push_back(x);
-            redIdxY.push_back(y);
-            Stmt *redIteration = Clone(LE->getBody());
-            redIdxX.pop_back();
-            redIdxY.pop_back();
-            preStmts.push_back(redIteration);
+            Stmt *iteration = NULL;
+            switch (method) {
+              case Convolve:
+                convIdxX = x;
+                convIdxY = y;
+                iteration = Clone(LE->getBody());
+                break;
+              case Reduce:
+              case Iterate:
+                redIdxX.push_back(x);
+                redIdxY.push_back(y);
+                iteration = Clone(LE->getBody());
+                // add check if this iteration point should be processed - the
+                // DeclRefExpr for the Domain is retrieved when visiting the
+                // MemberExpr
+                if (!Mask->isConstant()) {
+                  iteration = addDomainCheck(Mask,
+                      dyn_cast_or_null<DeclRefExpr>(VisitMemberExpr(ME)),
+                      iteration);
+                }
+                redIdxX.pop_back();
+                redIdxY.pop_back();
+                break;
+            }
+            preStmts.push_back(iteration);
             preCStmt.push_back(outerCompountStmt);
             // clear decls added while cloning last iteration
             LambdaDeclMap.clear();
@@ -1713,14 +1653,35 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
         }
       }
 
-      redDomains.pop_back();
-      redDomRefs.pop_back();
-      redModes.pop_back();
-      redTmps.pop_back();
+      // reset global variables
+      switch (method) {
+        case Convolve:
+          convMask = NULL;
+          convTmp = NULL;
+          convIdxX = convIdxY = 0;
+          break;
+        case Reduce:
+          redDomains.pop_back();
+          redModes.pop_back();
+          redTmps.pop_back();
+          break;
+        case Iterate:
+          redDomains.pop_back();
+          redTmps.pop_back();
+          break;
+      }
 
-      // add ICE for CodeGen
-      return createImplicitCastExpr(Ctx, red_tmp->getType(), CK_LValueToRValue,
-          red_tmp, NULL, VK_RValue);
+      // result of convolution
+      switch (method) {
+        case Convolve:
+        case Reduce:
+          // add ICE for CodeGen
+          return createImplicitCastExpr(Ctx,
+              LE->getCallOperator()->getResultType(), CK_LValueToRValue,
+              tmp_dre, NULL, VK_RValue);
+        case Iterate:
+          return NULL;
+      }
     }
 
     // lookup if this function call is supported and choose appropriate
@@ -2084,7 +2045,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
     switch (E->getNumArgs()) {
       default:
-        assert(0 && "0 or 2 arguments for Mask operator() expected!");
+        assert(0 && "0, 1, or 2 arguments for Mask operator() expected!");
         break;
       case 1:
         assert(convMask && convMask==Mask &&
@@ -2229,7 +2190,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
     int mask_idx_x = 0, mask_idx_y = 0;
     switch (E->getNumArgs()) {
       default:
-        assert(0 && "0 or 2 arguments for Accessor operator() expected!\n");
+        assert(0 && "0, 1, or 2 arguments for Accessor operator() expected!\n");
         break;
       case 1:
         // 0: -> (this *) Image Class
