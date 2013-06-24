@@ -134,6 +134,13 @@ public:
     return DI->getY();
   }
 
+  int getSizeX() {
+    return size_x;
+  }
+  int getSizeY() {
+    return size_y;
+  }
+
   DomainIterator begin() const {
     return DomainIterator(size_x, size_y, offset_x, offset_y,
                           &iteration_space, domain_space);

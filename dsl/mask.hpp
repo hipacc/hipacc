@@ -140,6 +140,15 @@ class Mask : public MaskBase {
             return array[yf-offset_y][xf-offset_x];
             #endif
         }
+        data_t &operator()(Domain &D) {
+            assert(D.getSizeX()==size_x && D.getSizeY()==size_y &&
+                    "Domain and Mask size must be equal.");
+            #ifdef NO_BOOST
+            return array[(D.getY()-offset_y)*size_x + D.getX()-offset_x];
+            #else
+            return array[D.getY()-offset_y][D.getX()-offset_x];
+            #endif
+        }
 
         Mask &operator=(const data_t *other) {
             for (int y=0; y<size_y; ++y) {

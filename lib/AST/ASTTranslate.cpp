@@ -2087,6 +2087,61 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           }
         }
         break;
+      case 2:
+        // 0: -> (this *) Mask class
+        // 1: -> (dom) Domain class
+        {
+        assert(isa<MemberExpr>(E->getArg(1)) && "Memory access function assumed.");
+        MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(1));
+        assert(isa<FieldDecl>(ME->getMemberDecl()) && "Domain must be a C++-class member.");
+        FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
+
+        // look for Domain user class member variable
+        assert(Kernel->getMaskFromMapping(FD) && "Could not find Domain variable.");
+        HipaccMask *Domain = Kernel->getMaskFromMapping(FD);
+        assert(Domain->isDomain() && "Domain required.");
+
+        assert(Mask->getSizeX()==Domain->getSizeX() &&
+               Mask->getSizeY()==Domain->getSizeY() &&
+               "Mask and Domain size must be equal.");
+
+        // within reduce/iterate lambda-function
+        if (Mask->isConstant()) {
+          // propagate constants
+          result = Clone(Mask->getInitList()->getInit(Mask->getSizeY() *
+                redIdxX.back() + redIdxY.back())->IgnoreParenCasts());
+        } else {
+          // access mask elements
+          Expr *midx_x = createIntegerLiteral(Ctx, redIdxX.back());
+          Expr *midx_y = createIntegerLiteral(Ctx, redIdxY.back());
+
+          switch (compilerOptions.getTargetCode()) {
+            case TARGET_C:
+            case TARGET_CUDA:
+              // array subscript: Mask[conv_y][conv_x]
+              result = accessMem2DAt(LHS, midx_x, midx_y);
+              break;
+            case TARGET_OpenCL:
+            case TARGET_OpenCLCPU:
+            case TARGET_Renderscript:
+              if (Mask->isConstant()) {
+                // array subscript: Mask[conv_y][conv_x]
+                result = accessMem2DAt(LHS, midx_x, midx_y);
+              } else {
+                // array subscript: Mask[(conv_y)*width + conv_x]
+                result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
+                      (int)Mask->getSizeX()), midx_x, midx_y);
+              }
+              break;
+            case TARGET_RenderscriptGPU:
+            case TARGET_Filterscript:
+              // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
+              result = accessMemAllocAt(LHS, memAcc, midx_x, midx_y);
+              break;
+          }
+        }
+        }
+        break;
       case 3:
         // 0: -> (this *) Mask class
         // 1: -> x
