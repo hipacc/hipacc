@@ -1610,7 +1610,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
         for (unsigned int x=0; x<Mask->getSizeX(); x++) {
           bool doIterate = true;
 
-          if (Mask->isDomain() && Mask->isConstant()) {
+          if (Mask->isDomain() && Mask->isConstant() && Mask->getInitList()) {
             Expr *E = Mask->getInitList()
                           ->getInit(Mask->getSizeY() * x + y)
                           ->IgnoreParenCasts();

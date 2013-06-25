@@ -465,6 +465,10 @@ int main(int argc, const char **argv) {
     Mask<float> mask(4*sigma_d+1, 4*sigma_d+1);
     mask = filter_mask;
 
+    // define Domain for blur filter
+    Domain dom(4*sigma_d+1, 4*sigma_d+1);
+
+
     // host memory for image of width x height pixels
     float *host_in = (float *)malloc(sizeof(float)*width*height);
     float *host_out = (float *)malloc(sizeof(float)*width*height);
@@ -482,37 +486,6 @@ int main(int argc, const char **argv) {
         }
     }
 
-
-    // define Domain for blur filter
-    Domain dom(4*sigma_d+1, 4*sigma_d+1);
-    #ifdef CONST_MASK
-    const
-    #endif
-    uchar domain[] = {
-        #if SIGMA_D==1
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1
-        #endif
-        #if SIGMA_D==3
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        #endif
-    };
-    dom = domain;
 
     // input and output image of width x height pixels
     Image<float> in(width, height);

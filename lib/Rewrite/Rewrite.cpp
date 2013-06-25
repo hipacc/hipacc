@@ -1280,6 +1280,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         Mask = new HipaccMask(VD, HipaccMask::Domain);
         Mask->setType(Context.UnsignedCharTy);
+        // there are no holes in the Domain by default
+        Mask->setIsConstant(true);
       }
 
       if (Mask) {
