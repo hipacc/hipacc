@@ -36,15 +36,12 @@
 #include "types.hpp"
 
 namespace hipacc {
-// forward declaration
-template<typename data_t> class BoundaryCondition;
-
 class MaskBase {
     protected:
         const int size_x, size_y;
         const int offset_x, offset_y;
+        uchar *domain_space;
         IterationSpaceBase iteration_space;
-        ElementIterator *EI;
 
     public:
         MaskBase(int size_x, int size_y) :
@@ -52,35 +49,157 @@ class MaskBase {
             size_y(size_y),
             offset_x(-size_x/2),
             offset_y(-size_y/2),
-            iteration_space(size_x, size_y),
-            EI(NULL)
-        {}
+            domain_space(new uchar[size_x*size_y]),
+            iteration_space(size_x, size_y)
+        {
+            assert(size_x>0 && size_y>0 && "Size for Domain must be positive!");
+            // initialize full domain
+            for (int i = 0; i < size_x*size_y; ++i) {
+              domain_space[i] = 1;
+            }
+        }
+
+        MaskBase(const MaskBase &mask) :
+            MaskBase(mask.size_x, mask.size_y)
+        {
+            for (int y=0; y<size_y; ++y) {
+              for (int x=0; x<size_x; ++x) {
+                domain_space[y * size_x + x] = mask.domain_space[y * size_x + x];
+              }
+            }
+        }
+
+        ~MaskBase() {
+            if (domain_space != NULL) {
+              delete[] domain_space;
+              domain_space = NULL;
+            }
+        }
+
+        int getSizeX() const { return size_x; }
+        int getSizeY() const { return size_y; }
+
+        virtual int getX() = 0;
+        virtual int getY() = 0;
+
+    friend class Domain;
+    template<typename> friend class Mask;
+};
+
+
+class Domain : public MaskBase {
+    public:
+        class DomainIterator : public ElementIterator {
+            private:
+                uchar *domain_space;
+
+            public:
+                DomainIterator(int width=0, int height=0,
+                               int offsetx=0, int offsety=0,
+                               const IterationSpaceBase *iterspace=NULL,
+                               uchar *domain_space=NULL) :
+                    ElementIterator(width, height, offsetx, offsety, iterspace),
+                    domain_space(domain_space)
+                {
+                    if (domain_space != NULL) {
+                        // set current coordinate before domain
+                        coord.x = min_x-1;
+                        coord.y = min_y;
+
+                        // use increment to search first non-zero value
+                        ++(*this);
+                    }
+                }
+
+                ~DomainIterator() {}
+
+                // increment so we iterate over elements in a block
+                DomainIterator &operator++() {
+                    do {
+                        if (iteration_space) {
+                            coord.x++;
+                            if (coord.x >= max_x) {
+                                coord.x = min_x;
+                                coord.y++;
+                                if (coord.y >= max_y) {
+                                    iteration_space = NULL;
+                                }
+                            }
+                        }
+                    } while (NULL != iteration_space &&
+                             (NULL == domain_space ||
+                              0 == domain_space[(coord.y-min_y) * (max_x-min_x)
+                                                + (coord.x-min_x)]));
+                    return *this;
+                }
+            };
+
+    protected:
+        DomainIterator *DI;
+
+    public:
+        Domain(int size_x, int size_y) :
+            MaskBase(size_x, size_y),
+            DI(NULL) {}
+
+        Domain(const Domain &domain) :
+            MaskBase(domain),
+            DI(domain.DI) {}
+
+        ~Domain() {}
 
         int getX() {
-            assert(EI && "ElementIterator for Mask not set!");
-            return EI->getX();
+            assert(DI && "DomainIterator for Domain not set!");
+            return DI->getX();
         }
         int getY() {
-            assert(EI && "ElementIterator for Mask not set!");
-            return EI->getY();
+            assert(DI && "DomainIterator for Domain not set!");
+            return DI->getY();
         }
 
-        ElementIterator begin() const {
-            return ElementIterator(size_x, size_y, offset_x, offset_y,
-                    &iteration_space);
+        uchar &operator()(unsigned int x, unsigned int y) {
+            x += size_x >> 1;
+            y += size_y >> 1;
+            if ((int)x < size_x && (int)y < size_y) {
+                return domain_space[y * size_x + x];
+            } else {
+                return domain_space[0];
+            }
         }
-        ElementIterator end() const { return ElementIterator(); }
 
-        virtual void setEI(ElementIterator *ei) {
-            EI = ei;
+        Domain &operator=(const uchar *other) {
+            for (int y=0; y<size_y; ++y) {
+                for (int x=0; x<size_x; ++x) {
+                    domain_space[y * size_x + x] = other[y * size_x + x];
+                }
+            }
+
+            return *this;
         }
-    template<typename> friend class BoundaryCondition;
+
+        void operator=(const MaskBase &mask) {
+            assert(size_x==mask.getSizeX() && size_y==mask.getSizeY() &&
+                    "Domain and Mask size must be equal.");
+            for (int y=0; y<size_y; ++y) {
+                for (int x=0; x<size_x; ++x) {
+                    domain_space[y * size_x + x] = mask.domain_space[y * size_x + x];
+                }
+            }
+        }
+
+        void setDI(DomainIterator *di) { DI = di; }
+        DomainIterator begin() const {
+            return DomainIterator(size_x, size_y, offset_x, offset_y,
+                                  &iteration_space, domain_space);
+        }
+        DomainIterator end() const { return DomainIterator(); }
 };
 
 
 template<typename data_t>
 class Mask : public MaskBase {
     private:
+        ElementIterator *EI;
         #ifdef NO_BOOST
         data_t *array;
         #else
@@ -91,6 +210,7 @@ class Mask : public MaskBase {
     public:
         Mask(int size_x, int size_y) :
             MaskBase(size_x, size_y),
+            EI(NULL),
             #ifdef NO_BOOST
             array(new data_t[size_x*size_y])
             #else
@@ -123,6 +243,15 @@ class Mask : public MaskBase {
             }
             #else
             #endif
+        }
+
+        int getX() {
+            assert(EI && "ElementIterator for Mask not set!");
+            return EI->getX();
+        }
+        int getY() {
+            assert(EI && "ElementIterator for Mask not set!");
+            return EI->getY();
         }
 
         data_t &operator()(void) {
@@ -158,15 +287,24 @@ class Mask : public MaskBase {
                     #else
                     array[y][x] = other[y*size_x + x];
                     #endif
+                    // set holes in underlying domain_space
+                    if (other[y*size_x + x] == 0) {
+                        domain_space[y*size_x + x] = 0;
+                    } else {
+                        domain_space[y*size_x + x] = 1;
+                    }
                 }
             }
 
             return *this;
         }
 
-        void setEI(ElementIterator *ei) {
-            EI = ei;
+        void setEI(ElementIterator *ei) { EI = ei; }
+        ElementIterator begin() const {
+            return ElementIterator(size_x, size_y, offset_x, offset_y,
+                    &iteration_space);
         }
+        ElementIterator end() const { return ElementIterator(); }
 };
 
 
@@ -214,6 +352,71 @@ auto convolve(Mask<data_t> &mask, HipaccConvolutionMode mode, const Function& fu
     mask.setEI(NULL);
 
     return result;
+}
+
+
+template <typename Function>
+auto reduce(Domain &domain, HipaccConvolutionMode mode,
+            const Function &fun) -> decltype(fun()) {
+    Domain::DomainIterator end = domain.end();
+    Domain::DomainIterator iter = domain.begin();
+
+    // register domain
+    domain.setDI(&iter);
+
+    // initialize result - calculate first iteration
+    auto result = fun();
+    ++iter;
+
+    // advance iterator and apply kernel to remaining iteration space
+    while (iter != end) {
+        switch (mode) {
+            case HipaccSUM:
+                result += fun();
+                break;
+            case HipaccMIN: {
+                auto tmp = fun();
+                result = hipacc::math::min(tmp, result);
+                }
+              break;
+            case HipaccMAX: {
+                auto tmp = fun();
+                result = hipacc::math::max(tmp, result);
+                }
+                break;
+            case HipaccPROD:
+                result *= fun();
+                break;
+            case HipaccMEDIAN:
+                assert(0 && "HipaccMEDIAN not implemented yet!");
+                break;
+        }
+        ++iter;
+    }
+
+    // de-register domain
+    domain.setDI(NULL);
+
+    return result;
+}
+
+
+template <typename Function>
+void iterate(Domain &domain, const Function &fun) {
+    Domain::DomainIterator end = domain.end();
+    Domain::DomainIterator iter = domain.begin();
+
+    // register domain
+    domain.setDI(&iter);
+
+    // advance iterator and apply kernel to iteration space
+    while (iter != end) {
+        fun();
+        ++iter;
+    }
+
+    // de-register domain
+    domain.setDI(NULL);
 }
 } // end namespace hipacc
 

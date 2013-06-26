@@ -36,7 +36,6 @@
 #include <cmath>
 
 #include "iterationspace.hpp"
-#include "domain.hpp"
 #include "mask.hpp"
 
 namespace hipacc {
@@ -197,8 +196,8 @@ class BoundaryCondition {
 
         BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, hipaccBoundaryMode mode) :
             img(Img),
-            size_x(Mask.size_x),
-            size_y(Mask.size_y),
+            size_x(Mask.getSizeX()),
+            size_y(Mask.getSizeY()),
             mode(mode),
             const_val(),
             dummy(const_val)
@@ -230,8 +229,8 @@ class BoundaryCondition {
 
         BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, hipaccBoundaryMode mode, data_t val) :
             img(Img),
-            size_x(Mask.size_x),
-            size_y(Mask.size_y),
+            size_x(Mask.getSizeX()),
+            size_y(Mask.getSizeY()),
             mode(mode),
             const_val(),
             dummy(const_val)
@@ -372,11 +371,6 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
         data_t &operator()(const int xf, const int yf) {
             assert(EI && "ElementIterator not set!");
             return interpolate(EI->getX(), EI->getY(), xf, yf);
-        }
-
-        data_t &operator()(Domain &D) {
-            assert(EI && "ElementIterator not set!");
-            return interpolate(EI->getX(), EI->getY(), D.getX(), D.getY());
         }
 
         data_t &operator()(MaskBase &M) {
