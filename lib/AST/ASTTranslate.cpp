@@ -1830,9 +1830,6 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
     if (PVD->getName().equals(VD->getName())) {
       paramDecl = PVD;
 
-      // mark parameter as being used within the kernel
-      Kernel->setUsed(VD->getName());
-
       // get vector declaration
       if (Kernel->vectorize() && !compilerOptions.emitC()) {
         if (KernelDeclMapVector.count(PVD)) {
@@ -1857,12 +1854,15 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
   }
 
   // check if the parameter is a Mask and replace it by a global VarDecl
+  bool isMask = false;
   if (!compilerOptions.emitC()) {
     for (unsigned int i=0; i<KernelClass->getNumMasks(); i++) {
       FieldDecl *FD = KernelClass->getMaskFields().data()[i];
 
       if (paramDecl->getName().equals(FD->getName())) {
         HipaccMask *Mask = Kernel->getMaskFromMapping(FD);
+
+        if (Mask) isMask = true;
 
         if (Mask && (Mask->isConstant() || compilerOptions.emitCUDA())) {
           VarDecl *maskVar = NULL;
@@ -1887,6 +1887,12 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
         }
       }
     }
+  }
+
+  if (!isMask) {
+      // mark parameter as being used within the kernel unless for Masks and
+      // Domains
+      Kernel->setUsed(VD->getName());
   }
 
   Expr *result = createDeclRefExpr(Ctx, paramDecl);
@@ -2061,6 +2067,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           Expr *midx_x = createIntegerLiteral(Ctx, convIdxX);
           Expr *midx_y = createIntegerLiteral(Ctx, convIdxY);
 
+          // set Mask as being used within Kernel
+          Kernel->setUsed(Mask->getDecl()->getName());
           switch (compilerOptions.getTargetCode()) {
             case TARGET_C:
             case TARGET_CUDA:
@@ -2115,6 +2123,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           Expr *midx_x = createIntegerLiteral(Ctx, redIdxX.back());
           Expr *midx_y = createIntegerLiteral(Ctx, redIdxY.back());
 
+          // set Mask as being used within Kernel
+          Kernel->setUsed(Mask->getDecl()->getName());
           switch (compilerOptions.getTargetCode()) {
             case TARGET_C:
             case TARGET_CUDA:
@@ -2146,6 +2156,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // 0: -> (this *) Mask class
         // 1: -> x
         // 2: -> y
+
+        // set Mask as being used within Kernel
+        Kernel->setUsed(Mask->getDecl()->getName());
         switch (compilerOptions.getTargetCode()) {
           case TARGET_C:
           case TARGET_CUDA:

@@ -566,6 +566,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   // bind textures and get constant pointers
   for (unsigned int i=0; i<K->getNumArgs(); i++) {
     FieldDecl *FD = K->getDeviceArgFields()[i];
+
+    // skip unused variables
+    if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
+
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     if (Acc) {
       if (options.emitCUDA() && K->useTextureMemory(Acc)) {
@@ -645,6 +649,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   for (unsigned int i=0; i<K->getNumArgs(); i++) {
     FieldDecl *FD = K->getDeviceArgFields()[i];
 
+    // skip unused variables
+    if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
+
     HipaccMask *Mask = K->getMaskFromMapping(FD);
     if (Mask) {
       if (options.emitCUDA()) {
@@ -669,9 +676,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     }
     std::string img_mem("");
     if (Acc || i==0) img_mem = ".mem";
-
-    // skip unused variables
-    if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
 
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument
