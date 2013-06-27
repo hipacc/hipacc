@@ -62,15 +62,16 @@ class Image {
         data_t *array;
         #else
         typedef boost::multi_array<data_t, 2> Array2D;
-        Array2D array;
+        Array2D *array;
         #endif
+        unsigned int *refcount;
 
         #ifdef NO_BOOST
         data_t &getPixel(int x, int y) { return array[y*width + x]; }
         void setPixel(int x, int y, data_t val) { array[y*width + x] = val; }
         #else
-        data_t &getPixel(int x, int y) { return array[y][x]; }
-        void setPixel(int x, int y, data_t val) { array[y][x] = val; }
+        data_t &getPixel(int x, int y) { return (*array)[y][x]; }
+        void setPixel(int x, int y, data_t val) { (*array)[y][x] = val; }
         #endif
 
 
@@ -79,36 +80,34 @@ class Image {
             width(width),
             height(height),
             #ifdef NO_BOOST
-            array(new data_t[width*height])
+            array(new data_t[width*height]),
             #else
-            array(boost::extents[height][width])
+            array(new Array2D(boost::extents[height][width])),
             #endif
+            refcount(new unsigned int(1))
         {}
 
         Image(const Image &image) :
             width(image.width),
             height(image.height),
-            #ifdef NO_BOOST
-            array(new data_t[image.width*image.height])
-            #else
-            array(boost::extents[image.height][image.width])
-            #endif
+            array(image.array),
+            refcount(image.refcount)
         {
-            #ifdef NO_BOOST
-            operator=(image.array);
-            #else
-            array = image.array;
-            #endif
+            ++(*refcount);
         }
 
         ~Image() {
-            #ifdef NO_BOOST
-            if (array != NULL) {
+            --(*refcount);
+            if (array != NULL &&
+                *refcount == 0) {
+              delete refcount;
+              #ifdef NO_BOOST
               delete[] array;
+              #else
+              delete array;
+              #endif
               array = NULL;
             }
-            #else
-            #endif
         }
 
         int getWidth() const { return width; }
@@ -117,7 +116,7 @@ class Image {
         #ifdef NO_BOOST
         data_t *getData() { return array; }
         #else
-        data_t *getData() { return array.data(); }
+        data_t *getData() { return (*array).data(); }
         #endif
 
         Image &operator=(data_t *other) {
@@ -126,7 +125,7 @@ class Image {
                     #ifdef NO_BOOST
                     array[y*width + x] = other[y*width + x];
                     #else
-                    array[y][x] = other[y*width + x];
+                    (*array)[y][x] = other[y*width + x];
                     #endif
                 }
             }
