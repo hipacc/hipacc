@@ -106,7 +106,7 @@ class Pyramid : public PyramidBase {
 
     Image<data_t> &operator()(int relative) {
       assert(getLevel() + relative >= 0 &&
-             getLevel() + relative < imgs_.size() &&
+             getLevel() + relative < (int)imgs_.size() &&
              "Accessed pyramid stage is out of bounds.");
       return imgs_.at(getLevel() + relative);
     }
