@@ -110,6 +110,12 @@ class Pyramid : public PyramidBase {
              "Accessed pyramid stage is out of bounds.");
       return imgs_.at(getLevel() + relative);
     }
+
+    void swap(Pyramid<data_t> &other) {
+      std::vector<Image<data_t> > tmp = other.imgs_;
+      other.imgs_ = this->imgs_;
+      this->imgs_ = tmp;
+    }
 };
 
 

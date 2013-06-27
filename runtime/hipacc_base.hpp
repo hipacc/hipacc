@@ -200,6 +200,12 @@ class HipaccPyramid {
     bool isBottomLevel() {
       return level_ == depth_-1;
     }
+
+    void swap(HipaccPyramid &other) {
+      std::vector<HipaccImage> tmp = other.imgs_;
+      other.imgs_ = this->imgs_;
+      this->imgs_ = tmp;
+    }
 };
 
 
