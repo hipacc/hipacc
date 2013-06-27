@@ -50,11 +50,11 @@ static void LLVMErrorHandler(void *userData, const std::string &message, bool
 }
 
 
-llvm::sys::Path getExecutablePath(const char *argv0) {
+std::string getExecutablePath(const char *argv0) {
   // this just needs to be some symbol in the binary; C++ doesn't
   // allow taking the address of ::main however
   void *mainAddr = (void *) (intptr_t) getExecutablePath;
-  return llvm::sys::Path::GetMainExecutable(argv0, mainAddr);
+  return llvm::sys::fs::getMainExecutable(argv0, mainAddr);
 }
 
 
@@ -364,7 +364,7 @@ int main(int argc, char *argv[]) {
 
   // setup and initialize compiler instance
   void *mainAddr = (void *) (intptr_t) getExecutablePath;
-  llvm::sys::Path Path = getExecutablePath(argv[0]);
+  std::string Path = getExecutablePath(argv[0]);
 
   OwningPtr<CompilerInstance> Clang(new CompilerInstance());
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());

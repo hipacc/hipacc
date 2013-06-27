@@ -36,7 +36,7 @@
 
 #include <clang/Frontend/FrontendDiagnostic.h>
 #include <clang/Frontend/TextDiagnosticBuffer.h>
-#include <llvm/Support/PathV1.h>
+#include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Signals.h>
 
 #include "hipacc/Config/config.h"
