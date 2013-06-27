@@ -152,8 +152,12 @@ class Traversal {
 
 
 class Recursion {
+  private:
+    std::function<void()> func_;
+
   public:
-    Recursion() {
+    Recursion(const std::function<void()> func)
+        : func_(func) {
       std::vector<PyramidBase*> pyrs = gPyramids.back();
       for (std::vector<PyramidBase*>::iterator it = pyrs.begin();
            it != pyrs.end(); ++it) {
@@ -174,6 +178,9 @@ class Recursion {
       if (pyrs.at(0)->getLevel() < pyrs.at(0)->getDepth()-1) {
         for (int i = 0; i < loop; i++) {
           (*gTraverse.back())();
+          if (i < loop-1) {
+            func_();
+          }
         }
       }
     }
@@ -253,11 +260,11 @@ void traverse(Pyramid<data_t> &p0, Pyramid<data_t> &p1, Pyramid<data_t> &p2,
 }
 
 
-void traverse(unsigned int loop=1) {
+void traverse(unsigned int loop=1, const std::function<void()> func=[]{}) {
   assert(!gPyramids.empty() &&
          "Traverse recursion called outside of traverse.");
 
-  Recursion r;
+  Recursion r(func);
   r.run(loop);
 }
 

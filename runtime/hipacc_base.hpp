@@ -357,7 +357,8 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
 }
 
 
-void hipaccTraverse(unsigned int loop=1) {
+void hipaccTraverse(unsigned int loop=1,
+                    const std::function<void()> func=[]{}) {
   assert(!hipaccPyramids.empty() &&
          "Traverse recursion called outside of traverse.");
 
@@ -371,6 +372,9 @@ void hipaccTraverse(unsigned int loop=1) {
 
     for (unsigned int i = 0; i < loop; i++) {
       (*hipaccTraverseFunc.back())();
+      if (i < loop-1) {
+        func();
+      }
     }
 
     for (std::vector<HipaccPyramid*>::iterator it = pyrs.begin();
