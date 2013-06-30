@@ -1111,19 +1111,19 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             // add call expression to pyramid argument (from boundary condition)
             Parms += "(" + BC->getPyramidIndex() + ")";
           }
+        }
 
-          // img|bc|pyramid-call
-          // img|bc|pyramid-call, width, height, xf, yf
-          if (CCE->getNumArgs()<4) Acc->setNoCrop();
+        // img|bc|pyramid-call
+        // img|bc|pyramid-call, width, height, xf, yf
+        if (CCE->getNumArgs()<4) Acc->setNoCrop();
 
-          // get text string for arguments, argument order is:
-          for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
-            std::string Str;
-            llvm::raw_string_ostream SS(Str);
+        // get text string for arguments, argument order is:
+        for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
+          std::string Str;
+          llvm::raw_string_ostream SS(Str);
 
-            CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-            Parms += ", " + SS.str();
-          }
+          CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+          Parms += ", " + SS.str();
         }
 
         newStr += "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";
@@ -1187,19 +1187,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         // get text string for arguments
         std::string Parms = IS->getImage()->getName();
 
-        if (Img) {
-          // img[, is_width, is_height[, offset_x, offset_y]]
-          if (CCE->getNumArgs()<4) IS->setNoCrop();
-
-          // get text string for arguments, argument order is:
-          for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
-            std::string Str;
-            llvm::raw_string_ostream SS(Str);
-
-            CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-            Parms += ", " + SS.str();
-          }
-        } else if (Pyr) {
+        if (Pyr) {
           // add call expression to pyramid argument
           IntegerLiteral *IL = NULL;
           UnaryOperator *UO = NULL;
@@ -1227,6 +1215,18 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           }
           LSS << *(IL->getValue().getRawData());
           Parms += "(" + LSS.str() + ")";
+        }
+
+        // img[, is_width, is_height[, offset_x, offset_y]]
+        if (CCE->getNumArgs()<4) IS->setNoCrop();
+
+        // get text string for arguments, argument order is:
+        for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
+          std::string Str;
+          llvm::raw_string_ostream SS(Str);
+
+          CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+          Parms += ", " + SS.str();
         }
 
         newStr += "HipaccAccessor " + IS->getName() + "(" + Parms + ");";
