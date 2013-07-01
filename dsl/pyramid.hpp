@@ -36,12 +36,10 @@
 namespace hipacc {
 
 // forward declaration
-template <typename data_t>
 class Traversal;
 class Recursion;
 
 class PyramidBase {
-  template <typename data_t>
   friend class Traversal;
   friend class Recursion;
 
@@ -123,7 +121,6 @@ std::vector<const std::function<void()>*> gTraverse;
 std::vector<std::vector<PyramidBase*> > gPyramids;
 
 
-template <typename data_t>
 class Traversal {
   private:
     std::function<void()> func_;
@@ -134,9 +131,9 @@ class Traversal {
         : func_(func) {
     }
 
-    void add(Pyramid<data_t> &p) {
+    void add(PyramidBase &p) {
       p.setLevel(0);
-      pyrs_.push_back((PyramidBase*)&p);
+      pyrs_.push_back(&p);
     }
 
     void run() {
@@ -187,35 +184,32 @@ class Recursion {
 };
 
 
-template <typename data_t>
-void traverse(Pyramid<data_t> &p0, const std::function<void()> func) {
-    Traversal<data_t> t(func);
+void traverse(PyramidBase &p0, const std::function<void()> func) {
+    Traversal t(func);
     t.add(p0);
     t.run();
 }
 
 
-template <typename data_t>
-void traverse(Pyramid<data_t> &p0, Pyramid<data_t> &p1,
+void traverse(PyramidBase &p0, PyramidBase &p1,
               const std::function<void()> func) {
     assert(p0.getDepth() == p1.getDepth() &&
            "Pyramid depths do not match.");
 
-    Traversal<data_t> t(func);
+    Traversal t(func);
     t.add(p0);
     t.add(p1);
     t.run();
 }
 
 
-template <typename data_t>
-void traverse(Pyramid<data_t> &p0, Pyramid<data_t> &p1, Pyramid<data_t> &p2,
+void traverse(PyramidBase &p0, PyramidBase &p1, PyramidBase &p2,
               const std::function<void()> func) {
     assert(p0.getDepth() == p1.getDepth() &&
            p1.getDepth() == p2.getDepth() &&
            "Pyramid depths do not match.");
 
-    Traversal<data_t> t(func);
+    Traversal t(func);
     t.add(p0);
     t.add(p1);
     t.add(p2);
@@ -223,15 +217,14 @@ void traverse(Pyramid<data_t> &p0, Pyramid<data_t> &p1, Pyramid<data_t> &p2,
 }
 
 
-template <typename data_t>
-void traverse(Pyramid<data_t> &p0, Pyramid<data_t> &p1, Pyramid<data_t> &p2,
-              Pyramid<data_t> &p3, const std::function<void()> func) {
+void traverse(PyramidBase &p0, PyramidBase &p1, PyramidBase &p2,
+              PyramidBase &p3, const std::function<void()> func) {
     assert(p0.getDepth() == p1.getDepth() &&
            p1.getDepth() == p2.getDepth() &&
            p2.getDepth() == p3.getDepth() &&
            "Pyramid depths do not match.");
 
-    Traversal<data_t> t(func);
+    Traversal t(func);
     t.add(p0);
     t.add(p1);
     t.add(p2);
@@ -240,9 +233,8 @@ void traverse(Pyramid<data_t> &p0, Pyramid<data_t> &p1, Pyramid<data_t> &p2,
 }
 
 
-template <typename data_t>
-void traverse(Pyramid<data_t> &p0, Pyramid<data_t> &p1, Pyramid<data_t> &p2,
-              Pyramid<data_t> &p3, Pyramid<data_t> &p4,
+void traverse(PyramidBase &p0, PyramidBase &p1, PyramidBase &p2,
+              PyramidBase &p3, PyramidBase &p4,
               const std::function<void()> func) {
     assert(p0.getDepth() == p1.getDepth() &&
            p1.getDepth() == p2.getDepth() &&
@@ -250,7 +242,7 @@ void traverse(Pyramid<data_t> &p0, Pyramid<data_t> &p1, Pyramid<data_t> &p2,
            p3.getDepth() == p4.getDepth() &&
            "Pyramid depths do not match.");
 
-    Traversal<data_t> t(func);
+    Traversal t(func);
     t.add(p0);
     t.add(p1);
     t.add(p2);
