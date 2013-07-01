@@ -252,6 +252,21 @@ void traverse(PyramidBase &p0, PyramidBase &p1, PyramidBase &p2,
 }
 
 
+void traverse(std::vector<PyramidBase*> pyrs,
+              const std::function<void()> func) {
+    Traversal t(func);
+    for (int i = 0; i < pyrs.size(); ++i) {
+      if (i < pyrs.size() - 1) {
+        assert(pyrs[i]->getDepth() == pyrs[i+1]->getDepth() &&
+               "Pyramid depths do not match.");
+      }
+      t.add(*(pyrs[i]));
+    }
+
+    t.run();
+}
+
+
 void traverse(unsigned int loop=1, const std::function<void()> func=[]{}) {
   assert(!gPyramids.empty() &&
          "Traverse recursion called outside of traverse.");

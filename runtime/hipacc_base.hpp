@@ -357,6 +357,26 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
 }
 
 
+void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
+                    const std::function<void()> func) {
+    for (int i = 0; i < pyrs.size(); ++i) {
+      if (i < pyrs.size() - 1) {
+        assert(pyrs[i]->depth_ == pyrs[i+1]->depth_ &&
+               "Pyramid depths do not match.");
+      }
+      pyrs[i]->level_ = 0;
+    }
+
+    hipaccPyramids.push_back(pyrs);
+    hipaccTraverseFunc.push_back(&func);
+
+    (*hipaccTraverseFunc.back())();
+
+    hipaccTraverseFunc.pop_back();
+    hipaccPyramids.pop_back();
+}
+
+
 void hipaccTraverse(unsigned int loop=1,
                     const std::function<void()> func=[]{}) {
   assert(!hipaccPyramids.empty() &&
