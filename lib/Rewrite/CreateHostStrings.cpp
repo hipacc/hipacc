@@ -624,7 +624,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       resultStr += "_texs" + kernelName + ".push_back(";
       resultStr += "hipacc_tex_info(std::string(\"_surfOutput" + K->getName() + "\"), ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTextureType() + ", ";
-      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface));\n";
+      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + "));\n";
     } else {
       resultStr += "hipaccBindSurface<";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getPixelType();
