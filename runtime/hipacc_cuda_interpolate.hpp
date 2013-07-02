@@ -2,23 +2,23 @@
 // Copyright (c) 2012, University of Erlangen-Nuremberg
 // Copyright (c) 2012, Siemens AG
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met: 
-// 
+// modification, are permitted provided that the following conditions are met:
+//
 // 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer. 
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution. 
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 // ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
 // ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
 // (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND 
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -132,17 +132,17 @@ __device__ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped
 
 
 // Cubic Interpolation
-__device__ float bicubic_spline(float diff) { 
-    diff = abs(diff); 
-    float a = -0.5f; 
- 
-    if (diff < 1.0f) { 
-        return (a + 2.0f) *diff*diff*diff - (a + 3.0f)*diff*diff + 1; 
-    } else if (diff < 2.0f) { 
-        return a * diff*diff*diff - 5.0f * a * diff*diff + 8.0f * a * diff - 4.0f * a; 
-    } else return 0.0f; 
-} 
- 
+__device__ float bicubic_spline(float diff) {
+    diff = abs(diff);
+    float a = -0.5f;
+
+    if (diff < 1.0f) {
+        return (a + 2.0f) *diff*diff*diff - (a + 3.0f)*diff*diff + 1;
+    } else if (diff < 2.0f) {
+        return a * diff*diff*diff - 5.0f * a * diff*diff + 8.0f * a * diff - 4.0f * a;
+    } else return 0.0f;
+}
+
 #define INTERPOLATE_CUBIC_FILTERING_CUDA(NAME, DATA_TYPE, PARM, CPARM, ACCESS, BHXL, BHXU, BHYL, BHYU) \
 __device__ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
     float xb = x_mapped - 0.5f; \

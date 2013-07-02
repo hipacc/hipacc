@@ -2117,7 +2117,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           newStr = "width";
         } else if (ME->getMemberNameInfo().getAsString() == "getHeight") {
           newStr = "height";
-        } 
+        }
       }
 
       // get the Accessor from the DRE if we have one
@@ -2127,7 +2127,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           newStr = "img.width";
         } else if (ME->getMemberNameInfo().getAsString() == "getHeight") {
           newStr = "img.height";
-        } 
+        }
       }
 
       if (!newStr.empty()) {
