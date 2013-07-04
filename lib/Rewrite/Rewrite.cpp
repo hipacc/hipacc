@@ -2723,9 +2723,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_C:
             break;
           case TARGET_CUDA:
-            if (!emitHints) {
-              *OS << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
-            }
+            *OS << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
             break;
           case TARGET_OpenCL:
           case TARGET_OpenCLCPU:
@@ -2785,16 +2783,18 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
   }
 
-  if ((!compilerOptions.emitCUDA() || !emitHints) && inc &&
-       InterpolationDefinitions.size()) {
+  if (((compilerOptions.emitCUDA() && // CUDA, but no exploration or no hints
+          (compilerOptions.exploreConfig() || !emitHints)) ||
+        !compilerOptions.emitCUDA())  // or other targets
+      && inc && InterpolationDefinitions.size()) {
     // sort definitions and remove duplicate definitions
     std::sort(InterpolationDefinitions.begin(), InterpolationDefinitions.end());
     InterpolationDefinitions.erase(std::unique(InterpolationDefinitions.begin(),
           InterpolationDefinitions.end()), InterpolationDefinitions.end());
 
     // add interpolation definitions
-    for (unsigned int i=0, e=InterpolationDefinitions.size(); i!=e; ++i) {
-      *OS << InterpolationDefinitions.data()[i];
+    while (InterpolationDefinitions.size()) {
+      *OS << InterpolationDefinitions.pop_back_val();
     }
     *OS << "\n";
   } // else: emit interpolation definitions at the beginning at the file
