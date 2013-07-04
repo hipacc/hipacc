@@ -394,7 +394,7 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
 
 void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
                     const std::function<void()> func) {
-    for (int i = 0; i < pyrs.size(); ++i) {
+    for (unsigned int i = 0; i < pyrs.size(); ++i) {
       if (i < pyrs.size() - 1) {
         assert(pyrs[i]->depth_ == pyrs[i+1]->depth_ &&
                "Pyramid depths do not match.");
@@ -410,7 +410,7 @@ void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
 
-    for (int i = 0; i < pyrs.size(); ++i) {
+    for (unsigned int i = 0; i < pyrs.size(); ++i) {
       pyrs[i]->unbind();
     }
 }
