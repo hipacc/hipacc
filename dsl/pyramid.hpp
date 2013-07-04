@@ -46,6 +46,7 @@ class PyramidBase {
   private:
     const int depth_;
     int level_;
+    bool bound_;
 
     void setLevel(int level) {
       level_ = level;
@@ -59,9 +60,23 @@ class PyramidBase {
       --level_;
     }
 
+    bool bind() {
+      if (!bound_) {
+        bound_ = true;
+        level_ = 0;
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    void unbind() {
+      bound_ = false;
+    }
+
   public:
     PyramidBase(const int depth)
-        : depth_(depth), level_(0) {
+        : depth_(depth), level_(0), bound_(false) {
     }
 
     int getDepth() {
@@ -131,8 +146,14 @@ class Traversal {
         : func_(func) {
     }
 
+    ~Traversal() {
+      for (int i = 0; i < pyrs_.size(); ++i) {
+        pyrs_[i]->unbind();
+      }
+    }
+
     void add(PyramidBase &p) {
-      p.setLevel(0);
+      assert(p.bind() && "Pyramid already bound to another traversal.");
       pyrs_.push_back(&p);
     }
 
