@@ -147,7 +147,7 @@ class Traversal {
     }
 
     ~Traversal() {
-      for (int i = 0; i < pyrs_.size(); ++i) {
+      for (unsigned int i = 0; i < pyrs_.size(); ++i) {
         pyrs_[i]->unbind();
       }
     }
@@ -276,7 +276,7 @@ void traverse(PyramidBase &p0, PyramidBase &p1, PyramidBase &p2,
 void traverse(std::vector<PyramidBase*> pyrs,
               const std::function<void()> func) {
     Traversal t(func);
-    for (int i = 0; i < pyrs.size(); ++i) {
+    for (unsigned int i = 0; i < pyrs.size(); ++i) {
       if (i < pyrs.size() - 1) {
         assert(pyrs[i]->getDepth() == pyrs[i+1]->getDepth() &&
                "Pyramid depths do not match.");
