@@ -173,10 +173,11 @@ class HipaccPyramid {
     const int depth_;
     int level_;
     std::vector<HipaccImage> imgs_;
+    bool bound_;
 
   public:
     HipaccPyramid(const int depth)
-        : depth_(depth), level_(0) {
+        : depth_(depth), level_(0), bound_(false) {
     }
 
     void add(HipaccImage img) {
@@ -205,6 +206,20 @@ class HipaccPyramid {
       std::vector<HipaccImage> tmp = other.imgs_;
       other.imgs_ = this->imgs_;
       this->imgs_ = tmp;
+    }
+
+    bool bind() {
+      if (!bound_) {
+        bound_ = true;
+        level_ = 0;
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    void unbind() {
+      bound_ = false;
     }
 };
 
@@ -235,9 +250,9 @@ std::vector<std::vector<HipaccPyramid*> > hipaccPyramids;
 
 
 void hipaccTraverse(HipaccPyramid &p0, const std::function<void()> func) {
-    std::vector<HipaccPyramid*> pyrs;
+    assert(p0.bind() && "Pyramid already bound to another traversal.");
 
-    p0.level_ = 0;
+    std::vector<HipaccPyramid*> pyrs;
     pyrs.push_back(&p0);
 
     hipaccPyramids.push_back(pyrs);
@@ -247,6 +262,8 @@ void hipaccTraverse(HipaccPyramid &p0, const std::function<void()> func) {
 
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
+
+    p0.unbind();
 }
 
 
@@ -255,10 +272,10 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1,
     assert(p0.depth_ == p1.depth_ &&
            "Pyramid depths do not match.");
 
-    std::vector<HipaccPyramid*> pyrs;
+    assert(p0.bind() && "Pyramid already bound to another traversal.");
+    assert(p1.bind() && "Pyramid already bound to another traversal.");
 
-    p0.level_ = 0;
-    p1.level_ = 0;
+    std::vector<HipaccPyramid*> pyrs;
     pyrs.push_back(&p0);
     pyrs.push_back(&p1);
 
@@ -269,6 +286,9 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1,
 
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
+
+    p0.unbind();
+    p1.unbind();
 }
 
 
@@ -278,11 +298,11 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
            p1.depth_ == p2.depth_ &&
            "Pyramid depths do not match.");
 
-    std::vector<HipaccPyramid*> pyrs;
+    assert(p0.bind() && "Pyramid already bound to another traversal.");
+    assert(p1.bind() && "Pyramid already bound to another traversal.");
+    assert(p2.bind() && "Pyramid already bound to another traversal.");
 
-    p0.level_ = 0;
-    p1.level_ = 0;
-    p2.level_ = 0;
+    std::vector<HipaccPyramid*> pyrs;
     pyrs.push_back(&p0);
     pyrs.push_back(&p1);
     pyrs.push_back(&p2);
@@ -294,6 +314,10 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
 
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
+
+    p0.unbind();
+    p1.unbind();
+    p2.unbind();
 }
 
 
@@ -304,12 +328,12 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
            p2.depth_ == p3.depth_ &&
            "Pyramid depths do not match.");
 
-    std::vector<HipaccPyramid*> pyrs;
+    assert(p0.bind() && "Pyramid already bound to another traversal.");
+    assert(p1.bind() && "Pyramid already bound to another traversal.");
+    assert(p2.bind() && "Pyramid already bound to another traversal.");
+    assert(p3.bind() && "Pyramid already bound to another traversal.");
 
-    p0.level_ = 0;
-    p1.level_ = 0;
-    p2.level_ = 0;
-    p3.level_ = 0;
+    std::vector<HipaccPyramid*> pyrs;
     pyrs.push_back(&p0);
     pyrs.push_back(&p1);
     pyrs.push_back(&p2);
@@ -322,6 +346,11 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
 
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
+
+    p0.unbind();
+    p1.unbind();
+    p2.unbind();
+    p3.unbind();
 }
 
 
@@ -334,13 +363,13 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
            p3.depth_ == p4.depth_ &&
            "Pyramid depths do not match.");
 
-    std::vector<HipaccPyramid*> pyrs;
+    assert(p0.bind() && "Pyramid already bound to another traversal.");
+    assert(p1.bind() && "Pyramid already bound to another traversal.");
+    assert(p2.bind() && "Pyramid already bound to another traversal.");
+    assert(p3.bind() && "Pyramid already bound to another traversal.");
+    assert(p4.bind() && "Pyramid already bound to another traversal.");
 
-    p0.level_ = 0;
-    p1.level_ = 0;
-    p2.level_ = 0;
-    p3.level_ = 0;
-    p4.level_ = 0;
+    std::vector<HipaccPyramid*> pyrs;
     pyrs.push_back(&p0);
     pyrs.push_back(&p1);
     pyrs.push_back(&p2);
@@ -354,6 +383,12 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
 
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
+
+    p0.unbind();
+    p1.unbind();
+    p2.unbind();
+    p3.unbind();
+    p4.unbind();
 }
 
 
@@ -364,7 +399,7 @@ void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
         assert(pyrs[i]->depth_ == pyrs[i+1]->depth_ &&
                "Pyramid depths do not match.");
       }
-      pyrs[i]->level_ = 0;
+      assert(pyrs[i]->bind() && "Pyramid already bound to another traversal.");
     }
 
     hipaccPyramids.push_back(pyrs);
@@ -374,6 +409,10 @@ void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
 
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
+
+    for (int i = 0; i < pyrs.size(); ++i) {
+      pyrs[i]->unbind();
+    }
 }
 
 
