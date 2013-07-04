@@ -551,7 +551,7 @@ void hipaccLaunchScriptKernelBenchmark(
         std::cerr << "<HIPACC:> Kernel timing benchmark ("
                   << work_size[0] * work_size[1] << ": "
                   << work_size[0] << "x" << work_size[1] << "): "
-                  << med_dt * 1.0e-3f << "(ms)" << std::endl;
+                  << med_dt << "(ms)" << std::endl;
     }
 }
 
