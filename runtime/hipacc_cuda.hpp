@@ -831,7 +831,9 @@ void hipaccLaunchKernelBenchmark(CUfunction &kernel, const char *kernel_name, di
 
     last_gpu_timing = min_dt;
     if (print_timing) {
-        std::cerr << "<HIPACC:> Kernel timing benchmark ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << min_dt << "(ms)" << std::endl;
+        std::cerr << "<HIPACC:> Kernel timing benchmark (" << block.x*block.y
+                  << ": " << block.x << "x" << block.y << "): " << min_dt
+                  << "(ms)" << std::endl;
     }
 }
 

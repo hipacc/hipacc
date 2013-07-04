@@ -547,6 +547,12 @@ void hipaccLaunchScriptKernelBenchmark(
     med_dt = times.at(HIPACC_NUM_ITERATIONS/2);
 
     last_gpu_timing = med_dt;
+    if (print_timing) {
+        std::cerr << "<HIPACC:> Kernel timing benchmark ("
+                  << work_size[0] * work_size[1] << ": "
+                  << work_size[0] << "x" << work_size[1] << "): "
+                  << med_dt * 1.0e-3f << "(ms)" << std::endl;
+    }
 }
 
 

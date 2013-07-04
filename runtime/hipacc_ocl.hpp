@@ -1212,6 +1212,12 @@ void hipaccEnqueueKernelBenchmark(cl_kernel kernel, std::vector<std::pair<size_t
     timing = times.at(HIPACC_NUM_ITERATIONS/2);
     #endif
     last_gpu_timing = timing;
+    if (print_timing) {
+        std::cerr << "<HIPACC:> Kernel timing benchmark ("
+                  << local_work_size[0]*local_work_size[1] << ": "
+                  << local_work_size[0] << "x" << local_work_size[1] << "): "
+                  << timing*1.0e-3f << "(ms)" << std::endl;
+    }
 }
 
 
