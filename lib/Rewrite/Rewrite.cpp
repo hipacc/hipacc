@@ -77,7 +77,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     SmallVector<CXXMemberCallExpr *, 16> ReductionCalls;
     SmallVector<HipaccGlobalReduction *, 16> InvokedReductions;
     // store interpolation methods required for CUDA
-    SmallVector<std::string, 16> InterpolationDefinitions;
+    SmallVector<std::string, 16> InterpolationDefinitionsGlobal;
 
     // pointer to main function
     FunctionDecl *mainFD;
@@ -251,17 +251,20 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   stringCreator.writeHeaders(newStr);
 
   // add interpolation include and define interpolation functions for CUDA
-  if (compilerOptions.emitCUDA() && InterpolationDefinitions.size()) {
+  if (compilerOptions.emitCUDA() && InterpolationDefinitionsGlobal.size()) {
     newStr += "#include \"hipacc_cuda_interpolate.hpp\"\n";
 
     // sort definitions and remove duplicate definitions
-    std::sort(InterpolationDefinitions.begin(), InterpolationDefinitions.end());
-    InterpolationDefinitions.erase(std::unique(InterpolationDefinitions.begin(),
-          InterpolationDefinitions.end()), InterpolationDefinitions.end());
+    std::sort(InterpolationDefinitionsGlobal.begin(),
+        InterpolationDefinitionsGlobal.end());
+    InterpolationDefinitionsGlobal.erase(
+        std::unique(InterpolationDefinitionsGlobal.begin(),
+          InterpolationDefinitionsGlobal.end()),
+        InterpolationDefinitionsGlobal.end());
 
     // add interpolation definitions
-    for (unsigned int i=0, e=InterpolationDefinitions.size(); i!=e; ++i) {
-      newStr += InterpolationDefinitions.data()[i];
+    for (unsigned int i=0, e=InterpolationDefinitionsGlobal.size(); i!=e; ++i) {
+      newStr += InterpolationDefinitionsGlobal.data()[i];
     }
     newStr += "\n";
   }
@@ -2710,6 +2713,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   // interpolation includes & definitions
   bool inc=false;
+  SmallVector<std::string, 16> InterpolationDefinitionsLocal;
   for (unsigned int i=0; i<K->getNumArgs(); i++) {
     FieldDecl *FD = K->getDeviceArgFields()[i];
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
@@ -2759,7 +2763,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_Renderscript:
           case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
-            InterpolationDefinitions.push_back(resultStr);
+            InterpolationDefinitionsLocal.push_back(resultStr);
             break;
         }
 
@@ -2776,7 +2780,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_Renderscript:
           case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
-            InterpolationDefinitions.push_back(resultStr);
+            InterpolationDefinitionsLocal.push_back(resultStr);
             break;
         }
       }
@@ -2786,18 +2790,29 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   if (((compilerOptions.emitCUDA() && // CUDA, but no exploration or no hints
           (compilerOptions.exploreConfig() || !emitHints)) ||
         !compilerOptions.emitCUDA())  // or other targets
-      && inc && InterpolationDefinitions.size()) {
+      && inc && InterpolationDefinitionsLocal.size()) {
     // sort definitions and remove duplicate definitions
-    std::sort(InterpolationDefinitions.begin(), InterpolationDefinitions.end());
-    InterpolationDefinitions.erase(std::unique(InterpolationDefinitions.begin(),
-          InterpolationDefinitions.end()), InterpolationDefinitions.end());
+    std::sort(InterpolationDefinitionsLocal.begin(),
+        InterpolationDefinitionsLocal.end());
+    InterpolationDefinitionsLocal.erase(std::unique(
+          InterpolationDefinitionsLocal.begin(),
+          InterpolationDefinitionsLocal.end()),
+        InterpolationDefinitionsLocal.end());
 
     // add interpolation definitions
-    while (InterpolationDefinitions.size()) {
-      *OS << InterpolationDefinitions.pop_back_val();
+    while (InterpolationDefinitionsLocal.size()) {
+      *OS << InterpolationDefinitionsLocal.pop_back_val();
     }
     *OS << "\n";
-  } // else: emit interpolation definitions at the beginning at the file
+  } else {
+    // emit interpolation definitions at the beginning at the file
+    if (InterpolationDefinitionsLocal.size()) {
+      while (InterpolationDefinitionsLocal.size()) {
+        InterpolationDefinitionsGlobal.push_back(
+            InterpolationDefinitionsLocal.pop_back_val());
+      }
+    }
+  }
 
   // declarations of textures, surfaces, variables, etc.
   for (unsigned int i=0; i<K->getNumArgs(); i++) {
