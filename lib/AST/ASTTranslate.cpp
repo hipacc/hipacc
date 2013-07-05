@@ -86,6 +86,14 @@ void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   gidXRef = tileVars.global_id_x;
   gidYRef = tileVars.global_id_y;
 
+  // set also other variables not used by C back end
+  tileVars.local_id_x = createDeclRefExpr(Ctx, gid_x);
+  tileVars.local_id_y = createDeclRefExpr(Ctx, gid_y);
+  tileVars.block_id_x = createDeclRefExpr(Ctx, gid_x);
+  tileVars.block_id_y = createDeclRefExpr(Ctx, gid_y);
+  tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace()->getAccessor());
+  tileVars.local_size_y = createIntegerLiteral(Ctx, 0);
+
   // convert the function body to kernel syntax
   Stmt *clonedStmt = Clone(S);
   assert(isa<CompoundStmt>(clonedStmt) && "CompoundStmt for kernel function body expected!");
