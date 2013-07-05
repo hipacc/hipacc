@@ -2983,7 +2983,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case TARGET_CUDA:
       *OS << "extern \"C\" {\n";
       *OS << "__global__ ";
-      if (!compilerOptions.exploreConfig() && emitHints) {
+      if (compilerOptions.exploreConfig() && emitHints) {
+        *OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";
+      } else {
         *OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
             << K->getNumThreadsY() << ") ";
       }
@@ -2997,7 +2999,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             << " CLK_FILTER_NEAREST; \n\n";
       }
       *OS << "__kernel ";
-      if (!compilerOptions.exploreConfig() && emitHints) {
+      if (compilerOptions.exploreConfig() && emitHints) {
+        *OS << "__attribute__((reqd_work_group_size(BSX_EXPLORE, BSY_EXPLORE, "
+            << "1))) ";
+      } else {
         *OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
             << ", " << K->getNumThreadsY() << ", 1))) ";
       }

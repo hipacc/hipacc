@@ -168,23 +168,23 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
   VarDecl *yVD = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(), "y",
       Ctx.IntTy, NULL);
 
-  tileVars.local_id_x = addCastToInt(createMemberExpr(Ctx, TIRef, false, xVD,
-        xVD->getType()));
-  tileVars.local_id_y = addCastToInt(createMemberExpr(Ctx, TIRef, false, yVD,
-        yVD->getType()));
-  tileVars.block_id_x = addCastToInt(createMemberExpr(Ctx, BIRef, false, xVD,
-        xVD->getType()));
-  tileVars.block_id_y = addCastToInt(createMemberExpr(Ctx, BIRef, false, yVD,
-        yVD->getType()));
-  tileVars.local_size_x = addCastToInt(createMemberExpr(Ctx, BDRef, false, xVD,
-        xVD->getType()));
-  tileVars.local_size_y = addCastToInt(createMemberExpr(Ctx, BDRef, false, yVD,
-        yVD->getType()));
+  tileVars.local_id_x = createMemberExpr(Ctx, TIRef, false, xVD,
+      xVD->getType());
+  tileVars.local_id_y = createMemberExpr(Ctx, TIRef, false, yVD,
+      yVD->getType());
+  tileVars.block_id_x = createMemberExpr(Ctx, BIRef, false, xVD,
+      xVD->getType());
+  tileVars.block_id_y = createMemberExpr(Ctx, BIRef, false, yVD,
+      yVD->getType());
+  tileVars.local_size_x = createMemberExpr(Ctx, BDRef, false, xVD,
+      xVD->getType());
+  tileVars.local_size_y = createMemberExpr(Ctx, BDRef, false, yVD,
+      yVD->getType());
   //DeclRefExpr *GDRef = createDeclRefExpr(Ctx, gridDim);
-  //tileVars.grid_size_x = addCastToInt(createMemberExpr(Ctx, GDRef, false, xVD,
-  //      xVD->getType()));
-  //tileVars.grid_size_y = addCastToInt(createMemberExpr(Ctx, GDRef, false, yVD,
-  //      yVD->getType()));
+  //tileVars.grid_size_x = createMemberExpr(Ctx, GDRef, false, xVD,
+  //    xVD->getType());
+  //tileVars.grid_size_y = createMemberExpr(Ctx, GDRef, false, yVD,
+  //    yVD->getType());
 
   // CUDA: const int gid_x = blockDim.x*blockIdx.x + threadIdx.x;
   gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
@@ -360,6 +360,38 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
     DC->addDecl(output);
     kernelBody.push_back(createDeclStmt(Ctx, output));
     retValRef = createDeclRefExpr(Ctx, output);
+  }
+}
+
+
+// update tileVars to constants if required
+void ASTTranslate::updateTileVars() {
+  switch (compilerOptions.getTargetCode()) {
+    default:
+    case TARGET_C:
+    case TARGET_Renderscript:
+    case TARGET_RenderscriptGPU:
+    case TARGET_Filterscript:
+      break;
+    case TARGET_CUDA:
+    case TARGET_OpenCL:
+    case TARGET_OpenCLCPU:
+      tileVars.local_id_x = addCastToInt(tileVars.local_id_x);
+      tileVars.local_id_y = addCastToInt(tileVars.local_id_y);
+      tileVars.block_id_x = addCastToInt(tileVars.block_id_x);
+      tileVars.block_id_y = addCastToInt(tileVars.block_id_y);
+      if (compilerOptions.exploreConfig() && !emitEstimation) {
+        tileVars.local_size_x = createDeclRefExpr(Ctx, createVarDecl(Ctx,
+              kernelDecl, "BSX_EXPLORE", Ctx.IntTy, NULL));
+        tileVars.local_size_y = createDeclRefExpr(Ctx, createVarDecl(Ctx,
+              kernelDecl, "BSY_EXPLORE", Ctx.IntTy, NULL));
+      } else {
+        tileVars.local_size_x = createIntegerLiteral(Ctx,
+            (int)Kernel->getNumThreadsX());
+        tileVars.local_size_y = createIntegerLiteral(Ctx,
+            (int)Kernel->getNumThreadsY());
+      }
+      break;
   }
 }
 
@@ -611,10 +643,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       // __shared__ T _smemIn[SY-1 + BSY*PPT][3 * BSX];
       // for left and right halo, add 2*BSX
       if (!emitEstimation && compilerOptions.exploreConfig()) {
-        Expr *SX, *SY;
+        Expr *SX = tileVars.local_size_x;
+        Expr *SY = tileVars.local_size_y;
 
-        SX = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
-              "BSX_EXPLORE", Ctx.IntTy, NULL));
         if (Acc->getSizeX() > 1) {
           // 3*BSX
           SX = createBinaryOperator(Ctx, createIntegerLiteral(Ctx, 3), SX,
@@ -626,23 +657,19 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
         // size_y = ceil((PPT*BSY+SY-1)/BSY)
         // -> PPT*BSY + ((SY-2)/BSY + 1) * BSY
-        DeclRefExpr *DSY = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
-              "BSY_EXPLORE", Ctx.IntTy, NULL));
-
         if (Kernel->getPixelsPerThread() > 1) {
-          SY = createBinaryOperator(Ctx, DSY, createIntegerLiteral(Ctx,
+          SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx,
                 (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
-        } else {
-          SY = DSY;
         }
 
         if (Acc->getSizeY() > 1) {
           SY = createBinaryOperator(Ctx, SY, createBinaryOperator(Ctx,
                 createParenExpr(Ctx, createBinaryOperator(Ctx,
                     createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                        (int)Acc->getSizeY()-2), DSY, BO_Div, Ctx.IntTy),
-                    createIntegerLiteral(Ctx, 1), BO_Add, Ctx.IntTy)), DSY,
-                BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+                        (int)Acc->getSizeY()-2), tileVars.local_size_y, BO_Div,
+                      Ctx.IntTy), createIntegerLiteral(Ctx, 1), BO_Add,
+                    Ctx.IntTy)), tileVars.local_size_y, BO_Mul, Ctx.IntTy),
+              BO_Add, Ctx.IntTy);
         }
 
         QT = Acc->getImage()->getPixelQualType();
@@ -864,6 +891,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   // clear all stored decls before cloning, otherwise existing VarDecls will
   // be reused and we will miss declarations
   KernelDeclMapTex.clear();
+
+  // add casts to tileVars if required
+  updateTileVars();
 
   int ld_count = 0;
   for (int i=border_handling?0:9; i<=9; i++) {
