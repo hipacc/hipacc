@@ -160,6 +160,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
     void initOpenCL(SmallVector<Stmt *, 16> &kernelBody);
     void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
+    Expr *addCastToInt(Expr *E);
     // wrappers to mark variables as being used
     DeclRefExpr *getWidthDecl(HipaccAccessor *Acc) {
       Kernel->setUsed(Acc->getWidthDecl()->getNameInfo().getAsString());
@@ -346,6 +347,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         #include "clang/AST/StmtNodes.inc"
         "\n\n";
     }
+    // Interpolation.cpp
     // create interpolation function name
     static std::string getInterpolationName(ASTContext &Ctx,
         hipacc::Builtin::Context &builtins, CompilerOptions &compilerOptions,

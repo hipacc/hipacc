@@ -44,6 +44,14 @@ using namespace hipacc::Builtin;
 //===----------------------------------------------------------------------===//
 
 
+
+// add cast to unsigned int variables if needed
+Expr *ASTTranslate::addCastToInt(Expr *E) {
+  return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_IntegralCast, E, NULL,
+      Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
+}
+
+
 // C/Polly initialization
 void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   VarDecl *gid_x = NULL, *gid_y = NULL;
@@ -160,23 +168,23 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
   VarDecl *yVD = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(), "y",
       Ctx.IntTy, NULL);
 
-  tileVars.local_id_x = createMemberExpr(Ctx, TIRef, false, xVD,
-      xVD->getType());
-  tileVars.local_id_y = createMemberExpr(Ctx, TIRef, false, yVD,
-      yVD->getType());
-  tileVars.block_id_x = createMemberExpr(Ctx, BIRef, false, xVD,
-      xVD->getType());
-  tileVars.block_id_y = createMemberExpr(Ctx, BIRef, false, yVD,
-      yVD->getType());
-  tileVars.local_size_x = createMemberExpr(Ctx, BDRef, false, xVD,
-      xVD->getType());
-  tileVars.local_size_y = createMemberExpr(Ctx, BDRef, false, yVD,
-      yVD->getType());
+  tileVars.local_id_x = addCastToInt(createMemberExpr(Ctx, TIRef, false, xVD,
+        xVD->getType()));
+  tileVars.local_id_y = addCastToInt(createMemberExpr(Ctx, TIRef, false, yVD,
+        yVD->getType()));
+  tileVars.block_id_x = addCastToInt(createMemberExpr(Ctx, BIRef, false, xVD,
+        xVD->getType()));
+  tileVars.block_id_y = addCastToInt(createMemberExpr(Ctx, BIRef, false, yVD,
+        yVD->getType()));
+  tileVars.local_size_x = addCastToInt(createMemberExpr(Ctx, BDRef, false, xVD,
+        xVD->getType()));
+  tileVars.local_size_y = addCastToInt(createMemberExpr(Ctx, BDRef, false, yVD,
+        yVD->getType()));
   //DeclRefExpr *GDRef = createDeclRefExpr(Ctx, gridDim);
-  //tileVars.grid_size_x = createMemberExpr(Ctx, GDRef, false, xVD,
-  //    xVD->getType());
-  //tileVars.grid_size_y = createMemberExpr(Ctx, GDRef, false, yVD,
-  //    yVD->getType());
+  //tileVars.grid_size_x = addCastToInt(createMemberExpr(Ctx, GDRef, false, xVD,
+  //      xVD->getType()));
+  //tileVars.grid_size_y = addCastToInt(createMemberExpr(Ctx, GDRef, false, yVD,
+  //      yVD->getType()));
 
   // CUDA: const int gid_x = blockDim.x*blockIdx.x + threadIdx.x;
   gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
@@ -1063,8 +1071,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // first iteration
         stageIterationToSharedMemory(labelBody, p);
       } else {
-        // update lid_y to lid_y + p*local_size_y
-        // update gid_y to gid_y + p*local_size_y
+        // update lid_y to lid_y + p*(int)local_size_y
+        // update gid_y to gid_y + p*(int)local_size_y
         lidYRef = createBinaryOperator(Ctx, tileVars.local_id_y,
             createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
               tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
@@ -1110,8 +1118,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         lidYRef = tileVars.local_id_y;
         gidYRef = tileVars.global_id_y;
       } else {
-        // update lid_y to lid_y + p*local_size_y
-        // update gid_y to gid_y + p*local_size_y
+        // update lid_y to lid_y + p*(int)local_size_y
+        // update gid_y to gid_y + p*(int)local_size_y
         lidYRef = createBinaryOperator(Ctx, tileVars.local_id_y,
             createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
               tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
@@ -1809,9 +1817,12 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
 
 Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
   // TODO: create a map with all expressions not to be cloned ..
-  if (E==tileVars.local_size_x || E==tileVars.local_size_y) return E;
-  if (E==tileVars.local_id_x || E==tileVars.local_id_y) return E;
-  if (E==tileVars.block_id_x || E==tileVars.block_id_y) return E;
+  if (E==tileVars.local_size_x->IgnoreParenCasts() ||
+      E==tileVars.local_size_y->IgnoreParenCasts() ||
+      E==tileVars.local_id_x->IgnoreParenCasts() ||
+      E==tileVars.local_id_y->IgnoreParenCasts() ||
+      E==tileVars.block_id_x->IgnoreParenCasts() ||
+      E==tileVars.block_id_y->IgnoreParenCasts()) return E;
 
   // replace member class variables by kernel parameter references
   // (MemberExpr 0x4bd4af0 'int' ->d 0x4bd2330

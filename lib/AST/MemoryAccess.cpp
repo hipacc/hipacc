@@ -780,8 +780,8 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
 
       // load row (line)
       for (int i=0; i<=num_stages_x; i++) {
-        // _smem[lidYRef][lidXRef + i*blockDim.x] =
-        //        Image[-SX/2 + i*blockDim.x, -SY/2];
+        // _smem[lidYRef][lidXRef + i*(int)blockDim.x] =
+        //        Image[-SX/2 + i*(int)blockDim.x, -SY/2];
         Expr *local_offset_x = NULL;
         if (Acc->getSizeX() > 1) {
           local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
@@ -834,7 +834,6 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
                 (int)Acc->getSizeY()/2), UO_Minus, Ctx.IntTy), BO_Add,
             Ctx.IntTy);
       }
-      global_offset_y = createParenExpr(Ctx, global_offset_y);
 
       // check if we need to stage right apron
       int num_stages_x = 0;
@@ -844,8 +843,8 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
 
       // load row (line)
       for (int i=0; i<=num_stages_x; i++) {
-        // _smem[lidYRef + N*blockDim.y][lidXRef + i*blockDim.x] =
-        //        Image[-SX/2 + N*blockDim.y + i*blockDim.x, -SY/2];
+        // _smem[lidYRef + N*(int)blockDim.y][lidXRef + i*(int)blockDim.x] =
+        //        Image[-SX/2 + N*(int)blockDim.y + i*(int)blockDim.x, -SY/2];
         Expr *local_offset_x = NULL;
         if (Acc->getSizeX() > 1) {
           local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
