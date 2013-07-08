@@ -1917,7 +1917,8 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
           VarDecl *maskVar = NULL;
           // get Mask/Domain reference
           for (DeclContext::lookup_result Lookup =
-              Ctx.getTranslationUnitDecl()->lookup(DeclarationName(&Ctx.Idents.get(Mask->getName()+Kernel->getName())));
+              Ctx.getTranslationUnitDecl()->lookup(DeclarationName(
+                  &Ctx.Idents.get(Mask->getName() + Kernel->getName())));
               !Lookup.empty(); Lookup=Lookup.slice(1)) {
             maskVar = cast_or_null<VarDecl>(Lookup.front());
 
@@ -2117,7 +2118,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           Expr *midx_y = createIntegerLiteral(Ctx, convIdxY);
 
           // set Mask as being used within Kernel
-          Kernel->setUsed(Mask->getDecl()->getName());
+          Kernel->setUsed(FD->getNameAsString());
           switch (compilerOptions.getTargetCode()) {
             case TARGET_C:
             case TARGET_CUDA:
@@ -2146,11 +2147,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         assert(isa<MemberExpr>(E->getArg(1)) && "Memory access function assumed.");
         MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(1));
         assert(isa<FieldDecl>(ME->getMemberDecl()) && "Domain must be a C++-class member.");
-        FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
+        FieldDecl *domFD = dyn_cast<FieldDecl>(ME->getMemberDecl());
 
         // look for Domain user class member variable
-        assert(Kernel->getMaskFromMapping(FD) && "Could not find Domain variable.");
-        HipaccMask *Domain = Kernel->getMaskFromMapping(FD);
+        assert(Kernel->getMaskFromMapping(domFD) && "Could not find Domain variable.");
+        HipaccMask *Domain = Kernel->getMaskFromMapping(domFD);
         assert(Domain->isDomain() && "Domain required.");
 
         assert(Mask->getSizeX()==Domain->getSizeX() &&
@@ -2168,7 +2169,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           Expr *midx_y = createIntegerLiteral(Ctx, redIdxY.back());
 
           // set Mask as being used within Kernel
-          Kernel->setUsed(Mask->getDecl()->getName());
+          Kernel->setUsed(FD->getNameAsString());
           switch (compilerOptions.getTargetCode()) {
             case TARGET_C:
             case TARGET_CUDA:
@@ -2197,7 +2198,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // 2: -> y
 
         // set Mask as being used within Kernel
-        Kernel->setUsed(Mask->getDecl()->getName());
+        Kernel->setUsed(FD->getNameAsString());
         switch (compilerOptions.getTargetCode()) {
           case TARGET_C:
           case TARGET_CUDA:
