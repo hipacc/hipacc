@@ -2127,14 +2127,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             case TARGET_OpenCL:
             case TARGET_OpenCLCPU:
             case TARGET_Renderscript:
-              if (Mask->isConstant()) {
-                // array subscript: Mask[conv_y][conv_x]
-                result = accessMem2DAt(LHS, midx_x, midx_y);
-              } else {
-                // array subscript: Mask[(conv_y)*width + conv_x]
-                result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                      (int)Mask->getSizeX()), midx_x, midx_y);
-              }
+              // array subscript: Mask[(conv_y)*width + conv_x]
+              result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
+                    (int)Mask->getSizeX()), midx_x, midx_y);
               break;
             case TARGET_RenderscriptGPU:
             case TARGET_Filterscript:
@@ -2183,14 +2178,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             case TARGET_OpenCL:
             case TARGET_OpenCLCPU:
             case TARGET_Renderscript:
-              if (Mask->isConstant()) {
-                // array subscript: Mask[conv_y][conv_x]
-                result = accessMem2DAt(LHS, midx_x, midx_y);
-              } else {
-                // array subscript: Mask[(conv_y)*width + conv_x]
-                result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                      (int)Mask->getSizeX()), midx_x, midx_y);
-              }
+              // array subscript: Mask[(conv_y)*width + conv_x]
+              result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
+                    (int)Mask->getSizeX()), midx_x, midx_y);
               break;
             case TARGET_RenderscriptGPU:
             case TARGET_Filterscript:
