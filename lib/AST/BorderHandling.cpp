@@ -160,7 +160,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     upperY = getHeightDecl(Acc);
   }
 
-  Expr *idx_x = gidXRef;
+  Expr *idx_x = tileVars.global_id_x;
   Expr *idx_y = gidYRef;
 
   // step 0: add local offset: gid_[x|y] + local_offset_[x|y]

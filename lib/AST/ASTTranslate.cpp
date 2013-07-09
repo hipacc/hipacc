@@ -83,7 +83,6 @@ void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
 
   tileVars.global_id_x = createDeclRefExpr(Ctx, gid_x);
   tileVars.global_id_y = createDeclRefExpr(Ctx, gid_y);
-  gidXRef = tileVars.global_id_x;
   gidYRef = tileVars.global_id_y;
 
   // set also other variables not used by C back end
@@ -546,9 +545,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       initRenderscript(kernelBody);
       break;
   }
-  lidXRef = tileVars.local_id_x;
   lidYRef = tileVars.local_id_y;
-  gidXRef = tileVars.global_id_x;
   gidYRef = tileVars.global_id_y;
 
   for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
@@ -969,7 +966,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       // if (gid_x >= is_offset_x)
       if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl() &&
           !(kernel_x && !bh_variant.borders.left) && bh_variant.borderVal) {
-        check_bop = createBinaryOperator(Ctx, gidXRef,
+        check_bop = createBinaryOperator(Ctx, tileVars.global_id_x,
             getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
             Ctx.BoolTy);
       }
@@ -977,13 +974,13 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       if (!(kernel_x && !bh_variant.borders.right) && bh_variant.borderVal) {
         BinaryOperator *check_tmp = NULL;
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
-          check_tmp = createBinaryOperator(Ctx, gidXRef,
+          check_tmp = createBinaryOperator(Ctx, tileVars.global_id_x,
               createBinaryOperator(Ctx,
                 getWidthDecl(Kernel->getIterationSpace()->getAccessor()),
                 getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()),
                 BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
         } else {
-          check_tmp = createBinaryOperator(Ctx, gidXRef,
+          check_tmp = createBinaryOperator(Ctx, tileVars.global_id_x,
               getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
               Ctx.BoolTy);
         }
@@ -1039,16 +1036,17 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     } else {
       // if (gid_x < is_width+is_offset_x)
       if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
-        check_bop = createBinaryOperator(Ctx, gidXRef,
+        check_bop = createBinaryOperator(Ctx, tileVars.global_id_x,
             getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
             Ctx.BoolTy);
         check_bop = createBinaryOperator(Ctx, check_bop,
-            createBinaryOperator(Ctx, gidXRef, createBinaryOperator(Ctx,
+            createBinaryOperator(Ctx, tileVars.global_id_x,
+              createBinaryOperator(Ctx,
                 getWidthDecl(Kernel->getIterationSpace()->getAccessor()),
                 getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()),
                 BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
       } else {
-        check_bop = createBinaryOperator(Ctx, gidXRef,
+        check_bop = createBinaryOperator(Ctx, tileVars.global_id_x,
             getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
             Ctx.BoolTy);
       }
@@ -2404,7 +2402,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
     // getX() method -> gid_x - is_offset_x
     if (ME->getMemberNameInfo().getAsString() == "getX") {
-      return createParenExpr(Ctx, removeISOffsetX(gidXRef, Acc));
+      return createParenExpr(Ctx, removeISOffsetX(tileVars.global_id_x, Acc));
     }
 
     // getY() method -> gid_y
@@ -2463,17 +2461,15 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     if (Acc != NULL) {
       // Acc.getX() method -> acc_scale_x * (gid_x - is_offset_x)
       if (ME->getMemberNameInfo().getAsString() == "getX") {
-        Expr *idx_x = gidXRef;
         // remove is_offset_x and scale index to Accessor size
         if (Acc->getInterpolation()!=InterpolateNO) {
-          idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-              createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL,
+          return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+              createParenExpr(Ctx, addNNInterpolationX(Acc,
+                  tileVars.global_id_x)), NULL,
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
         } else {
-          idx_x = createParenExpr(Ctx, removeISOffsetX(gidXRef, Acc));
+          return createParenExpr(Ctx, removeISOffsetX(tileVars.global_id_x, Acc));
         }
-
-        return idx_x;
       }
 
       // Acc.getY() method -> acc_scale_y * gid_y

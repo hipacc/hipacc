@@ -102,9 +102,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     DeclRefExpr *bh_start_left, *bh_start_right, *bh_start_top,
                 *bh_start_bottom, *bh_fall_back;
     DeclRefExpr *outputImage;
-    Expr *gidXRef, *gidYRef;
-    Expr *lidXRef, *lidYRef;
     Expr *retValRef;
+    Expr *writeImageRHS;
+    TypedefDecl *samplerTy;
+    DeclRefExpr *kernelSamplerRef;
+
     class BlockingVars {
       public:
         Expr *global_id_x, *global_id_y;
@@ -120,9 +122,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
           block_id_x(NULL), block_id_y(NULL) {}
     };
     BlockingVars tileVars;
-    Expr *writeImageRHS;
-    TypedefDecl *samplerTy;
-    DeclRefExpr *kernelSamplerRef;
+    // updated index for PPT (iteration space unrolling)
+    Expr *lidYRef, *gidYRef;
 
 
     template<class T> T *Clone(T *S) {
@@ -314,12 +315,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       bh_start_bottom(NULL),
       bh_fall_back(NULL),
       outputImage(NULL),
-      gidXRef(NULL),
-      gidYRef(NULL),
-      lidXRef(NULL),
-      lidYRef(NULL),
+      retValRef(NULL),
+      writeImageRHS(NULL),
       tileVars(),
-      writeImageRHS(NULL) {
+      lidYRef(NULL),
+      gidYRef(NULL) {
         // typedef unsigned int sampler_t;
         TypeSourceInfo *TInfosampler =
           Ctx.getTrivialTypeSourceInfo(Ctx.UnsignedIntTy);

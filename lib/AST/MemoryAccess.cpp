@@ -97,7 +97,7 @@ Expr *ASTTranslate::removeISOffsetY(Expr *idx_y, HipaccAccessor *Acc) {
 // access 1D memory array
 Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     MemoryAccess memAcc, Expr *local_offset_x, Expr *local_offset_y) {
-  Expr *idx_x = gidXRef;
+  Expr *idx_x = tileVars.global_id_x;
   Expr *idx_y = gidYRef;
 
   // step 0: add local offset: gid_[x|y] + local_offset_[x|y]
@@ -214,7 +214,7 @@ Expr *ASTTranslate::accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x,
 // access 2D memory array
 Expr *ASTTranslate::accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc,
     MemoryAccess memAcc, Expr *local_offset_x, Expr *local_offset_y) {
-  Expr *idx_x = gidXRef;
+  Expr *idx_x = tileVars.global_id_x;
   Expr *idx_y = gidYRef;
 
   // step 0: add local offset: gid_[x|y] + local_offset_[x|y]
@@ -669,7 +669,7 @@ Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess memAcc,
 // access shared memory
 Expr *ASTTranslate::accessMemShared(DeclRefExpr *LHS, Expr *local_offset_x, Expr
     *local_offset_y) {
-  Expr *idx_x = lidXRef;
+  Expr *idx_x = tileVars.local_id_x;
   Expr *idx_y = lidYRef;
 
   // step 0: add local offset: lid_[x|y] + local_offset_[x|y]
@@ -780,7 +780,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
 
       // load row (line)
       for (int i=0; i<=num_stages_x; i++) {
-        // _smem[lidYRef][lidXRef + i*(int)blockDim.x] =
+        // _smem[lidYRef][(int)threadIdx.x + i*(int)blockDim.x] =
         //        Image[-SX/2 + i*(int)blockDim.x, -SY/2];
         Expr *local_offset_x = NULL;
         if (Acc->getSizeX() > 1) {
@@ -843,7 +843,8 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
 
       // load row (line)
       for (int i=0; i<=num_stages_x; i++) {
-        // _smem[lidYRef + N*(int)blockDim.y][lidXRef + i*(int)blockDim.x] =
+        // _smem[lidYRef + N*(int)blockDim.y]
+        //      [(int)threadIdx.x + i*(int)blockDim.x] =
         //        Image[-SX/2 + N*(int)blockDim.y + i*(int)blockDim.x, -SY/2];
         Expr *local_offset_x = NULL;
         if (Acc->getSizeX() > 1) {
