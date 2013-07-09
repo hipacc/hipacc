@@ -85,7 +85,7 @@ class HipaccAccessor {
         int32_t offset_x, offset_y;
 
     public:
-        HipaccAccessor(HipaccImage &img, int32_t width, int32_t height, int32_t offset_x, int32_t offset_y) :
+        HipaccAccessor(HipaccImage &img, int32_t width, int32_t height, int32_t offset_x=0, int32_t offset_y=0) :
             img(img),
             width(width),
             height(height),
