@@ -736,7 +736,20 @@ class HipaccKernel : public HipaccKernelFeatures {
         num_smem = smem;
       }
       num_cmem = cmem;
+      // calcuclate new configuration
       calcConfig();
+      // reset parameter information since the tiling and corresponding
+      // variables may have been changed
+      argTypesC.clear();
+      argTypesCUDA.clear();
+      argTypesOpenCL.clear();
+      argTypeNamesCUDA.clear();
+      argTypeNamesOpenCL.clear();
+      // hostArgNames are set later on
+      deviceArgNames.clear();
+      deviceArgFields.clear();
+      // recreate parameter information
+      createArgInfo();
     }
 
     void setDefaultConfig();
