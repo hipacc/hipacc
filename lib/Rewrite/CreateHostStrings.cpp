@@ -1072,11 +1072,19 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
       if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
         resultStr += "ALL_PARM, " + const_parameter + ", ALL" + const_suffix;
       } else {
-        resultStr += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;
+        if (options.emitCUDA() && options.getTargetDevice() >= KEPLER_35) {
+          resultStr += "LDG_PARM, " + const_parameter + ", LDG" + const_suffix;
+        } else {
+          resultStr += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;
+        }
       }
       break;
     case Linear1D:
-      resultStr += "TEX_PARM, " + const_parameter + ", TEX" + const_suffix;
+      if (options.emitCUDA() && options.getTargetDevice() >= KEPLER_35) {
+        resultStr += "LDG_PARM, " + const_parameter + ", LDG" + const_suffix;
+      } else {
+        resultStr += "TEX_PARM, " + const_parameter + ", TEX" + const_suffix;
+      }
       break;
     case Linear2D:
     case Array2D:

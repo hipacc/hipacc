@@ -30,14 +30,17 @@
 #define IMG_PARM(TYPE) const TYPE *img
 #define TEX_PARM(TYPE) const struct texture<TYPE, cudaTextureType1D, cudaReadModeElementType> texRef1D
 #define ARR_PARM(TYPE) const struct texture<TYPE, cudaTextureType2D, cudaReadModeElementType> texRef2D
+#define LDG_PARM(TYPE) const TYPE *img
 #define CONST_PARM(TYPE) , const TYPE const_val
 #define NO_PARM(TYPE)
 #define IMG(x, y, stride, const_val) img[(x) + (y)*(stride)]
 #define TEX(x, y, stride, const_val) tex1Dfetch(texRef1D, (x) + (y)*(stride))
 #define ARR(x, y, stride, const_val) tex2D(texRef2D, x, y)
+#define LDG(x, y, stride, const_val) __ldg(&img[(x) + (y)*(stride)])
 #define IMG_CONST(x, y, stride, const_val) ((x)<0||(y)<0)<0?const_val:img[(x) + (y)*(stride)]
 #define TEX_CONST(x, y, stride, const_val) ((x)<0||(y)<0)<0?const_val:tex1Dfetch(texRef1D, (x) + (y)*(stride))
 #define ARR_CONST(x, y, stride, const_val) ((x)<0||(y)<0)<0?const_val:tex2D(texRef2D, x, y)
+#define LDG_CONST(x, y, stride, const_val) ((x)<0||(y)<0)<0?const_val:__ldg(&img[(x) + (y)*(stride)])
 
 // border handling: CLAMP
 #define BH_CLAMP_LOWER(idx, lower, stride) bh_clamp_lower(idx, lower)
