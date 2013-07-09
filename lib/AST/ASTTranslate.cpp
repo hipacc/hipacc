@@ -393,10 +393,23 @@ void ASTTranslate::updateTileVars() {
         tileVars.local_size_y = createDeclRefExpr(Ctx, createVarDecl(Ctx,
               kernelDecl, "BSY_EXPLORE", Ctx.IntTy, NULL));
       } else {
-        tileVars.local_size_x = createIntegerLiteral(Ctx,
-            (int)Kernel->getNumThreadsX());
-        tileVars.local_size_y = createIntegerLiteral(Ctx,
-            (int)Kernel->getNumThreadsY());
+        // TODO: move to HipaccDeviceOptions
+        // select fastest method for accessing blockDim.[x|y]
+        switch (compilerOptions.getTargetDevice()) {
+          default:
+            // use constant for final kernel configuration
+            tileVars.local_size_x = createIntegerLiteral(Ctx,
+                (int)Kernel->getNumThreadsX());
+            tileVars.local_size_y = createIntegerLiteral(Ctx,
+                (int)Kernel->getNumThreadsY());
+            break;
+          case KEPLER_30:
+          case KEPLER_35:
+            // cast blockDim.[x|y] to signed integer
+            tileVars.local_size_x = addCastToInt(tileVars.local_size_x);
+            tileVars.local_size_y = addCastToInt(tileVars.local_size_y);
+            break;
+        }
       }
       break;
   }
