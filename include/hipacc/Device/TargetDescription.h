@@ -79,9 +79,9 @@ class HipaccDeviceOptions {
           }
           pixels_per_thread[GlobalOperator] = 31;
           require_textures[PointOperator] = NoTexture;
-          require_textures[LocalOperator] = Linear1D;
+          require_textures[LocalOperator] = Linear2D;
           require_textures[GlobalOperator] = NoTexture;
-          require_textures[UserOperator] = Linear1D;
+          require_textures[UserOperator] = Linear2D;
           vectorization = false;
           break;
         case TESLA_12:
@@ -96,9 +96,9 @@ class HipaccDeviceOptions {
           }
           pixels_per_thread[GlobalOperator] = 31;
           require_textures[PointOperator] = NoTexture;
-          require_textures[LocalOperator] = Linear1D;
+          require_textures[LocalOperator] = Linear2D;
           require_textures[GlobalOperator] = NoTexture;
-          require_textures[UserOperator] = Linear1D;
+          require_textures[UserOperator] = Linear2D;
           vectorization = false;
           break;
         case FERMI_20:
