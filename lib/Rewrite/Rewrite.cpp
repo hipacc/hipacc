@@ -2468,8 +2468,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
       *OS << "#include \"hipacc_ocl_red.hpp\"\n\n";
       break;
     case TARGET_CUDA:
-      if (compilerOptions.getTargetDevice()>=FERMI_20 &&
-          compilerOptions.useTextureMemory() &&
+      if (compilerOptions.useTextureMemory() &&
           compilerOptions.getTextureType()==Array2D) {
         *OS << "#define USE_ARRAY_2D\n";
       }
