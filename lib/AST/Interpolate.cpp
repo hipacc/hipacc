@@ -70,6 +70,7 @@ std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
     case TARGET_CUDA:
       switch (Kernel->useTextureMemory(Acc)) {
         case NoTexture:
+        case Ldg:
           name += "gmem";
           break;
         case Linear1D:
@@ -87,6 +88,7 @@ std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
         case NoTexture:
         case Linear1D:
         case Linear2D:
+        case Ldg:
           name += "gmem";
           break;
         case Array2D:
@@ -220,9 +222,8 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
   // parameters for interpolate function call
   SmallVector<Expr *, 16> args;
   if (compilerOptions.emitCUDA() && Kernel->useTextureMemory(Acc) &&
-      // no texture declaration for Kepler 35 supporting __ldg() intrinsic
-      !(compilerOptions.getTargetDevice() >= KEPLER_35 &&
-        Kernel->useTextureMemory(Acc) != Array2D)) {
+      // no texture declaration for __ldg() intrinsic
+      !(Kernel->useTextureMemory(Acc) == Ldg)) {
     assert(isa<ParmVarDecl>(LHS->getDecl()) && "texture variable must be a ParmVarDecl!");
     ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());
     args.push_back(createDeclRefExpr(Ctx, CloneDeclTex(PVD, "_tex")));

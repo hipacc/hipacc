@@ -56,7 +56,8 @@ enum TextureType {
   NoTexture         = 0x0,
   Linear1D          = 0x1,
   Linear2D          = 0x2,
-  Array2D           = 0x4
+  Array2D           = 0x4,
+  Ldg               = 0x8
 };
 } // end namespace hipacc
 } // end namespace clang

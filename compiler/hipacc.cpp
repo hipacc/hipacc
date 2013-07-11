@@ -91,7 +91,7 @@ void printUsage() {
     << "  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1\n"
     << "  -time-kernels           Emit code that executes each kernel multiple times to get accurate timings\n"
     << "  -use-textures <o>       Enable/disable usage of textures (cached) in CUDA/OpenCL to read/write image pixels - for GPU devices only\n"
-    << "                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', and 'Array2D'\n"
+    << "                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', 'Array2D', and 'Ldg'\n"
     << "                          Valid values for OpenCL: 'off' and 'Array2D'\n"
     << "  -use-local <o>          Enable/disable usage of shared/local memory in CUDA/OpenCL to stage image pixels to scratchpad\n"
     << "                          Valid values: 'on' and 'off'\n"
@@ -225,6 +225,8 @@ int main(int argc, char *argv[]) {
         compilerOptions.setTextureMemory(Linear2D);
       } else if (StringRef(argv[i+1]) == "Array2D") {
         compilerOptions.setTextureMemory(Array2D);
+      } else if (StringRef(argv[i+1]) == "Ldg") {
+        compilerOptions.setTextureMemory(Ldg);
       } else {
         llvm::errs() << "ERROR: Expected valid texture memory specification for -use-textures switch.\n\n";
         printUsage();
@@ -323,9 +325,18 @@ int main(int argc, char *argv[]) {
   if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory(USER_ON)) {
     if (compilerOptions.getTextureType()==Array2D &&
         compilerOptions.getTargetDevice() < FERMI_20) {
-      llvm::errs() << "Warning: 'Array2D' texture memory only supported for Fermi (CC >= 2.0)!"
+      llvm::errs() << "Warning: 'Array2D' texture memory only supported for Fermi and later on (CC >= 2.0)!"
                    << "  Using 'Linear2D' instead!\n";
       compilerOptions.setTextureMemory(Linear2D);
+    }
+  }
+  // Textures in CUDA - Ldg (load via texture cache) was introduced with Kepler
+  if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory(USER_ON)) {
+    if (compilerOptions.getTextureType()==Ldg &&
+        compilerOptions.getTargetDevice() < KEPLER_35) {
+      llvm::errs() << "Warning: 'Ldg' texture memory only supported for Kepler and later on (CC >= 3.5)!"
+                   << "  Using 'Linear1D' instead!\n";
+      compilerOptions.setTextureMemory(Linear1D);
     }
   }
   // Textures in OpenCL - no support on CPU
@@ -335,9 +346,8 @@ int main(int argc, char *argv[]) {
   }
   // Textures in OpenCL - only Array2D textures supported
   if (compilerOptions.emitOpenCL() && compilerOptions.useTextureMemory(USER_ON)) {
-    if (compilerOptions.getTextureType()==Linear1D ||
-        compilerOptions.getTextureType()==Linear2D) {
-      llvm::errs() << "Warning: 'Linear1D' and 'Linear2D' texture memory not supported by OpenCL!"
+    if (compilerOptions.getTextureType()!=Array2D) {
+      llvm::errs() << "Warning: 'Linear1D', 'Linear2D', and 'Ldg' texture memory not supported by OpenCL!"
                    << "  Using 'Array2D' instead!\n";
       compilerOptions.setTextureMemory(Array2D);
     }

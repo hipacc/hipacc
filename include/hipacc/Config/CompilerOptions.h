@@ -275,10 +275,12 @@ class CompilerOptions {
       getOptionAsString(align_memory, align_bytes);
       llvm::errs() << "\n  Usage of texture memory for images: ";
       getOptionAsString(texture_memory);
-      if (useTextureMemory()) {
-        if (texture_memory_type==Linear1D) llvm::errs() << ": Linear1D";
-        if (texture_memory_type==Linear2D) llvm::errs() << ": Linear2D";
-        if (texture_memory_type==Array2D) llvm::errs() << ": Array2D";
+      switch (texture_memory_type) {
+        case NoTexture: break;
+        case Linear1D: llvm::errs() << ": Linear1D"; break;
+        case Linear2D: llvm::errs() << ": Linear2D"; break;
+        case Array2D: llvm::errs() << ": Array2D"; break;
+        case Ldg: llvm::errs() << ": Ldg"; break;
       }
       llvm::errs() << "\n  Usage of local memory reading from images: ";
       getOptionAsString(local_memory);

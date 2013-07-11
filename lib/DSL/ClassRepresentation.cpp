@@ -537,9 +537,8 @@ void HipaccKernel::createArgInfo() {
         // for textures use no pointer type
         if (useTextureMemory(getImgFromMapping(FD)) &&
             KC->getImgAccess(FD) == READ_ONLY &&
-            // no texture required for Kepler supporting __ldg() intrinsic
-            !(useTextureMemory(getImgFromMapping(FD)) != Array2D &&
-              options.getTargetDevice() >= KEPLER_35 && options.emitCUDA())) {
+            // no texture required for __ldg() intrinsic
+            !(useTextureMemory(getImgFromMapping(FD)) == Ldg)) {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
               Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
                     4096), ArrayType::Normal, false)), QT.getAsString(),

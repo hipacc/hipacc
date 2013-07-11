@@ -2861,9 +2861,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         case TARGET_CUDA:
           // texture declaration
           if (KC->getImgAccess(FD) == READ_ONLY && K->useTextureMemory(Acc)) {
-            // no texture declaration for Kepler 35 supporting __ldg() intrinsic
-            if (compilerOptions.getTargetDevice() >= KEPLER_35 &&
-                K->useTextureMemory(Acc) != Array2D) break;
+            // no texture declaration for __ldg() intrinsic
+            if (K->useTextureMemory(Acc) == Ldg) break;
             *OS << "texture<";
             *OS << T.getAsString();
             switch (K->useTextureMemory(Acc)) {
@@ -3123,9 +3122,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           break;
         case TARGET_CUDA:
           if (K->useTextureMemory(Acc) && memAcc==READ_ONLY &&
-              // parameter required for Kepler 35 supporting __ldg() intrinsic
-              !(K->useTextureMemory(Acc) != Array2D &&
-                compilerOptions.getTargetDevice() >= KEPLER_35)) {
+              // parameter required for __ldg() intrinsic
+              !(K->useTextureMemory(Acc) == Ldg)) {
             // no parameter is emitted for textures
             continue;
           } else {

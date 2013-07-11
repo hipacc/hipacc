@@ -574,9 +574,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     if (Acc) {
       if (options.emitCUDA() && K->useTextureMemory(Acc)) {
         if (KC->getImgAccess(FD)==READ_ONLY &&
-            // no texture required for Kepler supporting __ldg() intrinsic
-            !(K->useTextureMemory(Acc) != Array2D &&
-              options.getTargetDevice() >= KEPLER_35)) {
+            // no texture required for __ldg() intrinsic
+            !(K->useTextureMemory(Acc) == Ldg)) {
           // bind texture
           if (options.exploreConfig()) {
             resultStr += "_texs" + kernelName + ".push_back(";
@@ -671,9 +670,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     if (options.emitCUDA() && Acc && K->useTextureMemory(Acc) &&
         KC->getImgAccess(FD)==READ_ONLY &&
-        // no texture required for Kepler supporting __ldg() intrinsic
-        !(K->useTextureMemory(Acc) != Array2D &&
-              options.getTargetDevice() >= KEPLER_35)) {
+        // no texture required for __ldg() intrinsic
+        !(K->useTextureMemory(Acc) == Ldg)) {
       // textures are handled separately
       continue;
     }
@@ -1072,23 +1070,18 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
       if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
         resultStr += "ALL_PARM, " + const_parameter + ", ALL" + const_suffix;
       } else {
-        if (options.emitCUDA() && options.getTargetDevice() >= KEPLER_35) {
-          resultStr += "LDG_PARM, " + const_parameter + ", LDG" + const_suffix;
-        } else {
-          resultStr += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;
-        }
+        resultStr += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;
       }
       break;
     case Linear1D:
-      if (options.emitCUDA() && options.getTargetDevice() >= KEPLER_35) {
-        resultStr += "LDG_PARM, " + const_parameter + ", LDG" + const_suffix;
-      } else {
-        resultStr += "TEX_PARM, " + const_parameter + ", TEX" + const_suffix;
-      }
+      resultStr += "TEX_PARM, " + const_parameter + ", TEX" + const_suffix;
       break;
     case Linear2D:
     case Array2D:
       resultStr += "ARR_PARM, " + const_parameter + ", ARR" + const_suffix;
+      break;
+    case Ldg:
+      resultStr += "LDG_PARM, " + const_parameter + ", LDG" + const_suffix;
       break;
   }
   // image read function for OpenCL

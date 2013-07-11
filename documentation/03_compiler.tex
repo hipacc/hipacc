@@ -47,7 +47,7 @@ OPTIONS:
   -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1
   -time-kernels           Emit code that executes each kernel multiple times to get accurate timings
   -use-textures <o>       Enable/disable usage of textures (cached) in CUDA/OpenCL to read/write image pixels - for GPU devices only
-                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', and 'Array2D'
+                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', 'Array2D', and 'Ldg'
                           Valid values for OpenCL: 'off' and 'Array2D'
   -use-local <o>          Enable/disable usage of shared/local memory in CUDA/OpenCL to stage image pixels to scratchpad
                           Valid values: 'on' and 'off'
