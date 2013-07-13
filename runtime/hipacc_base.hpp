@@ -190,6 +190,10 @@ class HipaccPyramid {
       return imgs_.at(level_+relative);
     }
 
+    int getDepth() {
+      return depth_;
+    }
+
     int getLevel() {
       return level_;
     }
