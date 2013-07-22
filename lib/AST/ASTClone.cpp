@@ -683,8 +683,8 @@ Expr *ASTTranslate::VisitStmtExpr(StmtExpr *E) {
 Expr *ASTTranslate::VisitChooseExpr(ChooseExpr *E) {
   Expr *result = new (Ctx) ChooseExpr(E->getBuiltinLoc(), Clone(E->getCond()),
       Clone(E->getLHS()), Clone(E->getRHS()), E->getType(), E->getValueKind(),
-      E->getObjectKind(), E->getRParenLoc(), E->isTypeDependent(),
-      E->isValueDependent());
+      E->getObjectKind(), E->getRParenLoc(), E->isConditionTrue(),
+      E->isTypeDependent(), E->isValueDependent());
 
   setExprPropsClone(E, result);
 
