@@ -860,13 +860,26 @@ Expr *ASTTranslate::VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
 }
 
 Expr *ASTTranslate::VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E) {
-  HIPACC_NOT_SUPPORTED(CXXDefaultInitExpr);
-  return NULL;
+  Expr *result = CXXDefaultInitExpr::Create(Ctx, E->getExprLoc(),
+      E->getField());
+
+  setExprPropsClone(E, result);
+
+  return result;
 }
 
 Expr *ASTTranslate::VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXScalarValueInitExpr);
   return NULL;
+}
+
+Expr *ASTTranslate::VisitCXXStdInitializerListExpr(CXXStdInitializerListExpr *E) {
+  Expr *result = new (Ctx) CXXStdInitializerListExpr(E->getType(),
+      Clone(E->getSubExpr()));
+
+  setExprPropsClone(E, result);
+
+  return result;
 }
 
 Expr *ASTTranslate::VisitCXXNewExpr(CXXNewExpr *E) {

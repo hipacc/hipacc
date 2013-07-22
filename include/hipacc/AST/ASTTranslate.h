@@ -491,6 +491,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E);
     Expr *VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E);
     Expr *VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E);
+    Expr *VisitCXXStdInitializerListExpr(CXXStdInitializerListExpr *E);
     Expr *VisitCXXNewExpr(CXXNewExpr *E);
     Expr *VisitCXXDeleteExpr(CXXDeleteExpr *E);
     Expr *VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *E);
@@ -625,6 +626,16 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // OpenCL Expressions
     Expr *VisitAsTypeExpr(AsTypeExpr *E);
+
+    // OpenMP Directives
+    Stmt *VisitOMPExecutableDirective(OMPExecutableDirective *S) {
+      HIPACC_NOT_SUPPORTED(OMPExecutableDirective);
+      return NULL;
+    }
+    Stmt *VisitOMPParallelDirective(OMPParallelDirective *S) {
+      HIPACC_NOT_SUPPORTED(OMPParallelDirective);
+      return NULL;
+    }
 };
 } // end namespace hipacc
 } // end namespace clang
