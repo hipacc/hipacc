@@ -27,13 +27,10 @@
 #define __HIPACC_RS_INTERPOLATE_HPP__
 
 #define ALL_PARM(TYPE) rs_allocation img
-#define IMG_PARM(TYPE) const TYPE *img
 #define CONST_PARM(TYPE) , const TYPE const_val
 #define NO_PARM(TYPE)
 #define ALL(x, y, stride, const_val, method) method(img, x, y)
-#define IMG(x, y, stride, const_val, method) img[(y)*(stride) + (x)]
 #define ALL_CONST(x, y, stride, const_val, method) ((x)<0||(y)<0)<0?const_val:img[(x) + (y)*(stride)]
-#define IMG_CONST(x, y, stride, const_val, method) ((x)<0||(y)<0)<0?const_val:method(img, x, y)
 
 // border handling: CLAMP
 #define BH_CLAMP_LOWER(idx, lower, stride) bh_clamp_lower(idx, lower)

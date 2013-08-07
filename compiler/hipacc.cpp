@@ -74,7 +74,6 @@ void printUsage() {
     << "  -emit-cuda              Emit CUDA code; default is OpenCL code\n"
     << "  -emit-opencl-cpu        Emit OpenCL code for CPU devices, no padding supported\n"
     << "  -emit-renderscript      Emit Renderscript code for Android\n"
-    << "  -emit-renderscript-gpu  Emit Renderscript code for Android (force GPU execution)\n"
     << "  -emit-filterscript      Emit Filterscript code for Android\n"
     << "  -emit-padding <n>       Emit CUDA/OpenCL/Renderscript image padding, using alignment of <n> bytes for GPU devices\n"
     << "  -target <n>             Generate code for GPUs with code name <n>.\n"
@@ -138,10 +137,6 @@ int main(int argc, char *argv[]) {
     }
     if (StringRef(argv[i]) == "-emit-renderscript") {
       compilerOptions.setTargetCode(TARGET_Renderscript);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-renderscript-gpu") {
-      compilerOptions.setTargetCode(TARGET_RenderscriptGPU);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-filterscript") {
@@ -313,10 +308,9 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
   // Renderscript only supported on ARM devices
-  if ((compilerOptions.emitRenderscript() ||
-       compilerOptions.emitRenderscriptGPU() ||
-       compilerOptions.emitFilterscript()) && !targetDevice.isARMGPU()) {
-    llvm::errs() << "ERROR: Renderscript (GPU) code generation selected, but no Renderscript-capable target device specified!\n"
+  if ((compilerOptions.emitRenderscript() || compilerOptions.emitFilterscript())
+      && !targetDevice.isARMGPU()) {
+    llvm::errs() << "ERROR: Renderscript code generation selected, but no Renderscript-capable target device specified!\n"
                  << "  Please select correct target device/code generation backend combination.\n\n";
     printUsage();
     return EXIT_FAILURE;

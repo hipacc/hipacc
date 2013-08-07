@@ -567,7 +567,7 @@ RSBUILTIN(rsGetElementAt_float4,    "E4fiC*CUiUi",   rsGetElementAt_float4)
 RSBUILTIN(rsGetElementAt_double4,   "E4diC*CUiUi",   rsGetElementAt_double4)
 
 // Builtin Renderscript getters abused for writing.
-// This is a poor workaround, which is used by TARGET_RenderscriptGPU only.
+// This is a poor workaround, which is used by TARGET_Renderscript only.
 RSBUILTIN(*(char*)rsGetElementAt,   "SciC*CUiUi",   rsGetElementAt_charW)
 RSBUILTIN(*(uchar*)rsGetElementAt,  "UciC*CUiUi",   rsGetElementAt_ucharW)
 RSBUILTIN(*(short*)rsGetElementAt,  "SsiC*CUiUi",   rsGetElementAt_shortW)

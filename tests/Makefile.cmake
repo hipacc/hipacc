@@ -99,17 +99,6 @@ renderscript:
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_renderscript
 	@echo 'Generating build system current test case:'
-	cd build_renderscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ $(MYFLAGS)
-	@echo 'Compiling Renderscript file using llvm-rs-cc and g++:'
-	cd build_renderscript; make
-	cp build_renderscript/main_renderscript .
-
-renderscript_gpu:
-	rm -f *.rs *.fs
-	@echo 'Executing HIPAcc Compiler for Renderscript:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript-gpu $(HIPACC_OPTS) -o main.cc
-	mkdir -p build_renderscript
-	@echo 'Generating build system current test case:'
 	cd build_renderscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=17 $(MYFLAGS)
 	@echo 'Compiling Renderscript file using llvm-rs-cc and g++:'
 	cd build_renderscript; make

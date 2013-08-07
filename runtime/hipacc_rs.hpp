@@ -376,15 +376,13 @@ HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
     RenderScript* rs = Ctx.get_context(); \
 \
-    int stride = width; \
-\
     Type::Builder type(rs, E); \
-    type.setX(stride); \
+    type.setX(width); \
     type.setY(height); \
 \
     sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
 \
-    HipaccImage img = HipaccImage(width, height, stride, 0, sizeof(T), \
+    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), \
                                   (void *)allocation.get()); \
     Ctx.add_image(img, allocation); \
 \

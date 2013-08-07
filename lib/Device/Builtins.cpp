@@ -348,7 +348,6 @@ void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
             if (!getBuiltinFunction(BuiltinInfo[i].OpenCL)) continue;
             break;
           case TARGET_Renderscript:
-          case TARGET_RenderscriptGPU:
           case TARGET_Filterscript:
             if (!getBuiltinFunction(BuiltinInfo[i].Renderscript)) continue;
             break;
@@ -362,10 +361,8 @@ void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
         if (target == TARGET_OpenCL || target == TARGET_OpenCLCPU) break;
         continue;
       case TARGET_Renderscript:
-      case TARGET_RenderscriptGPU:
       case TARGET_Filterscript:
-        if (target == TARGET_RenderscriptGPU ||
-            target == TARGET_Renderscript ||
+        if (target == TARGET_Renderscript ||
             target == TARGET_Filterscript) break;
         continue;
     }
@@ -426,7 +423,6 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
             case TARGET_OpenCLCPU:
               return getBuiltinFunction(BuiltinInfo[i].OpenCL);
             case TARGET_Renderscript:
-            case TARGET_RenderscriptGPU:
             case TARGET_Filterscript:
               return getBuiltinFunction(BuiltinInfo[i].Renderscript);
           }
@@ -438,11 +434,8 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
           if (target == TARGET_OpenCL || target == TARGET_OpenCLCPU)
             return BuiltinInfo[i].FD;
         case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:
-          if (target == TARGET_RenderscriptGPU ||
-              target == TARGET_Renderscript ||
-              target == TARGET_Filterscript)
+          if (target == TARGET_Renderscript || target == TARGET_Filterscript)
             return BuiltinInfo[i].FD;
       }
     }

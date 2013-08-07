@@ -239,13 +239,12 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
-    case TARGET_Renderscript:
       // array subscript: Domain[y*width + x]
       dom_acc = accessMemArrAt(domain_var, createIntegerLiteral(Ctx,
             (int)Domain->getSizeX()), createIntegerLiteral(Ctx, redIdxX.back()),
           createIntegerLiteral(Ctx, redIdxY.back()));
       break;
-    case TARGET_RenderscriptGPU:
+    case TARGET_Renderscript:
     case TARGET_Filterscript:
       // allocation access: rsGetElementAt(Domain, x, y)
       dom_acc = accessMemAllocAt(domain_var, READ_ONLY, createIntegerLiteral(Ctx,

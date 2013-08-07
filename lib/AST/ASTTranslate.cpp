@@ -377,7 +377,6 @@ void ASTTranslate::updateTileVars() {
     default:
     case TARGET_C:
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       break;
     case TARGET_CUDA:
@@ -476,7 +475,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     }
 
     if (compilerOptions.emitRenderscript() ||
-        compilerOptions.emitRenderscriptGPU() ||
         compilerOptions.emitFilterscript()) {
       // search for uint32_t x, uint32_t y parameters
       if (PVD->getName().equals("x")) {
@@ -551,7 +549,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       initRenderscript(kernelBody);
       break;
@@ -719,7 +716,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
         case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:
           break;
         case TARGET_CUDA:
@@ -1006,7 +1002,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       // check the y-dimension as well:
       // if (gid_y >= is_offset_y && gid_y < is_height+is_offset_y)
       if (compilerOptions.emitRenderscript() ||
-          compilerOptions.emitRenderscriptGPU() ||
           compilerOptions.emitFilterscript()) {
         // if (gid_y >= is_offset_y)
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl() &&
@@ -1065,7 +1060,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       // Renderscript iteration space is always the whole image, so we need to
       // check the y-dimension as well.
       if (compilerOptions.emitRenderscript() ||
-          compilerOptions.emitRenderscriptGPU() ||
           compilerOptions.emitFilterscript()) {
         // if (gid_y < is_height+is_offset_y)
         BinaryOperator *check_tmp = NULL;
@@ -1137,7 +1131,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
         case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:
           break;
         case TARGET_CUDA:
@@ -2136,12 +2129,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               break;
             case TARGET_OpenCL:
             case TARGET_OpenCLCPU:
-            case TARGET_Renderscript:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                     (int)Mask->getSizeX()), midx_x, midx_y);
               break;
-            case TARGET_RenderscriptGPU:
+            case TARGET_Renderscript:
             case TARGET_Filterscript:
               // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
               result = accessMemAllocAt(LHS, memAcc, midx_x, midx_y);
@@ -2187,12 +2179,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               break;
             case TARGET_OpenCL:
             case TARGET_OpenCLCPU:
-            case TARGET_Renderscript:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                     (int)Mask->getSizeX()), midx_x, midx_y);
               break;
-            case TARGET_RenderscriptGPU:
+            case TARGET_Renderscript:
             case TARGET_Filterscript:
               // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
               result = accessMemAllocAt(LHS, memAcc, midx_x, midx_y);
@@ -2221,7 +2212,6 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             break;
           case TARGET_OpenCL:
           case TARGET_OpenCLCPU:
-          case TARGET_Renderscript:
             if (Mask->isConstant()) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
               result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
@@ -2241,7 +2231,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                     Ctx.IntTy));
             }
             break;
-          case TARGET_RenderscriptGPU:
+          case TARGET_Renderscript:
           case TARGET_Filterscript:
             if (Mask->isConstant()) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
@@ -2419,7 +2409,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     // getY() method -> gid_y
     if (ME->getMemberNameInfo().getAsString() == "getY") {
       if (compilerOptions.emitRenderscript() ||
-          compilerOptions.emitRenderscriptGPU() ||
           compilerOptions.emitFilterscript()) {
         return createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
       } else {
@@ -2440,7 +2429,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         case TARGET_OpenCL:
         case TARGET_OpenCLCPU:
         case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
           result = accessMem(LHS, Acc, memAcc);
           break;
         case TARGET_Filterscript:
@@ -2492,7 +2480,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
               createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
         } else if (compilerOptions.emitRenderscript() ||
-            compilerOptions.emitRenderscriptGPU() ||
             compilerOptions.emitFilterscript()) {
           idx_y = createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
         }
@@ -2569,9 +2556,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         }
         break;
       case TARGET_Renderscript:
-        result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
-        break;
-      case TARGET_RenderscriptGPU:
       case TARGET_Filterscript:
         if (ME->getMemberNameInfo().getAsString() == "outputAtPixel" &&
             compilerOptions.emitFilterscript()) {

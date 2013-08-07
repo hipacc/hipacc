@@ -51,7 +51,6 @@ void CreateHostStrings::writeHeaders(std::string &resultStr) {
       resultStr += "#include \"hipacc_ocl.hpp\"\n\n";
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       resultStr += "#include \"hipacc_rs.hpp\"\n\n";
       break;
@@ -81,10 +80,6 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
       resultStr += indent;
       break;
     case TARGET_Renderscript:
-      resultStr += "hipaccInitRenderScript(16);\n";
-      resultStr += indent;
-      break;
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       resultStr += "hipaccInitRenderScript(17);\n";
       resultStr += indent;
@@ -101,7 +96,6 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
     case TARGET_CUDA:
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       resultStr += "ScriptC_" + kernelName + " " + kernelName;
       resultStr += " = hipaccInitScript<ScriptC_" + kernelName + ">();\n";
@@ -128,17 +122,11 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
 
 
 void CreateHostStrings::addReductionArgument(HipaccGlobalReduction *GR,
-    std::string device_name, std::string host_name, std::string &resultStr, bool
-    bind) {
+    std::string device_name, std::string host_name, std::string &resultStr) {
   resultStr += "_args" + GR->getFileName();
   resultStr += ".push_back(hipacc_script_arg<ScriptC_" + GR->getFileName();
   resultStr += ">(&ScriptC_" + GR->getFileName();
-  if (bind) {
-    resultStr += "::bind_";
-  } else {
-    resultStr += "::set_";
-  }
-  resultStr += device_name + ", &" + host_name + "));\n";
+  resultStr += "::set_" + device_name + ", &" + host_name + "));\n";
   resultStr += indent;
 }
 
@@ -151,7 +139,6 @@ void CreateHostStrings::writeReductionCompilation(HipaccGlobalReduction *GR,
     case TARGET_CUDA:
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       writeKernelCompilation(GR->getFileName(), resultStr);
       break;
@@ -177,7 +164,6 @@ void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
     case TARGET_OpenCLCPU:
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       resultStr += "\n" + indent;
       resultStr += "std::vector<hipacc_script_arg<ScriptC_" + GR->getFileName();
@@ -189,29 +175,25 @@ void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
       LSS << literalCountGridBock++;
       resultStr += "sp<Allocation> alloc_" + LSS.str() + " = (Allocation  *)";
       resultStr += Img->getName() + ".mem;\n" + indent;
-      if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
-        addReductionArgument(GR, "Input", "alloc_" + LSS.str(), resultStr, false);
-      } else {
-        addReductionArgument(GR, "Input", "alloc_" + LSS.str(), resultStr, true);
-      }
-      addReductionArgument(GR, "neutral", GR->getNeutral(), resultStr, false);
-      addReductionArgument(GR, "stride", Img->getName() + ".stride", resultStr, false);
+      addReductionArgument(GR, "Input", "alloc_" + LSS.str(), resultStr);
+      addReductionArgument(GR, "neutral", GR->getNeutral(), resultStr);
+      addReductionArgument(GR, "stride", Img->getName() + ".stride", resultStr);
 
       // print optional offset_x/offset_y and iteration space width/height
       if (GR->isAccessor()) {
         addReductionArgument(GR, "offset_x", GR->getAccessor()->getName() +
-            ".offset_x", resultStr, false);
+            ".offset_x", resultStr);
         addReductionArgument(GR, "offset_y", GR->getAccessor()->getName() +
-            ".offset_y", resultStr, false);
+            ".offset_y", resultStr);
         addReductionArgument(GR, "is_height", GR->getAccessor()->getName() +
-            ".height", resultStr, false);
+            ".height", resultStr);
         addReductionArgument(GR, "num_elements", GR->getAccessor()->getName() +
-            ".width", resultStr, false);
+            ".width", resultStr);
       } else {
         addReductionArgument(GR, "is_height", Img->getName() + ".height",
-            resultStr, false);
+            resultStr);
         addReductionArgument(GR, "num_elements", Img->getName() + ".width",
-            resultStr, false);
+            resultStr);
       }
       break;
   }
@@ -234,7 +216,6 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
       }
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       resultStr += "hipaccCreateAllocation((" + type + "*)";
       break;
@@ -273,7 +254,6 @@ void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
       assert(0 && "constant memory allocation not required in CUDA!");
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       resultStr += "hipaccCreateAllocation";
       if (options.emitRenderscript()) {
@@ -390,7 +370,6 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
       }
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
@@ -428,7 +407,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       offsetStr = "offset" + LSS.str();
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       blockStr = "work_size" + LSS.str();
       gridStr = K->getIterationSpace()->getAccessor()->getImage()->getName();
@@ -462,7 +440,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += indent + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
         break;
       case TARGET_Renderscript:
-      case TARGET_RenderscriptGPU:
       case TARGET_Filterscript:
         resultStr += indent + "std::vector<hipacc_script_arg<ScriptC_" + kernelName + "> >";
         resultStr += " _args" + kernelName + ";\n";
@@ -520,7 +497,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         }
         break;
       case TARGET_Renderscript:
-      case TARGET_RenderscriptGPU:
       case TARGET_Filterscript:
         // size_t work_size
         resultStr += "size_t " + blockStr + "[2];\n";
@@ -702,7 +678,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += indent;
           break;
         case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:
           if (Acc || Mask || i==0) {
             LSS.str("");
@@ -714,12 +689,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += "_args" + kernelName + ".push_back(";
           resultStr += "hipacc_script_arg<ScriptC_" + kernelName + ">(";
           resultStr += "&ScriptC_" + kernelName;
-          if ((Acc || Mask || i==0) && options.emitRenderscript()) {
-            resultStr += "::bind_";
-          } else {
-            resultStr += "::set_";
-          }
-          resultStr += deviceArgNames[i] + ", &";
+          resultStr += "::set_" + deviceArgNames[i] + ", &";
           if (Acc || Mask || i==0) {
             resultStr += "alloc_" + LSS.str() + "));\n";
           } else {
@@ -758,16 +728,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += indent;
           break;
         case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:
           resultStr += "hipaccSetScriptArg(&" + kernelName + ", ";
           resultStr += "&ScriptC_" + kernelName;
-          if ((Acc || Mask || i==0) && options.emitRenderscript()) {
-            resultStr += "::bind_";
-          } else {
-            resultStr += "::set_";
-          }
-          resultStr += deviceArgNames[i] + ", ";
+          resultStr += "::set_" + deviceArgNames[i] + ", ";
           if (Acc || Mask || i==0) {
             resultStr += "sp<Allocation>(((Allocation *)" + hostArgNames[i];
             resultStr += img_mem + ")));\n";
@@ -803,7 +767,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         }
         break;
       case TARGET_Renderscript:
-      case TARGET_RenderscriptGPU:
       case TARGET_Filterscript:
         if (options.timeKernels()) {
           resultStr += "hipaccLaunchScriptKernelBenchmark(&" + kernelName;
@@ -827,7 +790,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     }
     resultStr += ", _args" + kernelName;
     if (0 != (options.getTargetCode() & (TARGET_Renderscript |
-                                         TARGET_RenderscriptGPU |
                                          TARGET_Filterscript))) {
         resultStr += ", &ScriptC_" + kernelName + "::forEach_rs" + kernelName;
     }
@@ -851,7 +813,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += ", " + cc_string.str();
       }
       if (0 != (options.getTargetCode() & (TARGET_Renderscript |
-                                           TARGET_RenderscriptGPU |
                                            TARGET_Filterscript))) {
         resultStr += ", " + gridStr;
       }
@@ -874,7 +835,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += kernelName + "\"";
         break;
       case TARGET_Renderscript:
-      case TARGET_RenderscriptGPU:
       case TARGET_Filterscript:
         resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
         resultStr += "&ScriptC_" + kernelName + "::forEach_rs" + kernelName;
@@ -888,7 +848,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         break;
     }
     if (0 == (options.getTargetCode() & (TARGET_Renderscript |
-                                         TARGET_RenderscriptGPU |
                                          TARGET_Filterscript))) {
       resultStr += ", " + gridStr;
       resultStr += ", " + blockStr;
@@ -928,7 +887,6 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
       }
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       // no exploration supported atm since this involves lots of memory
       // reallocations in Renderscript
@@ -938,11 +896,7 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
         GR->getFileName() + "2D, ";
       resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
         GR->getFileName() + "1D, ";
-      if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
-        resultStr += "&ScriptC_" + GR->getFileName() + "::set_Output, ";
-      } else {
-        resultStr += "&ScriptC_" + GR->getFileName() + "::bind_Output, ";
-      }
+      resultStr += "&ScriptC_" + GR->getFileName() + "::set_Output, ";
       resultStr += "_args" + GR->getFileName() + ", ";
       if (GR->isAccessor()) {
         resultStr += GR->getAccessor()->getName() + ".width);\n";
@@ -1029,7 +983,6 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
     case TARGET_C:
       break;
     case TARGET_Renderscript:
-    case TARGET_RenderscriptGPU:
     case TARGET_Filterscript:
       resultStr += "_RS, "; break;
     case TARGET_CUDA:
@@ -1067,7 +1020,7 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
   // image memory parameter, constant parameter, memory access function
   switch (K->useTextureMemory(Acc)) {
     case NoTexture:
-      if (options.emitRenderscriptGPU() || options.emitFilterscript()) {
+      if (options.emitRenderscript() || options.emitFilterscript()) {
         resultStr += "ALL_PARM, " + const_parameter + ", ALL" + const_suffix;
       } else {
         resultStr += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;

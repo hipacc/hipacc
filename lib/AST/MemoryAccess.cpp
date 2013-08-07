@@ -111,7 +111,6 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
         idx_x = removeISOffsetX(idx_x, Acc);
       }
       if ((compilerOptions.emitRenderscript() ||
-           compilerOptions.emitRenderscriptGPU() ||
            compilerOptions.emitFilterscript()) &&
           Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_y = removeISOffsetY(idx_y, Acc);
@@ -136,7 +135,6 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     idx_x = addGlobalOffsetX(idx_x, Acc);
   }
   if ((!compilerOptions.emitRenderscript() &&
-       !compilerOptions.emitRenderscriptGPU() &&
        !compilerOptions.emitFilterscript()) ||
       Acc!=Kernel->getIterationSpace()->getAccessor()) {
     idx_y = addGlobalOffsetY(idx_y, Acc);
@@ -162,9 +160,8 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           }
           // fall through
         case TARGET_C:
-        case TARGET_Renderscript:
           return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
-        case TARGET_RenderscriptGPU:
+        case TARGET_Renderscript:
         case TARGET_Filterscript:
           return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
       }
@@ -228,7 +225,6 @@ Expr *ASTTranslate::accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc,
   }
 
   if ((compilerOptions.emitRenderscript() ||
-       compilerOptions.emitRenderscriptGPU() ||
        compilerOptions.emitFilterscript()) &&
       Acc!=Kernel->getIterationSpace()->getAccessor()) {
     idx_y = removeISOffsetY(idx_y, Acc);

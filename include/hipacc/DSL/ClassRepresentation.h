@@ -698,7 +698,6 @@ class HipaccKernel : public HipaccKernelFeatures {
         case TARGET_OpenCL:
         case TARGET_OpenCLCPU:
         case TARGET_Renderscript:
-        case TARGET_RenderscriptGPU:
         case TARGET_Filterscript:
           return ArrayRef<QualType>(argTypesOpenCL.data(),
               argTypesOpenCL.size());

@@ -174,7 +174,6 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         idx_x = removeISOffsetX(idx_x, Acc);
       }
       if ((compilerOptions.emitRenderscript() ||
-           compilerOptions.emitRenderscriptGPU() ||
            compilerOptions.emitFilterscript()) &&
           Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_y = removeISOffsetY(idx_y, Acc);
@@ -262,11 +261,9 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
           RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
-      case TARGET_Renderscript:
-        // fall through
         RHS = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         break;
-      case TARGET_RenderscriptGPU:
+      case TARGET_Renderscript:
       case TARGET_Filterscript:
         RHS = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
         break;
@@ -349,11 +346,9 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
           result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
-      case TARGET_Renderscript:
-        // fall through
         result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         break;
-      case TARGET_RenderscriptGPU:
+      case TARGET_Renderscript:
       case TARGET_Filterscript:
         result = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
         break;
