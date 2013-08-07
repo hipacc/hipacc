@@ -301,7 +301,7 @@ class HipaccMask {
     Expr *hostMemExpr;
 
   public:
-    HipaccMask(VarDecl *VD, MaskType type) :
+    HipaccMask(VarDecl *VD, QualType QT, MaskType type) :
       VD(VD),
       name("_const" + VD->getNameAsString()),
       mask_type(type),
@@ -310,8 +310,8 @@ class HipaccMask {
       size_y(0),
       size_x_str(""),
       size_y_str(""),
-      type(),
-      typeStr(""),
+      type(QT),
+      typeStr(QT.getAsString()),
       is_constant(false),
       is_printed(false),
       kernels(0),
@@ -333,10 +333,6 @@ class HipaccMask {
       SS << y;
       size_y_str = SS.str();
       size_y = y;
-    }
-    void setType(QualType QT) {
-      type = QT;
-      typeStr = QT.getAsString();
     }
     void setIsConstant(bool c) { is_constant = c; }
     void setIsPrinted(bool p) { is_printed = p; }
@@ -820,7 +816,7 @@ class HipaccGlobalReduction : public HipaccDevice {
     unsigned int num_threads;
 
   public:
-    HipaccGlobalReduction(HipaccAccessor *acc, VarDecl *VD,
+    HipaccGlobalReduction(HipaccAccessor *acc, VarDecl *VD, QualType QT,
         HipaccGlobalReductionClass *GRC, CompilerOptions &options, bool
         is_accessor) :
       HipaccDevice(options),
@@ -828,7 +824,7 @@ class HipaccGlobalReduction : public HipaccDevice {
       VD(VD),
       GRC(GRC),
       name(VD->getNameAsString()),
-      type(""),
+      type(QT.getAsString()),
       neutral(""),
       fileName(""),
       reductionFunction(NULL),
@@ -840,7 +836,6 @@ class HipaccGlobalReduction : public HipaccDevice {
       fileName = GRC->getName() + VD->getNameAsString();
     }
 
-    void setType(std::string t) { type = t; }
     void setNeutral(std::string n) { neutral = n; }
     void setReductionFunction(CXXMethodDecl *fun) { reductionFunction = fun; }
     void setPyramidIndex(std::string idx) {

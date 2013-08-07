@@ -1262,8 +1262,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         assert((CCE->getNumArgs() == 2) &&
                "Mask definition requires exactly two arguments!");
 
-        Mask = new HipaccMask(VD, HipaccMask::Mask);
-        Mask->setType(compilerClasses.getFirstTemplateType(VD->getType()));
+        QualType QT = compilerClasses.getFirstTemplateType(VD->getType());
+        Mask = new HipaccMask(VD, QT, HipaccMask::Mask);
       }
       // found Domain decl
       if (compilerClasses.isTypeOfClass(VD->getType(),
@@ -1279,8 +1279,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         assert((CCE->getNumArgs() == 2) &&
                "Domain definition requires exactly two arguments!");
 
-        Mask = new HipaccMask(VD, HipaccMask::Domain);
-        Mask->setType(Context.UnsignedCharTy);
+        Mask = new HipaccMask(VD, Context.UnsignedCharTy, HipaccMask::Domain);
         // there are no holes in the Domain by default
         Mask->setIsConstant(true);
       }
@@ -1400,9 +1399,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             Acc = new HipaccAccessor(BC, InterpolateNO, VD);
           }
 
+          // get the template specialization type
+          QualType QT = compilerClasses.getFirstTemplateType(VD->getType());
+
           // create GlobalReduction
-          GR = new HipaccGlobalReduction(Acc, VD, it->second, compilerOptions,
-              (!Img && !Pyr));
+          GR = new HipaccGlobalReduction(Acc, VD, QT, it->second,
+              compilerOptions, (!Img && !Pyr));
 
           // get relative index of pyramid call
           if (Pyr) {
@@ -1446,15 +1448,11 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             std::stringstream LSS;
             LSS << "_tmpLiteral" << literalCount++;
 
-            newStr += neutralExpr->getType().getAsString() + " ";
+            newStr += GR->getType() + " ";
             newStr += LSS.str() + " = " + NS.str() + ";";
             newStr += stringCreator.getIndent();
             GR->setNeutral(LSS.str());
           }
-
-          // get the template specialization type
-          QualType QT = compilerClasses.getFirstTemplateType(VD->getType());
-          GR->setType(QT.getAsString());
 
           // store GlobalReduction
           GlobalReductionDeclMap[VD] = GR;
