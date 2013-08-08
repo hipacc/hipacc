@@ -142,6 +142,10 @@ class Domain : public MaskBase {
             MaskBase(size_x, size_y),
             DI(NULL) {}
 
+        Domain(const MaskBase &mask) :
+            MaskBase(mask),
+            DI(NULL) {}
+
         Domain(const Domain &domain) :
             MaskBase(domain),
             DI(domain.DI) {}
@@ -175,6 +179,16 @@ class Domain : public MaskBase {
             }
 
             return *this;
+        }
+
+        void operator=(const Domain &dom) {
+            assert(size_x==dom.getSizeX() && size_y==dom.getSizeY() &&
+                    "Domain sizes must be equal.");
+            for (int y=0; y<size_y; ++y) {
+                for (int x=0; x<size_x; ++x) {
+                    domain_space[y * size_x + x] = dom.domain_space[y * size_x + x];
+                }
+            }
         }
 
         void operator=(const MaskBase &mask) {
