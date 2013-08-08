@@ -27,8 +27,7 @@
 #define __HIPACC_RS_HPP__
 
 #include <RenderScript.h>
-#include <Type.h>
-#include <Allocation.h>
+#include <rsCppStructs.h>
 
 #include <assert.h>
 #include <float.h>
@@ -47,11 +46,11 @@
 #include "hipacc_base.hpp"
 
 using namespace android;
-using namespace android::renderscriptCpp;
+using namespace android::RSC;
 
 class HipaccContext : public HipaccContextBase {
     private:
-        RenderScript context;
+        RS context;
         std::vector<std::pair<sp<Allocation>, HipaccImage> > allocs;
 
     public:
@@ -88,7 +87,7 @@ class HipaccContext : public HipaccContextBase {
             }
             exit(EXIT_FAILURE);
         }
-        RenderScript* get_context() { return &context; }
+        RS* get_context() { return &context; }
 };
 
 
@@ -135,7 +134,7 @@ class hipacc_script_arg {
     CREATE_SCRIPT_ARG(18, float4)
     CREATE_SCRIPT_ARG(19, double4)
 
-    CREATE_SCRIPT_ARG(20, sp<Allocation>)
+    CREATE_SCRIPT_ARG(20, Allocation)
 };
 
 
@@ -247,7 +246,7 @@ const char *getRSErrorCodeStr(int errorNum) {
 }
 
 
-RenderScript::ErrorHandlerFunc_t errorHandler(uint32_t errorNum,
+RSC::ErrorHandlerFunc_t errorHandler(uint32_t errorNum,
                                               const char *errorText) {
     std::cerr << "ERROR: " << getRSErrorCodeStr(errorNum)
               << " (" << errorNum << ")" << std::endl
@@ -258,9 +257,9 @@ RenderScript::ErrorHandlerFunc_t errorHandler(uint32_t errorNum,
 // Create RenderScript context
 void hipaccInitRenderScript(int targetAPI) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    RenderScript* rs = Ctx.get_context();
+    RS* rs = Ctx.get_context();
 
-    rs->setErrorHandler((RenderScript::ErrorHandlerFunc_t)&errorHandler);
+    rs->setErrorHandler((RSC::ErrorHandlerFunc_t)&errorHandler);
 
     // Create context
     if (!rs->init(targetAPI)) {
@@ -292,10 +291,10 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
             memcpy(buff + (i * stride), host_mem + (i * width),
                    sizeof(T) * width);
         }
-        ((Allocation *)img.mem)->copyFromUnchecked(buff, sizeof(T) * stride * height);
+        ((Allocation *)img.mem)->copy1DRangeFrom(0, sizeof(T) * stride * height, buff);
         delete[] buff;
     } else {
-        ((Allocation *)img.mem)->copyFromUnchecked(host_mem, sizeof(T) * width * height);
+        ((Allocation *)img.mem)->copy1DRangeFrom(0, sizeof(T) * width * height, host_mem);
     }
 }
 
@@ -311,14 +310,14 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img) {
 
     if (stride > width) {
         T* buff = new T[stride * height];
-        ((Allocation *)img.mem)->copyToUnchecked(buff, sizeof(T) * stride * height);
+        ((Allocation *)img.mem)->copy1DRangeTo(0, sizeof(T) * stride * height, buff);
         for (int i = 0; i < height; i++) {
             memcpy(host_mem + (i * width), buff + (i * stride),
                    sizeof(T) * width);
         }
         delete[] buff;
     } else {
-        ((Allocation *)img.mem)->copyToUnchecked(host_mem, sizeof(T) * width * height);
+        ((Allocation *)img.mem)->copy1DRangeTo(0, sizeof(T) * width * height, host_mem);
     }
 }
 
@@ -339,8 +338,8 @@ void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst) {
     HipaccContext &Ctx = HipaccContext::getInstance();
 
     ((Allocation *)dst.img.mem)->copy2DRangeFrom(dst.offset_x, dst.offset_y,
-        src.width, src.height, (Allocation *)src.img.mem, src.width*src.height,
-        src.offset_x, src.offset_y);
+        src.width, src.height, (Allocation *)src.img.mem, src.offset_x,
+        src.offset_y);
 }
 
 
@@ -349,7 +348,7 @@ void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst) {
 HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, \
                                       int alignment) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
-    RenderScript* rs = Ctx.get_context(); \
+    RS* rs = Ctx.get_context(); \
 \
     int stride = (int)ceilf((float)(width) / (alignment / sizeof(T))) \
                    * (alignment / sizeof(T)); \
@@ -374,7 +373,7 @@ HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, \
 /* Allocate memory without any alignment considerations */ \
 HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
-    RenderScript* rs = Ctx.get_context(); \
+    RS* rs = Ctx.get_context(); \
 \
     Type::Builder type(rs, E); \
     type.setX(width); \
@@ -397,7 +396,7 @@ HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height) { \
 HipaccImage hipaccCreateAllocationConstant(T *host_mem, \
                                               int width, int height) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
-    RenderScript* rs = Ctx.get_context(); \
+    RS* rs = Ctx.get_context(); \
 \
     Type::Builder type(rs, E); \
     type.setX(width); \
@@ -469,12 +468,12 @@ void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
-    void(F::*kernel)(sp<const Allocation>) const,
+    void(F::*kernel)(sp<const Allocation>),
     HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    RenderScript* rs = Ctx.get_context();
+    RS* rs = Ctx.get_context();
 
     rs->finish();
     start = getMicroTime();
@@ -496,12 +495,12 @@ void hipaccLaunchScriptKernel(
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
-    void(F::*kernel)(sp<const Allocation>, sp<const Allocation>) const,
+    void(F::*kernel)(sp<const Allocation>, sp<const Allocation>),
     HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    RenderScript* rs = Ctx.get_context();
+    RS* rs = Ctx.get_context();
 
     rs->finish();
     start = getMicroTime();
@@ -524,7 +523,7 @@ template<typename F>
 void hipaccLaunchScriptKernelBenchmark(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
-    void(F::*kernel)(sp<const Allocation>) const,
+    void(F::*kernel)(sp<const Allocation>),
     HipaccImage &out, size_t *work_size,
     bool print_timing=true
 ) {
@@ -559,7 +558,7 @@ template<typename F, typename T>
 void hipaccLaunchScriptKernelExploration(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
-    void(F::*kernel)(sp<const Allocation>) const,
+    void(F::*kernel)(sp<const Allocation>),
     std::vector<hipacc_smem_info> smems, hipacc_launch_info &info,
     int warp_size, int max_threads_per_block, int max_threads_for_kernel,
     int max_smem_per_block, int heu_tx, int heu_ty,
@@ -633,7 +632,7 @@ T hipaccApplyReduction(
     int is_width, bool print_timing=true
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    RenderScript* rs = Ctx.get_context();
+    RS* rs = Ctx.get_context();
     long end, start;
 
     // allocate temporary memory
@@ -668,7 +667,7 @@ T hipaccApplyReduction(
 
     // download result of reduction
     T result;
-    is2->copyTo(&result, sizeof(T));
+    is2->copy1DTo(&result);
 
     return result;
 }

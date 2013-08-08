@@ -733,11 +733,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += "&ScriptC_" + kernelName;
           resultStr += "::set_" + deviceArgNames[i] + ", ";
           if (Acc || Mask || i==0) {
-            resultStr += "sp<Allocation>(((Allocation *)" + hostArgNames[i];
-            resultStr += img_mem + ")));\n";
-          } else {
-            resultStr += hostArgNames[i] + img_mem + ");\n";
+            resultStr += "*(Allocation *)";
           }
+          resultStr += hostArgNames[i] + img_mem + ");\n";
           resultStr += indent;
           break;
       }

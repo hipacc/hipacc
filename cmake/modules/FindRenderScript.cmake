@@ -94,7 +94,7 @@ IF (NOT RS_TARGET_API)
   SET (RS_TARGET_API 16)
 ENDIF (NOT RS_TARGET_API)
 
-SET (RS_FLAGS -allow-rs-prefix -reflect-c++ -target-api ${RS_TARGET_API} -o .)
+SET (RS_FLAGS -allow-rs-prefix -reflect-c++ -target-api ${RS_TARGET_API} -o ./)
 
 SET (RS_INCLUDE_DIRS -I${ANDROID_SOURCE_DIR}/frameworks/rs/scriptc
                      -I${ANDROID_SOURCE_DIR}/external/clang/lib/Headers)
