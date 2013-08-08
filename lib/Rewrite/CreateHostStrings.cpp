@@ -81,7 +81,9 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
-      resultStr += "hipaccInitRenderScript(17);\n";
+      resultStr += "hipaccInitRenderScript(";
+      resultStr += RS_TARGET_API;
+      resultStr += ");\n";
       resultStr += indent;
       break;
   }

@@ -99,7 +99,7 @@ renderscript:
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_renderscript
 	@echo 'Generating build system current test case:'
-	cd build_renderscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=17 $(MYFLAGS)
+	cd build_renderscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=@RS_TARGET_API@ $(MYFLAGS)
 	@echo 'Compiling Renderscript file using llvm-rs-cc and g++:'
 	cd build_renderscript; make
 	cp build_renderscript/main_renderscript .
@@ -110,7 +110,7 @@ filterscript:
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-filterscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_filterscript
 	@echo 'Generating build system current test case:'
-	cd build_filterscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=17 $(MYFLAGS)
+	cd build_filterscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=@RS_TARGET_API@ $(MYFLAGS)
 	@echo 'Compiling Filterscript file using llvm-rs-cc and g++:'
 	cd build_filterscript; make
 	cp build_filterscript/main_renderscript ./main_filterscript
