@@ -134,7 +134,7 @@ class hipacc_script_arg {
     CREATE_SCRIPT_ARG(18, float4)
     CREATE_SCRIPT_ARG(19, double4)
 
-    CREATE_SCRIPT_ARG(20, Allocation)
+    CREATE_SCRIPT_ARG(20, sp<Allocation>)
 };
 
 
@@ -625,8 +625,8 @@ void hipaccLaunchScriptKernelExploration(
 template<typename F, typename T>
 T hipaccApplyReduction(
     F *script,
-    void(F::*kernel2D)(sp<const Allocation>) const,
-    void(F::*kernel1D)(sp<const Allocation>) const,
+    void(F::*kernel2D)(sp<const Allocation>),
+    void(F::*kernel1D)(sp<const Allocation>),
     void(F::*setter)(sp<Allocation>),
     std::vector<hipacc_script_arg<F> > args,
     int is_width, bool print_timing=true
