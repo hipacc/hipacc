@@ -257,12 +257,8 @@ void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
-      resultStr += "hipaccCreateAllocation";
-      if (options.emitRenderscript()) {
-        resultStr += "Constant";
-      }
-      resultStr += "((" + type + "*)NULL";
-      resultStr += ", (int)" + width + ", (int)" + height + ");";
+      resultStr += "hipaccCreateAllocation((" + type + "*)";
+      resultStr += "NULL, " + width + ", " + height + ");";
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:

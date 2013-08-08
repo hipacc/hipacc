@@ -390,31 +390,6 @@ HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height) { \
     } \
 \
     return img; \
-} \
-\
-/* Allocate memory in GPU constant memory space */ \
-HipaccImage hipaccCreateAllocationConstant(T *host_mem, \
-                                              int width, int height) { \
-    HipaccContext &Ctx = HipaccContext::getInstance(); \
-    RS* rs = Ctx.get_context(); \
-\
-    Type::Builder type(rs, E); \
-    type.setX(width); \
-    type.setY(height); \
-\
-    sp<Allocation> allocation = \
-        Allocation::createTyped(rs, type.create(), \
-                                RS_ALLOCATION_USAGE_GRAPHICS_CONSTANTS); \
-\
-    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), \
-                                  (void *)allocation.get()); \
-    Ctx.add_image(img, allocation); \
-\
-    if (host_mem) { \
-        hipaccWriteMemory(img, host_mem); \
-    } \
-\
-    return img; \
 }
 
 
@@ -636,15 +611,15 @@ T hipaccApplyReduction(
     long end, start;
 
     // allocate temporary memory
-    HipaccImage out_img = hipaccCreateAllocationConstant((T*)NULL, is_width, 1);
+    HipaccImage out_img = hipaccCreateAllocation((T*)NULL, is_width, 1);
 
     // allocation for 1st reduction step
-    HipaccImage is1_img = hipaccCreateAllocationConstant((T*)NULL, is_width, 1);
+    HipaccImage is1_img = hipaccCreateAllocation((T*)NULL, is_width, 1);
     sp<Allocation> is1 = (Allocation *)is1_img.mem;
     (script->*setter)(is1);
 
     // allocation for 2nd reduction step
-    HipaccImage is2_img = hipaccCreateAllocationConstant((T*)NULL, 1, 1);
+    HipaccImage is2_img = hipaccCreateAllocation((T*)NULL, 1, 1);
     sp<Allocation> is2 = (Allocation *)is2_img.mem;
 
     // set arguments
