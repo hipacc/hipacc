@@ -1,0 +1,159 @@
+diff --git a/slang_rs_reflection_base.cpp b/slang_rs_reflection_base.cpp
+index c29c89d..5aa1245 100644
+--- a/slang_rs_reflection_base.cpp
++++ b/slang_rs_reflection_base.cpp
+@@ -106,13 +106,19 @@ void RSReflectionBase::startFile(const string &filename) {
+ }
+ 
+ string RSReflectionBase::stripRS(const string &s) const {
+-  size_t pos = s.rfind(".rs");
+-  if(pos != string::npos) {
+-    string tmp(s);
++  string tmp(s);
++  size_t pos = tmp.rfind(".rs");
++  if (pos == string::npos) {
++      pos = tmp.rfind(".fs");
++  }
++  if (pos != string::npos) {
+     tmp.erase(pos);
+-    return tmp;
+   }
+-  return s;
++  size_t path = tmp.rfind("/");
++  if (path != string::npos) {
++    tmp.erase(0, path+1);
++  }
++  return tmp;
+ }
+ 
+ void RSReflectionBase::write(const std::string &t) {
+diff --git a/slang_rs_reflection_cpp.cpp b/slang_rs_reflection_cpp.cpp
+index 65ce7d9..236f9e5 100644
+--- a/slang_rs_reflection_cpp.cpp
++++ b/slang_rs_reflection_cpp.cpp
+@@ -34,6 +34,7 @@
+ #include "slang_rs_reflect_utils.h"
+ #include "slang_version.h"
+ #include "slang_utils.h"
++#include "slang_rs_type_spec.h"
+ 
+ #include "slang_rs_reflection_cpp.h"
+ 
+@@ -66,12 +67,11 @@ bool RSReflectionCpp::reflect(const string &OutputPathBase,
+     std::vector< std::string > cpp(mText);
+     mText.clear();
+ 
++    if (!RSReflectionBase::writeFile(mClassName + ".h", header) ||
++        !RSReflectionBase::writeFile(mClassName + ".cpp", cpp))
++        return false;
+ 
+-    RSReflectionBase::writeFile(mClassName + ".h", header);
+-    RSReflectionBase::writeFile(mClassName + ".cpp", cpp);
+-
+-
+-    return false;
++    return true;
+ }
+ 
+ typedef std::vector<std::pair<std::string, std::string> > ArgTy;
+@@ -108,8 +108,16 @@ bool RSReflectionCpp::makeHeader(const std::string &baseClass) {
+         const RSExportVar *ev = *I;
+         RSReflectionTypeData rtd;
+         ev->getType()->convertToRTD(&rtd);
+-        if(!ev->isConst()) {
+-            write(string(rtd.type->c_name) + " __" + ev->getName() + ";");
++        const union RSType* rst = ev->getType()->getSpecType();
++
++        if (RS_TYPE_GET_CLASS(rst) == RS_TC_Pointer ||
++            RS_PRIMITIVE_TYPE_GET_DATA_TYPE(rst) == RS_DT_RSAllocation) {
++            write(string("android::sp<android::renderscriptCpp::Allocation> __")
++                  + ev->getName() + ";");
++        } else {
++            if(!ev->isConst()) {
++                write(string(rtd.type->c_name) + " __" + ev->getName() + ";");
++            }
+         }
+     }
+     decIndent();
+@@ -130,16 +138,37 @@ bool RSReflectionCpp::makeHeader(const std::string &baseClass) {
+         const RSExportVar *ev = *I;
+         RSReflectionTypeData rtd;
+         ev->getType()->convertToRTD(&rtd);
++        const union RSType* rst = ev->getType()->getSpecType();
++
++        string type;
++        string setvar;
++        string setter;
++
++        if (RS_TYPE_GET_CLASS(rst) == RS_TC_Pointer ||
++            RS_PRIMITIVE_TYPE_GET_DATA_TYPE(rst) == RS_DT_RSAllocation) {
++            type = "android::sp<android::renderscriptCpp::Allocation>";
++        } else {
++            type = rtd.type->c_name;
++        }
++
++        stringstream tmp;
++        tmp << slot;
++
++        if (RS_TYPE_GET_CLASS(rst) == RS_TC_Pointer) {
++            setter = string("void bind_") + ev->getName() + "(" + type + " v) {";
++            setvar = string("    bindAllocation(v, ") + tmp.str() + ");";
++        } else {
++            setter = string("void set_") + ev->getName() + "(" + type + " v) {";
++            setvar = string("    setVar(") + tmp.str() + ", v);";
++        }
+ 
+         if(!ev->isConst()) {
+-            write(string("void set_") + ev->getName() + "(" + rtd.type->c_name + " v) {");
+-            stringstream tmp;
+-            tmp << slot;
+-            write(string("    setVar(") + tmp.str() + ", v);");
++            write(setter);
++            write(setvar);
+             write(string("    __") + ev->getName() + " = v;");
+             write("}");
+         }
+-        write(string(rtd.type->c_name) + " get_" + ev->getName() + "() const {");
++        write(string(type) + " get_" + ev->getName() + "() const {");
+         if(ev->isConst()) {
+             const clang::APValue &val = ev->getInit();
+             bool isBool = !strcmp(rtd.type->c_name, "bool");
+@@ -225,7 +254,7 @@ bool RSReflectionCpp::writeBC() {
+ }
+ 
+ bool RSReflectionCpp::makeImpl(const std::string &baseClass) {
+-    startFile(mClassName + ".h");
++    startFile(mClassName + ".cpp");
+ 
+     write("");
+     write("#include \"" + mClassName + ".h\"");
+@@ -240,8 +269,12 @@ bool RSReflectionCpp::makeImpl(const std::string &baseClass) {
+ 
+     write(mClassName + "::" + mClassName +
+           "(android::renderscriptCpp::RenderScript *rs, const char *cacheDir, size_t cacheDirLength) :");
+-    write("        ScriptC(rs, __txt, sizeof(__txt), \"" + mInputFileName +
+-          "\", 4, cacheDir, cacheDirLength) {");
++    stringstream tmp;
++    tmp << "        ScriptC(rs, __txt, sizeof(__txt)";
++    tmp << ", \"" + stripRS(mInputFileName) + "\", ";
++    tmp << stripRS(mInputFileName).length();
++    tmp << ", cacheDir, cacheDirLength) {";
++    write(tmp);
+     incIndent();
+     //...
+     decIndent();
+@@ -281,9 +314,12 @@ bool RSReflectionCpp::makeImpl(const std::string &baseClass) {
+         if(ef->hasIn() && ef->hasOut()) {
+             tmp << "ain, aout, NULL, 0);";
+         } else if(ef->hasIn()) {
+-            tmp << "ain, NULL, 0);";
++            tmp << "ain";
++            tmp << ", android::sp<android::renderscriptCpp::Allocation>(NULL)";
++            tmp << ", NULL, 0);";
+         } else {
+-            tmp << "aout, NULL, 0);";
++            tmp << "android::sp<android::renderscriptCpp::Allocation>(NULL)";
++            tmp << ", aout, NULL, 0);";
+         }
+         write(tmp);
+ 

@@ -1,0 +1,323 @@
+diff --git a/Android.mk b/Android.mk
+index 0dde1a4..0180373 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -236,3 +236,5 @@ LOCAL_STATIC_LIBRARIES := libcutils libutils
+ LOCAL_LDLIBS := -lpthread
+ 
+ include $(BUILD_HOST_STATIC_LIBRARY)
++
++include $(LOCAL_PATH)/cpp/Android.mk
+diff --git a/cpp/Allocation.cpp b/cpp/Allocation.cpp
+index d6f79b0..8861e4f 100644
+--- a/cpp/Allocation.cpp
++++ b/cpp/Allocation.cpp
+@@ -166,22 +166,52 @@ void Allocation::ioGetInput() {
+     rsAllocationIoReceive(mRS->mContext, getID());
+ }
+ 
+-/*
+-void copyFrom(BaseObj[] d) {
+-    mRS.validate();
++void Allocation::copyFrom(const android::sp<BaseObj>* d, size_t dataLen) {
+     validateIsObject();
+-    if (d.length != mCurrentCount) {
+-        ALOGE("Array size mismatch, allocation sizeX = " +
+-                                             mCurrentCount + ", array length = " + d.length);
++    size_t count = dataLen / sizeof(*d);
++    if (count != mCurrentCount) {
++        ALOGE("Array size mismatch, allocation sizeX = %zu,"
++              "array length = %zu", mCurrentCount, count);
+     }
+-    int i[] = new int[d.length];
+-    for (int ct=0; ct < d.length; ct++) {
+-        i[ct] = d[ct].getID();
++    void** i = new void*[count];
++    for (size_t ct=0; ct < count; ct++) {
++        i[ct] = d[ct]->getID();
+     }
+-    copy1DRangeFromUnchecked(0, mCurrentCount, i);
++    copy1DRangeFromUnchecked(0, mCurrentCount, i, count * sizeof(void*));
++    delete[] i;
++}
++
++void Allocation::copyFromUnchecked(const void* d, size_t dataLen) {
++    copy1DRangeFromUnchecked(0, mCurrentCount, d, dataLen);
++}
++
++void Allocation::copyFrom(const uint32_t* d, size_t dataLen) {
++    copy1DRangeFrom(0, mCurrentCount, d, dataLen);
++}
++
++void Allocation::copyFrom(const uint16_t* d, size_t dataLen) {
++    copy1DRangeFrom(0, mCurrentCount, d, dataLen);
++}
++
++void Allocation::copyFrom(const uint8_t* d, size_t dataLen) {
++    copy1DRangeFrom(0, mCurrentCount, d, dataLen);
++}
++
++void Allocation::copyFrom(const int32_t* d, size_t dataLen) {
++    copy1DRangeFrom(0, mCurrentCount, d, dataLen);
++}
++
++void Allocation::copyFrom(const int16_t* d, size_t dataLen) {
++    copy1DRangeFrom(0, mCurrentCount, d, dataLen);
+ }
+-*/
+ 
++void Allocation::copyFrom(const int8_t* d, size_t dataLen) {
++    copy1DRangeFrom(0, mCurrentCount, d, dataLen);
++}
++
++void Allocation::copyFrom(const float* d, size_t dataLen) {
++    copy1DRangeFrom(0, mCurrentCount, d, dataLen);
++}
+ 
+ /*
+ void Allocation::setFromFieldPacker(int xoff, FieldPacker fp) {
+@@ -243,6 +273,21 @@ void Allocation::copy1DRangeFromUnchecked(uint32_t off, size_t count, const void
+     rsAllocation1DData(mRS->mContext, getIDSafe(), off, mSelectedLOD, count, data, dataLen);
+ }
+ 
++void Allocation::copy1DRangeFrom(uint32_t off, size_t count, const uint32_t *d, size_t dataLen) {
++    validateIsInt32();
++    copy1DRangeFromUnchecked(off, count, d, dataLen);
++}
++
++void Allocation::copy1DRangeFrom(uint32_t off, size_t count, const uint16_t *d, size_t dataLen) {
++    validateIsInt16();
++    copy1DRangeFromUnchecked(off, count, d, dataLen);
++}
++
++void Allocation::copy1DRangeFrom(uint32_t off, size_t count, const uint8_t *d, size_t dataLen) {
++    validateIsInt8();
++    copy1DRangeFromUnchecked(off, count, d, dataLen);
++}
++
+ void Allocation::copy1DRangeFrom(uint32_t off, size_t count, const int32_t *d, size_t dataLen) {
+     validateIsInt32();
+     copy1DRangeFromUnchecked(off, count, d, dataLen);
+@@ -271,6 +316,13 @@ void Allocation::copy1DRangeFrom(uint32_t off, size_t count, const Allocation *d
+                             count, 1, data->getIDSafe(), dataOff, 0,
+                             data->mSelectedLOD, data->mSelectedFace);
+ }
++void Allocation::copy1DRangeFrom(uint32_t off, size_t count, sp<Allocation>
++        data, uint32_t dataOff) {
++    rsAllocationCopy2DRange(mRS->mContext, getIDSafe(), off, 0,
++                            mSelectedLOD, mSelectedFace,
++                            count, 1, data->getIDSafe(), dataOff, 0,
++                            data->mSelectedLOD, data->mSelectedFace);
++}
+ 
+ void Allocation::validate2DRange(uint32_t xoff, uint32_t yoff, uint32_t w, uint32_t h) {
+     if (mAdaptedAllocation != NULL) {
+@@ -320,31 +372,56 @@ void Allocation::copy2DRangeFrom(uint32_t xoff, uint32_t yoff, uint32_t w, uint3
+                             data->mSelectedLOD, data->mSelectedFace);
+ }
+ 
+-/*
+-void copyTo(byte[] d) {
++void Allocation::copy2DRangeFrom(uint32_t xoff, uint32_t yoff, uint32_t w, uint32_t h,
++                     sp<Allocation> data, size_t dataLen,
++                     uint32_t dataXoff, uint32_t dataYoff) {
++    validate2DRange(xoff, yoff, w, h);
++    rsAllocationCopy2DRange(mRS->mContext, getIDSafe(), xoff, yoff,
++                            mSelectedLOD, mSelectedFace,
++                            w, h, data->getIDSafe(), dataXoff, dataYoff,
++                            data->mSelectedLOD, data->mSelectedFace);
++}
++
++void Allocation::copyToUnchecked(void* d, size_t dataLen) {
++    rsAllocationRead(mRS->mContext, getIDSafe(), d, dataLen);
++}
++
++void Allocation::copyTo(uint8_t* d, size_t dataLen) {
+     validateIsInt8();
+-    mRS.validate();
+-    mRS.nAllocationRead(getID(), d);
++    rsAllocationRead(mRS->mContext, getIDSafe(), d, dataLen);
+ }
+ 
+-void copyTo(short[] d) {
++void Allocation::copyTo(uint16_t* d, size_t dataLen) {
+     validateIsInt16();
+-    mRS.validate();
+-    mRS.nAllocationRead(getID(), d);
++    rsAllocationRead(mRS->mContext, getIDSafe(), d, dataLen);
+ }
+ 
+-void copyTo(int[] d) {
++void Allocation::copyTo(uint32_t* d, size_t dataLen) {
+     validateIsInt32();
+-    mRS.validate();
+-    mRS.nAllocationRead(getID(), d);
++    rsAllocationRead(mRS->mContext, getIDSafe(), d, dataLen);
++}
++
++void Allocation::copyTo(int8_t* d, size_t dataLen) {
++    validateIsInt8();
++    rsAllocationRead(mRS->mContext, getIDSafe(), d, dataLen);
+ }
+ 
+-void copyTo(float[] d) {
++void Allocation::copyTo(int16_t* d, size_t dataLen) {
++    validateIsInt16();
++    rsAllocationRead(mRS->mContext, getIDSafe(), d, dataLen);
++}
++
++void Allocation::copyTo(int32_t* d, size_t dataLen) {
++    validateIsInt32();
++    rsAllocationRead(mRS->mContext, getIDSafe(), d, dataLen);
++}
++
++void Allocation::copyTo(float* d, size_t dataLen) {
+     validateIsFloat32();
+-    mRS.validate();
+-    mRS.nAllocationRead(getID(), d);
++    rsAllocationRead(mRS->mContext, getIDSafe(), d, dataLen);
+ }
+ 
++/*
+ void resize(int dimX) {
+     if ((mType.getY() > 0)|| (mType.getZ() > 0) || mType.hasFaces() || mType.hasMipmaps()) {
+         throw new RSInvalidStateException("Resize only support for 1D allocations at this time.");
+@@ -377,7 +454,6 @@ void resize(int dimX, int dimY) {
+ }
+ */
+ 
+-
+ android::sp<Allocation> Allocation::createTyped(RenderScript *rs, sp<const Type> type,
+                         RsAllocationMipmapControl mips, uint32_t usage) {
+     void *id = rsAllocationCreateTyped(rs->mContext, type->getID(), mips, usage, 0);
+diff --git a/cpp/Allocation.h b/cpp/Allocation.h
+index 7a893f8..88ac20e 100644
+--- a/cpp/Allocation.h
++++ b/cpp/Allocation.h
+@@ -74,24 +74,28 @@ public:
+     void ioSendOutput();
+     void ioGetInput();
+ 
+-    //void copyFrom(BaseObj[] d);
+-    //void copyFromUnchecked(int[] d);
+-    //void copyFromUnchecked(short[] d);
+-    //void copyFromUnchecked(byte[] d);
+-    //void copyFromUnchecked(float[] d);
+-    //void copyFrom(int[] d);
+-    //void copyFrom(short[] d);
+-    //void copyFrom(byte[] d);
+-    //void copyFrom(float[] d);
++    void copyFrom(const android::sp<BaseObj>* d, size_t dataLen);
++    void copyFromUnchecked(const void* d, size_t dataLen);
++    void copyFrom(const uint32_t* d, size_t dataLen);
++    void copyFrom(const uint16_t* d, size_t dataLen);
++    void copyFrom(const uint8_t* d, size_t dataLen);
++    void copyFrom(const int32_t* d, size_t dataLen);
++    void copyFrom(const int16_t* d, size_t dataLen);
++    void copyFrom(const int8_t* d, size_t dataLen);
++    void copyFrom(const float* d, size_t dataLen);
+     //void setFromFieldPacker(int xoff, FieldPacker fp);
+     //void setFromFieldPacker(int xoff, int component_number, FieldPacker fp);
+     void generateMipmaps();
+     void copy1DRangeFromUnchecked(uint32_t off, size_t count, const void *data, size_t dataLen);
++    void copy1DRangeFrom(uint32_t off, size_t count, const uint32_t* d, size_t dataLen);
++    void copy1DRangeFrom(uint32_t off, size_t count, const uint16_t* d, size_t dataLen);
++    void copy1DRangeFrom(uint32_t off, size_t count, const uint8_t* d, size_t dataLen);
+     void copy1DRangeFrom(uint32_t off, size_t count, const int32_t* d, size_t dataLen);
+     void copy1DRangeFrom(uint32_t off, size_t count, const int16_t* d, size_t dataLen);
+     void copy1DRangeFrom(uint32_t off, size_t count, const int8_t* d, size_t dataLen);
+     void copy1DRangeFrom(uint32_t off, size_t count, const float* d, size_t dataLen);
+     void copy1DRangeFrom(uint32_t off, size_t count, const Allocation *data, uint32_t dataOff);
++    void copy1DRangeFrom(uint32_t off, size_t count, sp<Allocation> data, uint32_t dataOff);
+ 
+     void copy2DRangeFrom(uint32_t xoff, uint32_t yoff, uint32_t w, uint32_t h,
+                          const int32_t *data, size_t dataLen);
+@@ -104,11 +108,18 @@ public:
+     void copy2DRangeFrom(uint32_t xoff, uint32_t yoff, uint32_t w, uint32_t h,
+                          const Allocation *data, size_t dataLen,
+                          uint32_t dataXoff, uint32_t dataYoff);
++    void copy2DRangeFrom(uint32_t xoff, uint32_t yoff, uint32_t w, uint32_t h,
++                         sp<Allocation> data, size_t dataLen,
++                         uint32_t dataXoff, uint32_t dataYoff);
+ 
+-    //void copyTo(byte[] d);
+-    //void copyTo(short[] d);
+-    //void copyTo(int[] d);
+-    //void copyTo(float[] d);
++    void copyToUnchecked(void* d, size_t dataLen);
++    void copyTo(uint8_t* d, size_t dataLen);
++    void copyTo(uint16_t* d, size_t dataLen);
++    void copyTo(uint32_t* d, size_t dataLen);
++    void copyTo(int8_t* d, size_t dataLen);
++    void copyTo(int16_t* d, size_t dataLen);
++    void copyTo(int32_t* d, size_t dataLen);
++    void copyTo(float* d, size_t dataLen);
+     void resize(int dimX);
+     void resize(int dimX, int dimY);
+ 
+diff --git a/cpp/RenderScript.cpp b/cpp/RenderScript.cpp
+index 889f27b..c5ff433 100644
+--- a/cpp/RenderScript.cpp
++++ b/cpp/RenderScript.cpp
+@@ -120,7 +120,7 @@ void * RenderScript::threadProc(void *vrsc) {
+         case RS_MESSAGE_TO_CLIENT_ERROR:
+             ALOGE("RS Error %s", (const char *)rbuf);
+ 
+-            if(rs->mMessageFunc != NULL) {
++            if(rs->mErrorFunc != NULL) {
+                 rs->mErrorFunc(usrID, (const char *)rbuf);
+             }
+             break;
+@@ -161,8 +161,18 @@ void RenderScript::setMessageHandler(MessageHandlerFunc_t func) {
+ void RenderScript::contextDump() {
+ }
+ 
+-void RenderScript::finish() {
++bool RenderScript::validate() {
++    if (mContext == 0) {
++        ALOGE("Calling RS with no Context active.");
++        return false;
++    }
++    return true;
++}
+ 
++void RenderScript::finish() {
++    if (validate()) {
++        rsContextFinish(mContext);
++    }
+ }
+ 
+ 
+diff --git a/cpp/RenderScript.h b/cpp/RenderScript.h
+index e6e7279..a302eae 100644
+--- a/cpp/RenderScript.h
++++ b/cpp/RenderScript.h
+@@ -153,6 +153,8 @@ private:
+ 
+     static void * threadProc(void *);
+ 
++    bool validate();
++
+ };
+ 
+ }
+diff --git a/cpp/Script.h b/cpp/Script.h
+index 235560a..ac39480 100644
+--- a/cpp/Script.h
++++ b/cpp/Script.h
+@@ -53,9 +53,15 @@ protected:
+     void setVar(uint32_t index, double v) const {
+         setVar(index, &v, sizeof(v));
+     }
++    void setVar(uint32_t index, uint32_t v) const {
++        setVar(index, &v, sizeof(v));
++    }
+     void setVar(uint32_t index, int32_t v) const {
+         setVar(index, &v, sizeof(v));
+     }
++    void setVar(uint32_t index, uint64_t v) const {
++        setVar(index, &v, sizeof(v));
++    }
+     void setVar(uint32_t index, int64_t v) const {
+         setVar(index, &v, sizeof(v));
+     }
