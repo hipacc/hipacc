@@ -73,9 +73,9 @@ using namespace android;
       void(type::*name)(sp<const Allocation>)
 #   define KERNEL2(type, name) \
       void(type::*name)(sp<const Allocation>, sp<const Allocation>)
-# else // RS_TARGET_API < 16
-#   error Renderscript target API < 16 is not supported!
-# endif // RS_TARGET_API < 16
+# else // RS_TARGET_API > 18
+#   error Renderscript target API > 18 is not supported!
+# endif // RS_TARGET_API > 18
 #endif // RS_TARGET_API
 
 #include <assert.h>
