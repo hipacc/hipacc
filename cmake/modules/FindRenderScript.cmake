@@ -91,7 +91,7 @@ FIND_PROGRAM(RS_EXECUTABLE
   DOC "RenderScript compiler executable")
 
 IF (NOT RS_TARGET_API)
-  SET (RS_TARGET_API 16)
+  SET (RS_TARGET_API 18)
 ENDIF (NOT RS_TARGET_API)
 
 SET (RS_FLAGS -allow-rs-prefix -reflect-c++ -target-api ${RS_TARGET_API} -o ./)
@@ -111,7 +111,7 @@ FIND_PATH(NDK_LIBRARY_DIR
   HINTS ${ANDROID_SOURCE_DIR}/out/target/product/${TARGET_NAME}/system/lib
   DOC "NDK target library directory")
 
-SET (NDK_CXX_FLAGS "-fno-rtti")
+SET (NDK_CXX_FLAGS "-fno-rtti" -DRS_TARGET_API=${RS_TARGET_API})
 
 SET (NDK_INCLUDE_DIRS -I${ANDROID_SOURCE_DIR}/frameworks/rs/cpp
                       -I${ANDROID_SOURCE_DIR}/frameworks/rs

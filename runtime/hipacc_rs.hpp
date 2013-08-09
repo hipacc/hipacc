@@ -27,7 +27,56 @@
 #define __HIPACC_RS_HPP__
 
 #include <RenderScript.h>
-#include <rsCppStructs.h>
+
+using namespace android;
+
+#ifndef RS_TARGET_API
+# error RS_TARGET_API was not specified!
+#else // RS_TARGET_API
+# if RS_TARGET_API < 16
+#   error Renderscript target API < 16 is not supported!
+# elif RS_TARGET_API < 18
+#   include <Type.h>
+#   include <Allocation.h>
+    using namespace android::renderscriptCpp;
+    // Namespace for ErrorHandlerFunc_t
+#   define EHF android::renderscriptCpp::RenderScript
+    // Abstraction for  type name
+#   define RS RenderScript
+    // Abstraction for functions
+#   define INIT(rs, target) rs->init(target)
+#   define COPYTO(src, offset, len, buf) \
+      (src)->copyToUnchecked(buf, len);
+#   define COPYFROM(dst, offset, len, buf) \
+      (dst)->copyFromUnchecked(buf, len);
+#   define COPYFROM2D(dst, dx, dy, width, height, src, len, sx, sy) \
+      (dst)->copy2DRangeFrom(dx, dy, width, height, src, len, sx, sy);
+    // Function signature for forEach() kernel functions
+#   define KERNEL1(type, name) \
+      void(type::*name)(sp<const Allocation>) const
+#   define KERNEL2(type, name) \
+      void(type::*name)(sp<const Allocation>, sp<const Allocation>) const
+# elif RS_TARGET_API == 18
+    using namespace android::RSC;
+    // Namespace for ErrorHandlerFunc_t
+#   define EHF android::RSC
+    // Abstraction for functions
+#   define INIT(rs, target) rs->init()
+#   define COPYTO(src, offset, len, buf) \
+      (src)->copy1DRangeTo(offset, len, buf);
+#   define COPYFROM(dst, offset, len, buf) \
+      (dst)->copy1DRangeFrom(offset, len, buf);
+#   define COPYFROM2D(dst, dx, dy, width, height, src, len, sx, sy) \
+      (dst)->copy2DRangeFrom(dx, dy, width, height, src, sx, sy);
+    // Function signature for forEach() kernel functions
+#   define KERNEL1(type, name) \
+      void(type::*name)(sp<const Allocation>)
+#   define KERNEL2(type, name) \
+      void(type::*name)(sp<const Allocation>, sp<const Allocation>)
+# else // RS_TARGET_API < 16
+#   error Renderscript target API < 16 is not supported!
+# endif // RS_TARGET_API < 16
+#endif // RS_TARGET_API
 
 #include <assert.h>
 #include <float.h>
@@ -44,9 +93,6 @@
 #include <algorithm>
 
 #include "hipacc_base.hpp"
-
-using namespace android;
-using namespace android::RSC;
 
 class HipaccContext : public HipaccContextBase {
     private:
@@ -246,8 +292,7 @@ const char *getRSErrorCodeStr(int errorNum) {
 }
 
 
-RSC::ErrorHandlerFunc_t errorHandler(uint32_t errorNum,
-                                              const char *errorText) {
+EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText) {
     std::cerr << "ERROR: " << getRSErrorCodeStr(errorNum)
               << " (" << errorNum << ")" << std::endl
               << "    " << errorText << std::endl;
@@ -259,10 +304,10 @@ void hipaccInitRenderScript(int targetAPI) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     RS* rs = Ctx.get_context();
 
-    rs->setErrorHandler((RSC::ErrorHandlerFunc_t)&errorHandler);
+    rs->setErrorHandler((EHF::ErrorHandlerFunc_t)&errorHandler);
 
     // Create context
-    if (!rs->init(targetAPI)) {
+    if (!INIT(rs, targetAPI)) {
         std::cerr << "ERROR: RenderScript initialization failed for targetAPI: "
                   << targetAPI << std::endl;
     }
@@ -291,10 +336,10 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
             memcpy(buff + (i * stride), host_mem + (i * width),
                    sizeof(T) * width);
         }
-        ((Allocation *)img.mem)->copy1DRangeFrom(0, sizeof(T) * stride * height, buff);
+        COPYFROM((Allocation *)img.mem, 0, sizeof(T) * stride * height, buff);
         delete[] buff;
     } else {
-        ((Allocation *)img.mem)->copy1DRangeFrom(0, sizeof(T) * width * height, host_mem);
+        COPYFROM((Allocation *)img.mem, 0, sizeof(T) * width * height, host_mem);
     }
 }
 
@@ -310,14 +355,14 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img) {
 
     if (stride > width) {
         T* buff = new T[stride * height];
-        ((Allocation *)img.mem)->copy1DRangeTo(0, sizeof(T) * stride * height, buff);
+        COPYTO((Allocation *)img.mem, 0, sizeof(T) * stride * height, buff);
         for (int i = 0; i < height; i++) {
             memcpy(host_mem + (i * width), buff + (i * stride),
                    sizeof(T) * width);
         }
         delete[] buff;
     } else {
-        ((Allocation *)img.mem)->copy1DRangeTo(0, sizeof(T) * width * height, host_mem);
+        COPYFROM((Allocation *)img.mem, 0, sizeof(T) * width * height, host_mem);
     }
 }
 
@@ -337,9 +382,9 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
 void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst) {
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    ((Allocation *)dst.img.mem)->copy2DRangeFrom(dst.offset_x, dst.offset_y,
-        src.width, src.height, (Allocation *)src.img.mem, src.offset_x,
-        src.offset_y);
+    COPYFROM2D((Allocation *)dst.img.mem, dst.offset_x, dst.offset_y,
+        src.width, src.height, (Allocation *)src.img.mem, src.width*src.height,
+        src.offset_x, src.offset_y);
 }
 
 
@@ -443,7 +488,7 @@ void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
-    void(F::*kernel)(sp<const Allocation>),
+    KERNEL1(F, kernel),
     HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
     long end, start;
@@ -470,7 +515,7 @@ void hipaccLaunchScriptKernel(
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
-    void(F::*kernel)(sp<const Allocation>, sp<const Allocation>),
+    KERNEL2(F, kernel),
     HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
     long end, start;
@@ -498,7 +543,7 @@ template<typename F>
 void hipaccLaunchScriptKernelBenchmark(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
-    void(F::*kernel)(sp<const Allocation>),
+    KERNEL1(F, kernel),
     HipaccImage &out, size_t *work_size,
     bool print_timing=true
 ) {
@@ -533,7 +578,7 @@ template<typename F, typename T>
 void hipaccLaunchScriptKernelExploration(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
-    void(F::*kernel)(sp<const Allocation>),
+    KERNEL1(F, kernel),
     std::vector<hipacc_smem_info> smems, hipacc_launch_info &info,
     int warp_size, int max_threads_per_block, int max_threads_for_kernel,
     int max_smem_per_block, int heu_tx, int heu_ty,
@@ -600,8 +645,8 @@ void hipaccLaunchScriptKernelExploration(
 template<typename F, typename T>
 T hipaccApplyReduction(
     F *script,
-    void(F::*kernel2D)(sp<const Allocation>),
-    void(F::*kernel1D)(sp<const Allocation>),
+    KERNEL1(F, kernel2D),
+    KERNEL1(F, kernel1D),
     void(F::*setter)(sp<Allocation>),
     std::vector<hipacc_script_arg<F> > args,
     int is_width, bool print_timing=true
@@ -642,7 +687,7 @@ T hipaccApplyReduction(
 
     // download result of reduction
     T result;
-    is2->copy1DTo(&result);
+    COPYTO(is2, 0, sizeof(T), &result);
 
     return result;
 }
