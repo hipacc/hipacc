@@ -41,7 +41,7 @@ using namespace android;
     using namespace android::renderscriptCpp;
     // Namespace for ErrorHandlerFunc_t
 #   define EHF android::renderscriptCpp::RenderScript
-    // Abstraction for  type name
+    // Abstraction for type name
 #   define RS RenderScript
     // Abstraction for functions
 #   define INIT(rs, target) rs->init(target)
@@ -362,7 +362,7 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img) {
         }
         delete[] buff;
     } else {
-        COPYFROM((Allocation *)img.mem, 0, sizeof(T) * width * height, host_mem);
+        COPYTO((Allocation *)img.mem, 0, sizeof(T) * width * height, host_mem);
     }
 }
 
