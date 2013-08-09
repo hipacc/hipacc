@@ -94,7 +94,7 @@ ifneq ($(HIPACC_TARGET),Midgard)
 endif
 
 renderscript:
-	rm -f *.rs *.fs
+	rm -rf *.rs *.fs build_renderscript
 	@echo 'Executing HIPAcc Compiler for Renderscript:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_renderscript
@@ -105,7 +105,7 @@ renderscript:
 	cp build_renderscript/main_renderscript .
 
 filterscript:
-	rm -f *.rs *.fs
+	rm -rf *.rs *.fs build_filterscript
 	@echo 'Executing HIPAcc Compiler for Filterscript:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-filterscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_filterscript
