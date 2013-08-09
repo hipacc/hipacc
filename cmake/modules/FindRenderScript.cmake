@@ -71,8 +71,8 @@
 INCLUDE (FindPackageHandleStandardArgs)
 
 SET(ANDROID_SOURCE_DIR          $ENV{ANDROID_SOURCE_DIR}        CACHE PATH      "Android source directory.")
-SET(HOST_TYPE                   $ENV{HOST_TYPE}                 CACHE STRING    "Name of target platform.")
-SET(TARGET_NAME                 $ENV{TARGET_NAME}               CACHE STRING    "Name of the local compile host type.")
+SET(HOST_TYPE                   $ENV{HOST_TYPE}                 CACHE STRING    "Name of the local compile host type.")
+SET(TARGET_NAME                 $ENV{TARGET_NAME}               CACHE STRING    "Name of target platform.")
 SET(NDK_TOOLCHAIN_DIR           $ENV{NDK_TOOLCHAIN_DIR}         CACHE PATH      "Android NDK directory.")
 SET(RS_TARGET_API               $ENV{RS_TARGET_API}             CACHE STRING    "Android API level.")
 
