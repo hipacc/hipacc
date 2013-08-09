@@ -45,12 +45,12 @@ using namespace android;
 #   define RS RenderScript
     // Abstraction for functions
 #   define INIT(rs, target) rs->init(target)
-#   define COPYTO(src, offset, len, buf) \
-      (src)->copyToUnchecked(buf, len);
-#   define COPYFROM(dst, offset, len, buf) \
-      (dst)->copyFromUnchecked(buf, len);
-#   define COPYFROM2D(dst, dx, dy, width, height, src, len, sx, sy) \
-      (dst)->copy2DRangeFrom(dx, dy, width, height, src, len, sx, sy);
+#   define COPYTO(T, src, offset, count, buf) \
+      (src)->copyToUnchecked(buf, sizeof(T) * count);
+#   define COPYFROM(T, dst, offset, count, buf) \
+      (dst)->copyFromUnchecked(buf, sizeof(T) * count);
+#   define COPYFROM2D(dst, dx, dy, width, height, src, count, sx, sy) \
+      (dst)->copy2DRangeFrom(dx, dy, width, height, src, count, sx, sy);
     // Function signature for forEach() kernel functions
 #   define KERNEL1(type, name) \
       void(type::*name)(sp<const Allocation>) const
@@ -62,11 +62,11 @@ using namespace android;
 #   define EHF android::RSC
     // Abstraction for functions
 #   define INIT(rs, target) rs->init()
-#   define COPYTO(src, offset, len, buf) \
-      (src)->copy1DRangeTo(offset, len, buf);
-#   define COPYFROM(dst, offset, len, buf) \
-      (dst)->copy1DRangeFrom(offset, len, buf);
-#   define COPYFROM2D(dst, dx, dy, width, height, src, len, sx, sy) \
+#   define COPYTO(T, src, offset, count, buf) \
+      (src)->copy1DRangeTo(offset, count, buf);
+#   define COPYFROM(T, dst, offset, count, buf) \
+      (dst)->copy1DRangeFrom(offset, count, buf);
+#   define COPYFROM2D(dst, dx, dy, width, height, src, count, sx, sy) \
       (dst)->copy2DRangeFrom(dx, dy, width, height, src, sx, sy);
     // Function signature for forEach() kernel functions
 #   define KERNEL1(type, name) \
@@ -336,10 +336,10 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
             memcpy(buff + (i * stride), host_mem + (i * width),
                    sizeof(T) * width);
         }
-        COPYFROM((Allocation *)img.mem, 0, sizeof(T) * stride * height, buff);
+        COPYFROM(T, (Allocation *)img.mem, 0, stride * height, buff);
         delete[] buff;
     } else {
-        COPYFROM((Allocation *)img.mem, 0, sizeof(T) * width * height, host_mem);
+        COPYFROM(T, (Allocation *)img.mem, 0, width * height, host_mem);
     }
 }
 
@@ -355,14 +355,14 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img) {
 
     if (stride > width) {
         T* buff = new T[stride * height];
-        COPYTO((Allocation *)img.mem, 0, sizeof(T) * stride * height, buff);
+        COPYTO(T, (Allocation *)img.mem, 0, stride * height, buff);
         for (int i = 0; i < height; i++) {
             memcpy(host_mem + (i * width), buff + (i * stride),
                    sizeof(T) * width);
         }
         delete[] buff;
     } else {
-        COPYTO((Allocation *)img.mem, 0, sizeof(T) * width * height, host_mem);
+        COPYTO(T, (Allocation *)img.mem, 0, width * height, host_mem);
     }
 }
 
@@ -687,7 +687,7 @@ T hipaccApplyReduction(
 
     // download result of reduction
     T result;
-    COPYTO(is2, 0, sizeof(T), &result);
+    COPYTO(T, is2, 0, 1, &result);
 
     return result;
 }
