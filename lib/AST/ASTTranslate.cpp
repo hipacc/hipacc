@@ -1579,7 +1579,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
                     "HipaccSUM, HipaccMIN, HipaccMAX, and HipaccPROD.");
               Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode)
                 << (const char *)(Mask->isDomain()?"reduction":"convolution");
-              break;
+              exit(EXIT_FAILURE);
           }
         } else {
           unsigned int DiagIDConvMode =
@@ -1587,6 +1587,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
                 "Unknown %0 mode detected.");
           Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode)
             << (const char *)(Mask->isDomain()?"reduction":"convolution");
+          exit(EXIT_FAILURE);
         }
       }
 
@@ -1603,19 +1604,31 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
                            E->getArg(li))->GetTemporaryExpr()->IgnoreImpCasts());
 
       // check default capture kind
+      if (LE->getCaptureDefault()==LCD_ByCopy) {
+        unsigned int DiagIDCapture =
+          Diags.getCustomDiagID(DiagnosticsEngine::Error,
+              "Capture by copy [=] is not supported for '%0' lambda-function. "
+              "Use capture by reference [&] instead.");
+        Diags.Report(LE->getCaptureDefaultLoc(), DiagIDCapture)
+          << (const char *)(method==Convolve ? "convolve" : method==Reduce ?
+              "reduce" : "iterate");
+        exit(EXIT_FAILURE);
+      }
+      // check capture kind of variables
       for (LambdaExpr::capture_iterator II=LE->capture_begin(),
                                         EE=LE->capture_end(); II!=EE; ++II) {
         LambdaExpr::Capture cap = *II;
 
-        if (cap.capturesVariable() && cap.getCaptureKind()==LCK_ByCopy) {
+        if (cap.capturesVariable() && cap.getCaptureKind()!=LCK_ByRef) {
           unsigned int DiagIDCapture =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Capture by copy [=] is not supported for %0 lambda-function"
-                "(variable %1), use capture by reference [&] instead.");
-          Diags.Report(LE->getExprLoc(), DiagIDCapture)
+                "Unsupported capture kind for variable '%0' in '%1' "
+                "lambda-function. Use capture by reference instead: [&%0].");
+          Diags.Report(cap.getLocation(), DiagIDCapture)
+            << cap.getCapturedVar()->getNameAsString()
             << (const char *)(method==Convolve ? "convolve" : method==Reduce ?
-                "reduce" : "iterate")
-            << cap.getCapturedVar();
+                "reduce" : "iterate");
+          exit(EXIT_FAILURE);
         }
       }
 
