@@ -1052,9 +1052,10 @@ Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
   }
 
   LambdaExpr *result = LambdaExpr::Create(Ctx, E->getLambdaClass(),
-      E->getIntroducerRange(), E->getCaptureDefault(), captures,
-      E->hasExplicitParameters(), E->hasExplicitResultType(), captureInits,
-      arrayIndexVars, arrayIndexStarts, E->getBody()->getLocEnd(),
+      E->getIntroducerRange(), E->getCaptureDefault(),
+      E->getCaptureDefaultLoc(), captures, E->hasExplicitParameters(),
+      E->hasExplicitResultType(), captureInits, arrayIndexVars,
+      arrayIndexStarts, E->getBody()->getLocEnd(),
       E->containsUnexpandedParameterPack());
 
   setExprPropsClone(E, result);
