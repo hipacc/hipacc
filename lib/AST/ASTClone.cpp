@@ -799,7 +799,7 @@ Expr *ASTTranslate::VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E) {
 
   CXXFunctionalCastExpr *result = CXXFunctionalCastExpr::Create(Ctx,
       E->getType(), E->getValueKind(), E->getTypeInfoAsWritten(),
-      E->getTypeBeginLoc(), E->getCastKind(), Clone(E->getSubExpr()), &castPath,
+      E->getCastKind(), Clone(E->getSubExpr()), &castPath, E->getLParenLoc(),
       E->getRParenLoc());
 
   setExprPropsClone(E, result);
