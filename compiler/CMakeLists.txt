@@ -1,23 +1,23 @@
 SET(CLANG_USED_LIBS
     clang
     clangFrontendTool
-    clangAnalysis
-    clangBasic
-    clangCodeGen
-    clangAST
-    clangDriver
-    clangEdit
     clangFrontend
-    clangLex
-    clangParse
-    clangARCMigrate
-    clangRewriteCore
-    clangRewriteFrontend
-    clangSema
+    clangDriver
     clangSerialization
+    clangCodeGen
+    clangParse
+    clangSema
     clangStaticAnalyzerFrontend
     clangStaticAnalyzerCheckers
     clangStaticAnalyzerCore
+    clangARCMigrate
+    clangRewriteFrontend
+    clangRewriteCore
+    clangAnalysis
+    clangEdit
+    clangAST
+    clangBasic
+    clangLex
     )
 
 SET(HIPACC_USED_LIBS
