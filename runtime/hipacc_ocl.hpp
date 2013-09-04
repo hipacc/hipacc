@@ -149,7 +149,7 @@ long getMicroTime() {
     #else
     clock_gettime(CLOCK_MONOTONIC, &ts);
     #endif
-    return ts.tv_sec*1000000LL + ts.tv_nsec * 1e-3;
+    return ts.tv_sec*1000000LL + ts.tv_nsec / 1000LL;
 }
 
 
