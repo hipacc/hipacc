@@ -1326,7 +1326,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
         &Ctx.Idents.get(name), QT, VD->getTypeSourceInfo(),
         VD->getStorageClass());
     // set VarDecl as being used - required for CodeGen
-    result->setUsed(true);
+    result->setIsUsed(true);
 
     if (!PVD && Kernel->vectorize() && compilerOptions.emitCUDA() &&
         KernelClass->getVectorizeInfo(VD) == VECTORIZE) {

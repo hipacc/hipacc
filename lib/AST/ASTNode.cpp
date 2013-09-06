@@ -214,7 +214,7 @@ VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
   VD->setType(T);
   VD->setInit(init);
   // set VarDecl as being used - required for CodeGen
-  VD->setUsed(true);
+  VD->setIsUsed(true);
 
   return VD;
 }
