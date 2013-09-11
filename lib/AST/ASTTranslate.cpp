@@ -1074,7 +1074,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
                   BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
         } else {
           check_tmp = createBinaryOperator(Ctx, gidYRef,
-              getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
+              getHeightDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
               Ctx.BoolTy);
         }
         if (check_bop) {
