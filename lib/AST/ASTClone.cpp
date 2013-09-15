@@ -75,8 +75,7 @@ Stmt *ASTTranslate::VisitNullStmt(NullStmt *S) {
   return new (Ctx) NullStmt(S->getSemiLoc());
 }
 
-#ifdef NO_TRANSLATION
-Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
+Stmt *ASTTranslate::VisitCompoundStmtClone(CompoundStmt *S) {
   CompoundStmt *result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
       S->getLBracLoc(), S->getLBracLoc());
 
@@ -89,7 +88,6 @@ Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
 
   return result;
 }
-#endif
 
 Stmt *ASTTranslate::VisitLabelStmt(LabelStmt *S) {
   return new (Ctx) LabelStmt(S->getIdentLoc(), S->getDecl(),
@@ -151,11 +149,9 @@ Stmt *ASTTranslate::VisitBreakStmt(BreakStmt *S) {
   return new (Ctx) BreakStmt(S->getBreakLoc());
 }
 
-#ifdef NO_TRANSLATION
-Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
+Stmt *ASTTranslate::VisitReturnStmtClone(ReturnStmt *S) {
   return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
 }
-#endif
 
 Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
   DeclGroupRef clonedDecls;
@@ -428,8 +424,7 @@ Expr *ASTTranslate::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
   return result;
 }
 
-#ifdef NO_TRANSLATION
-Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
+Expr *ASTTranslate::VisitCallExprClone(CallExpr *E) {
   SmallVector<Expr *, 16> args;
 
   for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
@@ -445,7 +440,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
   return result;
 }
 
-Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
+Expr *ASTTranslate::VisitMemberExprClone(MemberExpr *E) {
   MemberExpr *result = new (Ctx) MemberExpr(Clone(E->getBase()), E->isArrow(),
       CloneDecl(E->getMemberDecl()), E->getMemberNameInfo(), E->getType(),
       E->getValueKind(), E->getObjectKind());
@@ -454,15 +449,13 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
 
   return result;
 }
-#endif
 
 Expr *ASTTranslate::VisitCastExpr(CastExpr *E) {
   HIPACC_BASE_CLASS(CastExpr);
   return NULL;
 }
 
-#ifdef NO_TRANSLATION
-Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
+Expr *ASTTranslate::VisitBinaryOperatorClone(BinaryOperator *E) {
   BinaryOperator *result = new (Ctx) BinaryOperator(Clone(E->getLHS()),
       Clone(E->getRHS()), E->getOpcode(), E->getType(), E->getValueKind(),
       E->getObjectKind(), E->getOperatorLoc(), E->isFPContractable());
@@ -471,7 +464,6 @@ Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
 
   return result;
 }
-#endif
 
 Expr *ASTTranslate::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
   Expr *result = new (Ctx) CompoundAssignOperator(Clone(E->getLHS()),
@@ -512,8 +504,7 @@ Expr *ASTTranslate::VisitBinaryConditionalOperator(BinaryConditionalOperator *E)
   return result;
 }
 
-#ifdef NO_TRANSLATION
-Expr *ASTTranslate::VisitImplicitCastExpr(ImplicitCastExpr *E) {
+Expr *ASTTranslate::VisitImplicitCastExprClone(ImplicitCastExpr *E) {
   CXXCastPath castPath;
   setCastPath(E, castPath);
 
@@ -524,15 +515,13 @@ Expr *ASTTranslate::VisitImplicitCastExpr(ImplicitCastExpr *E) {
 
   return result;
 }
-#endif
 
 Expr *ASTTranslate::VisitExplicitCastExpr(ExplicitCastExpr *E) {
   HIPACC_BASE_CLASS(ExplicitCastExpr);
   return NULL;
 }
 
-#ifdef NO_TRANSLATION
-Expr *ASTTranslate::VisitCStyleCastExpr(CStyleCastExpr *E) {
+Expr *ASTTranslate::VisitCStyleCastExprClone(CStyleCastExpr *E) {
   CXXCastPath castPath;
   setCastPath(E, castPath);
 
@@ -544,7 +533,6 @@ Expr *ASTTranslate::VisitCStyleCastExpr(CStyleCastExpr *E) {
 
   return result;
 }
-#endif
 
 Expr *ASTTranslate::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
   Expr *result = new (Ctx) CompoundLiteralExpr(E->getLParenLoc(),
@@ -701,8 +689,7 @@ Expr *ASTTranslate::VisitGNUNullExpr(GNUNullExpr *E) {
 
 
 // C++ Expressions
-#ifdef NO_TRANSLATION
-Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
+Expr *ASTTranslate::VisitCXXOperatorCallExprClone(CXXOperatorCallExpr *E) {
   SmallVector<Expr *, 16> args;
 
   for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
@@ -719,7 +706,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   return result;
 }
 
-Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
+Expr *ASTTranslate::VisitCXXMemberCallExprClone(CXXMemberCallExpr *E) {
   CXXMemberCallExpr *result = new (Ctx) CXXMemberCallExpr(Ctx,
       Clone(E->getCallee()), MultiExprArg(), E->getType(), E->getValueKind(),
       E->getRParenLoc());
@@ -734,7 +721,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
   return result;
 }
-#endif
 
 Expr *ASTTranslate::VisitCXXNamedCastExpr(CXXNamedCastExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXNamedCastExpr);

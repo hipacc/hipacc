@@ -48,7 +48,6 @@
 #include "hipacc/DSL/ClassRepresentation.h"
 #include "hipacc/Vectorization/SIMDTypes.h"
 
-//#define NO_TRANSLATION
 
 //===----------------------------------------------------------------------===//
 // Statement/expression transformations
@@ -69,12 +68,17 @@ typedef union border_variant {
 
 class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
   private:
+    enum TranslationMode {
+      CloneAST,
+      TranslateAST
+    };
     ASTContext &Ctx;
     FunctionDecl *kernelDecl;
     HipaccKernel *Kernel;
     HipaccKernelClass *KernelClass;
     hipacc::Builtin::Context &builtins;
     CompilerOptions &compilerOptions;
+    TranslationMode mode;
     SIMDTypes simdTypes;
     border_variant bh_variant;
     bool emitEstimation;
@@ -300,6 +304,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       KernelClass(kernelClass),
       builtins(builtins),
       compilerOptions(options),
+      mode(TranslateAST),
       simdTypes(SIMDTypes(Ctx, builtins, options)),
       bh_variant(),
       emitEstimation(emitEstimation),
@@ -361,10 +366,19 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // ASTClone.cpp for cloning single AST nodes
     // ASTTranslate.cpp for translation related to CUDA/OpenCL
 
+    #define VISIT_MODE(B, K) \
+    B *Visit##K##Clone(K *k); \
+    B *Visit##K##Translate(K *k); \
+    B *Visit##K(K *k) { \
+      if (mode==CloneAST) return Visit##K##Clone(k); \
+      return Visit##K##Translate(k); \
+    }
+
     // Statements
     Stmt *VisitStmt(Stmt *S);
     Stmt *VisitNullStmt(NullStmt *S);
-    Stmt *VisitCompoundStmt(CompoundStmt *S);
+    //Stmt *VisitCompoundStmt(CompoundStmt *S);
+    VISIT_MODE(Stmt, CompoundStmt)
     Stmt *VisitLabelStmt(LabelStmt *S);
     Stmt *VisitAttributedStmt(AttributedStmt *Stmt);
     Stmt *VisitIfStmt(IfStmt *S);
@@ -376,7 +390,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Stmt *VisitIndirectGotoStmt(IndirectGotoStmt *S);
     Stmt *VisitContinueStmt(ContinueStmt *S);
     Stmt *VisitBreakStmt(BreakStmt *S);
-    Stmt *VisitReturnStmt(ReturnStmt *S);
+    //Stmt *VisitReturnStmt(ReturnStmt *S);
+    VISIT_MODE(Stmt, ReturnStmt)
     Stmt *VisitDeclStmt(DeclStmt *S);
     Stmt *VisitSwitchCase(SwitchCase *S);
     Stmt *VisitCaseStmt(CaseStmt *S);
@@ -443,17 +458,22 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitOffsetOfExpr(OffsetOfExpr *E);
     Expr *VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E);
     Expr *VisitArraySubscriptExpr(ArraySubscriptExpr *E);
-    Expr *VisitCallExpr(CallExpr *E);
-    Expr *VisitMemberExpr(MemberExpr *E);
+    // Expr *VisitCallExpr(CallExpr *E);
+    VISIT_MODE(Expr, CallExpr)
+    // Expr *VisitMemberExpr(MemberExpr *E);
+    VISIT_MODE(Expr, MemberExpr)
     Expr *VisitCastExpr(CastExpr *E);
-    Expr *VisitBinaryOperator(BinaryOperator *E);
+    // Expr *VisitBinaryOperator(BinaryOperator *E);
+    VISIT_MODE(Expr, BinaryOperator)
     Expr *VisitCompoundAssignOperator(CompoundAssignOperator *E);
     Expr *VisitAbstractConditionalOperator(AbstractConditionalOperator *E);
     Expr *VisitConditionalOperator(ConditionalOperator *E);
     Expr *VisitBinaryConditionalOperator(BinaryConditionalOperator *E);
-    Expr *VisitImplicitCastExpr(ImplicitCastExpr *E);
+    // Expr *VisitImplicitCastExpr(ImplicitCastExpr *E);
+    VISIT_MODE(Expr, ImplicitCastExpr)
     Expr *VisitExplicitCastExpr(ExplicitCastExpr *E);
-    Expr *VisitCStyleCastExpr(CStyleCastExpr *E);
+    // Expr *VisitCStyleCastExpr(CStyleCastExpr *E);
+    VISIT_MODE(Expr, CStyleCastExpr)
     Expr *VisitCompoundLiteralExpr(CompoundLiteralExpr *E);
     Expr *VisitExtVectorElementExpr(ExtVectorElementExpr *E);
     Expr *VisitInitListExpr(InitListExpr *E);
@@ -474,8 +494,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitGNUNullExpr(GNUNullExpr *E);
 
     // C++ Expressions
-    Expr *VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
-    Expr *VisitCXXMemberCallExpr(CXXMemberCallExpr *E);
+    // Expr *VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
+    VISIT_MODE(Expr, CXXOperatorCallExpr)
+    // Expr *VisitCXXMemberCallExpr(CXXMemberCallExpr *E);
+    VISIT_MODE(Expr, CXXMemberCallExpr)
     Expr *VisitCXXNamedCastExpr(CXXNamedCastExpr *E);
     Expr *VisitCXXStaticCastExpr(CXXStaticCastExpr *E);
     Expr *VisitCXXDynamicCastExpr(CXXDynamicCastExpr *E);

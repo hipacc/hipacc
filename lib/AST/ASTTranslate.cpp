@@ -1390,9 +1390,7 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D, std::string prefix) {
 }
 
 
-#ifdef NO_TRANSLATION
-#else
-Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
+Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
   CompoundStmt *result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
       S->getLBracLoc(), S->getLBracLoc());
 
@@ -1440,7 +1438,7 @@ Stmt *ASTTranslate::VisitCompoundStmt(CompoundStmt *S) {
 }
 
 
-Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
+Stmt *ASTTranslate::VisitReturnStmtTranslate(ReturnStmt *S) {
   // within convolve lambda-functions, return statements are replaced by
   // reductions
   if (convMask && convTmp) {
@@ -1466,7 +1464,7 @@ Stmt *ASTTranslate::VisitReturnStmt(ReturnStmt *S) {
 }
 
 
-Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
+Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
   if (E->getDirectCallee()) {
     QualType QT = E->getCallReturnType();
     if (Kernel->vectorize() && !compilerOptions.emitC()) {
@@ -1868,7 +1866,7 @@ Expr *ASTTranslate::VisitCallExpr(CallExpr *E) {
 }
 
 
-Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
+Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   // TODO: create a map with all expressions not to be cloned ..
   if (E==tileVars.local_size_x->IgnoreParenCasts() ||
       E==tileVars.local_size_y->IgnoreParenCasts() ||
@@ -1967,7 +1965,7 @@ Expr *ASTTranslate::VisitMemberExpr(MemberExpr *E) {
 }
 
 
-Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
+Expr *ASTTranslate::VisitBinaryOperatorTranslate(BinaryOperator *E) {
   Expr *result;
 
   // remember the current CompoundStmt, which has to be the same for the LHS and
@@ -2009,7 +2007,7 @@ Expr *ASTTranslate::VisitBinaryOperator(BinaryOperator *E) {
 }
 
 
-Expr *ASTTranslate::VisitImplicitCastExpr(ImplicitCastExpr *E) {
+Expr *ASTTranslate::VisitImplicitCastExprTranslate(ImplicitCastExpr *E) {
   Expr *subExpr = Clone(E->getSubExpr());
 
   QualType QT = E->getType();
@@ -2063,7 +2061,7 @@ Expr *ASTTranslate::VisitImplicitCastExpr(ImplicitCastExpr *E) {
 }
 
 
-Expr *ASTTranslate::VisitCStyleCastExpr(CStyleCastExpr *E) {
+Expr *ASTTranslate::VisitCStyleCastExprTranslate(CStyleCastExpr *E) {
   Expr *subExpr = Clone(E->getSubExpr());
   QualType QT;
 
@@ -2091,7 +2089,7 @@ Expr *ASTTranslate::VisitCStyleCastExpr(CStyleCastExpr *E) {
 }
 
 
-Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
+Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
   Expr *result = NULL;
 
   // assume that all CXXOperatorCallExpr are memory access functions, since we
@@ -2397,7 +2395,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 }
 
 
-Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
+Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
   assert(isa<MemberExpr>(E->getCallee()) &&
       "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
   MemberExpr *ME = dyn_cast<MemberExpr>(E->getCallee());
@@ -2586,7 +2584,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXMemberCallExpr);
   return NULL;
 }
-#endif
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 
