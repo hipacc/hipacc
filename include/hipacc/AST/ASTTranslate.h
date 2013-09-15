@@ -73,12 +73,13 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       TranslateAST
     };
     ASTContext &Ctx;
+    DiagnosticsEngine &Diags;
     FunctionDecl *kernelDecl;
     HipaccKernel *Kernel;
     HipaccKernelClass *KernelClass;
     hipacc::Builtin::Context &builtins;
     CompilerOptions &compilerOptions;
-    TranslationMode mode;
+    TranslationMode astMode;
     SIMDTypes simdTypes;
     border_variant bh_variant;
     bool emitEstimation;
@@ -166,8 +167,9 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     void initOpenCL(SmallVector<Stmt *, 16> &kernelBody);
     void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
     void updateTileVars();
-    template <typename T> T *lookup(std::string name);
     Expr *addCastToInt(Expr *E);
+    FunctionDecl *cloneFunction(FunctionDecl *FD);
+    template <typename T> T *lookup(std::string name);
     // wrappers to mark variables as being used
     DeclRefExpr *getWidthDecl(HipaccAccessor *Acc) {
       Kernel->setUsed(Acc->getWidthDecl()->getNameInfo().getAsString());
@@ -215,12 +217,14 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     typedef llvm::DenseMap<VarDecl *, VarDecl *> DeclMapTy;
     typedef llvm::DenseMap<ParmVarDecl *, VarDecl *> PVDeclMapTy;
     typedef llvm::DenseMap<ParmVarDecl *, HipaccAccessor *> AccMapTy;
+    typedef llvm::DenseMap<FunctionDecl *, FunctionDecl *> FunMapTy;
     DeclMapTy KernelDeclMap;
     DeclMapTy LambdaDeclMap;
     PVDeclMapTy KernelDeclMapTex;
     PVDeclMapTy KernelDeclMapShared;
     PVDeclMapTy KernelDeclMapVector;
     AccMapTy KernelDeclMapAcc;
+    FunMapTy KernelFunctionMap;
 
     // BorderHandling.cpp
     Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
@@ -300,12 +304,13 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         *kernel, HipaccKernelClass *kernelClass, hipacc::Builtin::Context
         &builtins, CompilerOptions &options, bool emitEstimation=false) :
       Ctx(Ctx),
+      Diags(Ctx.getDiagnostics()),
       kernelDecl(kernelDecl),
       Kernel(kernel),
       KernelClass(kernelClass),
       builtins(builtins),
       compilerOptions(options),
-      mode(TranslateAST),
+      astMode(TranslateAST),
       simdTypes(SIMDTypes(Ctx, builtins, options)),
       bh_variant(),
       emitEstimation(emitEstimation),
@@ -371,7 +376,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     B *Visit##K##Clone(K *k); \
     B *Visit##K##Translate(K *k); \
     B *Visit##K(K *k) { \
-      if (mode==CloneAST) return Visit##K##Clone(k); \
+      if (astMode==CloneAST) return Visit##K##Clone(k); \
       return Visit##K##Translate(k); \
     }
 

@@ -1969,7 +1969,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
   if (E->getOperator() == OO_Call) {
     if (E->getNumArgs() != 3) return true;
-    E->dump();
+    //E->dump();
 
     if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
       DeclRefExpr *DRE_LHS =
@@ -2935,12 +2935,33 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
   }
 
+  // extern scope for CUDA
+  *OS << "\n";
+  if (compilerOptions.emitCUDA()) {
+    *OS << "extern \"C\" {\n";
+  }
+
+  // function definitions
+  for (int i=0, e=K->getFunctionCalls().size(); i<e; ++i) {
+    FunctionDecl *FD = K->getFunctionCalls()[i];
+
+    switch (compilerOptions.getTargetCode()) {
+      case TARGET_C:
+      case TARGET_OpenCL:
+      case TARGET_OpenCLCPU:
+        *OS << "inline "; break;
+      case TARGET_Renderscript:
+      case TARGET_Filterscript:
+        *OS << "inline static "; break;
+      case TARGET_CUDA:
+        *OS << "__inline__ __device__ "; break;
+    }
+    FD->print(*OS, Policy);
+  }
 
   // write kernel name and qualifiers
-  *OS << "\n";
   switch (compilerOptions.getTargetCode()) {
     case TARGET_CUDA:
-      *OS << "extern \"C\" {\n";
       *OS << "__global__ ";
       if (compilerOptions.exploreConfig() && emitHints) {
         *OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";

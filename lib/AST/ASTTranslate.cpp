@@ -52,6 +52,67 @@ Expr *ASTTranslate::addCastToInt(Expr *E) {
 }
 
 
+// clone function for execution on device
+FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
+  FunctionDecl *result = KernelFunctionMap[FD];
+
+  // clone function
+  if (!result) {
+    TranslationMode oldMode = astMode;
+    astMode = CloneAST;
+
+    llvm::errs() << "Cloning function '"
+                 << FD->getNameAsString() << "' "
+                 << "for execution on device.\n";
+
+    // check return type
+    QualType retType = FD->getResultType();
+    if (!retType->isStandardLayoutType()) {
+      unsigned int DiagIDRetType =
+        Diags.getCustomDiagID(DiagnosticsEngine::Error,
+            "Cannot convert function '%0' for execution on device."
+            "Return type is no not supported: ");
+      Diags.Report(FD->getLocation(), DiagIDRetType) << FD->getNameAsString();
+      exit(EXIT_FAILURE);
+    }
+
+    // check parameters
+    SmallVector<QualType, 16> argTypes;
+    SmallVector<std::string, 16> argNames;
+
+    for (unsigned int i=0, e=FD->getNumParams(); i!=e; ++i) {
+      const ParmVarDecl *PVD = FD->getParamDecl(i);
+
+      if (!PVD->getType()->isStandardLayoutType()) {
+        unsigned int DiagIDParmType =
+          Diags.getCustomDiagID(DiagnosticsEngine::Error,
+              "Cannot convert function '%0' for execution on device."
+              "Argument type is no not supported: ");
+        Diags.Report(PVD->getLocation(), DiagIDParmType) << FD->getNameAsString();
+        exit(EXIT_FAILURE);
+      }
+
+      argTypes.push_back(PVD->getType());
+      argNames.push_back(PVD->getNameAsString());
+    }
+
+    // create signature
+    result = createFunctionDecl(Ctx, Ctx.getTranslationUnitDecl(),
+        FD->getNameAsString() + Kernel->getName(), retType,
+        ArrayRef<QualType>(argTypes.data(), argTypes.size()),
+        ArrayRef<std::string>(argNames.data(), argNames.size()));
+    result->setBody(Clone(FD->getBody()));
+
+    KernelFunctionMap[FD] = result;
+    Kernel->addFunctionCall(result);
+
+    astMode = oldMode;
+  }
+
+  return result;
+}
+
+
 template <typename T>
 T *ASTTranslate::lookup(std::string name) {
   T *result = NULL;
@@ -604,9 +665,13 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     }
   }
 
+  // clear all stored decls before cloning, otherwise existing VarDecls will
+  // be reused and we will miss declarations
+  KernelDeclMapTex.clear();
   KernelDeclMapShared.clear();
   KernelDeclMapVector.clear();
   KernelDeclMapAcc.clear();
+  KernelFunctionMap.clear();
 
   // add vector pointer declarations for images
   if (Kernel->vectorize() && !compilerOptions.emitC()) {
@@ -916,10 +981,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     IfStmt *goto_check = createIfStmt(Ctx, if_goto, GS);
     kernelBody.push_back(goto_check);
   }
-
-  // clear all stored decls before cloning, otherwise existing VarDecls will
-  // be reused and we will miss declarations
-  KernelDeclMapTex.clear();
 
   // add casts to tileVars if required
   updateTileVars();
@@ -1505,8 +1566,6 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
     } else isConvolution = false;
 
     if (isConvolution) {
-      DiagnosticsEngine &Diags = Ctx.getDiagnostics();
-
       switch (method) {
         case Convolve:
           // convolve(mask, mode, [&] () { lambda-function; });
@@ -1826,10 +1885,14 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
         targetFD = builtins.getBuiltinFunction(E->getDirectCallee()->getName(),
             QT, compilerOptions.getTargetCode());
       }
+
+      // check if this function is allowed for device execution
+      if (!targetFD) {
+        targetFD = cloneFunction(E->getDirectCallee());
+      }
     }
 
     if (!targetFD) {
-      DiagnosticsEngine &Diags = Ctx.getDiagnostics();
       unsigned int DiagIDCallExpr =
         Diags.getCustomDiagID(DiagnosticsEngine::Error,
             "Found unsupported function call '%0' in kernel.");
@@ -1925,7 +1988,6 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   }
 
   if (!paramDecl) {
-    DiagnosticsEngine &Diags = Ctx.getDiagnostics();
     unsigned int DiagIDParameter =
       Diags.getCustomDiagID(DiagnosticsEngine::Error,
           "Couldn't find initialization of kernel member variable '%0' in class constructor.");

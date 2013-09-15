@@ -166,7 +166,6 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
       }
     case READ_WRITE: {
-      DiagnosticsEngine &Diags = Ctx.getDiagnostics();
       unsigned int DiagIDRW = Diags.getCustomDiagID(DiagnosticsEngine::Error,
           "Reading and writing to Image '%0' in kernel '%1' is not supported.");
       Diags.Report(DiagIDRW) << LHS->getNameInfo().getAsString()
@@ -174,7 +173,6 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       exit(EXIT_FAILURE); }
     default:
     case UNDEFINED: {
-      DiagnosticsEngine &Diags = Ctx.getDiagnostics();
       unsigned int DiagIDU = Diags.getCustomDiagID(DiagnosticsEngine::Error,
           "Memory access pattern for Image '%0' in kernel '%1' could not be analyzed.");
       Diags.Report(DiagIDU) << LHS->getNameInfo().getAsString()

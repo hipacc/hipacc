@@ -576,6 +576,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     SmallVector<std::string, 16> hostArgNames;
     SmallVector<std::string, 16> deviceArgNames;
     SmallVector<FieldDecl *, 16> deviceArgFields;
+    SmallVector<FunctionDecl *, 16> deviceFuncs;
     std::set<std::string> usedVars;
     unsigned int max_threads_for_kernel;
     unsigned int max_size_x, max_size_y;
@@ -614,6 +615,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       hostArgNames(),
       deviceArgNames(),
       deviceArgFields(),
+      deviceFuncs(),
       max_threads_for_kernel(0),
       max_size_x(0), max_size_y(0),
       max_size_x_undef(0), max_size_y_undef(0),
@@ -641,6 +643,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     void setUsed(std::string name) { usedVars.insert(name); }
     void resetUsed() {
       usedVars.clear();
+      deviceFuncs.clear();
       for (std::map<FieldDecl *, HipaccAccessor *>::iterator iter =
           imgMap.begin(), eiter=imgMap.end(); iter!=eiter; ++iter) {
         iter->second->resetDecls();
@@ -649,6 +652,14 @@ class HipaccKernel : public HipaccKernelFeatures {
     bool getUsed(std::string name) {
       if (usedVars.find(name) != usedVars.end()) return true;
       else return false;
+    }
+
+    // keep track of functions called within kernel
+    void addFunctionCall(FunctionDecl *FD) {
+      deviceFuncs.push_back(FD);
+    }
+    ArrayRef<FunctionDecl *> getFunctionCalls() {
+      return ArrayRef<FunctionDecl*>(deviceFuncs.data(), deviceFuncs.size());
     }
 
     void setIterationSpace(HipaccIterationSpace *IS) {
