@@ -1252,9 +1252,10 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             num_threads_y_ss << tile_size_y;
 
             // compile kernel
-            std::string compile_options = "-D BSX_EXPLORE=" +
-                num_threads_x_ss.str() + " -D BSY_EXPLORE=" +
-                num_threads_y_ss.str() + " ";
+            std::string compile_options =
+                " -D BSX_EXPLORE=" + num_threads_x_ss.str() +
+                " -D BSY_EXPLORE=" + num_threads_y_ss.str() +
+                " -I./include ";
             cl_kernel exploreKernel = hipaccBuildProgramAndKernel(filename, kernel, false, false, false, compile_options.c_str());
 
 
