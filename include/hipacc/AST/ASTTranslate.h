@@ -166,6 +166,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     void initOpenCL(SmallVector<Stmt *, 16> &kernelBody);
     void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
     void updateTileVars();
+    template <typename T> T *lookup(std::string name);
     Expr *addCastToInt(Expr *E);
     // wrappers to mark variables as being used
     DeclRefExpr *getWidthDecl(HipaccAccessor *Acc) {

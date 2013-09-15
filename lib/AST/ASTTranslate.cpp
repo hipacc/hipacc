@@ -52,6 +52,23 @@ Expr *ASTTranslate::addCastToInt(Expr *E) {
 }
 
 
+template <typename T>
+T *ASTTranslate::lookup(std::string name) {
+  T *result = NULL;
+  DeclarationName declName(&Ctx.Idents.get(name));
+
+  for (DeclContext::lookup_result Lookup =
+      Ctx.getTranslationUnitDecl()->lookup(declName); !Lookup.empty();
+      Lookup=Lookup.slice(1)) {
+    result = cast_or_null<T>(Lookup.front());
+
+    if (result) break;
+  }
+
+  return result;
+}
+
+
 // C/Polly initialization
 void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   VarDecl *gid_x = NULL, *gid_y = NULL;
@@ -1757,53 +1774,54 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
         if (NS->getNameAsString() == "math") {
           DC = DC->getParent();
           if (DC) NS = dyn_cast<NamespaceDecl>(DC);
+        }
 
-          if (NS->getNameAsString() == "hipacc") {
-            // namespace hipacc::math
-            targetFD = E->getDirectCallee();
-            bool doUpdate = false;
+        if (NS->getNameAsString() == "hipacc") {
+          // namespace hipacc::math
+          targetFD = E->getDirectCallee();
+          bool doUpdate = false;
 
-            if (!compilerOptions.emitCUDA()) {
-              std::string name = E->getDirectCallee()->getNameAsString();
-              if (name.at(name.length()-1)=='f') {
-                if (name!="modf" && name!="erf") {
-                  // remove trailing f
-                  name.resize(name.size() - 1);
-                  doUpdate = true;
-                }
-              } else if (name=="labs") {
-                // remove leading l
-                name.erase(0, 1);
+          if (!compilerOptions.emitCUDA()) {
+            std::string name = E->getDirectCallee()->getNameAsString();
+            if (name.at(name.length()-1)=='f') {
+              if (name!="modf" && name!="erf") {
+                // remove trailing f
+                name.resize(name.size() - 1);
                 doUpdate = true;
-                // require convert function ulong -> long
-                addConvert = true;
-                convert = builtins.getBuiltinFunction(HIPACCBIconvert_long4);
-              } else if (name=="abs") {
-                // require convert function uint -> int
-                addConvert = true;
-                convert = builtins.getBuiltinFunction(HIPACCBIconvert_int4);
+              }
+            } else if (name=="labs") {
+              // remove leading l
+              name.erase(0, 1);
+              doUpdate = true;
+              // require convert function ulong -> long
+              addConvert = true;
+              convert = lookup<FunctionDecl>(std::string("convert_long4"));
+            } else if (name=="abs") {
+              // require convert function uint -> int
+              addConvert = true;
+              convert = lookup<FunctionDecl>(std::string("convert_int4"));
+            }
+
+            if (doUpdate) {
+              SmallVector<QualType, 16> argTypes;
+              SmallVector<std::string, 16> argNames;
+
+              for (FunctionDecl::param_iterator P=targetFD->param_begin(),
+                  PEnd=targetFD->param_end(); P!=PEnd; ++P) {
+                argTypes.push_back((*P)->getType());
+                argNames.push_back((*P)->getName());
               }
 
-              if (doUpdate) {
-                SmallVector<QualType, 16> argTypes;
-                SmallVector<std::string, 16> argNames;
-
-                for (FunctionDecl::param_iterator P=targetFD->param_begin(),
-                    PEnd=targetFD->param_end(); P!=PEnd; ++P) {
-                  argTypes.push_back((*P)->getType());
-                  argNames.push_back((*P)->getName());
-                }
-
-                targetFD = createFunctionDecl(Ctx,
-                    Ctx.getTranslationUnitDecl(), name,
-                    targetFD->getResultType(), makeArrayRef(argTypes),
-                    makeArrayRef(argNames));
-              }
+              targetFD = createFunctionDecl(Ctx,
+                  Ctx.getTranslationUnitDecl(), name,
+                  targetFD->getResultType(), makeArrayRef(argTypes),
+                  makeArrayRef(argNames));
             }
           }
         }
       }
 
+      // check if we have an intrinsic (math) function
       if (!targetFD) {
         targetFD = builtins.getBuiltinFunction(E->getDirectCallee()->getName(),
             QT, compilerOptions.getTargetCode());
@@ -1927,16 +1945,9 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
         if (Mask) isMask = true;
 
         if (Mask && (Mask->isConstant() || compilerOptions.emitCUDA())) {
-          VarDecl *maskVar = NULL;
           // get Mask/Domain reference
-          for (DeclContext::lookup_result Lookup =
-              Ctx.getTranslationUnitDecl()->lookup(DeclarationName(
-                  &Ctx.Idents.get(Mask->getName() + Kernel->getName())));
-              !Lookup.empty(); Lookup=Lookup.slice(1)) {
-            maskVar = cast_or_null<VarDecl>(Lookup.front());
-
-            if (maskVar) break;
-          }
+          VarDecl *maskVar = lookup<VarDecl>(Mask->getName() +
+              Kernel->getName());
 
           if (!maskVar) {
             maskVar = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),

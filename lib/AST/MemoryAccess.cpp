@@ -463,28 +463,28 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool isVecType) {
       assert(0 && "BuiltinType for 'convert' function not supported.");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_char4);
+      return lookup<FunctionDecl>(std::string("convert_char4"));
     case BuiltinType::Short:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_short4);
+      return lookup<FunctionDecl>(std::string("convert_short4"));
     case BuiltinType::Int:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_int4);
+      return lookup<FunctionDecl>(std::string("convert_int4"));
     case BuiltinType::Long:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_long4);
+      return lookup<FunctionDecl>(std::string("convert_long4"));
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_uchar4);
+      return lookup<FunctionDecl>(std::string("convert_uchar4"));
     case BuiltinType::Char16:
     case BuiltinType::UShort:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_ushort4);
+      return lookup<FunctionDecl>(std::string("convert_ushort4"));
     case BuiltinType::Char32:
     case BuiltinType::UInt:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_uint4);
+      return lookup<FunctionDecl>(std::string("convert_uint4"));
     case BuiltinType::ULong:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_ulong4);
+      return lookup<FunctionDecl>(std::string("convert_ulong4"));
     case BuiltinType::Float:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_float4);
+      return lookup<FunctionDecl>(std::string("convert_float4"));
     case BuiltinType::Double:
-      return builtins.getBuiltinFunction(HIPACCBIconvert_double4);
+      return lookup<FunctionDecl>(std::string("convert_double4"));
   }
 }
 
