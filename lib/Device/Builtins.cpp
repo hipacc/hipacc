@@ -383,8 +383,7 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
   DeclarationName DecName(&Info);
 
   FunctionDecl *New = FunctionDecl::Create(Ctx, Ctx.getTranslationUnitDecl(),
-      SourceLocation(), SourceLocation(), DecName, R, /*TInfo=*/0, SC_Extern,
-      SC_None, false, /*hasPrototype=*/true);
+      SourceLocation(), SourceLocation(), DecName, R, NULL, SC_None);
 
   New->setImplicit();
 

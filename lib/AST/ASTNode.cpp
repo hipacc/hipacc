@@ -41,16 +41,14 @@ namespace ASTNode {
 FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
     Name, QualType RT, ArrayRef<QualType> ArgTypes, ArrayRef<std::string>
     ArgNames, bool isVariadic) {
-  bool hasWrittenPrototype = true;
-  QualType T;
+  QualType QT;
   SmallVector<ParmVarDecl*, 16> Params;
   Params.reserve(ArgTypes.size());
 
   // first create QualType for parameters
   if (!ArgTypes.size()) {
     // simple void foo(), where the incoming RT is the result type.
-    T = Ctx.getFunctionNoProtoType(RT);
-    hasWrittenPrototype = false;
+    QT = Ctx.getFunctionNoProtoType(RT);
   } else {
     // otherwise, we have a function with an argument list
     for (unsigned int i=0; i<ArgTypes.size(); ++i) {
@@ -62,7 +60,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
 
     FunctionProtoType::ExtProtoInfo FPT = FunctionProtoType::ExtProtoInfo();
     FPT.Variadic = isVariadic;
-    T = Ctx.getFunctionType(RT, ArgTypes, FPT);
+    QT = Ctx.getFunctionType(RT, ArgTypes, FPT);
   }
 
   // create function name identifier
@@ -70,10 +68,9 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
   DeclarationName DecName(&info);
 
   // create function declaration
-  assert(T->isFunctionType());
+  assert(QT->isFunctionType());
   FunctionDecl *FD = FunctionDecl::Create(Ctx, DC, SourceLocation(),
-      SourceLocation(), DecName, T, NULL, SC_None, SC_None, false,
-      hasWrittenPrototype);
+      SourceLocation(), DecName, QT, NULL, SC_None);
 
   // add Decl objects for each parameter to the FunctionDecl
   DeclContext *DCF = FunctionDecl::castToDeclContext(FD);
