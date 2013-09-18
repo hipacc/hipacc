@@ -59,7 +59,7 @@ environment.
 
 The following variables can be set to tell cmake where to look for certain components:
 \begin{itemize}
-    \item CMAKE\_INSTALL\_PREFIX:   Installation prefix
+    \item CMAKE\_INSTALL\_PREFIX:   Installation prefix (this must be an absolute path)
     \item CMAKE\_BUILD\_TYPE:       Build type (Debug or Release)
     \item OPENCL\_INC\_PATH:        OpenCL include path\\(e.g., -DOPENCL\_INC\_PATH=/opt/cuda/include)
     \item OPENCL\_LIB\_PATH:        OpenCL library path\\(e.g., -DOPENCL\_LIB\_PATH=/usr/lib64)
@@ -80,7 +80,7 @@ A possible configuration may look like in the following:
 cd <hipacc_root>
 mkdir build && cd build
 mkdir install_dir
-cmake ../ -DCMAKE_INSTALL_PREFIX=./install_dir
+cmake ../ -DCMAKE_INSTALL_PREFIX=`pwd`/release
 make && make install
 \end{lstlisting}
 

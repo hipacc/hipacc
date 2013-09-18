@@ -1,17 +1,29 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
-PROJECT(HIPACC)
-OPTION(USE_POLLY "Use Polly for analysis" OFF)
-INCLUDE(CMakeDependentOption)
-CMAKE_DEPENDENT_OPTION(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
 #SET(CMAKE_VERBOSE_MAKEFILE on)
 
+# provide only Debug and Release configurations
+SET(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "build config types" FORCE)
+IF(NOT CMAKE_BUILD_TYPE)
+    SET(CMAKE_BUILD_TYPE Debug CACHE STRING "build type: Debug or Release" FORCE)
+ENDIF(NOT CMAKE_BUILD_TYPE)
+
+IF(NOT IS_ABSOLUTE ${CMAKE_INSTALL_PREFIX})
+    MESSAGE(FATAL_ERROR "CMAKE_INSTALL_PREFIX has to be an absolute path!")
+ENDIF(NOT IS_ABSOLUTE ${CMAKE_INSTALL_PREFIX})
+
+
+PROJECT(HIPACC)
 SET(HIPACC_MAJOR_VERSION 0)
 SET(HIPACC_MINOR_VERSION 6)
 SET(HIPACC_PATCH_VERSION 1)
 SET(HIPACC_VERSION ${HIPACC_MAJOR_VERSION}.${HIPACC_MINOR_VERSION}.${HIPACC_PATCH_VERSION})
 SET(HIPACC_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 SET(HIPACC_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
+
+OPTION(USE_POLLY "Use Polly for analysis" OFF)
+INCLUDE(CMakeDependentOption)
+CMAKE_DEPENDENT_OPTION(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
 
 # get repository and revision
@@ -95,11 +107,11 @@ ADD_SUBDIRECTORY(lib)
 ADD_SUBDIRECTORY(compiler)
 ADD_SUBDIRECTORY(tools)
 
+
+
+# configure header files to pass some of the CMake settings to the source code
 SET(RUNTIME_INCLUDES "${CMAKE_INSTALL_PREFIX}/include")
 SET(DSL_INCLUDES "${CMAKE_INSTALL_PREFIX}/include/dsl")
-
-
-# configure a header file to pass some of the CMake settings to the source code
 CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/include/hipacc/Config/config.h.cmake"
     "${HIPACC_BINARY_DIR}/include/hipacc/Config/config.h")
@@ -114,17 +126,16 @@ CONFIGURE_FILE(
     "${HIPACC_BINARY_DIR}/tests/CMakeLists.txt"
     @ONLY)
 
-INSTALL(DIRECTORY tests
-    DESTINATION ${CMAKE_INSTALL_PREFIX}
-    PATTERN "*.cmake" EXCLUDE)
-
-INSTALL(DIRECTORY ${HIPACC_BINARY_DIR}/tests/
-    DESTINATION ${CMAKE_INSTALL_PREFIX})
-
 
 # install dsl and runtime header files
 FILE(GLOB dsl_headers "${CMAKE_CURRENT_SOURCE_DIR}/dsl/*.hpp")
 FILE(GLOB runtime_headers "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp")
 INSTALL(FILES ${runtime_headers} DESTINATION include)
 INSTALL(FILES ${dsl_headers} DESTINATION include/dsl)
+# install tests
+INSTALL(DIRECTORY tests
+    DESTINATION ${CMAKE_INSTALL_PREFIX}
+    PATTERN "*.cmake" EXCLUDE)
+INSTALL(DIRECTORY ${HIPACC_BINARY_DIR}/tests/
+    DESTINATION ${CMAKE_INSTALL_PREFIX})
 
