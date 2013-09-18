@@ -1,3 +1,4 @@
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti ${LLVM_CXXFLAGS}")
 SET(CLANG_USED_LIBS
     clang
     clangFrontendTool
