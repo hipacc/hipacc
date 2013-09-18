@@ -59,7 +59,6 @@ USE_JIT_ESTIMATE        - Use just-in-time compilation of generated kernels in
 A possible configuration may look like the following:
 cd <hipacc_root>
 mkdir build && cd build
-mkdir install_dir
 cmake ../ -DCMAKE_INSTALL_PREFIX=`pwd`/release
 make && make install
 
