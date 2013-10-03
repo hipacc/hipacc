@@ -44,7 +44,8 @@ typedef unsigned int        uint;
 typedef unsigned long       ulong;
 #define ATTRIBUTES inline
 #define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
-    MAKE_COPS(NEW_TYPE, BASIC_TYPE)
+    MAKE_VMOP(NEW_TYPE, BASIC_TYPE) \
+    MAKE_MOP(NEW_TYPE, BASIC_TYPE)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)
 #elif defined __CUDACC__
@@ -54,6 +55,7 @@ typedef unsigned int        uint;
 typedef unsigned long       ulong;
 #define ATTRIBUTES __inline__ __host__ __device__
 #define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_MOP(NEW_TYPE, BASIC_TYPE) \
     MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE, RET_TYPE)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
@@ -66,7 +68,8 @@ typedef unsigned long       ulong;
 #define ATTRIBUTES inline
 #define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
-    MAKE_COPS(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VMOP(NEW_TYPE, BASIC_TYPE) \
+    MAKE_MOP(NEW_TYPE, BASIC_TYPE) \
     MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE, RET_TYPE)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
@@ -88,15 +91,17 @@ struct NEW_TYPE { \
 typedef struct NEW_TYPE NEW_TYPE;
 
 
-// custom operators
-#define MAKE_COPS(NEW_TYPE, BASIC_TYPE) \
+// make function
+#define MAKE_VMOP(NEW_TYPE, BASIC_TYPE) \
 static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE x, BASIC_TYPE y, BASIC_TYPE z, BASIC_TYPE w) { \
     NEW_TYPE t; t.x = x; t.y = y; t.z = z; t.w = w; return t; \
-} \
+}
+
+#define MAKE_MOP(NEW_TYPE, BASIC_TYPE) \
 static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) \
 { \
     return make_##NEW_TYPE(s, s, s, s); \
-} \
+}
 
 
 // vector operators for all data types
