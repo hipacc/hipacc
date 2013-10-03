@@ -1358,8 +1358,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *VD) {
         !compilerOptions.emitC()) {
       QT = simdTypes.getSIMDType(VD, SIMD4);
       TInfo = Ctx.getTrivialTypeSourceInfo(QT);
-    } else
-      return VD;
+    }
 
     DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
     result = VarDecl::Create(Ctx, DC, VD->getInnerLocStart(), VD->getLocation(),
