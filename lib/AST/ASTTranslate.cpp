@@ -504,7 +504,7 @@ void ASTTranslate::updateTileVars() {
 
 
 Stmt *ASTTranslate::Hipacc(Stmt *S) {
-  if (S == NULL) return NULL;
+  if (S==NULL) return NULL;
 
   // search for image width and height parameters
   for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
@@ -704,7 +704,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // parameter name matches
         if (PVD->getName().equals(name)) {
           // <type>4 *Input4 = (<type>4 *) Input;
-          VarDecl *VD = CloneDecl(PVD);
+          VarDecl *VD = CloneParmVarDecl(PVD);
 
           // update output Image reference
           if (name.equals("Output")) outputImage = createDeclRefExpr(Ctx, VD);
@@ -1343,101 +1343,44 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 }
 
 
-VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
-  VarDecl *result = NULL;
-  ParmVarDecl *PVD = NULL;
-  VarDecl *VD = NULL;
-  std::string name;
-  DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
-  QualType QT;
+VarDecl *ASTTranslate::CloneVarDecl(VarDecl *VD) {
+  VarDecl *result = KernelDeclMap[VD];
 
-  switch (D->getKind()) {
-    default:
-      assert(0 && "Only VarDecls supported!");
-      break;
-    case Decl::ParmVar:
-      PVD = static_cast<ParmVarDecl *>(D);
-      VD = static_cast<VarDecl *>(D);
-
-      result = KernelDeclMapVector[PVD];
-
-      if (!result) {
-        name = PVD->getName();
-        QT = PVD->getType();
-
-        // only vectorize image PVDs
-        if (Kernel->vectorize() && !compilerOptions.emitC()) {
-          for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
-            FieldDecl *FD = KernelClass->getImgFields().data()[i];
-
-            // parameter name matches
-            if (PVD->getName().equals(FD->getName()) ||
-                PVD->getName().equals("Output")) {
-              // mark original variable as being used
-              Kernel->setUsed(name);
-
-              // add suffix to vectorized variable
-              name += "4";
-
-              // get SIMD4 type
-              QT = simdTypes.getSIMDType(PVD, SIMD4);
-              break;
-            }
-          }
-        }
-      }
-
-      break;
-    case Decl::Var:
-      VD = static_cast<VarDecl *>(D);
-
-      result = KernelDeclMap[VD];
-      if (!result && (convMask || !redDomains.empty()))
-        result = LambdaDeclMap[VD];
-
-      if (!result) {
-        QT = VD->getType();
-        name  = VD->getName();
-
-        if (Kernel->vectorize() && !compilerOptions.emitC()) {
-          VectorInfo VI = KernelClass->getVectorizeInfo(VD);
-
-          if (VI == VECTORIZE) {
-            QT = simdTypes.getSIMDType(VD, SIMD4);
-          }
-        }
-      }
-
-      break;
-  }
+  if (!result && (convMask || !redDomains.empty()))
+    result = LambdaDeclMap[VD];
 
   if (!result) {
-    result = VarDecl::Create(Ctx, DC, VD->getInnerLocStart(), VD->getLocation(),
-        &Ctx.Idents.get(name), QT, VD->getTypeSourceInfo(),
-        VD->getStorageClass());
-    // set VarDecl as being used - required for CodeGen
-    result->setIsUsed(true);
+    QualType QT = VD->getType();
+    TypeSourceInfo *TInfo = VD->getTypeSourceInfo();
+    std::string name = VD->getName();
 
-    if (!PVD && Kernel->vectorize() && compilerOptions.emitCUDA() &&
-        KernelClass->getVectorizeInfo(VD) == VECTORIZE) {
+    if (Kernel->vectorize() && KernelClass->getVectorizeInfo(VD) == VECTORIZE &&
+        !compilerOptions.emitC()) {
+      QT = simdTypes.getSIMDType(VD, SIMD4);
+      TInfo = Ctx.getTrivialTypeSourceInfo(QT);
+    } else
+      return VD;
+
+    DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+    result = VarDecl::Create(Ctx, DC, VD->getInnerLocStart(), VD->getLocation(),
+        &Ctx.Idents.get(name), QT, TInfo, VD->getStorageClass());
+    result->setIsUsed(true); // set VarDecl as being used - required for CodeGen
+    if (Kernel->vectorize() && KernelClass->getVectorizeInfo(VD) == VECTORIZE &&
+        !compilerOptions.emitC() ) {
       result->setInit(simdTypes.propagate(VD, Clone(VD->getInit())));
     } else {
       result->setInit(Clone(VD->getInit()));
     }
-    result->setTSCSpec(VD->getTSCSpec());
     result->setInitStyle(VD->getInitStyle());
+    result->setTSCSpec(VD->getTSCSpec());
 
     // store mapping between original VarDecl and cloned VarDecl
-    if (PVD) {
-      KernelDeclMapVector[PVD] = result;
+    if (convMask || !redDomains.empty()) {
+      LambdaDeclMap[VD] = result;
+      LambdaDeclMap[result] = result;
     } else {
-      if (convMask || !redDomains.empty()) {
-        LambdaDeclMap[VD] = result;
-        LambdaDeclMap[result] = result;
-      } else {
-        KernelDeclMap[VD] = result;
-        KernelDeclMap[result] = result;
-      }
+      KernelDeclMap[VD] = result;
+      KernelDeclMap[result] = result;
     }
 
     // add VarDecl to current kernel DeclContext
@@ -1448,30 +1391,78 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *D) {
 }
 
 
-VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *D, std::string prefix) {
-  if (D == NULL) {
-    return NULL;
+VarDecl *ASTTranslate::CloneParmVarDecl(ParmVarDecl *PVD) {
+  VarDecl *result = KernelDeclMapVector[PVD];
+
+  if (!result) {
+    std::string name = PVD->getName();
+    QualType QT = PVD->getType();
+    TypeSourceInfo *TInfo = PVD->getTypeSourceInfo();
+
+    // only vectorize image PVDs
+    if (Kernel->vectorize() && !compilerOptions.emitC()) {
+      for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
+        FieldDecl *FD = KernelClass->getImgFields().data()[i];
+
+        // parameter name matches
+        if (PVD->getName().equals(FD->getName()) ||
+            PVD->getName().equals("Output")) {
+          // mark original variable as being used
+          Kernel->setUsed(name);
+
+          // add suffix to vectorized variable
+          name += "4";
+
+          // get SIMD4 type
+          QT = simdTypes.getSIMDType(PVD, SIMD4);
+          TInfo = Ctx.getTrivialTypeSourceInfo(QT);
+          break;
+        }
+      }
+    }
+
+    DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+    result = VarDecl::Create(Ctx, DC, PVD->getInnerLocStart(),
+        PVD->getLocation(), &Ctx.Idents.get(name), QT, TInfo,
+        PVD->getStorageClass());
+    result->setIsUsed(true); // set VarDecl as being used - required for CodeGen
+    result->setInit(Clone(PVD->getInit()));
+    result->setInitStyle(PVD->getInitStyle());
+    result->setTSCSpec(PVD->getTSCSpec());
+
+    // store mapping between original VarDecl and cloned VarDecl
+    KernelDeclMapVector[PVD] = result;
+
+    // add VarDecl to current kernel DeclContext
+    DC->addDecl(result);
   }
 
-  VarDecl *result = NULL;
-  DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+  return result;
+}
 
-  result = KernelDeclMapTex[D];
+
+VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *PVD, std::string prefix) {
+  if (PVD==NULL) return NULL;
+
+  VarDecl *result = KernelDeclMapTex[PVD];
 
   if (!result) {
     std::string texName = prefix;
-    texName += D->getName();
+    texName += PVD->getName();
     texName += Kernel->getName();
-    result = VarDecl::Create(Ctx, DC, D->getInnerLocStart(), D->getLocation(),
-        &Ctx.Idents.get(texName), D->getType(), D->getTypeSourceInfo(),
-        D->getStorageClass());
 
-    result->setInit(Clone(D->getInit()));
-    result->setTSCSpec(D->getTSCSpec());
-    result->setInitStyle(D->getInitStyle());
+    DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+    result = VarDecl::Create(Ctx, DC, PVD->getInnerLocStart(),
+        PVD->getLocation(), &Ctx.Idents.get(texName), PVD->getType(),
+        PVD->getTypeSourceInfo(), PVD->getStorageClass());
+    result->setIsUsed(true); // set VarDecl as being used - required for CodeGen
+    result->setInit(Clone(PVD->getInit()));
+    result->setInitStyle(PVD->getInitStyle());
+    result->setTSCSpec(PVD->getTSCSpec());
 
     // store mapping between original VarDecl and cloned VarDecl
-    KernelDeclMapTex[D] = result;
+    KernelDeclMapTex[PVD] = result;
+
     // add VarDecl to current kernel DeclContext
     DC->addDecl(result);
   }

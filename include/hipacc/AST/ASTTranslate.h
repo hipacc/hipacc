@@ -142,17 +142,21 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
       switch (D->getKind()) {
         default:
-          assert(0 && "Only VarDecls and FunctionDecls supported!");
+          assert(0 && "Only VarDecls, ParmVArDecls, and FunctionDecls supported!");
           break;
         case Decl::ParmVar:
+          if (astMode==CloneAST) return D;
+          return dyn_cast<T>(CloneParmVarDecl(dyn_cast<ParmVarDecl>(D)));
         case Decl::Var:
+          if (astMode==CloneAST) return D;
           return dyn_cast<T>(CloneVarDecl(dyn_cast<VarDecl>(D)));
         case Decl::Function:
           return dyn_cast<T>(cloneFunction(dyn_cast<FunctionDecl>(D)));
       }
     }
 
-    VarDecl *CloneVarDecl(VarDecl *D);
+    VarDecl *CloneVarDecl(VarDecl *VD);
+    VarDecl *CloneParmVarDecl(ParmVarDecl *PVD);
     VarDecl *CloneDeclTex(ParmVarDecl *D, std::string prefix);
     void setExprProps(Expr *orig, Expr *clone);
     void setExprPropsClone(Expr *orig, Expr *clone);
