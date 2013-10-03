@@ -58,6 +58,7 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
 
   // clone function
   if (!result) {
+    cloneFuns.push_back(FD);
     TranslationMode oldMode = astMode;
     astMode = CloneAST;
 
@@ -101,12 +102,23 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
         FD->getNameAsString() + Kernel->getName(), retType,
         ArrayRef<QualType>(argTypes.data(), argTypes.size()),
         ArrayRef<std::string>(argNames.data(), argNames.size()));
-    result->setBody(Clone(FD->getBody()));
 
+    // first store function declaration
     KernelFunctionMap[FD] = result;
+
+    // then clone body (recursive functions)
+    result->setBody(Clone(FD->getBody()));
     Kernel->addFunctionCall(result);
 
     astMode = oldMode;
+    cloneFuns.pop_back();
+  } else {
+    if (std::find(cloneFuns.begin(), cloneFuns.end(), FD)!=cloneFuns.end()) {
+      unsigned int DiagIDRecursion =
+        Diags.getCustomDiagID(DiagnosticsEngine::Warning,
+            "recursive call to function '%0' detected: this is only supported on some devices and may cause segmentation faults!");
+      Diags.Report(FD->getLocation(), DiagIDRecursion) << FD->getNameAsString();
+    }
   }
 
   return result;

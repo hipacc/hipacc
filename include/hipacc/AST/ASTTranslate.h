@@ -86,6 +86,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // "global variables"
     unsigned int literalCount;
+    SmallVector<FunctionDecl *, 16> cloneFuns;
     SmallVector<Stmt *, 16> preStmts, postStmts;
     SmallVector<CompoundStmt *, 16> preCStmt, postCStmt;
     CompoundStmt *curCStmt;
@@ -139,22 +140,16 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     template<class T> T *CloneDecl(T *D) {
       if (D==NULL) return NULL;
 
-      #ifdef NO_TRANSLATION
-      return D;
-      #else
-      VarDecl *result = NULL;
       switch (D->getKind()) {
         default:
-          assert(0 && "Only VarDecls supported!");
+          assert(0 && "Only VarDecls and FunctionDecls supported!");
           break;
         case Decl::ParmVar:
         case Decl::Var:
-          result = CloneVarDecl(static_cast<VarDecl *>(D));
-          break;
+          return dyn_cast<T>(CloneVarDecl(dyn_cast<VarDecl>(D)));
+        case Decl::Function:
+          return dyn_cast<T>(cloneFunction(dyn_cast<FunctionDecl>(D)));
       }
-
-      return static_cast<T *>(result);
-      #endif
     }
 
     VarDecl *CloneVarDecl(VarDecl *D);
