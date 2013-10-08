@@ -83,11 +83,17 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
 
     for (unsigned int i=0, e=FD->getNumParams(); i!=e; ++i) {
       const ParmVarDecl *PVD = FD->getParamDecl(i);
+      QualType QT = PVD->getType();
 
-      if (!PVD->getType()->isStandardLayoutType()) {
+      // allow reference types for CUDA only
+      if (compilerOptions.emitCUDA()) {
+        QT = QT.getNonReferenceType();
+      }
+
+      if (!QT->isStandardLayoutType()) {
         unsigned int DiagIDParmType =
           Diags.getCustomDiagID(DiagnosticsEngine::Error,
-              "Cannot convert function '%0' for execution on device."
+              "Cannot convert function '%0' for execution on device. "
               "Argument type is no not supported: ");
         Diags.Report(PVD->getLocation(), DiagIDParmType) << FD->getNameAsString();
         exit(EXIT_FAILURE);

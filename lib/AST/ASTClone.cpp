@@ -296,10 +296,12 @@ Expr *ASTTranslate::VisitDeclRefExpr(DeclRefExpr *E) {
   }
 
   ValueDecl *VD = CloneDecl(E->getDecl());
+  // remove reference type if present
+  QualType QT = VD->getType().getNonReferenceType();
 
   DeclRefExpr *result = DeclRefExpr::Create(Ctx, E->getQualifierLoc(),
       E->getTemplateKeywordLoc(), VD, E->refersToEnclosingLocal(),
-      E->getLocation(), VD->getType(), E->getValueKind(), E->getFoundDecl(),
+      E->getLocation(), QT, E->getValueKind(), E->getFoundDecl(),
       E->getNumTemplateArgs()?&templateArgs:0);
 
   setExprPropsClone(E, result);
