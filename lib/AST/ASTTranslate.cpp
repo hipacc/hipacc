@@ -68,12 +68,12 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
 
     // check return type
     QualType retType = FD->getResultType();
-    if (!retType->isStandardLayoutType()) {
+    if (!retType->isStandardLayoutType() && !retType->isVoidType()) {
       unsigned int DiagIDRetType =
         Diags.getCustomDiagID(DiagnosticsEngine::Error,
-            "Cannot convert function '%0' for execution on device."
+            "Cannot convert function '%0' for execution on device. "
             "Return type is no not supported: ");
-      Diags.Report(FD->getLocation(), DiagIDRetType) << FD->getNameAsString();
+      Diags.Report(FD->getLocStart(), DiagIDRetType) << FD->getNameAsString();
       exit(EXIT_FAILURE);
     }
 
