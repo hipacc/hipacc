@@ -763,9 +763,6 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
     std::string ptxString(std::istreambuf_iterator<char>(srcFile),
             (std::istreambuf_iterator<char>()));
 
-    const size_t length = ptxString.length();
-    const char *c_str = ptxString.c_str();
-
     const int errorLogSize = 10240;
     char errorLogBuffer[errorLogSize] = {0};
 
@@ -773,7 +770,7 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
     void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize, (void *)target_cc };
 
     // Load ptx source
-    err = cuModuleLoadDataEx(&module, c_str, 2, options, optionValues);
+    err = cuModuleLoadDataEx(&module, ptxString.c_str(), 2, options, optionValues);
     if (err != CUDA_SUCCESS) {
         std::cerr << "Error log: " << errorLogBuffer << std::endl;
     }
