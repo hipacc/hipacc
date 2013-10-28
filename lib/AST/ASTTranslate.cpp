@@ -1369,7 +1369,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *VD) {
     DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
     result = VarDecl::Create(Ctx, DC, VD->getInnerLocStart(), VD->getLocation(),
         &Ctx.Idents.get(name), QT, TInfo, VD->getStorageClass());
-    result->setIsUsed(true); // set VarDecl as being used - required for CodeGen
+    result->setIsUsed(); // set VarDecl as being used - required for CodeGen
     if (Kernel->vectorize() && KernelClass->getVectorizeInfo(VD) == VECTORIZE &&
         !compilerOptions.emitC() ) {
       result->setInit(simdTypes.propagate(VD, Clone(VD->getInit())));
@@ -1430,7 +1430,7 @@ VarDecl *ASTTranslate::CloneParmVarDecl(ParmVarDecl *PVD) {
     result = VarDecl::Create(Ctx, DC, PVD->getInnerLocStart(),
         PVD->getLocation(), &Ctx.Idents.get(name), QT, TInfo,
         PVD->getStorageClass());
-    result->setIsUsed(true); // set VarDecl as being used - required for CodeGen
+    result->setIsUsed(); // set VarDecl as being used - required for CodeGen
     result->setInit(Clone(PVD->getInit()));
     result->setInitStyle(PVD->getInitStyle());
     result->setTSCSpec(PVD->getTSCSpec());
@@ -1460,7 +1460,7 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *PVD, std::string prefix) {
     result = VarDecl::Create(Ctx, DC, PVD->getInnerLocStart(),
         PVD->getLocation(), &Ctx.Idents.get(texName), PVD->getType(),
         PVD->getTypeSourceInfo(), PVD->getStorageClass());
-    result->setIsUsed(true); // set VarDecl as being used - required for CodeGen
+    result->setIsUsed(); // set VarDecl as being used - required for CodeGen
     result->setInit(Clone(PVD->getInit()));
     result->setInitStyle(PVD->getInitStyle());
     result->setTSCSpec(PVD->getTSCSpec());

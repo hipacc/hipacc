@@ -210,8 +210,7 @@ VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
   VD->setDeclName(&Ctx.Idents.get(Name));
   VD->setType(T);
   VD->setInit(init);
-  // set VarDecl as being used - required for CodeGen
-  VD->setIsUsed(true);
+  VD->setIsUsed(); // set VarDecl as being used - required for CodeGen
 
   return VD;
 }
