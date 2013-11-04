@@ -135,6 +135,7 @@ template <typename T>
 T *ASTTranslate::lookup(std::string name) {
   T *result = NULL;
   DeclarationName declName(&Ctx.Idents.get(name));
+  DeclarationName declNameNS(&Ctx.Idents.get("hipacc"));
 
   for (DeclContext::lookup_result Lookup =
       Ctx.getTranslationUnitDecl()->lookup(declName); !Lookup.empty();
@@ -142,6 +143,25 @@ T *ASTTranslate::lookup(std::string name) {
     result = cast_or_null<T>(Lookup.front());
 
     if (result) break;
+  }
+
+  if (result == NULL) {
+    // Get 'hipacc' namespace context to lookup wanted declaration
+    DeclContext::lookup_result lookupNS =
+      Ctx.getTranslationUnitDecl()->lookup(declNameNS);
+    if (!lookupNS.empty() && isa<NamespaceDecl>(lookupNS.front())) {
+      DeclContext *NSDC = Decl::castToDeclContext(
+                              dyn_cast<NamespaceDecl>(lookupNS.front()));
+      if (NSDC != NULL) {
+        for (DeclContext::lookup_result Lookup = NSDC->lookup(declName);
+            !Lookup.empty(); Lookup=Lookup.slice(1)) {
+
+          result = cast_or_null<T>(Lookup.front());
+
+          if (result) break;
+        }
+      }
+    }
   }
 
   return result;
