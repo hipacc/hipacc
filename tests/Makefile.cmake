@@ -1,6 +1,6 @@
 # Configuration
 COMPILER            ?= ./bin/hipacc
-COMPILER_INCLUDES   ?= @PLATFORM_FIXES@ -std=c++11 -stdlib=libc++ \
+COMPILER_INCLUDES   ?= -std=c++11 -stdlib=libc++ \
                         -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                         -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                         -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \

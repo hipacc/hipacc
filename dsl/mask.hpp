@@ -27,11 +27,6 @@
 #ifndef __MASK_HPP__
 #define __MASK_HPP__
 
-#ifndef NO_BOOST
-#include <boost/exception/all.hpp>
-#include <boost/multi_array.hpp>
-#endif
-
 #include "iterationspace.hpp"
 #include "types.hpp"
 
@@ -214,49 +209,29 @@ template<typename data_t>
 class Mask : public MaskBase {
     private:
         ElementIterator *EI;
-        #ifdef NO_BOOST
         data_t *array;
-        #else
-        typedef boost::multi_array<data_t, 2> Array2D;
-        Array2D array;
-        #endif
 
     public:
         Mask(int size_x, int size_y) :
             MaskBase(size_x, size_y),
             EI(NULL),
-            #ifdef NO_BOOST
             array(new data_t[size_x*size_y])
-            #else
-            array(boost::extents[size_y][size_x])
-            #endif
         {
             assert(size_x>0 && size_y>0 && "size for Mask must be positive!");
         }
 
         Mask(const Mask &mask) :
             MaskBase(mask.size_x, mask.size_y),
-            #ifdef NO_BOOST
             array(new data_t[mask.size_x*mask.size_y])
-            #else
-            array(boost::extents[mask.size_y][mask.size_x])
-            #endif
         {
-            #ifdef NO_BOOST
             operator=(mask.array);
-            #else
-            array = mask.array;
-            #endif
         }
 
         ~Mask() {
-            #ifdef NO_BOOST
             if (array != NULL) {
               delete[] array;
               array = NULL;
             }
-            #else
-            #endif
         }
 
         int getX() {
@@ -270,37 +245,21 @@ class Mask : public MaskBase {
 
         data_t &operator()(void) {
             assert(EI && "ElementIterator for Mask not set!");
-            #ifdef NO_BOOST
             return array[(EI->getY()-offset_y)*size_x + EI->getX()-offset_x];
-            #else
-            return array[EI->getY()-offset_y][EI->getX()-offset_x];
-            #endif
         }
         data_t &operator()(const int xf, const int yf) {
-            #ifdef NO_BOOST
             return array[(yf-offset_y)*size_x + xf-offset_x];
-            #else
-            return array[yf-offset_y][xf-offset_x];
-            #endif
         }
         data_t &operator()(Domain &D) {
             assert(D.getSizeX()==size_x && D.getSizeY()==size_y &&
                     "Domain and Mask size must be equal.");
-            #ifdef NO_BOOST
             return array[(D.getY()-offset_y)*size_x + D.getX()-offset_x];
-            #else
-            return array[D.getY()-offset_y][D.getX()-offset_x];
-            #endif
         }
 
         Mask &operator=(const data_t *other) {
             for (int y=0; y<size_y; ++y) {
                 for (int x=0; x<size_x; ++x) {
-                    #ifdef NO_BOOST
                     array[y*size_x + x] = other[y*size_x + x];
-                    #else
-                    array[y][x] = other[y*size_x + x];
-                    #endif
                     // set holes in underlying domain_space
                     if (other[y*size_x + x] == 0) {
                         domain_space[y*size_x + x] = 0;

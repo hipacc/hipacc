@@ -7,8 +7,8 @@ LDFLAGS = -lm
 OFLAGS = -O3
 
 ifeq ($(CC),clang++)
-# use libc++ for clang++ and use NO_BOOST
-CFLAGS += -D NO_BOOST -std=c++11 -stdlib=libc++ -nostdinc -I`clang -print-file-name=include` -I`llvm-config --includedir`/c++/v1 -I`llvm-config --includedir` -I/usr/include
+# use libc++ for clang++
+CFLAGS += -std=c++11 -stdlib=libc++ -nostdinc -I`clang -print-file-name=include` -I`llvm-config --includedir`/c++/v1 -I`llvm-config --includedir` -I/usr/include
 LDFLAGS += -L`llvm-config --libdir` -lc++
 else
 CFLAGS += -std=c++0x

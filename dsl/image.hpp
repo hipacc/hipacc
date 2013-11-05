@@ -28,10 +28,6 @@
 #ifndef __IMAGE_HPP__
 #define __IMAGE_HPP__
 
-#ifndef NO_BOOST
-#include <boost/exception/all.hpp>
-#include <boost/multi_array.hpp>
-#endif
 #include <algorithm>
 #include <cmath>
 
@@ -58,32 +54,17 @@ class Image {
     private:
         const int width;
         const int height;
-        #ifdef NO_BOOST
         data_t *array;
-        #else
-        typedef boost::multi_array<data_t, 2> Array2D;
-        Array2D *array;
-        #endif
         unsigned int *refcount;
 
-        #ifdef NO_BOOST
         data_t &getPixel(int x, int y) { return array[y*width + x]; }
         void setPixel(int x, int y, data_t val) { array[y*width + x] = val; }
-        #else
-        data_t &getPixel(int x, int y) { return (*array)[y][x]; }
-        void setPixel(int x, int y, data_t val) { (*array)[y][x] = val; }
-        #endif
-
 
     public:
         Image(int width, int height) :
             width(width),
             height(height),
-            #ifdef NO_BOOST
             array(new data_t[width*height]),
-            #else
-            array(new Array2D(boost::extents[height][width])),
-            #endif
             refcount(new unsigned int(1))
         {}
 
@@ -101,11 +82,7 @@ class Image {
             if (array != NULL &&
                 *refcount == 0) {
               delete refcount;
-              #ifdef NO_BOOST
               delete[] array;
-              #else
-              delete array;
-              #endif
               array = NULL;
             }
         }
@@ -113,20 +90,12 @@ class Image {
         int getWidth() const { return width; }
         int getHeight() const { return height; }
 
-        #ifdef NO_BOOST
         data_t *getData() { return array; }
-        #else
-        data_t *getData() { return (*array).data(); }
-        #endif
 
         Image &operator=(data_t *other) {
             for (int y=0; y<height; ++y) {
                 for (int x=0; x<width; ++x) {
-                    #ifdef NO_BOOST
                     array[y*width + x] = other[y*width + x];
-                    #else
-                    (*array)[y][x] = other[y*width + x];
-                    #endif
                 }
             }
 

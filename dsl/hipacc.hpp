@@ -27,8 +27,6 @@
 #include <assert.h>
 #include <sys/time.h>
 
-//! To disable range checking (for performance reasons)
-//#define BOOST_DISABLE_ASSERTS
 namespace hipacc {
 float hipacc_last_timing = 0.0f;
 }
