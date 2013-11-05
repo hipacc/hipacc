@@ -1,16 +1,30 @@
 # Configuration
-COMPILER            ?= ./bin/hipacc
-COMPILER_INCLUDES   ?= -std=c++11 -stdlib=libc++ \
-                        -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
-                        -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
-                        -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
-                        -I/usr/include \
-                        -I@DSL_INCLUDES@
-TEST_CASE           ?= ./tests/opencv_blur_8uc1
-MYFLAGS             ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
-NVCC_FLAGS          = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
-                        -ftz=true -prec-sqrt=false -prec-div=false -Xptxas \
-                        -v #-keep
+COMPILER     ?= ./bin/hipacc
+COMPILER_INC ?= -std=c++11 -stdlib=libc++ \
+                -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
+                -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
+                -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
+                -I/usr/include \
+                -I@DSL_INCLUDES@
+TEST_CASE    ?= ./tests/opencv_blur_8uc1
+MYFLAGS      ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
+NVCC_FLAGS    = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
+                -ftz=true -prec-sqrt=false -prec-div=false -Xptxas \
+                -v #-keep
+OFLAGS        = -O3
+
+# OpenCL specific configuration
+ifeq ($(HIPACC_TARGET),Midgard)
+    OCL_CC    = @NDK_CXX_COMPILER@ @NDK_CXX_FLAGS@ @NDK_INCLUDE_DIRS_STR@ -std=c++0x -Wall -Wunused
+    OCL_LINK  = -lm -ldl -lstdc++ @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@
+    OCL_INC   = @EMBEDDED_OPENCL_CFLAGS@
+else
+    OCL_CC    = @CMAKE_CXX_COMPILER@ -std=c++0x -Wall -Wunused
+    OCL_LINK  = -lm -ldl -lstdc++ -lpthread @TIME_LINK@ @OPENCL_LFLAGS@
+    OCL_INC   = @OPENCL_CFLAGS@
+endif
+
+
 
 # Source-to-source compiler configuration
 # use local memory -> set HIPACC_LMEM to off|Linear1D|Linear2D|Array2D
@@ -63,21 +77,21 @@ GPU_ARCH := $(shell echo $(HIPACC_TARGET) |cut -f2 -d-)
 
 all:
 run:
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES)
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC)
 
 cuda:
 	@echo 'Executing HIPAcc Compiler for CUDA:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-cuda $(HIPACC_OPTS) -o main.cu
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cuda $(HIPACC_OPTS) -o main.cu
 	@echo 'Compiling CUDA file using nvcc:'
-	@NVCC_COMPILER@ $(NVCC_FLAGS) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) @CUDA_LINK@ -O3 main.cu -o main_cuda
+	@NVCC_COMPILER@ $(NVCC_FLAGS) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cuda main.cu @CUDA_LINK@
 	@echo 'Executing CUDA binary'
 	./main_cuda
 
 opencl:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
-	TEST_CASE=$(TEST_CASE) make -f Makefile_CL MYFLAGS="$(MYFLAGS)"
+	$(OCL_CC) $(OCL_INC) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(OCL_LINK)
 ifneq ($(HIPACC_TARGET),Midgard)
 	@echo 'Executing OpenCL binary'
 	./main_opencl
@@ -85,9 +99,9 @@ endif
 
 opencl_cpu:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-opencl-cpu $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-opencl-cpu $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
-	TEST_CASE=$(TEST_CASE) make -f Makefile_CL MYFLAGS="$(MYFLAGS)"
+	$(OCL_CC) $(OCL_INC) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(OCL_LINK)
 ifneq ($(HIPACC_TARGET),Midgard)
 	@echo 'Executing OpenCL binary'
 	./main_opencl
@@ -96,7 +110,7 @@ endif
 renderscript:
 	rm -f *.rs *.fs
 	@echo 'Executing HIPAcc Compiler for Renderscript:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-renderscript $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-renderscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_renderscript
 	@echo 'Generating build system current test case:'
 	cd build_renderscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=@RS_TARGET_API@ $(MYFLAGS)
@@ -107,7 +121,7 @@ renderscript:
 filterscript:
 	rm -f *.rs *.fs
 	@echo 'Executing HIPAcc Compiler for Filterscript:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INCLUDES) -emit-filterscript $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-filterscript $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_filterscript
 	@echo 'Generating build system current test case:'
 	cd build_filterscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=@RS_TARGET_API@ $(MYFLAGS)

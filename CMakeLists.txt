@@ -113,9 +113,6 @@ CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/Makefile.cmake"
     "${HIPACC_BINARY_DIR}/tests/Makefile")
 CONFIGURE_FILE(
-    "${HIPACC_SOURCE_DIR}/tests/Makefile_CL.cmake"
-    "${HIPACC_BINARY_DIR}/tests/Makefile_CL")
-CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/CMakeLists.txt.cmake"
     "${HIPACC_BINARY_DIR}/tests/CMakeLists.txt"
     @ONLY)
