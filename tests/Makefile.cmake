@@ -19,15 +19,15 @@ NVCC_FLAGS          = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),co
 # pad images to a multiple of n bytes -> set HIPACC_PAD to n
 # map n output pixels to one thread -> set HIPACC_PPT to n
 # use specific configuration for kernels -> set HIPACC_CONFIG to nxm
-# generate code that explores configuration -> set HIPACC_EXPLORE
-# generate code that times kernel execution -> set HIPACC_TIMING
+# generate code that explores configuration -> set HIPACC_EXPLORE to off|on
+# generate code that times kernel execution -> set HIPACC_TIMING to off|on
 HIPACC_LMEM?=off
 HIPACC_TEX?=off
 HIPACC_VEC?=off
 HIPACC_PPT?=1
 HIPACC_CONFIG?=128x1
-HIPACC_EXPLORE?=0
-HIPACC_TIMING?=0
+HIPACC_EXPLORE?=off
+HIPACC_TIMING?=off
 HIPACC_TARGET?=Tesla-13
 
 
@@ -50,10 +50,10 @@ endif
 ifdef HIPACC_CONFIG
     HIPACC_OPTS+= -use-config $(HIPACC_CONFIG)
 endif
-ifeq ($(HIPACC_EXPLORE),1)
+ifeq ($(HIPACC_EXPLORE),on)
     HIPACC_OPTS+= -explore-config
 endif
-ifeq ($(HIPACC_TIMING),1)
+ifeq ($(HIPACC_TIMING),on)
     HIPACC_OPTS+= -time-kernels
 endif
 
