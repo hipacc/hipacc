@@ -113,6 +113,12 @@ CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/Makefile.cmake"
     "${HIPACC_BINARY_DIR}/tests/Makefile")
 CONFIGURE_FILE(
+    "${HIPACC_SOURCE_DIR}/tests/Makefile_test.cmake"
+    "${HIPACC_BINARY_DIR}/tests/Makefile_test")
+CONFIGURE_FILE(
+    "${HIPACC_SOURCE_DIR}/tests/Makefile_test_opencv.cmake"
+    "${HIPACC_BINARY_DIR}/tests/Makefile_test_opencv")
+CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/CMakeLists.txt.cmake"
     "${HIPACC_BINARY_DIR}/tests/CMakeLists.txt"
     @ONLY)
@@ -128,5 +134,22 @@ INSTALL(DIRECTORY tests
     DESTINATION ${CMAKE_INSTALL_PREFIX}
     PATTERN "*.cmake" EXCLUDE)
 INSTALL(DIRECTORY ${HIPACC_BINARY_DIR}/tests/
-    DESTINATION ${CMAKE_INSTALL_PREFIX})
+    DESTINATION ${CMAKE_INSTALL_PREFIX}
+    PATTERN "*Makefile_test*" EXCLUDE)
+
+# install Makefiles for test cases
+FILE(GLOB TEST_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/*)
+FOREACH(DIR IN LISTS TEST_DIRS)
+    IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/${DIR})
+        IF(${DIR} MATCHES "opencv_*")
+            INSTALL(FILES ${HIPACC_BINARY_DIR}/tests/Makefile_test_opencv
+                DESTINATION tests/${DIR}
+                RENAME Makefile)
+        ELSE(${DIR} MATCHES "opencv_*")
+            INSTALL(FILES ${HIPACC_BINARY_DIR}/tests/Makefile_test
+                DESTINATION tests/${DIR}
+                RENAME Makefile)
+        ENDIF(${DIR} MATCHES "opencv_*")
+    ENDIF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/${DIR})
+ENDFOREACH(DIR IN LISTS OPENCV_TEST_DIRS)
 
