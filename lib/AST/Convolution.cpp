@@ -55,7 +55,8 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
       break;
     case HipaccMIN:
       // red = min(red, val);
-      fun = getConvolutionFunction("min", tmp_var->getType());
+      fun = lookup<FunctionDecl>(std::string("min"), tmp_var->getType(),
+          hipaccMathNS);
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
             CK_LValueToRValue, tmp_var, NULL, VK_RValue));
       funArgs.push_back(ret_val);
@@ -64,7 +65,8 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
       break;
     case HipaccMAX:
       // red = max(red, val);
-      fun = getConvolutionFunction("max", tmp_var->getType());
+      fun = lookup<FunctionDecl>(std::string("max"), tmp_var->getType(),
+          hipaccMathNS);
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
             CK_LValueToRValue, tmp_var, NULL, VK_RValue));
       funArgs.push_back(ret_val);
@@ -80,45 +82,6 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
       assert(0 && "Unsupported convolution mode.");
       break;
   }
-
-  return result;
-}
-
-
-// create function for given type
-FunctionDecl *ASTTranslate::getConvolutionFunction(std::string name, QualType
-    QT) {
-  FunctionDecl *result = NULL;
-
-  // lookup aggregation function
-  for (DeclContext::lookup_result Lookup =
-      Ctx.getTranslationUnitDecl()->lookup(DeclarationName(&Ctx.Idents.get(name)));
-      !Lookup.empty(); Lookup=Lookup.slice(1)) {
-    FunctionDecl *Decl = cast_or_null<FunctionDecl>(Lookup.front());
-
-    if (Decl && Decl->getResultType() == QT.getDesugaredType(Ctx)) {
-      return Decl;
-    }
-  }
-
-  // create function declaration
-  std::string vecTypeSpecifier = "";
-  QualType VT = QT;
-  if (QT->isVectorType()) {
-    int lanes = VT->getAs<VectorType>()->getNumElements();
-    std::stringstream LSS;
-    LSS << "E" << lanes;
-    vecTypeSpecifier = LSS.str();
-    QT = QT->getAs<VectorType>()->getElementType();
-  }
-
-  std::string typeSpecifier = builtins.EncodeTypeIntoStr(QT, Ctx);
-  std::string funcTypeSpecifier = vecTypeSpecifier + typeSpecifier;
-  funcTypeSpecifier += vecTypeSpecifier + typeSpecifier;
-  funcTypeSpecifier += vecTypeSpecifier + typeSpecifier;
-
-  QualType FT = builtins.getBuiltinType(funcTypeSpecifier.c_str());
-  result = builtins.CreateBuiltin(FT, name.c_str());
 
   return result;
 }

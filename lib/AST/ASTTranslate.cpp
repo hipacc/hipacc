@@ -132,39 +132,34 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
 
 
 template <typename T>
-T *ASTTranslate::lookup(std::string name) {
-  T *result = NULL;
-  DeclarationName declName(&Ctx.Idents.get(name));
-  DeclarationName declNameNS(&Ctx.Idents.get("hipacc"));
+T *ASTTranslate::lookup(std::string name, QualType QT, NamespaceDecl *NS) {
+  DeclContext *DC = Ctx.getTranslationUnitDecl();
+  if (NS) DC = Decl::castToDeclContext(NS);
 
-  for (DeclContext::lookup_result Lookup =
-      Ctx.getTranslationUnitDecl()->lookup(declName); !Lookup.empty();
-      Lookup=Lookup.slice(1)) {
-    result = cast_or_null<T>(Lookup.front());
+  for (DeclContext::lookup_result Lookup = DC->lookup(&Ctx.Idents.get(name));
+      !Lookup.empty(); Lookup=Lookup.slice(1)) {
+    T *result = cast_or_null<T>(Lookup.front());
 
-    if (result) break;
-  }
-
-  if (result == NULL) {
-    // Get 'hipacc' namespace context to lookup wanted declaration
-    DeclContext::lookup_result lookupNS =
-      Ctx.getTranslationUnitDecl()->lookup(declNameNS);
-    if (!lookupNS.empty() && isa<NamespaceDecl>(lookupNS.front())) {
-      DeclContext *NSDC = Decl::castToDeclContext(
-                              dyn_cast<NamespaceDecl>(lookupNS.front()));
-      if (NSDC != NULL) {
-        for (DeclContext::lookup_result Lookup = NSDC->lookup(declName);
-            !Lookup.empty(); Lookup=Lookup.slice(1)) {
-
-          result = cast_or_null<T>(Lookup.front());
-
-          if (result) break;
-        }
+    if (result) {
+      if (isa<FunctionDecl>(result)) {
+        FunctionDecl *decl = dyn_cast<FunctionDecl>(result);
+        if (decl->getResultType().getDesugaredType(Ctx) ==
+            QT.getDesugaredType(Ctx)) return result;
+        continue;
       }
+      if (isa<VarDecl>(result)) {
+        VarDecl *decl = dyn_cast<VarDecl>(result);
+        if (decl->getType().getDesugaredType(Ctx) == QT.getDesugaredType(Ctx))
+          return result;
+        continue;
+      }
+
+      // default case
+      return result;
     }
   }
 
-  return result;
+  assert(NULL && "could not lookup name");
 }
 
 
@@ -1882,11 +1877,15 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
               doUpdate = true;
               // require convert function ulong -> long
               addConvert = true;
-              convert = lookup<FunctionDecl>(std::string("convert_long4"));
+              convert = lookup<FunctionDecl>(std::string("convert_long4"),
+                  simdTypes.getSIMDType(Ctx.LongTy, std::string("long"), SIMD4),
+                  hipaccNS);
             } else if (name=="abs") {
               // require convert function uint -> int
               addConvert = true;
-              convert = lookup<FunctionDecl>(std::string("convert_int4"));
+              convert = lookup<FunctionDecl>(std::string("convert_int4"),
+                  simdTypes.getSIMDType(Ctx.IntTy, std::string("int"), SIMD4),
+                  hipaccNS);
             }
 
             if (doUpdate) {
@@ -2037,7 +2036,7 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
         if (Mask && (Mask->isConstant() || compilerOptions.emitCUDA())) {
           // get Mask/Domain reference
           VarDecl *maskVar = lookup<VarDecl>(Mask->getName() +
-              Kernel->getName());
+              Kernel->getName(), Mask->getType());
 
           if (!maskVar) {
             maskVar = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),

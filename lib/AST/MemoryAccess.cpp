@@ -447,6 +447,8 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool isVecType) {
   if (isVecType) {
     QT = QT->getAs<VectorType>()->getElementType();
   }
+  std::string name = "convert_";
+
   switch (QT->getAs<BuiltinType>()->getKind()) {
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:
@@ -461,29 +463,52 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool isVecType) {
       assert(0 && "BuiltinType for 'convert' function not supported.");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      return lookup<FunctionDecl>(std::string("convert_char4"));
+      name += "char4";
+      QT = Ctx.CharTy;
+      break;
     case BuiltinType::Short:
-      return lookup<FunctionDecl>(std::string("convert_short4"));
+      name += "short4";
+      QT = Ctx.ShortTy;
+      break;
     case BuiltinType::Int:
-      return lookup<FunctionDecl>(std::string("convert_int4"));
+      name += "int4";
+      QT = Ctx.IntTy;
+      break;
     case BuiltinType::Long:
-      return lookup<FunctionDecl>(std::string("convert_long4"));
+      name += "long4";
+      QT = Ctx.LongTy;
+      break;
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
-      return lookup<FunctionDecl>(std::string("convert_uchar4"));
+      name += "uchar4";
+      QT = Ctx.UnsignedCharTy;
+      break;
     case BuiltinType::Char16:
     case BuiltinType::UShort:
-      return lookup<FunctionDecl>(std::string("convert_ushort4"));
+      name += "ushort4";
+      QT = Ctx.UnsignedShortTy;
+      break;
     case BuiltinType::Char32:
     case BuiltinType::UInt:
-      return lookup<FunctionDecl>(std::string("convert_uint4"));
+      name += "uint4";
+      QT = Ctx.UnsignedIntTy;
+      break;
     case BuiltinType::ULong:
-      return lookup<FunctionDecl>(std::string("convert_ulong4"));
+      name += "ulong4";
+      QT = Ctx.UnsignedLongTy;
+      break;
     case BuiltinType::Float:
-      return lookup<FunctionDecl>(std::string("convert_float4"));
+      name += "float4";
+      QT = Ctx.FloatTy;
+      break;
     case BuiltinType::Double:
-      return lookup<FunctionDecl>(std::string("convert_double4"));
+      name += "double4";
+      QT = Ctx.DoubleTy;
+      break;
   }
+
+  return lookup<FunctionDecl>(name, simdTypes.getSIMDType(QT, QT.getAsString(),
+        SIMD4), hipaccNS);
 }
 
 

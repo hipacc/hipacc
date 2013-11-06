@@ -110,6 +110,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     DeclRefExpr *outputImage;
     Expr *retValRef;
     Expr *writeImageRHS;
+    NamespaceDecl *hipaccNS, *hipaccMathNS;
     TypedefDecl *samplerTy;
     DeclRefExpr *kernelSamplerRef;
 
@@ -168,7 +169,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     void updateTileVars();
     Expr *addCastToInt(Expr *E);
     FunctionDecl *cloneFunction(FunctionDecl *FD);
-    template <typename T> T *lookup(std::string name);
+    template <typename T>
+    T *lookup(std::string name, QualType QT, NamespaceDecl *NS=NULL);
     // wrappers to mark variables as being used
     DeclRefExpr *getWidthDecl(HipaccAccessor *Acc) {
       Kernel->setUsed(Acc->getWidthDecl()->getNameInfo().getAsString());
@@ -245,7 +247,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // Convolution.cpp
     Stmt *getConvolutionStmt(ConvolutionMode mode, DeclRefExpr *tmp_var, Expr
         *ret_val);
-    FunctionDecl *getConvolutionFunction(std::string name, QualType QT);
     Expr *getInitExpr(ConvolutionMode mode, QualType QT);
     Stmt *addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var, Stmt
         *stmt);
@@ -330,19 +331,40 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       tileVars(),
       lidYRef(NULL),
       gidYRef(NULL) {
+        // get 'hipacc' namespace context for lookups
+        for (DeclContext::lookup_result Lookup =
+            Ctx.getTranslationUnitDecl()->lookup(&Ctx.Idents.get("hipacc"));
+            !Lookup.empty(); Lookup=Lookup.slice(1)) {
+          hipaccNS = cast_or_null<NamespaceDecl>(Lookup.front());
+          if (hipaccNS) break;
+        }
+        assert(hipaccNS && "could not lookup 'hipacc' namespace");
+
+        // get 'hipacc::' namespace context for lookups
+        for (DeclContext::lookup_result Lookup =
+            hipaccNS->lookup(&Ctx.Idents.get("math"));
+            !Lookup.empty(); Lookup=Lookup.slice(1)) {
+          hipaccMathNS = cast_or_null<NamespaceDecl>(Lookup.front());
+          if (hipaccMathNS) break;
+        }
+        assert(hipaccMathNS && "could not lookup 'hipacc::math' namespace");
+
         // typedef unsigned int sampler_t;
         TypeSourceInfo *TInfosampler =
           Ctx.getTrivialTypeSourceInfo(Ctx.UnsignedIntTy);
         samplerTy = TypedefDecl::Create(Ctx, Ctx.getTranslationUnitDecl(),
             SourceLocation(), SourceLocation(), &Ctx.Idents.get("sampler_t"),
             TInfosampler);
+
         // sampler_t <clKernel>Sampler
         kernelSamplerRef = ASTNode::createDeclRefExpr(Ctx,
             ASTNode::createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
               kernelDecl->getNameAsString() + "Sampler",
               Ctx.getTypeDeclType(samplerTy), NULL));
+
         builtins.InitializeBuiltins();
         Kernel->resetUsed();
+
         // debug
         //dump_available_statement_visitors();
         // debug
