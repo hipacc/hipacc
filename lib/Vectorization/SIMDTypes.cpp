@@ -71,15 +71,8 @@ QualType SIMDTypes::createSIMDType(QualType QT, StringRef base, SIMDWidth
       break;
   }
 
-#if 1
-  TypeSourceInfo *TInfo = Ctx.getTrivialTypeSourceInfo(Ctx.getVectorType(QT,
-        lanes, VectorType::GenericVector));
-  TypedefDecl *TD = TypedefDecl::Create(Ctx, Ctx.getTranslationUnitDecl(),
-      SourceLocation(), SourceLocation(), &Ctx.Idents.get(ss.str()), TInfo);
-  QualType SIMDType = Ctx.getTypeDeclType(TD);
-#else
-  QualType SIMDType = Ctx.getVectorType(QT, lanes, VectorType::GenericVector);
-#endif
+  // use ext_vector_type for SIMD types
+  QualType SIMDType = Ctx.getExtVectorType(QT, lanes);
 
   return SIMDType;
 }
