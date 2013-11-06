@@ -74,7 +74,12 @@ QualType SIMDTypes::createSIMDType(QualType QT, StringRef base, SIMDWidth
   // use ext_vector_type for SIMD types
   QualType SIMDType = Ctx.getExtVectorType(QT, lanes);
 
-  return SIMDType;
+  // create typedef and return this as result
+  TypeSourceInfo *TInfo = Ctx.getTrivialTypeSourceInfo(SIMDType);
+  TypedefDecl *TD = TypedefDecl::Create(Ctx, Ctx.getTranslationUnitDecl(),
+      SourceLocation(), SourceLocation(), &Ctx.Idents.get(ss.str()), TInfo);
+
+  return Ctx.getTypeDeclType(TD);
 }
 
 
