@@ -510,7 +510,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
         ++I) {
       CXXConstructorDecl *CCDI = *I;
 
-      if (CCDI->isCopyConstructor()) continue;
+      if (CCDI->isCopyOrMoveConstructor()) continue;
 
       CCD = CCDI;
     }
