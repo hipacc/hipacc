@@ -124,7 +124,6 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
   // interpolation function is constructed as follows:
   // interpolate_ + <interpolation_mode> + _ + <boundary_handling_mode> + _ +
   // <memory_type>
-  FunctionDecl *interpolateDecl = NULL;
   QualType QT = Acc->getImage()->getPixelQualType();
   std::string typeSpecifier = builtins.EncodeTypeIntoStr(QT, Ctx);
 
@@ -178,17 +177,8 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
   }
 
   // lookup interpolation function
-  for (DeclContext::lookup_result Lookup =
-      Ctx.getTranslationUnitDecl()->lookup(DeclarationName(&Ctx.Idents.get(name)));
-      !Lookup.empty(); Lookup=Lookup.slice(1)) {
-    FunctionDecl *Decl = cast_or_null<FunctionDecl>(Lookup.front());
-
-    if (Decl && Decl->getResultType() ==
-        Acc->getImage()->getPixelQualType().getDesugaredType(Ctx)) {
-      interpolateDecl = Decl;
-      break;
-    }
-  }
+  FunctionDecl *interpolateDecl = lookup<FunctionDecl>(name,
+      Acc->getImage()->getPixelQualType());
 
   // create function declaration
   if (!interpolateDecl) {

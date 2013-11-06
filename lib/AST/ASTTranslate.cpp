@@ -159,7 +159,7 @@ T *ASTTranslate::lookup(std::string name, QualType QT, NamespaceDecl *NS) {
     }
   }
 
-  assert(NULL && "could not lookup name");
+  return NULL;
 }
 
 
@@ -1846,7 +1846,6 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
     // function, e.g. exp() instead of expf() in case of OpenCL
     FunctionDecl *targetFD = NULL;
     FunctionDecl *convert = NULL;
-    bool addConvert = false;
     if (compilerOptions.emitC()) {
       targetFD = E->getDirectCallee();
     } else {
@@ -1876,16 +1875,16 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
               name.erase(0, 1);
               doUpdate = true;
               // require convert function ulong -> long
-              addConvert = true;
               convert = lookup<FunctionDecl>(std::string("convert_long4"),
                   simdTypes.getSIMDType(Ctx.LongTy, std::string("long"), SIMD4),
                   hipaccNS);
+              assert(convert && "could not lookup 'convert_long4'");
             } else if (name=="abs") {
               // require convert function uint -> int
-              addConvert = true;
               convert = lookup<FunctionDecl>(std::string("convert_int4"),
                   simdTypes.getSIMDType(Ctx.IntTy, std::string("int"), SIMD4),
                   hipaccNS);
+              assert(convert && "could not lookup 'convert_int4'");
             }
 
             if (doUpdate) {
@@ -1952,7 +1951,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
 
     setExprProps(E, result);
 
-    if (addConvert) {
+    if (convert) {
       // add ICE for CodeGen
       ImplicitCastExpr *ICE = createImplicitCastExpr(Ctx,
           Ctx.getPointerType(convert->getType()), CK_FunctionToPointerDecay,
