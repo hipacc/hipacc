@@ -50,6 +50,7 @@ class Kernel {
         Accessor<data_t> outImgAcc;
         ElementIterator iter;
         std::vector<AccessorBase *> images;
+        data_t reduction_result;
 
     public:
         Kernel(IterationSpace<data_t> &iteration_space) :
@@ -63,6 +64,7 @@ class Kernel {
 
         virtual ~Kernel() {}
         virtual void kernel() = 0;
+        virtual data_t reduce(data_t left, data_t right) { return left; }
 
         void addAccessor(AccessorBase *Acc) { images.push_back(Acc); }
 
@@ -101,7 +103,37 @@ class Kernel {
             // reset kernel iterator
             iter = ElementIterator();
 
+            // apply reduction
+            reduce();
         }
+
+        void reduce(void) {
+            ElementIterator end = iteration_space.end();
+            ElementIterator iter = iteration_space.begin();
+
+            // register output accessors
+            outImgAcc.setEI(&iter);
+
+            // first element
+            data_t result = outImgAcc();
+            ++iter;
+
+            // advance iterator and apply kernel to whole iteration space
+            while (iter != end) {
+                result = reduce(result, outImgAcc());
+                ++iter;
+            }
+
+            // de-register output accessors
+            outImgAcc.setEI(NULL);
+
+            reduction_result = result;
+        }
+
+        data_t getReducedData() {
+            return reduction_result;
+        }
+
 
         // access output image
         data_t &output(void) {
@@ -126,73 +158,10 @@ class Kernel {
 };
 
 
+// TODO: remove completely
 template<typename data_t>
 class GlobalReduction {
-    protected:
-        Accessor<data_t> imgAcc;
-        IterationSpace<data_t> redIS;
-        data_t neutral;
-
-    public:
-        GlobalReduction(Image<data_t> &img, data_t neutral) :
-            imgAcc(img, img.getWidth(), img.getHeight(), 0, 0),
-            redIS(img),
-            neutral(neutral)
-        {} 
-        GlobalReduction(Accessor<data_t> &acc, data_t neutral) :
-            imgAcc(acc),
-            redIS(acc.img, acc.width, acc.height, acc.offset_x, acc.offset_y),
-            neutral(neutral)
-        {} 
-
-        virtual data_t reduce(data_t left, data_t right) = 0;
-
-        data_t reduce(void) {
-            data_t result = neutral;
-
-            ElementIterator end = redIS.end();
-            ElementIterator iter = redIS.begin();
-
-            // register output accessors
-            imgAcc.setEI(&iter);
-
-            // advance iterator and apply kernel to whole iteration space
-            while (iter != end) {
-                result = reduce(result, imgAcc());
-                ++iter;
-            }
-
-            // de-register output accessors
-            imgAcc.setEI(NULL);
-
-            return result;
-        }
 };
-
-
-template <typename data_t, typename Function>
-data_t reduce(Image<data_t> &img, data_t neutral, const Function& fun) {
-    data_t result = neutral;
-    IterationSpace<data_t> redIS(img);
-    Accessor<data_t> imgAcc(img);
-
-    ElementIterator end = redIS.end();
-    ElementIterator iter = redIS.begin();
-
-    // register output accessors
-    imgAcc.setEI(&iter);
-
-    // advance iterator and apply kernel to whole iteration space
-    while (iter != end) {
-        result = fun(result, imgAcc());
-        ++iter;
-    }
-
-    // de-register output accessors
-    imgAcc.setEI(NULL);
-
-    return result;
-}
 } // end namespace hipacc
 
 #endif // __KERNEL_HPP__

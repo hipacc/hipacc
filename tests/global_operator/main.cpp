@@ -109,51 +109,111 @@ data_t calc_sum_pixel(data_t *in, data_t neutral, int width, int height) {
 
 
 // Kernel description in HIPAcc
-template<typename data_t>
-struct MinReduction : public GlobalReduction<data_t> {
+class MinReductionInt : public Kernel<int> {
+    private:
+        Accessor<int> &in;
+
     public:
-        using GlobalReduction<data_t>::reduce;
+        MinReductionInt(IterationSpace<int> &iter, Accessor<int> &in) :
+            Kernel(iter),
+            in(in)
+        { addAccessor(&in); }
 
-        MinReduction(Image<data_t> &img, data_t neutral) :
-            GlobalReduction<data_t>(img, neutral)
-        {}
-        MinReduction(Accessor<data_t> &img, data_t neutral) :
-            GlobalReduction<data_t>(img, neutral)
-        {}
+        void kernel() {
+            output() = in();
+        }
 
-        data_t reduce(data_t left, data_t right) {
+        int reduce(int left, int right) {
             return min(left, right);
         }
 };
-template<typename data_t>
-struct MaxReduction : public GlobalReduction<data_t> {
+class MinReductionFloat : public Kernel<float> {
+    private:
+        Accessor<float> &in;
+
     public:
-        using GlobalReduction<data_t>::reduce;
+        MinReductionFloat(IterationSpace<float> &iter, Accessor<float> &in) :
+            Kernel(iter),
+            in(in)
+        { addAccessor(&in); }
 
-        MaxReduction(Image<data_t> &img, data_t neutral) :
-            GlobalReduction<data_t>(img, neutral)
-        {}
-        MaxReduction(Accessor<data_t> &img, data_t neutral) :
-            GlobalReduction<data_t>(img, neutral)
-        {}
+        void kernel() {
+            output() = in();
+        }
 
-        data_t reduce(data_t left, data_t right) {
+        float reduce(float left, float right) {
+            return min(left, right);
+        }
+};
+class MaxReductionInt : public Kernel<int> {
+    private:
+        Accessor<int> &in;
+
+    public:
+        MaxReductionInt(IterationSpace<int> &iter, Accessor<int> &in) :
+            Kernel(iter),
+            in(in)
+        { addAccessor(&in); }
+
+        void kernel() {
+            output() = in();
+        }
+
+        int reduce(int left, int right) {
             return max(left, right);
         }
 };
-template<typename data_t>
-struct SumReduction : public GlobalReduction<data_t> {
+class MaxReductionFloat : public Kernel<float> {
+    private:
+        Accessor<float> &in;
+
     public:
-        using GlobalReduction<data_t>::reduce;
+        MaxReductionFloat(IterationSpace<float> &iter, Accessor<float> &in) :
+            Kernel(iter),
+            in(in)
+        { addAccessor(&in); }
 
-        SumReduction(Image<data_t> &img, data_t neutral) :
-            GlobalReduction<data_t>(img, neutral)
-        {}
-        SumReduction(Accessor<data_t> &img, data_t neutral) :
-            GlobalReduction<data_t>(img, neutral)
-        {}
+        void kernel() {
+            output() = in();
+        }
 
-        data_t reduce(data_t left, data_t right) {
+        float reduce(float left, float right) {
+            return max(left, right);
+        }
+};
+class SumReductionInt : public Kernel<int> {
+    private:
+        Accessor<int> &in;
+
+    public:
+        SumReductionInt(IterationSpace<int> &iter, Accessor<int> &in) :
+            Kernel(iter),
+            in(in)
+        { addAccessor(&in); }
+
+        void kernel() {
+            output() = in();
+        }
+
+        int reduce(int left, int right) {
+            return left + right;
+        }
+};
+class SumReductionFloat : public Kernel<float> {
+    private:
+        Accessor<float> &in;
+
+    public:
+        SumReductionFloat(IterationSpace<float> &iter, Accessor<float> &in) :
+            Kernel(iter),
+            in(in)
+        { addAccessor(&in); }
+
+        void kernel() {
+            output() = in();
+        }
+
+        float reduce(float left, float right) {
             return left + right;
         }
 };
@@ -175,13 +235,21 @@ int main(int argc, const char **argv) {
     float *reference_out_float = (float *)malloc(sizeof(float)*width*height);
 
     // input and output image of widthxheight pixels
-    Image<int> INInt(width, height);
-    Image<int> OUTInt(width, height);
-    Image<float> INFloat(width, height);
-    Image<float> OUTFloat(width, height);
+    Image<int> in_int(width, height);
+    Image<int> out_int(width, height);
+    Image<float> in_float(width, height);
+    Image<float> out_float(width, height);
 
-    Accessor<int> AccInInt(INInt, width/3, height/3, width/3, height/3);
-    Accessor<float> AccInFloat(INFloat, width/3, height/3, width/3, height/3);
+    Accessor<int> img_in_int(in_int);
+    Accessor<float> img_in_float(in_float);
+    Accessor<int> acc_in_int(in_int, width/3, height/3, width/3, height/3);
+    Accessor<float> acc_in_float(in_float, width/3, height/3, width/3, height/3);
+
+    // iteration spaces
+    IterationSpace<int> out_int_iter(out_int);
+    IterationSpace<float> out_float_iter(out_float);
+    IterationSpace<int> out_acc_int_iter(out_int, width/3, height/3, width/3, height/3);
+    IterationSpace<float> out_acc_float_iter(out_float, width/3, height/3, width/3, height/3);
 
     // initialize data
     #define DELTA 0.001f
@@ -198,110 +266,92 @@ int main(int argc, const char **argv) {
         }
     }
 
-    INInt = host_in_int;
-    OUTInt = host_out_int;
-    INFloat = host_in_float;
-    OUTFloat = host_out_float;
+    in_int = host_in_int;
+    out_int = host_out_int;
+    in_float = host_in_float;
+    out_float = host_out_float;
 
     // global operation using functors: Images
-    MinReduction<int> redMinINInt(INInt, INT_MAX);
-    MaxReduction<int> redMaxINInt(INInt, INT_MIN);
-    SumReduction<int> redSumINInt(INInt, 0);
-    MinReduction<float> redMinINFloat(INFloat, FLT_MAX);
-    MaxReduction<float> redMaxINFloat(INFloat, FLT_MIN);
-    SumReduction<float> redSumINFloat(INFloat, 0.0f);
+    MinReductionInt redMinINInt(out_int_iter, img_in_int);
+    MaxReductionInt redMaxINInt(out_int_iter, img_in_int);
+    SumReductionInt redSumINInt(out_int_iter, img_in_int);
+    MinReductionFloat redMinINFloat(out_float_iter, img_in_float);
+    MaxReductionFloat redMaxINFloat(out_float_iter, img_in_float);
+    SumReductionFloat redSumINFloat(out_float_iter, img_in_float);
     // global operation using functors: Accessors
-    MinReduction<int> redMinAccInInt(AccInInt, INT_MAX);
-    MaxReduction<int> redMaxAccInInt(AccInInt, INT_MIN);
-    SumReduction<int> redSumAccInInt(AccInInt, 0);
-    MinReduction<float> redMinAccInFloat(AccInFloat, FLT_MAX);
-    MaxReduction<float> redMaxAccInFloat(AccInFloat, FLT_MIN);
-    SumReduction<float> redSumAccInFloat(AccInFloat, 0.0f);
+    MinReductionInt redMinAccInInt(out_acc_int_iter, acc_in_int);
+    MaxReductionInt redMaxAccInInt(out_acc_int_iter, acc_in_int);
+    SumReductionInt redSumAccInInt(out_acc_int_iter, acc_in_int);
+    MinReductionFloat redMinAccInFloat(out_acc_float_iter, acc_in_float);
+    MaxReductionFloat redMaxAccInFloat(out_acc_float_iter, acc_in_float);
+    SumReductionFloat redSumAccInFloat(out_acc_float_iter, acc_in_float);
 
     // warmup
-    redMinINInt.reduce();
-    redMaxINInt.reduce();
-    redSumINInt.reduce();
-    redMinINFloat.reduce();
-    redMaxINFloat.reduce();
-    redSumINFloat.reduce();
-    redMinAccInInt.reduce();
-    redMaxAccInInt.reduce();
-    redSumAccInInt.reduce();
-    redMinAccInFloat.reduce();
-    redMaxAccInFloat.reduce();
-    redSumAccInFloat.reduce();
+    redMinINInt.execute();
+    redMaxINInt.execute();
+    redSumINInt.execute();
+    redMinINFloat.execute();
+    redMaxINFloat.execute();
+    redSumINFloat.execute();
+    redMinAccInInt.execute();
+    redMaxAccInInt.execute();
+    redSumAccInInt.execute();
+    redMinAccInFloat.execute();
+    redMaxAccInFloat.execute();
+    redSumAccInFloat.execute();
 
     fprintf(stderr, "Calculating global reductions ...\n");
     time0 = time_ms();
 
-#define FUNCTORS
-#ifdef FUNCTORS
     // Images
-    int min_pixel_functor_int_img = redMinINInt.reduce();
+    int min_pixel_functor_int_img = redMinINInt.getReducedData();
     fprintf(stderr, "reduction functor, min (img, int): %d\n", min_pixel_functor_int_img);
 
-    int max_pixel_functor_int_img = redMaxINInt.reduce();
+    int max_pixel_functor_int_img = redMaxINInt.getReducedData();
     fprintf(stderr, "reduction functor, max (img, int): %d\n", max_pixel_functor_int_img);
 
-    int sum_pixel_functor_int_img = redSumINInt.reduce();
+    int sum_pixel_functor_int_img = redSumINInt.getReducedData();
     fprintf(stderr, "reduction functor, sum (img, int): %d\n", sum_pixel_functor_int_img);
 
-    float min_pixel_functor_float_img = redMinINFloat.reduce();
+    float min_pixel_functor_float_img = redMinINFloat.getReducedData();
     fprintf(stderr, "reduction functor, min (img, float): %f\n", min_pixel_functor_float_img);
 
-    float max_pixel_functor_float_img = redMaxINFloat.reduce();
+    float max_pixel_functor_float_img = redMaxINFloat.getReducedData();
     fprintf(stderr, "reduction functor, max (img, float): %f\n", max_pixel_functor_float_img);
 
-    float sum_pixel_functor_float_img = redSumINFloat.reduce();
+    float sum_pixel_functor_float_img = redSumINFloat.getReducedData();
     fprintf(stderr, "reduction functor, sum (img, float): %f\n", sum_pixel_functor_float_img);
 
     // Accessors
-    int min_pixel_functor_int_acc = redMinAccInInt.reduce();
+    int min_pixel_functor_int_acc = redMinAccInInt.getReducedData();
     fprintf(stderr, "reduction functor, min (acc, int): %d\n", min_pixel_functor_int_acc);
 
-    int max_pixel_functor_int_acc = redMaxAccInInt.reduce();
+    int max_pixel_functor_int_acc = redMaxAccInInt.getReducedData();
     fprintf(stderr, "reduction functor, max (acc, int): %d\n", max_pixel_functor_int_acc);
 
-    int sum_pixel_functor_int_acc = redSumAccInInt.reduce();
+    int sum_pixel_functor_int_acc = redSumAccInInt.getReducedData();
     fprintf(stderr, "reduction functor, sum (acc, int): %d\n", sum_pixel_functor_int_acc);
 
-    float min_pixel_functor_float_acc = redMinAccInFloat.reduce();
+    float min_pixel_functor_float_acc = redMinAccInFloat.getReducedData();
     fprintf(stderr, "reduction functor, min (acc, float): %f\n", min_pixel_functor_float_acc);
 
-    float max_pixel_functor_float_acc = redMaxAccInFloat.reduce();
+    float max_pixel_functor_float_acc = redMaxAccInFloat.getReducedData();
     fprintf(stderr, "reduction functor, max (acc, float): %f\n", max_pixel_functor_float_acc);
 
-    float sum_pixel_functor_float_acc = redSumAccInFloat.reduce();
+    float sum_pixel_functor_float_acc = redSumAccInFloat.getReducedData();
     fprintf(stderr, "reduction functor, sum (acc, float): %f\n", sum_pixel_functor_float_acc);
-#else
-    // global operation
-    float min_pixel = reduce(IN, FLT_MAX, [&] (float left, float right) {
-            return min(left, right);
-            });
-    fprintf(stderr, "reduction, min: %f\n", min_pixel);
-    float max_pixel = reduce(IN, FLT_MIN, [&] (float left, float right) {
-            return max(left, right);
-            });
-    fprintf(stderr, "reduction, max: %f\n", max_pixel);
-    float sum_pixel = reduce(IN, 0.0f, [&] (float left, float right) {
-            return left + right;
-            });
-    fprintf(stderr, "reduction, sum: %f\n", sum_pixel);
-#endif
 
     time1 = time_ms();
     dt = time1 - time0;
 
     // get results
-    host_out_int = OUTInt.getData();
-    host_out_float = OUTFloat.getData();
+    host_out_int = out_int.getData();
+    host_out_float = out_float.getData();
 
 
     // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
     // NB: actually there are (width-d)*(height) output pixels
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", dt,
-            ((width*height)/dt)/1000);
+    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", dt, ((width*height)/dt)/1000);
 
 
     fprintf(stderr, "\nCalculating reference ...\n");
@@ -325,8 +375,7 @@ int main(int argc, const char **argv) {
 
     time1 = time_ms();
     dt = time1 - time0;
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt,
-            (width*height/dt)/1000);
+    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, (width*height/dt)/1000);
 
     // compare results: Images
     bool passed_all = true;
