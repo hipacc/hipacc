@@ -385,7 +385,6 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
 
     template<typename> friend class Image;
     template<typename> friend class Kernel;
-    template<typename> friend class GlobalReduction;
     template<typename> friend class AccessorNN;
     template<typename> friend class AccessorLF;
     template<typename> friend class AccessorCF;

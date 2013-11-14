@@ -155,13 +155,127 @@ class Kernel {
             assert(iter!=ElementIterator() && "ElementIterator not set!");
             return iter.getY() - iter.getOffsetY();
         }
+
+        // built-in functions: convolve, iterate, and reduce
+        template <typename data_m, typename Function>
+        auto convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, const Function& fun) -> decltype(fun());
+        template <typename Function>
+        auto reduce(Domain &domain, HipaccConvolutionMode mode, const Function &fun) -> decltype(fun());
+        template <typename Function>
+        void iterate(Domain &domain, const Function &fun);
 };
 
 
-// TODO: remove completely
-template<typename data_t>
-class GlobalReduction {
-};
+template <typename data_t> template <typename data_m, typename Function>
+auto Kernel<data_t>::convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, const Function& fun) -> decltype(fun()) {
+    ElementIterator end = mask.end();
+    ElementIterator iter = mask.begin();
+
+    // register mask
+    mask.setEI(&iter);
+
+    // initialize result - calculate first iteration
+    auto result = fun();
+    ++iter;
+
+    // advance iterator and apply kernel to remaining iteration space
+    while (iter != end) {
+        switch (mode) {
+            case HipaccSUM:
+                result += fun();
+                break;
+            case HipaccMIN:
+                {
+                auto tmp = fun();
+                result = hipacc::math::min(tmp, result);
+                }
+                break;
+            case HipaccMAX:
+                {
+                auto tmp = fun();
+                result = hipacc::math::max(tmp, result);
+                }
+                break;
+            case HipaccPROD:
+                result *= fun();
+                break;
+            case HipaccMEDIAN:
+                assert(0 && "HipaccMEDIAN not implemented yet!");
+                break;
+        }
+        ++iter;
+    }
+
+    // de-register mask
+    mask.setEI(NULL);
+
+    return result;
+}
+
+
+template <typename data_t> template <typename Function>
+auto Kernel<data_t>::reduce(Domain &domain, HipaccConvolutionMode mode,
+            const Function &fun) -> decltype(fun()) {
+    Domain::DomainIterator end = domain.end();
+    Domain::DomainIterator iter = domain.begin();
+
+    // register domain
+    domain.setDI(&iter);
+
+    // initialize result - calculate first iteration
+    auto result = fun();
+    ++iter;
+
+    // advance iterator and apply kernel to remaining iteration space
+    while (iter != end) {
+        switch (mode) {
+            case HipaccSUM:
+                result += fun();
+                break;
+            case HipaccMIN: {
+                auto tmp = fun();
+                result = hipacc::math::min(tmp, result);
+                }
+              break;
+            case HipaccMAX: {
+                auto tmp = fun();
+                result = hipacc::math::max(tmp, result);
+                }
+                break;
+            case HipaccPROD:
+                result *= fun();
+                break;
+            case HipaccMEDIAN:
+                assert(0 && "HipaccMEDIAN not implemented yet!");
+                break;
+        }
+        ++iter;
+    }
+
+    // de-register domain
+    domain.setDI(NULL);
+
+    return result;
+}
+
+
+template <typename data_t> template <typename Function>
+void Kernel<data_t>::iterate(Domain &domain, const Function &fun) {
+    Domain::DomainIterator end = domain.end();
+    Domain::DomainIterator iter = domain.begin();
+
+    // register domain
+    domain.setDI(&iter);
+
+    // advance iterator and apply kernel to iteration space
+    while (iter != end) {
+        fun();
+        ++iter;
+    }
+
+    // de-register domain
+    domain.setDI(NULL);
+}
 } // end namespace hipacc
 
 #endif // __KERNEL_HPP__
