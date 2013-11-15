@@ -1,4 +1,4 @@
-# Module for locating RenderScript.
+# Module for locating Renderscript.
 #
 # Customizable variables:
 #   ANDROID_SOURCE_DIR
@@ -29,19 +29,19 @@
 #
 # Read-only variables:
 #   RENDERSCRIPT_FOUND
-#     Indicates whether RenderScript has been found.
+#     Indicates whether Renderscript has been found.
 #
 #   RS_COMPILER
-#     Specifies the RenderScript compiler executable.
+#     Specifies the Renderscript compiler executable.
 #
 #   RS_FLAGS
-#     Specifies the RenderScript compiler flags.
+#     Specifies the Renderscript compiler flags.
 #
 #   RS_INCLUDE_DIRS
-#     Specifies the RenderScript include directories.
+#     Specifies the Renderscript include directories.
 #
 #   RS_SOURCES
-#     RenderScript source files.
+#     Renderscript source files.
 #
 #   NDK_CXX_COMPILER
 #     Specifies the NDK C++ compiler executable.
@@ -85,15 +85,38 @@ SET(RS_EXECUTABLE RS_EXECUTABLE-NOTFOUND)
 SET(NDK_CXX_EXECUTABLE NDK_CXX_EXECUTABLE-NOTFOUND)
 SET(NDK_LIBRARY_DIR NDK_LIBRARY_DIR-NOTFOUND)
 
+IF (RS_TARGET_API STREQUAL "")
+  SET(RS_TARGET_API "0")
+ENDIF ()
+
+IF (${RS_TARGET_API} GREATER 18)
+
+# For Android 4.4 we just need a target API version and the corresponding NDK
+# version installed, which includes the static Renderscript C++ library.
+# (Embedded OpenCL can be omitted for, because it is not available anyway.)
+FIND_PROGRAM(NDK_BUILD_EXECUTABLE
+  NAMES ndk-build
+  DOC "NDK build executable")
+
+FIND_LIBRARY(RS_STATIC_LIBRARY
+  NAME libRScpp_static.a
+  HINTS "${NDK_BUILD_EXECUTABLE}/../platforms/android-${RS_TARGET_API}/arch-arm/usr/lib/rs/"
+  DOC "Renderscript static library")
+
+FIND_PACKAGE_HANDLE_STANDARD_ARGS (Renderscript REQUIRED_VARS
+  NDK_BUILD_EXECUTABLE RS_STATIC_LIBRARY)
+
+ELSE (${RS_TARGET_API} GREATER 18)
+
 FIND_PATH(RS_INCLUDE_DIR
   NAMES frameworks/rs/scriptc/rs_core.rsh
   HINTS ${ANDROID_SOURCE_DIR}
-  DOC "RenderScript include directory")
+  DOC "Renderscript include directory")
 
 FIND_PROGRAM(RS_EXECUTABLE
   NAME llvm-rs-cc
   HINTS ${ANDROID_SOURCE_DIR}/out/host/${HOST_TYPE}/bin
-  DOC "RenderScript compiler executable")
+  DOC "Renderscript compiler executable")
 
 SET (RS_FLAGS -allow-rs-prefix -reflect-c++ -target-api ${RS_TARGET_API} -o ./)
 
@@ -129,7 +152,7 @@ SET (NDK_CXX_COMPILER ${NDK_CXX_EXECUTABLE})
 
 MARK_AS_ADVANCED (RS_INCLUDE_DIR RS_EXECUTABLE NDK_CXX_EXECUTABLE NDK_LIBRARY_DIR)
 
-FIND_PACKAGE_HANDLE_STANDARD_ARGS (RenderScript REQUIRED_VARS
+FIND_PACKAGE_HANDLE_STANDARD_ARGS (Renderscript REQUIRED_VARS
     ANDROID_SOURCE_DIR TARGET_NAME HOST_TYPE NDK_TOOLCHAIN_DIR RS_TARGET_API
     RS_INCLUDE_DIR RS_EXECUTABLE NDK_CXX_EXECUTABLE NDK_LIBRARY_DIR)
 
@@ -211,4 +234,6 @@ MACRO (RS_LINK_LIBRARIES NAME)
     LIST (APPEND NDK_LINK_LIBRARIES_${NAME} -l${LIB})
   ENDFOREACH ()
 ENDMACRO ()
+
+ENDIF (${RS_TARGET_API} GREATER 18)
 
