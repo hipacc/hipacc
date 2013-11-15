@@ -250,6 +250,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *getInitExpr(ConvolutionMode mode, QualType QT);
     Stmt *addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var, Stmt
         *stmt);
+    Expr *convertConvolution(CXXMemberCallExpr *E);
 
     // Interpolation.cpp
     Expr *addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x);
