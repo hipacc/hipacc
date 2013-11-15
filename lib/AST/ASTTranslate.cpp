@@ -474,7 +474,7 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
 
   if (compilerOptions.emitFilterscript()) {
     VarDecl *output = createVarDecl(Ctx, kernelDecl, "OutputVal",
-                          Kernel->getIterationSpace()->getImage()->getPixelQualType());
+                          Kernel->getIterationSpace()->getImage()->getType());
     DC->addDecl(output);
     kernelBody.push_back(createDeclStmt(Ctx, output));
     retValRef = createDeclRefExpr(Ctx, output);
@@ -800,7 +800,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
               BO_Add, Ctx.IntTy);
         }
 
-        QT = Acc->getImage()->getPixelQualType();
+        QT = Acc->getImage()->getType();
         QT = Ctx.getVariableArrayType(QT, SX, ArrayType::Normal,
             QT.getQualifiers(), SourceLocation());
         QT = Ctx.getVariableArrayType(QT, SY, ArrayType::Normal,
@@ -821,7 +821,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
                 + Acc->getSizeY()-1)/(float)Kernel->getNumThreadsY());
         SY = llvm::APInt(32, smem_size_y*Kernel->getNumThreadsY());
 
-        QT = Acc->getImage()->getPixelQualType();
+        QT = Acc->getImage()->getType();
         QT = Ctx.getConstantArrayType(QT, SX, ArrayType::Normal,
             QT.getQualifiers());
         QT = Ctx.getConstantArrayType(QT, SY, ArrayType::Normal,

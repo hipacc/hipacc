@@ -127,8 +127,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       TextRewriteOptions.RemoveLineIfEmpty = true;
     }
 
-    void setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
-        StringRef kernelName);
+    void setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K);
     void generateReductionKernels();
     void printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
         std::string file);
@@ -362,7 +361,8 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
         it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
       HipaccKernel *Kernel = it->second;
 
-      stringCreator.writeKernelCompilation(Kernel->getFileName(), initStr);
+      stringCreator.writeKernelCompilation(Kernel->getFileName(),
+          Kernel->getKernelName(), initStr);
     }
     initStr += "\n" + stringCreator.getIndent();
   }
@@ -753,7 +753,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
         // store Image definition
-        Img->setPixelType(compilerClasses.getFirstTemplateType(VD->getType()));
+        Img->setType(compilerClasses.getFirstTemplateType(VD->getType()));
         ImgDeclMap[VD] = Img;
 
         break;
@@ -793,7 +793,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
         // store Pyramid definition
-        Pyr->setPixelType(compilerClasses.getFirstTemplateType(VD->getType()));
+        Pyr->setType(compilerClasses.getFirstTemplateType(VD->getType()));
         PyrDeclMap[VD] = Pyr;
 
         break;
@@ -1528,23 +1528,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           }
 
           // create function declaration for kernel
-          std::string name;
-          switch (compilerOptions.getTargetCode()) {
-            case TARGET_C:
-              name = "cc"; break;
-            case TARGET_CUDA:
-              name = "cu"; break;
-            case TARGET_OpenCL:
-            case TARGET_OpenCLCPU:
-              name = "cl"; break;
-            case TARGET_Renderscript:
-            case TARGET_Filterscript:
-              name = "rs"; break;
-          }
-          name += KC->getName() + VD->getNameAsString();
-          StringRef kernelName = StringRef(name);
-
-
           #ifdef USE_POLLY
           if (!compilerOptions.exploreConfig()) {
             TargetCode tc = compilerOptions.getTargetCode();
@@ -1552,7 +1535,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
             // create kernel declaration for Polly
             FunctionDecl *kernelDeclPolly = createFunctionDecl(Context,
-                Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
+                Context.getTranslationUnitDecl(), K->getKernelName(), Context.VoidTy,
                 K->getArgTypes(Context, TARGET_C), K->getDeviceArgNames());
 
             // call Polly ...
@@ -1573,12 +1556,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
 
           // set kernel configuration
-          setKernelConfiguration(KC, K, kernelName);
+          setKernelConfiguration(KC, K);
 
 
           // kernel declaration
           FunctionDecl *kernelDecl = createFunctionDecl(Context,
-              Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
+              Context.getTranslationUnitDecl(), K->getKernelName(), Context.VoidTy,
               K->getArgTypes(Context, compilerOptions.getTargetCode()),
               K->getDeviceArgNames());
 
@@ -2077,8 +2060,8 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
               CCE->getNumArgs()), newStr, literalCount);
 
         // create kernel call string
-        stringCreator.writeKernelCall(K->getKernelName() + K->getName(),
-            K->getKernelClass(), K, newStr);
+        stringCreator.writeKernelCall(K->getKernelName(), K->getKernelClass(),
+            K, newStr);
 
         // rewrite kernel invocation
         // get the start location and compute the semi location.
@@ -2156,8 +2139,7 @@ bool Rewrite::VisitCallExpr (CallExpr *E) {
 }
 
 
-void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
-    StringRef kernelName) {
+void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   #ifdef USE_JIT_ESTIMATE
   bool jit_compile = false;
   switch (compilerOptions.getTargetCode()) {
@@ -2186,7 +2168,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
   // write kernel file to estimate resource usage
   // kernel declaration for CUDA
   FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
-      Context.getTranslationUnitDecl(), kernelName, Context.VoidTy,
+      Context.getTranslationUnitDecl(), K->getKernelName(), Context.VoidTy,
       K->getArgTypes(Context, compilerOptions.getTargetCode()),
       K->getDeviceArgNames());
 
@@ -2201,7 +2183,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
 
   // compile kernel in order to get resource usage
   std::string command = K->getCompileCommand(compilerOptions.emitCUDA()) +
-    K->getCompileOptions(kernelName.str(), K->getFileName(),
+    K->getCompileOptions(K->getKernelName(), K->getFileName(),
         compilerOptions.emitCUDA());
 
   int reg=0, lmem=0, smem=0, cmem=0;
@@ -2304,13 +2286,13 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K,
     }
   } else {
     if (targetDevice.isAMDGPU()) {
-      llvm::errs() << "Resource usage for kernel '" << kernelName << "': "
-                   << reg << " gprs, "
+      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
+                   << ": " << reg << " gprs, "
                    << lmem << " bytes stack, "
                    << smem << " bytes lds\n";
     } else {
-      llvm::errs() << "Resource usage for kernel '" << kernelName << "': "
-                   << reg << " registers, "
+      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
+                   << ": " << reg << " registers, "
                    << lmem << " bytes lmem, "
                    << smem << " bytes smem, "
                    << cmem << " bytes cmem\n";
@@ -2723,8 +2705,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         std::string function_name = ASTTranslate::getInterpolationName(Context,
             builtins, compilerOptions, K, Acc, border_variant());
         std::string suffix = "_" +
-          builtins.EncodeTypeIntoStr(Acc->getImage()->getPixelQualType(),
-              Context);
+          builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context);
 
         std::string resultStr;
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
@@ -2821,7 +2802,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     // global image declarations
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     if (Acc) {
-      QualType T = Acc->getImage()->getPixelQualType();
+      QualType T = Acc->getImage()->getType();
 
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
@@ -2991,14 +2972,14 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case TARGET_Renderscript:
       break;
     case TARGET_Filterscript:
-      *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
+      *OS << K->getIterationSpace()->getAccessor()->getImage()->getTypeStr()
           << " __attribute__((kernel)) ";
       break;
   }
   if (!compilerOptions.emitFilterscript()) {
     *OS << "void ";
   }
-  *OS << D->getNameInfo().getAsString();
+  *OS << K->getKernelName();
   *OS << "(";
 
   // write kernel parameters
@@ -3063,7 +3044,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         case TARGET_Renderscript:
           // parameters are set separately for Renderscript
           // add parameters for dummy allocation and indices
-          *OS << K->getIterationSpace()->getAccessor()->getImage()->getPixelType()
+          *OS << K->getIterationSpace()->getAccessor()->getImage()->getTypeStr()
               << " *_IS, uint32_t x, uint32_t y";
           doBreak = true;
           break;

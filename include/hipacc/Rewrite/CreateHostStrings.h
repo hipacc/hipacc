@@ -71,8 +71,8 @@ class CreateHostStrings {
     std::string getIndent() { return indent; }
     void writeHeaders(std::string &resultStr);
     void writeInitialization(std::string &resultStr);
-    void writeKernelCompilation(std::string kernelName, std::string &resultStr,
-        std::string suffix="");
+    void writeKernelCompilation(std::string fileName, std::string kernelName,
+        std::string &resultStr, std::string suffix="");
     void addReductionArgument(HipaccGlobalReduction *GR, std::string
         device_name, std::string host_name, std::string &resultStr);
     void writeReductionCompilation(HipaccGlobalReduction *GR, std::string

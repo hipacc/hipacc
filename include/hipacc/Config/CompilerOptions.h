@@ -227,6 +227,21 @@ class CompilerOptions {
       else multiple_pixels = USER_OFF;
     }
 
+    std::string getTargetPrefix() {
+      switch (target_code) {
+        case TARGET_C:
+          return "cc";
+        case TARGET_CUDA:
+          return "cu";
+        case TARGET_OpenCL:
+        case TARGET_OpenCLCPU:
+          return "cl";
+        case TARGET_Renderscript:
+        case TARGET_Filterscript:
+          return "rs";
+      }
+    }
+
     void printSummary(std::string target_device) {
       llvm::errs() << "HIPACC compiler configuration summary: \n";
       llvm::errs() << "  Generating target code for '";

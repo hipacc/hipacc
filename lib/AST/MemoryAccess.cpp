@@ -262,7 +262,7 @@ Expr *ASTTranslate::accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y) {
 // get tex1Dfetch function for given Accessor
 FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
     memAcc) {
-  QualType QT = Acc->getImage()->getPixelQualType();
+  QualType QT = Acc->getImage()->getType();
   bool isVecType = QT->isVectorType();
 
   if (isVecType) {
@@ -337,7 +337,7 @@ FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
 // get read_image function for given Accessor
 FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
     memAcc) {
-  QualType QT = Acc->getImage()->getPixelQualType();
+  QualType QT = Acc->getImage()->getType();
 
   if (QT->isVectorType()) {
       QT = QT->getAs<VectorType>()->getElementType();
@@ -609,7 +609,7 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
 
     result = createFunctionCall(Ctx, image_function, args);
 
-    QualType QT = Acc->getImage()->getPixelQualType();
+    QualType QT = Acc->getImage()->getType();
     if (QT->isVectorType()) {
       SmallVector<Expr *, 16> args;
       args.push_back(result);
@@ -747,7 +747,7 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
   }
 
   stageBody.push_back(createBinaryOperator(Ctx, LHS, RHS, BO_Assign,
-        Acc->getImage()->getPixelQualType()));
+        Acc->getImage()->getType()));
 }
 
 

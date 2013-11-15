@@ -92,29 +92,21 @@ class HipaccImage {
     VarDecl *VD;
     std::string name;
     QualType type;
-    std::string pixelType;
-    unsigned int pixelSize;
 
   public:
     HipaccImage(ASTContext &Ctx, VarDecl *VD) :
       Ctx(Ctx),
       VD(VD),
       name(VD->getNameAsString()),
-      type(),
-      pixelType(""),
-      pixelSize(0)
+      type()
     {}
 
     const std::string &getName() const { return name; }
-    void setPixelType(QualType QT) {
-      type = QT;
-      pixelType = QT.getAsString();
-      pixelSize = Ctx.getTypeSize(QT)/8;
-    }
     VarDecl *getDecl() { return VD; }
-    std::string getPixelType() { return pixelType; }
-    unsigned int getPixelSize() { return pixelSize; }
-    QualType getPixelQualType() { return type; }
+    void setType(QualType QT) { type = QT; }
+    QualType getType() { return type; }
+    std::string getTypeStr() { return type.getAsString(); }
+    unsigned int getPixelSize() { return Ctx.getTypeSize(type)/8; }
     std::string getTextureType();
     std::string getImageReadFunction();
 };
@@ -293,7 +285,6 @@ class HipaccMask {
     unsigned int size_x, size_y;
     std::string size_x_str, size_y_str;
     QualType type;
-    std::string typeStr;
     bool is_constant;
     bool is_printed;
     SmallVector<HipaccKernel *, 16> kernels;
@@ -311,7 +302,6 @@ class HipaccMask {
       size_x_str(""),
       size_y_str(""),
       type(QT),
-      typeStr(QT.getAsString()),
       is_constant(false),
       is_printed(false),
       kernels(0),
@@ -342,7 +332,7 @@ class HipaccMask {
     std::string getSizeXStr() { return size_x_str; }
     std::string getSizeYStr() { return size_y_str; }
     QualType getType() { return type; }
-    std::string getTypeStr() { return typeStr; }
+    std::string getTypeStr() { return type.getAsString(); }
     VarDecl *getDecl() { return VD; }
     bool isDomain() { return (mask_type & Domain); }
     bool isConstant() { return is_constant; }
@@ -600,7 +590,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       VD(VD),
       options(options),
       name(VD->getNameAsString()),
-      kernelName(KC->getName()),
+      kernelName(options.getTargetPrefix() + KC->getName() + "Kernel"),
       fileName(KC->getName() + VD->getNameAsString()),
       infoStr(""),
       infoStrCnt(0),

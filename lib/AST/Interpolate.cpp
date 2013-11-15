@@ -124,7 +124,7 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
   // interpolation function is constructed as follows:
   // interpolate_ + <interpolation_mode> + _ + <boundary_handling_mode> + _ +
   // <memory_type>
-  QualType QT = Acc->getImage()->getPixelQualType();
+  QualType QT = Acc->getImage()->getType();
   std::string typeSpecifier = builtins.EncodeTypeIntoStr(QT, Ctx);
 
   std::string name = getInterpolationName(Ctx, builtins, compilerOptions,
@@ -172,13 +172,13 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
       // no function overloading supported in OpenCL -> add type specifier to function name
-      name += "_" + builtins.EncodeTypeIntoStr(Acc->getImage()->getPixelQualType(), Ctx);
+      name += "_" + builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Ctx);
       break;
   }
 
   // lookup interpolation function
   FunctionDecl *interpolateDecl = lookup<FunctionDecl>(name,
-      Acc->getImage()->getPixelQualType());
+      Acc->getImage()->getType());
 
   // create function declaration
   if (!interpolateDecl) {

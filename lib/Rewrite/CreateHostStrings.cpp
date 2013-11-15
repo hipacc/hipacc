@@ -90,8 +90,8 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
 }
 
 
-void CreateHostStrings::writeKernelCompilation(std::string kernelName,
-    std::string &resultStr, std::string suffix) {
+void CreateHostStrings::writeKernelCompilation(std::string fileName, std::string
+    kernelName, std::string &resultStr, std::string suffix) {
   switch (options.getTargetCode()) {
     default:
     case TARGET_C:
@@ -99,18 +99,16 @@ void CreateHostStrings::writeKernelCompilation(std::string kernelName,
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
-      resultStr += "ScriptC_" + kernelName + " " + kernelName;
-      resultStr += " = hipaccInitScript<ScriptC_" + kernelName + ">();\n";
+      resultStr += "ScriptC_" + fileName + " " + kernelName;
+      resultStr += " = hipaccInitScript<ScriptC_" + fileName + ">();\n";
       resultStr += indent;
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
       resultStr += "cl_kernel " + kernelName + suffix;
-      resultStr += " = hipaccBuildProgramAndKernel(\"";
-      resultStr += kernelName;
-      resultStr += ".cl\", \"cl";
-      resultStr += kernelName + suffix;
-      resultStr += "\", true, false, false, \"-I ";
+      resultStr += " = hipaccBuildProgramAndKernel(\"" + fileName + ".cl\", ";
+      resultStr += "\"" + kernelName + suffix + "\", ";
+      resultStr += "true, false, false, \"-I ";
       if (HipaccDevice(options).isARMGPU()) {
         resultStr += EMBEDDED_RUNTIME_INCLUDES;
       } else {
@@ -142,13 +140,13 @@ void CreateHostStrings::writeReductionCompilation(HipaccGlobalReduction *GR,
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
-      writeKernelCompilation(GR->getFileName(), resultStr);
+      writeKernelCompilation(GR->getFileName(), GR->getName(), resultStr);
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
       if (!options.exploreConfig()) {
-        writeKernelCompilation(GR->getFileName(), resultStr, "2D");
-        writeKernelCompilation(GR->getFileName(), resultStr, "1D");
+        writeKernelCompilation(GR->getFileName(), GR->getName(), resultStr, "2D");
+        writeKernelCompilation(GR->getFileName(), GR->getName(), resultStr, "1D");
       }
       break;
   }
@@ -570,7 +568,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += "_smems" + kernelName + ".push_back(";
         resultStr += "hipacc_smem_info(" + Acc->getSizeXStr() + ", ";
         resultStr += Acc->getSizeYStr() + ", ";
-        resultStr += "sizeof(" + Acc->getImage()->getPixelType() + ")));\n";
+        resultStr += "sizeof(" + Acc->getImage()->getTypeStr() + ")));\n";
         resultStr += indent;
       }
     }
@@ -600,7 +598,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + "));\n";
     } else {
       resultStr += "hipaccBindSurface<";
-      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getPixelType();
+      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTypeStr();
       resultStr += ">(_surfOutput" + K->getName() + ", ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ");\n";
     }
@@ -757,11 +755,11 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         break;
       case TARGET_CUDA:
         if (options.timeKernels()) {
-          resultStr += "hipaccLaunchKernelBenchmark((const void *)&cu";
-          resultStr += kernelName + ", \"cu";
+          resultStr += "hipaccLaunchKernelBenchmark((const void *)&";
+          resultStr += kernelName + ", \"";
           resultStr += kernelName + "\"";
         } else {
-          resultStr += "hipaccKernelExploration(\"" + kernelName + ".cu\", \"cu" + kernelName + "\"";
+          resultStr += "hipaccKernelExploration(\"" + kernelName + ".cu\", \"" + kernelName + "\"";
         }
         break;
       case TARGET_Renderscript:
@@ -773,7 +771,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += "hipaccInitScript<ScriptC_" + kernelName + ">();\n";
           resultStr += indent + "hipaccLaunchScriptKernelExploration<";
           resultStr += "ScriptC_" + kernelName + ", ";
-          resultStr += K->getIterationSpace()->getImage()->getPixelType();
+          resultStr += K->getIterationSpace()->getImage()->getTypeStr();
           resultStr += ">(&" + kernelName;
         }
         break;
@@ -782,7 +780,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         if (options.timeKernels()) {
           resultStr += "hipaccEnqueueKernelBenchmark(" + kernelName;
         } else {
-          resultStr += "hipaccKernelExploration(\"" + kernelName + ".cl\", \"cl" + kernelName + "\"";
+          resultStr += "hipaccKernelExploration(\"" + kernelName + ".cl\", \"" + kernelName + "\"";
         }
         break;
     }
@@ -828,8 +826,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_C:
         break;
       case TARGET_CUDA:
-        resultStr += "hipaccLaunchKernel((const void *)&cu";
-        resultStr += kernelName + ", \"cu";
+        resultStr += "hipaccLaunchKernel((const void *)&";
+        resultStr += kernelName + ", \"";
         resultStr += kernelName + "\"";
         break;
       case TARGET_Renderscript:
@@ -990,7 +988,7 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
       resultStr += "_OPENCL, "; break;
   }
   // data type
-  resultStr += Acc->getImage()->getPixelType() + ", ";
+  resultStr += Acc->getImage()->getTypeStr() + ", ";
   // append short data type - overloading is not supported in OpenCL
   if (options.emitOpenCL()) {
     resultStr += type_suffix + ", ";

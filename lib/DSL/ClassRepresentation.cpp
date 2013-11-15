@@ -130,7 +130,7 @@ std::string HipaccImage::getImageReadFunction() {
 
 
 void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
-  QualType QT = getImage()->getPixelQualType();
+  QualType QT = getImage()->getType();
 
   bool isVecType = QT->isVectorType();
   if (isVecType) {
@@ -167,7 +167,7 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
         constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(),
             llvm::makeArrayRef(initExprs.data(), initExprs.size()),
             SourceLocation());
-        constExpr->setType(getImage()->getPixelQualType());
+        constExpr->setType(getImage()->getType());
       } else {
         constExpr = new (Ctx) CharacterLiteral(val.getInt().getSExtValue(),
             CharacterLiteral::Ascii, QT, SourceLocation());
@@ -193,7 +193,7 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
         constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(),
             llvm::makeArrayRef(initExprs.data(), initExprs.size()),
             SourceLocation());
-        constExpr->setType(getImage()->getPixelQualType());
+        constExpr->setType(getImage()->getType());
       } else {
         constExpr = new (Ctx) IntegerLiteral(Ctx, val.getInt(), QT,
             SourceLocation());
@@ -213,7 +213,7 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
         constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(),
             llvm::makeArrayRef(initExprs.data(), initExprs.size()),
             SourceLocation());
-        constExpr->setType(getImage()->getPixelQualType());
+        constExpr->setType(getImage()->getType());
       } else {
         constExpr = FloatingLiteral::Create(Ctx, llvm::APFloat(val.getFloat()),
             false, QT, SourceLocation());
