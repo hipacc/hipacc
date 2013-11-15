@@ -2469,7 +2469,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     case TARGET_Renderscript:
     case TARGET_Filterscript:
       *OS << "#pragma version(1)\n"
-          << "#pragma rs java_package_name(com.example.android.rs.hipacc)\n\n";
+          << "#pragma rs java_package_name(org.hipacc.rs)\n\n";
       if (compilerOptions.emitFilterscript()) {
         *OS << "#define FS\n";
       }
@@ -2684,7 +2684,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case TARGET_Renderscript:
     case TARGET_Filterscript:
       *OS << "#pragma version(1)\n"
-          << "#pragma rs java_package_name(com.example.android.rs.hipacc)\n\n";
+          << "#pragma rs java_package_name(org.hipacc.rs)\n\n";
       break;
   }
 
