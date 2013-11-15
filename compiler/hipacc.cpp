@@ -84,7 +84,7 @@ void printUsage() {
     << "                          Code names for for OpenCL on AMD devices are:\n"
     << "                            'Evergreen'      for Evergreen architecture (Radeon HD5xxx).\n"
     << "                            'NorthernIsland' for Northern Island architecture (Radeon HD6xxx).\n"
-    << "                          Code names for for OpenCL/Renderscript on ARM devices are:\n"
+    << "                          Code names for for OpenCL on ARM devices are:\n"
     << "                            'Midgard' for Mali-T6xx' for Mali.\n"
     << "  -explore-config         Emit code that explores all possible kernel configuration and print its performance\n"
     << "  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1\n"
@@ -303,14 +303,6 @@ int main(int argc, char *argv[]) {
       !(targetDevice.isAMDGPU() || targetDevice.isARMGPU() ||
         targetDevice.isNVIDIAGPU())) {
     llvm::errs() << "ERROR: OpenCL (GPU) code generation selected, but no OpenCL-capable target device specified!\n"
-                 << "  Please select correct target device/code generation backend combination.\n\n";
-    printUsage();
-    return EXIT_FAILURE;
-  }
-  // Renderscript only supported on ARM devices
-  if ((compilerOptions.emitRenderscript() || compilerOptions.emitFilterscript())
-      && !targetDevice.isARMGPU()) {
-    llvm::errs() << "ERROR: Renderscript code generation selected, but no Renderscript-capable target device specified!\n"
                  << "  Please select correct target device/code generation backend combination.\n\n";
     printUsage();
     return EXIT_FAILURE;
