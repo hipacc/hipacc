@@ -513,18 +513,18 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_CONSTANT
     #ifdef NO_SEP
-    BoundaryCondition<uchar4> BcInConst2(IN, size_x, size_y, BOUNDARY_CONSTANT, '1');
+    BoundaryCondition<uchar4> BcInConst2(IN, size_x, size_y, BOUNDARY_CONSTANT, (uchar4){'1','1','1','1'});
     Accessor<uchar4> AccInConst2(BcInConst2);
     GaussianBlurFilterMask GFConst(IsOut, AccInConst2, M, size_x, size_y);
 
     GFConst.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<uchar4> BcInConst(IN, size_x, 1, BOUNDARY_CONSTANT, '1');
+    BoundaryCondition<uchar4> BcInConst(IN, size_x, 1, BOUNDARY_CONSTANT, (uchar4){'1','1','1','1'});
     Accessor<uchar4> AccInConst(BcInConst);
     GaussianBlurFilterMaskRow GFRConst(IsTmp, AccInConst, MX, size_x);
 
-    BoundaryCondition<float4> BcTmpConst(TMP, 1, size_y, BOUNDARY_CONSTANT, 1.0f);
+    BoundaryCondition<float4> BcTmpConst(TMP, 1, size_y, BOUNDARY_CONSTANT, (float4){1.0f,1.0f,1.0f,1.0f});
     Accessor<float4> AccTmpConst(BcTmpConst);
     GaussianBlurFilterMaskColumn GFCConst(IsOut, AccTmpConst, MY, size_y);
 
