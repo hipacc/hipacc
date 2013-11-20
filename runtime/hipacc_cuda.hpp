@@ -918,9 +918,9 @@ void hipaccBindSurfaceDrv(CUsurfref &surface, HipaccImage &img) {
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
-        void *kernel1D, const char *kernel1D_name, HipaccAccessor &acc, T
-        neutral, unsigned int max_threads, unsigned int pixels_per_thread, const
-        struct texture<T, cudaTextureType2D, cudaReadModeElementType> &tex) {
+        void *kernel1D, const char *kernel1D_name, HipaccAccessor &acc, unsigned
+        int max_threads, unsigned int pixels_per_thread, const struct texture<T,
+        cudaTextureType2D, cudaReadModeElementType> &tex) {
     cudaError_t err = cudaSuccess;
     T *output;  // GPU memory for reduction
     T result;   // host result
@@ -947,7 +947,6 @@ T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
     }
 
     hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&neutral, sizeof(T), offset);
     hipaccSetupArgument(&acc.img.width, sizeof(unsigned int), offset);
     hipaccSetupArgument(&acc.img.height, sizeof(unsigned int), offset);
     hipaccSetupArgument(&acc.img.stride, sizeof(unsigned int), offset);
@@ -979,7 +978,6 @@ T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
 
     hipaccSetupArgument(&output, sizeof(T *), offset);
     hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&neutral, sizeof(T), offset);
     hipaccSetupArgument(&num_blocks, sizeof(unsigned int), offset);
     hipaccSetupArgument(&num_steps, sizeof(unsigned int), offset);
 
@@ -997,21 +995,21 @@ T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
-        void *kernel1D, const char *kernel1D_name, HipaccImage &img, T neutral,
-        unsigned int max_threads, unsigned int pixels_per_thread, const struct
-        texture<T, cudaTextureType2D, cudaReadModeElementType> &tex) {
+        void *kernel1D, const char *kernel1D_name, HipaccImage &img, unsigned
+        int max_threads, unsigned int pixels_per_thread, const struct texture<T,
+        cudaTextureType2D, cudaReadModeElementType> &tex) {
     HipaccAccessor acc(img);
     return hipaccApplyReduction<T>(kernel2D, kernel2D_name, kernel1D,
-            kernel1D_name, acc, neutral, max_threads, pixels_per_thread, tex);
+            kernel1D_name, acc, max_threads, pixels_per_thread, tex);
 }
 
 
 // Perform global reduction using memory fence operations and return result
 template<typename T>
 T hipaccApplyReductionThreadFence(const void *kernel2D, const char
-        *kernel2D_name, HipaccAccessor &acc, T neutral, unsigned int
-        max_threads, unsigned int pixels_per_thread, const struct texture<T,
-        cudaTextureType2D, cudaReadModeElementType> &tex) {
+        *kernel2D_name, HipaccAccessor &acc, unsigned int max_threads, unsigned
+        int pixels_per_thread, const struct texture<T, cudaTextureType2D,
+        cudaReadModeElementType> &tex) {
     cudaError_t err = cudaSuccess;
     T *output;  // GPU memory for reduction
     T result;   // host result
@@ -1039,7 +1037,6 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, const char
     }
 
     hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&neutral, sizeof(T), offset);
     hipaccSetupArgument(&acc.img.width, sizeof(unsigned int), offset);
     hipaccSetupArgument(&acc.img.height, sizeof(unsigned int), offset);
     hipaccSetupArgument(&acc.img.stride, sizeof(unsigned int), offset);
@@ -1065,21 +1062,20 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, const char
 // Perform global reduction using memory fence operations and return result
 template<typename T>
 T hipaccApplyReductionThreadFence(const void *kernel2D, const char
-        *kernel2D_name, HipaccImage &img, T neutral, unsigned int max_threads,
-        unsigned int pixels_per_thread, const struct texture<T,
-        cudaTextureType2D, cudaReadModeElementType> &tex) {
+        *kernel2D_name, HipaccImage &img, unsigned int max_threads, unsigned int
+        pixels_per_thread, const struct texture<T, cudaTextureType2D,
+        cudaReadModeElementType> &tex) {
     HipaccAccessor acc(img);
     return hipaccApplyReductionThreadFence<T>(kernel2D, kernel2D_name, acc,
-            neutral, max_threads, pixels_per_thread, tex);
+            max_threads, pixels_per_thread, tex);
 }
 
 
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, HipaccAccessor &acc, T neutral, unsigned int
-        max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info,
-        int cc) {
+        const char *kernel1D, HipaccAccessor &acc, unsigned int max_threads,
+        unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     cudaError_t err = cudaSuccess;
     T *output;  // GPU memory for reduction
     T result;   // host result
@@ -1091,7 +1087,6 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
     void *argsReduction2D[] = {
         (void *)&acc.img.mem,
         (void *)&output,
-        (void *)&neutral,
         (void *)&acc.img.width,
         (void *)&acc.img.height,
         (void *)&acc.img.stride,
@@ -1102,7 +1097,6 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
     };
     void *argsReduction2DArray[] = {
         (void *)&output,
-        (void *)&neutral,
         (void *)&acc.img.width,
         (void *)&acc.img.height,
         (void *)&acc.img.stride,
@@ -1163,7 +1157,6 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
                 void *argsReduction1D[] = {
                     (void *)&output,
                     (void *)&output,
-                    (void *)&neutral,
                     (void *)&num_blocks,
                     (void *)&ppt
                 };
@@ -1200,12 +1193,11 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 }
 template<typename T>
 T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, HipaccImage &img, T neutral, unsigned int
-        max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info,
-        int cc) {
+        const char *kernel1D, HipaccImage &img, unsigned int max_threads,
+        unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     HipaccAccessor acc(img);
     return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc,
-            neutral, max_threads, pixels_per_thread, tex_info, cc);
+            max_threads, pixels_per_thread, tex_info, cc);
 }
 
 

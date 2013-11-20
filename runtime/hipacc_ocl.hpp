@@ -979,8 +979,7 @@ void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *loc
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
-        &acc, T neutral, unsigned int max_threads, unsigned int
-        pixels_per_thread) {
+        &acc, unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     cl_int err = CL_SUCCESS;
@@ -1001,17 +1000,16 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
 
     hipaccSetKernelArg(kernel2D, 0, sizeof(cl_mem), &acc.img.mem);
     hipaccSetKernelArg(kernel2D, 1, sizeof(cl_mem), &output);
-    hipaccSetKernelArg(kernel2D, 2, sizeof(T), &neutral);
-    hipaccSetKernelArg(kernel2D, 3, sizeof(unsigned int), &acc.img.width);
-    hipaccSetKernelArg(kernel2D, 4, sizeof(unsigned int), &acc.img.height);
-    hipaccSetKernelArg(kernel2D, 5, sizeof(unsigned int), &acc.img.stride);
+    hipaccSetKernelArg(kernel2D, 2, sizeof(unsigned int), &acc.img.width);
+    hipaccSetKernelArg(kernel2D, 3, sizeof(unsigned int), &acc.img.height);
+    hipaccSetKernelArg(kernel2D, 4, sizeof(unsigned int), &acc.img.stride);
     // check if the reduction is applied to the whole image
     if ((acc.offset_x || acc.offset_y) &&
         (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
-        hipaccSetKernelArg(kernel2D, 6, sizeof(unsigned int), &acc.offset_x);
-        hipaccSetKernelArg(kernel2D, 7, sizeof(unsigned int), &acc.offset_y);
-        hipaccSetKernelArg(kernel2D, 8, sizeof(unsigned int), &acc.width);
-        hipaccSetKernelArg(kernel2D, 9, sizeof(unsigned int), &acc.height);
+        hipaccSetKernelArg(kernel2D, 5, sizeof(unsigned int), &acc.offset_x);
+        hipaccSetKernelArg(kernel2D, 6, sizeof(unsigned int), &acc.offset_y);
+        hipaccSetKernelArg(kernel2D, 7, sizeof(unsigned int), &acc.width);
+        hipaccSetKernelArg(kernel2D, 8, sizeof(unsigned int), &acc.height);
     }
 
     hipaccEnqueueKernel(kernel2D, global_work_size, local_work_size);
@@ -1030,9 +1028,8 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
 
     hipaccSetKernelArg(kernel1D, 0, sizeof(cl_mem), &output);
     hipaccSetKernelArg(kernel1D, 1, sizeof(cl_mem), &output);
-    hipaccSetKernelArg(kernel1D, 2, sizeof(T), &neutral);
-    hipaccSetKernelArg(kernel1D, 3, sizeof(unsigned int), &num_blocks);
-    hipaccSetKernelArg(kernel1D, 4, sizeof(unsigned int), &num_steps);
+    hipaccSetKernelArg(kernel1D, 2, sizeof(unsigned int), &num_blocks);
+    hipaccSetKernelArg(kernel1D, 3, sizeof(unsigned int), &num_steps);
 
     hipaccEnqueueKernel(kernel1D, global_work_size, local_work_size);
 
@@ -1049,18 +1046,18 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
 // Perform global reduction using memory fence operations and return result
 template<typename T>
 T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccImage &img,
-        T neutral, unsigned int max_threads, unsigned int pixels_per_thread) {
+        unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccAccessor acc(img);
-    return hipaccApplyReduction<T>(kernel2D, kernel1D, acc, neutral,
-            max_threads, pixels_per_thread);
+    return hipaccApplyReduction<T>(kernel2D, kernel1D, acc, max_threads,
+            pixels_per_thread);
 }
 
 
 // Perform exploration of global reduction and return result
 template<typename T>
 T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, HipaccAccessor &acc, T neutral, unsigned int
-        max_threads, unsigned int pixels_per_thread) {
+        const char *kernel1D, HipaccAccessor &acc, unsigned int max_threads,
+        unsigned int pixels_per_thread) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     cl_int err = CL_SUCCESS;
@@ -1105,17 +1102,16 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 
             hipaccSetKernelArg(exploreReduction2D, 0, sizeof(cl_mem), &acc.img.mem);
             hipaccSetKernelArg(exploreReduction2D, 1, sizeof(cl_mem), &output);
-            hipaccSetKernelArg(exploreReduction2D, 2, sizeof(T), &neutral);
-            hipaccSetKernelArg(exploreReduction2D, 3, sizeof(unsigned int), &acc.img.width);
-            hipaccSetKernelArg(exploreReduction2D, 4, sizeof(unsigned int), &acc.img.height);
-            hipaccSetKernelArg(exploreReduction2D, 5, sizeof(unsigned int), &acc.img.stride);
+            hipaccSetKernelArg(exploreReduction2D, 2, sizeof(unsigned int), &acc.img.width);
+            hipaccSetKernelArg(exploreReduction2D, 3, sizeof(unsigned int), &acc.img.height);
+            hipaccSetKernelArg(exploreReduction2D, 4, sizeof(unsigned int), &acc.img.stride);
             // check if the reduction is applied to the whole image
             if ((acc.offset_x || acc.offset_y) &&
                 (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
-                hipaccSetKernelArg(exploreReduction2D, 6, sizeof(unsigned int), &acc.offset_x);
-                hipaccSetKernelArg(exploreReduction2D, 7, sizeof(unsigned int), &acc.offset_y);
-                hipaccSetKernelArg(exploreReduction2D, 8, sizeof(unsigned int), &acc.width);
-                hipaccSetKernelArg(exploreReduction2D, 9, sizeof(unsigned int), &acc.height);
+                hipaccSetKernelArg(exploreReduction2D, 5, sizeof(unsigned int), &acc.offset_x);
+                hipaccSetKernelArg(exploreReduction2D, 6, sizeof(unsigned int), &acc.offset_y);
+                hipaccSetKernelArg(exploreReduction2D, 7, sizeof(unsigned int), &acc.width);
+                hipaccSetKernelArg(exploreReduction2D, 8, sizeof(unsigned int), &acc.height);
             }
 
             hipaccEnqueueKernel(exploreReduction2D, global_work_size, local_work_size, false);
@@ -1130,9 +1126,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 
                 hipaccSetKernelArg(exploreReduction1D, 0, sizeof(cl_mem), &output);
                 hipaccSetKernelArg(exploreReduction1D, 1, sizeof(cl_mem), &output);
-                hipaccSetKernelArg(exploreReduction1D, 2, sizeof(T), &neutral);
-                hipaccSetKernelArg(exploreReduction1D, 3, sizeof(unsigned int), &num_blocks);
-                hipaccSetKernelArg(exploreReduction1D, 4, sizeof(unsigned int), &ppt);
+                hipaccSetKernelArg(exploreReduction1D, 2, sizeof(unsigned int), &num_blocks);
+                hipaccSetKernelArg(exploreReduction1D, 3, sizeof(unsigned int), &ppt);
 
                 hipaccEnqueueKernel(exploreReduction1D, global_work_size, local_work_size, false);
 
@@ -1176,11 +1171,11 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 }
 template<typename T>
 T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, HipaccImage &img, T neutral, unsigned int
-        max_threads, unsigned int pixels_per_thread) {
+        const char *kernel1D, HipaccImage &img, unsigned int max_threads,
+        unsigned int pixels_per_thread) {
     HipaccAccessor acc(img);
     return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc,
-            neutral, max_threads, pixels_per_thread);
+            max_threads, pixels_per_thread);
 }
 
 
