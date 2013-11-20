@@ -55,12 +55,12 @@ class MaskBase {
         }
 
         MaskBase(const MaskBase &mask) :
-            size_x(size_x),
-            size_y(size_y),
-            offset_x(-size_x/2),
-            offset_y(-size_y/2),
-            domain_space(new uchar[size_x*size_y]),
-            iteration_space(size_x, size_y)
+            size_x(mask.size_x),
+            size_y(mask.size_y),
+            offset_x(-mask.size_x/2),
+            offset_y(-mask.size_y/2),
+            domain_space(new uchar[mask.size_x*mask.size_y]),
+            iteration_space(mask.size_x, mask.size_y)
         {
             for (int y=0; y<size_y; ++y) {
               for (int x=0; x<size_x; ++x) {
