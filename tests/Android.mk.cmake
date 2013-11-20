@@ -19,7 +19,8 @@ LOCAL_LDLIBS := -llog \
 
 LOCAL_CPPFLAGS += -DRS_TARGET_API=$(RS_TARGET_API) $(CASE_FLAGS)
 
-LOCAL_RENDERSCRIPT_FLAGS := -allow-rs-prefix -target-api $(RS_TARGET_API)
+LOCAL_RENDERSCRIPT_FLAGS := -allow-rs-prefix -target-api $(RS_TARGET_API) \
+                            -I$(HIPACC_INCLUDE)
 
 LOCAL_ARM_MODE := arm
 

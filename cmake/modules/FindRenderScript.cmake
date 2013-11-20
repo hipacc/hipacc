@@ -93,7 +93,7 @@ IF (${RS_TARGET_API} GREATER 18)
 
 # For Android 4.4 we just need a target API version and the corresponding NDK
 # version installed, which includes the static Renderscript C++ library.
-# (Embedded OpenCL can be omitted for, because it is not available anyway.)
+# (Embedded OpenCL can be omitted, because it is not available anyway.)
 FIND_PROGRAM(NDK_BUILD_EXECUTABLE
   NAMES ndk-build
   DOC "NDK build executable")
