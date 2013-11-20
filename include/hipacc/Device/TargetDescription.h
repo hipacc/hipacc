@@ -425,6 +425,14 @@ class HipaccDevice : public HipaccDeviceOptions {
       }
     }
 
+    std::string getOCLIncludes() {
+      if (isARMGPU()) {
+        return EMBEDDED_RUNTIME_INCLUDES;
+      } else {
+        return RUNTIME_INCLUDES;
+      }
+    }
+
     std::string getCompileOptions(std::string kernel, std::string file, bool
         emitCUDA) {
       std::stringstream td_string;

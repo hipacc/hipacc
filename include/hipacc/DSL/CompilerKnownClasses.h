@@ -53,7 +53,6 @@ class CompilerKnownClasses {
     CXXRecordDecl *IterationSpace;
     CXXRecordDecl *ElementIterator;
     CXXRecordDecl *Kernel;
-    CXXRecordDecl *GlobalReduction;
     CXXRecordDecl *Mask;
     CXXRecordDecl *Domain;
     CXXRecordDecl *Pyramid;
@@ -74,7 +73,6 @@ class CompilerKnownClasses {
       IterationSpace(NULL),
       ElementIterator(NULL),
       Kernel(NULL),
-      GlobalReduction(NULL),
       Mask(NULL),
       Domain(NULL),
       Pyramid(NULL),

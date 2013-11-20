@@ -90,8 +90,18 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
 }
 
 
-void CreateHostStrings::writeKernelCompilation(std::string fileName, std::string
-    kernelName, std::string &resultStr, std::string suffix) {
+void writeCLCompilation(std::string fileName, std::string kernelName,
+    std::string includes, std::string &resultStr, std::string suffix="") {
+  resultStr += "cl_kernel " + kernelName + suffix;
+  resultStr += " = hipaccBuildProgramAndKernel(";
+  resultStr += "\"" + fileName + ".cl\", ";
+  resultStr += "\"" + kernelName + suffix + "\", ";
+  resultStr += "true, false, false, \"-I " + includes + "\");\n";
+}
+
+
+void CreateHostStrings::writeKernelCompilation(HipaccKernel *K,
+    std::string &resultStr) {
   switch (options.getTargetCode()) {
     default:
     case TARGET_C:
@@ -99,63 +109,47 @@ void CreateHostStrings::writeKernelCompilation(std::string fileName, std::string
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
-      resultStr += "ScriptC_" + fileName + " " + kernelName;
-      resultStr += " = hipaccInitScript<ScriptC_" + fileName + ">();\n";
+      resultStr += "ScriptC_" + K->getFileName() + " " + K->getKernelName();
+      resultStr += " = hipaccInitScript<ScriptC_" + K->getFileName() + ">();\n";
       resultStr += indent;
+      if (K->getKernelClass()->getReduceFunction()) {
+        resultStr += "ScriptC_" + K->getFileName() + " " + K->getReduceName();
+        resultStr += " = hipaccInitScript<ScriptC_" + K->getFileName() + ">();\n";
+        resultStr += indent;
+      }
       break;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
-      resultStr += "cl_kernel " + kernelName + suffix;
-      resultStr += " = hipaccBuildProgramAndKernel(\"" + fileName + ".cl\", ";
-      resultStr += "\"" + kernelName + suffix + "\", ";
-      resultStr += "true, false, false, \"-I ";
-      if (HipaccDevice(options).isARMGPU()) {
-        resultStr += EMBEDDED_RUNTIME_INCLUDES;
-      } else {
-        resultStr += RUNTIME_INCLUDES;
+      writeCLCompilation(K->getFileName(), K->getKernelName(),
+          HipaccDevice(options).getOCLIncludes(), resultStr);
+      if (K->getKernelClass()->getReduceFunction()) {
+        resultStr += indent;
+        writeCLCompilation(K->getFileName(), K->getReduceName(),
+            HipaccDevice(options).getOCLIncludes(), resultStr, "2D");
+        resultStr += indent;
+        writeCLCompilation(K->getFileName(), K->getReduceName(),
+            HipaccDevice(options).getOCLIncludes(), resultStr, "1D");
       }
-      resultStr += "\");\n";
-      resultStr += indent;
       break;
   }
 }
 
 
-void CreateHostStrings::addReductionArgument(HipaccGlobalReduction *GR,
-    std::string device_name, std::string host_name, std::string &resultStr) {
-  resultStr += "_args" + GR->getFileName();
-  resultStr += ".push_back(hipacc_script_arg<ScriptC_" + GR->getFileName();
-  resultStr += ">(&ScriptC_" + GR->getFileName();
+void CreateHostStrings::addReductionArgument(HipaccKernel *K, std::string
+    device_name, std::string host_name, std::string &resultStr) {
+  resultStr += "_args" + K->getReduceName();
+  resultStr += ".push_back(hipacc_script_arg<ScriptC_" + K->getFileName();
+  resultStr += ">(&ScriptC_" + K->getFileName();
   resultStr += "::set_" + device_name + ", &" + host_name + "));\n";
   resultStr += indent;
 }
 
 
-void CreateHostStrings::writeReductionCompilation(HipaccGlobalReduction *GR,
-    std::string &resultStr) {
-  switch (options.getTargetCode()) {
-    default:
-    case TARGET_C:
-    case TARGET_CUDA:
-      break;
-    case TARGET_Renderscript:
-    case TARGET_Filterscript:
-      writeKernelCompilation(GR->getFileName(), GR->getName(), resultStr);
-      break;
-    case TARGET_OpenCL:
-    case TARGET_OpenCLCPU:
-      if (!options.exploreConfig()) {
-        writeKernelCompilation(GR->getFileName(), GR->getName(), resultStr, "2D");
-        writeKernelCompilation(GR->getFileName(), GR->getName(), resultStr, "1D");
-      }
-      break;
-  }
-}
+void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
+    &resultStr) {
+  HipaccAccessor *Acc = K->getIterationSpace()->getAccessor();
+  HipaccImage *Img = Acc->getImage();
 
-
-void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
-    std::string &resultStr) {
-  HipaccImage *Img = GR->getAccessor()->getImage();
   switch (options.getTargetCode()) {
     default:
     case TARGET_C:
@@ -166,33 +160,33 @@ void CreateHostStrings::writeReductionDeclaration(HipaccGlobalReduction *GR,
     case TARGET_Renderscript:
     case TARGET_Filterscript:
       resultStr += "\n" + indent;
-      resultStr += "std::vector<hipacc_script_arg<ScriptC_" + GR->getFileName();
-      resultStr += "> > _args" + GR->getFileName() + ";\n";
+      resultStr += "std::vector<hipacc_script_arg<ScriptC_" + K->getFileName();
+      resultStr += "> > _args" + K->getReduceName() + ";\n";
       resultStr += indent;
 
       // store reduction arguments
       std::stringstream LSS;
-      LSS << literalCountGridBock++;
+      LSS << literal_count++;
       resultStr += "sp<Allocation> alloc_" + LSS.str() + " = (Allocation  *)";
       resultStr += Img->getName() + ".mem;\n" + indent;
-      addReductionArgument(GR, "Input", "alloc_" + LSS.str(), resultStr);
-      addReductionArgument(GR, "neutral", GR->getNeutral(), resultStr);
-      addReductionArgument(GR, "stride", Img->getName() + ".stride", resultStr);
+      addReductionArgument(K, "_red_Input", "alloc_" + LSS.str(), resultStr);
+      addReductionArgument(K, "_red_stride", Img->getName() + ".stride",
+          resultStr);
 
       // print optional offset_x/offset_y and iteration space width/height
-      if (GR->isAccessor()) {
-        addReductionArgument(GR, "offset_x", GR->getAccessor()->getName() +
-            ".offset_x", resultStr);
-        addReductionArgument(GR, "offset_y", GR->getAccessor()->getName() +
-            ".offset_y", resultStr);
-        addReductionArgument(GR, "is_height", GR->getAccessor()->getName() +
-            ".height", resultStr);
-        addReductionArgument(GR, "num_elements", GR->getAccessor()->getName() +
-            ".width", resultStr);
-      } else {
-        addReductionArgument(GR, "is_height", Img->getName() + ".height",
+      if (K->getIterationSpace()->isCrop()) {
+        addReductionArgument(K, "_red_offset_x", Acc->getName() + ".offset_x",
             resultStr);
-        addReductionArgument(GR, "num_elements", Img->getName() + ".width",
+        addReductionArgument(K, "_red_offset_y", Acc->getName() + ".offset_y",
+            resultStr);
+        addReductionArgument(K, "_red_is_height", Acc->getName() + ".height",
+            resultStr);
+        addReductionArgument(K, "_red_num_elements", Acc->getName() + ".width",
+            resultStr);
+      } else {
+        addReductionArgument(K, "_red_is_height", Img->getName() + ".height",
+            resultStr);
+        addReductionArgument(K, "_red_num_elements", Img->getName() + ".width",
             resultStr);
       }
       break;
@@ -385,7 +379,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   std::stringstream LSS;
   std::stringstream PPTSS;
   std::stringstream cX, cY;
-  LSS << literalCountGridBock++;
+  LSS << literal_count++;
   PPTSS << K->getPixelsPerThread();
   cX << K->getNumThreadsX();
   cY << K->getNumThreadsY();
@@ -437,7 +431,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         break;
       case TARGET_Renderscript:
       case TARGET_Filterscript:
-        resultStr += indent + "std::vector<hipacc_script_arg<ScriptC_" + kernelName + "> >";
+        resultStr += indent + "std::vector<hipacc_script_arg<ScriptC_" + K->getFileName() + "> >";
         resultStr += " _args" + kernelName + ";\n";
     }
     resultStr += indent + "std::vector<hipacc_smem_info> _smems" + kernelName + ";\n";
@@ -678,13 +672,13 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           if (Acc || Mask || i==0) {
             LSS.str("");
             LSS.clear();
-            LSS << literalCountGridBock++;
+            LSS << literal_count++;
             resultStr += "sp<Allocation> alloc_" + LSS.str() + " = (Allocation  *)";
             resultStr += hostArgNames[i] + img_mem + ";\n" + indent;
           }
           resultStr += "_args" + kernelName + ".push_back(";
-          resultStr += "hipacc_script_arg<ScriptC_" + kernelName + ">(";
-          resultStr += "&ScriptC_" + kernelName;
+          resultStr += "hipacc_script_arg<ScriptC_" + K->getFileName() + ">(";
+          resultStr += "&ScriptC_" + K->getFileName();
           resultStr += "::set_" + deviceArgNames[i] + ", &";
           if (Acc || Mask || i==0) {
             resultStr += "alloc_" + LSS.str() + "));\n";
@@ -726,7 +720,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         case TARGET_Renderscript:
         case TARGET_Filterscript:
           resultStr += "hipaccSetScriptArg(&" + kernelName + ", ";
-          resultStr += "&ScriptC_" + kernelName;
+          resultStr += "&ScriptC_" + K->getFileName();
           resultStr += "::set_" + deviceArgNames[i] + ", ";
           if (Acc || Mask || i==0) {
             resultStr += "sp<Allocation>(((Allocation *)" + hostArgNames[i];
@@ -767,10 +761,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         if (options.timeKernels()) {
           resultStr += "hipaccLaunchScriptKernelBenchmark(&" + kernelName;
         } else {
-          resultStr += "ScriptC_" + kernelName + " " + kernelName + " = ";
-          resultStr += "hipaccInitScript<ScriptC_" + kernelName + ">();\n";
+          resultStr += "ScriptC_" + K->getFileName() + " " + kernelName + " = ";
+          resultStr += "hipaccInitScript<ScriptC_" + K->getFileName() + ">();\n";
           resultStr += indent + "hipaccLaunchScriptKernelExploration<";
-          resultStr += "ScriptC_" + kernelName + ", ";
+          resultStr += "ScriptC_" + K->getFileName() + ", ";
           resultStr += K->getIterationSpace()->getImage()->getTypeStr();
           resultStr += ">(&" + kernelName;
         }
@@ -787,7 +781,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     resultStr += ", _args" + kernelName;
     if (0 != (options.getTargetCode() & (TARGET_Renderscript |
                                          TARGET_Filterscript))) {
-        resultStr += ", &ScriptC_" + kernelName + "::forEach_rs" + kernelName;
+        resultStr += ", &ScriptC_" + K->getFileName() + "::forEach_" + kernelName;
     }
     // additional parameters for exploration
     if (options.exploreConfig()) {
@@ -833,7 +827,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_Renderscript:
       case TARGET_Filterscript:
         resultStr += "hipaccLaunchScriptKernel(&" + kernelName + ", ";
-        resultStr += "&ScriptC_" + kernelName + "::forEach_rs" + kernelName;
+        resultStr += "&ScriptC_" + K->getFileName() + "::forEach_" + kernelName;
         resultStr += ", " + gridStr;
         resultStr += ", " + blockStr + ");";
         break;
@@ -853,9 +847,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
 }
 
 
-void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
+void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
     std::string &resultStr) {
-  std::stringstream GRSS;
+  std::string typeStr = K->getIterationSpace()->getImage()->getTypeStr();
+  std::string red_decl = typeStr + " " + K->getReduceStr() + " = ";
 
   // print runtime function name plus name of reduction function
   switch (options.getTargetCode()) {
@@ -863,22 +858,23 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
     case TARGET_C:
       break;
     case TARGET_CUDA:
+      resultStr += red_decl;
       if (options.getTargetDevice() >= FERMI_20 && !options.exploreConfig()) {
-        resultStr += "hipaccApplyReductionThreadFence<" + GR->getType() + ">(";
-        resultStr += "(const void *)&cu" + GR->getFileName() + "2D, ";
-        resultStr += "\"cu" + GR->getFileName() + "2D\", ";
+        resultStr += "hipaccApplyReductionThreadFence<" + typeStr + ">(";
+        resultStr += "(const void *)&" + K->getReduceName() + "2D, ";
+        resultStr += "\"" + K->getReduceName() + "2D\", ";
       } else {
         if (options.exploreConfig()) {
-          resultStr += "hipaccApplyReductionExploration<" + GR->getType() + ">(";
-          resultStr += "\"" + GR->getFileName() + ".cu\", ";
-          resultStr += "\"cu" + GR->getFileName() + "2D\", ";
-          resultStr += "\"cu" + GR->getFileName() + "1D\", ";
+          resultStr += "hipaccApplyReductionExploration<" + typeStr + ">(";
+          resultStr += "\"" + K->getFileName() + ".cu\", ";
+          resultStr += "\"" + K->getReduceName() + "2D\", ";
+          resultStr += "\"" + K->getReduceName() + "1D\", ";
         } else {
-          resultStr += "hipaccApplyReduction<" + GR->getType() + ">(";
-          resultStr += "(const void *)&cu" + GR->getFileName() + "2D, ";
-          resultStr += "\"cu" + GR->getFileName() + "2D\", ";
-          resultStr += "(const void *)&cu" + GR->getFileName() + "1D, ";
-          resultStr += "\"cu" + GR->getFileName() + "1D\", ";
+          resultStr += "hipaccApplyReduction<" + typeStr + ">(";
+          resultStr += "(const void *)&" + K->getReduceName() + "2D, ";
+          resultStr += "\"" + K->getReduceName() + "2D\", ";
+          resultStr += "(const void *)&" + K->getReduceName() + "1D, ";
+          resultStr += "\"" + K->getReduceName() + "1D\", ";
         }
       }
       break;
@@ -886,63 +882,57 @@ void CreateHostStrings::writeGlobalReductionCall(HipaccGlobalReduction *GR,
     case TARGET_Filterscript:
       // no exploration supported atm since this involves lots of memory
       // reallocations in Renderscript
-      resultStr += "hipaccApplyReduction<ScriptC_" + GR->getFileName() + ", ";
-      resultStr += GR->getType() + ">(&" + GR->getFileName() + ", ";
-      resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
-        GR->getFileName() + "2D, ";
-      resultStr += "&ScriptC_" + GR->getFileName() + "::forEach_rs" +
-        GR->getFileName() + "1D, ";
-      resultStr += "&ScriptC_" + GR->getFileName() + "::set_Output, ";
-      resultStr += "_args" + GR->getFileName() + ", ";
-      if (GR->isAccessor()) {
-        resultStr += GR->getAccessor()->getName() + ".width);\n";
-      } else {
-        resultStr += GR->getAccessor()->getImage()->getName() + ".width);\n";
-      }
+      resultStr += red_decl;
+      resultStr += "hipaccApplyReduction<ScriptC_" + K->getFileName() + ", ";
+      resultStr += typeStr + ">(&" + K->getReduceName() + ", ";
+      resultStr += "&ScriptC_" + K->getFileName() + "::forEach_" +
+        K->getReduceName() + "2D, ";
+      resultStr += "&ScriptC_" + K->getFileName() + "::forEach_" +
+        K->getReduceName() + "1D, ";
+      resultStr += "&ScriptC_" + K->getFileName() + "::set__red_Output, ";
+      resultStr += "_args" + K->getReduceName() + ", ";
+      resultStr += K->getIterationSpace()->getName() + ".width);\n";
       return;
     case TARGET_OpenCL:
     case TARGET_OpenCLCPU:
+      resultStr += red_decl;
       if (options.exploreConfig()) {
-        resultStr += "hipaccApplyReductionExploration<" + GR->getType() + ">(";
-        resultStr += "\"" + GR->getFileName() + ".cl\", ";
-        resultStr += "\"cl" + GR->getFileName() + "2D\", ";
-        resultStr += "\"cl" + GR->getFileName() + "1D\", ";
+        resultStr += "hipaccApplyReductionExploration<" + typeStr + ">(";
+        resultStr += "\"" + K->getFileName() + ".cl\", ";
+        resultStr += "\"" + K->getReduceName() + "2D\", ";
+        resultStr += "\"" + K->getReduceName() + "1D\", ";
       } else {
-        resultStr += "hipaccApplyReduction<" + GR->getType() + ">(";
-        resultStr += GR->getFileName() + "2D, ";
-        resultStr += GR->getFileName() + "1D, ";
+        resultStr += "hipaccApplyReduction<" + typeStr + ">(";
+        resultStr += K->getReduceName() + "2D, ";
+        resultStr += K->getReduceName() + "1D, ";
       }
       break;
   }
 
   // print image name
-  if (GR->isAccessor()) {
-    resultStr += GR->getAccessor()->getName() + ", ";
-  } else if (GR->isPyramid()) {
-    resultStr += GR->getAccessor()->getImage()->getName();
-    resultStr += "(" + GR->getPyramidIndex() + "), ";
-  } else {
-    resultStr += GR->getAccessor()->getImage()->getName() + ", ";
-  }
+  resultStr += K->getIterationSpace()->getName() + ", ";
+  // TODO: remove
   // print neutral element
-  resultStr += GR->getNeutral() + ", ";
+  //resultStr += K->getNeutral() + ", ";
+  resultStr += "const 0, ";
 
   // print pixels per thread
-  GRSS << GR->getNumThreads() << ", " << GR->getPixelsPerThread();
-  resultStr += GRSS.str();
+  std::stringstream KSS;
+  KSS << K->getNumThreadsReduce() << ", " << K->getPixelsPerThreadReduce();
+  resultStr += KSS.str();
 
   if (options.emitCUDA()) {
     // print 2D CUDA array texture information - this parameter is only used if
     // the texture type is Array2D
     if (options.exploreConfig()) {
       resultStr += ", hipacc_tex_info(std::string(\"_tex";
-      resultStr += GR->getAccessor()->getImage()->getName() + GR->getName();
+      resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
       resultStr += "\"), ";
-      resultStr += GR->getAccessor()->getImage()->getTextureType() + ", ";
-      resultStr += GR->getAccessor()->getImage()->getName() + "), ";
+      resultStr += K->getIterationSpace()->getImage()->getTextureType() + ", ";
+      resultStr += K->getIterationSpace()->getImage()->getName() + "), ";
     } else {
       resultStr += ", _tex";
-      resultStr += GR->getAccessor()->getImage()->getName() + GR->getName();
+      resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
     }
 
     if (options.exploreConfig()) {

@@ -29,13 +29,13 @@
 // define offset parameters required to specify a sub-region on the image on
 // that the reduction should be applied
 #ifdef USE_OFFSETS
-#define OFFSET_X offset_x
-#define OFFSET_Y offset_y
+#define OFFSET_X _red_offset_x
+#define OFFSET_Y _red_offset_y
 #else
 #define OFFSET_X 0
 #define OFFSET_Y 0
 #endif
-#define ALL(data, idx_x, idx_y, stride, method) method(data, idx_x, idx_y)
+#define ALL(data, idx_x, idx_y, _red_stride, method) method(data, idx_x, idx_y)
 
 #ifdef FS
 #define RET_TYPE DATA_TYPE __attribute__((kernel))
@@ -58,12 +58,12 @@ RET_TYPE NAME(IS_PARM COMMA uint32_t x, uint32_t y) { \
  \
     DATA_TYPE val = neutral; \
  \
-    for (int j=0; j<is_height; j++) { \
+    for (int j=0; j<_red_is_height; j++) { \
         int tmp = j + gid_y; \
-        val = REDUCE(val, ACCESS(Input, gid_x + OFFSET_X, tmp + OFFSET_Y, stride, rsGetElementAt##_##DATA_TYPE)); \
+        val = REDUCE(val, ACCESS(_red_Input, gid_x + OFFSET_X, tmp + OFFSET_Y, _red_stride, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \
-    RETURN(ACCESS(Output, x, 0, 0, *(DATA_TYPE*)rsGetElementAt), val); \
+    RETURN(ACCESS(_red_Output, x, 0, 0, *(DATA_TYPE*)rsGetElementAt), val); \
 }
 
 // step 2:
@@ -73,8 +73,8 @@ RET_TYPE NAME(IS_PARM COMMA uint32_t x, uint32_t y) { \
 RET_TYPE NAME(IS_PARM) { \
     DATA_TYPE val = neutral; \
  \
-    for (int j=0; j<num_elements; j++) { \
-        val = REDUCE(val, ACCESS(Output, j, 0, 0, rsGetElementAt##_##DATA_TYPE)); \
+    for (int j=0; j<_red_num_elements; j++) { \
+        val = REDUCE(val, ACCESS(_red_Output, j, 0, 0, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \
     RETURN(*_IS, val); \

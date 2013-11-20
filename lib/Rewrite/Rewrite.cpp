@@ -62,20 +62,14 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
     // mapping between AST nodes and internal class representation
     llvm::DenseMap<RecordDecl *, HipaccKernelClass *> KernelClassDeclMap;
-    llvm::DenseMap<RecordDecl *, HipaccGlobalReductionClass *> GlobalReductionClassDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccAccessor *> AccDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccBoundaryCondition *> BCDeclMap;
-    llvm::DenseMap<ValueDecl *, HipaccGlobalReduction *> GlobalReductionDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccImage *> ImgDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccPyramid *> PyrDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccIterationSpace *> ISDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccKernel *> KernelDeclMap;
     llvm::DenseMap<ValueDecl *, HipaccMask *> MaskDeclMap;
 
-    // store .reduce() calls - the kernels are created when the TranslationUnit
-    // is handled
-    SmallVector<CXXMemberCallExpr *, 16> ReductionCalls;
-    SmallVector<HipaccGlobalReduction *, 16> InvokedReductions;
     // store interpolation methods required for CUDA
     SmallVector<std::string, 16> InterpolationDefinitionsGlobal;
 
@@ -128,9 +122,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     }
 
     void setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K);
-    void generateReductionKernels();
-    void printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
-        std::string file);
+    void printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
+        PrintingPolicy Policy, llvm::raw_ostream *OS);
     void printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         HipaccKernel *K, std::string file, bool emitHints);
 };
@@ -165,14 +158,10 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   assert(compilerClasses.IterationSpace && "IterationSpace class not found!");
   assert(compilerClasses.ElementIterator && "ElementIterator class not found!");
   assert(compilerClasses.Kernel && "Kernel class not found!");
-  assert(compilerClasses.GlobalReduction && "GlobalReduction class not found!");
   assert(compilerClasses.Mask && "Mask class not found!");
   assert(compilerClasses.Domain && "Domain class not found!");
   assert(compilerClasses.Pyramid && "Pyramid class not found!");
   assert(compilerClasses.HipaccEoP && "HipaccEoP class not found!");
-
-  // generate reduction kernel calls
-  if (ReductionCalls.size()) generateReductionKernels();
 
   StringRef MainBuf = SM->getBufferData(mainFileID);
   const char *mainFileStart = MainBuf.begin();
@@ -297,27 +286,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
       break;
   }
 
-  // include .cu or .h files for global reduction kernels
-  for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
-    HipaccGlobalReduction *GR = InvokedReductions.data()[i];
-
-    switch (compilerOptions.getTargetCode()) {
-      case TARGET_CUDA:
-        if (compilerOptions.exploreConfig()) continue;
-        newStr += "#include \"";
-        newStr += GR->getFileName();
-        newStr += ".cu\"\n";
-        break;
-      case TARGET_Renderscript:
-      case TARGET_Filterscript:
-        newStr += "#include \"ScriptC_";
-        newStr += GR->getFileName();
-        newStr += ".h\"\n";
-        break;
-      default:
-        break;
-    }
-  }
 
   // write constant memory declarations
   if (compilerOptions.emitCUDA()) {
@@ -361,17 +329,9 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
         it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
       HipaccKernel *Kernel = it->second;
 
-      stringCreator.writeKernelCompilation(Kernel->getFileName(),
-          Kernel->getKernelName(), initStr);
+      stringCreator.writeKernelCompilation(Kernel, initStr);
     }
     initStr += "\n" + stringCreator.getIndent();
-  }
-
-  // load OpenCL reduction kernel files and compile the OpenCL reduction kernels
-  for (unsigned int i=0, e=InvokedReductions.size(); i!=e; ++i) {
-    HipaccGlobalReduction *GR = InvokedReductions.data()[i];
-
-    stringCreator.writeReductionCompilation(GR, initStr);
   }
 
   // write Mask transfers to Symbol in CUDA
@@ -469,8 +429,6 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
         if (D->getNameAsString() == "ElementIterator")
           compilerClasses.ElementIterator = D;
         if (D->getNameAsString() == "Kernel") compilerClasses.Kernel = D;
-        if (D->getNameAsString() == "GlobalReduction")
-          compilerClasses.GlobalReduction = D;
         if (D->getNameAsString() == "Mask") compilerClasses.Mask = D;
         if (D->getNameAsString() == "Domain") compilerClasses.Domain = D;
         if (D->getNameAsString() == "Pyramid") compilerClasses.Pyramid = D;
@@ -610,7 +568,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
       }
     }
 
-    // search for kernel function
+    // search for kernel and reduce functions
     for (CXXRecordDecl::method_iterator I=D->method_begin(), E=D->method_end();
         I!=E; ++I) {
       CXXMethodDecl *FD = *I;
@@ -629,52 +587,15 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
             compilerClasses);
         KC->setKernelStatistics(stats);
 
-        break;
+        continue;
       }
-    }
-  }
 
-  if (D->getTagKind() == TTK_Struct) {
-    if (!compilerClasses.HipaccEoP) return true;
+      // reduce function
+      if (FD->getNameAsString() == "reduce") {
+        // set reduce method
+        KC->setReduceFunction(FD);
 
-    for (CXXRecordDecl::base_class_iterator I=D->bases_begin(),
-        E=D->bases_end(); I!=E; ++I) {
-
-      // found user global reduction class
-      if (compilerClasses.isTypeOfTemplateClass(I->getType(),
-            compilerClasses.GlobalReduction)) {
-        HipaccGlobalReductionClass *GRC = new
-          HipaccGlobalReductionClass(D->getNameAsString());
-        GlobalReductionClassDeclMap[D] = GRC;
-
-        // search for reduce function
-        for (CXXRecordDecl::method_iterator I=D->method_begin(),
-            E=D->method_end(); I!=E; ++I) {
-          CXXMethodDecl *FD = *I;
-
-          // reduce function
-          if (FD->getNameAsString() == "reduce") {
-            // set reduce method
-            GRC->setReductionFunction(FD);
-          }
-        }
-        assert(GRC->getReductionFunction() && "No reduction function found!");
-
-        // remove user kernel class (semicolon doesn't count to SourceRange)
-        SourceLocation startLoc, endLoc;
-        if (D->getDescribedClassTemplate()) {
-          startLoc = SM->getSpellingLoc(D->getDescribedClassTemplate()->getLocStart());
-          endLoc = SM->getSpellingLoc(D->getDescribedClassTemplate()->getLocEnd());
-        } else {
-          startLoc = SM->getSpellingLoc(D->getLocStart());
-          endLoc = SM->getSpellingLoc(D->getLocEnd());
-        }
-        const char *startBuf = SM->getCharacterData(startLoc);
-        const char *endBuf = SM->getCharacterData(endLoc);
-        const char *semiPtr = strchr(endBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, "");
-
-        break;
+        continue;
       }
     }
   }
@@ -711,8 +632,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   //    - print the CUDA/OpenCL kernel to a file.
   // h) save IterationSpace declarations, e.g.
   //    IterationSpace<int> VIS(OUT, width, height);
-  // i) save GlobalReduction declarations, e.g.
-  //    MinReduction<float> redMinIN(IN, FLT_MAX);
   for (DeclStmt::decl_iterator DI=D->decl_begin(), DE=D->decl_end(); DI!=DE;
       ++DI) {
     Decl *SD = *DI;
@@ -1334,138 +1253,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         break;
       }
 
-      // found GlobalReduction decl
-      for (llvm::DenseMap<RecordDecl *, HipaccGlobalReductionClass *>::iterator
-          it=GlobalReductionClassDeclMap.begin(),
-          ei=GlobalReductionClassDeclMap.end(); it!=ei; ++it) {
-
-        CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(it->first);
-        if (compilerClasses.isTypeOfTemplateClass(VD->getType(), RD)) {
-          assert(isa<CXXConstructExpr>(VD->getInit()) &&
-              "Expected GlobalReduction definition (CXXConstructExpr).");
-          CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-
-          HipaccGlobalReduction *GR = NULL;
-          HipaccImage *Img = NULL;
-          HipaccPyramid *Pyr = NULL;
-          HipaccAccessor *Acc = NULL;
-          std::string newStr;
-
-          // check if the first argument is an Image or Accessor
-          if (isa<DeclRefExpr>(CCE->getArg(0))) {
-            DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
-
-            // get the Image from the DRE if we have one
-            if (ImgDeclMap.count(DRE->getDecl())) {
-              Img = ImgDeclMap[DRE->getDecl()];
-            }
-
-            // get the Accessor from the DRE if we have one
-            if (AccDeclMap.count(DRE->getDecl())) {
-              Acc = AccDeclMap[DRE->getDecl()];
-            }
-          }
-
-          // check if the first argument is a Pyramid call
-          if (isa<CXXOperatorCallExpr>(CCE->getArg(0)) &&
-              isa<DeclRefExpr>(dyn_cast<CXXOperatorCallExpr>(
-                  CCE->getArg(0))->getArg(0))) {
-            DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
-                dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0))->getArg(0));
-
-            // get the Pyramid from the DRE if we have one
-            if (PyrDeclMap.count(DRE->getDecl())) {
-              Pyr = PyrDeclMap[DRE->getDecl()];
-            }
-          }
-
-          assert((Img || Acc || Pyr) &&
-                 "Expected an Image or Accessor or Pyramid call as first "
-                 "argument to GlobalReduction.");
-          assert(CCE->getNumArgs()==2 && "Expected exactly two arguments to GlobalReduction.");
-
-          // create Accessor if none was provided
-          if (!Acc) {
-            HipaccBoundaryCondition *BC = NULL;
-            if (Img) {
-              BC = new HipaccBoundaryCondition(Img, VD);
-            } else {
-              BC = new HipaccBoundaryCondition(Pyr, VD);
-            }
-            BC->setSizeX(0);
-            BC->setSizeY(0);
-            BC->setBoundaryHandling(BOUNDARY_UNDEFINED);
-
-            Acc = new HipaccAccessor(BC, InterpolateNO, VD);
-          }
-
-          // get the template specialization type
-          QualType QT = compilerClasses.getFirstTemplateType(VD->getType());
-
-          // create GlobalReduction
-          GR = new HipaccGlobalReduction(Acc, VD, QT, it->second,
-              compilerOptions, (!Img && !Pyr));
-
-          // get relative index of pyramid call
-          if (Pyr) {
-            IntegerLiteral *IL = NULL;
-            UnaryOperator *UO = NULL;
-
-            if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
-                    CCE->getArg(0))->getArg(1))) {
-              IL = dyn_cast<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
-                       CCE->getArg(0))->getArg(1));
-            } else if (isa<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
-                           CCE->getArg(0))->getArg(1))) {
-              UO = dyn_cast<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
-                       CCE->getArg(0))->getArg(1));
-              // only support unary operators '+' and '-'
-              if (UO && (UO->getOpcode() == UO_Plus ||
-                         UO->getOpcode() == UO_Minus)) {
-                IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
-              }
-            }
-
-            assert(IL && "Missing integer literal in pyramid call expression.");
-
-            std::stringstream LSS;
-            if (UO && UO->getOpcode() == UO_Minus) {
-              LSS << "-";
-            }
-            LSS << *(IL->getValue().getRawData());
-            GR->setPyramidIndex(LSS.str());
-          }
-
-          // get the string representation of the neutral element
-          std::string neutralStr;
-          llvm::raw_string_ostream NS(neutralStr);
-          Expr *neutralExpr = CCE->getArg(1)->IgnoreParenCasts();
-          neutralExpr->printPretty(NS, 0, PrintingPolicy(CI.getLangOpts()));
-          if (isa<DeclRefExpr>(neutralExpr)) {
-            GR->setNeutral(NS.str());
-          } else {
-            // create a temporary for the literal
-            std::stringstream LSS;
-            LSS << "_tmpLiteral" << literalCount++;
-
-            newStr += GR->getType() + " ";
-            newStr += LSS.str() + " = " + NS.str() + ";";
-            newStr += stringCreator.getIndent();
-            GR->setNeutral(LSS.str());
-          }
-
-          // store GlobalReduction
-          GlobalReductionDeclMap[VD] = GR;
-
-          // replace GlobalReduction declaration
-          stringCreator.writeReductionDeclaration(GR, newStr);
-          SourceLocation startLoc = D->getLocStart();
-          const char *startBuf = SM->getCharacterData(startLoc);
-          const char *semiPtr = strchr(startBuf, ';');
-          TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
-        }
-      }
-
       // found Kernel decl
       if (VD->getType()->getTypeClass() == Type::Record) {
         const RecordType *RT = cast<RecordType>(VD->getType());
@@ -2032,8 +1819,8 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   //    IS -> kernel launch configuration
   //    IN, OUT, 23 -> kernel parameters
   //    Image width, height, and stride -> kernel parameters
-  // b) convert invocation of 'reduce' member function into kernel launch, e.g.
-  //    float min = MinReduction.reduce();
+  // b) convert getReducedData calls
+  //    float min = MinReduction.getReducedData();
   // c) convert getWidth/getHeight calls
 
   if (E->getImplicitObjectArgument() &&
@@ -2059,9 +1846,19 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         K->setHostArgNames(llvm::makeArrayRef(CCE->getArgs(),
               CCE->getNumArgs()), newStr, literalCount);
 
+        //
+        // TODO: handle the case when only reduce function is specified
+        //
         // create kernel call string
         stringCreator.writeKernelCall(K->getKernelName(), K->getKernelClass(),
             K, newStr);
+
+        // create reduce call string
+        if (K->getKernelClass()->getReduceFunction()) {
+          newStr += "\n" + stringCreator.getIndent();
+          stringCreator.writeReductionDeclaration(K, newStr);
+          stringCreator.writeReduceCall(K->getKernelClass(), K, newStr);
+        }
 
         // rewrite kernel invocation
         // get the start location and compute the semi location.
@@ -2070,16 +1867,6 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         const char *semiPtr = strchr(startBuf, ';');
         TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
       }
-    }
-
-    // match reduce calls to user global reduction instances
-    if (!GlobalReductionDeclMap.empty() &&
-        E->getDirectCallee()->getNameAsString() == "reduce") {
-
-      // store the reduction call expression - the specialized method bodies are
-      // created before the translation unit is handled; reduction kernels are
-      // generated then
-      ReductionCalls.push_back(E);
     }
   }
 
@@ -2090,6 +1877,22 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     if (isa<DeclRefExpr>(ME->getBase()->IgnoreImpCasts())) {
       DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ME->getBase()->IgnoreImpCasts());
       std::string newStr;
+
+      // get the Kernel from the DRE if we have one
+      if (KernelDeclMap.count(DRE->getDecl())) {
+        // match for supported member calls
+        if (ME->getMemberNameInfo().getAsString() == "getReducedData") {
+          HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
+
+          std::string newStr = K->getReduceStr();
+
+          // replace member function invocation
+          SourceRange range(E->getLocStart(), E->getLocEnd());
+          TextRewriter.ReplaceText(range, newStr);
+
+          return true;
+        }
+      }
 
       // get the Image from the DRE if we have one
       if (ImgDeclMap.count(DRE->getDecl())) {
@@ -2306,132 +2109,18 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
 }
 
 
-void Rewrite::generateReductionKernels() {
-  for (unsigned int i=0; i<ReductionCalls.size(); i++) {
-    CXXMemberCallExpr *E = ReductionCalls.data()[i];
-
-    DeclRefExpr *DRE =
-      dyn_cast<DeclRefExpr>(E->getImplicitObjectArgument()->IgnoreParenCasts());
-
-    // get the user global reduction class
-    if (GlobalReductionDeclMap.count(DRE->getDecl())) {
-      std::string newStr;
-      HipaccGlobalReduction *GR = GlobalReductionDeclMap[DRE->getDecl()];
-
-      // only add reduction once
-      if (!GR->getReductionFunction()) {
-        VarDecl *VD = GR->getDecl();
-
-        if (VD->getType()->getTypeClass() == Type::TemplateSpecialization) {
-          const TemplateSpecializationType *TST =
-            cast<TemplateSpecializationType>(VD->getType());
-
-          // get late instantiated class
-          RecordDecl *RD = TST->getAsStructureType()->getDecl();
-          CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(RD);
-
-          for (CXXRecordDecl::method_iterator I=CXXRD->method_begin(),
-              E=CXXRD->method_end(); I!=E; ++I) {
-            CXXMethodDecl *FD = *I;
-
-            if (FD->getNumParams()==2 && FD->getNameAsString() == "reduce") {
-              // generate kernel code
-              GR->setReductionFunction(FD);
-              printReductionFunction(FD, GR, GR->getFileName());
-
-              // store global reduction as invoked (required to include header
-              // later on)
-              InvokedReductions.push_back(GR);
-
-              break;
-            }
-          }
-        }
-      }
-
-      // create kernel call string
-      stringCreator.writeGlobalReductionCall(GR, newStr);
-
-      // rewrite reduction invocation
-      // get the start location and compute the semi location.
-      SourceLocation startLoc = E->getLocStart();
-      const char *startBuf = SM->getCharacterData(startLoc);
-      const char *semiPtr = strchr(startBuf, ';');
-      TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
-    }
-  }
-}
 
 
-void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
-    std::string file) {
-  PrintingPolicy Policy = Context.getPrintingPolicy();
-  Policy.Indentation = 2;
-  Policy.SuppressSpecifiers = false;
-  Policy.SuppressTag = false;
-  Policy.SuppressScope = false;
-  Policy.ConstantArraySizeAsWritten = false;
-  Policy.AnonymousTagLocations = true;
-  Policy.PolishForDeclaration = false;
-
-  switch (compilerOptions.getTargetCode()) {
-    case TARGET_CUDA:
-      Policy.LangOpts.CUDA = 1; break;
-    case TARGET_OpenCL:
-    case TARGET_OpenCLCPU:
-      Policy.LangOpts.OpenCL = 1; break;
-    case TARGET_C:
-    case TARGET_Renderscript:
-    case TARGET_Filterscript:
-      break;
-  }
-
-  int fd;
-  std::string filename = file;
-  std::string ifdef = "_" + file + "_";
-  switch (compilerOptions.getTargetCode()) {
-    case TARGET_C:
-      filename += ".cc";
-      ifdef += "CC_"; break;
-    case TARGET_CUDA:
-      filename += ".cu";
-      ifdef += "CU_"; break;
-    case TARGET_OpenCL:
-    case TARGET_OpenCLCPU:
-      filename += ".cl";
-      ifdef += "CL_"; break;
-    case TARGET_Renderscript:
-      filename += ".rs";
-      ifdef += "RS_"; break;
-    case TARGET_Filterscript:
-      filename += ".fs";
-      ifdef += "FS_"; break;
-  }
-
-  // open file stream using own file descriptor. We need to call fsync() to
-  // compile the generated code using nvcc afterwards.
-  llvm::raw_ostream *OS = &llvm::errs();
-  if (!dump) {
-    while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
-      if (errno != EINTR) {
-        std::string errorInfo = "Error opening output file '" + filename + "'";
-        perror(errorInfo.c_str());
-      }
-    }
-    OS = new llvm::raw_fd_ostream(fd, false);
-  }
-
-  // write ifndef, ifdef
-  std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper);
-  *OS << "#ifndef " + ifdef + "\n";
-  *OS << "#define " + ifdef + "\n\n";
+void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
+    PrintingPolicy Policy, llvm::raw_ostream *OS) {
+  FunctionDecl *fun = KC->getReduceFunction();
 
   // preprocessor defines
   if (!compilerOptions.exploreConfig()) {
-    *OS << "#define BS " << GR->getNumThreads() << "\n"
-        << "#define PPT " << GR->getPixelsPerThread() << "\n";
+    *OS << "#define BS " << K->getNumThreadsReduce() << "\n"
+        << "#define PPT " << K->getPixelsPerThreadReduce() << "\n";
   }
-  if (GR->isAccessor()) {
+  if (K->getIterationSpace()->isCrop()) {
     *OS << "#define USE_OFFSETS\n";
   }
   switch (compilerOptions.getTargetCode()) {
@@ -2456,20 +2145,20 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
         *OS << "#define FS\n";
       }
       *OS << "#define DATA_TYPE "
-          << GR->getAccessor()->getImage()->getPixelType() << "\n"
+          << K->getIterationSpace()->getImage()->getTypeStr() << "\n"
           << "#include \"hipacc_rs_red.hpp\"\n\n";
       // input/output allocation definitions
-      *OS << "rs_allocation Input;\n";
-      *OS << "rs_allocation Output;\n";
+      *OS << "rs_allocation _red_Input;\n";
+      *OS << "rs_allocation _red_Output;\n";
       // neutral element definition
-      *OS << GR->getAccessor()->getImage()->getPixelType() + " neutral;\n";
-      if (GR->isAccessor()) {
-        *OS << "int offset_x;\n";
-        *OS << "int offset_y;\n";
+      *OS << K->getIterationSpace()->getImage()->getTypeStr() + " neutral;\n";
+      if (K->getIterationSpace()->isCrop()) {
+        *OS << "int _red_offset_x;\n";
+        *OS << "int _red_offset_y;\n";
       }
-      *OS << "int stride;\n";
-      *OS << "int is_height;\n";
-      *OS << "int num_elements;\n";
+      *OS << "int _red_stride;\n";
+      *OS << "int _red_is_height;\n";
+      *OS << "int _red_num_elements;\n";
       break;
   }
 
@@ -2489,17 +2178,17 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
       *OS << "static ";
       break;
   }
-  *OS << "inline " << D->getResultType().getAsString() << " "
-      << GR->getName() << "Reduce(";
+  *OS << "inline " << fun->getResultType().getAsString() << " "
+      << K->getReduceName() << "(";
   // write kernel parameters
   unsigned int comma = 0;
-  for (unsigned int i=0, e=D->getNumParams(); i!=e; ++i) {
-    std::string Name = D->getParamDecl(i)->getNameAsString();
+  for (unsigned int i=0, e=fun->getNumParams(); i!=e; ++i) {
+    std::string Name = fun->getParamDecl(i)->getNameAsString();
 
     // normal arguments
     if (comma++) *OS << ", ";
-    QualType T = D->getParamDecl(i)->getType();
-    if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(D))
+    QualType T = fun->getParamDecl(i)->getType();
+    if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(fun))
       T = Parm->getOriginalType();
     T.getAsStringInternal(Name, Policy);
     *OS << Name;
@@ -2507,7 +2196,7 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   *OS << ") ";
 
   // print kernel body
-  D->getBody()->printPretty(*OS, 0, Policy, 0);
+  fun->getBody()->printPretty(*OS, 0, Policy, 0);
 
   // instantiate reduction
   switch (compilerOptions.getTargetCode()) {
@@ -2517,60 +2206,60 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
     case TARGET_OpenCLCPU:
       // 2D reduction
       if (compilerOptions.useTextureMemory()) {
-        *OS << "REDUCTION_OCL_2D_IMAGE(cl";
+        *OS << "REDUCTION_OCL_2D_IMAGE(";
       } else {
-        *OS << "REDUCTION_OCL_2D(cl";
+        *OS << "REDUCTION_OCL_2D(";
       }
-      *OS << GR->getFileName() << "2D, "
-          << D->getResultType().getAsString() << ", "
-          << GR->getName() << "Reduce";
+      *OS << K->getReduceName() << "2D, "
+          << fun->getResultType().getAsString() << ", "
+          << K->getReduceName();
       if (compilerOptions.useTextureMemory()) {
-        *OS << ", " << GR->getAccessor()->getImage()->getImageReadFunction();
+        *OS << ", " << K->getIterationSpace()->getImage()->getImageReadFunction();
       }
       *OS << ")\n";
       // 1D reduction
-      *OS << "REDUCTION_OCL_1D(cl" << GR->getFileName() << "1D, "
-          << D->getResultType().getAsString() << ", "
-          << GR->getName() << "Reduce)\n";
+      *OS << "REDUCTION_OCL_1D(" << K->getReduceName() << "1D, "
+          << fun->getResultType().getAsString() << ", "
+          << K->getReduceName() << ")\n";
       break;
     case TARGET_CUDA:
       // print 2D CUDA array definition - this is only required on FERMI and if
       // Array2D is selected, but doesn't harm otherwise
-      *OS << "texture<" << D->getResultType().getAsString()
+      *OS << "texture<" << fun->getResultType().getAsString()
           << ", cudaTextureType2D, cudaReadModeElementType> _tex"
-          << GR->getAccessor()->getImage()->getName() + GR->getName() << ";\n\n";
+          << K->getIterationSpace()->getImage()->getName() + K->getName() << ";\n\n";
       // 2D reduction
       if (compilerOptions.getTargetDevice()>=FERMI_20 &&
           !compilerOptions.exploreConfig()) {
-        *OS << "__device__ unsigned int finished_blocks_cu" << GR->getFileName()
+        *OS << "__device__ unsigned int finished_blocks_cu" << K->getFileName()
             << "2D = 0;\n\n";
-        *OS << "REDUCTION_CUDA_2D_THREAD_FENCE(cu";
+        *OS << "REDUCTION_CUDA_2D_THREAD_FENCE(";
       } else {
-        *OS << "REDUCTION_CUDA_2D(cu";
+        *OS << "REDUCTION_CUDA_2D(";
       }
-      *OS << GR->getFileName() << "2D, "
-          << D->getResultType().getAsString() << ", "
-          << GR->getName() << "Reduce, _tex"
-          << GR->getAccessor()->getImage()->getName() + GR->getName() << ")\n";
+      *OS << K->getReduceName() << "2D, "
+          << fun->getResultType().getAsString() << ", "
+          << K->getReduceName() << ", _tex"
+          << K->getIterationSpace()->getImage()->getName() + K->getName() << ")\n";
       // 1D reduction
       if (compilerOptions.getTargetDevice() >= FERMI_20 &&
           !compilerOptions.exploreConfig()) {
         // no second step required
       } else {
-        *OS << "REDUCTION_CUDA_1D(cu" << GR->getFileName() << "1D, "
-            << D->getResultType().getAsString() << ", "
-            << GR->getName() << "Reduce)\n";
+        *OS << "REDUCTION_CUDA_1D(" << K->getReduceName() << "1D, "
+            << fun->getResultType().getAsString() << ", "
+            << K->getReduceName() << ")\n";
       }
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
-      *OS << "REDUCTION_RS_2D(rs" << GR->getFileName() << "2D, "
-          << D->getResultType().getAsString() << ", ALL, "
-          << GR->getName() << "Reduce)\n";
+      *OS << "REDUCTION_RS_2D(" << K->getReduceName() << "2D, "
+          << fun->getResultType().getAsString() << ", ALL, "
+          << K->getReduceName() << ")\n";
       // 1D reduction
-      *OS << "REDUCTION_RS_1D(rs" << GR->getFileName() << "1D, "
-          << D->getResultType().getAsString() << ", ALL, "
-          << GR->getName() << "Reduce)\n";
+      *OS << "REDUCTION_RS_1D(" << K->getReduceName() << "1D, "
+          << fun->getResultType().getAsString() << ", ALL, "
+          << K->getReduceName() << ")\n";
       break;
   }
 
@@ -2580,13 +2269,6 @@ void Rewrite::printReductionFunction(FunctionDecl *D, HipaccGlobalReduction *GR,
   *OS << "#include \"hipacc_undef.hpp\"\n";
 
   *OS << "\n";
-  *OS << "#endif //" + ifdef + "\n";
-  *OS << "\n";
-  OS->flush();
-  if (!dump) {
-    fsync(fd);
-    close(fd);
-  }
 }
 
 
@@ -3124,6 +2806,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     *OS << "}\n";
   }
   *OS << "\n";
+
+  if (KC->getReduceFunction()) {
+    printReductionFunction(KC, K, Policy, OS);
+  }
+
   *OS << "#endif //" + ifdef + "\n";
   *OS << "\n";
   OS->flush();

@@ -45,7 +45,7 @@ namespace hipacc {
 class CreateHostStrings {
   private:
     CompilerOptions &options;
-    unsigned int literalCountGridBock;
+    unsigned int literal_count;
     int num_indent, cur_indent;
     std::string indent;
 
@@ -62,7 +62,7 @@ class CreateHostStrings {
   public:
     CreateHostStrings(CompilerOptions &options) :
       options(options),
-      literalCountGridBock(0),
+      literal_count(0),
       num_indent(4),
       cur_indent(num_indent),
       indent(cur_indent, ' ')
@@ -71,14 +71,10 @@ class CreateHostStrings {
     std::string getIndent() { return indent; }
     void writeHeaders(std::string &resultStr);
     void writeInitialization(std::string &resultStr);
-    void writeKernelCompilation(std::string fileName, std::string kernelName,
-        std::string &resultStr, std::string suffix="");
-    void addReductionArgument(HipaccGlobalReduction *GR, std::string
-        device_name, std::string host_name, std::string &resultStr);
-    void writeReductionCompilation(HipaccGlobalReduction *GR, std::string
-        &resultStr);
-    void writeReductionDeclaration(HipaccGlobalReduction *GR, std::string
-        &resultStr);
+    void writeKernelCompilation(HipaccKernel *K, std::string &resultStr);
+    void addReductionArgument(HipaccKernel *K, std::string device_name,
+        std::string host_name, std::string &resultStr);
+    void writeReductionDeclaration(HipaccKernel *K, std::string &resultStr);
     void writeMemoryAllocation(std::string memName, std::string type,
         std::string width, std::string height, std::string &resultStr,
         HipaccDevice &targetDevice);
@@ -95,7 +91,7 @@ class CreateHostStrings {
         MemoryTransferDirection direction, std::string &resultStr);
     void writeKernelCall(std::string kernelName, HipaccKernelClass *KC,
         HipaccKernel *K, std::string &resultStr);
-    void writeGlobalReductionCall(HipaccGlobalReduction *GR, std::string
+    void writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K, std::string
         &resultStr);
     void writeInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,
         std::string function_name, std::string type_suffix, InterpolationMode

@@ -365,7 +365,7 @@ class HipaccKernelClass {
     };
 
     std::string name;
-    CXXMethodDecl *kernelFunction;
+    CXXMethodDecl *kernelFunction, *reduceFunction;
     KernelStatistics *kernelStatistics;
     // kernel parameter information
     SmallVector<argumentInfo, 16> arguments;
@@ -377,6 +377,7 @@ class HipaccKernelClass {
     HipaccKernelClass(std::string name) :
       name(name),
       kernelFunction(NULL),
+      reduceFunction(NULL),
       kernelStatistics(NULL),
       arguments(0),
       imgFields(0),
@@ -387,7 +388,9 @@ class HipaccKernelClass {
     const std::string &getName() const { return name; }
 
     void setKernelFunction(CXXMethodDecl *fun) { kernelFunction = fun; }
+    void setReduceFunction(CXXMethodDecl *fun) { reduceFunction = fun; }
     CXXMethodDecl *getKernelFunction() { return kernelFunction; }
+    CXXMethodDecl *getReduceFunction() { return reduceFunction; }
 
     void setKernelStatistics(KernelStatistics *stats) {
       kernelStatistics = stats;
@@ -551,9 +554,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     VarDecl *VD;
     CompilerOptions &options;
     std::string name;
-    std::string kernelName;
+    std::string kernelName, reduceName;
     std::string fileName;
-    std::string infoStr;
+    std::string reduceStr, infoStr;
     unsigned int infoStrCnt;
     HipaccIterationSpace *iterationSpace;
     std::map<FieldDecl *, HipaccAccessor *> imgMap;
@@ -590,9 +593,10 @@ class HipaccKernel : public HipaccKernelFeatures {
       VD(VD),
       options(options),
       name(VD->getNameAsString()),
-      kernelName(options.getTargetPrefix() + KC->getName() + "Kernel"),
+      kernelName(options.getTargetPrefix() + KC->getName() + name + "Kernel"),
+      reduceName(options.getTargetPrefix() + KC->getName() + name + "Reduce"),
       fileName(KC->getName() + VD->getNameAsString()),
-      infoStr(""),
+      reduceStr(""), infoStr(""),
       infoStrCnt(0),
       iterationSpace(NULL),
       imgMap(),
@@ -621,13 +625,16 @@ class HipaccKernel : public HipaccKernelFeatures {
     HipaccKernelClass *getKernelClass() const { return KC; }
     const std::string &getName() const { return name; }
     const std::string &getKernelName() const { return kernelName; }
+    const std::string &getReduceName() const { return reduceName; }
     const std::string &getFileName() const { return fileName; }
     void setInfoStr() {
       std::stringstream LSS;
       LSS << infoStrCnt++;
       infoStr = name + "_info" + LSS.str();
+      reduceStr = name + "_red" + LSS.str();
     }
     const std::string &getInfoStr() const { return infoStr; }
+    const std::string &getReduceStr() const { return reduceStr; }
 
     // keep track of variables used within kernel
     void setUsed(std::string name) { usedVars.insert(name); }
@@ -780,84 +787,10 @@ class HipaccKernel : public HipaccKernelFeatures {
     }
     unsigned int getNumThreadsX() { return num_threads_x; }
     unsigned int getNumThreadsY() { return num_threads_y; }
-};
-
-
-class HipaccGlobalReductionClass {
-  private:
-    std::string name;
-    CXXMethodDecl *reductionFunction;
-
-  public:
-    HipaccGlobalReductionClass(std::string name) :
-      name(name),
-      reductionFunction(NULL)
-    {}
-
-    const std::string &getName() const { return name; }
-
-    void setReductionFunction(CXXMethodDecl *fun) { reductionFunction = fun; }
-    CXXMethodDecl *getReductionFunction() { return reductionFunction; }
-};
-
-
-class HipaccGlobalReduction : public HipaccDevice {
-  private:
-    HipaccAccessor *acc;
-    VarDecl *VD;
-    HipaccGlobalReductionClass *GRC;
-    std::string name;
-    std::string type;
-    std::string neutral;
-    std::string fileName;
-    CXXMethodDecl *reductionFunction;
-    bool is_accessor;
-    bool is_pyramid;
-    std::string pyr_idx_str;
-    unsigned int num_threads;
-
-  public:
-    HipaccGlobalReduction(HipaccAccessor *acc, VarDecl *VD, QualType QT,
-        HipaccGlobalReductionClass *GRC, CompilerOptions &options, bool
-        is_accessor) :
-      HipaccDevice(options),
-      acc(acc),
-      VD(VD),
-      GRC(GRC),
-      name(VD->getNameAsString()),
-      type(QT.getAsString()),
-      neutral(""),
-      fileName(""),
-      reductionFunction(NULL),
-      is_accessor(is_accessor),
-      is_pyramid(false),
-      pyr_idx_str(""),
-      num_threads(256)
-    {
-      fileName = GRC->getName() + VD->getNameAsString();
+    unsigned int getNumThreadsReduce() {
+      return default_num_threads_x*default_num_threads_y;
     }
-
-    void setNeutral(std::string n) { neutral = n; }
-    void setReductionFunction(CXXMethodDecl *fun) { reductionFunction = fun; }
-    void setPyramidIndex(std::string idx) {
-      is_pyramid = true;
-      pyr_idx_str = idx;
-    }
-
-    const std::string &getName() const { return name; }
-    const std::string getType() { return type; }
-    const std::string getNeutral() { return neutral; }
-    const std::string &getFileName() const { return fileName; }
-    bool isAccessor() { return is_accessor; }
-    bool isPyramid() { return is_pyramid; }
-    const std::string getPyramidIndex() { return pyr_idx_str; }
-
-    VarDecl *getDecl() { return VD; }
-    HipaccAccessor *getAccessor() { return acc; }
-    CXXMethodDecl *getReductionFunction() { return reductionFunction; }
-    HipaccGlobalReductionClass *getReductionClass() const { return GRC; }
-    unsigned int getNumThreads() { return num_threads; }
-    unsigned int getPixelsPerThread() {
+    unsigned int getPixelsPerThreadReduce() {
       return pixels_per_thread[GlobalOperator];
     }
 };
