@@ -43,6 +43,8 @@ using namespace android;
 #   define EHF android::renderscriptCpp::RenderScript
     // Abstraction for type name
 #   define RS RenderScript
+    // Abstraction for type pointer
+#   define PRS RS*
     // Abstraction for functions
 #   define INIT(rs, target) rs->init(target)
 #   define COPYTO(T, src, offset, count, buf) \
@@ -56,10 +58,12 @@ using namespace android;
       void(type::*name)(sp<const Allocation>) const
 #   define KERNEL2(type, name) \
       void(type::*name)(sp<const Allocation>, sp<const Allocation>) const
-# elif RS_TARGET_API == 18
+# elif RS_TARGET_API < 20
     using namespace android::RSC;
     // Namespace for ErrorHandlerFunc_t
 #   define EHF android::RSC
+    // Abstraction for type encapsulated by strong pointer
+#   define PRS sp<RS>
     // Abstraction for functions
 #   define INIT(rs, target) rs->init()
 #   define COPYTO(T, src, offset, count, buf) \
@@ -73,9 +77,9 @@ using namespace android;
       void(type::*name)(sp<const Allocation>)
 #   define KERNEL2(type, name) \
       void(type::*name)(sp<const Allocation>, sp<const Allocation>)
-# else // RS_TARGET_API > 18
-#   error Renderscript target API > 18 is not supported!
-# endif // RS_TARGET_API > 18
+# else // RS_TARGET_API > 19
+#   error Renderscript target API > 19 is not supported!
+# endif // RS_TARGET_API > 19
 #endif // RS_TARGET_API
 
 #include <assert.h>
@@ -96,8 +100,12 @@ using namespace android;
 
 class HipaccContext : public HipaccContextBase {
     private:
-        RS context;
+        PRS context;
         std::vector<std::pair<sp<Allocation>, HipaccImage> > allocs;
+
+        HipaccContext() {
+          context = new RS();
+        }
 
     public:
         static HipaccContext &getInstance() {
@@ -133,7 +141,7 @@ class HipaccContext : public HipaccContextBase {
             }
             exit(EXIT_FAILURE);
         }
-        RS* get_context() { return &context; }
+        PRS get_context() { return context; }
 };
 
 
@@ -302,7 +310,7 @@ EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText) {
 // Create RenderScript context
 void hipaccInitRenderScript(int targetAPI) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    RS* rs = Ctx.get_context();
+    PRS rs = Ctx.get_context();
 
     rs->setErrorHandler((EHF::ErrorHandlerFunc_t)&errorHandler);
 
@@ -316,8 +324,12 @@ void hipaccInitRenderScript(int targetAPI) {
 template<typename T>
 T hipaccInitScript() {
     std::string cache_path = "/sdcard";
+#if RS_TARGET_API < 19
     return T(HipaccContext::getInstance().get_context(), cache_path.c_str(),
             cache_path.length());
+#else
+    return T(HipaccContext::getInstance().get_context());
+#endif
 }
 
 
@@ -393,7 +405,7 @@ void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst) {
 HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, \
                                       int alignment) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
-    RS* rs = Ctx.get_context(); \
+    PRS rs = Ctx.get_context(); \
 \
     int stride = (int)ceilf((float)(width) / (alignment / sizeof(T))) \
                    * (alignment / sizeof(T)); \
@@ -418,7 +430,7 @@ HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, \
 /* Allocate memory without any alignment considerations */ \
 HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
-    RS* rs = Ctx.get_context(); \
+    PRS rs = Ctx.get_context(); \
 \
     Type::Builder type(rs, E); \
     type.setX(width); \
@@ -493,7 +505,7 @@ void hipaccLaunchScriptKernel(
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    RS* rs = Ctx.get_context();
+    PRS rs = Ctx.get_context();
 
     rs->finish();
     start = getMicroTime();
@@ -520,7 +532,7 @@ void hipaccLaunchScriptKernel(
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    RS* rs = Ctx.get_context();
+    PRS rs = Ctx.get_context();
 
     rs->finish();
     start = getMicroTime();
@@ -631,7 +643,7 @@ void hipaccLaunchScriptKernelExploration(
         std::cerr << "<HIPACC:> Kernel config: "
                   << std::setw(4) << std::right << work_size[0] << "x"
                   << std::setw(2) << std::left << work_size[1]
-                  << std::setw(5-floor(log10(work_size[0]*work_size[1])))
+                  << std::setw(5-floor(log10((float)(work_size[0]*work_size[1]))))
                   << std::right << "(" << work_size[0]*work_size[1] << "): "
                   << std::setw(8) << std::fixed << std::setprecision(4)
                   << med_dt << " ms" << std::endl;
@@ -652,7 +664,7 @@ T hipaccApplyReduction(
     int is_width, bool print_timing=true
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    RS* rs = Ctx.get_context();
+    PRS rs = Ctx.get_context();
     long end, start;
 
     // allocate temporary memory

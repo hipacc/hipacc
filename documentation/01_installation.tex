@@ -87,9 +87,28 @@ make && make install
 
 \paragraph{Android Cross Compilation:}
 Generating target code for Android requires cross compilation. Therefore,
-additional variables are recognized for cross compilation for Android (given
-are examples to target the Arndale Board with a Samsung Exynos 5 Dual (ARM
-Cortex-A15 \& ARM Mali T604 GPU):
+additional variables are recognized for cross compilation for Android depending
+on the target Android version.
+
+\subparagraph{Android 4.4 Kit Kat}
+For Android 4.4 it is necessary to install the Android NDK version 9b or higher.
+The following variable must be set:
+
+\begin{itemize}
+  \item RS\_TARGET\_API:                Android API level ($\ge$19)\\
+                                        (e.g. -DRS\_TARGET\_API=19)
+\end{itemize}
+
+Note: Due to a compiler bug in NDK 9b it is necessary to replace the existing
+Renderscript compiler \texttt{llvm-rs-cc} by a patched version from Android
+source. The corresponding patch can be found in \ac{HIPAcc}'s source tree
+directory \texttt{patches/android-kk}.
+
+\subparagraph{Earlier Android Versions}
+For Android 4.3 and earlier versions it is necessary to install the Android NDK
+version 8d and the corresponding Android source. The following Variables must be
+set (given are examples to target the Arndale Board with a Samsung Exynos 5 Dual
+(ARM Cortex-A15 \& ARM Mali T604 GPU):
 
 \begin{itemize}
     \item ANDROID\_SOURCE\_DIR:         Android source directory\\(e.g. -DANDROID\_SOURCE\_DIR=/opt/arndaleboard/android-jb-mr1)
@@ -102,3 +121,7 @@ Cortex-A15 \& ARM Mali T604 GPU):
     \item EMBEDDED\_OPENCL\_LIB:        Name of the embedded OpenCL library\\(e.g. -DEMBEDDED\_OPENCL\_LIB=libGLES\_mali.so)
 \end{itemize}
 
+Note: Due to an unfinished native Renderscript API it necessary to build the
+patched Renderscript compiler \texttt{llvm-rs-cc} and Renderscript C++ library
+\texttt{libRScpp.so} from Android source. The corresponding patches can be found
+in \ac{HIPAcc}'s source tree directories \texttt{patches/android-jb*}.
