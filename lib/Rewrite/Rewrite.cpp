@@ -2150,8 +2150,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       // input/output allocation definitions
       *OS << "rs_allocation _red_Input;\n";
       *OS << "rs_allocation _red_Output;\n";
-      // neutral element definition
-      *OS << K->getIterationSpace()->getImage()->getTypeStr() + " neutral;\n";
+      // offset specification
       if (K->getIterationSpace()->isCrop()) {
         *OS << "int _red_offset_x;\n";
         *OS << "int _red_offset_y;\n";

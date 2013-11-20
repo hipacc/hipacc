@@ -911,10 +911,6 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
 
   // print image name
   resultStr += K->getIterationSpace()->getName() + ", ";
-  // TODO: remove
-  // print neutral element
-  //resultStr += K->getNeutral() + ", ";
-  resultStr += "const 0, ";
 
   // print pixels per thread
   std::stringstream KSS;
