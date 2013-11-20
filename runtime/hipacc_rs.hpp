@@ -153,12 +153,12 @@ class hipacc_script_arg {
     void(F::*memptr)();
 
   public:
-    int getId() { return id; }
+    int getId() const { return id; }
 
 #define CREATE_SCRIPT_ARG(ID, T) \
     hipacc_script_arg(void(F::*setter)(T), T const *arg) \
         : id(ID), memptr((void(F::*)())setter), valptr((void*)arg) {} \
-    std::pair<void(F::*)(T), T*> get ## ID() { \
+    std::pair<void(F::*)(T), T*> get ## ID() const { \
         return std::make_pair((void(F::*)(T))memptr, (T*)valptr); \
     }
 
@@ -194,11 +194,11 @@ class hipacc_script_arg {
 
 #define SET_SCRIPT_ARG_ID(SCRIPT, ARG, ID) \
     hipaccSetScriptArg(SCRIPT, \
-                       ARG.get ## ID().first, \
-                       *(ARG.get ## ID().second));
+                       (ARG).get ## ID().first, \
+                       *((ARG).get ## ID().second));
 
 #define SET_SCRIPT_ARG(SCRIPT, ARG) \
-    switch (ARG.getId()) { \
+    switch ((ARG).getId()) { \
        case 0: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 0) break; \
        case 1: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 1) break; \
        case 2: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 2) break; \
@@ -564,8 +564,9 @@ void hipaccLaunchScriptKernelBenchmark(
 
     for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
         // set kernel arguments
-        for (unsigned int i=0; i<args.size(); i++) {
-            SET_SCRIPT_ARG(script, args.data()[i]);
+        for (typename std::vector<hipacc_script_arg<F> >::const_iterator
+                it = args.begin(); it != args.end(); ++it) {
+            SET_SCRIPT_ARG(script, *it);
         }
 
         // launch kernel
@@ -617,8 +618,9 @@ void hipaccLaunchScriptKernelExploration(
         float med_dt;
         std::vector<float> times;
         for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
-            for (unsigned int i=0; i<args.size(); i++) {
-                SET_SCRIPT_ARG(script, args.data()[i]);
+            for (typename std::vector<hipacc_script_arg<F> >::const_iterator
+                    it = args.begin(); it != args.end(); ++it) {
+                SET_SCRIPT_ARG(script, *it);
             }
 
             // start timing
@@ -680,8 +682,9 @@ T hipaccApplyReduction(
     sp<Allocation> is2 = (Allocation *)is2_img.mem;
 
     // set arguments
-    for (unsigned int i=0; i<args.size(); i++) {
-        SET_SCRIPT_ARG(script, args.data()[i]);
+    for (typename std::vector<hipacc_script_arg<F> >::const_iterator
+            it = args.begin(); it != args.end(); ++it) {
+        SET_SCRIPT_ARG(script, *it);
     }
 
     rs->finish();
