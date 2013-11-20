@@ -555,11 +555,11 @@ int main(int argc, const char **argv) {
     SFConst.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<uchar4> BcInConst(IN, size_x, 1, BOUNDARY_CONSTANT, '1');
+    BoundaryCondition<uchar4> BcInConst(IN, size_x, 1, BOUNDARY_CONSTANT, (uchar4){'1','1','1','1'});
     Accessor<uchar4> AccInConst(BcInConst);
     SobelFilterMaskRow SFRConst(IsTmp, AccInConst, MX, size_x);
 
-    BoundaryCondition<short4> BcTmpConst(TMP, 1, size_y, BOUNDARY_CONSTANT, (short)1);
+    BoundaryCondition<short4> BcTmpConst(TMP, 1, size_y, BOUNDARY_CONSTANT, (short4){1,1,1,1});
     Accessor<short4> AccTmpConst(BcTmpConst);
     SobelFilterMaskColumn SFCConst(IsOut, AccTmpConst, MY, size_y);
 
