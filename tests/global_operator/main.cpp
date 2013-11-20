@@ -51,9 +51,9 @@ double time_ms () {
 
 // reference
 template<typename data_t>
-data_t calc_min_pixel(data_t *in, data_t neutral, int width, int height, int
-        offset_x, int offset_y, int is_width, int is_height) {
-    data_t min_val = neutral;
+data_t calc_min_pixel(data_t *in, int width, int height, int offset_x, int
+        offset_y, int is_width, int is_height) {
+    data_t min_val = in[offset_x + offset_y*width];
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
         for (int x=offset_x; x<offset_x+is_width; ++x) {
@@ -64,15 +64,14 @@ data_t calc_min_pixel(data_t *in, data_t neutral, int width, int height, int
     return min_val;
 }
 template<typename data_t>
-data_t calc_min_pixel(data_t *in, data_t neutral, int width, int height) {
-    return calc_min_pixel<data_t>(in, neutral, width, height, 0, 0, width,
-            height);
+data_t calc_min_pixel(data_t *in, int width, int height) {
+    return calc_min_pixel<data_t>(in, width, height, 0, 0, width, height);
 }
 
 template<typename data_t>
-float calc_max_pixel(data_t *in, data_t neutral, int width, int height, int
-        offset_x, int offset_y, int is_width, int is_height) {
-    data_t max_val = neutral;
+float calc_max_pixel(data_t *in, int width, int height, int offset_x, int
+        offset_y, int is_width, int is_height) {
+    data_t max_val = in[offset_x + offset_y*width];
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
         for (int x=offset_x; x<offset_x+is_width; ++x) {
@@ -83,15 +82,14 @@ float calc_max_pixel(data_t *in, data_t neutral, int width, int height, int
     return max_val;
 }
 template<typename data_t>
-float calc_max_pixel(data_t *in, data_t neutral, int width, int height) {
-    return calc_max_pixel<data_t>(in, neutral, width, height, 0, 0, width,
-            height);
+float calc_max_pixel(data_t *in, int width, int height) {
+    return calc_max_pixel<data_t>(in, width, height, 0, 0, width, height);
 }
 
 template<typename data_t>
-data_t calc_sum_pixel(data_t *in, data_t neutral, int width, int height, int
-        offset_x, int offset_y, int is_width, int is_height) {
-    data_t sum = neutral;
+data_t calc_sum_pixel(data_t *in, int width, int height, int offset_x, int
+        offset_y, int is_width, int is_height) {
+    data_t sum = 0;
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
         for (int x=offset_x; x<offset_x+is_width; ++x) {
@@ -102,9 +100,8 @@ data_t calc_sum_pixel(data_t *in, data_t neutral, int width, int height, int
     return sum;
 }
 template<typename data_t>
-data_t calc_sum_pixel(data_t *in, data_t neutral, int width, int height) {
-    return calc_sum_pixel<data_t>(in, neutral, width, height, 0, 0, width,
-            height);
+data_t calc_sum_pixel(data_t *in, int width, int height) {
+    return calc_sum_pixel<data_t>(in, width, height, 0, 0, width, height);
 }
 
 
@@ -358,20 +355,20 @@ int main(int argc, const char **argv) {
     time0 = time_ms();
 
     // calculate reference: Images
-    int min_pixel_ref_int_img = calc_min_pixel(host_in_int, INT_MAX, width, height);
-    int max_pixel_ref_int_img = calc_max_pixel(host_in_int, INT_MIN, width, height);
-    int sum_pixel_ref_int_img = calc_sum_pixel(host_in_int, 0, width, height);
-    float min_pixel_ref_float_img = calc_min_pixel(host_in_float, FLT_MAX, width, height);
-    float max_pixel_ref_float_img = calc_max_pixel(host_in_float, FLT_MIN, width, height);
-    float sum_pixel_ref_float_img = calc_sum_pixel(host_in_float, 0.0f, width, height);
+    int min_pixel_ref_int_img = calc_min_pixel(host_in_int, width, height);
+    int max_pixel_ref_int_img = calc_max_pixel(host_in_int, width, height);
+    int sum_pixel_ref_int_img = calc_sum_pixel(host_in_int, width, height);
+    float min_pixel_ref_float_img = calc_min_pixel(host_in_float, width, height);
+    float max_pixel_ref_float_img = calc_max_pixel(host_in_float, width, height);
+    float sum_pixel_ref_float_img = calc_sum_pixel(host_in_float, width, height);
 
     // calculate reference: Accessors
-    int min_pixel_ref_int_acc = calc_min_pixel(host_in_int, INT_MAX, width, height, width/3, height/3, width/3, height/3);
-    int max_pixel_ref_int_acc = calc_max_pixel(host_in_int, INT_MIN, width, height, width/3, height/3, width/3, height/3);
-    int sum_pixel_ref_int_acc = calc_sum_pixel(host_in_int, 0, width, height, width/3, height/3, width/3, height/3);
-    float min_pixel_ref_float_acc = calc_min_pixel(host_in_float, FLT_MAX, width, height, width/3, height/3, width/3, height/3);
-    float max_pixel_ref_float_acc = calc_max_pixel(host_in_float, FLT_MIN, width, height, width/3, height/3, width/3, height/3);
-    float sum_pixel_ref_float_acc = calc_sum_pixel(host_in_float, 0.0f, width, height, width/3, height/3, width/3, height/3);
+    int min_pixel_ref_int_acc = calc_min_pixel(host_in_int, width, height, width/3, height/3, width/3, height/3);
+    int max_pixel_ref_int_acc = calc_max_pixel(host_in_int, width, height, width/3, height/3, width/3, height/3);
+    int sum_pixel_ref_int_acc = calc_sum_pixel(host_in_int, width, height, width/3, height/3, width/3, height/3);
+    float min_pixel_ref_float_acc = calc_min_pixel(host_in_float, width, height, width/3, height/3, width/3, height/3);
+    float max_pixel_ref_float_acc = calc_max_pixel(host_in_float, width, height, width/3, height/3, width/3, height/3);
+    float sum_pixel_ref_float_acc = calc_sum_pixel(host_in_float, width, height, width/3, height/3, width/3, height/3);
 
     time1 = time_ms();
     dt = time1 - time0;
