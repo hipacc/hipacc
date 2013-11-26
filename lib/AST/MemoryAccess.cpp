@@ -144,6 +144,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   switch (memAcc) {
     case WRITE_ONLY:
       switch (compilerOptions.getTargetCode()) {
+        default: break;
         case TARGET_Renderscript:
           if (local_offset_x == NULL && local_offset_y == NULL) {
             return accessMemAllocPtr(LHS);
