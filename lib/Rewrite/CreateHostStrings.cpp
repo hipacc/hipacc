@@ -753,7 +753,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += kernelName + ", \"";
           resultStr += kernelName + "\"";
         } else {
-          resultStr += "hipaccKernelExploration(\"" + kernelName + ".cu\", \"" + kernelName + "\"";
+          resultStr += "hipaccKernelExploration(\"" + K->getFileName() + ".cu\", \"" + kernelName + "\"";
         }
         break;
       case TARGET_Renderscript:
@@ -774,7 +774,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         if (options.timeKernels()) {
           resultStr += "hipaccEnqueueKernelBenchmark(" + kernelName;
         } else {
-          resultStr += "hipaccKernelExploration(\"" + kernelName + ".cl\", \"" + kernelName + "\"";
+          resultStr += "hipaccKernelExploration(\"" + K->getFileName() + ".cl\", \"" + kernelName + "\"";
         }
         break;
     }
