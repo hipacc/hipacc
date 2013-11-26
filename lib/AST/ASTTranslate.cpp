@@ -472,12 +472,25 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
   tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace()->getAccessor());
   tileVars.local_size_y = createIntegerLiteral(Ctx, 0);
 
-  if (compilerOptions.emitFilterscript()) {
-    VarDecl *output = createVarDecl(Ctx, kernelDecl, "OutputVal",
-                          Kernel->getIterationSpace()->getImage()->getType());
-    DC->addDecl(output);
-    kernelBody.push_back(createDeclStmt(Ctx, output));
-    retValRef = createDeclRefExpr(Ctx, output);
+  switch (compilerOptions.getTargetCode()) {
+    case TARGET_Renderscript: {
+        // retValRef: Kernel parameter pointing to current output pixel
+        VarDecl *output = createVarDecl(Ctx, kernelDecl, "_IS",
+            Kernel->getIterationSpace()->getImage()->getType());
+        retValRef = createDeclRefExpr(Ctx, output);
+      }
+      break;
+    case TARGET_Filterscript: {
+        // retValRef: Variable storing output value to return from kernel
+        VarDecl *output = createVarDecl(Ctx, kernelDecl, "OutputVal",
+            Kernel->getIterationSpace()->getImage()->getType());
+        DC->addDecl(output);
+        kernelBody.push_back(createDeclStmt(Ctx, output));
+        retValRef = createDeclRefExpr(Ctx, output);
+      }
+      break;
+    default:
+      break;
   }
 }
 
@@ -2277,17 +2290,14 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           // no padding is considered, data is accessed as a 2D-array
           result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
           break;
+        case TARGET_Renderscript:
+          // write to output pixel pointed to by kernel parameter
+          LHS = retValRef;
+          // fall through
         case TARGET_CUDA:
         case TARGET_OpenCL:
         case TARGET_OpenCLCPU:
           result = accessMem(LHS, Acc, memAcc);
-          break;
-        case TARGET_Renderscript: {
-          VarDecl *output = createVarDecl(Ctx, kernelDecl, "_IS",
-              Kernel->getIterationSpace()->getImage()->getType());
-          LHS = createDeclRefExpr(Ctx, output);
-          result = accessMem(LHS, Acc, memAcc);
-          }
           break;
         case TARGET_Filterscript:
           postStmts.push_back(createReturnStmt(Ctx, retValRef));
