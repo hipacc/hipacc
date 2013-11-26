@@ -2280,6 +2280,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         case TARGET_CUDA:
         case TARGET_OpenCL:
         case TARGET_OpenCLCPU:
+          result = accessMem(LHS, Acc, memAcc);
+          break;
         case TARGET_Renderscript: {
           VarDecl *output = createVarDecl(Ctx, kernelDecl, "_IS",
               Kernel->getIterationSpace()->getImage()->getType());
