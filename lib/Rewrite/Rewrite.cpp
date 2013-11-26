@@ -2669,7 +2669,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     std::string Name = D->getParamDecl(i)->getNameAsString();
     FieldDecl *FD = K->getDeviceArgFields()[i];
 
-    if (!K->getUsed(Name) && !compilerOptions.emitFilterscript()) {
+    if (!K->getUsed(Name) &&
+        !compilerOptions.emitFilterscript() &&
+        !compilerOptions.emitRenderscript()) {
         // Proceed for Filterscript, because output image is never explicitly used
         continue;
     }

@@ -279,6 +279,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         *idx_y);
     Expr *accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess memAcc,
                            Expr *idx_x, Expr *idx_y);
+    Expr *accessMemAllocPtr(DeclRefExpr *LHS);
     Expr *accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
         memAcc, Expr *idx_x, Expr *idx_y);
     Expr *accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess

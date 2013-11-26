@@ -143,7 +143,13 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // step 3: access the appropriate memory
   switch (memAcc) {
     case WRITE_ONLY:
-      if (compilerOptions.emitFilterscript()) {
+      switch (compilerOptions.getTargetCode()) {
+        case TARGET_Renderscript:
+          if (local_offset_x == NULL && local_offset_y == NULL) {
+            return accessMemAllocPtr(LHS);
+          }
+          break;
+        case TARGET_Filterscript:
           assert(0 && "Filterscript does not support write access for allocations.");
       }
     case READ_ONLY:
@@ -680,6 +686,15 @@ Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess memAcc,
   args.push_back(idx_y);
 
   return createFunctionCall(Ctx, get_element_function, args);
+}
+
+
+// access allocation through kernel parameter
+Expr *ASTTranslate::accessMemAllocPtr(DeclRefExpr *LHS) {
+  // mark image as being used within the kernel
+  Kernel->setUsed(LHS->getNameInfo().getAsString());
+
+  return createUnaryOperator(Ctx, LHS, UO_Deref, LHS->getType());
 }
 
 
