@@ -108,7 +108,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     DeclRefExpr *bh_start_left, *bh_start_right, *bh_start_top,
                 *bh_start_bottom, *bh_fall_back;
     DeclRefExpr *outputImage;
-    Expr *retValRef;
+    DeclRefExpr *retValRef;
     Expr *writeImageRHS;
     NamespaceDecl *hipaccNS, *hipaccMathNS;
     TypedefDecl *samplerTy;
