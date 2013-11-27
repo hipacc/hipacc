@@ -1010,6 +1010,19 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
         hipaccSetKernelArg(kernel2D, 6, sizeof(unsigned int), &acc.offset_y);
         hipaccSetKernelArg(kernel2D, 7, sizeof(unsigned int), &acc.width);
         hipaccSetKernelArg(kernel2D, 8, sizeof(unsigned int), &acc.height);
+
+        // reduce iteration space by idle blocks
+        int idle_left = acc.offset_x / local_work_size[0];
+        int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / local_work_size[0];
+        global_work_size[0] = (int)ceilf((float)
+                (acc.img.width - (idle_left + idle_right) * local_work_size[0])
+                / (local_work_size[0]*2))*local_work_size[0];
+        // update number of blocks
+        num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
+
+        // set last argument: block offset in pixels
+        idle_left *= local_work_size[0];
+        hipaccSetKernelArg(kernel2D, 9, sizeof(unsigned int), &idle_left);
     }
 
     hipaccEnqueueKernel(kernel2D, global_work_size, local_work_size);
@@ -1079,6 +1092,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         num_bs_ss << max_threads;
 
         std::string compile_options = "-D PPT=" + num_ppt_ss.str() + " -D BS=" + num_bs_ss.str() + " -I./include ";
+        compile_options += "-D BSX_EXPLORE=64 -D BSY_EXPLORE=1 ";
         cl_kernel exploreReduction2D = hipaccBuildProgramAndKernel(filename, kernel2D, false, false, false, compile_options.c_str());
         cl_kernel exploreReduction1D = hipaccBuildProgramAndKernel(filename, kernel1D, false, false, false, compile_options.c_str());
 
@@ -1112,6 +1126,19 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
                 hipaccSetKernelArg(exploreReduction2D, 6, sizeof(unsigned int), &acc.offset_y);
                 hipaccSetKernelArg(exploreReduction2D, 7, sizeof(unsigned int), &acc.width);
                 hipaccSetKernelArg(exploreReduction2D, 8, sizeof(unsigned int), &acc.height);
+
+                // reduce iteration space by idle blocks
+                int idle_left = acc.offset_x / local_work_size[0];
+                int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / local_work_size[0];
+                global_work_size[0] = (int)ceilf((float)
+                        (acc.img.width - (idle_left + idle_right) * local_work_size[0])
+                        / (local_work_size[0]*2))*local_work_size[0];
+                // update number of blocks
+                num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
+
+                // set last argument: block offset in pixels
+                idle_left *= local_work_size[0];
+                hipaccSetKernelArg(exploreReduction2D, 9, sizeof(unsigned int), &idle_left);
             }
 
             hipaccEnqueueKernel(exploreReduction2D, global_work_size, local_work_size, false);

@@ -32,6 +32,7 @@
 #undef REDUCTION_OCL_1D
 #undef OFFSETS
 #undef IS_HEIGHT
+#undef OFFSET_BLOCK
 #undef OFFSET_X
 #undef OFFSET_Y
 #undef OFFSET_CHECK_X
