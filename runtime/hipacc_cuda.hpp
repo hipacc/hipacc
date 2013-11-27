@@ -65,11 +65,13 @@ typedef struct hipacc_const_info {
 
 
 typedef struct hipacc_tex_info {
-    hipacc_tex_info(std::string name, CUarray_format type, HipaccImage &image) :
-        name(name), type(type), image(image) {}
+    hipacc_tex_info(std::string name, CUarray_format format, HipaccImage &image,
+            hipaccMemoryType tex_type) :
+        name(name), format(format), image(image), tex_type(tex_type) {}
     std::string name;
-    CUarray_format type;
+    CUarray_format format;
     HipaccImage image;
+    hipaccMemoryType tex_type;
 } hipacc_tex_info;
 
 
@@ -877,12 +879,12 @@ void hipaccGetSurfRef(CUsurfref *result_surface, CUmodule &module, std::string s
 
 // Bind texture to linear memory
 void hipaccBindTextureDrv(CUtexref &texture, HipaccImage &img, CUarray_format
-        format) {
+        format, hipaccMemoryType tex_type) {
     HipaccContext &Ctx = HipaccContext::getInstance();
 
     checkErrDrv(cuTexRefSetFormat(texture, format, 1), "cuTexRefSetFormat()");
     checkErrDrv(cuTexRefSetFlags(texture, CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
-    switch (img.mem_type) {
+    switch (tex_type) {
         case Linear1D:
             checkErrDrv(cuTexRefSetAddress(0, texture, (CUdeviceptr)img.mem,
                         img.pixel_size*img.stride*img.height),
@@ -902,8 +904,6 @@ void hipaccBindTextureDrv(CUtexref &texture, HipaccImage &img, CUarray_format
                         CU_TRSA_OVERRIDE_FORMAT), "cuTexRefSetArray()");
             break;
     }
-    // not necessary?
-    //checkErrDrv(cuParamSetTexRef(BF, CU_PARAM_TR_DEFAULT, texture), "cuParamSetTexRef()");
 }
 
 
@@ -1140,7 +1140,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
             CUtexref texImage;
             if (tex_info.image.mem_type==Array2D) {
                 hipaccGetTexRef(&texImage, modReduction, tex_info.name);
-                hipaccBindTextureDrv(texImage, tex_info.image, tex_info.type);
+                hipaccBindTextureDrv(texImage, tex_info.image, tex_info.format, tex_info.tex_type);
                 hipaccLaunchKernel(exploreReduction2D, kernel2D, grid, block, argsReduction2DArray, false);
             } else {
                 hipaccLaunchKernel(exploreReduction2D, kernel2D, grid, block, argsReduction2D, false);
@@ -1264,7 +1264,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                     // bind texture memory
                     hipaccGetTexRef(&texImage, modKernel, texs.data()[i].name);
                     hipaccBindTextureDrv(texImage, texs.data()[i].image,
-                            texs.data()[i].type);
+                            texs.data()[i].format, texs.data()[i].tex_type);
                 }
             }
 

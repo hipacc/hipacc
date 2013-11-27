@@ -547,7 +547,14 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += "_texs" + kernelName + ".push_back(";
             resultStr += "hipacc_tex_info(std::string(\"_tex" + deviceArgNames[i] + K->getName() + "\"), ";
             resultStr += K->getImgFromMapping(FD)->getImage()->getTextureType() + ", ";
-            resultStr += hostArgNames[i] + "));\n";
+            resultStr += hostArgNames[i] + ", ";
+            switch (K->useTextureMemory(Acc)) {
+              case Linear1D: resultStr += "Linear1D"; break;
+              case Linear2D: resultStr += "Linear2D"; break;
+              case Array2D:  resultStr += "Array2D";  break;
+              default: assert(0 && "unsupported texture type!");
+            }
+            resultStr += "));\n";
           } else {
             resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(_tex";
             resultStr += deviceArgNames[i] + K->getName() + ", ";
@@ -589,7 +596,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       resultStr += "_texs" + kernelName + ".push_back(";
       resultStr += "hipacc_tex_info(std::string(\"_surfOutput" + K->getName() + "\"), ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTextureType() + ", ";
-      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + "));\n";
+      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface));\n";
     } else {
       resultStr += "hipaccBindSurface<";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTypeStr();
@@ -925,7 +932,7 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
       resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
       resultStr += "\"), ";
       resultStr += K->getIterationSpace()->getImage()->getTextureType() + ", ";
-      resultStr += K->getIterationSpace()->getImage()->getName() + "), ";
+      resultStr += K->getIterationSpace()->getImage()->getName() + ", Surface), ";
     } else {
       resultStr += ", _tex";
       resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
