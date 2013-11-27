@@ -929,9 +929,24 @@ T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
     dim3 block(max_threads, 1);
     dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/pixels_per_thread));
     unsigned int num_blocks = grid.x*grid.y;
+    unsigned int idle_left = 0;
 
     err = cudaMalloc((void **) &output, sizeof(T)*num_blocks);
     checkErr(err, "cudaMalloc()");
+
+    if ((acc.offset_x || acc.offset_y) &&
+        (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+        // reduce iteration space by idle blocks
+        idle_left = acc.offset_x / block.x;
+        unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / block.x;
+        grid.x = (int)ceilf((float)
+                (acc.img.width - (idle_left + idle_right) * block.x) /
+                (block.x*2));
+
+        // update number of blocks
+        num_blocks = grid.x*grid.y;
+        idle_left *= block.x;
+    }
 
     size_t offset = 0;
     hipaccConfigureCall(grid, block);
@@ -957,6 +972,7 @@ T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
         hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
         hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
         hipaccSetupArgument(&acc.height, sizeof(unsigned int), offset);
+        hipaccSetupArgument(&idle_left, sizeof(unsigned int), offset);
     }
 
     hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
@@ -1019,9 +1035,24 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, const char
     dim3 block(max_threads, 1);
     dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/pixels_per_thread));
     unsigned int num_blocks = grid.x*grid.y;
+    unsigned int idle_left = 0;
 
     err = cudaMalloc((void **) &output, sizeof(T)*num_blocks);
     checkErr(err, "cudaMalloc()");
+
+    if ((acc.offset_x || acc.offset_y) &&
+        (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+        // reduce iteration space by idle blocks
+        idle_left = acc.offset_x / block.x;
+        unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / block.x;
+        grid.x = (int)ceilf((float)
+                (acc.img.width - (idle_left + idle_right) * block.x) /
+                (block.x*2));
+
+        // update number of blocks
+        num_blocks = grid.x*grid.y;
+        idle_left *= block.x;
+    }
 
     size_t offset = 0;
     hipaccConfigureCall(grid, block);
@@ -1047,6 +1078,7 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, const char
         hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
         hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
         hipaccSetupArgument(&acc.height, sizeof(unsigned int), offset);
+        hipaccSetupArgument(&idle_left, sizeof(unsigned int), offset);
     }
 
     hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
@@ -1081,6 +1113,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
     T result;   // host result
 
     unsigned int num_blocks = (int)ceilf((float)(acc.img.width)/(max_threads*2))*acc.height;
+    unsigned int idle_left = 0;
+
     err = cudaMalloc((void **) &output, sizeof(T)*num_blocks);
     checkErr(err, "cudaMalloc()");
 
@@ -1093,7 +1127,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         (void *)&acc.offset_x,
         (void *)&acc.offset_y,
         (void *)&acc.width,
-        (void *)&acc.height
+        (void *)&acc.height,
+        (void *)&idle_left
     };
     void *argsReduction2DArray[] = {
         (void *)&output,
@@ -1103,7 +1138,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         (void *)&acc.offset_x,
         (void *)&acc.offset_y,
         (void *)&acc.width,
-        (void *)&acc.height
+        (void *)&acc.height,
+        (void *)&idle_left
     };
 
     std::cerr << "<HIPACC:> Exploring pixels per thread for '" << kernel2D << ", " << kernel1D << "'" << std::endl;
@@ -1117,6 +1153,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         num_bs_ss << max_threads;
 
         std::string compile_options = "-D PPT=" + num_ppt_ss.str() + " -D BS=" + num_bs_ss.str() + " -I./include ";
+        compile_options += "-D BSX_EXPLORE=64 -D BSY_EXPLORE=1 ";
         hipaccCompileCUDAToPTX(filename, cc, compile_options.c_str());
 
         std::string ptx_filename = filename;
@@ -1133,12 +1170,27 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
             dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/ppt));
             num_blocks = grid.x*grid.y;
 
+            // check if the reduction is applied to the whole image
+            if ((acc.offset_x || acc.offset_y) &&
+                (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+                // reduce iteration space by idle blocks
+                idle_left = acc.offset_x / block.x;
+                unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / block.x;
+                grid.x = (int)ceilf((float)
+                        (acc.img.width - (idle_left + idle_right) * block.x) /
+                        (block.x*2));
+
+                // update number of blocks
+                num_blocks = grid.x*grid.y;
+                idle_left *= block.x;
+            }
+
             // start timing
             total_time = 0.0f;
 
             // bind texture to CUDA array
             CUtexref texImage;
-            if (tex_info.image.mem_type==Array2D) {
+            if (tex_info.tex_type==Array2D) {
                 hipaccGetTexRef(&texImage, modReduction, tex_info.name);
                 hipaccBindTextureDrv(texImage, tex_info.image, tex_info.format, tex_info.tex_type);
                 hipaccLaunchKernel(exploreReduction2D, kernel2D, grid, block, argsReduction2DArray, false);
@@ -1256,7 +1308,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             CUtexref texImage;
             CUsurfref surfImage;
             for (unsigned int i=0; i<texs.size(); i++) {
-                if (texs.data()[i].image.mem_type==Surface) {
+                if (texs.data()[i].tex_type==Surface) {
                     // bind surface memory
                     hipaccGetSurfRef(&surfImage, modKernel, texs.data()[i].name);
                     hipaccBindSurfaceDrv(surfImage, texs.data()[i].image);

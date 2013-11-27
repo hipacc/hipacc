@@ -2230,7 +2230,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       // 2D reduction
       if (compilerOptions.getTargetDevice()>=FERMI_20 &&
           !compilerOptions.exploreConfig()) {
-        *OS << "__device__ unsigned int finished_blocks_cu" << K->getFileName()
+        *OS << "__device__ unsigned int finished_blocks_" << K->getReduceName()
             << "2D = 0;\n\n";
         *OS << "REDUCTION_CUDA_2D_THREAD_FENCE(";
       } else {

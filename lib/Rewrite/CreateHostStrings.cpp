@@ -932,7 +932,13 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
       resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
       resultStr += "\"), ";
       resultStr += K->getIterationSpace()->getImage()->getTextureType() + ", ";
-      resultStr += K->getIterationSpace()->getImage()->getName() + ", Surface), ";
+      resultStr += K->getIterationSpace()->getImage()->getName() + ", ";
+      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
+        resultStr += "Array2D";
+      } else {
+        resultStr += "Global";
+      }
+      resultStr += "), ";
     } else {
       resultStr += ", _tex";
       resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();

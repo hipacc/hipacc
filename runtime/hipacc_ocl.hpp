@@ -1012,8 +1012,8 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
         hipaccSetKernelArg(kernel2D, 8, sizeof(unsigned int), &acc.height);
 
         // reduce iteration space by idle blocks
-        int idle_left = acc.offset_x / local_work_size[0];
-        int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / local_work_size[0];
+        unsigned int idle_left = acc.offset_x / local_work_size[0];
+        unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / local_work_size[0];
         global_work_size[0] = (int)ceilf((float)
                 (acc.img.width - (idle_left + idle_right) * local_work_size[0])
                 / (local_work_size[0]*2))*local_work_size[0];
@@ -1128,8 +1128,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
                 hipaccSetKernelArg(exploreReduction2D, 8, sizeof(unsigned int), &acc.height);
 
                 // reduce iteration space by idle blocks
-                int idle_left = acc.offset_x / local_work_size[0];
-                int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / local_work_size[0];
+                unsigned int idle_left = acc.offset_x / local_work_size[0];
+                unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / local_work_size[0];
                 global_work_size[0] = (int)ceilf((float)
                         (acc.img.width - (idle_left + idle_right) * local_work_size[0])
                         / (local_work_size[0]*2))*local_work_size[0];
