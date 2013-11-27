@@ -30,8 +30,8 @@ ifge = $(shell if [ $(1) -ge $(2) ]; then echo true; else echo false; fi)
 
 
 # Source-to-source compiler configuration
-# use local memory -> set HIPACC_LMEM to off|Linear1D|Linear2D|Array2D
-# use texture memory -> set HIPACC_TEX to off|on
+# use local memory -> set HIPACC_LMEM to off|on
+# use texture memory -> set HIPACC_TEX to off|Linear1D|Linear2D|Array2D
 # vectorize code (experimental, doesn't work) -> set HIPACC_VEC to off|on
 # pad images to a multiple of n bytes -> set HIPACC_PAD to n
 # map n output pixels to one thread -> set HIPACC_PPT to n
