@@ -40,6 +40,7 @@
 
 #include <map>
 #include <sstream>
+#include <algorithm>
 
 #include "hipacc/Analysis/KernelStatistics.h"
 #include "hipacc/Config/CompilerOptions.h"
@@ -619,7 +620,18 @@ class HipaccKernel : public HipaccKernelFeatures {
       num_lmem(0),
       num_smem(0),
       num_cmem(0)
-    {}
+    {
+      switch (options.getTargetCode()) {
+        case TARGET_Renderscript:
+        case TARGET_Filterscript:
+          // Renderscript and Filterscript compiler expects lowercase file names
+          std::transform(fileName.begin(), fileName.end(), fileName.begin(),
+              std::bind2nd(std::ptr_fun(&std::tolower<char>), std::locale("")));
+          break;
+        default:
+          break;
+      }
+    }
 
     VarDecl *getDecl() const { return VD; }
     HipaccKernelClass *getKernelClass() const { return KC; }
