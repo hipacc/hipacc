@@ -244,8 +244,9 @@ class CompilerOptions {
         case TARGET_OpenCLCPU:
           return "cl";
         case TARGET_Renderscript:
-        case TARGET_Filterscript:
           return "rs";
+        case TARGET_Filterscript:
+          return "fs";
       }
     }
 
