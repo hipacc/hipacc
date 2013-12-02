@@ -82,6 +82,7 @@ class CompilerOptions {
     int align_bytes;
     int pixels_per_thread;
     TextureType texture_memory_type;
+    std::string rs_package_name;
 
     void getOptionAsString(CompilerOption option, int val=-1) {
       switch (option) {
@@ -120,7 +121,8 @@ class CompilerOptions {
       kernel_config_y(1),
       align_bytes(0),
       pixels_per_thread(1),
-      texture_memory_type(NoTexture)
+      texture_memory_type(NoTexture),
+      rs_package_name("org.hipacc.rs")
     {}
 
     bool emitCUDA() {
@@ -195,6 +197,7 @@ class CompilerOptions {
       return false;
     }
     int getPixelsPerThread() { return pixels_per_thread; }
+    std::string getRSPackageName() { return rs_package_name; }
 
     void setTargetCode(TargetCode tc) { target_code = tc; }
     void setTargetDevice(TargetDevice td) { target_device = td; }
@@ -225,6 +228,10 @@ class CompilerOptions {
       pixels_per_thread = pixels;
       if (pixels > 1) multiple_pixels = USER_ON;
       else multiple_pixels = USER_OFF;
+    }
+
+    void setRSPackageName(std::string name) {
+      rs_package_name = name;
     }
 
     std::string getTargetPrefix() {

@@ -97,6 +97,7 @@ void printUsage() {
     << "  -vectorize <o>          Enable/disable vectorization of generated CUDA/OpenCL code\n"
     << "                          Valid values: 'on' and 'off'\n"
     << "  -pixels-per-thread <n>  Specify how many pixels should be calculated per thread\n"
+    << "  -rs-package <string>    Specify Renderscript package name. (default: \"org.hipacc.rs\")\n"
     << "  -o <file>               Write output to <file>\n"
     << "  --help                  Display available options\n"
     << "  --version               Display version information\n";
@@ -269,6 +270,12 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
       }
       compilerOptions.setPixelsPerThread(val);
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-rs-package") {
+      assert(i<(argc-1) && "Mandatory package name string for -rs-package switch missing.");
+      compilerOptions.setRSPackageName(argv[i+1]);
       ++i;
       continue;
     }
