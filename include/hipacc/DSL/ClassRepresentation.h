@@ -596,7 +596,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       name(VD->getNameAsString()),
       kernelName(options.getTargetPrefix() + KC->getName() + name + "Kernel"),
       reduceName(options.getTargetPrefix() + KC->getName() + name + "Reduce"),
-      fileName(KC->getName() + VD->getNameAsString()),
+      fileName(options.getTargetPrefix() + KC->getName() + VD->getNameAsString()),
       reduceStr(""), infoStr(""),
       infoStrCnt(0),
       iterationSpace(NULL),
