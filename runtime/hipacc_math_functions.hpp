@@ -35,9 +35,12 @@
 
 #if defined __ANDROID__
 // log2 definition is missing on Android
+extern float log2(float v);
+#ifndef EXCLUDE_IMPL
 extern float log2(float v) {
     return log10(v) / log10(2.f);
 }
+#endif // EXCLUDE_IMPL
 #endif
 
 

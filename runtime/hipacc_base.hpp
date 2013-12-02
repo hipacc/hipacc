@@ -34,13 +34,19 @@
 
 #define HIPACC_NUM_ITERATIONS 10
 
-static float total_time = 0.0f;
-static float last_gpu_timing = 0.0f;
+extern float total_time;
+extern float last_gpu_timing;
+float hipaccGetLastKernelTiming();
+unsigned int nextPow2(unsigned int x);
 
+#ifndef EXCLUDE_IMPL
+float total_time = 0.0f;
+float last_gpu_timing = 0.0f;
 // get GPU timing of last executed Kernel in ms
 float hipaccGetLastKernelTiming() {
     return last_gpu_timing;
 }
+#endif // EXCLUDE_IMPL
 
 
 enum hipaccMemoryType {
@@ -150,6 +156,7 @@ typedef struct hipacc_smem_info {
 
 
 
+#ifndef EXCLUDE_IMPL
 unsigned int nextPow2(unsigned int x) {
     --x;
     x |= x >> 1;
@@ -164,6 +171,7 @@ unsigned int nextPow2(unsigned int x) {
 
     return x;
 }
+#endif // EXCLUDE_IMPL
 
 
 #if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L

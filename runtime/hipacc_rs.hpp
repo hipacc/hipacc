@@ -98,6 +98,39 @@ using namespace android;
 
 #include "hipacc_base.hpp"
 
+const sp<Allocation> *hipaccGetAllocation(HipaccImage &img);
+void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);
+long getMicroTime();
+const char *getRSErrorCodeStr(int errorNum);
+EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText);
+void hipaccInitRenderScript(int targetAPI);
+void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
+void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst);
+void hipaccReleaseMemory(HipaccImage &img);
+#define CREATE_ALLOCATION_DECL(T) \
+  HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, int alignment); \
+  HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height);
+CREATE_ALLOCATION_DECL(uint8_t)
+CREATE_ALLOCATION_DECL(uint16_t)
+CREATE_ALLOCATION_DECL(uint32_t)
+CREATE_ALLOCATION_DECL(uint64_t)
+CREATE_ALLOCATION_DECL(int8_t)
+CREATE_ALLOCATION_DECL(int16_t)
+CREATE_ALLOCATION_DECL(int32_t)
+CREATE_ALLOCATION_DECL(int64_t)
+CREATE_ALLOCATION_DECL(bool)
+CREATE_ALLOCATION_DECL(char)
+CREATE_ALLOCATION_DECL(float)
+CREATE_ALLOCATION_DECL(double)
+CREATE_ALLOCATION_DECL(uchar4)
+CREATE_ALLOCATION_DECL(ushort4)
+CREATE_ALLOCATION_DECL(uint4)
+CREATE_ALLOCATION_DECL(char4)
+CREATE_ALLOCATION_DECL(short4)
+CREATE_ALLOCATION_DECL(int4)
+CREATE_ALLOCATION_DECL(float4)
+CREATE_ALLOCATION_DECL(double4)
+
 class HipaccContext : public HipaccContextBase {
     private:
         PRS context;
@@ -222,6 +255,8 @@ class hipacc_script_arg {
        case 20: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 20) break; \
     }
 
+#ifndef EXCLUDE_IMPL
+
 const sp<Allocation> *hipaccGetAllocation(HipaccImage &img) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     return Ctx.get_allocation(img);
@@ -321,6 +356,8 @@ void hipaccInitRenderScript(int targetAPI) {
     }
 }
 
+#endif // EXCLUDE_IMPL
+
 template<typename T>
 T hipaccInitScript() {
     std::string cache_path = "/sdcard";
@@ -378,6 +415,7 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img) {
     }
 }
 
+#ifndef EXCLUDE_IMPL
 
 // Copy from allocation to allocation
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
@@ -488,6 +526,7 @@ void hipaccReleaseMemory(HipaccImage &img) {
     Ctx.del_image(img);
 }
 
+#endif // EXCLUDE_IMPL
 
 // Set a single argument of script
 template<typename F, typename T>
