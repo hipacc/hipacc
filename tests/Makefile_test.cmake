@@ -1,7 +1,7 @@
 CC = clang++
 CC = g++
 
-MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5 -D OpenCV
+MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5
 CFLAGS        = $(MYFLAGS) -Wall -Wunused \
                 -I@DSL_INCLUDES@
 LDFLAGS       = -lm

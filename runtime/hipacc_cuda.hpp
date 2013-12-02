@@ -1301,7 +1301,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             CUdeviceptr constMem;
             for (unsigned int i=0; i<consts.size(); i++) {
                 hipaccGetGlobal(&constMem, modKernel, consts.data()[i].name);
-                cuMemcpyHtoD(constMem, consts.data()[i].memory, consts.data()[i].size);
+                err = cuMemcpyHtoD(constMem, consts.data()[i].memory, consts.data()[i].size);
                 checkErrDrv(err, "cuMemcpyHtoD()");
             }
 
