@@ -87,26 +87,38 @@ enum InterpolationMode {
 };
 
 
-class HipaccImage {
-  private:
-    ASTContext &Ctx;
+// common base class for images, masks and pyramids
+class HipaccMemory {
+  protected:
     VarDecl *VD;
     std::string name;
     QualType type;
 
   public:
-    HipaccImage(ASTContext &Ctx, VarDecl *VD) :
-      Ctx(Ctx),
+    HipaccMemory(VarDecl *VD, std::string name, QualType type) :
       VD(VD),
-      name(VD->getNameAsString()),
-      type()
+      name(name),
+      type(type)
     {}
 
     const std::string &getName() const { return name; }
     VarDecl *getDecl() { return VD; }
-    void setType(QualType QT) { type = QT; }
     QualType getType() { return type; }
     std::string getTypeStr() { return type.getAsString(); }
+};
+
+
+class HipaccImage : public HipaccMemory {
+  private:
+    ASTContext &Ctx;
+
+  public:
+    HipaccImage(ASTContext &Ctx, VarDecl *VD) :
+      HipaccMemory(VD, VD->getNameAsString(), QualType()),
+      Ctx(Ctx)
+    {}
+
+    void setType(QualType QT) { type = QT; }
     unsigned int getPixelSize() { return Ctx.getTypeSize(type)/8; }
     std::string getTextureType();
     std::string getImageReadFunction();
@@ -272,20 +284,17 @@ class HipaccIterationSpace {
 };
 
 
-class HipaccMask {
+class HipaccMask : public HipaccMemory {
   public:
     enum MaskType {
       Mask,
       Domain
     };
   private:
-    VarDecl *VD;
-    std::string name;
     MaskType mask_type;
     InitListExpr *init_list;
     unsigned int size_x, size_y;
     std::string size_x_str, size_y_str;
-    QualType type;
     bool is_constant;
     bool is_printed;
     SmallVector<HipaccKernel *, 16> kernels;
@@ -294,15 +303,13 @@ class HipaccMask {
 
   public:
     HipaccMask(VarDecl *VD, QualType QT, MaskType type) :
-      VD(VD),
-      name("_const" + VD->getNameAsString()),
+      HipaccMemory(VD, "_const" + VD->getNameAsString(), QT),
       mask_type(type),
       init_list(NULL),
       size_x(0),
       size_y(0),
       size_x_str(""),
       size_y_str(""),
-      type(QT),
       is_constant(false),
       is_printed(false),
       kernels(0),
@@ -310,7 +317,6 @@ class HipaccMask {
       hostMemExpr(NULL)
     {}
 
-    const std::string &getName() const { return name; }
     void setSizeX(unsigned int x) {
       std::string Str;
       llvm::raw_string_ostream SS(Str);
@@ -332,9 +338,6 @@ class HipaccMask {
     unsigned int getSizeY() { return size_y; }
     std::string getSizeXStr() { return size_x_str; }
     std::string getSizeYStr() { return size_y_str; }
-    QualType getType() { return type; }
-    std::string getTypeStr() { return type.getAsString(); }
-    VarDecl *getDecl() { return VD; }
     bool isDomain() { return (mask_type & Domain); }
     bool isConstant() { return is_constant; }
     bool isPrinted() { return is_printed; }

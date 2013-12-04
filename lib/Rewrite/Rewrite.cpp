@@ -361,6 +361,39 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   Stmt *S = *BI;
   TextRewriter.InsertTextBefore(S->getLocStart(), initStr);
 
+  // insert memory release calls before last statement (return-statement)
+  CompoundStmt::reverse_body_iterator RBI = CS->body_rbegin();
+  S = *RBI;
+  // release all images
+  for (llvm::DenseMap<ValueDecl *, HipaccImage *>::iterator
+      it=ImgDeclMap.begin(), ei=ImgDeclMap.end(); it!=ei; ++it) {
+    HipaccImage *Img = it->second;
+    std::string releaseStr;
+
+    stringCreator.writeMemoryRelease(Img, releaseStr);
+    TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
+  }
+  // release all non-const masks
+  for (llvm::DenseMap<ValueDecl *, HipaccMask *>::iterator
+      it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
+    HipaccMask *Mask = it->second;
+    std::string releaseStr;
+
+    if (!compilerOptions.emitCUDA() && !Mask->isConstant()) {
+      stringCreator.writeMemoryRelease(Mask, releaseStr);
+      TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
+    }
+  }
+  // release all pyramids
+  for (llvm::DenseMap<ValueDecl *, HipaccPyramid *>::iterator
+      it=PyrDeclMap.begin(), ei=PyrDeclMap.end(); it!=ei; ++it) {
+    HipaccPyramid *Pyramid = it->second;
+    std::string releaseStr;
+
+    stringCreator.writeMemoryRelease(Pyramid, releaseStr, true);
+    TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
+  }
+
   // get buffer of main file id. If we haven't changed it, then we are done.
   if (const RewriteBuffer *RewriteBuf =
       TextRewriter.getRewriteBufferFor(mainFileID)) {

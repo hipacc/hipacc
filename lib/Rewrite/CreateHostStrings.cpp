@@ -370,6 +370,20 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
 }
 
 
+void CreateHostStrings::writeMemoryRelease(HipaccMemory *Mem,
+    std::string &resultStr, bool isPyramid) {
+  // The same runtime call for all targets, just distinguish between Pyramids
+  // and 'normal' memory like Images and Masks.
+  if (isPyramid) {
+    resultStr += "hipaccReleasePyramid(";
+  } else {
+    resultStr += "hipaccReleaseMemory(";
+  }
+  resultStr += Mem->getName() + ");\n";
+  resultStr += indent;
+}
+
+
 void CreateHostStrings::writeKernelCall(std::string kernelName,
     HipaccKernelClass *KC, HipaccKernel *K, std::string &resultStr) {
   std::string *argTypeNames = K->getArgTypeNames();

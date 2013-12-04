@@ -521,8 +521,6 @@ CREATE_ALLOCATION(double4,  Element::F64_4(rs))
 void hipaccReleaseMemory(HipaccImage &img) {
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    // TODO: Clarify proper removal of allocations
-    // since strong pointers are used, memory should be freed automatically
     Ctx.del_image(img);
 }
 

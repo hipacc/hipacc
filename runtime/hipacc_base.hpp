@@ -257,6 +257,15 @@ HipaccPyramid hipaccCreatePyramid(HipaccImage &img, int depth) {
 }
 
 
+void hipaccReleasePyramid(HipaccPyramid &pyr) {
+  // Do not remove the first one, it was created outside this context
+  while (pyr.imgs_.size() > 1) {
+    hipaccReleaseMemory(pyr.imgs_.back());
+    pyr.imgs_.pop_back();
+  }
+}
+
+
 std::vector<const std::function<void()>*> hipaccTraverseFunc;
 std::vector<std::vector<HipaccPyramid*> > hipaccPyramids;
 
