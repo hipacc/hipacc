@@ -113,12 +113,11 @@ class HipaccImage : public HipaccMemory {
     ASTContext &Ctx;
 
   public:
-    HipaccImage(ASTContext &Ctx, VarDecl *VD) :
-      HipaccMemory(VD, VD->getNameAsString(), QualType()),
+    HipaccImage(ASTContext &Ctx, VarDecl *VD, QualType QT) :
+      HipaccMemory(VD, VD->getNameAsString(), QT),
       Ctx(Ctx)
     {}
 
-    void setType(QualType QT) { type = QT; }
     unsigned int getPixelSize() { return Ctx.getTypeSize(type)/8; }
     std::string getTextureType();
     std::string getImageReadFunction();
@@ -127,9 +126,9 @@ class HipaccImage : public HipaccMemory {
 
 class HipaccPyramid : public HipaccImage {
   public:
-    HipaccPyramid(ASTContext &Ctx, VarDecl *VD)
-        : HipaccImage(Ctx, VD) {
-    }
+    HipaccPyramid(ASTContext &Ctx, VarDecl *VD, QualType QT) :
+      HipaccImage(Ctx, VD, QT)
+    {}
 };
 
 

@@ -678,7 +678,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
         assert(CCE->getNumArgs() == 2 && "Image definition requires exactly two arguments!");
 
-        HipaccImage *Img = new HipaccImage(Context, VD);
+        HipaccImage *Img = new HipaccImage(Context, VD,
+            compilerClasses.getFirstTemplateType(VD->getType()));
 
         std::string newStr;
 
@@ -705,7 +706,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
         // store Image definition
-        Img->setType(compilerClasses.getFirstTemplateType(VD->getType()));
         ImgDeclMap[VD] = Img;
 
         break;
@@ -718,7 +718,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         assert(CCE->getNumArgs() == 2 &&
                "Pyramid definition requires exactly two arguments!");
 
-        HipaccPyramid *Pyr = new HipaccPyramid(Context, VD);
+        HipaccPyramid *Pyr = new HipaccPyramid(Context, VD,
+            compilerClasses.getFirstTemplateType(VD->getType()));
 
         std::string newStr;
 
@@ -745,7 +746,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
         // store Pyramid definition
-        Pyr->setType(compilerClasses.getFirstTemplateType(VD->getType()));
         PyrDeclMap[VD] = Pyr;
 
         break;
