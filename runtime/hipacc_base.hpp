@@ -236,9 +236,10 @@ class HipaccPyramid {
 };
 
 
-// forward declaration
+// forward declarations
 template<typename T>
 HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height);
+void hipaccReleaseMemory(HipaccImage &Img);
 
 template<typename data_t>
 HipaccPyramid hipaccCreatePyramid(HipaccImage &img, int depth) {
