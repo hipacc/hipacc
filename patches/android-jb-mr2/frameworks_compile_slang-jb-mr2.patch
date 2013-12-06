@@ -13,7 +13,7 @@ index a4a0d35..fad9ae1 100644
      tmp.erase(pos);
    }
 diff --git a/slang_rs_reflection_cpp.cpp b/slang_rs_reflection_cpp.cpp
-index 6dfe141..d659760 100644
+index 6dfe141..1a2d190 100644
 --- a/slang_rs_reflection_cpp.cpp
 +++ b/slang_rs_reflection_cpp.cpp
 @@ -62,8 +62,12 @@ static const char *GetMatrixTypeName(const RSExportMatrixType *EMT) {
@@ -24,7 +24,7 @@ index 6dfe141..d659760 100644
 -          static_cast<const RSExportPrimitiveType*>(ET))->c_name;
 +      if (((RSExportPrimitiveType*)ET)->getType() ==
 +             RSExportPrimitiveType::DataTypeRSAllocation)
-+        return "android::sp<android::RSC::Allocation>";
++        return "android::sp<const android::RSC::Allocation>";
 +      else
 +        return RSExportPrimitiveType::getRSReflectionType(
 +            static_cast<const RSExportPrimitiveType*>(ET))->c_name;
@@ -40,7 +40,7 @@ index 6dfe141..d659760 100644
 +
 +  if (((RSExportPrimitiveType*)EV->getType())->getType() ==
 +         RSExportPrimitiveType::DataTypeRSAllocation) {
-+    TypeName = "android::sp<android::RSC::Allocation>";
++    TypeName = "android::sp<const android::RSC::Allocation>";
 +    SetVarParam = ", v);";
 +  } else {
 +    TypeName = rtd.type->c_name;
