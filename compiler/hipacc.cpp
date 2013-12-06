@@ -142,6 +142,7 @@ int main(int argc, char *argv[]) {
     }
     if (StringRef(argv[i]) == "-emit-filterscript") {
       compilerOptions.setTargetCode(TARGET_Filterscript);
+      compilerOptions.setPixelsPerThread(1);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-padding") {
