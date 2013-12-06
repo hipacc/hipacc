@@ -533,6 +533,20 @@ void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
 }
 
 
+#if RS_TARGET_API > 18
+// Set a single allocation of script. Extends previously declared function by
+// support for newly introduced setter type with 'const' specifier. This can be
+// removed by setting the 'const' specifier in caller by the rewriter (some
+// time in the future when pre-19 Renderscript support will eventually be
+// dropped).
+template<typename F>
+void hipaccSetScriptArg(F* script, void(F::*setter)(sp<const Allocation>),
+                        sp<Allocation> param) {
+    (script->*setter)((sp<const Allocation>)param);
+}
+#endif // RS_TARGET_API > 18
+
+
 // Launch script kernel (one allocation)
 template<typename F>
 void hipaccLaunchScriptKernel(
