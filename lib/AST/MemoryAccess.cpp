@@ -145,9 +145,19 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     case WRITE_ONLY:
       switch (compilerOptions.getTargetCode()) {
         default: break;
-        case TARGET_Renderscript:
-          if (local_offset_x == NULL && local_offset_y == NULL) {
-            return accessMemAllocPtr(LHS);
+        case TARGET_Renderscript: {
+            bool isGlobalAllocation = false;
+            for (int i = 0; i < Kernel->getKernelClass()->getNumArgs(); ++i) {
+              if (Kernel->getKernelClass()->getArguments()[0].name.compare(
+                    LHS->getNameInfo().getAsString()) == 0) {
+                isGlobalAllocation = true;
+                break;
+              }
+            }
+            if (!isGlobalAllocation) {
+              // access allocation by using local pointer type kernel argument
+              return accessMemAllocPtr(LHS);
+            }
           }
           break;
         case TARGET_Filterscript:

@@ -2291,8 +2291,10 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
           break;
         case TARGET_Renderscript:
-          // write to output pixel pointed to by kernel parameter
-          LHS = retValRef;
+          if (Kernel->getPixelsPerThread() <= 1) {
+            // write to output pixel pointed to by kernel parameter
+            LHS = retValRef;
+          }
           // fall through
         case TARGET_CUDA:
         case TARGET_OpenCL:
