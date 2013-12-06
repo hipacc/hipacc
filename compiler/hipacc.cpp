@@ -355,6 +355,14 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   }
+  // Pixels per thread > 1 not supported on Filterscript
+  if (compilerOptions.emitFilterscript() &&
+      compilerOptions.getPixelsPerThread() > 1) {
+    llvm::errs() << "ERROR: Calculating multiple pixels per thread selected, which is not supported for Filterscript!\n"
+                 << "  Please disable multiple pixels per thread oder switch target code generation backend.\n\n";
+    printUsage();
+    return EXIT_FAILURE;
+  }
   if (compilerOptions.timeKernels(USER_ON) &&
       compilerOptions.exploreConfig(USER_ON)) {
     // kernels are timed internally by the runtime in case of exploration
