@@ -321,3 +321,68 @@ index 235560a..ac39480 100644
      void setVar(uint32_t index, int64_t v) const {
          setVar(index, &v, sizeof(v));
      }
+diff --git a/scriptc/rs_allocation.rsh b/scriptc/rs_allocation.rsh
+index 42d27bc..c84e15b 100644
+--- a/scriptc/rs_allocation.rsh
++++ b/scriptc/rs_allocation.rsh
+@@ -204,6 +204,60 @@ GET_ELEMENT_AT(double4)
+ 
+ #undef GET_ELEMENT_AT
+ 
++#define SET_ELEMENT_AT(T) \
++static inline void __attribute__((overloadable)) rsSetElementAt_##T(rs_allocation a, T val, uint32_t x) { \
++  *(T *)rsGetElementAt(a, x) = val; \
++} \
++static inline void __attribute__((overloadable)) rsSetElementAt_##T(rs_allocation a, T val, uint32_t x, uint32_t y) { \
++  *(T *)rsGetElementAt(a, x, y) = val; \
++} \
++static inline void __attribute__((overloadable)) rsSetElementAt_##T(rs_allocation a, T val, uint32_t x, uint32_t y, uint32_t z) { \
++  *(T *)rsGetElementAt(a, x, y, z) = val; \
++}
++
++SET_ELEMENT_AT(char)
++SET_ELEMENT_AT(char2)
++SET_ELEMENT_AT(char3)
++SET_ELEMENT_AT(char4)
++SET_ELEMENT_AT(uchar)
++SET_ELEMENT_AT(uchar2)
++SET_ELEMENT_AT(uchar3)
++SET_ELEMENT_AT(uchar4)
++SET_ELEMENT_AT(short)
++SET_ELEMENT_AT(short2)
++SET_ELEMENT_AT(short3)
++SET_ELEMENT_AT(short4)
++SET_ELEMENT_AT(ushort)
++SET_ELEMENT_AT(ushort2)
++SET_ELEMENT_AT(ushort3)
++SET_ELEMENT_AT(ushort4)
++SET_ELEMENT_AT(int)
++SET_ELEMENT_AT(int2)
++SET_ELEMENT_AT(int3)
++SET_ELEMENT_AT(int4)
++SET_ELEMENT_AT(uint)
++SET_ELEMENT_AT(uint2)
++SET_ELEMENT_AT(uint3)
++SET_ELEMENT_AT(uint4)
++SET_ELEMENT_AT(long)
++SET_ELEMENT_AT(long2)
++SET_ELEMENT_AT(long3)
++SET_ELEMENT_AT(long4)
++SET_ELEMENT_AT(ulong)
++SET_ELEMENT_AT(ulong2)
++SET_ELEMENT_AT(ulong3)
++SET_ELEMENT_AT(ulong4)
++SET_ELEMENT_AT(float)
++SET_ELEMENT_AT(float2)
++SET_ELEMENT_AT(float3)
++SET_ELEMENT_AT(float4)
++SET_ELEMENT_AT(double)
++SET_ELEMENT_AT(double2)
++SET_ELEMENT_AT(double3)
++SET_ELEMENT_AT(double4)
++
++#undef SET_ELEMENT_AT
++
+ // New API's
+ #if (defined(RS_VERSION) && (RS_VERSION >= 16))
+ 
