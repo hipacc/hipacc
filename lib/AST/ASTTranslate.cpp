@@ -470,7 +470,7 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
   tileVars.block_id_x = createDeclRefExpr(Ctx, gid_x);
   tileVars.block_id_y = createDeclRefExpr(Ctx, gid_y);
   tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace()->getAccessor());
-  tileVars.local_size_y = createIntegerLiteral(Ctx, 0);
+  tileVars.local_size_y = createIntegerLiteral(Ctx, 1);
 
   switch (compilerOptions.getTargetCode()) {
     case TARGET_Renderscript: {
