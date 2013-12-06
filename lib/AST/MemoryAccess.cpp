@@ -406,7 +406,7 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
 }
 
 
-// get rsGetElementAt_<type> function for given Accessor
+// get rsGetElementAt_<type>/rsSetElementAt_<type> functions for given Accessor
 FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT, bool
     isVecType, MemoryAccess memAcc) {
   switch (BT->getKind()) {
@@ -422,37 +422,37 @@ FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT, bool
     default:
       assert(0 && "BuiltinType for Renderscript Allocation not supported.");
 
-#define GET_BUILTIN_FUNCTION(NAME) \
-            (memAcc == READ_ONLY ? \
-                (isVecType ? builtins.getBuiltinFunction(NAME ## 4) : \
-                    builtins.getBuiltinFunction(NAME)) : \
-                (isVecType ? builtins.getBuiltinFunction(NAME ## 4W) : \
-                    builtins.getBuiltinFunction(NAME ## W)))
+#define GET_BUILTIN_FUNCTION(TYPE) \
+    (memAcc == READ_ONLY ? \
+        (isVecType ? builtins.getBuiltinFunction(RSBIrsGetElementAt_ ## TYPE ## 4) : \
+            builtins.getBuiltinFunction(RSBIrsGetElementAt_ ## TYPE)) : \
+        (isVecType ? builtins.getBuiltinFunction(RSBIrsSetElementAt_ ## TYPE ## 4) : \
+            builtins.getBuiltinFunction(RSBIrsSetElementAt_ ## TYPE)))
 
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_char);
+      return GET_BUILTIN_FUNCTION(char);
     case BuiltinType::Short:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_short);
+      return GET_BUILTIN_FUNCTION(short);
     case BuiltinType::Int:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_int);
+      return GET_BUILTIN_FUNCTION(int);
     case BuiltinType::Long:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_long);
+      return GET_BUILTIN_FUNCTION(long);
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_uchar);
+      return GET_BUILTIN_FUNCTION(uchar);
     case BuiltinType::Char16:
     case BuiltinType::UShort:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_ushort);
+      return GET_BUILTIN_FUNCTION(ushort);
     case BuiltinType::Char32:
     case BuiltinType::UInt:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_uint);
+      return GET_BUILTIN_FUNCTION(uint);
     case BuiltinType::ULong:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_ulong);
+      return GET_BUILTIN_FUNCTION(ulong);
     case BuiltinType::Float:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_float);
+      return GET_BUILTIN_FUNCTION(float);
     case BuiltinType::Double:
-      return GET_BUILTIN_FUNCTION(RSBIrsGetElementAt_double);
+      return GET_BUILTIN_FUNCTION(double);
 #undef GET_BUILTIN_FUNCTION
   }
 }
@@ -685,7 +685,7 @@ Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess memAcc,
     QT = QT->getAs<VectorType>()->getElementType();
   }
   const BuiltinType *BT = QT->getAs<BuiltinType>();
-  FunctionDecl *get_element_function = getAllocationFunction(BT, isVec, memAcc);
+  FunctionDecl *element_function = getAllocationFunction(BT, isVec, memAcc);
 
   //const BuiltinType *BT = LHS->getType()->getPointeeType()->getAs<BuiltinType>();
   //FunctionDecl *get_element_function = getAllocationFunction(BT, false, memAcc);
@@ -693,10 +693,15 @@ Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess memAcc,
   // parameters for rsGetElementAt_<type>
   SmallVector<Expr *, 16> args;
   args.push_back(LHS);
+  if (memAcc == WRITE_ONLY) {
+    // writeImageRHS is set by VisitBinaryOperator - side effect
+    writeImageRHS = createParenExpr(Ctx, writeImageRHS);
+    args.push_back(writeImageRHS);
+  }
   args.push_back(idx_x);
   args.push_back(idx_y);
 
-  return createFunctionCall(Ctx, get_element_function, args);
+  return createFunctionCall(Ctx, element_function, args);
 }
 
 
