@@ -58,9 +58,8 @@ RET_TYPE NAME(IS_PARM COMMA uint32_t x, uint32_t y) { \
  \
     DATA_TYPE val = ACCESS(_red_Input, gid_x + OFFSET_X, gid_y + OFFSET_Y, _red_stride, rsGetElementAt##_##DATA_TYPE); \
  \
-    for (int j=1; j<_red_is_height; j++) { \
-        int tmp = j + gid_y; \
-        val = REDUCE(val, ACCESS(_red_Input, gid_x + OFFSET_X, tmp + OFFSET_Y, _red_stride, rsGetElementAt##_##DATA_TYPE)); \
+    for (size_t j=1; j<_red_is_height; ++j) { \
+        val = REDUCE(val, ACCESS(_red_Input, gid_x + OFFSET_X, j + gid_y + OFFSET_Y, _red_stride, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \
     RETURN(ACCESS(_red_Output, x, 0, 0, *(DATA_TYPE*)rsGetElementAt), val); \
@@ -73,7 +72,7 @@ RET_TYPE NAME(IS_PARM COMMA uint32_t x, uint32_t y) { \
 RET_TYPE NAME(IS_PARM) { \
     DATA_TYPE val = ACCESS(_red_Output, 0, 0, 0, rsGetElementAt##_##DATA_TYPE); \
  \
-    for (int j=1; j<_red_num_elements; j++) { \
+    for (size_t j=1; j<_red_num_elements; ++j) { \
         val = REDUCE(val, ACCESS(_red_Output, j, 0, 0, rsGetElementAt##_##DATA_TYPE)); \
     } \
  \

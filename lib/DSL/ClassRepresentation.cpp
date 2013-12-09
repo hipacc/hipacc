@@ -157,7 +157,7 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
       if (isVecType) {
         SmallVector<Expr *, 16> initExprs;
 
-        for (unsigned int I=0, N=val.getVectorLength(); I!=N; ++I) {
+        for (size_t I=0, N=val.getVectorLength(); I!=N; ++I) {
           APValue lane = val.getVectorElt(I);
           initExprs.push_back(new (Ctx)
               CharacterLiteral(lane.getInt().getSExtValue(),
@@ -184,7 +184,7 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
       if (isVecType) {
         SmallVector<Expr *, 16> initExprs;
 
-        for (unsigned int I=0, N=val.getVectorLength(); I!=N; ++I) {
+        for (size_t I=0, N=val.getVectorLength(); I!=N; ++I) {
           APValue lane = val.getVectorElt(I);
           initExprs.push_back(new (Ctx) IntegerLiteral(Ctx, lane.getInt(), QT,
                 SourceLocation()));
@@ -204,7 +204,7 @@ void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
       if (isVecType) {
         SmallVector<Expr *, 16> initExprs;
 
-        for (unsigned int I=0, N=val.getVectorLength(); I!=N; ++I) {
+        for (size_t I=0, N=val.getVectorLength(); I!=N; ++I) {
           APValue lane = val.getVectorElt(I);
           initExprs.push_back(FloatingLiteral::Create(Ctx,
                 llvm::APFloat(lane.getFloat()), false, QT, SourceLocation()));
@@ -299,7 +299,7 @@ void HipaccKernel::calcConfig() {
     unsigned int smem_used = 0;
     bool skip_config = false;
     // calculate shared memory usage for pixels staged to shared memory
-    for (unsigned int i=0; i<KC->getNumImages(); i++) {
+    for (size_t i=0; i<KC->getNumImages(); ++i) {
       HipaccAccessor *Acc = getImgFromMapping(KC->getImgFields().data()[i]);
       if (useLocalMemory(Acc)) {
         // check if the configuration suits our assumptions about shared memory
@@ -514,7 +514,7 @@ void HipaccKernel::createArgInfo() {
     KC->arguments;
 
   // normal parameters
-  for (unsigned int i=0; i<KC->getNumArgs(); i++) {
+  for (size_t i=0; i<KC->getNumArgs(); ++i) {
     FieldDecl *FD = arguments.data()[i].field;
     QualType QT = arguments.data()[i].type;
     std::string name = arguments.data()[i].name;
@@ -661,7 +661,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
     &hostLiterals, unsigned int &literalCount) {
   if (hostArgNames.size()) hostArgNames.clear();
 
-  for (unsigned int i=0; i<KC->getNumArgs(); i++) {
+  for (size_t i=0; i<KC->getNumArgs(); ++i) {
     FieldDecl *FD = KC->arguments.data()[i].field;
 
     std::string Str;

@@ -151,7 +151,7 @@ class HipaccContext : public HipaccContextBase {
             allocs.push_back(std::make_pair(id, img));
         }
         void del_image(HipaccImage &img) {
-            unsigned int num=0;
+            size_t num=0;
             std::vector<std::pair<sp<Allocation>, HipaccImage> >::const_iterator i;
             for (i=allocs.begin(); i!=allocs.end(); ++i, ++num) {
                 if (i->second == img) {
@@ -381,7 +381,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
 
     if (stride > width) {
         T* buff = new T[stride * height];
-        for (int i = 0; i < height; i++) {
+        for (size_t i=0; i<height; ++i) {
             memcpy(buff + (i * stride), host_mem + (i * width),
                    sizeof(T) * width);
         }
@@ -405,7 +405,7 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img) {
     if (stride > width) {
         T* buff = new T[stride * height];
         COPYTO(T, (Allocation *)img.mem, 0, stride * height, buff);
-        for (int i = 0; i < height; i++) {
+        for (size_t i=0; i<height; ++i) {
             memcpy(host_mem + (i * width), buff + (i * stride),
                    sizeof(T) * width);
         }
@@ -613,7 +613,7 @@ void hipaccLaunchScriptKernelBenchmark(
     float med_dt;
     std::vector<float> times;
 
-    for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
+    for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
         // set kernel arguments
         for (typename std::vector<hipacc_script_arg<F> >::const_iterator
                 it = args.begin(); it != args.end(); ++it) {
@@ -654,7 +654,7 @@ void hipaccLaunchScriptKernelExploration(
     std::cerr << "<HIPACC:> Exploring configurations for kernel"
               << " '" << kernel << "':" << std::endl;
 
-    for (int curr_warp_size = 1; curr_warp_size <= (int)ceilf((float)info.is_width/3);
+    for (size_t curr_warp_size = 1; curr_warp_size <= (int)ceilf((float)info.is_width/3);
          curr_warp_size += (curr_warp_size < warp_size ? 1 : warp_size)) {
         // check if we exceed maximum number of threads
         if (curr_warp_size > max_threads_for_kernel) continue;
@@ -668,7 +668,7 @@ void hipaccLaunchScriptKernelExploration(
 
         float med_dt;
         std::vector<float> times;
-        for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
+        for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
             for (typename std::vector<hipacc_script_arg<F> >::const_iterator
                     it = args.begin(); it != args.end(); ++it) {
                 SET_SCRIPT_ARG(script, *it);

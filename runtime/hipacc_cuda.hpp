@@ -277,7 +277,7 @@ void hipaccInitCUDA() {
     std::cerr << "CUDA Driver/Runtime Version " << driver_version/1000 << "." << (driver_version%100)/10
         << "/" << runtime_version/1000 << "." << (runtime_version%100)/10 << std::endl;
 
-    for (int i=0; i<device_count; i++) {
+    for (size_t i=0; i<device_count; ++i) {
         cudaDeviceProp device_prop;
 
         err = cudaSetDevice(i);
@@ -634,14 +634,14 @@ void hipaccLaunchKernel(const void *kernel, const char *kernel_name, dim3 grid, 
 void hipaccLaunchKernelBenchmark(const void *kernel, const char *kernel_name, std::vector<std::pair<size_t, void *> > args, dim3 grid, dim3 block, bool print_timing=true) {
     float min_dt=FLT_MAX;
 
-    for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
+    for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
         // setup call
         hipaccConfigureCall(grid, block);
 
         // set kernel arguments
         size_t offset = 0;
-        for (unsigned int i=0; i<args.size(); i++) {
-            hipaccSetupArgument(args.data()[i].second, args.data()[i].first, offset);
+        for (size_t j=0; j<args.size(); ++j) {
+            hipaccSetupArgument(args.data()[j].second, args.data()[j].first, offset);
         }
 
         // launch kernel
@@ -823,7 +823,7 @@ void hipaccLaunchKernel(CUfunction &kernel, const char *kernel_name, dim3 grid, 
 void hipaccLaunchKernelBenchmark(CUfunction &kernel, const char *kernel_name, dim3 grid, dim3 block, void **args, bool print_timing=true) {
     float min_dt=FLT_MAX;
 
-    for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
+    for (size_t i=0; i<HIPACC_NUM_ITERATIONS; i++) {
         hipaccLaunchKernel(kernel, kernel_name, grid, block, args, print_timing);
         if (last_gpu_timing < min_dt) min_dt = last_gpu_timing;
     }
@@ -1146,7 +1146,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 
     float opt_time = FLT_MAX;
     int opt_ppt = 1;
-    for (unsigned int ppt=1; ppt<=acc.height; ppt++) {
+    for (size_t ppt=1; ppt<=acc.height; ++ppt) {
         std::stringstream num_ppt_ss;
         std::stringstream num_bs_ss;
         num_ppt_ss << ppt;
@@ -1165,7 +1165,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         hipaccCreateModuleKernel(&exploreReduction1D, &modReduction, ptx_filename, kernel1D, cc);
 
         float min_dt=FLT_MAX;
-        for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
+        for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
             dim3 block(max_threads, 1);
             dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/ppt));
             num_blocks = grid.x*grid.y;
@@ -1270,14 +1270,14 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
               << "': configuration provided by heuristic " << heu_tx*heu_ty
               << " (" << heu_tx << "x" << heu_ty << "). " << std::endl;
 
-    for (int tile_size_x=warp_size; tile_size_x<=max_threads_per_block; tile_size_x+=warp_size) {
-        for (int tile_size_y=1; tile_size_y<=max_threads_per_block; tile_size_y++) {
+    for (size_t tile_size_x=warp_size; tile_size_x<=max_threads_per_block; tile_size_x+=warp_size) {
+        for (size_t tile_size_y=1; tile_size_y<=max_threads_per_block; ++tile_size_y) {
             // check if we exceed maximum number of threads
             if (tile_size_x*tile_size_y > max_threads_for_kernel) continue;
 
             // check if we exceed size of shared memory
             int used_smem = 0;
-            for (unsigned int i=0; i<smems.size(); i++) {
+            for (size_t i=0; i<smems.size(); ++i) {
                 used_smem += (tile_size_x + smems.data()[i].size_x)*(tile_size_y + smems.data()[i].size_y - 1) * smems.data()[i].pixel_size;
             }
             if (used_smem >= max_smem_per_block) continue;
@@ -1299,7 +1299,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
 
             // load constant memory
             CUdeviceptr constMem;
-            for (unsigned int i=0; i<consts.size(); i++) {
+            for (size_t i=0; i<consts.size(); ++i) {
                 hipaccGetGlobal(&constMem, modKernel, consts.data()[i].name);
                 err = cuMemcpyHtoD(constMem, consts.data()[i].memory, consts.data()[i].size);
                 checkErrDrv(err, "cuMemcpyHtoD()");
@@ -1307,7 +1307,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
 
             CUtexref texImage;
             CUsurfref surfImage;
-            for (unsigned int i=0; i<texs.size(); i++) {
+            for (size_t i=0; i<texs.size(); ++i) {
                 if (texs.data()[i].tex_type==Surface) {
                     // bind surface memory
                     hipaccGetSurfRef(&surfImage, modKernel, texs.data()[i].name);
@@ -1325,7 +1325,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             hipaccPrepareKernelLaunch(info, block);
 
             float min_dt=FLT_MAX;
-            for (int i=0; i<HIPACC_NUM_ITERATIONS; i++) {
+            for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
 
                 // start timing
                 total_time = 0.0f;

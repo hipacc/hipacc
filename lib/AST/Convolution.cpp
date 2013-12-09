@@ -171,9 +171,9 @@ Expr *ASTTranslate::getInitExpr(ConvolutionMode mode, QualType QT) {
 
   if (isVecType) {
     SmallVector<Expr *, 16> initExprs;
-    int lanes = QT->getAs<VectorType>()->getNumElements();
+    size_t lanes = QT->getAs<VectorType>()->getNumElements();
 
-    for (unsigned int I=0, N=lanes; I!=N; ++I) {
+    for (size_t I=0, N=lanes; I!=N; ++I) {
       initExprs.push_back(initExpr);
     }
 
@@ -236,6 +236,8 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
     method = Reduce;
   } else if (E->getDirectCallee()->getName().equals("iterate")) {
     method = Iterate;
+  } else {
+    assert(false && "unsupported convolution method.");
   }
 
   switch (method) {
@@ -413,8 +415,8 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   }
 
   // unroll Mask/Domain
-  for (unsigned int y=0; y<Mask->getSizeY(); y++) {
-    for (unsigned int x=0; x<Mask->getSizeX(); x++) {
+  for (size_t y=0; y<Mask->getSizeY(); ++y) {
+    for (size_t x=0; x<Mask->getSizeX(); ++x) {
       bool doIterate = true;
 
       if (Mask->isDomain() && Mask->isConstant() && Mask->getInitList()) {

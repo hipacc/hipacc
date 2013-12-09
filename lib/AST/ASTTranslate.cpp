@@ -81,7 +81,7 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
     SmallVector<QualType, 16> argTypes;
     SmallVector<std::string, 16> argNames;
 
-    for (unsigned int i=0, e=FD->getNumParams(); i!=e; ++i) {
+    for (size_t i=0, e=FD->getNumParams(); i!=e; ++i) {
       const ParmVarDecl *PVD = FD->getParamDecl(i);
       QualType QT = PVD->getType();
 
@@ -613,7 +613,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
 
     // search for image width, height and stride parameters
-    for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
+    for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
       FieldDecl *FD = KernelClass->getImgFields().data()[i];
       HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
 
@@ -641,7 +641,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   }
 
   // in case no stride was found, use image width as fallback
-  for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
+  for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
     FieldDecl *FD = KernelClass->getImgFields().data()[i];
     HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
 
@@ -680,7 +680,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   lidYRef = tileVars.local_id_y;
   gidYRef = tileVars.global_id_y;
 
-  for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
+  for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
     FieldDecl *FD = KernelClass->getImgFields().data()[i];
     HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
 
@@ -721,7 +721,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
   // add vector pointer declarations for images
   if (Kernel->vectorize() && !compilerOptions.emitC()) {
-    for (unsigned int i=0; i<=KernelClass->getNumImages(); i++) {
+    for (size_t i=0; i<=KernelClass->getNumImages(); ++i) {
       FieldDecl *FD = KernelClass->getImgFields().data()[i];
       // output image - iteration space
       StringRef name = "Output";
@@ -758,7 +758,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   bool border_handling = false;
   bool kernel_x = false;
   bool kernel_y = false;
-  for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
+  for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
     FieldDecl *FD = KernelClass->getImgFields().data()[i];
     HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
     MemoryAccess memAcc = KernelClass->getImgAccess(FD);
@@ -893,7 +893,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
 
   // only create labels if we need border handling
-  for (int i=0; i<=9 && border_handling; i++) {
+  for (size_t i=0; i<=9 && border_handling; ++i) {
     LabelDecl *LD;
     Expr *if_goto = NULL;
 
@@ -1032,7 +1032,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   updateTileVars();
 
   int ld_count = 0;
-  for (int i=border_handling?0:9; i<=9; i++) {
+  for (size_t i=border_handling?0:9; i<=9; ++i) {
     // set border handling mode
     switch (i) {
       case 0:
@@ -1219,7 +1219,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           (float)Kernel->getNumThreadsY());
     }
     SmallVector<Stmt *, 16> labelBody;
-    for (int p=0; use_shared && p<(int)Kernel->getPixelsPerThread()+p_add; p++) {
+    for (size_t p=0; use_shared && p<Kernel->getPixelsPerThread()+p_add; ++p) {
       if (compilerOptions.exploreConfig()) {
         // initialize lid_y and gid_y
         lidYRef = tileVars.local_id_y;
@@ -1269,7 +1269,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       }
     }
 
-    for (int p=0; p<(int)Kernel->getPixelsPerThread(); p++) {
+    for (size_t p=0; p<Kernel->getPixelsPerThread(); ++p) {
       // clear all stored decls before cloning, otherwise existing
       // VarDecls will be reused and we will miss declarations
       KernelDeclMap.clear();
@@ -1337,7 +1337,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
             createCompoundStmt(Ctx, pptBody));
         labelBody.push_back(ispace_check);
       } else {
-        for (unsigned int i=0, e=pptBody.size(); i!=e; ++i) {
+        for (size_t i=0, e=pptBody.size(); i!=e; ++i) {
           labelBody.push_back(pptBody.data()[i]);
         }
       }
@@ -1434,7 +1434,7 @@ VarDecl *ASTTranslate::CloneParmVarDecl(ParmVarDecl *PVD) {
 
     // only vectorize image PVDs
     if (Kernel->vectorize() && !compilerOptions.emitC()) {
-      for (unsigned int i=0; i<KernelClass->getNumImages(); i++) {
+      for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
         FieldDecl *FD = KernelClass->getImgFields().data()[i];
 
         // parameter name matches
@@ -1516,14 +1516,14 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
     curCStmt = S;
 
     if (preStmts.size()) {
-      unsigned int num_stmts = 0;
-      for (unsigned int i=0, e=preStmts.size(); i!=e; ++i) {
+      size_t num_stmts = 0;
+      for (size_t i=0, e=preStmts.size(); i!=e; ++i) {
         if (preCStmt.data()[i]==S) {
           body.push_back(preStmts.data()[i]);
           num_stmts++;
         }
       }
-      for (unsigned int i=0; i<num_stmts; i++) {
+      for (size_t i=0; i<num_stmts; ++i) {
         preStmts.pop_back();
         preCStmt.pop_back();
       }
@@ -1532,14 +1532,14 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
     if (newS) body.push_back(newS);
 
     if (postStmts.size()) {
-      unsigned int num_stmts = 0;
-      for (unsigned int i=0, e=postStmts.size(); i!=e; ++i) {
+      size_t num_stmts = 0;
+      for (size_t i=0, e=postStmts.size(); i!=e; ++i) {
         if (postCStmt.data()[i]==S) {
           body.push_back(postStmts.data()[i]);
           num_stmts++;
         }
       }
-      for (unsigned int i=0; i<num_stmts; i++) {
+      for (size_t i=0; i<num_stmts; ++i) {
         postStmts.pop_back();
         postCStmt.pop_back();
       }
@@ -1674,7 +1674,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
       Diags.Report(E->getExprLoc(), DiagIDCallExpr) << E->getDirectCallee()->getName();
 
       llvm::errs() << "Supported functions are: ";
-      for (unsigned int i=0, e=builtinNames.size(); i!=e; ++i) {
+      for (size_t i=0, e=builtinNames.size(); i!=e; ++i) {
         llvm::errs() << builtinNames.data()[i];
         llvm::errs() << ((i==e-1)?".\n":", ");
       }
@@ -1692,7 +1692,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
 
     result->setNumArgs(Ctx, E->getNumArgs());
 
-    for (unsigned int I=0, N=E->getNumArgs(); I<N; ++I) {
+    for (size_t I=0, N=E->getNumArgs(); I<N; ++I) {
       result->setArg(I, Clone(E->getArg(I)));
     }
 
@@ -1771,7 +1771,7 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   // check if the parameter is a Mask and replace it by a global VarDecl
   bool isMask = false;
   if (!compilerOptions.emitC()) {
-    for (unsigned int i=0; i<KernelClass->getNumMasks(); i++) {
+    for (size_t i=0; i<KernelClass->getNumMasks(); ++i) {
       FieldDecl *FD = KernelClass->getMaskFields().data()[i];
 
       if (paramDecl->getName().equals(FD->getName())) {
@@ -2362,7 +2362,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         int redDepth = 0;
 
         // search corresponding domain
-        for (unsigned int i=0, e=redDomains.size(); i!=e; ++i) {
+        for (size_t i=0, e=redDomains.size(); i!=e; ++i) {
           if (Mask == redDomains[i]) {
             isDomainValid = true;
             redDepth = i;

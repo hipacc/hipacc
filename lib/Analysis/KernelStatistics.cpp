@@ -699,7 +699,7 @@ void TransferFunctions::VisitUnaryOperator(UnaryOperator *E) {
 }
 
 void TransferFunctions::VisitCallExpr(CallExpr *E) {
-  for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumArgs(); I!=N; ++I) {
     checkImageAccess(E->getArg(I), READ_ONLY);
   }
   KS.num_sops++;

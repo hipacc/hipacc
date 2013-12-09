@@ -299,7 +299,7 @@ void hipacc::Builtin::Context::InitializeBuiltins() {
   llvm::errs() << "==================\n"
                << "Standard Builtins:\n"
                << "==================\n";
-  for (unsigned int i = clang::Builtin::NotBuiltin+1; i !=
+  for (size_t i = clang::Builtin::NotBuiltin+1; i !=
       clang::Builtin::FirstTSBuiltin; ++i) {
     llvm::errs() << i << ": " << bctx.GetName(i) << "\n";
   }
@@ -310,21 +310,21 @@ void hipacc::Builtin::Context::InitializeBuiltins() {
   llvm::errs() << "================\n"
                << "Target Builtins:\n"
                << "================\n";
-  for (unsigned int i = 0, e = lNumTSRecords; i != e; ++i) {
+  for (size_t i=0, e = lNumTSRecords; i != e; ++i) {
     llvm::errs() << i << ": "
                  << bctx.GetName(i+clang::Builtin::FirstTSBuiltin) << "\n";
   }
   llvm::errs() << "================\n"
                << "Hipacc Builtins:\n"
                << "================\n";
-  for (unsigned int i=FirstBuiltin+1; i!=LastBuiltin; ++i) {
+  for (size_t i=FirstBuiltin+1; i!=LastBuiltin; ++i) {
     llvm::errs() << i << ": " << getName(i-FirstBuiltin) << "\n";
   }
 #endif
 
   if (initialized) return;
 
-  for (unsigned int i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
+  for (size_t i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
     BuiltinInfo[i].FD = CreateBuiltin(i);
   }
 
@@ -334,7 +334,7 @@ void hipacc::Builtin::Context::InitializeBuiltins() {
 
 void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
     SmallVectorImpl<const char *> &Names) {
-  for (unsigned int i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
+  for (size_t i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
     switch (BuiltinInfo[i].builtin_target) {
       case TARGET_C:
         switch (target) {
@@ -390,7 +390,7 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
   // create Decl objects for each parameter, adding them to the FunctionDecl.
   if (const FunctionProtoType *FT = dyn_cast<FunctionProtoType>(R)) {
     SmallVector<ParmVarDecl *, 16> Params;
-    for (unsigned int i = 0, e = FT->getNumArgs(); i != e; ++i) {
+    for (size_t i=0, e=FT->getNumArgs(); i!=e; ++i) {
       ParmVarDecl *parm = ParmVarDecl::Create(Ctx, New, SourceLocation(),
           SourceLocation(), 0, FT->getArgType(i), /*TInfo=*/0, SC_None, 0);
       parm->setScopeInfo(0, i);
@@ -409,7 +409,7 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
     QualType QT, TargetCode target) const {
   QT = QT.getDesugaredType(Ctx);
 
-  for (unsigned int i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
+  for (size_t i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
     if (BuiltinInfo[i].Name == Name && BuiltinInfo[i].FD->getResultType() == QT) {
       switch (BuiltinInfo[i].builtin_target) {
         case TARGET_C:

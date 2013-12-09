@@ -251,7 +251,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
         InterpolationDefinitionsGlobal.end());
 
     // add interpolation definitions
-    for (unsigned int i=0, e=InterpolationDefinitionsGlobal.size(); i!=e; ++i) {
+    for (size_t i=0, e=InterpolationDefinitionsGlobal.size(); i!=e; ++i) {
       newStr += InterpolationDefinitionsGlobal.data()[i];
     }
     newStr += "\n";
@@ -295,7 +295,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
       if (Mask->isPrinted()) continue;
 
       SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
-      for (unsigned int i=0; i<kernels.size(); i++) {
+      for (size_t i=0; i<kernels.size(); ++i) {
         HipaccKernel *K = kernels[i];
 
         if (i) newStr += "\n" + stringCreator.getIndent();
@@ -843,7 +843,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         unsigned int found_size = 0;
         bool found_mode = false;
         // get kernel window size
-        for (unsigned int i=1, e=CCE->getNumArgs(); i!=e; ++i) {
+        for (size_t i=1, e=CCE->getNumArgs(); i!=e; ++i) {
           if (found_size == 0) {
             // check if the parameter is a Mask reference
             if (isa<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts())) {
@@ -864,8 +864,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
             // check if the parameter can be resolved to a constant
             if (!CCE->getArg(i)->isEvaluatable(Context)) {
-              Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDConstant) << i+1
-                << VD->getName();
+              Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDConstant)
+                << (int)i+1 << VD->getName();
             }
             BC->setSizeX(CCE->getArg(i)->EvaluateKnownConstInt(Context).getSExtValue());
             found_size++;
@@ -896,7 +896,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                     // check if the parameter can be resolved to a constant
                     if (!CCE->getArg(i+1)->isEvaluatable(Context)) {
                       Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDConstant)
-                        << i+2 << VD->getName();
+                        << (int)i+2 << VD->getName();
                     }
                     CCE->getArg(i+1)->EvaluateAsRValue(constVal, Context);
                     BC->setConstVal(constVal.Val, Context);
@@ -930,8 +930,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
             // check if the parameter can be resolved to a constant
             if (!CCE->getArg(i)->isEvaluatable(Context)) {
-              Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDConstant) << i+1
-                << VD->getName();
+              Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDConstant)
+                << (int)i+1 << VD->getName();
             }
             BC->setSizeY(CCE->getArg(i)->EvaluateKnownConstInt(Context).getSExtValue());
             found_size++;
@@ -1071,7 +1071,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         if (CCE->getNumArgs()<4) Acc->setNoCrop();
 
         // get text string for arguments, argument order is:
-        for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
+        for (size_t i=1; i<CCE->getNumArgs(); ++i) {
           std::string Str;
           llvm::raw_string_ostream SS(Str);
 
@@ -1174,7 +1174,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         if (CCE->getNumArgs()<4) IS->setNoCrop();
 
         // get text string for arguments, argument order is:
-        for (unsigned int i=1; i<CCE->getNumArgs(); i++) {
+        for (size_t i=1; i<CCE->getNumArgs(); ++i) {
           std::string Str;
           llvm::raw_string_ostream SS(Str);
 
@@ -1310,7 +1310,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           unsigned int num_img = 0, num_mask = 0;
           SmallVector<FieldDecl *, 16> imgFields = KC->getImgFields();
           SmallVector<FieldDecl *, 16> maskFields = KC->getMaskFields();
-          for (unsigned int i=0; i<CCE->getNumArgs(); i++) {
+          for (size_t i=0; i<CCE->getNumArgs(); ++i) {
             if (isa<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts())) {
               DeclRefExpr *DRE =
                 dyn_cast<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts());
@@ -1731,7 +1731,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
               InitListExpr *ILE = dyn_cast<InitListExpr>(V->getInit());
               Mask->setInitList(ILE);
 
-              for (unsigned int i=0; i<ILE->getNumInits(); ++i) {
+              for (size_t i=0; i<ILE->getNumInits(); ++i) {
                 if (!ILE->getInit(i)->isConstantInitializer(Context, false)) {
                   isMaskConstant = false;
                   break;
@@ -2117,7 +2117,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
     Diags.Report(DiagIDCompile)
       << K->getFileName() << (const char*)(compilerOptions.emitCUDA()?"cu":"cl")
       << command.c_str();
-    for (unsigned int i=0, e=lines.size(); i!=e; ++i) {
+    for (size_t i=0, e=lines.size(); i!=e; ++i) {
       llvm::errs() << lines.data()[i];
     }
   } else {
@@ -2215,8 +2215,8 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   *OS << "inline " << fun->getResultType().getAsString() << " "
       << K->getReduceName() << "(";
   // write kernel parameters
-  unsigned int comma = 0;
-  for (unsigned int i=0, e=fun->getNumParams(); i!=e; ++i) {
+  size_t comma = 0;
+  for (size_t i=0, e=fun->getNumParams(); i!=e; ++i) {
     std::string Name = fun->getParamDecl(i)->getNameAsString();
 
     // normal arguments
@@ -2392,7 +2392,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // interpolation includes & definitions
   bool inc=false;
   SmallVector<std::string, 16> InterpolationDefinitionsLocal;
-  for (unsigned int i=0; i<K->getNumArgs(); i++) {
+  for (size_t i=0; i<K->getNumArgs(); i++) {
     FieldDecl *FD = K->getDeviceArgFields()[i];
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
 
@@ -2489,7 +2489,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
   // declarations of textures, surfaces, variables, etc.
-  for (unsigned int i=0; i<K->getNumArgs(); i++) {
+  for (size_t i=0; i<K->getNumArgs(); ++i) {
     if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
 
     FieldDecl *FD = K->getDeviceArgFields()[i];
@@ -2580,9 +2580,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         unsigned int num_init = 0;
 
         // print Mask constant literals to 2D array
-        for (unsigned int j=0; j<Mask->getSizeY(); j++) {
+        for (size_t j=0; j<Mask->getSizeY(); ++j) {
           *OS << "        {";
-          for (unsigned int k=0; k<Mask->getSizeX(); k++) {
+          for (size_t k=0; k<Mask->getSizeX(); ++k) {
             ILE->getInit(num_init++)->printPretty(*OS, 0, Policy, 0);
             if (k<Mask->getSizeX()-1) {
               *OS << ", ";
@@ -2641,7 +2641,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
   // function definitions
-  for (int i=0, e=K->getFunctionCalls().size(); i<e; ++i) {
+  for (size_t i=0, e=K->getFunctionCalls().size(); i<e; ++i) {
     FunctionDecl *FD = K->getFunctionCalls()[i];
 
     switch (compilerOptions.getTargetCode()) {
@@ -2701,8 +2701,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   *OS << "(";
 
   // write kernel parameters
-  unsigned int comma = 0;
-  for (unsigned int i=0, e=D->getNumParams(); i!=e; ++i) {
+  size_t comma = 0;
+  for (size_t i=0, e=D->getNumParams(); i!=e; ++i) {
     std::string Name = D->getParamDecl(i)->getNameAsString();
     FieldDecl *FD = K->getDeviceArgFields()[i];
 

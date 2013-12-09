@@ -224,14 +224,14 @@ Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
   SmallVector<Expr *, 16> exprs;
 
   // outputs
-  for (unsigned int I=0, N=S->getNumOutputs(); I!=N; ++I) {
+  for (size_t I=0, N=S->getNumOutputs(); I!=N; ++I) {
     names.push_back(S->getOutputIdentifier(I));
     constraints.push_back(S->getOutputConstraintLiteral(I));
     exprs.push_back(Clone(S->getOutputExpr(I)));
   }
 
   // inputs
-  for (unsigned int I=0, N=S->getNumInputs(); I!=N; ++I) {
+  for (size_t I=0, N=S->getNumInputs(); I!=N; ++I) {
     names.push_back(S->getInputIdentifier(I));
     constraints.push_back(S->getInputConstraintLiteral(I));
     exprs.push_back(Clone(S->getInputExpr(I)));
@@ -239,7 +239,7 @@ Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
 
   // constraints
   SmallVector<StringLiteral *, 16> clobbers;
-  for (unsigned int I=0, N=S->getNumClobbers(); I!=N; ++I) {
+  for (size_t I=0, N=S->getNumClobbers(); I!=N; ++I) {
     clobbers.push_back(S->getClobberStringLiteral(I));
   }
 
@@ -260,7 +260,7 @@ Stmt *ASTTranslate::VisitCXXCatchStmt(CXXCatchStmt *S) {
 Stmt *ASTTranslate::VisitCXXTryStmt(CXXTryStmt *S) {
   SmallVector<Stmt *, 16> handlers;
 
-  for (unsigned int I=0, N=S->getNumHandlers(); I!=N; ++I) {
+  for (size_t I=0, N=S->getNumHandlers(); I!=N; ++I) {
     handlers.push_back((Stmt *)Clone(S->getHandler(I)));
   }
 
@@ -291,7 +291,7 @@ Expr *ASTTranslate::VisitPredefinedExpr(PredefinedExpr *E) {
 
 Expr *ASTTranslate::VisitDeclRefExpr(DeclRefExpr *E) {
   TemplateArgumentListInfo templateArgs(E->getLAngleLoc(), E->getRAngleLoc());
-  for (unsigned int I=0, N=E->getNumTemplateArgs(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumTemplateArgs(); I!=N; ++I) {
     templateArgs.addArgument(E->getTemplateArgs()[I]);
   }
 
@@ -384,11 +384,11 @@ Expr *ASTTranslate::VisitOffsetOfExpr(OffsetOfExpr *E) {
   result->setTypeSourceInfo(E->getTypeSourceInfo());
   result->setRParenLoc(E->getRParenLoc());
 
-  for (unsigned int I=0, N=E->getNumComponents(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumComponents(); I!=N; ++I) {
     result->setComponent(I, E->getComponent(I));
   }
 
-  for (unsigned int I=0, N=E->getNumExpressions(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumExpressions(); I!=N; ++I) {
     result->setIndexExpr(I, Clone(E->getIndexExpr(I)));
   }
 
@@ -429,7 +429,7 @@ Expr *ASTTranslate::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
 Expr *ASTTranslate::VisitCallExprClone(CallExpr *E) {
   SmallVector<Expr *, 16> args;
 
-  for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumArgs(); I!=N; ++I) {
     args.push_back(Clone(E->getArg(I)));
   }
 
@@ -558,7 +558,7 @@ Expr *ASTTranslate::VisitExtVectorElementExpr(ExtVectorElementExpr *E) {
 Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
   SmallVector<Expr *, 16> initExprs;
 
-  for (unsigned int I=0, N=E->getNumInits(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumInits(); I!=N; ++I) {
     initExprs.push_back(Clone(E->getInit(I)));
   }
 
@@ -577,8 +577,8 @@ Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
 Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
   SmallVector<Expr *, 16> indexExprs;
 
-  unsigned numIndexExprs = E->getNumSubExprs() - 1;
-  for (unsigned int I=0 ; I<numIndexExprs; ++I) {
+  size_t numIndexExprs = E->getNumSubExprs() - 1;
+  for (size_t I=0 ; I<numIndexExprs; ++I) {
     indexExprs.push_back(Clone(E->getSubExpr(I+1)));
   }
 
@@ -602,7 +602,7 @@ Expr *ASTTranslate::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
 Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
   SmallVector<Expr *, 16> Exprs;
 
-  for (unsigned int I=0, N=E->getNumExprs(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumExprs(); I!=N; ++I) {
     Exprs.push_back(Clone(E->getExpr(I)));
   }
 
@@ -638,7 +638,7 @@ Expr *ASTTranslate::VisitPseudoObjectExpr(PseudoObjectExpr *E) {
 Expr *ASTTranslate::VisitAtomicExpr(AtomicExpr *E) {
   SmallVector<Expr *, 16> Args;
 
-  for (unsigned int I=0, N=E->getNumSubExprs(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumSubExprs(); I!=N; ++I) {
     Args.push_back(Clone(E->getSubExprs()[I]));
   }
 
@@ -694,7 +694,7 @@ Expr *ASTTranslate::VisitGNUNullExpr(GNUNullExpr *E) {
 Expr *ASTTranslate::VisitCXXOperatorCallExprClone(CXXOperatorCallExpr *E) {
   SmallVector<Expr *, 16> args;
 
-  for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumArgs(); I!=N; ++I) {
     args.push_back(Clone(E->getArg(I)));
   }
 
@@ -715,7 +715,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprClone(CXXMemberCallExpr *E) {
 
   result->setNumArgs(Ctx, E->getNumArgs());
 
-  for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumArgs(); I!=N; ++I) {
     result->setArg(I, Clone(E->getArg(I)));
   }
 
@@ -1056,7 +1056,7 @@ Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
 Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
   SmallVector<Expr *, 16> Args;
 
-  for (unsigned int I=0, N=E->getNumArgs(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumArgs(); I!=N; ++I) {
     Args.push_back(Clone(E->getArg(I)));
   }
 
@@ -1074,7 +1074,7 @@ Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
 Expr *ASTTranslate::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
   SmallVector<Expr *, 16> body;
 
-  for (unsigned int I=0, N=E->getNumSubExprs(); I!=N; ++I) {
+  for (size_t I=0, N=E->getNumSubExprs(); I!=N; ++I) {
     body.push_back(Clone(E->getExpr(I)));
   }
 

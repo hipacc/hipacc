@@ -248,7 +248,7 @@ HipaccPyramid hipaccCreatePyramid(HipaccImage &img, int depth) {
 
   int height = img.height/2;
   int width = img.width/2;
-  for (int i = 1; i < depth; ++i) {
+  for (size_t i=1; i<depth; ++i) {
     assert(width * height > 0 && "Pyramid stages to deep for image size");
     p.add(hipaccCreatePyramidImage<data_t>(img, width, height));
     height /= 2;
@@ -416,7 +416,7 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
 
 void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
                     const std::function<void()> func) {
-    for (unsigned int i = 0; i < pyrs.size(); ++i) {
+    for (size_t i=0; i<pyrs.size(); ++i) {
       if (i < pyrs.size() - 1) {
         assert(pyrs[i]->depth_ == pyrs[i+1]->depth_ &&
                "Pyramid depths do not match.");
@@ -432,7 +432,7 @@ void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
 
-    for (unsigned int i = 0; i < pyrs.size(); ++i) {
+    for (size_t i=0; i<pyrs.size(); ++i) {
       pyrs[i]->unbind();
     }
 }
@@ -451,7 +451,7 @@ void hipaccTraverse(unsigned int loop=1,
       ++((*it)->level_);
     }
 
-    for (unsigned int i = 0; i < loop; i++) {
+    for (size_t i=0; i<loop; i++) {
       (*hipaccTraverseFunc.back())();
       if (i < loop-1) {
         func();

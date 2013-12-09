@@ -51,7 +51,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
     QT = Ctx.getFunctionNoProtoType(RT);
   } else {
     // otherwise, we have a function with an argument list
-    for (unsigned int i=0; i<ArgTypes.size(); ++i) {
+    for (size_t i=0; i<ArgTypes.size(); ++i) {
       ParmVarDecl *Param = ParmVarDecl::Create(Ctx, DC, SourceLocation(),
           SourceLocation(), &Ctx.Idents.get(ArgNames[i]), ArgTypes[i], NULL,
           SC_None, 0);
@@ -74,7 +74,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
 
   // add Decl objects for each parameter to the FunctionDecl
   DeclContext *DCF = FunctionDecl::castToDeclContext(FD);
-  for (unsigned int i=0; i<ArgTypes.size(); ++i) {
+  for (size_t i=0; i<ArgTypes.size(); ++i) {
     Params.data()[i]->setDeclContext(FD);
     DCF->addDecl(Params.data()[i]);
   }
@@ -106,7 +106,7 @@ CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD, SmallVector<Expr
   E->setNumArgs(Ctx, Expr.size());
   E->setRParenLoc(SourceLocation());
   E->setCallee(ICE);
-  for (unsigned I=0, N=Expr.size(); I!=N; ++I) {
+  for (size_t I=0, N=Expr.size(); I!=N; ++I) {
     E->setArg(I, Expr.data()[I]);
   }
   E->setType(FT->getCallResultType(Ctx));
@@ -222,7 +222,7 @@ RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
   RecordDecl *RD = RecordDecl::Create(Ctx, TK, DC, SourceLocation(),
       SourceLocation(), &Ctx.Idents.get(Name));
 
-  for (unsigned int i=0; i<numDecls; i++) {
+  for (size_t i=0; i<numDecls; ++i) {
     RD->addDecl(createVarDecl(Ctx, RD, declNames[i], declTypes[i], NULL));
   }
   if (numDecls) {

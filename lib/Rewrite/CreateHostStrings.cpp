@@ -326,7 +326,7 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
     case TARGET_C:
     case TARGET_CUDA: {
         SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
-        for (unsigned int i=0; i<kernels.size(); i++) {
+        for (size_t i=0; i<kernels.size(); ++i) {
           HipaccKernel *K = kernels[i];
           if (i) resultStr += "\n" + indent;
 
@@ -544,7 +544,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
 
 
   // bind textures and get constant pointers
-  for (unsigned int i=0; i<K->getNumArgs(); i++) {
+  for (size_t i=0; i<K->getNumArgs(); ++i) {
     FieldDecl *FD = K->getDeviceArgFields()[i];
 
     // skip unused variables
@@ -621,7 +621,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   }
 
   #if 0
-  for (unsigned int i=0; i<KC->getNumImages(); i++) {
+  for (size_t i=0; i<KC->getNumImages(); ++i) {
     HipaccAccessor *Acc = K->getImgFromMapping(KC->getImgFields().data()[i]);
     // emit assertion
     resultStr += "assert(" + Acc->getName() + ".width==" + K->getIterationSpace()->getName() + ".width && \"Acc width != IS width\");\n" + indent;
@@ -631,8 +631,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
 
 
   // parameters
-  unsigned int curArg = 0;
-  for (unsigned int i=0; i<K->getNumArgs(); i++) {
+  size_t curArg = 0;
+  for (size_t i=0; i<K->getNumArgs(); ++i) {
     FieldDecl *FD = K->getDeviceArgFields()[i];
 
     // skip unused variables

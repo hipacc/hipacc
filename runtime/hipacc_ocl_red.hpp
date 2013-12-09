@@ -75,7 +75,7 @@ __kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME(__global \
         val = input[(gid_y + OFFSET_Y)*stride + gid_x + get_local_size(0)]; \
     } \
  \
-    for (unsigned int j=1; j < PPT; j++) { \
+    for (size_t j=1; j < PPT; ++j) { \
         if (j+gid_y < IS_HEIGHT) { \
             if (OFFSET_CHECK_X) { \
                 val = REDUCE(val, input[(j+gid_y + OFFSET_Y)*stride + gid_x]); \
@@ -89,7 +89,7 @@ __kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME(__global \
  \
     barrier(CLK_LOCAL_MEM_FENCE); \
  \
-    for (unsigned int s=get_local_size(0)/2; s>32; s>>=1) { \
+    for (size_t s=get_local_size(0)/2; s>32; s>>=1) { \
         if (tid < s) { \
             sdata[tid] = val = REDUCE(val, sdata[tid + s]); \
         } \
@@ -135,7 +135,7 @@ __kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME(__read_only \
         val = READ(input, img_sampler, (int2)(gid_x + get_local_size(0), gid_y + OFFSET_Y)).x; \
     } \
  \
-    for (unsigned int j=1; j < PPT; j++) { \
+    for (size_t j=1; j < PPT; ++j) { \
         if (j+gid_y < IS_HEIGHT) { \
             if (OFFSET_CHECK_X) { \
                 val = REDUCE(val, READ(input, img_sampler, (int2)(gid_x, j+gid_y + OFFSET_Y)).x); \
@@ -149,7 +149,7 @@ __kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME(__read_only \
  \
     barrier(CLK_LOCAL_MEM_FENCE); \
  \
-    for (unsigned int s=get_local_size(0)/2; s>32; s>>=1) { \
+    for (size_t s=get_local_size(0)/2; s>32; s>>=1) { \
         if (tid < s) { \
             sdata[tid] = val = REDUCE(val, sdata[tid + s]); \
         } \
@@ -183,7 +183,7 @@ __kernel void NAME(__global const DATA_TYPE *input, __global DATA_TYPE *output, 
  \
     DATA_TYPE val = input[i]; \
  \
-    for (unsigned int j=1; j < iterations; j++) { \
+    for (size_t j=1; j < iterations; ++j) { \
         if (i + j*get_local_size(0) < num_elements) { \
             val = REDUCE(val, input[i + j*get_local_size(0)]); \
         } \
@@ -192,7 +192,7 @@ __kernel void NAME(__global const DATA_TYPE *input, __global DATA_TYPE *output, 
  \
     barrier(CLK_LOCAL_MEM_FENCE); \
  \
-    for (unsigned int s=get_local_size(0)/2; s>0; s>>=1) { \
+    for (size_t s=get_local_size(0)/2; s>0; s>>=1) { \
         if (tid < s) { \
             sdata[tid] = val = REDUCE(val, sdata[tid + s]); \
         } \

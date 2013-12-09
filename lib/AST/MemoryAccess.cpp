@@ -147,7 +147,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
         default: break;
         case TARGET_Renderscript: {
             bool isGlobalAllocation = false;
-            for (int i = 0; i < Kernel->getKernelClass()->getNumArgs(); ++i) {
+            for (size_t i=0; i<Kernel->getKernelClass()->getNumArgs(); ++i) {
               if (Kernel->getKernelClass()->getArguments()[0].name.compare(
                     LHS->getNameInfo().getAsString()) == 0) {
                 isGlobalAllocation = true;
@@ -543,7 +543,7 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // clone Decl
   TemplateArgumentListInfo templateArgs(LHS->getLAngleLoc(),
       LHS->getRAngleLoc());
-  for (unsigned int i=0, e=LHS->getNumTemplateArgs(); i!=e; ++i) {
+  for (size_t i=0, e=LHS->getNumTemplateArgs(); i!=e; ++i) {
     templateArgs.addArgument(LHS->getTemplateArgs()[i]);
   }
 
@@ -770,7 +770,7 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
         bhStmts, bhCStmt);
 
     // add border handling statements to stageBody
-    for (unsigned int i=0, e=bhStmts.size(); i!=e; ++i) {
+    for (size_t i=0, e=bhStmts.size(); i!=e; ++i) {
       stageBody.push_back(bhStmts.data()[i]);
     }
   } else {
@@ -821,13 +821,13 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
 
 
       // check if we need to stage right apron
-      int num_stages_x = 0;
+      size_t num_stages_x = 0;
       if (Acc->getSizeX() > 1) {
           num_stages_x = 2;
       }
 
       // load row (line)
-      for (int i=0; i<=num_stages_x; i++) {
+      for (size_t i=0; i<=num_stages_x; ++i) {
         // _smem[lidYRef][(int)threadIdx.x + i*(int)blockDim.x] =
         //        Image[-SX/2 + i*(int)blockDim.x, -SY/2];
         Expr *local_offset_x = NULL;
@@ -884,13 +884,13 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
       }
 
       // check if we need to stage right apron
-      int num_stages_x = 0;
+      size_t num_stages_x = 0;
       if (Acc->getSizeX() > 1) {
           num_stages_x = 2;
       }
 
       // load row (line)
-      for (int i=0; i<=num_stages_x; i++) {
+      for (size_t i=0; i<=num_stages_x; ++i) {
         // _smem[lidYRef + N*(int)blockDim.y]
         //      [(int)threadIdx.x + i*(int)blockDim.x] =
         //        Image[-SX/2 + N*(int)blockDim.y + i*(int)blockDim.x, -SY/2];

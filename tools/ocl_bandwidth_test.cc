@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
     unsigned char *host_idata = (unsigned char *)malloc(memory_size);
 
     // initialize the memory
-    for (unsigned int i=0; i < memory_size/sizeof(unsigned char); i++) {
+    for (size_t i=0; i < memory_size/sizeof(unsigned char); ++i) {
         host_idata[i] = (unsigned char) (i & 0xff);
     }
 
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
     HipaccImage dev_odata = hipaccCreateBuffer<unsigned char>(NULL, memory_size, 1);
 
     std::cout << std::endl << "Bandwidth test, memory size [MB]: " << memory_size/(1024*1024) << std::endl;
-    for (unsigned int num_device=0; num_device<devices_all.size(); num_device++) {
+    for (size_t num_device=0; num_device<devices_all.size(); ++num_device) {
         // copy data to device
         hipaccWriteMemory<unsigned char>(dev_idata, host_idata, num_device);
 
