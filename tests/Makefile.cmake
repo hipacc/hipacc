@@ -100,52 +100,28 @@ ifneq ($(HIPACC_TARGET),Midgard)
 	./main_opencl
 endif
 
-renderscript:
+filterscript renderscript:
 	rm -f *.rs *.fs
-	@echo 'Executing HIPAcc Compiler for Renderscript:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-renderscript $(HIPACC_OPTS) -o main.cc
-	mkdir -p build_renderscript
+	@echo 'Executing HIPAcc Compiler for $@:'
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-$@ $(HIPACC_OPTS) -o main.cc
+	mkdir -p build_$@
 ifeq ($(call ifge, $(RS_TARGET_API), 19), true) # build using ndk-build
-	rm -rf build_renderscript/*
-	mkdir -p build_renderscript/jni
-	cp @CMAKE_CURRENT_SOURCE_DIR@/tests/Android.mk.cmake build_renderscript/jni/Android.mk
-	cp main.cc *.rs build_renderscript
-	@echo 'Compiling Filterscript file using llvm-rs-cc and g++:'
+	rm -rf build_$@/*
+	mkdir -p build_$@/jni
+	cp @CMAKE_CURRENT_SOURCE_DIR@/tests/Android.mk.cmake build_$@/jni/Android.mk
+	cp main.cc *.$(subst renderscript,rs,$(subst filterscript,fs,$@)) build_$@
+	@echo 'Compiling $@ file using llvm-rs-cc and g++:'
 	export CASE_FLAGS="$(MYFLAGS)"; \
 	export RS_TARGET_API=$(RS_TARGET_API); \
 	export HIPACC_INCLUDE=@RUNTIME_INCLUDES@; \
-	cd build_renderscript; ndk-build -B APP_PLATFORM=android-$(RS_TARGET_API) APP_STL=stlport_static
-	cp build_renderscript/libs/armeabi/main_renderscript .
+	cd build_$@; ndk-build -B APP_PLATFORM=android-$(RS_TARGET_API) APP_STL=stlport_static
+	cp build_$@/libs/armeabi/main_renderscript ./main_$@
 else
 	@echo 'Generating build system current test case:'
-	cd build_renderscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=$(RS_TARGET_API) $(MYFLAGS)
-	@echo 'Compiling Renderscript file using llvm-rs-cc and g++:'
-	cd build_renderscript; make
-	cp build_renderscript/main_renderscript .
-endif
-
-filterscript:
-	rm -f *.rs *.fs
-	@echo 'Executing HIPAcc Compiler for Filterscript:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-filterscript $(HIPACC_OPTS) -o main.cc
-	mkdir -p build_filterscript
-ifeq ($(call ifge, $(RS_TARGET_API), 19), true) # build using ndk-build
-	rm -rf build_filterscript/*
-	mkdir -p build_filterscript/jni
-	cp @CMAKE_CURRENT_SOURCE_DIR@/tests/Android.mk.cmake build_filterscript/jni/Android.mk
-	cp main.cc *.fs build_filterscript
-	@echo 'Compiling Filterscript file using llvm-rs-cc and g++:'
-	export CASE_FLAGS="$(MYFLAGS)"; \
-	export RS_TARGET_API=$(RS_TARGET_API); \
-	export HIPACC_INCLUDE=@RUNTIME_INCLUDES@; \
-	cd build_filterscript; ndk-build -B APP_PLATFORM=android-$(RS_TARGET_API) APP_STL=stlport_static
-	cp build_filterscript/libs/armeabi/main_renderscript main_filterscript
-else
-	@echo 'Generating build system current test case:'
-	cd build_filterscript; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=$(RS_TARGET_API) $(MYFLAGS)
-	@echo 'Compiling Filterscript file using llvm-rs-cc and g++:'
-	cd build_filterscript; make
-	cp build_filterscript/main_renderscript ./main_filterscript
+	cd build_$@; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=$(RS_TARGET_API) $(MYFLAGS)
+	@echo 'Compiling $@ file using llvm-rs-cc and g++:'
+	cd build_$@; make
+	cp build_$@/main_renderscript ./main_$@
 endif
 
 clean:
