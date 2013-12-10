@@ -254,8 +254,9 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
           break;
         }
       case TARGET_C:
-      case TARGET_OpenCL:
+      case TARGET_OpenCLACC:
       case TARGET_OpenCLCPU:
+      case TARGET_OpenCLGPU:
         // fall through
         if (Kernel->useTextureMemory(Acc)) {
           RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
@@ -339,8 +340,9 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
           break;
         }
       case TARGET_C:
-      case TARGET_OpenCL:
+      case TARGET_OpenCLACC:
       case TARGET_OpenCLCPU:
+      case TARGET_OpenCLGPU:
         // fall through
         if (Kernel->useTextureMemory(Acc)) {
           result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);

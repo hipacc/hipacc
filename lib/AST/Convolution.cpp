@@ -202,8 +202,9 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
       dom_acc = accessMem2DAt(domain_var, createIntegerLiteral(Ctx,
             redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
       break;
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       // array subscript: Domain[y*width + x]
       dom_acc = accessMemArrAt(domain_var, createIntegerLiteral(Ctx,
             (int)Domain->getSizeX()), createIntegerLiteral(Ctx, redIdxX.back()),

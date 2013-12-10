@@ -72,7 +72,9 @@ void printUsage() {
     << "USAGE:  hipacc [options] <input>\n\n"
     << "OPTIONS:\n\n"
     << "  -emit-cuda              Emit CUDA code; default is OpenCL code\n"
+    << "  -emit-opencl-acc        Emit OpenCL code for Accelerator devices\n"
     << "  -emit-opencl-cpu        Emit OpenCL code for CPU devices, no padding supported\n"
+    << "  -emit-opencl-gpu        Emit OpenCL code for GPU devices\n"
     << "  -emit-renderscript      Emit Renderscript code for Android\n"
     << "  -emit-filterscript      Emit Filterscript code for Android\n"
     << "  -emit-padding <n>       Emit CUDA/OpenCL/Renderscript image padding, using alignment of <n> bytes for GPU devices\n"
@@ -132,8 +134,16 @@ int main(int argc, char *argv[]) {
       compilerOptions.setTargetCode(TARGET_CUDA);
       continue;
     }
+    if (StringRef(argv[i]) == "-emit-opencl-acc") {
+      compilerOptions.setTargetCode(TARGET_OpenCLACC);
+      continue;
+    }
     if (StringRef(argv[i]) == "-emit-opencl-cpu") {
       compilerOptions.setTargetCode(TARGET_OpenCLCPU);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-emit-opencl-gpu") {
+      compilerOptions.setTargetCode(TARGET_OpenCLGPU);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-renderscript") {
@@ -307,7 +317,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
   // OpenCL (GPU) only supported on GPU devices
-  if (compilerOptions.emitOpenCL() &&
+  if (compilerOptions.emitOpenCLGPU() &&
       !(targetDevice.isAMDGPU() || targetDevice.isARMGPU() ||
         targetDevice.isNVIDIAGPU())) {
     llvm::errs() << "ERROR: OpenCL (GPU) code generation selected, but no OpenCL-capable target device specified!\n"
@@ -339,7 +349,7 @@ int main(int argc, char *argv[]) {
       llvm::errs() << "Warning: texture support disabled! CPU devices do not support textures!\n";
   }
   // Textures in OpenCL - only Array2D textures supported
-  if (compilerOptions.emitOpenCL() && compilerOptions.useTextureMemory(USER_ON)) {
+  if (compilerOptions.emitOpenCLGPU() && compilerOptions.useTextureMemory(USER_ON)) {
     if (compilerOptions.getTextureType()!=Array2D) {
       llvm::errs() << "Warning: 'Linear1D', 'Linear2D', and 'Ldg' texture memory not supported by OpenCL!"
                    << "  Using 'Array2D' instead!\n";

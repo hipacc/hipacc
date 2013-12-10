@@ -90,19 +90,9 @@ cuda:
 	@echo 'Executing CUDA binary'
 	./main_cuda
 
-opencl:
+opencl-acc opencl-cpu opencl-gpu:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) $(HIPACC_OPTS) -o main.cc
-	@echo 'Compiling OpenCL file using g++:'
-	$(OCL_CC) $(OCL_INC) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(OCL_LINK)
-ifneq ($(HIPACC_TARGET),Midgard)
-	@echo 'Executing OpenCL binary'
-	./main_opencl
-endif
-
-opencl_cpu:
-	@echo 'Executing HIPAcc Compiler for OpenCL:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-opencl-cpu $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-$@ $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
 	$(OCL_CC) $(OCL_INC) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(OCL_LINK)
 ifneq ($(HIPACC_TARGET),Midgard)

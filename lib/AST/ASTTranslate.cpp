@@ -504,8 +504,9 @@ void ASTTranslate::updateTileVars() {
     case TARGET_Filterscript:
       break;
     case TARGET_CUDA:
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       tileVars.local_id_x = addCastToInt(tileVars.local_id_x);
       tileVars.local_id_y = addCastToInt(tileVars.local_id_y);
       tileVars.block_id_x = addCastToInt(tileVars.block_id_x);
@@ -666,8 +667,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       // void __syncthreads();
       barrier = builtins.getBuiltinFunction(CUDABI__syncthreads);
       break;
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       initOpenCL(kernelBody);
       // void barrier(cl_mem_fence_flags);
       barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
@@ -850,8 +852,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           VD = createVarDecl(Ctx, DC, sharedName, QT, NULL);
           VD->addAttr(new (Ctx) CUDASharedAttr(SourceLocation(), Ctx));
           break;
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
+        case TARGET_OpenCLGPU:
           VD = createVarDecl(Ctx, DC, sharedName, Ctx.getAddrSpaceQualType(QT,
                 LangAS::opencl_local), NULL);
           break;
@@ -1260,8 +1263,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         case TARGET_CUDA:
           labelBody.push_back(createFunctionCall(Ctx, barrier, args));
           break;
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
+        case TARGET_OpenCLGPU:
           // TODO: pass CLK_LOCAL_MEM_FENCE argument to barrier()
           args.push_back(createIntegerLiteral(Ctx, 0));
           labelBody.push_back(createFunctionCall(Ctx, barrier, args));
@@ -1984,8 +1988,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
               // array subscript: Mask[conv_y][conv_x]
               result = accessMem2DAt(LHS, midx_x, midx_y);
               break;
-            case TARGET_OpenCL:
+            case TARGET_OpenCLACC:
             case TARGET_OpenCLCPU:
+            case TARGET_OpenCLGPU:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                     (int)Mask->getSizeX()), midx_x, midx_y);
@@ -2034,8 +2039,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
               // array subscript: Mask[conv_y][conv_x]
               result = accessMem2DAt(LHS, midx_x, midx_y);
               break;
-            case TARGET_OpenCL:
+            case TARGET_OpenCLACC:
             case TARGET_OpenCLCPU:
+            case TARGET_OpenCLGPU:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                     (int)Mask->getSizeX()), midx_x, midx_y);
@@ -2067,8 +2073,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
                   createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
                   Ctx.IntTy));
             break;
-          case TARGET_OpenCL:
+          case TARGET_OpenCLACC:
           case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
             if (Mask->isConstant()) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
               result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
@@ -2297,8 +2304,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           }
           // fall through
         case TARGET_CUDA:
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
+        case TARGET_OpenCLGPU:
           result = accessMem(LHS, Acc, memAcc);
           break;
         case TARGET_Filterscript:
@@ -2417,8 +2425,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         }
         break;
-      case TARGET_OpenCL:
+      case TARGET_OpenCLACC:
       case TARGET_OpenCLCPU:
+      case TARGET_OpenCLGPU:
         if (Kernel->useTextureMemory(Acc)) {
           result = accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
         } else {

@@ -55,11 +55,12 @@ enum CompilerOption {
 // target language specification
 enum TargetCode {
   TARGET_CUDA            = 0x1,
-  TARGET_OpenCL          = 0x2,
+  TARGET_OpenCLACC       = 0x2,
   TARGET_OpenCLCPU       = 0x4,
-  TARGET_Renderscript    = 0x8,
-  TARGET_Filterscript    = 0x10,
-  TARGET_C               = 0x20
+  TARGET_OpenCLGPU       = 0x8,
+  TARGET_Renderscript    = 0x10,
+  TARGET_Filterscript    = 0x20,
+  TARGET_C               = 0x40
 };
 
 class CompilerOptions {
@@ -107,7 +108,7 @@ class CompilerOptions {
 
   public:
     CompilerOptions() :
-      target_code(TARGET_OpenCL),
+      target_code(TARGET_OpenCLGPU),
       target_device(TESLA_13),
       explore_config(OFF),
       time_kernels(OFF),
@@ -130,12 +131,21 @@ class CompilerOptions {
       return false;
     }
     bool emitOpenCL() {
-      if (target_code & TARGET_OpenCL ||
-          target_code & TARGET_OpenCLCPU) return true;
+      if (target_code & TARGET_OpenCLACC ||
+          target_code & TARGET_OpenCLCPU ||
+          target_code & TARGET_OpenCLGPU) return true;
+      return false;
+    }
+    bool emitOpenCLACC() {
+      if (target_code & TARGET_OpenCLACC) return true;
       return false;
     }
     bool emitOpenCLCPU() {
       if (target_code & TARGET_OpenCLCPU) return true;
+      return false;
+    }
+    bool emitOpenCLGPU() {
+      if (target_code & TARGET_OpenCLGPU) return true;
       return false;
     }
     bool emitRenderscript() {
@@ -240,8 +250,9 @@ class CompilerOptions {
           return "cc";
         case TARGET_CUDA:
           return "cu";
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
+        case TARGET_OpenCLGPU:
           return "cl";
         case TARGET_Renderscript:
           return "rs";
@@ -257,11 +268,14 @@ class CompilerOptions {
         case TARGET_CUDA:
           llvm::errs() << "CUDA";
           break;
-        case TARGET_OpenCL:
-          llvm::errs() << "OpenCL (GPU)";
+        case TARGET_OpenCLACC:
+          llvm::errs() << "OpenCL (ACC)";
           break;
         case TARGET_OpenCLCPU:
           llvm::errs() << "OpenCL (CPU)";
+          break;
+        case TARGET_OpenCLGPU:
+          llvm::errs() << "OpenCL (GPU)";
           break;
         case TARGET_Renderscript:
           llvm::errs() << "Renderscript";

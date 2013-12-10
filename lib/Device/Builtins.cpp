@@ -40,7 +40,7 @@ static hipacc::Builtin::Info BuiltinInfo[] = {
   { "not a builtin function", 0, TARGET_C, (ID)0, (ID)0, (ID)0, 0 },
   #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID, RSID) { #NAME, TYPE, TARGET_C, CUDAID, OPENCLID, RSID, 0 },
   #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, TARGET_CUDA, (ID)0, (ID)0, (ID)0, 0 },
-  #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, TARGET_OpenCL, (ID)0, (ID)0, (ID)0, 0 },
+  #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, TARGET_OpenCLCPU, (ID)0, (ID)0, (ID)0, 0 },
   #define RSBUILTIN(NAME, TYPE, RSNAME) { #NAME, TYPE, TARGET_Renderscript, (ID)0, (ID)0, (ID)0, 0 },
   #include "hipacc/Device/Builtins.def"
 };
@@ -343,8 +343,9 @@ void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
           case TARGET_CUDA:
             if (!getBuiltinFunction(BuiltinInfo[i].CUDA)) continue;
             break;
-          case TARGET_OpenCL:
+          case TARGET_OpenCLACC:
           case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
             if (!getBuiltinFunction(BuiltinInfo[i].OpenCL)) continue;
             break;
           case TARGET_Renderscript:
@@ -356,9 +357,12 @@ void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
       case TARGET_CUDA:
         if (target == TARGET_CUDA) break;
         continue;
-      case TARGET_OpenCL:
+      case TARGET_OpenCLACC:
       case TARGET_OpenCLCPU:
-        if (target == TARGET_OpenCL || target == TARGET_OpenCLCPU) break;
+      case TARGET_OpenCLGPU:
+        if (target == TARGET_OpenCLACC ||
+            target == TARGET_OpenCLCPU ||
+            target == TARGET_OpenCLGPU) break;
         continue;
       case TARGET_Renderscript:
       case TARGET_Filterscript:
@@ -418,8 +422,9 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
               return NULL;
             case TARGET_CUDA:
               return getBuiltinFunction(BuiltinInfo[i].CUDA);
-            case TARGET_OpenCL:
+            case TARGET_OpenCLACC:
             case TARGET_OpenCLCPU:
+            case TARGET_OpenCLGPU:
               return getBuiltinFunction(BuiltinInfo[i].OpenCL);
             case TARGET_Renderscript:
             case TARGET_Filterscript:
@@ -428,14 +433,16 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
           break;
         case TARGET_CUDA:
           if (target == TARGET_CUDA) return BuiltinInfo[i].FD;
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
-          if (target == TARGET_OpenCL || target == TARGET_OpenCLCPU)
-            return BuiltinInfo[i].FD;
+        case TARGET_OpenCLGPU:
+          if (target == TARGET_OpenCLACC ||
+              target == TARGET_OpenCLCPU ||
+              target == TARGET_OpenCLGPU) return BuiltinInfo[i].FD;
         case TARGET_Renderscript:
         case TARGET_Filterscript:
-          if (target == TARGET_Renderscript || target == TARGET_Filterscript)
-            return BuiltinInfo[i].FD;
+          if (target == TARGET_Renderscript ||
+              target == TARGET_Filterscript) return BuiltinInfo[i].FD;
       }
     }
   }

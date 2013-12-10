@@ -1981,13 +1981,14 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   switch (compilerOptions.getTargetCode()) {
     default:
     case TARGET_C:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
     case TARGET_Renderscript:
     case TARGET_Filterscript:
       jit_compile = false;
       break;
     case TARGET_CUDA:
-    case TARGET_OpenCL:
+    case TARGET_OpenCLGPU:
       if (HipaccDevice(compilerOptions).isARMGPU()) {
         jit_compile = false;
       } else {
@@ -2159,8 +2160,9 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
       break;
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       *OS << "#include \"hipacc_ocl_red.hpp\"\n\n";
       break;
     case TARGET_CUDA:
@@ -2200,8 +2202,9 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   // write kernel name and qualifiers
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       break;
     case TARGET_CUDA:
       *OS << "extern \"C\" {\n";
@@ -2236,8 +2239,9 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
       break;
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       // 2D reduction
       if (compilerOptions.useTextureMemory()) {
         *OS << "REDUCTION_OCL_2D_IMAGE(";
@@ -2320,8 +2324,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   switch (compilerOptions.getTargetCode()) {
     case TARGET_CUDA:
       Policy.LangOpts.CUDA = 1; break;
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       Policy.LangOpts.OpenCL = 1; break;
     case TARGET_C:
     case TARGET_Renderscript:
@@ -2339,8 +2344,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case TARGET_CUDA:
       filename += ".cu";
       ifdef += "CU_"; break;
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       filename += ".cl";
       ifdef += "CL_"; break;
     case TARGET_Renderscript:
@@ -2372,8 +2378,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // preprocessor defines
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       break;
     case TARGET_CUDA:
       *OS << "#include \"hipacc_types.hpp\"\n"
@@ -2407,8 +2414,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_CUDA:
             *OS << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
             break;
-          case TARGET_OpenCL:
+          case TARGET_OpenCLACC:
           case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
             *OS << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
             break;
           case TARGET_Renderscript:
@@ -2434,8 +2442,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_C:
             break;
           case TARGET_CUDA:
-          case TARGET_OpenCL:
+          case TARGET_OpenCLACC:
           case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
           case TARGET_Renderscript:
           case TARGET_Filterscript:
             InterpolationDefinitionsLocal.push_back(resultStr);
@@ -2450,8 +2459,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_C:
             break;
           case TARGET_CUDA:
-          case TARGET_OpenCL:
+          case TARGET_OpenCLACC:
           case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
           case TARGET_Renderscript:
           case TARGET_Filterscript:
             InterpolationDefinitionsLocal.push_back(resultStr);
@@ -2498,8 +2508,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (i==0) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
+        case TARGET_OpenCLGPU:
           break;
         case TARGET_CUDA:
           // surface declaration
@@ -2524,8 +2535,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
+        case TARGET_OpenCLGPU:
           break;
         case TARGET_CUDA:
           // texture declaration
@@ -2560,8 +2572,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (Mask) {
       if (Mask->isConstant()) {
         switch (compilerOptions.getTargetCode()) {
-          case TARGET_OpenCL:
+          case TARGET_OpenCLACC:
           case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
             *OS << "__constant ";
             break;
           case TARGET_CUDA:
@@ -2600,8 +2613,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         // emit declaration in CUDA and Renderscript
         // for other back ends, the mask will be added as kernel parameter
         switch (compilerOptions.getTargetCode()) {
-          case TARGET_OpenCL:
+          case TARGET_OpenCLACC:
           case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
             break;
           case TARGET_CUDA:
             *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
@@ -2646,8 +2660,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
     switch (compilerOptions.getTargetCode()) {
       case TARGET_C:
-      case TARGET_OpenCL:
+      case TARGET_OpenCLACC:
       case TARGET_OpenCLCPU:
+      case TARGET_OpenCLGPU:
         *OS << "inline "; break;
       case TARGET_Renderscript:
       case TARGET_Filterscript:
@@ -2669,8 +2684,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             << K->getNumThreadsY() << ") ";
       }
       break;
-    case TARGET_OpenCL:
+    case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
       if (compilerOptions.useTextureMemory() &&
           compilerOptions.getTextureType()==Array2D) {
         *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
@@ -2721,8 +2737,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     HipaccMask *Mask = K->getMaskFromMapping(FD);
     if (Mask) {
       switch (compilerOptions.getTargetCode()) {
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
+        case TARGET_OpenCLGPU:
           if (!Mask->isConstant()) {
             if (comma++) *OS << ", ";
             *OS << "__constant ";
@@ -2752,8 +2769,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       bool doBreak = false;
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
+        case TARGET_OpenCLGPU:
           break;
         case TARGET_CUDA:
           if (compilerOptions.useTextureMemory() &&
@@ -2782,8 +2800,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
     if (Acc) {
       switch (compilerOptions.getTargetCode()) {
-        case TARGET_OpenCL:
+        case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
+        case TARGET_OpenCLGPU:
           // __global keyword to specify memory location is only needed for OpenCL
           if (comma++) *OS << ", ";
           if (K->useTextureMemory(Acc)) {
