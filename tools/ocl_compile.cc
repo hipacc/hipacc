@@ -35,9 +35,11 @@
 
 #include "hipacc_ocl.hpp"
 
+
 void usage(char **argv) {
-    fprintf(stderr, "Usage: %s [-h] [-d GPU|CPU|ALL] [-p AMD|APPLE|ARM|INTEL|NVIDIA|ALL] [-i <include_dir>] -k <kernel_name> -f <opencl_file>\n", argv[0]);
+    fprintf(stderr, "Usage: %s [-h] [-d ACC|CPU|GPU|ALL] [-p AMD|APPLE|ARM|INTEL|NVIDIA|ALL] [-i <include_dir>] -k <kernel_name> -f <opencl_file>\n", argv[0]);
 }
+
 
 int main(int argc, char *argv[]) {
     int option = 0;
@@ -57,8 +59,9 @@ int main(int argc, char *argv[]) {
                 usage(argv);
                 exit(EXIT_SUCCESS);
             case 'd':
-                if (strncmp(optarg, "GPU", 3) == 0) device_type = CL_DEVICE_TYPE_GPU;
+                if (strncmp(optarg, "ACC", 3) == 0) device_type = CL_DEVICE_TYPE_ACCELERATOR;
                 else if (strncmp(optarg, "CPU", 3) == 0) device_type = CL_DEVICE_TYPE_CPU;
+                else if (strncmp(optarg, "GPU", 3) == 0) device_type = CL_DEVICE_TYPE_GPU;
                 else if (strncmp(optarg, "ALL", 3) == 0) device_type = CL_DEVICE_TYPE_ALL;
                 else fprintf(stderr, "Unknown device type '%s', using 'ALL' as default ...\n", optarg);
                 break;
