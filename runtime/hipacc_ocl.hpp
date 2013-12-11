@@ -408,8 +408,10 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
                 std::cerr << "          Device OpenCL Version: " << pdBuffer << std::endl;
                 std::cerr << "          Device Driver Version: " << pd2Buffer << std::endl;
 
-                // Store all devices in a separate array
-                if (platform_number == (int)i) Ctx.add_device_all(devices[j]);
+                // Store all matching devices in a separate array
+                if (platform_number == (int)i && (this_dev_type & dev_type)) {
+                    Ctx.add_device_all(devices[j]);
+                }
             }
             free(devices);
         }
