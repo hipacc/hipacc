@@ -1242,10 +1242,10 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // update lid_y to lid_y + p*(int)local_size_y
         // update gid_y to gid_y + p*(int)local_size_y
         lidYRef = createBinaryOperator(Ctx, tileVars.local_id_y,
-            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, (int32_t)p),
               tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
         gidYRef = createBinaryOperator(Ctx, tileVars.global_id_y,
-            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, (int32_t)p),
               tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
         // load next iteration to shared memory
         stageIterationToSharedMemory(labelBody, p);
@@ -1289,10 +1289,10 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // update lid_y to lid_y + p*(int)local_size_y
         // update gid_y to gid_y + p*(int)local_size_y
         lidYRef = createBinaryOperator(Ctx, tileVars.local_id_y,
-            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, (int32_t)p),
               tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
         gidYRef = createBinaryOperator(Ctx, tileVars.global_id_y,
-            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, p),
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, (int32_t)p),
               tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
       }
 
