@@ -90,7 +90,7 @@ __global__ void __launch_bounds__ (BS) NAME(INPUT_PARM(DATA_TYPE, INPUT_NAME) \
         val = READ(INPUT_NAME, gid_x + blockDim.x, gid_y + OFFSET_Y, stride); \
     } \
  \
-    for (size_t j=1; j < PPT; ++j) { \
+    for (int j=1; j < PPT; ++j) { \
         if (j+gid_y < IS_HEIGHT) { \
             if (OFFSET_CHECK_X) { \
                 val = REDUCE(val, READ(INPUT_NAME, gid_x, j+gid_y + OFFSET_Y, stride)); \
@@ -104,7 +104,7 @@ __global__ void __launch_bounds__ (BS) NAME(INPUT_PARM(DATA_TYPE, INPUT_NAME) \
  \
     __syncthreads(); \
  \
-    for (size_t s=blockDim.x/2; s>32; s>>=1) { \
+    for (int s=blockDim.x/2; s>32; s>>=1) { \
         if (tid < s) { \
             sdata[tid] = val = REDUCE(val, sdata[tid + s]); \
         } \
@@ -147,7 +147,7 @@ __global__ void __launch_bounds__ (BS) NAME(INPUT_PARM(DATA_TYPE, INPUT_NAME) \
  \
             __syncthreads(); \
  \
-            for (size_t s=blockDim.x/2; s>32; s>>=1) { \
+            for (int s=blockDim.x/2; s>32; s>>=1) { \
                 if (tid < s) { \
                     sdata[tid] = val = REDUCE(val, sdata[tid + s]); \
                 } \
@@ -197,7 +197,7 @@ __global__ void __launch_bounds__ (BS) NAME(INPUT_PARM(DATA_TYPE, INPUT_NAME) \
         val = READ(INPUT_NAME, gid_x + blockDim.x, gid_y + OFFSET_Y, stride); \
     } \
  \
-    for (size_t j=1; j < PPT; ++j) { \
+    for (int j=1; j < PPT; ++j) { \
         if (j+gid_y < IS_HEIGHT) { \
             if (OFFSET_CHECK_X) { \
                 val = REDUCE(val, READ(INPUT_NAME, gid_x, j+gid_y + OFFSET_Y, stride)); \
@@ -211,7 +211,7 @@ __global__ void __launch_bounds__ (BS) NAME(INPUT_PARM(DATA_TYPE, INPUT_NAME) \
  \
     __syncthreads(); \
  \
-    for (size_t s=blockDim.x/2; s>32; s>>=1) { \
+    for (int s=blockDim.x/2; s>32; s>>=1) { \
         if (tid < s) { \
             sdata[tid] = val = REDUCE(val, sdata[tid + s]); \
         } \
@@ -245,7 +245,7 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
  \
     DATA_TYPE val = input[i]; \
  \
-    for (size_t j=1; j < iterations; ++j) { \
+    for (int j=1; j < iterations; ++j) { \
         if (i + j*blockDim.x < num_elements) { \
             val = REDUCE(val, input[i + j*blockDim.x]); \
         } \
@@ -254,7 +254,7 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
  \
     __syncthreads(); \
  \
-    for (size_t s=blockDim.x/2; s>0; s>>=1) { \
+    for (int s=blockDim.x/2; s>0; s>>=1) { \
         if (tid < s) { \
             sdata[tid] = val = REDUCE(val, sdata[tid + s]); \
         } \
