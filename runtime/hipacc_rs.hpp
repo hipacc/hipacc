@@ -445,6 +445,7 @@ HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
     PRS rs = Ctx.get_context(); \
 \
+    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T); \
     int stride = (int)ceilf((float)(width) / (alignment / sizeof(T))) \
                    * (alignment / sizeof(T)); \
 \

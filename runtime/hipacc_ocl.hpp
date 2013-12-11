@@ -604,6 +604,9 @@ HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height, int alignment
     if (host_mem) {
         flags |= CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR;
     }
+    // alignment has to be a multiple of sizeof(T)
+    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T);
+    // compute stride
     int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
     buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*stride*height, host_mem, &err);
     checkErr(err, "clCreateBuffer()");

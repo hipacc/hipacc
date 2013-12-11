@@ -304,6 +304,9 @@ HipaccImage hipaccCreateMemory(T *host_mem, int width, int height, int alignment
     T *mem;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
+    // alignment has to be a multiple of sizeof(T)
+    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T);
+    // compute stride
     int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
     err = cudaMalloc((void **) &mem, sizeof(T)*stride*height);
     //err = cudaMallocPitch((void **) &mem, &stride, stride*sizeof(float), height);
