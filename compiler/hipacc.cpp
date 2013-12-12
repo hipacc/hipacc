@@ -73,7 +73,7 @@ void printUsage() {
     << "OPTIONS:\n\n"
     << "  -emit-cuda              Emit CUDA code; default is OpenCL code\n"
     << "  -emit-opencl-acc        Emit OpenCL code for Accelerator devices\n"
-    << "  -emit-opencl-cpu        Emit OpenCL code for CPU devices, no padding supported\n"
+    << "  -emit-opencl-cpu        Emit OpenCL code for CPU devices\n"
     << "  -emit-opencl-gpu        Emit OpenCL code for GPU devices\n"
     << "  -emit-renderscript      Emit Renderscript code for Android\n"
     << "  -emit-filterscript      Emit Filterscript code for Android\n"
@@ -343,10 +343,9 @@ int main(int argc, char *argv[]) {
       compilerOptions.setTextureMemory(Linear1D);
     }
   }
-  // Textures in OpenCL - no support on CPU
+  // Textures in OpenCL - only supported on some CPU platforms
   if (compilerOptions.emitOpenCLCPU() && compilerOptions.useTextureMemory(USER_ON)) {
-      compilerOptions.setTextureMemory(NoTexture);
-      llvm::errs() << "Warning: texture support disabled! CPU devices do not support textures!\n";
+      llvm::errs() << "\nWarning: image support is only available on some CPU devices!\n\n";
   }
   // Textures in OpenCL - only Array2D textures supported
   if (compilerOptions.emitOpenCLGPU() && compilerOptions.useTextureMemory(USER_ON)) {

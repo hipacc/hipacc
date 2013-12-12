@@ -1826,7 +1826,7 @@ Expr *ASTTranslate::VisitBinaryOperatorTranslate(BinaryOperator *E) {
 
   // check if we have a binary assignment and an Image object on the left-hand
   // side. In case we need built-in function to write to the Image (e.g.
-  // write_imagef in OpenCL), we have to replace the BinaryOperator by one
+  // write_imagef in OpenCL), we have to replace the BinaryOperator by a
   // function call.
   if (E->getOpcode() == BO_Assign) writeImageRHS = RHS;
   Expr *LHS = Clone(E->getLHS());

@@ -649,15 +649,26 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     }
 
     // writeImageRHS is set by VisitBinaryOperator - side effect
-    if (QT->isVectorType()) {
+    if (!writeImageRHS->getType()->isVectorType()) {
+      // introduce temporary for propagating the RHS to a vector
+      std::stringstream LSST;
+      LSST << "_tmp" << literalCount++;
+      VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(), QT,
+          writeImageRHS);
+      DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+      DC->addDecl(tmp_decl);
+      DeclRefExpr *tmp_dre = createDeclRefExpr(Ctx, tmp_decl);
+      preStmts.push_back(createDeclStmt(Ctx, tmp_decl));
+      preCStmt.push_back(curCStmt);
+      writeImageRHS = tmp_dre;
+    }
+
+    if (writeImageRHS->getType() != QT) {
+      // convert to proper vector type
       SmallVector<Expr *, 16> args;
       args.push_back(writeImageRHS);
       writeImageRHS = createFunctionCall(Ctx, getConvertFunction(QT, true),
           args);
-    } else {
-      writeImageRHS = createParenExpr(Ctx, writeImageRHS);
-      writeImageRHS = createCStyleCastExpr(Ctx, QT, CK_VectorSplat,
-        writeImageRHS, NULL, Ctx.getTrivialTypeSourceInfo(QT));
     }
 
     // parameters for write_image
