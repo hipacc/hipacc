@@ -242,7 +242,7 @@ HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height);
 void hipaccReleaseMemory(HipaccImage &Img);
 
 template<typename data_t>
-HipaccPyramid hipaccCreatePyramid(HipaccImage &img, int depth) {
+HipaccPyramid hipaccCreatePyramid(HipaccImage &img, size_t depth) {
   HipaccPyramid p(depth);
   p.add(img);
 
