@@ -500,6 +500,8 @@ int main(int argc, const char **argv) {
     timing = hipaccGetLastKernelTiming();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    size_t memory_size = sizeof(int)*width*height;
+    float bandwidth_MBs = 2.0f * ((double)memory_size)/(timing/1000 * (double)(1 << 20));
 
 
     fprintf(stderr, "Calculating 2 image kernel ...\n");
@@ -578,6 +580,13 @@ int main(int argc, const char **argv) {
         fprintf(stderr, "\t%.3f", timings.data()[i]);
     }
     fprintf(stderr, "\n\n");
+
+    // print achieved bandwidth
+    fprintf(stderr, "Bandwidth for memory size [MB]: %lu\n", memory_size/(1024*1024));
+    fprintf(stderr, "Bandwidth [MB/s]: %f\n", bandwidth_MBs);
+    fprintf(stderr, "Bandwidth [GB/s]: %f\n", bandwidth_MBs/1024);
+    fprintf(stderr, "\n\n");
+
 
     // get results
     host_out0 = OUT0.getData();
