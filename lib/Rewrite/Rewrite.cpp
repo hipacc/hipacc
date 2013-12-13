@@ -2814,7 +2814,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           } else {
             *OS << "__global ";
             if (memAcc==READ_ONLY) *OS << "const ";
-            T.getAsStringInternal(Name, Policy);
+            *OS << T->getPointeeType().getAsString();
+            *OS << " * restrict ";
           }
           *OS << Name;
           break;
@@ -2825,10 +2826,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             // no parameter is emitted for textures
             continue;
           } else {
-            T = T->getPointeeType();
             if (comma++) *OS << ", ";
             if (memAcc==READ_ONLY) *OS << "const ";
-            *OS << T.getAsString();
+            *OS << T->getPointeeType().getAsString();
             *OS << " * __restrict__ ";
             *OS << Name;
           }
