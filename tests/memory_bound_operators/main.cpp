@@ -663,7 +663,6 @@ int main(int argc, const char **argv) {
     // memory cleanup
     free(host_in0);
     free(host_in1);
-    //free(host_out);
     free(reference_in0);
     free(reference_in1);
     free(reference_out0);
