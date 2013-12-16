@@ -233,12 +233,12 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
         *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
         SmallVector<CompoundStmt *, 16> &bhCStmt);
-    Stmt *addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper);
-    Stmt *addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower);
-    Stmt *addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper);
-    Stmt *addRepeatLower(HipaccAccessor *Acc, Expr *idx, Expr *lower);
-    Stmt *addMirrorUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper);
-    Stmt *addMirrorLower(HipaccAccessor *Acc, Expr *idx, Expr *lower);
+    Stmt *addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, bool);
+    Stmt *addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, bool);
+    Stmt *addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, bool);
+    Stmt *addRepeatLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, bool);
+    Stmt *addMirrorUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, bool);
+    Stmt *addMirrorLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, bool);
     Expr *addConstantUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, Expr
         *cond);
     Expr *addConstantLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, Expr
