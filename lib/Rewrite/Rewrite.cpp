@@ -2163,6 +2163,10 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
     case TARGET_OpenCLGPU:
+      if (compilerOptions.useTextureMemory() &&
+          compilerOptions.getTextureType()==Array2D) {
+        *OS << "#define USE_ARRAY_2D\n";
+      }
       *OS << "#include \"hipacc_ocl_red.hpp\"\n\n";
       break;
     case TARGET_CUDA:
@@ -2243,18 +2247,11 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case TARGET_OpenCLCPU:
     case TARGET_OpenCLGPU:
       // 2D reduction
-      if (compilerOptions.useTextureMemory()) {
-        *OS << "REDUCTION_OCL_2D_IMAGE(";
-      } else {
-        *OS << "REDUCTION_OCL_2D(";
-      }
-      *OS << K->getReduceName() << "2D, "
+      *OS << "REDUCTION_OCL_2D(" << K->getReduceName() << "2D, "
           << fun->getResultType().getAsString() << ", "
-          << K->getReduceName();
-      if (compilerOptions.useTextureMemory()) {
-        *OS << ", " << K->getIterationSpace()->getImage()->getImageReadFunction();
-      }
-      *OS << ")\n";
+          << K->getReduceName() << ", "
+          << K->getIterationSpace()->getImage()->getImageReadFunction()
+          << ")\n";
       // 1D reduction
       *OS << "REDUCTION_OCL_1D(" << K->getReduceName() << "1D, "
           << fun->getResultType().getAsString() << ", "

@@ -50,73 +50,23 @@
 #define OFFSET_CHECK_X gid_x < width
 #define OFFSET_CHECK_X_STRIDE gid_x + get_local_size(0) < width
 #endif
-
-// step 1:
-// reduce a 2D block stored to linear memory and store the reduced value to linear memory
-#define REDUCTION_OCL_2D(NAME, DATA_TYPE, REDUCE) \
-__kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME(__global \
-        const DATA_TYPE *input, __global DATA_TYPE *output, const unsigned int \
-        width, const unsigned int height, const unsigned int stride OFFSETS) { \
-    const unsigned int gid_x =  2*get_local_size(0) * get_group_id(0) + get_local_id(0) + OFFSET_BLOCK; \
-    const unsigned int gid_y = PPT*get_local_size(1) * get_group_id(1) + get_local_id(1); \
-    const unsigned int tid = get_local_id(0); \
- \
-    __local DATA_TYPE sdata[BS]; \
- \
-    DATA_TYPE val; \
- \
-    if (OFFSET_CHECK_X) { \
-        if (OFFSET_CHECK_X_STRIDE) { \
-            val = REDUCE(input[(gid_y + OFFSET_Y)*stride + gid_x], input[(gid_y + OFFSET_Y)*stride + gid_x + get_local_size(0)]); \
-        } else { \
-            val = input[(gid_y + OFFSET_Y)*stride + gid_x]; \
-        } \
-    } else { \
-        val = input[(gid_y + OFFSET_Y)*stride + gid_x + get_local_size(0)]; \
-    } \
- \
-    for (int j=1; j < PPT; ++j) { \
-        if (j+gid_y < IS_HEIGHT) { \
-            if (OFFSET_CHECK_X) { \
-                val = REDUCE(val, input[(j+gid_y + OFFSET_Y)*stride + gid_x]); \
-            } \
-            if (OFFSET_CHECK_X_STRIDE) { \
-                val = REDUCE(val, input[(j+gid_y + OFFSET_Y)*stride + gid_x+get_local_size(0)]); \
-            } \
-        } \
-    } \
-    sdata[tid] = val; \
- \
-    barrier(CLK_LOCAL_MEM_FENCE); \
- \
-    for (int s=get_local_size(0)/2; s>32; s>>=1) { \
-        if (tid < s) { \
-            sdata[tid] = val = REDUCE(val, sdata[tid + s]); \
-        } \
-        barrier(CLK_LOCAL_MEM_FENCE); \
-    } \
- \
-    if (tid < 32) { \
-        volatile __local DATA_TYPE *smem = sdata; \
-        smem[tid] = val = REDUCE(val, smem[tid + 32]); \
-        smem[tid] = val = REDUCE(val, smem[tid + 16]); \
-        smem[tid] = val = REDUCE(val, smem[tid +  8]); \
-        smem[tid] = val = REDUCE(val, smem[tid +  4]); \
-        smem[tid] = val = REDUCE(val, smem[tid +  2]); \
-        smem[tid] = val = REDUCE(val, smem[tid +  1]); \
-    } \
- \
-    if (tid == 0) output[get_group_id(0) + get_num_groups(0)*get_group_id(1)] = sdata[0]; \
-}
+#ifdef USE_ARRAY_2D
+#define READ(INPUT, X, Y, STRIDE, METHOD) METHOD(INPUT, img_sampler, (int2)(X, Y)).x
+#define INPUT_PARM(DATA_TYPE, INPUT_NAME) __read_only image2d_t INPUT_NAME
+#else
+#define READ(INPUT, X, Y, STRIDE, METHOD) INPUT[(X) + (Y)*STRIDE]
+#define INPUT_PARM(DATA_TYPE, INPUT_NAME) __global DATA_TYPE *INPUT_NAME
+#endif
 
 
 // step 1:
-// reduce a 2D block stored to Image object and store the reduced value to linear memory
+// reduce a 2D block stored to linear memory or an Image object and store the reduced value to linear memory
 __constant sampler_t img_sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
-#define REDUCTION_OCL_2D_IMAGE(NAME, DATA_TYPE, REDUCE, READ) \
-__kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME(__read_only \
-        image2d_t input, __global DATA_TYPE *output, const unsigned int width, \
-        const unsigned int height, const unsigned int stride OFFSETS) { \
+#define REDUCTION_OCL_2D(NAME, DATA_TYPE, REDUCE, IMG_ACC) \
+__kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME( \
+        INPUT_PARM(DATA_TYPE, input), __global DATA_TYPE *output, \
+        const unsigned int width, const unsigned int height, \
+        const unsigned int stride OFFSETS) { \
     const unsigned int gid_x =  2*get_local_size(0) * get_group_id(0) + get_local_id(0) + OFFSET_BLOCK; \
     const unsigned int gid_y = PPT*get_local_size(1) * get_group_id(1) + get_local_id(1); \
     const unsigned int tid = get_local_id(0); \
@@ -127,21 +77,21 @@ __kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME(__read_only \
  \
     if (OFFSET_CHECK_X) { \
         if (OFFSET_CHECK_X_STRIDE) { \
-            val = REDUCE(READ(input, img_sampler, (int2)(gid_x, gid_y + OFFSET_Y)).x, READ(input, img_sampler, (int2)(gid_x + get_local_size(0), gid_y + OFFSET_Y)).x); \
+            val = REDUCE(READ(input, gid_x, gid_y + OFFSET_Y, stride, IMG_ACC), READ(input, gid_x + get_local_size(0), gid_y + OFFSET_Y, stride, IMG_ACC)); \
         } else { \
-            val = READ(input, img_sampler, (int2)(gid_x, gid_y + OFFSET_Y)).x; \
+            val = READ(input, gid_x, gid_y + OFFSET_Y, stride, IMG_ACC); \
         } \
     } else { \
-        val = READ(input, img_sampler, (int2)(gid_x + get_local_size(0), gid_y + OFFSET_Y)).x; \
+        val = READ(input, gid_x + get_local_size(0), gid_y + OFFSET_Y, stride, IMG_ACC); \
     } \
  \
     for (int j=1; j < PPT; ++j) { \
         if (j+gid_y < IS_HEIGHT) { \
             if (OFFSET_CHECK_X) { \
-                val = REDUCE(val, READ(input, img_sampler, (int2)(gid_x, j+gid_y + OFFSET_Y)).x); \
+                val = REDUCE(val, READ(input, gid_x, j+gid_y + OFFSET_Y, stride, IMG_ACC)); \
             } \
             if (OFFSET_CHECK_X_STRIDE) { \
-                val = REDUCE(val, READ(input, img_sampler, (int2)((gid_x+get_local_size(0), j+gid_y + OFFSET_Y))).x); \
+                val = REDUCE(val, READ(input, gid_x+get_local_size(0), j+gid_y + OFFSET_Y, stride, IMG_ACC)); \
             } \
         } \
     } \
