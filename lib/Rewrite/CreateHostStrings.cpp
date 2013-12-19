@@ -713,11 +713,11 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += "_args" + kernelName + ".push_back(";
           resultStr += "hipacc_script_arg<ScriptC_" + K->getFileName() + ">(";
           resultStr += "&ScriptC_" + K->getFileName();
-          resultStr += "::set_" + deviceArgNames[i] + ", &";
+          resultStr += "::set_" + deviceArgNames[i] + ", ";
           if (Acc || Mask || i==0) {
-            resultStr += "alloc_" + LSS.str() + "));\n";
+            resultStr += "&alloc_" + LSS.str() + "));\n";
           } else {
-            resultStr += hostArgNames[i] + "));\n";
+            resultStr += "(" + argTypeNames[i] + "*)&" + hostArgNames[i] + "));\n";
           }
           resultStr += indent;
           break;
@@ -761,7 +761,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += "sp<Allocation>(((Allocation *)" + hostArgNames[i];
             resultStr += img_mem + ")));\n";
           } else {
-            resultStr += hostArgNames[i] + img_mem + ");\n";
+            resultStr += "(" + argTypeNames[i] + ")" + hostArgNames[i] + img_mem + ");\n";
           }
           resultStr += indent;
           break;

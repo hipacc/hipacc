@@ -192,7 +192,7 @@ class hipacc_script_arg {
     hipacc_script_arg(void(F::*setter)(T), T const *arg) \
         : id(ID), memptr((void(F::*)())setter), valptr((void*)arg) {} \
     std::pair<void(F::*)(T), T*> get ## ID() const { \
-        return std::make_pair((void(F::*)(T))memptr, (T*)valptr); \
+      return std::make_pair((void(F::*)(T))memptr, (T*)valptr); \
     }
 
     CREATE_SCRIPT_ARG(0, uint8_t)
@@ -221,7 +221,33 @@ class hipacc_script_arg {
     CREATE_SCRIPT_ARG(18, float4)
     CREATE_SCRIPT_ARG(19, double4)
 
-    CREATE_SCRIPT_ARG(20, sp<Allocation>)
+    hipacc_script_arg(void(F::*setter)(sp<Allocation>),
+                      sp<Allocation> const *arg)
+        : id(20), memptr((void(F::*)())setter), valptr((void*)arg) {}
+    std::pair<void(F::*)(sp<Allocation>), sp<Allocation>*> get20() const {
+      return std::make_pair((void(F::*)(sp<Allocation>))memptr,
+                            (sp<Allocation>*)valptr);
+    }
+
+#if RS_TARGET_API > 18
+    // Set a single allocation of script. Extends previously declared ctors
+    // by support for newly introduced setter type with 'const' specifier. This
+    // can be removed by setting the 'const' specifier in caller by the
+    // rewriter (some time in the future when pre-19 Renderscript support will
+    // eventually be dropped). Same issue at function @see hipaccSetScriptArg.
+    hipacc_script_arg(void(F::*setter)(sp<const Allocation>),
+                      sp<Allocation> const *arg)
+        : id(21), memptr((void(F::*)())setter), valptr((void*)arg) {}
+    std::pair<void(F::*)(sp<const Allocation>), sp<Allocation>*> get21() const {
+      return std::make_pair((void(F::*)(sp<const Allocation>))memptr,
+                            (sp<Allocation>*)valptr);
+    }
+#else // RS_TARGET_API > 18
+    // unused getter, just to make the compiler happy
+    std::pair<void(F::*)(int),int*> get21() const {
+      return std::make_pair((void(F::*)(int))NULL, (int*)NULL);
+    }
+#endif // RS_TARGET_API > 18
 };
 
 
@@ -253,6 +279,7 @@ class hipacc_script_arg {
        case 18: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 18) break; \
        case 19: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 19) break; \
        case 20: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 20) break; \
+       case 21: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 21) break; \
     }
 
 #ifndef EXCLUDE_IMPL
@@ -539,7 +566,7 @@ void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
 // support for newly introduced setter type with 'const' specifier. This can be
 // removed by setting the 'const' specifier in caller by the rewriter (some
 // time in the future when pre-19 Renderscript support will eventually be
-// dropped).
+// dropped). Same issue at class @see hipacc_script_arg.
 template<typename F>
 void hipaccSetScriptArg(F* script, void(F::*setter)(sp<const Allocation>),
                         sp<Allocation> param) {
