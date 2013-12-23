@@ -895,11 +895,6 @@ Expr *ASTTranslate::VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *E) {
   return NULL;
 }
 
-Expr *ASTTranslate::VisitBinaryTypeTraitExpr(BinaryTypeTraitExpr *E) {
-  HIPACC_NOT_SUPPORTED(BinaryTypeTraitExpr);
-  return NULL;
-}
-
 Expr *ASTTranslate::VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E) {
   HIPACC_NOT_SUPPORTED(ArrayTypeTraitExpr);
   return NULL;
@@ -1080,6 +1075,16 @@ Expr *ASTTranslate::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
 
   Expr *result = new (Ctx) ShuffleVectorExpr(Ctx, body, E->getType(),
       E->getBuiltinLoc(), E->getRParenLoc());
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
+Expr *ASTTranslate::VisitConvertVectorExpr(ConvertVectorExpr *E) {
+  Expr *result = new (Ctx) ConvertVectorExpr(E->getSrcExpr(),
+      E->getTypeSourceInfo(), E->getType(), E->getValueKind(),
+      E->getObjectKind(), E->getBuiltinLoc(), E->getRParenLoc());
 
   setExprPropsClone(E, result);
 

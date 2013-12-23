@@ -14,8 +14,7 @@ SET(CLANG_USED_LIBS
     clangSema
     clangSerialization
     clangRewriteCore
-    clangRewriteFrontend
-)
+    clangRewriteFrontend)
 
 SET(HIPACC_USED_LIBS
     Rewrite

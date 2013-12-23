@@ -548,7 +548,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *E);
     Expr *VisitTypeTraitExpr(TypeTraitExpr *E);
     Expr *VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *E);
-    Expr *VisitBinaryTypeTraitExpr(BinaryTypeTraitExpr *E);
     Expr *VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E);
     Expr *VisitExpressionTraitExpr(ExpressionTraitExpr *E);
     Expr *VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E);
@@ -640,6 +639,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // Clang Extensions
     Expr *VisitShuffleVectorExpr(ShuffleVectorExpr *E);
+    Expr *VisitConvertVectorExpr(ConvertVectorExpr *E);
     Expr *VisitBlockExpr(BlockExpr *E) {
       HIPACC_NOT_SUPPORTED(BlockExpr);
       return NULL;

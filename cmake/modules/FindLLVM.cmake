@@ -56,7 +56,7 @@ EXECUTE_PROCESS(
 )
 
 EXECUTE_PROCESS(
-    COMMAND ${LLVM_CONFIG_EXECUTABLE} --libs bitreader instrumentation ipo mcparser option
+    COMMAND ${LLVM_CONFIG_EXECUTABLE} --libs instrumentation ipo
     OUTPUT_VARIABLE LLVM_MODULE_LIBS
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
