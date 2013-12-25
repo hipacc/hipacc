@@ -1,20 +1,19 @@
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti ${LLVM_CXXFLAGS}")
 SET(CLANG_USED_LIBS
     clangFrontendTool
-    clangAST
-    clangAnalysis
-    clangBasic
-    clangCodeGen
-    clangDriver
-    clangEdit
     clangFrontend
-    clangLex
-    clangParse
-    clangEdit
-    clangSema
+    clangDriver
     clangSerialization
+    clangCodeGen
+    clangParse
+    clangSema
+    clangRewriteFrontend
     clangRewriteCore
-    clangRewriteFrontend)
+    clangAnalysis
+    clangEdit
+    clangAST
+    clangBasic
+    clangLex)
 
 SET(HIPACC_USED_LIBS
     Rewrite
