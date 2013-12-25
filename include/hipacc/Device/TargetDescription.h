@@ -159,6 +159,19 @@ class HipaccDeviceOptions {
           require_textures[UserOperator] = NoTexture;
           vectorization = true;
           break;
+        case KNIGHTSCORNER:
+          alignment = 64;
+          local_memory_threshold = 9999;
+          default_num_threads_x = 1024;
+          pixels_per_thread[PointOperator] = 1;
+          pixels_per_thread[LocalOperator] = 1;
+          pixels_per_thread[GlobalOperator] = 1;
+          require_textures[PointOperator] = NoTexture;
+          require_textures[LocalOperator] = NoTexture;
+          require_textures[GlobalOperator] = NoTexture;
+          require_textures[UserOperator] = NoTexture;
+          vectorization = true;
+          break;
       }
 
       // deactivate for custom operators
@@ -347,6 +360,20 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_alus = 4; // vector 4
           num_sfus = 1; // just a guess
           break;
+        case KNIGHTSCORNER:
+          max_threads_per_warp = 4,
+          // max_blocks_per_multiprocessor - unknown
+          max_threads_per_block = 8192;
+          max_warps_per_multiprocessor = 64; // unknown
+          max_threads_per_multiprocessor = 256; // unknown
+          max_total_registers = 32; // each 512bit => 2kB
+          max_total_shared_memory = 32768;
+          register_alloc_size = 1; // unknown
+          shared_memory_alloc_size = 1; // unknown
+          allocation_granularity = BLOCK; // unknown
+          num_alus = 16; // 512 bit vector units - for single precision
+          num_sfus = 0;
+          break;
       }
     }
 
@@ -365,6 +392,15 @@ class HipaccDevice : public HipaccDeviceOptions {
         default:
           return false;
         case MIDGARD:
+          return true;
+      }
+    }
+
+    bool isINTELACC() {
+      switch (target_device) {
+        default:
+          return false;
+        case KNIGHTSCORNER:
           return true;
       }
     }
@@ -414,6 +450,8 @@ class HipaccDevice : public HipaccDeviceOptions {
         //  return "AMD Southern Island";
         case MIDGARD:
           return "ARM Midgard: Mali-6xx";
+        case KNIGHTSCORNER:
+          return "Intel MIC: Knights Corner";
       }
     }
 

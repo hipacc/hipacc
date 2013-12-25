@@ -88,6 +88,8 @@ void printUsage() {
     << "                            'NorthernIsland' for Northern Island architecture (Radeon HD6xxx).\n"
     << "                          Code names for for OpenCL on ARM devices are:\n"
     << "                            'Midgard' for Mali-T6xx' for Mali.\n"
+    << "                          Code names for for OpenCL on Intel Xeon Phi devices are:\n"
+    << "                            'KnightsCorner' for Knights Corner Many Integrated Cores architecture.\n"
     << "  -explore-config         Emit code that explores all possible kernel configuration and print its performance\n"
     << "  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1\n"
     << "  -time-kernels           Emit code that executes each kernel multiple times to get accurate timings\n"
@@ -193,6 +195,8 @@ int main(int argc, char *argv[]) {
         compilerOptions.setTargetDevice(NORTHERN_ISLAND);
       } else if (StringRef(argv[i+1]) == "Midgard") {
         compilerOptions.setTargetDevice(MIDGARD);
+      } else if (StringRef(argv[i+1]) == "KnightsCorner") {
+        compilerOptions.setTargetDevice(KNIGHTSCORNER);
       } else {
         llvm::errs() << "ERROR: Expected valid code name specification for -target switch.\n\n";
         printUsage();
@@ -312,7 +316,7 @@ int main(int argc, char *argv[]) {
   // CUDA supported only on NVIDIA devices
   if (compilerOptions.emitCUDA() && !targetDevice.isNVIDIAGPU()) {
     llvm::errs() << "ERROR: CUDA code generation selected, but no CUDA-capable target device specified!\n"
-                 << "  Please select correct target device/code generation backend combination.\n\n";
+                 << "  Please select correct target device/code generation back end combination.\n\n";
     printUsage();
     return EXIT_FAILURE;
   }
@@ -320,8 +324,15 @@ int main(int argc, char *argv[]) {
   if (compilerOptions.emitOpenCLGPU() &&
       !(targetDevice.isAMDGPU() || targetDevice.isARMGPU() ||
         targetDevice.isNVIDIAGPU())) {
-    llvm::errs() << "ERROR: OpenCL (GPU) code generation selected, but no OpenCL-capable target device specified!\n"
-                 << "  Please select correct target device/code generation backend combination.\n\n";
+    llvm::errs() << "ERROR: OpenCL (GPU) code generation selected, but no OpenCL-capable GPU target device specified!\n"
+                 << "  Please select correct target device/code generation back end combination.\n\n";
+    printUsage();
+    return EXIT_FAILURE;
+  }
+  // OpenCL (ACC) only supported on accelerator devices
+  if (compilerOptions.emitOpenCLACC() && !targetDevice.isINTELACC()) {
+    llvm::errs() << "ERROR: OpenCL (ACC) code generation selected, but no OpenCL-capable accelerator device specified!\n"
+                 << "  Please select correct target device/code generation back end combination.\n\n";
     printUsage();
     return EXIT_FAILURE;
   }
@@ -347,6 +358,12 @@ int main(int argc, char *argv[]) {
   if (compilerOptions.emitOpenCLCPU() && compilerOptions.useTextureMemory(USER_ON)) {
       llvm::errs() << "\nWarning: image support is only available on some CPU devices!\n\n";
   }
+  // Textures in OpenCL - only supported on some CPU platforms
+  if (compilerOptions.emitOpenCLACC() && compilerOptions.useTextureMemory(USER_ON)) {
+      llvm::errs() << "\nWarning: image support is not available on ACC devices!\n\n";
+      printUsage();
+      return EXIT_FAILURE;
+  }
   // Textures in OpenCL - only Array2D textures supported
   if (compilerOptions.emitOpenCLGPU() && compilerOptions.useTextureMemory(USER_ON)) {
     if (compilerOptions.getTextureType()!=Array2D) {
@@ -369,7 +386,7 @@ int main(int argc, char *argv[]) {
   if (compilerOptions.emitFilterscript() &&
       compilerOptions.getPixelsPerThread() > 1) {
     llvm::errs() << "ERROR: Calculating multiple pixels per thread selected, which is not supported for Filterscript!\n"
-                 << "  Please disable multiple pixels per thread oder switch target code generation backend.\n\n";
+                 << "  Please disable multiple pixels per thread oder switch target code generation back end.\n\n";
     printUsage();
     return EXIT_FAILURE;
   }
@@ -415,7 +432,7 @@ int main(int argc, char *argv[]) {
   // print statistics
   //Clang->getFrontendOpts().ShowStats = 1;
 
-  // set an error handler, so that any LLVM backend diagnostics go through
+  // set an error handler, so that any LLVM back end diagnostics go through
   // our error handler
   llvm::install_fatal_error_handler(LLVMErrorHandler,
       static_cast<void *>(&Clang->getDiagnostics()));
