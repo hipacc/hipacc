@@ -1,10 +1,10 @@
 # Configuration
 COMPILER     ?= ./bin/hipacc
-COMPILER_INC ?= -std=c++11 -stdlib=libc++ \
+COMPILER_INC ?= -std=c++11 \
+                -resource-dir `@CLANG_EXECUTABLE@ -print-file-name=` \
                 -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                 -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                 -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
-                -I/usr/include \
                 -I@DSL_INCLUDES@
 TEST_CASE    ?= ./tests/opencv_blur_8uc1
 MYFLAGS      ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5

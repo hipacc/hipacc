@@ -424,7 +424,7 @@ int main(int argc, char *argv[]) {
       CompilerInvocation::GetResourcesPath(argv[0], mainAddr);
   }
 
-  // create the compilers actual diagnostics engine
+  // create the actual diagnostics engine
   Clang->createDiagnostics();
   if (!Clang->hasDiagnostics()) return EXIT_FAILURE;
   // print diagnostics in color
