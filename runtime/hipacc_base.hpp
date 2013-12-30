@@ -26,11 +26,13 @@
 #ifndef __HIPACC_BASE_HPP__
 #define __HIPACC_BASE_HPP__
 
-#include "hipacc_math_functions.hpp"
-
+#include <cassert>
+#include <vector>
 #if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 #include <functional>
 #endif // defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+
+#include "hipacc_math_functions.hpp"
 
 #define HIPACC_NUM_ITERATIONS 10
 
