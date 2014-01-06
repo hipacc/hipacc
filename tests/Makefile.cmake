@@ -5,7 +5,8 @@ COMPILER_INC ?= -std=c++11 \
                 -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                 -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                 -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
-                -I@DSL_INCLUDES@
+                -I@DSL_INCLUDES@ \
+                -I/usr/include
 TEST_CASE    ?= ./tests/opencv_blur_8uc1
 MYFLAGS      ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
 NVCC_FLAGS    = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
