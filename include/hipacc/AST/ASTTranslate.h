@@ -144,7 +144,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       switch (D->getKind()) {
         default:
           assert(0 && "Only VarDecls, ParmVArDecls, and FunctionDecls supported!");
-          break;
         case Decl::ParmVar:
           if (astMode==CloneAST) return D;
           return dyn_cast<T>(CloneParmVarDecl(dyn_cast<ParmVarDecl>(D)));

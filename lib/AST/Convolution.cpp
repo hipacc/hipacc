@@ -43,7 +43,7 @@ using namespace ASTNode;
 // create expression for convolutions
 Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
     *tmp_var, Expr *ret_val) {
-  Stmt *result;
+  Stmt *result = NULL;
   FunctionDecl *fun;
   SmallVector<Expr *, 16> funArgs;
 
@@ -82,7 +82,6 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
       break;
     case HipaccMEDIAN:
       assert(0 && "Unsupported convolution mode.");
-      break;
   }
 
   return result;
@@ -229,7 +228,7 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
 // check if we have a convolve/reduce/iterate method and convert it
 Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   // check if this is a convolve function call
-  ConvolveMethod method;
+  ConvolveMethod method = Convolve;
   if (E->getDirectCallee()->getName().equals("convolve")) {
     method = Convolve;
     assert(convMask == NULL && "Nested convolution calls are not supported.");

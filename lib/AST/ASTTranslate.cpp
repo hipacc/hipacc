@@ -2015,6 +2015,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         // look for Domain user class member variable
         assert(Kernel->getMaskFromMapping(domFD) && "Could not find Domain variable.");
         HipaccMask *Domain = Kernel->getMaskFromMapping(domFD);
+        (void)Domain; // silent compiler warning
         assert(Domain->isDomain() && "Domain required.");
 
         assert(Mask->getSizeX()==Domain->getSizeX() &&

@@ -761,8 +761,10 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
   AnalysisDeclContext AC(/* AnalysisDeclContextManager */ 0, E->getCallOperator());
   KernelStatistics::setAnalysisOptions(AC);
 
-  CFG *cfg = AC.getCFG();
-  assert(cfg && "Could not get CFG from lambda-function.");
+  assert(AC.getCFG && "Could not get CFG from lambda-function.");
+  #ifdef DEBUG_ANALYSIS
+  AC.getCFG()->viewCFG(KS.Ctx.getLangOpts());
+  #endif
 
   PostOrderCFGView *POV = AC.getAnalysis<PostOrderCFGView>();
   KS.inLambdaFunction = true;
@@ -771,10 +773,6 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
     KS.runOnBlock(*it);
   }
   KS.inLambdaFunction = false;
-
-  #ifdef DEBUG_ANALYSIS
-  cfg->viewCFG(KS.Ctx.getLangOpts());
-  #endif
 }
 
 void TransferFunctions::VisitReturnStmt(ReturnStmt *S) {
@@ -871,13 +869,12 @@ KernelStatistics *KernelStatistics::computeKernelStatistics(AnalysisDeclContext
   CFG *cfg = AC.getCFG();
   if (!cfg) return 0;
 
-  KernelStatsImpl *KS = new KernelStatsImpl(AC, name, compilerClasses);
-
-  KS->runOnAllBlocks();
-
   #ifdef DEBUG_ANALYSIS
   cfg->viewCFG(AC.getASTContext().getLangOpts());
   #endif
+
+  KernelStatsImpl *KS = new KernelStatsImpl(AC, name, compilerClasses);
+  KS->runOnAllBlocks();
 
   return new KernelStatistics(KS);
 }
