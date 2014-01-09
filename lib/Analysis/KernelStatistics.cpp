@@ -761,7 +761,7 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
   AnalysisDeclContext AC(/* AnalysisDeclContextManager */ 0, E->getCallOperator());
   KernelStatistics::setAnalysisOptions(AC);
 
-  assert(AC.getCFG && "Could not get CFG from lambda-function.");
+  assert(AC.getCFG() && "Could not get CFG from lambda-function.");
   #ifdef DEBUG_ANALYSIS
   AC.getCFG()->viewCFG(KS.Ctx.getLangOpts());
   #endif
