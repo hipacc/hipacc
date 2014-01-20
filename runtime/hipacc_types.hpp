@@ -27,7 +27,19 @@
 #ifndef __HIPACC_TYPES_HPP__
 #define __HIPACC_TYPES_HPP__
 
-#if defined __clang__
+#if defined __CUDACC__
+typedef unsigned char       uchar;
+typedef unsigned short      ushort;
+typedef unsigned int        uint;
+typedef unsigned long       ulong;
+#define ATTRIBUTES __inline__ __host__ __device__
+#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_MOP(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE, RET_TYPE)
+#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)
+#elif defined __clang__
 typedef char                char4   __attribute__ ((ext_vector_type(4)));
 typedef short int           short4  __attribute__ ((ext_vector_type(4)));
 typedef int                 int4    __attribute__ ((ext_vector_type(4)));
@@ -48,18 +60,6 @@ typedef unsigned long       ulong;
     MAKE_MOP(NEW_TYPE, BASIC_TYPE)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)
-#elif defined __CUDACC__
-typedef unsigned char       uchar;
-typedef unsigned short      ushort;
-typedef unsigned int        uint;
-typedef unsigned long       ulong;
-#define ATTRIBUTES __inline__ __host__ __device__
-#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
-    MAKE_MOP(NEW_TYPE, BASIC_TYPE) \
-    MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE, RET_TYPE)
-#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
-    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
-    MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)
 #elif defined __GNUC__
 typedef unsigned char       uchar;
 typedef unsigned short      ushort;

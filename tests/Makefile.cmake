@@ -87,7 +87,7 @@ cuda:
 	@echo 'Executing HIPAcc Compiler for CUDA:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cuda $(HIPACC_OPTS) -o main.cu
 	@echo 'Compiling CUDA file using nvcc:'
-	@NVCC_COMPILER@ $(NVCC_FLAGS) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cuda main.cu @CUDA_LINK@
+	@NVCC_COMPILER@ $(NVCC_FLAGS) @CUDA_COMP@ -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cuda main.cu @CUDA_LINK@
 	@echo 'Executing CUDA binary'
 	./main_cuda
 
