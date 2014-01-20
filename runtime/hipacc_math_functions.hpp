@@ -44,17 +44,6 @@ extern float log2(float v) {
 #endif
 
 
-#if defined __clang__
-#define ATTRIBUTES inline
-#elif defined __CUDACC__
-#define ATTRIBUTES __inline__ __host__ __device__
-#elif defined __GNUC__
-#define ATTRIBUTES inline
-#else
-#error "Only Clang, nvcc, and gcc compilers supported!"
-#endif
-
-
 // math operators
 #define MAKE_MATH_BI(NEW_TYPE, BASIC_TYPE, RET_TYPE, SUFFIX) \
  \
