@@ -776,7 +776,7 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
 }
 
 void TransferFunctions::VisitReturnStmt(ReturnStmt *S) {
-  checkImageAccess(S->getRetValue(), READ_ONLY);
+  if (S->getRetValue()) checkImageAccess(S->getRetValue(), READ_ONLY);
 }
 
 
