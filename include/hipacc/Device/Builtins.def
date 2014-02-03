@@ -289,7 +289,7 @@ RSBUILTIN(logb,                     "ff",       logbf)
 HIPACCBUILTIN(modf,                 "ddd*",     HIPACCBImodf,       HIPACCBImodf,       HIPACCBImodf)
 HIPACCBUILTIN(modff,                "fff*",     HIPACCBImodff,      OPENCLBImodff,      RSBImodff)
 OPENCLBUILTIN(modf,                 "fff*",     modff)
-RSBUILTIN(modf,                 "fff*",     modff)
+RSBUILTIN(modf,                     "fff*",     modff)
 
 HIPACCBUILTIN(nan,                  "dc*C",     HIPACCBInan,        HIPACCBInan,        FirstBuiltin)
 HIPACCBUILTIN(nanf,                 "fc*C",     HIPACCBInanf,       OPENCLBInanf,       FirstBuiltin)

@@ -816,10 +816,10 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         }
 
         QT = Acc->getImage()->getType();
-        QT = Ctx.getVariableArrayType(QT, SX, ArrayType::Normal,
-            QT.getQualifiers(), SourceLocation());
-        QT = Ctx.getVariableArrayType(QT, SY, ArrayType::Normal,
-            QT.getQualifiers(), SourceLocation());
+        QT = Ctx.getVariableArrayType(QT, SX, ArrayType::Normal, 0,
+                SourceLocation());
+        QT = Ctx.getVariableArrayType(QT, SY, ArrayType::Normal, 0,
+                SourceLocation());
       } else {
         llvm::APInt SX, SY;
         SX = llvm::APInt(32, Kernel->getNumThreadsX());
@@ -837,10 +837,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         SY = llvm::APInt(32, smem_size_y*Kernel->getNumThreadsY());
 
         QT = Acc->getImage()->getType();
-        QT = Ctx.getConstantArrayType(QT, SX, ArrayType::Normal,
-            QT.getQualifiers());
-        QT = Ctx.getConstantArrayType(QT, SY, ArrayType::Normal,
-            QT.getQualifiers());
+        QT = Ctx.getConstantArrayType(QT, SX, ArrayType::Normal, 0);
+        QT = Ctx.getConstantArrayType(QT, SY, ArrayType::Normal, 0);
       }
 
       switch (compilerOptions.getTargetCode()) {
@@ -1653,10 +1651,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
         QualType QT = E->getCallReturnType();
         if (Kernel->vectorize() && !compilerOptions.emitC()) {
           QT = simdTypes.getSIMDType(QT, QT.getAsString(), SIMD4);
-          // cast ExtVectorType to VectorType - Builtin functions are created
-          // using VectorTypes
-          const VectorType *VT = QT.getCanonicalType()->getAs<VectorType>();
-          QT = QualType(VT, QT.getQualifiers());
+          assert(false && "widening of intrinsic functions not supported currently");
         }
 
         targetFD = builtins.getBuiltinFunction(E->getDirectCallee()->getName(),
