@@ -797,8 +797,7 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
 // stage iteration p to shared memory
 void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
     &stageBody, int p) {
-  for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
-      N=kernelDecl->param_end(); I!=N; ++I) {
+  for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N; ++I) {
     ParmVarDecl *PVD = *I;
 
     if (KernelDeclMapShared[PVD]) {
@@ -861,8 +860,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
 // stage data to shared memory for exploration
 void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
     16> &stageBody) {
-  for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
-      N=kernelDecl->param_end(); I!=N; ++I) {
+  for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N; ++I) {
     ParmVarDecl *PVD = *I;
 
     if (KernelDeclMapShared[PVD]) {

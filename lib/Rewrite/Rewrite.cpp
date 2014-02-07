@@ -261,8 +261,8 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   switch (compilerOptions.getTargetCode()) {
     case TARGET_CUDA:
       if (!compilerOptions.exploreConfig()) {
-        for (llvm::DenseMap<ValueDecl *, HipaccKernel *>::iterator
-            it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
+        for (auto it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei;
+                ++it) {
           HipaccKernel *Kernel = it->second;
 
           newStr += "#include \"";
@@ -273,8 +273,8 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
-      for (llvm::DenseMap<ValueDecl *, HipaccKernel *>::iterator
-          it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
+      for (auto it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it)
+      {
         HipaccKernel *Kernel = it->second;
 
         newStr += "#include \"ScriptC_";
@@ -289,8 +289,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
   // write constant memory declarations
   if (compilerOptions.emitCUDA()) {
-    for (llvm::DenseMap<ValueDecl *, HipaccMask *>::iterator
-        it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
+    for (auto it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
       HipaccMask *Mask = it->second;
       if (Mask->isPrinted()) continue;
 
@@ -325,8 +324,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
   // load OpenCL kernel files and compile the OpenCL kernels
   if (!compilerOptions.exploreConfig()) {
-    for (llvm::DenseMap<ValueDecl *, HipaccKernel *>::iterator
-        it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
+    for (auto it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
       HipaccKernel *Kernel = it->second;
 
       stringCreator.writeKernelCompilation(Kernel, initStr);
@@ -336,8 +334,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
   // write Mask transfers to Symbol in CUDA
   if (compilerOptions.emitCUDA()) {
-    for (llvm::DenseMap<ValueDecl *, HipaccMask *>::iterator
-        it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
+    for (auto it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
       HipaccMask *Mask = it->second;
       std::string newStr;
 
@@ -357,16 +354,15 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   }
 
   // insert initialization before first statement
-  CompoundStmt::body_iterator BI = CS->body_begin();
+  auto BI = CS->body_begin();
   Stmt *S = *BI;
   TextRewriter.InsertTextBefore(S->getLocStart(), initStr);
 
   // insert memory release calls before last statement (return-statement)
-  CompoundStmt::reverse_body_iterator RBI = CS->body_rbegin();
+  auto RBI = CS->body_rbegin();
   S = *RBI;
   // release all images
-  for (llvm::DenseMap<ValueDecl *, HipaccImage *>::iterator
-      it=ImgDeclMap.begin(), ei=ImgDeclMap.end(); it!=ei; ++it) {
+  for (auto it=ImgDeclMap.begin(), ei=ImgDeclMap.end(); it!=ei; ++it) {
     HipaccImage *Img = it->second;
     std::string releaseStr;
 
@@ -374,8 +370,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
     TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
   }
   // release all non-const masks
-  for (llvm::DenseMap<ValueDecl *, HipaccMask *>::iterator
-      it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
+  for (auto it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
     HipaccMask *Mask = it->second;
     std::string releaseStr;
 
@@ -385,8 +380,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
     }
   }
   // release all pyramids
-  for (llvm::DenseMap<ValueDecl *, HipaccPyramid *>::iterator
-      it=PyrDeclMap.begin(), ei=PyrDeclMap.end(); it!=ei; ++it) {
+  for (auto it=PyrDeclMap.begin(), ei=PyrDeclMap.end(); it!=ei; ++it) {
     HipaccPyramid *Pyramid = it->second;
     std::string releaseStr;
 
@@ -406,7 +400,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
 
 bool Rewrite::HandleTopLevelDecl(DeclGroupRef DGR) {
-  for (DeclGroupRef::iterator I = DGR.begin(), E = DGR.end(); I != E; ++I) {
+  for (auto I = DGR.begin(), E = DGR.end(); I != E; ++I) {
     Decl *D = *I;
 
     if (compilerClasses.HipaccEoP) {
@@ -473,9 +467,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
     HipaccKernelClass *KC = NULL;
 
-    for (CXXRecordDecl::base_class_iterator I=D->bases_begin(),
-        E=D->bases_end(); I!=E; ++I) {
-
+    for (auto I=D->bases_begin(), E=D->bases_end(); I!=E; ++I) {
       // found user kernel class
       if (compilerClasses.isTypeOfTemplateClass(I->getType(),
             compilerClasses.Kernel)) {
@@ -497,8 +489,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
     // find constructor
     CXXConstructorDecl *CCD = NULL;
-    for (CXXRecordDecl::ctor_iterator I=D->ctor_begin(), E=D->ctor_end(); I!=E;
-        ++I) {
+    for (auto I=D->ctor_begin(), E=D->ctor_end(); I!=E; ++I) {
       CXXConstructorDecl *CCDI = *I;
 
       if (CCDI->isCopyOrMoveConstructor()) continue;
@@ -509,16 +500,14 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
 
     // iterate over constructor initializers
-    for (FunctionDecl::param_iterator I=CCD->param_begin(), E=CCD->param_end();
-        I!=E; ++I) {
+    for (auto I=CCD->param_begin(), E=CCD->param_end(); I!=E; ++I) {
       ParmVarDecl *PVD = *I;
 
       // constructor initializer represent the parameters for the kernel. Match
       // constructor parameter with constructor initializer since the order may
       // differ, e.g.
       // kernel(int a, int b) : b(a), a(b) {}
-      for (CXXConstructorDecl::init_iterator II=CCD->init_begin(),
-          EE=CCD->init_end(); II!=EE; ++II) {
+      for (auto II=CCD->init_begin(), EE=CCD->init_end(); II!=EE; ++II) {
         CXXCtorInitializer *CBOMI =*II;
         QualType QT;
 
@@ -602,8 +591,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
     }
 
     // search for kernel and reduce functions
-    for (CXXRecordDecl::method_iterator I=D->method_begin(), E=D->method_end();
-        I!=E; ++I) {
+    for (auto I=D->method_begin(), E=D->method_end(); I!=E; ++I) {
       CXXMethodDecl *FD = *I;
 
       // kernel function
@@ -665,8 +653,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   //    - print the CUDA/OpenCL kernel to a file.
   // h) save IterationSpace declarations, e.g.
   //    IterationSpace<int> VIS(OUT, width, height);
-  for (DeclStmt::decl_iterator DI=D->decl_begin(), DE=D->decl_end(); DI!=DE;
-      ++DI) {
+  for (auto DI=D->decl_begin(), DE=D->decl_end(); DI!=DE; ++DI) {
     Decl *SD = *DI;
 
     if (SD->getKind() == Decl::Var) {

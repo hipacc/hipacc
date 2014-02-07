@@ -363,8 +363,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
     exit(EXIT_FAILURE);
   }
   // check capture kind of variables
-  for (LambdaExpr::capture_iterator II=LE->capture_begin(),
-                                    EE=LE->capture_end(); II!=EE; ++II) {
+  for (auto II=LE->capture_begin(), EE=LE->capture_end(); II!=EE; ++II) {
     LambdaExpr::Capture cap = *II;
 
     if (cap.capturesVariable() && cap.getCaptureKind()!=LCK_ByRef) {

@@ -58,8 +58,7 @@ void ASTTranslate::setExprPropsClone(Expr *orig, Expr *clone) {
 
 
 void ASTTranslate::setCastPath(CastExpr *orig, CXXCastPath &castPath) {
-  for (CastExpr::path_iterator PI = orig->path_begin(), PE = orig->path_end();
-      PI != PE; ++PI) {
+  for (auto PI = orig->path_begin(), PE = orig->path_end(); PI != PE; ++PI) {
     castPath.push_back(*PI);
   }
 }
@@ -80,8 +79,7 @@ Stmt *ASTTranslate::VisitCompoundStmtClone(CompoundStmt *S) {
       S->getLBracLoc(), S->getLBracLoc());
 
   SmallVector<Stmt *, 16> body;
-  for (CompoundStmt::const_body_iterator I=S->body_begin(), E=S->body_end();
-      I!=E; ++I) {
+  for (auto I=S->body_begin(), E=S->body_end(); I!=E; ++I) {
     body.push_back(Clone(*I));
   }
   result->setStmts(Ctx, body.data(), body.size());
@@ -162,7 +160,7 @@ Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
     SmallVector<Decl *, 16> clonedDeclGroup;
     const DeclGroupRef& DG = S->getDeclGroup();
 
-    for (DeclGroupRef::const_iterator I=DG.begin(), E=DG.end(); I!=E; ++I) {
+    for (auto I=DG.begin(), E=DG.end(); I!=E; ++I) {
       clonedDeclGroup.push_back(CloneDecl(*I));
     }
 
@@ -197,14 +195,13 @@ Stmt *ASTTranslate::VisitCapturedStmt(CapturedStmt *S) {
   SmallVector<Expr *, 16> CaptureInits;
 
   // Capture inits
-  for (CapturedStmt::capture_init_iterator I = S->capture_init_begin(), E =
-      S->capture_init_end(); I != E; ++I) {
+  for (auto I = S->capture_init_begin(), E = S->capture_init_end(); I != E; ++I)
+  {
     CaptureInits.push_back(Clone(*I));
   }
 
   // Captures
-  for (CapturedStmt::capture_iterator I = S->capture_begin(), E =
-      S->capture_end(); I != E; ++I) {
+  for (auto I = S->capture_begin(), E = S->capture_end(); I != E; ++I) {
     Captures.push_back(CapturedStmt::Capture(I->getLocation(),
           I->getCaptureKind(), CloneDecl(I->getCapturedVar())));
   }
@@ -1008,14 +1005,13 @@ Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
   SmallVector<unsigned int, 4> arrayIndexStarts;
 
   // Captures
-  for (LambdaExpr::capture_iterator CI=E->capture_begin(), CE=E->capture_end();
-      CI!=CE; ++CI) {
+  for (auto CI=E->capture_begin(), CE=E->capture_end(); CI!=CE; ++CI) {
     captures.push_back(*CI);
   }
   // CaptureInits
-  CXXRecordDecl::field_iterator curField = E->getLambdaClass()->field_begin();
-  for (LambdaExpr::capture_init_iterator CI=E->capture_init_begin(),
-      CE=E->capture_init_end(); CI!=CE; ++CI, ++curField) {
+  auto curField = E->getLambdaClass()->field_begin();
+  for (auto CI=E->capture_init_begin(), CE=E->capture_init_end(); CI!=CE; ++CI,
+          ++curField) {
     captureInits.push_back(*CI);
 
     // ArrayIndex[Vars|Starts]

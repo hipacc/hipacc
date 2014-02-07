@@ -173,8 +173,7 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
   #endif
 
   // apply the transfer function for all Stmts in the block.
-  for (CFGBlock::const_iterator it = block->begin(), ei = block->end(); it !=
-      ei; ++it) {
+  for (auto it = block->begin(), ei = block->end(); it != ei; ++it) {
     const CFGElement &elem = *it;
     if (!elem.getAs<CFGStmt>()) continue;
 
@@ -187,8 +186,8 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
   if (const Stmt *term = block->getTerminator()) {
     llvm::errs() << "Successors: \n";
 
-    for (CFGBlock::const_succ_iterator it = block->succ_begin(), ei =
-        block->succ_end(); it != ei; ++it) {
+    for (auto it = block->succ_begin(), ei = block->succ_end(); it != ei; ++it)
+    {
       const CFGBlock *block = *it;
       llvm::errs() << block->getBlockID() << "\n";
     }
@@ -230,7 +229,7 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
 
 void KernelStatsImpl::runOnAllBlocks() {
   PostOrderCFGView *POV = analysisContext.getAnalysis<PostOrderCFGView>();
-  for (PostOrderCFGView::iterator it=POV->begin(), ei=POV->end(); it!=ei; ++it) {
+  for (auto it=POV->begin(), ei=POV->end(); it!=ei; ++it) {
     runOnBlock(*it);
   }
   llvm::errs() << "Kernel statistics for '" << name << "':\n"
@@ -250,9 +249,8 @@ void KernelStatsImpl::runOnAllBlocks() {
                << "  mask stores: "         << num_mask_stores << "\n";
 
   llvm::errs() << "  images:\n";
-  for (llvm::DenseMap<const FieldDecl *, MemoryAccessDetail>::iterator
-      it=imagesToAccessDetail.begin(), ei=imagesToAccessDetail.end(); it!=ei;
-      ++it) {
+  for (auto it=imagesToAccessDetail.begin(), ei=imagesToAccessDetail.end();
+          it!=ei; ++it) {
     const FieldDecl *FD = it->first;
     llvm::errs() << "    " << FD->getNameAsString() << ": ";
     if (it->second == 0)        llvm::errs() << "UNDEFINED ";
@@ -273,8 +271,7 @@ void KernelStatsImpl::runOnAllBlocks() {
   llvm::errs() << "\n";
 
   llvm::errs() << "  VarDecls:\n";
-  for (llvm::DenseMap<const VarDecl *, VectorInfo>::iterator
-      it=declsToVector.begin(), ei=declsToVector.end(); it!=ei; ++it) {
+  for (auto it=declsToVector.begin(), ei=declsToVector.end(); it!=ei; ++it) {
     const VarDecl *VD = it->first;
     llvm::errs() << "    " << VD->getName() << " -> ";
 
@@ -727,8 +724,7 @@ void TransferFunctions::VisitCStyleCastExpr(CStyleCastExpr *E) {
 
 void TransferFunctions::VisitDeclStmt(DeclStmt *S) {
   // iterate over all declarations of this DeclStmt
-  for (DeclStmt::const_decl_iterator it=S->decl_begin(), ei=S->decl_end();
-      it!=ei; ++it) {
+  for (auto it=S->decl_begin(), ei=S->decl_end(); it!=ei; ++it) {
     if (isa<VarDecl>(*it)) {
       VarDecl *VD = dyn_cast<VarDecl>(*it);
       if (VD->hasInit()) {
@@ -768,8 +764,7 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
 
   PostOrderCFGView *POV = AC.getAnalysis<PostOrderCFGView>();
   KS.inLambdaFunction = true;
-  for (PostOrderCFGView::iterator it=POV->begin(), ei=POV->end(); it!=ei;
-      ++it) {
+  for (auto it=POV->begin(), ei=POV->end(); it!=ei; ++it) {
     KS.runOnBlock(*it);
   }
   KS.inLambdaFunction = false;

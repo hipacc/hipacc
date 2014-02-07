@@ -236,8 +236,7 @@ void HipaccIterationSpace::createOutputAccessor() {
 
 
 void HipaccKernel::calcSizes() {
-  for (std::map<FieldDecl *, HipaccAccessor *>::iterator iter = imgMap.begin(),
-      eiter=imgMap.end(); iter!=eiter; ++iter) {
+  for (auto iter = imgMap.begin(), eiter=imgMap.end(); iter!=eiter; ++iter) {
     // only Accessors with proper border handling mode
     if (iter->second->getSizeX() > max_size_x &&
         iter->second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
@@ -368,7 +367,6 @@ void HipaccKernel::calcConfig() {
 
   // sort configurations according to occupancy and number of threads
   std::sort(occVec.begin(), occVec.end(), sortOccMap());
-  std::vector<std::pair<unsigned int, float> >::iterator iter;
 
   // calculate (optimal) kernel configuration from the kernel window sizes and
   // ignore the limitation of maximal threads per block
@@ -386,7 +384,7 @@ void HipaccKernel::calcConfig() {
   llvm::errs() << "\nCalculating kernel configuration for " << kernelName << "\n";
   llvm::errs() << "\toptimal configuration: " << num_threads_x_opt << "x" <<
     num_threads_y_opt << "(x" << getPixelsPerThread() << ")\n";
-  for (iter=occVec.begin(); iter<occVec.end(); ++iter) {
+  for (auto iter=occVec.begin(); iter<occVec.end(); ++iter) {
     std::pair<unsigned int, float> occMap = *iter;
     llvm::errs() << "\t" << occMap.first << " threads:\t" << occMap.second << "\t";
 
@@ -424,7 +422,7 @@ void HipaccKernel::calcConfig() {
                  << num_threads_y << " for kernel '" << kernelName << "'\n";
   } else {
     // start with first configuration
-    iter = occVec.begin();
+    auto iter = occVec.begin();
     std::pair<unsigned int, float> occMap = *iter;
 
     if (use_shared) {
@@ -452,7 +450,7 @@ void HipaccKernel::calcConfig() {
     num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
 
     if ((max_size_y > 1) || num_threads_x != num_threads_x_opt || num_threads_y != num_threads_y_opt) {
-      //std::vector<std::pair<unsigned int, float> >::iterator iter_n = occVec.begin()
+      //auto iter_n = occVec.begin()
 
       // look-ahead if other configurations match better
       while (++iter<occVec.end()) {

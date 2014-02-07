@@ -542,8 +542,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   if (S==NULL) return NULL;
 
   // search for image width and height parameters
-  for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
-      E=kernelDecl->param_end(); I!=E; ++I) {
+  for (auto I=kernelDecl->param_begin(), E=kernelDecl->param_end(); I!=E; ++I) {
     ParmVarDecl *PVD = *I;
 
     // the first parameter is the output image; create association between them.
@@ -733,8 +732,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       }
 
       // search for member name in kernel parameter list
-      for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
-          N=kernelDecl->param_end(); I!=N; ++I) {
+      for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N;
+              ++I) {
         ParmVarDecl *PVD = *I;
 
         // parameter name matches
@@ -859,8 +858,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       }
 
       // search for member name in kernel parameter list
-      for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
-          N=kernelDecl->param_end(); I!=N; ++I) {
+      for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N;
+              ++I) {
         ParmVarDecl *PVD = *I;
 
         // parameter name matches
@@ -1511,8 +1510,7 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
       S->getLBracLoc(), S->getLBracLoc());
 
   SmallVector<Stmt *, 16> body;
-  for (CompoundStmt::const_body_iterator I=S->body_begin(), E=S->body_end();
-      I!=E; ++I) {
+  for (auto I=S->body_begin(), E=S->body_end(); I!=E; ++I) {
     curCStmt = S;
     Stmt *newS = Clone(*I);
     curCStmt = S;
@@ -1631,8 +1629,8 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
               SmallVector<QualType, 16> argTypes;
               SmallVector<std::string, 16> argNames;
 
-              for (FunctionDecl::param_iterator P=targetFD->param_begin(),
-                  PEnd=targetFD->param_end(); P!=PEnd; ++P) {
+              for (auto P=targetFD->param_begin(), PE=targetFD->param_end();
+                      P!=PE; ++P) {
                 argTypes.push_back((*P)->getType());
                 argNames.push_back((*P)->getName());
               }
@@ -1737,8 +1735,7 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   ValueDecl *paramDecl = NULL;
 
   // search for member name in kernel parameter list
-  for (FunctionDecl::param_iterator I=kernelDecl->param_begin(),
-      N=kernelDecl->param_end(); I!=N; ++I) {
+  for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N; ++I) {
     ParmVarDecl *PVD = *I;
 
     // parameter name matches

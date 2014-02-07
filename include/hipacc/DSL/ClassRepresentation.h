@@ -655,8 +655,8 @@ class HipaccKernel : public HipaccKernelFeatures {
     void resetUsed() {
       usedVars.clear();
       deviceFuncs.clear();
-      for (std::map<FieldDecl *, HipaccAccessor *>::iterator iter =
-          imgMap.begin(), eiter=imgMap.end(); iter!=eiter; ++iter) {
+      for (auto iter = imgMap.begin(), eiter=imgMap.end(); iter!=eiter; ++iter)
+      {
         iter->second->resetDecls();
       }
     }
@@ -689,13 +689,13 @@ class HipaccKernel : public HipaccKernelFeatures {
     }
 
     HipaccAccessor *getImgFromMapping(FieldDecl *decl) {
-      std::map<FieldDecl *, HipaccAccessor *>::iterator iter = imgMap.find(decl);
+      auto iter = imgMap.find(decl);
 
       if (iter == imgMap.end()) return NULL;
       else return iter->second;
     }
     HipaccMask *getMaskFromMapping(FieldDecl *decl) {
-      std::map<FieldDecl *, HipaccMask *>::iterator iter = maskMap.find(decl);
+      auto iter = maskMap.find(decl);
 
       if (iter == maskMap.end()) return NULL;
       else return iter->second;
@@ -777,8 +777,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       llvm::errs() << "  Vectorization: " << vectorize() << "\n";
       llvm::errs() << "  Pixels per thread: " << getPixelsPerThread() << "\n";
 
-      for (std::map<HipaccAccessor *, MemoryType>::iterator iter =
-          memMap.begin(), eiter=memMap.end(); iter!=eiter; ++iter) {
+      for (auto iter = memMap.begin(), eiter=memMap.end(); iter!=eiter; ++iter)
+      {
         llvm::errs() << "  Image '" << iter->first->getName() << "': ";
         if (iter->second & Global) llvm::errs() << "global ";
         if (iter->second & Constant) llvm::errs() << "constant ";
