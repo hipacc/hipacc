@@ -20,7 +20,7 @@ ifeq ($(HIPACC_TARGET),Midgard)
     OCL_LINK  = -lm -ldl -lstdc++ @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@
     OCL_INC   = @EMBEDDED_OPENCL_CFLAGS@
 else
-    OCL_CC    = @CMAKE_CXX_COMPILER@ -std=c++0x -Wall -Wunused
+    OCL_CC    = @CMAKE_CXX_COMPILER@ -std=c++11 -Wall -Wunused
     OCL_LINK  = -lm -ldl -lstdc++ -lpthread @TIME_LINK@ @OPENCL_LFLAGS@
     OCL_INC   = @OPENCL_CFLAGS@
 endif

@@ -75,7 +75,7 @@ class IterationSpaceBase {
             public:
                 ElementIterator(int width=0, int height=0, int offset_x=0, int
                         offset_y=0, const IterationSpaceBase
-                        *iteration_space=NULL) :
+                        *iteration_space=nullptr) :
                     min_x(offset_x),
                     min_y(offset_y),
                     max_x(offset_x+width),
@@ -92,7 +92,7 @@ class IterationSpaceBase {
                             coord.x = min_x;
                             coord.y++;
                             if (coord.y >= max_y) {
-                                iteration_space = NULL;
+                                iteration_space = nullptr;
                             }
                         }
                     }

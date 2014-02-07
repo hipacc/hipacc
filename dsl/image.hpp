@@ -79,11 +79,11 @@ class Image {
 
         ~Image() {
             --(*refcount);
-            if (array != NULL &&
+            if (array != nullptr &&
                 *refcount == 0) {
               delete refcount;
               delete[] array;
-              array = NULL;
+              array = nullptr;
             }
         }
 
@@ -236,7 +236,7 @@ class AccessorBase {
             height(height),
             offset_x(offset_x),
             offset_y(offset_y),
-            EI(NULL)
+            EI(nullptr)
         {}
 
     template<typename> friend class Kernel;

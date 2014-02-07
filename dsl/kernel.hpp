@@ -37,7 +37,7 @@ namespace hipacc {
 // get time in milliseconds
 double hipacc_time_ms() {
     struct timeval tv;
-    gettimeofday (&tv, NULL);
+    gettimeofday (&tv, nullptr);
 
     return ((double)(tv.tv_sec) * 1e+3 + (double)(tv.tv_usec) * 1e-3);
 }
@@ -95,10 +95,10 @@ class Kernel {
             for (std::vector<AccessorBase*>::iterator ei=images.begin(), ie=images.end();
                     ei!=ie; ++ei) {
                 AccessorBase *Acc = *ei;
-                Acc->setEI(NULL);
+                Acc->setEI(nullptr);
             }
             // de-register output accessors
-            outImgAcc.setEI(NULL);
+            outImgAcc.setEI(nullptr);
 
             // reset kernel iterator
             iter = ElementIterator();
@@ -125,7 +125,7 @@ class Kernel {
             }
 
             // de-register output accessors
-            outImgAcc.setEI(NULL);
+            outImgAcc.setEI(nullptr);
 
             reduction_result = result;
         }
@@ -207,7 +207,7 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, co
     }
 
     // de-register mask
-    mask.setEI(NULL);
+    mask.setEI(nullptr);
 
     return result;
 }
@@ -253,7 +253,7 @@ auto Kernel<data_t>::reduce(Domain &domain, HipaccConvolutionMode mode,
     }
 
     // de-register domain
-    domain.setDI(NULL);
+    domain.setDI(nullptr);
 
     return result;
 }
@@ -274,7 +274,7 @@ void Kernel<data_t>::iterate(Domain &domain, const Function &fun) {
     }
 
     // de-register domain
-    domain.setDI(NULL);
+    domain.setDI(nullptr);
 }
 } // end namespace hipacc
 

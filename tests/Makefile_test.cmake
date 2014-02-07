@@ -15,7 +15,7 @@ ifeq ($(CC),clang++)
                 -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1
     LDFLAGS  += -L`@LLVM_CONFIG_EXECUTABLE@ --libdir` -lc++
 else
-    CFLAGS   += -std=c++0x
+    CFLAGS   += -std=c++11
     LDFLAGS  += -lstdc++
 endif
 

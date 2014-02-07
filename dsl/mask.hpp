@@ -70,9 +70,9 @@ class MaskBase {
         }
 
         ~MaskBase() {
-            if (domain_space != NULL) {
+            if (domain_space != nullptr) {
               delete[] domain_space;
-              domain_space = NULL;
+              domain_space = nullptr;
             }
         }
 
@@ -96,12 +96,12 @@ class Domain : public MaskBase {
             public:
                 DomainIterator(int width=0, int height=0,
                                int offsetx=0, int offsety=0,
-                               const IterationSpaceBase *iterspace=NULL,
-                               uchar *domain_space=NULL) :
+                               const IterationSpaceBase *iterspace=nullptr,
+                               uchar *domain_space=nullptr) :
                     ElementIterator(width, height, offsetx, offsety, iterspace),
                     domain_space(domain_space)
                 {
-                    if (domain_space != NULL) {
+                    if (domain_space != nullptr) {
                         // set current coordinate before domain
                         coord.x = min_x-1;
                         coord.y = min_y;
@@ -122,12 +122,12 @@ class Domain : public MaskBase {
                                 coord.x = min_x;
                                 coord.y++;
                                 if (coord.y >= max_y) {
-                                    iteration_space = NULL;
+                                    iteration_space = nullptr;
                                 }
                             }
                         }
-                    } while (NULL != iteration_space &&
-                             (NULL == domain_space ||
+                    } while (nullptr != iteration_space &&
+                             (nullptr == domain_space ||
                               0 == domain_space[(coord.y-min_y) * (max_x-min_x)
                                                 + (coord.x-min_x)]));
                     return *this;
@@ -140,11 +140,11 @@ class Domain : public MaskBase {
     public:
         Domain(int size_x, int size_y) :
             MaskBase(size_x, size_y),
-            DI(NULL) {}
+            DI(nullptr) {}
 
         Domain(const MaskBase &mask) :
             MaskBase(mask),
-            DI(NULL) {}
+            DI(nullptr) {}
 
         Domain(const Domain &domain) :
             MaskBase(domain),
@@ -219,7 +219,7 @@ class Mask : public MaskBase {
     public:
         Mask(int size_x, int size_y) :
             MaskBase(size_x, size_y),
-            EI(NULL),
+            EI(nullptr),
             array(new data_t[size_x*size_y])
         {
             assert(size_x>0 && size_y>0 && "size for Mask must be positive!");
@@ -233,9 +233,9 @@ class Mask : public MaskBase {
         }
 
         ~Mask() {
-            if (array != NULL) {
+            if (array != nullptr) {
               delete[] array;
-              array = NULL;
+              array = nullptr;
             }
         }
 
