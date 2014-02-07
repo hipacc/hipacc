@@ -149,7 +149,7 @@ class IterationSpace : public IterationSpaceBase {
 };
 
 // provide shortcut for ElementIterator
-typedef IterationSpaceBase::ElementIterator ElementIterator;
+using ElementIterator = IterationSpaceBase::ElementIterator;
 } // end namespace hipacc
 
 #endif // __ITERATIONSPACE_HPP__
