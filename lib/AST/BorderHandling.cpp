@@ -45,7 +45,7 @@ Stmt *ASTTranslate::addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper,
 
   return createIfStmt(Ctx, bo_upper, createBinaryOperator(Ctx, idx,
         createBinaryOperator(Ctx, upper, createIntegerLiteral(Ctx, 1), BO_Sub,
-          Ctx.IntTy), BO_Assign, Ctx.IntTy), NULL, NULL);
+          Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr, nullptr);
 }
 Stmt *ASTTranslate::addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
     bool) {
@@ -53,7 +53,7 @@ Stmt *ASTTranslate::addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
 
   return createIfStmt(Ctx, bo_lower, createBinaryOperator(Ctx, idx, lower,
-        BO_Assign, Ctx.IntTy), NULL, NULL);
+        BO_Assign, Ctx.IntTy), nullptr, nullptr);
 }
 
 
@@ -64,7 +64,7 @@ Stmt *ASTTranslate::addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper,
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
   Expr *stride = is_x ? getWidthDecl(Acc) : getHeightDecl(Acc);
 
-  return createWhileStmt(Ctx, NULL, bo_upper, createBinaryOperator(Ctx, idx,
+  return createWhileStmt(Ctx, nullptr, bo_upper, createBinaryOperator(Ctx, idx,
         createBinaryOperator(Ctx, idx, stride, BO_Sub, Ctx.IntTy), BO_Assign,
         Ctx.IntTy));
 }
@@ -74,7 +74,7 @@ Stmt *ASTTranslate::addRepeatLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
   Expr *stride = is_x ? getWidthDecl(Acc) : getHeightDecl(Acc);
 
-  return createWhileStmt(Ctx, NULL, bo_lower, createBinaryOperator(Ctx, idx,
+  return createWhileStmt(Ctx, nullptr, bo_lower, createBinaryOperator(Ctx, idx,
         createBinaryOperator(Ctx, idx, stride, BO_Add, Ctx.IntTy), BO_Assign,
         Ctx.IntTy));
 }
@@ -91,7 +91,7 @@ Stmt *ASTTranslate::addMirrorUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper,
             createBinaryOperator(Ctx, createBinaryOperator(Ctx, idx,
                 createIntegerLiteral(Ctx, 1), BO_Add, Ctx.IntTy),
               createParenExpr(Ctx, upper), BO_Sub, Ctx.IntTy)) , BO_Sub,
-          Ctx.IntTy), BO_Assign, Ctx.IntTy), NULL, NULL);
+          Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr, nullptr);
 }
 Stmt *ASTTranslate::addMirrorLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
     bool) {
@@ -102,8 +102,8 @@ Stmt *ASTTranslate::addMirrorLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
         createBinaryOperator(Ctx, lower, createParenExpr(Ctx,
             createBinaryOperator(Ctx, lower, createBinaryOperator(Ctx, idx,
                 createIntegerLiteral(Ctx, 1), BO_Sub, Ctx.IntTy), BO_Sub,
-              Ctx.IntTy)) , BO_Add, Ctx.IntTy), BO_Assign, Ctx.IntTy), NULL,
-      NULL);
+              Ctx.IntTy)) , BO_Add, Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr,
+      nullptr);
 }
 
 
@@ -189,10 +189,10 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       break;
     case InterpolateNN:
       idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-          createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL,
+          createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), nullptr,
           Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-          createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
+          createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), nullptr,
           Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       break;
     case InterpolateLF:
@@ -237,7 +237,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     bhStmts.push_back(createDeclStmt(Ctx, tmp_t));
     bhCStmt.push_back(curCStmt);
 
-    Expr *bo_constant = NULL;
+    Expr *bo_constant = nullptr;
     if (bh_variant.borders.right && local_offset_x) {
       // < _gid_x<0> >= offset_x+width >
       bo_constant = addConstantUpper(Acc, idx_x, upperX, bo_constant);
@@ -282,7 +282,8 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     // tmp<0> = RHS;
     if (bo_constant) {
       bhStmts.push_back(createIfStmt(Ctx, bo_constant, createBinaryOperator(Ctx,
-              tmp_t_ref, RHS, BO_Assign, tmp_t_ref->getType()), NULL, NULL));
+                      tmp_t_ref, RHS, BO_Assign, tmp_t_ref->getType()), nullptr,
+                  nullptr));
       bhCStmt.push_back(curCStmt);
     } else {
       bhStmts.push_back(createBinaryOperator(Ctx, tmp_t_ref, RHS, BO_Assign,
@@ -292,9 +293,9 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     result = tmp_t_ref;
   } else {
     Stmt *(clang::hipacc::ASTTranslate::*lowerFun)
-      (HipaccAccessor *Acc, Expr *idx, Expr *lower, bool) = NULL;
+      (HipaccAccessor *Acc, Expr *idx, Expr *lower, bool) = nullptr;
     Stmt *(clang::hipacc::ASTTranslate::*upperFun)
-      (HipaccAccessor *Acc, Expr *idx, Expr *upper, bool) = NULL;
+      (HipaccAccessor *Acc, Expr *idx, Expr *upper, bool) = nullptr;
     switch (Acc->getBoundaryHandling()) {
       case BOUNDARY_CLAMP:
         lowerFun = &clang::hipacc::ASTTranslate::addClampLower;

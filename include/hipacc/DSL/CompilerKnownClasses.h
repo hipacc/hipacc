@@ -60,23 +60,23 @@ class CompilerKnownClasses {
     CXXRecordDecl *HipaccEoP;
 
     CompilerKnownClasses() :
-      Coordinate(NULL),
-      Image(NULL),
-      BoundaryCondition(NULL),
-      AccessorBase(NULL),
-      Accessor(NULL),
-      AccessorNN(NULL),
-      AccessorLF(NULL),
-      AccessorCF(NULL),
-      AccessorL3(NULL),
-      IterationSpaceBase(NULL),
-      IterationSpace(NULL),
-      ElementIterator(NULL),
-      Kernel(NULL),
-      Mask(NULL),
-      Domain(NULL),
-      Pyramid(NULL),
-      HipaccEoP(NULL)
+      Coordinate(nullptr),
+      Image(nullptr),
+      BoundaryCondition(nullptr),
+      AccessorBase(nullptr),
+      Accessor(nullptr),
+      AccessorNN(nullptr),
+      AccessorLF(nullptr),
+      AccessorCF(nullptr),
+      AccessorL3(nullptr),
+      IterationSpaceBase(nullptr),
+      IterationSpace(nullptr),
+      ElementIterator(nullptr),
+      Kernel(nullptr),
+      Mask(nullptr),
+      Domain(nullptr),
+      Pyramid(nullptr),
+      HipaccEoP(nullptr)
     {}
 
     bool isTypeOfClass(QualType QT, CXXRecordDecl *CRD) {

@@ -67,7 +67,7 @@ void ASTTranslate::setCastPath(CastExpr *orig, CXXCastPath &castPath) {
 // Statements
 Stmt *ASTTranslate::VisitStmt(Stmt *) {
   HIPACC_BASE_CLASS(Stmt);
-  return NULL;
+  return nullptr;
 }
 
 Stmt *ASTTranslate::VisitNullStmt(NullStmt *S) {
@@ -173,7 +173,7 @@ Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
 
 Stmt *ASTTranslate::VisitSwitchCase(SwitchCase *S) {
   HIPACC_BASE_CLASS(SwitchCase);
-  return NULL;
+  return nullptr;
 }
 
 Stmt *ASTTranslate::VisitCaseStmt(CaseStmt *S) {
@@ -267,14 +267,14 @@ Stmt *ASTTranslate::VisitCXXTryStmt(CXXTryStmt *S) {
 
 Stmt *ASTTranslate::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
   HIPACC_NOT_SUPPORTED(CXXForRangeStmt);
-  return NULL;
+  return nullptr;
 }
 
 
 // Expressions
 Expr *ASTTranslate::VisitExpr(Expr *E) {
   HIPACC_BASE_CLASS(Expr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitPredefinedExpr(PredefinedExpr *E) {
@@ -451,7 +451,7 @@ Expr *ASTTranslate::VisitMemberExprClone(MemberExpr *E) {
 
 Expr *ASTTranslate::VisitCastExpr(CastExpr *E) {
   HIPACC_BASE_CLASS(CastExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitBinaryOperatorClone(BinaryOperator *E) {
@@ -478,7 +478,7 @@ Expr *ASTTranslate::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
 
 Expr *ASTTranslate::VisitAbstractConditionalOperator(AbstractConditionalOperator *E) {
   HIPACC_NOT_SUPPORTED(AbstractConditionalOperator);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitConditionalOperator(ConditionalOperator *E) {
@@ -517,7 +517,7 @@ Expr *ASTTranslate::VisitImplicitCastExprClone(ImplicitCastExpr *E) {
 
 Expr *ASTTranslate::VisitExplicitCastExpr(ExplicitCastExpr *E) {
   HIPACC_BASE_CLASS(ExplicitCastExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCStyleCastExprClone(CStyleCastExpr *E) {
@@ -622,12 +622,12 @@ Expr *ASTTranslate::VisitVAArgExpr(VAArgExpr *E) {
 
 Expr *ASTTranslate::VisitGenericSelectionExpr(GenericSelectionExpr *E) {
   HIPACC_NOT_SUPPORTED(GenericSelectionExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitPseudoObjectExpr(PseudoObjectExpr *E) {
   HIPACC_NOT_SUPPORTED(PseudoObjectExpr);
-  return NULL;
+  return nullptr;
 }
 
 
@@ -723,7 +723,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprClone(CXXMemberCallExpr *E) {
 
 Expr *ASTTranslate::VisitCXXNamedCastExpr(CXXNamedCastExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXNamedCastExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXStaticCastExpr(CXXStaticCastExpr *E) {
@@ -794,12 +794,12 @@ Expr *ASTTranslate::VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E) {
 
 Expr *ASTTranslate::VisitCXXTypeidExpr(CXXTypeidExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXTypeidExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitUserDefinedLiteral(UserDefinedLiteral *E) {
   HIPACC_NOT_SUPPORTED(UserDefinedLiteral);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E) {
@@ -841,7 +841,7 @@ Expr *ASTTranslate::VisitCXXThrowExpr(CXXThrowExpr *E) {
 
 Expr *ASTTranslate::VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXDefaultArgExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E) {
@@ -855,7 +855,7 @@ Expr *ASTTranslate::VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E) {
 
 Expr *ASTTranslate::VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXScalarValueInitExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXStdInitializerListExpr(CXXStdInitializerListExpr *E) {
@@ -869,122 +869,122 @@ Expr *ASTTranslate::VisitCXXStdInitializerListExpr(CXXStdInitializerListExpr *E)
 
 Expr *ASTTranslate::VisitCXXNewExpr(CXXNewExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXNewExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXDeleteExpr(CXXDeleteExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXDeleteExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXPseudoDestructorExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitTypeTraitExpr(TypeTraitExpr *E) {
   HIPACC_NOT_SUPPORTED(TypeTraitExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitUnaryTypeTraitExpr(UnaryTypeTraitExpr *E) {
   HIPACC_NOT_SUPPORTED(UnaryTypeTraitExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E) {
   HIPACC_NOT_SUPPORTED(ArrayTypeTraitExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitExpressionTraitExpr(ExpressionTraitExpr *E) {
   HIPACC_NOT_SUPPORTED(ExpressionTraitExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E)
 {
   HIPACC_NOT_SUPPORTED(DependentScopeDeclRefExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXConstructExpr(CXXConstructExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXConstructExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXBindTemporaryExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitExprWithCleanups(ExprWithCleanups *E) {
   HIPACC_NOT_SUPPORTED(ExprWithCleanups);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXTemporaryObjectExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXUnresolvedConstructExpr(CXXUnresolvedConstructExpr
     *E) {
   HIPACC_NOT_SUPPORTED(CXXUnresolvedConstructExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXDependentScopeMemberExpr(CXXDependentScopeMemberExpr
     *E) {
   HIPACC_NOT_SUPPORTED(CXXDependentScopeMemberExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitOverloadExpr(OverloadExpr *E) {
   HIPACC_NOT_SUPPORTED(OverloadExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *E) {
   HIPACC_NOT_SUPPORTED(UnresolvedLookupExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *E) {
   HIPACC_NOT_SUPPORTED(UnresolvedMemberExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitCXXNoexceptExpr(CXXNoexceptExpr *E) {
   HIPACC_NOT_SUPPORTED(CXXNoexceptExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitPackExpansionExpr(PackExpansionExpr *E) {
   HIPACC_NOT_SUPPORTED(PackExpansionExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitSizeOfPackExpr(SizeOfPackExpr *E) {
   HIPACC_NOT_SUPPORTED(SizeOfPackExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitSubstNonTypeTemplateParmExpr(
     SubstNonTypeTemplateParmExpr *E) {
   HIPACC_NOT_SUPPORTED(SubstNonTypeTemplateParmExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitSubstNonTypeTemplateParmPackExpr(
     SubstNonTypeTemplateParmPackExpr *E) {
   HIPACC_NOT_SUPPORTED(SubstNonTypeTemplateParmPackExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitFunctionParmPackExpr(FunctionParmPackExpr *E) {
   HIPACC_NOT_SUPPORTED(FunctionParmPackExpr);
-  return NULL;
+  return nullptr;
 }
 
 Expr *ASTTranslate::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {

@@ -387,7 +387,7 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
   DeclarationName DecName(&Info);
 
   FunctionDecl *New = FunctionDecl::Create(Ctx, Ctx.getTranslationUnitDecl(),
-      SourceLocation(), SourceLocation(), DecName, R, NULL, SC_None);
+      SourceLocation(), SourceLocation(), DecName, R, nullptr, SC_None);
 
   New->setImplicit();
 
@@ -419,7 +419,7 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
         case TARGET_C:
           switch (target) {
             case TARGET_C:
-              return NULL;
+              return nullptr;
             case TARGET_CUDA:
               return getBuiltinFunction(BuiltinInfo[i].CUDA);
             case TARGET_OpenCLACC:
@@ -447,7 +447,7 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

@@ -226,7 +226,7 @@ Expr *SIMDTypes::propagate(VarDecl *VD, Expr *E) {
   QualType QT = VD->getType();
   const BuiltinType *BT = QT->getAs<BuiltinType>();
 
-  FunctionDecl *make_vec = NULL;
+  FunctionDecl *make_vec = nullptr;
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:

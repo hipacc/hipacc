@@ -43,7 +43,7 @@ using namespace ASTNode;
 // create expression for convolutions
 Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
     *tmp_var, Expr *ret_val) {
-  Stmt *result = NULL;
+  Stmt *result = nullptr;
   FunctionDecl *fun;
   SmallVector<Expr *, 16> funArgs;
 
@@ -59,7 +59,7 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
           hipaccMathNS);
       assert(fun && "could not lookup 'min'");
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
-            CK_LValueToRValue, tmp_var, NULL, VK_RValue));
+            CK_LValueToRValue, tmp_var, nullptr, VK_RValue));
       funArgs.push_back(ret_val);
       result = createBinaryOperator(Ctx, tmp_var, createFunctionCall(Ctx, fun,
             funArgs), BO_Assign, tmp_var->getType());
@@ -70,7 +70,7 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
           hipaccMathNS);
       assert(fun && "could not lookup 'max'");
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
-            CK_LValueToRValue, tmp_var, NULL, VK_RValue));
+            CK_LValueToRValue, tmp_var, nullptr, VK_RValue));
       funArgs.push_back(ret_val);
       result = createBinaryOperator(Ctx, tmp_var, createFunctionCall(Ctx, fun,
             funArgs), BO_Assign, tmp_var->getType());
@@ -90,7 +90,7 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
 
 // create init expression for given aggregation mode and type
 Expr *ASTTranslate::getInitExpr(ConvolutionMode mode, QualType QT) {
-  Expr *result = NULL, *initExpr = NULL;
+  Expr *result = nullptr, *initExpr = nullptr;
 
   QualType EQT = QT;
   bool isVecType = QT->isVectorType();
@@ -193,7 +193,7 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
     Stmt *stmt) {
   assert(domain_var && "Domain.");
 
-  Expr *dom_acc = NULL;
+  Expr *dom_acc = nullptr;
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
     case TARGET_CUDA:
@@ -231,7 +231,8 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   ConvolveMethod method = Convolve;
   if (E->getDirectCallee()->getName().equals("convolve")) {
     method = Convolve;
-    assert(convMask == NULL && "Nested convolution calls are not supported.");
+    assert(convMask == nullptr &&
+            "Nested convolution calls are not supported.");
   } else if (E->getDirectCallee()->getName().equals("reduce")) {
     method = Reduce;
   } else if (E->getDirectCallee()->getName().equals("iterate")) {
@@ -256,7 +257,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   }
 
   // first parameter: Mask<type> or Domain reference
-  HipaccMask *Mask = NULL;
+  HipaccMask *Mask = nullptr;
   if (method==Convolve)
     assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
         isa<FieldDecl>(dyn_cast<MemberExpr>(
@@ -383,7 +384,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   CompoundStmt *outerCompountStmt = curCStmt;
   std::stringstream LSST;
   LSST << "_tmp" << literalCount++;
-  Expr *init = NULL;
+  Expr *init = nullptr;
   if (method==Reduce) {
     // init temporary variable depending on aggregation mode
     init = getInitExpr(redModes.back(),
@@ -429,7 +430,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
       }
 
       if (doIterate) {
-        Stmt *iteration = NULL;
+        Stmt *iteration = nullptr;
         switch (method) {
           case Convolve:
             convIdxX = x;
@@ -464,8 +465,8 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   // reset global variables
   switch (method) {
     case Convolve:
-      convMask = NULL;
-      convTmp = NULL;
+      convMask = nullptr;
+      convTmp = nullptr;
       convIdxX = convIdxY = 0;
       break;
     case Reduce:
@@ -485,9 +486,9 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
     case Reduce:
       // add ICE for CodeGen
       return createImplicitCastExpr(Ctx, LE->getCallOperator()->getResultType(),
-          CK_LValueToRValue, tmp_dre, NULL, VK_RValue);
+          CK_LValueToRValue, tmp_dre, nullptr, VK_RValue);
     case Iterate:
-      return NULL;
+      return nullptr;
   }
 }
 

@@ -526,7 +526,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
 
 
 void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
-  DeclRefExpr *DRE = NULL;
+  DeclRefExpr *DRE = nullptr;
 
   switch (E->getOpcode()) {
     case BO_PtrMemD:

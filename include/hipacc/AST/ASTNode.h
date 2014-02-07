@@ -55,7 +55,7 @@ DeclRefExpr *createDeclRefExpr(ASTContext &Ctx, ValueDecl *decl);
 // creates a variable declaration AST node
 DeclStmt *createDeclStmt(ASTContext &Ctx, Decl *VD);
 VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
-    QualType T, Expr *init=NULL);
+    QualType T, Expr *init=nullptr);
 RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
     TagDecl::TagKind TK, unsigned int numDecls, QualType *declTypes, StringRef
     *declNames);
@@ -73,11 +73,11 @@ ReturnStmt *createReturnStmt(ASTContext &Ctx, Expr *E);
 
 
 // creates a if/then/else control flow AST node
-IfStmt *createIfStmt(ASTContext &Ctx, Expr *cond, Stmt *then, Stmt *elsev=NULL,
-    Decl *decl=NULL);
+IfStmt *createIfStmt(ASTContext &Ctx, Expr *cond, Stmt *then, Stmt
+        *elsev=nullptr, Decl *decl=nullptr);
 
 ForStmt *createForStmt(ASTContext &Ctx, Stmt *Init, Expr *Cond, Expr *Inc, Stmt
-    *Body, VarDecl *condVar=NULL);
+    *Body, VarDecl *condVar=nullptr);
 
 WhileStmt *createWhileStmt(ASTContext &Ctx, VarDecl *Var, Expr *Cond, Stmt
     *Body);

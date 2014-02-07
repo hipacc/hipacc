@@ -155,7 +155,7 @@ class HipaccBoundaryCondition {
       boundaryHandling(BOUNDARY_UNDEFINED),
       pyr_idx_str(""),
       is_pyramid(false),
-      constExpr(NULL)
+      constExpr(nullptr)
     {}
 
     void setSizeX(unsigned int x) {
@@ -212,8 +212,9 @@ class HipaccAccessor {
       VD(VD),
       name(VD->getNameAsString()),
       crop(true),
-      widthDecl(NULL), heightDecl(NULL), strideDecl(NULL),
-      scaleXDecl(NULL), scaleYDecl(NULL), offsetXDecl(NULL), offsetYDecl(NULL)
+      widthDecl(nullptr), heightDecl(nullptr), strideDecl(nullptr),
+      scaleXDecl(nullptr), scaleYDecl(nullptr),
+      offsetXDecl(nullptr), offsetYDecl(nullptr)
     {}
 
     void setWidthDecl(DeclRefExpr *width) { widthDecl = width; }
@@ -241,8 +242,8 @@ class HipaccAccessor {
     DeclRefExpr *getOffsetXDecl() { return offsetXDecl; }
     DeclRefExpr *getOffsetYDecl() { return offsetYDecl; }
     void resetDecls() {
-      widthDecl = heightDecl = strideDecl = NULL;
-      scaleXDecl = scaleYDecl = offsetXDecl = offsetYDecl = NULL;
+      widthDecl = heightDecl = strideDecl = nullptr;
+      scaleXDecl = scaleYDecl = offsetXDecl = offsetYDecl = nullptr;
     }
     bool isCrop() { return crop; }
     BoundaryMode getBoundaryHandling() {
@@ -269,7 +270,7 @@ class HipaccIterationSpace {
       VD(VD),
       name(VD->getNameAsString()),
       crop(true),
-      acc(NULL)
+      acc(nullptr)
     {
       createOutputAccessor();
     }
@@ -304,7 +305,7 @@ class HipaccMask : public HipaccMemory {
     HipaccMask(VarDecl *VD, QualType QT, MaskType type) :
       HipaccMemory(VD, "_const" + VD->getNameAsString(), QT),
       mask_type(type),
-      init_list(NULL),
+      init_list(nullptr),
       size_x(0),
       size_y(0),
       size_x_str(""),
@@ -313,7 +314,7 @@ class HipaccMask : public HipaccMemory {
       is_printed(false),
       kernels(0),
       hostMemName(""),
-      hostMemExpr(NULL)
+      hostMemExpr(nullptr)
     {}
 
     void setSizeX(unsigned int x) {
@@ -379,9 +380,9 @@ class HipaccKernelClass {
   public:
     HipaccKernelClass(std::string name) :
       name(name),
-      kernelFunction(NULL),
-      reduceFunction(NULL),
-      kernelStatistics(NULL),
+      kernelFunction(nullptr),
+      reduceFunction(nullptr),
+      kernelStatistics(nullptr),
       arguments(0),
       imgFields(0),
       maskFields(0),
@@ -601,7 +602,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       fileName(options.getTargetPrefix() + KC->getName() + VD->getNameAsString()),
       reduceStr(""), infoStr(""),
       infoStrCnt(0),
-      iterationSpace(NULL),
+      iterationSpace(nullptr),
       imgMap(),
       maskMap(),
       argTypesC(),
@@ -691,13 +692,13 @@ class HipaccKernel : public HipaccKernelFeatures {
     HipaccAccessor *getImgFromMapping(FieldDecl *decl) {
       auto iter = imgMap.find(decl);
 
-      if (iter == imgMap.end()) return NULL;
+      if (iter == imgMap.end()) return nullptr;
       else return iter->second;
     }
     HipaccMask *getMaskFromMapping(FieldDecl *decl) {
       auto iter = maskMap.find(decl);
 
-      if (iter == maskMap.end()) return NULL;
+      if (iter == maskMap.end()) return nullptr;
       else return iter->second;
     }
 

@@ -47,7 +47,7 @@ using namespace hipacc::Builtin;
 
 // add cast to unsigned int variables if needed
 Expr *ASTTranslate::addCastToInt(Expr *E) {
-  return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_IntegralCast, E, NULL,
+  return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_IntegralCast, E, nullptr,
       Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
 }
 
@@ -159,13 +159,13 @@ T *ASTTranslate::lookup(std::string name, QualType QT, NamespaceDecl *NS) {
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 
 // C/Polly initialization
 void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
-  VarDecl *gid_x = NULL, *gid_y = NULL;
+  VarDecl *gid_x = nullptr, *gid_y = nullptr;
 
   // Polly: int gid_x = offset_x;
   if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
@@ -230,7 +230,7 @@ void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
 
 // CUDA initialization
 void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
-  VarDecl *gid_x = NULL, *gid_y = NULL;
+  VarDecl *gid_x = nullptr, *gid_y = nullptr;
   SmallVector<QualType, 16> uintDeclTypes;
   SmallVector<StringRef, 16> uintDeclNames;
   uintDeclTypes.push_back(Ctx.UnsignedIntTy);
@@ -264,27 +264,27 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
 
   //uint3 threadIdx;
   VarDecl *threadIdx = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-      "threadIdx", Ctx.getTypeDeclType(uint3RD), NULL);
+      "threadIdx", Ctx.getTypeDeclType(uint3RD), nullptr);
   //uint3 blockIdx;
   VarDecl *blockIdx = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-      "blockIdx", Ctx.getTypeDeclType(uint3RD), NULL);
+      "blockIdx", Ctx.getTypeDeclType(uint3RD), nullptr);
   //dim3 blockDim;
   VarDecl *blockDim = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-      "blockDim", Ctx.getTypeDeclType(uint3RD), NULL);
+      "blockDim", Ctx.getTypeDeclType(uint3RD), nullptr);
   //dim3 gridDim;
   //VarDecl *gridDim = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-  //    "gridDim", Ctx.getTypeDeclType(uint3RD), NULL);
+  //    "gridDim", Ctx.getTypeDeclType(uint3RD), nullptr);
   //int warpSize;
   //VarDecl *warpSize = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-  //    "warpSize", Ctx.IntTy, NULL);
+  //    "warpSize", Ctx.IntTy, nullptr);
 
   DeclRefExpr *TIRef = createDeclRefExpr(Ctx, threadIdx);
   DeclRefExpr *BIRef = createDeclRefExpr(Ctx, blockIdx);
   DeclRefExpr *BDRef = createDeclRefExpr(Ctx, blockDim);
   VarDecl *xVD = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(), "x",
-      Ctx.IntTy, NULL);
+      Ctx.IntTy, nullptr);
   VarDecl *yVD = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(), "y",
-      Ctx.IntTy, NULL);
+      Ctx.IntTy, nullptr);
 
   tileVars.local_id_x = createMemberExpr(Ctx, TIRef, false, xVD,
       xVD->getType());
@@ -334,7 +334,7 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
 
 // OpenCL initialization
 void ASTTranslate::initOpenCL(SmallVector<Stmt *, 16> &kernelBody) {
-  VarDecl *gid_x = NULL, *gid_y = NULL;
+  VarDecl *gid_x = nullptr, *gid_y = nullptr;
   // uint get_work_dim();
   //FunctionDecl *get_work_dim =
   //  builtins.getBuiltinFunction(OPENCLBIget_work_dim);
@@ -364,42 +364,42 @@ void ASTTranslate::initOpenCL(SmallVector<Stmt *, 16> &kernelBody) {
   tmpArg1.push_back(createIntegerLiteral(Ctx, 1));
   //ImplicitCastExpr *get_global_size0, *get_global_size1;
   //get_global_size0 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-  //    CK_IntegralCast, createFunctionCall(Ctx, get_global_size, tmpArg0), NULL,
-  //    VK_RValue);
+  //    CK_IntegralCast, createFunctionCall(Ctx, get_global_size, tmpArg0),
+  //    nullptr, VK_RValue);
   //get_global_size1 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-  //    CK_IntegralCast, createFunctionCall(Ctx, get_global_size, tmpArg1), NULL,
-  //    VK_RValue);
+  //    CK_IntegralCast, createFunctionCall(Ctx, get_global_size, tmpArg1),
+  //    nullptr, VK_RValue);
   ImplicitCastExpr *get_global_id0, *get_global_id1;
   get_global_id0 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-      CK_IntegralCast, createFunctionCall(Ctx, get_global_id, tmpArg0), NULL,
+      CK_IntegralCast, createFunctionCall(Ctx, get_global_id, tmpArg0), nullptr,
       VK_RValue);
   get_global_id1 = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-      CK_IntegralCast, createFunctionCall(Ctx, get_global_id, tmpArg1), NULL,
+      CK_IntegralCast, createFunctionCall(Ctx, get_global_id, tmpArg1), nullptr,
       VK_RValue);
   tileVars.local_size_x = createImplicitCastExpr(Ctx,
       Ctx.getConstType(Ctx.IntTy), CK_IntegralCast, createFunctionCall(Ctx,
-        get_local_size, tmpArg0), NULL, VK_RValue);
+        get_local_size, tmpArg0), nullptr, VK_RValue);
   tileVars.local_size_y = createImplicitCastExpr(Ctx,
       Ctx.getConstType(Ctx.IntTy), CK_IntegralCast, createFunctionCall(Ctx,
-        get_local_size, tmpArg1), NULL, VK_RValue);
+        get_local_size, tmpArg1), nullptr, VK_RValue);
   tileVars.local_id_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-      CK_IntegralCast, createFunctionCall(Ctx, get_local_id, tmpArg0), NULL,
+      CK_IntegralCast, createFunctionCall(Ctx, get_local_id, tmpArg0), nullptr,
       VK_RValue);
   tileVars.local_id_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-      CK_IntegralCast, createFunctionCall(Ctx, get_local_id, tmpArg1), NULL,
+      CK_IntegralCast, createFunctionCall(Ctx, get_local_id, tmpArg1), nullptr,
       VK_RValue);
   tileVars.block_id_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-      CK_IntegralCast, createFunctionCall(Ctx, get_group_id, tmpArg0), NULL,
+      CK_IntegralCast, createFunctionCall(Ctx, get_group_id, tmpArg0), nullptr,
       VK_RValue);
   tileVars.block_id_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-      CK_IntegralCast, createFunctionCall(Ctx, get_group_id, tmpArg1), NULL,
+      CK_IntegralCast, createFunctionCall(Ctx, get_group_id, tmpArg1), nullptr,
       VK_RValue);
   //grid_size_x = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-  //    CK_IntegralCast, createFunctionCall(Ctx, get_num_groups, tmpArg0), NULL,
-  //    VK_RValue);
+  //    CK_IntegralCast, createFunctionCall(Ctx, get_num_groups, tmpArg0),
+  //    nullptr, VK_RValue);
   //grid_size_y = createImplicitCastExpr(Ctx, Ctx.getConstType(Ctx.IntTy),
-  //    CK_IntegralCast, createFunctionCall(Ctx, get_num_groups, tmpArg1), NULL,
-  //    VK_RValue);
+  //    CK_IntegralCast, createFunctionCall(Ctx, get_num_groups, tmpArg1),
+  //    nullptr, VK_RValue);
 
   // OpenCL: const int gid_x = get_global_id(0);
   gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
@@ -435,7 +435,7 @@ void ASTTranslate::initOpenCL(SmallVector<Stmt *, 16> &kernelBody) {
 
 // Renderscript initialization
 void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
-  VarDecl *gid_x = NULL, *gid_y = NULL;
+  VarDecl *gid_x = nullptr, *gid_y = nullptr;
   VarDecl *xDecl = createVarDecl(Ctx, kernelDecl, "x", Ctx.UnsignedIntTy);
   VarDecl *yDecl = createVarDecl(Ctx, kernelDecl, "y", Ctx.UnsignedIntTy);
 
@@ -513,9 +513,9 @@ void ASTTranslate::updateTileVars() {
       tileVars.block_id_y = addCastToInt(tileVars.block_id_y);
       if (compilerOptions.exploreConfig() && !emitEstimation) {
         tileVars.local_size_x = createDeclRefExpr(Ctx, createVarDecl(Ctx,
-              kernelDecl, "BSX_EXPLORE", Ctx.IntTy, NULL));
+              kernelDecl, "BSX_EXPLORE", Ctx.IntTy, nullptr));
         tileVars.local_size_y = createDeclRefExpr(Ctx, createVarDecl(Ctx,
-              kernelDecl, "BSY_EXPLORE", Ctx.IntTy, NULL));
+              kernelDecl, "BSY_EXPLORE", Ctx.IntTy, nullptr));
       } else {
         // select fastest method for accessing blockDim.[x|y]
         // TODO: define this in HipaccDeviceOptions
@@ -539,7 +539,7 @@ void ASTTranslate::updateTileVars() {
 
 
 Stmt *ASTTranslate::Hipacc(Stmt *S) {
-  if (S==NULL) return NULL;
+  if (S==nullptr) return nullptr;
 
   // search for image width and height parameters
   for (auto I=kernelDecl->param_begin(), E=kernelDecl->param_end(); I!=E; ++I) {
@@ -645,7 +645,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     FieldDecl *FD = KernelClass->getImgFields().data()[i];
     HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
 
-    if (Acc->getStrideDecl() == NULL) {
+    if (Acc->getStrideDecl() == nullptr) {
       Acc->setStrideDecl(Acc->getWidthDecl());
     }
   }
@@ -690,12 +690,12 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     // float acc_scale_y = (float)acc_height/is_height;
     if (Acc->getInterpolation()!=InterpolateNO) {
       Expr *scaleExprX = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
-            Ctx.FloatTy, CK_IntegralToFloating, getWidthDecl(Acc), NULL,
+            Ctx.FloatTy, CK_IntegralToFloating, getWidthDecl(Acc), nullptr,
             Ctx.getTrivialTypeSourceInfo(Ctx.FloatTy)),
           getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_Div,
           Ctx.FloatTy);
       Expr *scaleExprY = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
-            Ctx.FloatTy, CK_IntegralToFloating, getHeightDecl(Acc), NULL,
+            Ctx.FloatTy, CK_IntegralToFloating, getHeightDecl(Acc), nullptr,
             Ctx.getTrivialTypeSourceInfo(Ctx.FloatTy)),
           getHeightDecl(Kernel->getIterationSpace()->getAccessor()), BO_Div,
           Ctx.FloatTy);
@@ -745,7 +745,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           if (name.equals("Output")) outputImage = createDeclRefExpr(Ctx, VD);
 
           VD->setInit(createCStyleCastExpr(Ctx, VD->getType(), CK_BitCast,
-                createDeclRefExpr(Ctx, PVD), NULL,
+                createDeclRefExpr(Ctx, PVD), nullptr,
                 Ctx.getTrivialTypeSourceInfo(VD->getType())));
 
           kernelBody.push_back(createDeclStmt(Ctx, VD));
@@ -846,14 +846,14 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         case TARGET_Filterscript:
           break;
         case TARGET_CUDA:
-          VD = createVarDecl(Ctx, DC, sharedName, QT, NULL);
+          VD = createVarDecl(Ctx, DC, sharedName, QT, nullptr);
           VD->addAttr(new (Ctx) CUDASharedAttr(SourceLocation(), Ctx));
           break;
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
         case TARGET_OpenCLGPU:
           VD = createVarDecl(Ctx, DC, sharedName, Ctx.getAddrSpaceQualType(QT,
-                LangAS::opencl_local), NULL);
+                LangAS::opencl_local), nullptr);
           break;
       }
 
@@ -888,14 +888,14 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
   SmallVector<LabelDecl *, 16> LDS;
   LabelDecl *LDExit = createLabelDecl(Ctx, kernelDecl, "BH_EXIT");
-  LabelStmt *LSExit = createLabelStmt(Ctx, LDExit, NULL);
+  LabelStmt *LSExit = createLabelStmt(Ctx, LDExit, nullptr);
   GotoStmt *GSExit = createGotoStmt(Ctx, LDExit);
 
 
   // only create labels if we need border handling
   for (size_t i=0; i<=9 && border_handling; ++i) {
     LabelDecl *LD;
-    Expr *if_goto = NULL;
+    Expr *if_goto = nullptr;
 
     switch (i) {
       default:
@@ -1092,7 +1092,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     }
 
     // if (gid_x >= is_offset_x && gid_x < is_width+is_offset_x)
-    BinaryOperator *check_bop = NULL;
+    BinaryOperator *check_bop = nullptr;
     if (border_handling) {
       // if (gid_x >= is_offset_x)
       if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl() &&
@@ -1103,7 +1103,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       }
       // if (gid_x < is_width+is_offset_x)
       if (!(kernel_x && !bh_variant.borders.right) && bh_variant.borderVal) {
-        BinaryOperator *check_tmp = NULL;
+        BinaryOperator *check_tmp = nullptr;
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
           check_tmp = createBinaryOperator(Ctx, tileVars.global_id_x,
               createBinaryOperator(Ctx,
@@ -1130,7 +1130,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // if (gid_y >= is_offset_y)
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl() &&
             !(kernel_y && !bh_variant.borders.left) && bh_variant.borderVal) {
-          BinaryOperator *check_tmp = NULL;
+          BinaryOperator *check_tmp = nullptr;
           check_tmp = createBinaryOperator(Ctx, gidYRef,
               getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
               Ctx.BoolTy);
@@ -1143,7 +1143,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         }
         // if (gid_y < is_height+is_offset_y)
         if (!(kernel_y && !bh_variant.borders.right) && bh_variant.borderVal) {
-          BinaryOperator *check_tmp = NULL;
+          BinaryOperator *check_tmp = nullptr;
           if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
             check_tmp = createBinaryOperator(Ctx, gidYRef,
                 createBinaryOperator(Ctx,
@@ -1186,7 +1186,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       if (compilerOptions.emitRenderscript() ||
           compilerOptions.emitFilterscript()) {
         // if (gid_y < is_height+is_offset_y)
-        BinaryOperator *check_tmp = NULL;
+        BinaryOperator *check_tmp = nullptr;
         if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
           check_tmp = createBinaryOperator(Ctx, gidYRef,
               getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
@@ -1476,7 +1476,7 @@ VarDecl *ASTTranslate::CloneParmVarDecl(ParmVarDecl *PVD) {
 
 
 VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *PVD, std::string prefix) {
-  if (PVD==NULL) return NULL;
+  if (PVD==nullptr) return nullptr;
 
   VarDecl *result = KernelDeclMapTex[PVD];
 
@@ -1582,8 +1582,8 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
   if (E->getDirectCallee()) {
     // lookup if this function call is supported and choose appropriate
     // function, e.g. exp() instead of expf() in case of OpenCL
-    FunctionDecl *targetFD = NULL;
-    FunctionDecl *convert = NULL;
+    FunctionDecl *targetFD = nullptr;
+    FunctionDecl *convert = nullptr;
     if (compilerOptions.emitC()) {
       targetFD = E->getDirectCallee();
     } else {
@@ -1681,7 +1681,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
     // add ICE for CodeGen
     ImplicitCastExpr *ICE = createImplicitCastExpr(Ctx,
         Ctx.getPointerType(targetFD->getType()), CK_FunctionToPointerDecay,
-        createDeclRefExpr(Ctx, targetFD), NULL, VK_RValue);
+        createDeclRefExpr(Ctx, targetFD), nullptr, VK_RValue);
 
     // create CallExpr
     CallExpr *result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(),
@@ -1699,7 +1699,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
       // add ICE for CodeGen
       ImplicitCastExpr *ICE = createImplicitCastExpr(Ctx,
           Ctx.getPointerType(convert->getType()), CK_FunctionToPointerDecay,
-          createDeclRefExpr(Ctx, convert), NULL, VK_RValue);
+          createDeclRefExpr(Ctx, convert), nullptr, VK_RValue);
 
       // create CallExpr
       CallExpr *conv_result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(),
@@ -1732,7 +1732,7 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   // -->
   // (DeclRefExpr 0x4bda540 'int' ParmVar='d' 0x4bd8010)
   ValueDecl *VD = E->getMemberDecl();
-  ValueDecl *paramDecl = NULL;
+  ValueDecl *paramDecl = nullptr;
 
   // search for member name in kernel parameter list
   for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N; ++I) {
@@ -1841,7 +1841,7 @@ Expr *ASTTranslate::VisitBinaryOperatorTranslate(BinaryOperator *E) {
         E->getValueKind(), E->getObjectKind(), E->getOperatorLoc(),
         E->isFPContractable());
   }
-  if (E->getOpcode() == BO_Assign) writeImageRHS = NULL;
+  if (E->getOpcode() == BO_Assign) writeImageRHS = nullptr;
 
   setExprProps(E, result);
 
@@ -1932,7 +1932,7 @@ Expr *ASTTranslate::VisitCStyleCastExprTranslate(CStyleCastExpr *E) {
 
 
 Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
-  Expr *result = NULL;
+  Expr *result = nullptr;
 
   // assume that all CXXOperatorCallExpr are memory access functions, since we
   // don't support function calls
@@ -2121,7 +2121,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
     // Images are ParmVarDecls
     bool use_shared = false;
-    DeclRefExpr *DRE = NULL;
+    DeclRefExpr *DRE = nullptr;
     if (!Kernel->vectorize()) { // Images are replaced by local pointers
       ParmVarDecl *PVD = dyn_cast_or_null<ParmVarDecl>(LHS->getDecl());
       assert(PVD && "Image variable must be a ParmVarDecl!");
@@ -2150,7 +2150,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
       SY = createIntegerLiteral(Ctx, 0);
     }
 
-    HipaccMask *Mask = NULL;
+    HipaccMask *Mask = nullptr;
     int mask_idx_x = 0, mask_idx_y = 0;
     switch (E->getNumArgs()) {
       default:
@@ -2160,7 +2160,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         // 0: -> (this *) Image Class
         if (compilerOptions.emitC()) {
           // no padding is considered, data is accessed as a 2D-array
-          result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
+          result = accessMemPolly(LHS, Acc, memAcc, nullptr, nullptr);
         } else {
           if (use_shared) {
             result = accessMemShared(DRE, TX, SY);
@@ -2247,8 +2247,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
   MemberExpr *ME = dyn_cast<MemberExpr>(E->getCallee());
 
   DeclRefExpr *LHS;
-  HipaccAccessor *Acc = NULL;
-  HipaccMask *Mask = NULL;
+  HipaccAccessor *Acc = nullptr;
+  HipaccMask *Mask = nullptr;
   MemoryAccess memAcc = UNDEFINED;
   Expr *result;
 
@@ -2288,7 +2288,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
           // no padding is considered, data is accessed as a 2D-array
-          result = accessMemPolly(LHS, Acc, memAcc, NULL, NULL);
+          result = accessMemPolly(LHS, Acc, memAcc, nullptr, nullptr);
           break;
         case TARGET_Renderscript:
           if (Kernel->getPixelsPerThread() <= 1) {
@@ -2328,14 +2328,14 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     assert((Acc || Mask) &&
            "Could not find Image/Accessor/Mask/Domain Field Decl.");
 
-    if (Acc != NULL) {
+    if (Acc != nullptr) {
       // Acc.getX() method -> acc_scale_x * (gid_x - is_offset_x)
       if (ME->getMemberNameInfo().getAsString() == "getX") {
         // remove is_offset_x and scale index to Accessor size
         if (Acc->getInterpolation()!=InterpolateNO) {
           return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
               createParenExpr(Ctx, addNNInterpolationX(Acc,
-                  tileVars.global_id_x)), NULL,
+                  tileVars.global_id_x)), nullptr,
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
         } else {
           return createParenExpr(Ctx, removeISOffsetX(tileVars.global_id_x, Acc));
@@ -2348,7 +2348,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         // scale index to Accessor size
         if (Acc->getInterpolation()!=InterpolateNO) {
           idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-              createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
+              createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), nullptr,
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
         } else if (compilerOptions.emitRenderscript() ||
             compilerOptions.emitFilterscript()) {
@@ -2357,7 +2357,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
         return idx_y;
       }
-    } else if (Mask != NULL) {
+    } else if (Mask != nullptr) {
       if (Mask->isDomain()) {
         bool isDomainValid = false;
         int redDepth = 0;
@@ -2443,7 +2443,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
   }
 
   HIPACC_NOT_SUPPORTED(CXXMemberCallExpr);
-  return NULL;
+  return nullptr;
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

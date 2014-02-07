@@ -118,10 +118,10 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       break;
     case InterpolateNN:
       idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-          createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), NULL,
+          createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), nullptr,
           Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-          createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), NULL,
+          createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), nullptr,
           Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       break;
     case InterpolateLF:
@@ -266,11 +266,11 @@ Expr *ASTTranslate::accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y) {
   Kernel->setUsed(LHS->getNameInfo().getAsString());
 
   Expr *result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx, QT,
-        CK_LValueToRValue, LHS, NULL, VK_RValue), idx_y, QT->getPointeeType(),
-      VK_LValue, OK_Ordinary, SourceLocation());
+        CK_LValueToRValue, LHS, nullptr, VK_RValue), idx_y,
+        QT->getPointeeType(), VK_LValue, OK_Ordinary, SourceLocation());
 
   result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx,
-        Ctx.getPointerType(QT2), CK_ArrayToPointerDecay, result, NULL,
+        Ctx.getPointerType(QT2), CK_ArrayToPointerDecay, result, nullptr,
         VK_RValue), idx_x, QT2, VK_LValue, OK_Ordinary, SourceLocation());
 
   return result;
@@ -613,7 +613,7 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   coord = createBinaryOperator(Ctx, idx_x, idx_y, BO_Comma, Ctx.IntTy);
   coord = createParenExpr(Ctx, coord);
   QualType QTcoord = simdTypes.getSIMDType(Ctx.IntTy, "int", SIMD2);
-  coord = createCStyleCastExpr(Ctx, QTcoord, CK_VectorSplat, coord, NULL,
+  coord = createCStyleCastExpr(Ctx, QTcoord, CK_VectorSplat, coord, nullptr,
       Ctx.getTrivialTypeSourceInfo(QTcoord));
   FunctionDecl *image_function = getImageFunction(Acc, memAcc);
 
@@ -752,11 +752,11 @@ Expr *ASTTranslate::accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr
 
   // calculate index: [idx_y][idx_x]
   Expr *result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx, QT2,
-        CK_LValueToRValue, LHS, NULL, VK_RValue), idx_y, QT2->getPointeeType(),
+        CK_LValueToRValue, LHS, nullptr, VK_RValue), idx_y, QT2->getPointeeType(),
       VK_LValue, OK_Ordinary, SourceLocation());
 
   result = new (Ctx) ArraySubscriptExpr(createImplicitCastExpr(Ctx,
-        Ctx.getPointerType(QT), CK_ArrayToPointerDecay, result, NULL,
+        Ctx.getPointerType(QT), CK_ArrayToPointerDecay, result, nullptr,
         VK_RValue), idx_x, QT, VK_LValue, OK_Ordinary, SourceLocation());
 
   return result;
@@ -810,7 +810,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
         if (p>=(int)Kernel->getPixelsPerThread()+p_add) continue;
       }
 
-      Expr *global_offset_x = NULL, *global_offset_y = NULL;
+      Expr *global_offset_x = nullptr, *global_offset_y = nullptr;
       Expr *SX2;
 
       if (Acc->getSizeX() > 1) {
@@ -827,7 +827,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
               createIntegerLiteral(Ctx, (int32_t)Acc->getSizeY()/2), UO_Minus,
               Ctx.IntTy));
       } else {
-        global_offset_y = NULL;
+        global_offset_y = nullptr;
       }
 
 
@@ -841,7 +841,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
       for (size_t i=0; i<=num_stages_x; ++i) {
         // _smem[lidYRef][(int)threadIdx.x + i*(int)blockDim.x] =
         //        Image[-SX/2 + i*(int)blockDim.x, -SY/2];
-        Expr *local_offset_x = NULL;
+        Expr *local_offset_x = nullptr;
         if (Acc->getSizeX() > 1) {
           local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
                 (int32_t)i), tileVars.local_size_x, BO_Mul, Ctx.IntTy);
@@ -849,7 +849,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
               BO_Sub, Ctx.IntTy);
         }
 
-        stageLineToSharedMemory(PVD, stageBody, local_offset_x, NULL,
+        stageLineToSharedMemory(PVD, stageBody, local_offset_x, nullptr,
             global_offset_x, global_offset_y);
       }
     }
@@ -866,7 +866,7 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
     if (KernelDeclMapShared[PVD]) {
       HipaccAccessor *Acc = KernelDeclMapAcc[PVD];
 
-      Expr *global_offset_x = NULL, *global_offset_y = NULL;
+      Expr *global_offset_x = nullptr, *global_offset_y = nullptr;
       Expr *SX2;
       SmallVector<Stmt *, 16> stageIter;
       VarDecl *iter = createVarDecl(Ctx, kernelDecl, "_N", Ctx.IntTy,
@@ -904,7 +904,7 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
         // _smem[lidYRef + N*(int)blockDim.y]
         //      [(int)threadIdx.x + i*(int)blockDim.x] =
         //        Image[-SX/2 + N*(int)blockDim.y + i*(int)blockDim.x, -SY/2];
-        Expr *local_offset_x = NULL;
+        Expr *local_offset_x = nullptr;
         if (Acc->getSizeX() > 1) {
           local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
                 (int32_t)i), tileVars.local_size_x, BO_Mul, Ctx.IntTy);
@@ -919,7 +919,7 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
 
       // PPT + (SY-2)/BSY + 1
       DeclRefExpr *DSY = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
-            "BSY_EXPLORE", Ctx.IntTy, NULL));
+            "BSY_EXPLORE", Ctx.IntTy, nullptr));
 
       Expr *SY;
       if (Kernel->getPixelsPerThread() > 1) {

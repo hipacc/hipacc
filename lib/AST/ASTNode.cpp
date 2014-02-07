@@ -53,7 +53,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
     // otherwise, we have a function with an argument list
     for (size_t i=0; i<ArgTypes.size(); ++i) {
       ParmVarDecl *Param = ParmVarDecl::Create(Ctx, DC, SourceLocation(),
-          SourceLocation(), &Ctx.Idents.get(ArgNames[i]), ArgTypes[i], NULL,
+          SourceLocation(), &Ctx.Idents.get(ArgNames[i]), ArgTypes[i], nullptr,
           SC_None, 0);
       Params.push_back(Param);
     }
@@ -70,7 +70,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
   // create function declaration
   assert(QT->isFunctionType());
   FunctionDecl *FD = FunctionDecl::Create(Ctx, DC, SourceLocation(),
-      SourceLocation(), DecName, QT, NULL, SC_None);
+      SourceLocation(), DecName, QT, nullptr, SC_None);
 
   // add Decl objects for each parameter to the FunctionDecl
   DeclContext *DCF = FunctionDecl::castToDeclContext(FD);
@@ -96,7 +96,7 @@ CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD, SmallVector<Expr
   QualType pToFunc = Ctx.getPointerType(FD->getType());
 
   ImplicitCastExpr *ICE = createImplicitCastExpr(Ctx, pToFunc,
-      CK_FunctionToPointerDecay, FDRef, NULL, VK_RValue);
+      CK_FunctionToPointerDecay, FDRef, nullptr, VK_RValue);
 
   const FunctionType *FT = FD->getType()->getAs<FunctionType>();
 
@@ -202,8 +202,8 @@ DeclStmt *createDeclStmt(ASTContext &Ctx, Decl *VD) {
 
 VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
     QualType T, Expr *init) {
-  VarDecl *VD = VarDecl::Create(Ctx, NULL, SourceLocation(), SourceLocation(),
-      NULL, QualType(), NULL, SC_None);
+  VarDecl *VD = VarDecl::Create(Ctx, nullptr, SourceLocation(),
+          SourceLocation(), nullptr, QualType(), nullptr, SC_None);
 
   VD->setDeclContext(DC);
   VD->setLocation(SourceLocation());
@@ -223,7 +223,7 @@ RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
       SourceLocation(), &Ctx.Idents.get(Name));
 
   for (size_t i=0; i<numDecls; ++i) {
-    RD->addDecl(createVarDecl(Ctx, RD, declNames[i], declTypes[i], NULL));
+    RD->addDecl(createVarDecl(Ctx, RD, declNames[i], declTypes[i], nullptr));
   }
   if (numDecls) {
     RD->setCompleteDefinition(true);
@@ -259,7 +259,7 @@ ReturnStmt *createReturnStmt(ASTContext &Ctx, Expr *E) {
 
   S->setRetValue(E);
   S->setReturnLoc(SourceLocation());
-  S->setNRVOCandidate(NULL);
+  S->setNRVOCandidate(nullptr);
 
   return S;
 }

@@ -124,9 +124,9 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         //Expr *grid_size_x, *grid_size_y;
 
         BlockingVars() :
-          global_id_x(NULL), global_id_y(NULL), local_id_x(NULL),
-          local_id_y(NULL), local_size_x(NULL), local_size_y(NULL),
-          block_id_x(NULL), block_id_y(NULL) {}
+          global_id_x(nullptr), global_id_y(nullptr), local_id_x(nullptr),
+          local_id_y(nullptr), local_size_x(nullptr), local_size_y(nullptr),
+          block_id_x(nullptr), block_id_y(nullptr) {}
     };
     BlockingVars tileVars;
     // updated index for PPT (iteration space unrolling)
@@ -134,12 +134,12 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
 
     template<class T> T *Clone(T *S) {
-      if (S==NULL) return NULL;
+      if (S==nullptr) return nullptr;
 
       return static_cast<T *>(Visit(S));
     }
     template<class T> T *CloneDecl(T *D) {
-      if (D==NULL) return NULL;
+      if (D==nullptr) return nullptr;
 
       switch (D->getKind()) {
         default:
@@ -169,7 +169,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addCastToInt(Expr *E);
     FunctionDecl *cloneFunction(FunctionDecl *FD);
     template <typename T>
-    T *lookup(std::string name, QualType QT, NamespaceDecl *NS=NULL);
+    T *lookup(std::string name, QualType QT, NamespaceDecl *NS=nullptr);
     // wrappers to mark variables as being used
     DeclRefExpr *getWidthDecl(HipaccAccessor *Acc) {
       Kernel->setUsed(Acc->getWidthDecl()->getNameInfo().getAsString());
@@ -270,9 +270,9 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *removeISOffsetX(Expr *idx_x, HipaccAccessor *Acc);
     Expr *removeISOffsetY(Expr *idx_y, HipaccAccessor *Acc);
     Expr *accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess memAcc,
-        Expr *offset_x=NULL, Expr *offset_y=NULL);
+        Expr *offset_x=nullptr, Expr *offset_y=nullptr);
     Expr *accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
-        memAcc, Expr *offset_x=NULL, Expr *offset_y=NULL);
+        memAcc, Expr *offset_x=nullptr, Expr *offset_y=nullptr);
     Expr *accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
     Expr *accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x, Expr
         *idx_y);
@@ -283,8 +283,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         memAcc, Expr *idx_x, Expr *idx_y);
     Expr *accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
         memAcc, Expr *idx_x, Expr *idx_y);
-    Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=NULL, Expr
-        *offset_y=NULL);
+    Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=nullptr, Expr
+        *offset_y=nullptr);
     Expr *accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
     void stageLineToSharedMemory(ParmVarDecl *PVD, SmallVector<Stmt *, 16>
         &stageBody, Expr *local_offset_x, Expr *local_offset_y, Expr
@@ -316,22 +316,22 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       bh_variant(),
       emitEstimation(emitEstimation),
       literalCount(0),
-      curCStmt(NULL),
-      convMask(NULL),
-      convTmp(NULL),
+      curCStmt(nullptr),
+      convMask(nullptr),
+      convTmp(nullptr),
       convIdxX(0),
       convIdxY(0),
-      bh_start_left(NULL),
-      bh_start_right(NULL),
-      bh_start_top(NULL),
-      bh_start_bottom(NULL),
-      bh_fall_back(NULL),
-      outputImage(NULL),
-      retValRef(NULL),
-      writeImageRHS(NULL),
+      bh_start_left(nullptr),
+      bh_start_right(nullptr),
+      bh_start_top(nullptr),
+      bh_start_bottom(nullptr),
+      bh_fall_back(nullptr),
+      outputImage(nullptr),
+      retValRef(nullptr),
+      writeImageRHS(nullptr),
       tileVars(),
-      lidYRef(NULL),
-      gidYRef(NULL) {
+      lidYRef(nullptr),
+      gidYRef(nullptr) {
         // get 'hipacc' namespace context for lookups
         for (DeclContext::lookup_result Lookup =
             Ctx.getTranslationUnitDecl()->lookup(&Ctx.Idents.get("hipacc"));
@@ -361,7 +361,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         kernelSamplerRef = ASTNode::createDeclRefExpr(Ctx,
             ASTNode::createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
               kernelDecl->getNameAsString() + "Sampler",
-              Ctx.getTypeDeclType(samplerTy), NULL));
+              Ctx.getTypeDeclType(samplerTy), nullptr));
 
         builtins.InitializeBuiltins();
         Kernel->resetUsed();
@@ -429,42 +429,42 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // Asm Statements
     Stmt *VisitAsmStmt(AsmStmt *S) {  // abstract base class
       HIPACC_BASE_CLASS(AsmStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitGCCAsmStmt(GCCAsmStmt *S);
     Stmt *VisitMSAsmStmt(MSAsmStmt *S) {
       HIPACC_NOT_SUPPORTED(MSAsmStmt);
-      return NULL;
+      return nullptr;
     }
 
     // Obj-C Statements
     Stmt *VisitObjCAtTryStmt(ObjCAtTryStmt *S) {
       HIPACC_NOT_SUPPORTED(ObjCAtTryStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitObjCAtCatchStmt(ObjCAtCatchStmt *S) {
       HIPACC_NOT_SUPPORTED(ObjCAtCatchStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitObjCAtFinallyStmt(ObjCAtFinallyStmt *S) {
       HIPACC_NOT_SUPPORTED(ObjCAtFinallyStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitObjCAtThrowStmt(ObjCAtThrowStmt *S) {
       HIPACC_NOT_SUPPORTED(ObjCAtThrowStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *S) {
       HIPACC_NOT_SUPPORTED(ObjCAtSynchronizedStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
       HIPACC_NOT_SUPPORTED(ObjCForCollectionStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitObjCAutoreleasePoolStmt(ObjCAutoreleasePoolStmt *S) {
       HIPACC_NOT_SUPPORTED(ObjCAutoreleasePoolStmt);
-      return NULL;
+      return nullptr;
     }
 
     // C++ Statements
@@ -572,65 +572,65 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // Obj-C Expressions
     Expr *VisitObjCStringLiteral(ObjCStringLiteral *E) {
       HIPACC_NOT_SUPPORTED(ObjCStringLiteral);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCBoxedExpr(ObjCBoxedExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCBoxedExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCArrayLiteral(ObjCArrayLiteral *E) {
       HIPACC_NOT_SUPPORTED(ObjCArrayLiteral);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCDictionaryLiteral(ObjCDictionaryLiteral *E) {
       HIPACC_NOT_SUPPORTED(ObjCDictionaryLiteral);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCEncodeExpr(ObjCEncodeExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCEncodeExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCMessageExpr(ObjCMessageExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCMessageExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCSelectorExpr(ObjCSelectorExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCSelectorExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCProtocolExpr(ObjCProtocolExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCProtocolExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCIvarRefExpr(ObjCIvarRefExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCIvarRefExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCPropertyRefExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCIsaExpr(ObjCIsaExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCIsaExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCIndirectCopyRestoreExpr(ObjCIndirectCopyRestoreExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCIndirectCopyRestoreExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCBoolLiteralExpr(ObjCBoolLiteralExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCBoolLiteralExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitObjCSubscriptRefExpr(ObjCSubscriptRefExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCSubscriptRefExpr);
-      return NULL;
+      return nullptr;
     }
 
     // Obj-C ARC Expressions
     Expr *VisitObjCBridgedCastExpr(ObjCBridgedCastExpr *E) {
       HIPACC_NOT_SUPPORTED(ObjCBridgedCastExpr);
-      return NULL;
+      return nullptr;
     }
 
     // CUDA Expressions
@@ -641,37 +641,37 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitConvertVectorExpr(ConvertVectorExpr *E);
     Expr *VisitBlockExpr(BlockExpr *E) {
       HIPACC_NOT_SUPPORTED(BlockExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitOpaqueValueExpr(OpaqueValueExpr *E) {
       HIPACC_NOT_SUPPORTED(OpaqueValueExpr);
-      return NULL;
+      return nullptr;
     }
 
     // Microsoft Extensions
     Expr *VisitMSPropertyRefExpr(MSPropertyRefExpr *E) {
       HIPACC_NOT_SUPPORTED(MSPropertyRefExpr);
-      return NULL;
+      return nullptr;
     }
     Expr *VisitCXXUuidofExpr(CXXUuidofExpr *E) {
       HIPACC_NOT_SUPPORTED(CXXUuidofExpr);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitSEHTryStmt(SEHTryStmt *S) {
       HIPACC_NOT_SUPPORTED(SEHTryStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitSEHExceptStmt(SEHExceptStmt *S) {
       HIPACC_NOT_SUPPORTED(SEHExceptStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitSEHFinallyStmt(SEHFinallyStmt *S) {
       HIPACC_NOT_SUPPORTED(SEHFinallyStmt);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
       HIPACC_NOT_SUPPORTED(MSDependentExistsStmt);
-      return NULL;
+      return nullptr;
     }
 
     // OpenCL Expressions
@@ -680,11 +680,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // OpenMP Directives
     Stmt *VisitOMPExecutableDirective(OMPExecutableDirective *S) {
       HIPACC_NOT_SUPPORTED(OMPExecutableDirective);
-      return NULL;
+      return nullptr;
     }
     Stmt *VisitOMPParallelDirective(OMPParallelDirective *S) {
       HIPACC_NOT_SUPPORTED(OMPParallelDirective);
-      return NULL;
+      return nullptr;
     }
 };
 } // end namespace hipacc

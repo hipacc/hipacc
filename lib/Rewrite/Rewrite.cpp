@@ -81,7 +81,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
   public:
     Rewrite(CompilerInstance &CI, CompilerOptions &options, llvm::raw_ostream*
-        o=NULL, bool dump=false) :
+        o=nullptr, bool dump=false) :
       CI(CI),
       Context(CI.getASTContext()),
       Diags(CI.getASTContext().getDiagnostics()),
@@ -92,7 +92,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       builtins(CI.getASTContext()),
       stringCreator(CreateHostStrings(options)),
       compilerClasses(CompilerKnownClasses()),
-      mainFD(NULL),
+      mainFD(nullptr),
       literalCount(0),
       isLiteralCount(0)
     {}
@@ -140,7 +140,7 @@ ASTConsumer *HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
     return CreateRewrite(CI, options, OS);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 
@@ -465,7 +465,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
     if (!compilerClasses.HipaccEoP) return true;
 
-    HipaccKernelClass *KC = NULL;
+    HipaccKernelClass *KC = nullptr;
 
     for (auto I=D->bases_begin(), E=D->bases_end(); I!=E; ++I) {
       // found user kernel class
@@ -488,7 +488,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
     if (!KC) return true;
 
     // find constructor
-    CXXConstructorDecl *CCD = NULL;
+    CXXConstructorDecl *CCD = nullptr;
     for (auto I=D->ctor_begin(), E=D->ctor_end(); I!=E; ++I) {
       CXXConstructorDecl *CCDI = *I;
 
@@ -524,9 +524,9 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
                   compilerClasses.Image)) {
               QT = compilerClasses.getFirstTemplateType(FD->getType());
               KC->addImgArg(FD, QT, FD->getName());
-              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_width");
-              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_height");
-              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_stride");
+              //KC->addArg(nullptr, Context.IntTy, FD->getNameAsString() + "_width");
+              //KC->addArg(nullptr, Context.IntTy, FD->getNameAsString() + "_height");
+              //KC->addArg(nullptr, Context.IntTy, FD->getNameAsString() + "_stride");
 
               break;
             }
@@ -536,9 +536,9 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
                   compilerClasses.Accessor)) {
               QT = compilerClasses.getFirstTemplateType(FD->getType());
               KC->addImgArg(FD, QT, FD->getName());
-              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_width");
-              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_height");
-              //KC->addArg(NULL, Context.IntTy, FD->getNameAsString() + "_stride");
+              //KC->addArg(nullptr, Context.IntTy, FD->getNameAsString() + "_width");
+              //KC->addArg(nullptr, Context.IntTy, FD->getNameAsString() + "_height");
+              //KC->addArg(nullptr, Context.IntTy, FD->getNameAsString() + "_stride");
 
               break;
             }
@@ -578,10 +578,10 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
             DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
             if (DRE->getDecl() == PVD) {
               QT = compilerClasses.getFirstTemplateType(PVD->getType());
-              KC->addISArg(NULL, QT, "Output");
-              //KC->addArg(NULL, Context.IntTy, "is_width");
-              //KC->addArg(NULL, Context.IntTy, "is_height");
-              //KC->addArg(NULL, Context.IntTy, "is_stride");
+              KC->addISArg(nullptr, QT, "Output");
+              //KC->addArg(nullptr, Context.IntTy, "is_width");
+              //KC->addArg(nullptr, Context.IntTy, "is_height");
+              //KC->addArg(nullptr, Context.IntTy, "is_stride");
 
               break;
             }
@@ -631,7 +631,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   // a) convert Image declarations into memory allocations, e.g.
   //    Image<int> IN(width, height);
   //    =>
-  //    int *IN = hipaccCreateMemory<int>(NULL, width, height, &stride, padding);
+  //    int *IN = hipaccCreateMemory<int>(nullptr, width, height, &stride, padding);
   // b) convert Pyramid declarations into pyramid creation, e.g.
   //    Pyramid<int> P(IN, 3);
   //    =>
@@ -745,9 +745,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             "Expected BoundaryCondition definition (CXXConstructExpr).");
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
-        HipaccBoundaryCondition *BC = NULL;
-        HipaccImage *Img = NULL;
-        HipaccPyramid *Pyr = NULL;
+        HipaccBoundaryCondition *BC = nullptr;
+        HipaccImage *Img = nullptr;
+        HipaccPyramid *Pyr = nullptr;
 
         // check if the first argument is an Image
         if (isa<DeclRefExpr>(CCE->getArg(0))) {
@@ -773,8 +773,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             BC = new HipaccBoundaryCondition(Pyr, VD);
 
             // add call expression to pyramid argument
-            IntegerLiteral *IL = NULL;
-            UnaryOperator *UO = NULL;
+            IntegerLiteral *IL = nullptr;
+            UnaryOperator *UO = nullptr;
 
             if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
                     CCE->getArg(0))->getArg(1))) {
@@ -951,10 +951,10 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
         std::string newStr;
-        HipaccAccessor *Acc = NULL;
-        HipaccBoundaryCondition *BC = NULL;
-        HipaccImage *Img = NULL;
-        HipaccPyramid *Pyr = NULL;
+        HipaccAccessor *Acc = nullptr;
+        HipaccBoundaryCondition *BC = nullptr;
+        HipaccImage *Img = nullptr;
+        HipaccPyramid *Pyr = nullptr;
 
         // check if the first argument is an Image
         if (isa<DeclRefExpr>(CCE->getArg(0))) {
@@ -1020,8 +1020,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         if (Pyr) {
           // add call expression to pyramid argument
-          IntegerLiteral *IL = NULL;
-          UnaryOperator *UO = NULL;
+          IntegerLiteral *IL = nullptr;
+          UnaryOperator *UO = nullptr;
 
           if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
                   CCE->getArg(0))->getArg(1))) {
@@ -1092,9 +1092,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         std::stringstream LSS;
         LSS << isLiteralCount++;
 
-        HipaccIterationSpace *IS = NULL;
-        HipaccImage *Img = NULL;
-        HipaccPyramid *Pyr = NULL;
+        HipaccIterationSpace *IS = nullptr;
+        HipaccImage *Img = nullptr;
+        HipaccPyramid *Pyr = nullptr;
 
         // check if the first argument is an Image
         if (isa<DeclRefExpr>(CCE->getArg(0))) {
@@ -1129,8 +1129,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         if (Pyr) {
           // add call expression to pyramid argument
-          IntegerLiteral *IL = NULL;
-          UnaryOperator *UO = NULL;
+          IntegerLiteral *IL = nullptr;
+          UnaryOperator *UO = nullptr;
 
           if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
                   CCE->getArg(0))->getArg(1))) {
@@ -1185,8 +1185,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         break;
       }
 
-      HipaccMask *Mask = NULL;
-      CXXConstructExpr *CCE = NULL;
+      HipaccMask *Mask = nullptr;
+      CXXConstructExpr *CCE = nullptr;
       // found Mask decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Mask)) {
@@ -1425,9 +1425,9 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   if (E->getOperator() == OO_Equal) {
     if (E->getNumArgs() != 2) return true;
 
-    HipaccImage *ImgLHS = NULL, *ImgRHS = NULL;
-    HipaccAccessor *AccLHS = NULL, *AccRHS = NULL;
-    HipaccPyramid *PyrLHS = NULL, *PyrRHS = NULL;
+    HipaccImage *ImgLHS = nullptr, *ImgRHS = nullptr;
+    HipaccAccessor *AccLHS = nullptr, *AccRHS = nullptr;
+    HipaccPyramid *PyrLHS = nullptr, *PyrRHS = nullptr;
     std::string PyrIdxLHS = "", PyrIdxRHS = "";
 
     // check first parameter
@@ -1455,8 +1455,8 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           PyrLHS = PyrDeclMap[DRE->getDecl()];
 
           // add call expression to pyramid argument
-          IntegerLiteral *IL = NULL;
-          UnaryOperator *UO = NULL;
+          IntegerLiteral *IL = nullptr;
+          UnaryOperator *UO = nullptr;
 
           if (isa<IntegerLiteral>(CE->getArg(1))) {
             IL = dyn_cast<IntegerLiteral>(CE->getArg(1));
@@ -1506,8 +1506,8 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           PyrRHS = PyrDeclMap[DRE->getDecl()];
 
           // add call expression to pyramid argument
-          IntegerLiteral *IL = NULL;
-          UnaryOperator *UO = NULL;
+          IntegerLiteral *IL = nullptr;
+          UnaryOperator *UO = nullptr;
 
           if (isa<IntegerLiteral>(CE->getArg(1))) {
             IL = dyn_cast<IntegerLiteral>(CE->getArg(1));
@@ -1617,8 +1617,8 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                   HipaccPyramid *Pyr = PyrDeclMap[DRE->getDecl()];
 
                   // add call expression to pyramid argument
-                  IntegerLiteral *IL = NULL;
-                  UnaryOperator *UO = NULL;
+                  IntegerLiteral *IL = nullptr;
+                  UnaryOperator *UO = nullptr;
 
                   if (isa<IntegerLiteral>(CE->getArg(1))) {
                     IL = dyn_cast<IntegerLiteral>(CE->getArg(1));

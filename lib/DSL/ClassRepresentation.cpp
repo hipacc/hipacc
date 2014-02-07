@@ -528,7 +528,7 @@ void HipaccKernel::createArgInfo() {
         addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
             Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
                   4096), ArrayType::Normal, false)),
-            Ctx.getPointerType(QT).getAsString(), "cl_mem", name, NULL);
+            Ctx.getPointerType(QT).getAsString(), "cl_mem", name, nullptr);
 
         break;
       case HipaccKernelClass::Image:
@@ -552,11 +552,13 @@ void HipaccKernel::createArgInfo() {
         addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy).getAsString(),
-            Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_width", NULL);
+            Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_width",
+            nullptr);
         addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy).getAsString(),
-            Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_height", NULL);
+            Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_height",
+            nullptr);
 
         // stride
         if (options.emitPadding() || getImgFromMapping(FD)->isCrop()) {
@@ -564,7 +566,7 @@ void HipaccKernel::createArgInfo() {
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
               Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_stride",
-              NULL);
+              nullptr);
         }
 
         // offset_x, offset_y
@@ -573,12 +575,12 @@ void HipaccKernel::createArgInfo() {
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
               Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_x",
-              NULL);
+              nullptr);
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
               Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_y",
-              NULL);
+              nullptr);
         }
 
         break;
@@ -601,42 +603,42 @@ void HipaccKernel::createArgInfo() {
   // is_stride
   addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
       Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-      Ctx.getConstType(Ctx.IntTy).getAsString(), "is_stride", NULL);
+      Ctx.getConstType(Ctx.IntTy).getAsString(), "is_stride", nullptr);
 
   // is_width, is_height
   addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
       Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-      Ctx.getConstType(Ctx.IntTy).getAsString(), "is_width", NULL);
+      Ctx.getConstType(Ctx.IntTy).getAsString(), "is_width", nullptr);
   addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
       Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-      Ctx.getConstType(Ctx.IntTy).getAsString(), "is_height", NULL);
+      Ctx.getConstType(Ctx.IntTy).getAsString(), "is_height", nullptr);
 
   // is_offset_x, is_offset_y
   if (iterationSpace->isCrop()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "is_offset_x", NULL);
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "is_offset_x", nullptr);
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "is_offset_y", NULL);
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "is_offset_y", nullptr);
   }
 
   // bh_start_left
   if (getMaxSizeX() || options.exploreConfig()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_left", NULL);
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_left", nullptr);
   }
   // bh_start_right: always emit bh_start_right for iteration spaces not being a
   // multiple of the block size
   addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
       Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-      Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_right", NULL);
+      Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_right", nullptr);
   // bh_start_top
   if (getMaxSizeY() || options.exploreConfig()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_top", NULL);
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_top", nullptr);
   }
   // bh_start_bottom: emit bh_start_bottom in case iteration space is not a
   // multiple of the block size
@@ -644,13 +646,13 @@ void HipaccKernel::createArgInfo() {
       options.exploreConfig()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_bottom", NULL);
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_bottom", nullptr);
   }
   // bh_fall_back
   if (getMaxSizeX() || getMaxSizeY() || options.exploreConfig()) {
     addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
         Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_fall_back", NULL);
+        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_fall_back", nullptr);
   }
 }
 
