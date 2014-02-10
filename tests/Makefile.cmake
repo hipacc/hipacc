@@ -83,6 +83,14 @@ all:
 run:
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC)
 
+cpu:
+	@echo 'Executing HIPAcc Compiler for C++:'
+	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cpu $(HIPACC_OPTS) -o main.cc
+	@echo 'Compiling C++ file using g++:'
+	$(OCL_CC) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc -lm -ldl -lstdc++ -lpthread @TIME_LINK@
+	@echo 'Executing C++ binary'
+	./main_cpu
+
 cuda:
 	@echo 'Executing HIPAcc Compiler for CUDA:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cuda $(HIPACC_OPTS) -o main.cu

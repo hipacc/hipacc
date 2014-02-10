@@ -1,4 +1,5 @@
 //
+// Copyright (c) 2014, Saarland University
 // Copyright (c) 2012, University of Erlangen-Nuremberg
 // Copyright (c) 2012, Siemens AG
 // Copyright (c) 2010, ARM Limited
@@ -60,6 +61,7 @@ std::string getExecutablePath(const char *argv0) {
 
 void printCopyright() {
   llvm::errs() << "\n"
+    << "Copyright (c) 2014, Saarland University\n"
     << "Copyright (c) 2012, University of Erlangen-Nuremberg\n"
     << "Copyright (c) 2012, Siemens AG\n"
     << "Copyright (c) 2010, ARM Limited\n"
@@ -71,7 +73,8 @@ void printUsage() {
   llvm::errs() << "OVERVIEW: HIPAcc - Heterogeneous Image Processing Acceleration framework\n\n"
     << "USAGE:  hipacc [options] <input>\n\n"
     << "OPTIONS:\n\n"
-    << "  -emit-cuda              Emit CUDA code; default is OpenCL code\n"
+    << "  -emit-cpu               Emit C++ code\n"
+    << "  -emit-cuda              Emit CUDA code for GPU devices\n"
     << "  -emit-opencl-acc        Emit OpenCL code for Accelerator devices\n"
     << "  -emit-opencl-cpu        Emit OpenCL code for CPU devices\n"
     << "  -emit-opencl-gpu        Emit OpenCL code for GPU devices\n"
@@ -132,6 +135,10 @@ int main(int argc, char *argv[]) {
 
   // parse command line options
   for (int i=1; i<argc; ++i) {
+    if (StringRef(argv[i]) == "-emit-cpu") {
+      compilerOptions.setTargetCode(TARGET_C);
+      continue;
+    }
     if (StringRef(argv[i]) == "-emit-cuda") {
       compilerOptions.setTargetCode(TARGET_CUDA);
       continue;
