@@ -163,11 +163,11 @@ T *ASTTranslate::lookup(std::string name, QualType QT, NamespaceDecl *NS) {
 }
 
 
-// C/Polly initialization
-void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
+// C/C++ initialization
+void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   VarDecl *gid_x = nullptr, *gid_y = nullptr;
 
-  // Polly: int gid_x = offset_x;
+  // C/C++: int gid_x = offset_x;
   if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
     gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.IntTy,
         getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()));
@@ -176,7 +176,7 @@ void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
         createIntegerLiteral(Ctx, 0));
   }
 
-  // Polly: int gid_y = offset_y;
+  // C/C++: int gid_y = offset_y;
   if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
     gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.IntTy,
         getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()));
@@ -204,25 +204,58 @@ void ASTTranslate::initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace()->getAccessor());
   tileVars.local_size_y = createIntegerLiteral(Ctx, 0);
 
+  // check if we need border handling
+  for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
+    FieldDecl *FD = KernelClass->getImgFields().data()[i];
+    HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
+
+    // bail out for user defined kernels
+    if (KernelClass->getKernelType()==UserOperator) break;
+
+    // check if we need border handling
+    if (Acc->getBoundaryHandling() != BOUNDARY_UNDEFINED) {
+      if (Acc->getSizeX() > 1) {
+          bh_variant.borders.left = 1;
+          bh_variant.borders.right = 1;
+      }
+      if (Acc->getSizeY() > 1) {
+          bh_variant.borders.top = 1;
+          bh_variant.borders.bottom = 1;
+      }
+    }
+  }
+
   // convert the function body to kernel syntax
   Stmt *clonedStmt = Clone(S);
   assert(isa<CompoundStmt>(clonedStmt) && "CompoundStmt for kernel function body expected!");
 
   //
-  // for (int gid_y=offset_y; gid_y<2048; gid_y++) {
-  //     for (int gid_x=offset_x; gid_x<4096; gid_x++) {
+  // for (int gid_y=offset_y; gid_y<is_height+offset_y; gid_y++) {
+  //     for (int gid_x=offset_x; gid_x<is_width+offset_x; gid_x++) {
   //         body
   //     }
   // }
   //
+  Expr *upper_x = getWidthDecl(Kernel->getIterationSpace()->getAccessor());
+  Expr *upper_y = getHeightDecl(Kernel->getIterationSpace()->getAccessor());
+  if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
+    upper_x = createBinaryOperator(Ctx, upper_x,
+        getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_Add,
+        Ctx.IntTy);
+  }
+  if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
+    upper_y = createBinaryOperator(Ctx, upper_y,
+        getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()), BO_Add,
+        Ctx.IntTy);
+  }
   ForStmt *innerLoop = createForStmt(Ctx, gid_x_stmt, createBinaryOperator(Ctx,
-        tileVars.global_id_x, createIntegerLiteral(Ctx, 4096), BO_LT,
-        Ctx.BoolTy), createUnaryOperator(Ctx, tileVars.global_id_x, UO_PostInc,
-          tileVars.global_id_x->getType()), clonedStmt);
+        tileVars.global_id_x, upper_x, BO_LT, Ctx.BoolTy),
+      createUnaryOperator(Ctx, tileVars.global_id_x, UO_PostInc,
+        tileVars.global_id_x->getType()), clonedStmt);
   ForStmt *outerLoop = createForStmt(Ctx, gid_y_stmt, createBinaryOperator(Ctx,
-        tileVars.global_id_y, createIntegerLiteral(Ctx, 2048), BO_LT,
-        Ctx.BoolTy), createUnaryOperator(Ctx, tileVars.global_id_y, UO_PostInc,
-          tileVars.global_id_y->getType()), innerLoop);
+        tileVars.global_id_y, upper_y, BO_LT, Ctx.BoolTy),
+      createUnaryOperator(Ctx, tileVars.global_id_y, UO_PostInc,
+        tileVars.global_id_y->getType()), innerLoop);
 
   kernelBody.push_back(outerLoop);
 }
@@ -658,7 +691,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   switch (compilerOptions.getTargetCode()) {
     default:
     case TARGET_C:
-      initC(kernelBody, S);
+      initCPU(kernelBody, S);
       return createCompoundStmt(Ctx, kernelBody);
       break;
     case TARGET_CUDA:
@@ -1766,16 +1799,16 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
 
   // check if the parameter is a Mask and replace it by a global VarDecl
   bool isMask = false;
-  if (!compilerOptions.emitC()) {
-    for (size_t i=0; i<KernelClass->getNumMasks(); ++i) {
-      FieldDecl *FD = KernelClass->getMaskFields().data()[i];
+  for (size_t i=0; i<KernelClass->getNumMasks(); ++i) {
+    FieldDecl *FD = KernelClass->getMaskFields().data()[i];
 
-      if (paramDecl->getName().equals(FD->getName())) {
-        HipaccMask *Mask = Kernel->getMaskFromMapping(FD);
+    if (paramDecl->getName().equals(FD->getName())) {
+      HipaccMask *Mask = Kernel->getMaskFromMapping(FD);
 
-        if (Mask) isMask = true;
-
-        if (Mask && (Mask->isConstant() || compilerOptions.emitCUDA())) {
+      if (Mask) {
+        isMask = true;
+        if (Mask->isConstant() || compilerOptions.emitC() ||
+            compilerOptions.emitCUDA()) {
           // get Mask/Domain reference
           VarDecl *maskVar = lookup<VarDecl>(Mask->getName() +
               Kernel->getName(), Mask->getType());
@@ -2158,15 +2191,10 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         break;
       case 1:
         // 0: -> (this *) Image Class
-        if (compilerOptions.emitC()) {
-          // no padding is considered, data is accessed as a 2D-array
-          result = accessMemPolly(LHS, Acc, memAcc, nullptr, nullptr);
+        if (use_shared) {
+          result = accessMemShared(DRE, TX, SY);
         } else {
-          if (use_shared) {
-            result = accessMemShared(DRE, TX, SY);
-          } else {
-            result = accessMem(LHS, Acc, memAcc);
-          }
+          result = accessMem(LHS, Acc, memAcc);
         }
         break;
       case 2:
@@ -2208,27 +2236,22 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
           offset_y = Clone(E->getArg(2));
         }
 
-        if (compilerOptions.emitC()) {
-          // no padding is considered, data is accessed as a 2D-array
-          result = accessMemPolly(LHS, Acc, memAcc, offset_x, offset_y);
+        if (use_shared) {
+          result = accessMemShared(DRE, createBinaryOperator(Ctx, offset_x,
+                TX, BO_Add, Ctx.IntTy), createBinaryOperator(Ctx, offset_y,
+                  SY, BO_Add, Ctx.IntTy));
         } else {
-          if (use_shared) {
-            result = accessMemShared(DRE, createBinaryOperator(Ctx, offset_x,
-                  TX, BO_Add, Ctx.IntTy), createBinaryOperator(Ctx, offset_y,
-                    SY, BO_Add, Ctx.IntTy));
-          } else {
-            switch (memAcc) {
-              case READ_ONLY:
-                if (bh_variant.borderVal) {
-                  return addBorderHandling(LHS, offset_x, offset_y, Acc);
-                }
-                // fall through
-              case WRITE_ONLY:
-              case READ_WRITE:
-              case UNDEFINED:
-                result = accessMem(LHS, Acc, memAcc, offset_x, offset_y);
-                break;
-            }
+          switch (memAcc) {
+            case READ_ONLY:
+              if (bh_variant.borderVal) {
+                return addBorderHandling(LHS, offset_x, offset_y, Acc);
+              }
+              // fall through
+            case WRITE_ONLY:
+            case READ_WRITE:
+            case UNDEFINED:
+              result = accessMem(LHS, Acc, memAcc, offset_x, offset_y);
+              break;
           }
         }
         break;
@@ -2286,16 +2309,13 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       assert(E->getNumArgs()==0 && "no arguments for output() method supported!");
 
       switch (compilerOptions.getTargetCode()) {
-        case TARGET_C:
-          // no padding is considered, data is accessed as a 2D-array
-          result = accessMemPolly(LHS, Acc, memAcc, nullptr, nullptr);
-          break;
         case TARGET_Renderscript:
           if (Kernel->getPixelsPerThread() <= 1) {
             // write to output pixel pointed to by kernel parameter
             LHS = retValRef;
           }
           // fall through
+        case TARGET_C:
         case TARGET_CUDA:
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
@@ -2408,7 +2428,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
     switch (compilerOptions.getTargetCode()) {
       case TARGET_C:
-        // no padding is considered, data is accessed as a 2D-array
         result = accessMem2DAt(LHS, idx_x, idx_y);
         break;
       case TARGET_CUDA:

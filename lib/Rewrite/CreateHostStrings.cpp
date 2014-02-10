@@ -40,8 +40,8 @@ using namespace hipacc;
 
 void CreateHostStrings::writeHeaders(std::string &resultStr) {
   switch (options.getTargetCode()) {
-    default:
     case TARGET_C:
+      resultStr += "#include \"hipacc_cpu.hpp\"\n\n";
       break;
     case TARGET_CUDA:
       resultStr += "#include \"hipacc_cuda.hpp\"\n\n";
@@ -61,7 +61,6 @@ void CreateHostStrings::writeHeaders(std::string &resultStr) {
 
 void CreateHostStrings::writeInitialization(std::string &resultStr) {
   switch (options.getTargetCode()) {
-    default:
     case TARGET_C:
       break;
     case TARGET_CUDA:
@@ -107,7 +106,6 @@ void writeCLCompilation(std::string fileName, std::string kernelName,
 void CreateHostStrings::writeKernelCompilation(HipaccKernel *K,
     std::string &resultStr) {
   switch (options.getTargetCode()) {
-    default:
     case TARGET_C:
     case TARGET_CUDA:
       break;
@@ -156,7 +154,6 @@ void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
   HipaccImage *Img = Acc->getImage();
 
   switch (options.getTargetCode()) {
-    default:
     case TARGET_C:
     case TARGET_CUDA:
     case TARGET_OpenCLACC:
@@ -205,8 +202,9 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
     HipaccDevice &targetDevice) {
   resultStr += "HipaccImage " + memName + " = ";
   switch (options.getTargetCode()) {
-    default:
     case TARGET_C:
+      resultStr += "hipaccCreateMemory<" + type + ">(";
+      break;
     case TARGET_CUDA:
       // texture is bound at kernel launch
       if (options.useTextureMemory() && options.getTextureType()==Array2D) {
@@ -249,8 +247,10 @@ void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
 
   resultStr += "HipaccImage " + memName + " = ";
   switch (options.getTargetCode()) {
-    default:
     case TARGET_C:
+      resultStr += "hipaccCreateMemory<" + type + ">(";
+      resultStr += "NULL, " + width + ", " + height + ");";
+      break;
     case TARGET_CUDA:
       assert(0 && "constant memory allocation not required in CUDA!");
       break;
@@ -330,8 +330,6 @@ void CreateHostStrings::writeMemoryTransferRegion(std::string dst, std::string
 void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
     mem, MemoryTransferDirection direction, std::string &resultStr) {
   switch (options.getTargetCode()) {
-    default:
-    case TARGET_C:
     case TARGET_CUDA: {
         SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
         for (size_t i=0; i<kernels.size(); ++i) {
@@ -367,6 +365,7 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
         }
       }
       break;
+    case TARGET_C:
     case TARGET_Renderscript:
     case TARGET_Filterscript:
     case TARGET_OpenCLACC:
@@ -412,8 +411,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   maxSizeYStr << K->getMaxSizeY();
 
   switch (options.getTargetCode()) {
-    default:
     case TARGET_C:
+        break;
     case TARGET_CUDA:
       blockStr = "block" + LSS.str();
       gridStr = "grid" + LSS.str();
@@ -437,7 +436,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     inc_indent();
     resultStr += "{\n";
     switch (options.getTargetCode()) {
-      default:
       case TARGET_C:
         break;
       case TARGET_CUDA:
@@ -463,24 +461,26 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     resultStr += indent;
   }
 
-  // hipacc_launch_info
-  resultStr += "hipacc_launch_info " + infoStr + "(";
-  resultStr += maxSizeXStr.str() + ", ";
-  resultStr += maxSizeYStr.str() + ", ";
-  resultStr += K->getIterationSpace()->getName() + ", ";
-  resultStr += PPTSS.str() + ", ";
-  if (K->vectorize()) {
-    // TODO set and calculate per kernel simd width ...
-    resultStr += "4);\n";
-  } else {
-    resultStr += "1);\n";
+  if (options.getTargetCode() != TARGET_C) {
+    // hipacc_launch_info
+    resultStr += "hipacc_launch_info " + infoStr + "(";
+    resultStr += maxSizeXStr.str() + ", ";
+    resultStr += maxSizeYStr.str() + ", ";
+    resultStr += K->getIterationSpace()->getName() + ", ";
+    resultStr += PPTSS.str() + ", ";
+    if (K->vectorize()) {
+      // TODO set and calculate per kernel simd width ...
+      resultStr += "4);\n";
+    } else {
+      resultStr += "1);\n";
+    }
+    resultStr += indent;
   }
-  resultStr += indent;
 
   if (!options.exploreConfig()) {
     switch (options.getTargetCode()) {
-      default:
       case TARGET_C:
+          break;
       case TARGET_CUDA:
         // dim3 block
         resultStr += "dim3 " + blockStr + "(" + cX.str() + ", " + cY.str() + ");\n";
@@ -674,13 +674,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       // textures are handled separately
       continue;
     }
-    std::string img_mem("");
+    std::string img_mem;
     if (Acc || i==0) img_mem = ".mem";
 
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument
       switch (options.getTargetCode()) {
-        default:
         case TARGET_C:
           break;
         case TARGET_CUDA:
@@ -704,7 +703,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         case TARGET_Renderscript:
         case TARGET_Filterscript:
           if (Acc || Mask || i==0) {
-            LSS.str("");
+            LSS.str(std::string());
             LSS.clear();
             LSS << literal_count++;
             resultStr += "sp<Allocation> alloc_" + LSS.str() + " = (Allocation  *)";
@@ -725,8 +724,26 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     } else {
       // set kernel arguments
       switch (options.getTargetCode()) {
-        default:
         case TARGET_C:
+          if (i==0) {
+            resultStr += kernelName + "(";
+          } else {
+            resultStr += ", ";
+          }
+          if (i==0) {
+            HipaccImage *Img =
+              K->getIterationSpace()->getAccessor()->getImage();
+            resultStr += "(" + Img->getTypeStr();
+            resultStr += "(*)[" + Img->getSizeXStr() + "])";
+          }
+          if (Acc) {
+            resultStr += "(" + Acc->getImage()->getTypeStr();
+            resultStr += "(*)[" + Acc->getImage()->getSizeXStr() + "])";
+          }
+          if (Mask) {
+            resultStr += "(" + argTypeNames[i] + ")";
+          }
+          resultStr += hostArgNames[i] + img_mem;
           break;
         case TARGET_CUDA:
           resultStr += "hipaccSetupArgument(&";
@@ -739,7 +756,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
         case TARGET_OpenCLGPU:
-          LSS.str("");
+          LSS.str(std::string());
           LSS.clear();
           LSS << curArg++;
 
@@ -768,6 +785,11 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       }
     }
   }
+  if (options.getTargetCode()==TARGET_C) {
+    // close parenthesis for function call
+    resultStr += ");\n";
+    resultStr += indent;
+  }
   resultStr += "\n" + indent;
 
   // launch kernel
@@ -779,7 +801,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     max_shared_memory_per_block << K->getMaxTotalSharedMemory();
 
     switch (options.getTargetCode()) {
-      default:
       case TARGET_C:
         break;
       case TARGET_CUDA:
@@ -852,7 +873,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     resultStr += indent + "}\n";
   } else {
     switch (options.getTargetCode()) {
-      default:
       case TARGET_C:
         break;
       case TARGET_CUDA:
@@ -874,7 +894,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += kernelName;
         break;
     }
-    if (0 == (options.getTargetCode() & (TARGET_Renderscript |
+    if (0 == (options.getTargetCode() & (TARGET_C | TARGET_Renderscript |
                                          TARGET_Filterscript))) {
       resultStr += ", " + gridStr;
       resultStr += ", " + blockStr;
@@ -886,12 +906,11 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
 
 void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
     std::string &resultStr) {
-  std::string typeStr = K->getIterationSpace()->getImage()->getTypeStr();
-  std::string red_decl = typeStr + " " + K->getReduceStr() + " = ";
+  std::string typeStr(K->getIterationSpace()->getImage()->getTypeStr());
+  std::string red_decl(typeStr + " " + K->getReduceStr() + " = ");
 
   // print runtime function name plus name of reduction function
   switch (options.getTargetCode()) {
-    default:
     case TARGET_C:
       break;
     case TARGET_CUDA:
@@ -1027,8 +1046,8 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
   // interpolation function
   resultStr += function_name;
   // boundary handling name + function (upper & lower)
-  std::string const_parameter = "NO_PARM";
-  std::string const_suffix = "";
+  std::string const_parameter("NO_PARM");
+  std::string const_suffix;
   switch (bh_mode) {
     case BOUNDARY_CLAMP:
       resultStr += "_clamp, BH_CONSTANT_LOWER, BH_CONSTANT_UPPER, "; break;
@@ -1073,8 +1092,7 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
 
 
 void CreateHostStrings::writePyramidAllocation(std::string pyrName, std::string
-    type, std::string img, std::string depth, std::string &resultStr,
-    HipaccDevice &targetDevice) {
+    type, std::string img, std::string depth, std::string &resultStr) {
   resultStr += "HipaccPyramid " + pyrName + " = ";
   resultStr += "hipaccCreatePyramid<" + type + ">(";
   resultStr += img + ", " + depth + ");";

@@ -256,16 +256,18 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     }
 
     switch (compilerOptions.getTargetCode()) {
+      case TARGET_C:
+          RHS = accessMem2DAt(LHS, idx_x, idx_y);
+          break;
       case TARGET_CUDA:
         if (Kernel->useTextureMemory(Acc)) {
           RHS = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
-      case TARGET_C:
+        // fall through
       case TARGET_OpenCLACC:
       case TARGET_OpenCLCPU:
       case TARGET_OpenCLGPU:
-        // fall through
         if (Kernel->useTextureMemory(Acc)) {
           RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
@@ -343,16 +345,18 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
 
     // get data
     switch (compilerOptions.getTargetCode()) {
+      case TARGET_C:
+          result = accessMem2DAt(LHS, idx_x, idx_y);
+          break;
       case TARGET_CUDA:
         if (Kernel->useTextureMemory(Acc)) {
           result = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
-      case TARGET_C:
+        // fall through
       case TARGET_OpenCLACC:
       case TARGET_OpenCLCPU:
       case TARGET_OpenCLGPU:
-        // fall through
         if (Kernel->useTextureMemory(Acc)) {
           result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;

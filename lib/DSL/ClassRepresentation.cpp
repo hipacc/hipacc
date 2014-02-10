@@ -498,7 +498,7 @@ void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3,
   argTypesOpenCL.push_back(QT2);
   argTypesC.push_back(QT3);
 
-  argTypeNamesCUDA.push_back(typeC);
+  argTypeNames.push_back(typeC);
   argTypeNamesOpenCL.push_back(typeO);
 
   deviceArgNames.push_back(name);
@@ -527,8 +527,9 @@ void HipaccKernel::createArgInfo() {
         // add output image
         addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
             Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                  4096), ArrayType::Normal, false)),
-            Ctx.getPointerType(QT).getAsString(), "cl_mem", name, nullptr);
+                  iterationSpace->getImage()->getSizeX()), ArrayType::Normal,
+                false)), Ctx.getPointerType(QT).getAsString(), "cl_mem", name,
+            nullptr);
 
         break;
       case HipaccKernelClass::Image:
@@ -539,13 +540,14 @@ void HipaccKernel::createArgInfo() {
             !(useTextureMemory(getImgFromMapping(FD)) == Ldg)) {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
               Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                    4096), ArrayType::Normal, false)), QT.getAsString(),
-              "cl_mem", name, FD);
+                    getImgFromMapping(FD)->getSizeX()), ArrayType::Normal,
+                  false)), QT.getAsString(), "cl_mem", name, FD);
         } else {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
               Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                    4096), ArrayType::Normal, false)),
-              Ctx.getPointerType(QT).getAsString(), "cl_mem", name, FD);
+                    getImgFromMapping(FD)->getSizeX()), ArrayType::Normal,
+                  false)), Ctx.getPointerType(QT).getAsString(), "cl_mem", name,
+              FD);
         }
 
         // add types for image width/height plus stride

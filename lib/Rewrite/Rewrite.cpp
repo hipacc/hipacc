@@ -259,6 +259,16 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
   // include .cu or .h files for normal kernels
   switch (compilerOptions.getTargetCode()) {
+    case TARGET_C:
+      for (auto it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it)
+      {
+        HipaccKernel *Kernel = it->second;
+
+        newStr += "#include \"";
+        newStr += Kernel->getFileName();
+        newStr += ".cc\"\n";
+      }
+      break;
     case TARGET_CUDA:
       if (!compilerOptions.exploreConfig()) {
         for (auto it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei;
@@ -675,6 +685,25 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         llvm::raw_string_ostream WS(widthStr);
         CCE->getArg(0)->printPretty(WS, 0, PrintingPolicy(CI.getLangOpts()));
 
+        if (compilerOptions.emitC()) {
+          Expr::EvalResult constWidth, constHeight;
+          // check if the parameter can be resolved to a constant
+          unsigned int DiagIDConstant =
+            Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                "Constant expression for %0 parameter of Image %1 required (C/C++ only).");
+          if (!CCE->getArg(0)->isEvaluatable(Context)) {
+            Diags.Report(CCE->getArg(0)->getExprLoc(), DiagIDConstant)
+              << "width" << Img->getName();
+          }
+          if (!CCE->getArg(1)->isEvaluatable(Context)) {
+            Diags.Report(CCE->getArg(1)->getExprLoc(), DiagIDConstant)
+              << "height" << Img->getName();
+          }
+          Img->setSizeX(CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue());
+          Img->setSizeY(CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue());
+        }
+
+
         // get the text string for the image height
         std::string heightStr;
         llvm::raw_string_ostream HS(heightStr);
@@ -723,7 +752,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         // create memory allocation string
         stringCreator.writePyramidAllocation(VD->getName(),
             compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
-            IS.str(), DS.str(), newStr, targetDevice);
+            IS.str(), DS.str(), newStr);
 
         // rewrite Pyramid definition
         // get the start location and compute the semi location.
@@ -1016,7 +1045,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         Acc = new HipaccAccessor(BC, mode, VD);
 
         // get text string for arguments
-        std::string Parms = Acc->getImage()->getName();
+        std::string Parms(Acc->getImage()->getName());
 
         if (Pyr) {
           // add call expression to pyramid argument
@@ -1125,7 +1154,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                                "be Image or Pyramid call.");
 
         // get text string for arguments
-        std::string Parms = IS->getImage()->getName();
+        std::string Parms(IS->getImage()->getName());
 
         if (Pyr) {
           // add call expression to pyramid argument
@@ -1428,7 +1457,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
     HipaccImage *ImgLHS = nullptr, *ImgRHS = nullptr;
     HipaccAccessor *AccLHS = nullptr, *AccRHS = nullptr;
     HipaccPyramid *PyrLHS = nullptr, *PyrRHS = nullptr;
-    std::string PyrIdxLHS = "", PyrIdxRHS = "";
+    std::string PyrIdxLHS, PyrIdxRHS;
 
     // check first parameter
     if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
@@ -1904,7 +1933,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         if (ME->getMemberNameInfo().getAsString() == "getReducedData") {
           HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
 
-          std::string newStr = K->getReduceStr();
+          std::string newStr(K->getReduceStr());
 
           // replace member function invocation
           SourceRange range(E->getLocStart(), E->getLocEnd());
@@ -2006,9 +2035,9 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   printKernelFunction(kernelDeclEst, KC, K, K->getFileName(), false);
 
   // compile kernel in order to get resource usage
-  std::string command = K->getCompileCommand(compilerOptions.emitCUDA()) +
-    K->getCompileOptions(K->getKernelName(), K->getFileName(),
-        compilerOptions.emitCUDA());
+  std::string command(K->getCompileCommand(compilerOptions.emitCUDA()) +
+      K->getCompileOptions(K->getKernelName(), K->getFileName(),
+        compilerOptions.emitCUDA()));
 
   int reg=0, lmem=0, smem=0, cmem=0;
   char line[FILENAME_MAX];
@@ -2211,7 +2240,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   // write kernel parameters
   size_t comma = 0;
   for (size_t i=0, e=fun->getNumParams(); i!=e; ++i) {
-    std::string Name = fun->getParamDecl(i)->getNameAsString();
+    std::string Name(fun->getParamDecl(i)->getNameAsString());
 
     // normal arguments
     if (comma++) *OS << ", ";
@@ -2319,8 +2348,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
   int fd;
-  std::string filename = file;
-  std::string ifdef = "_" + file + "_";
+  std::string filename(file);
+  std::string ifdef("_" + file + "_");
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
       filename += ".cc";
@@ -2347,7 +2376,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   if (!dump) {
     while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
       if (errno != EINTR) {
-        std::string errorInfo = "Error opening output file '" + filename + "'";
+        std::string errorInfo("Error opening output file '" + filename + "'");
         perror(errorInfo.c_str());
       }
     }
@@ -2412,10 +2441,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
       // define required interpolation mode
       if (inc && Acc->getInterpolation()>InterpolateNN) {
-        std::string function_name = ASTTranslate::getInterpolationName(Context,
-            builtins, compilerOptions, K, Acc, border_variant());
-        std::string suffix = "_" +
-          builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context);
+        std::string function_name(ASTTranslate::getInterpolationName(Context,
+              builtins, compilerOptions, K, Acc, border_variant()));
+        std::string suffix("_" +
+            builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context));
 
         std::string resultStr;
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
@@ -2597,6 +2626,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         // emit declaration in CUDA and Renderscript
         // for other back ends, the mask will be added as kernel parameter
         switch (compilerOptions.getTargetCode()) {
+          case TARGET_C:
           case TARGET_OpenCLACC:
           case TARGET_OpenCLCPU:
           case TARGET_OpenCLGPU:
@@ -2605,11 +2635,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
                 << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
                 << "][" << Mask->getSizeXStr() << "];\n\n";
-            Mask->setIsPrinted(true);
-            break;
-          case TARGET_C:
-            *OS << "const " << Mask->getTypeStr() << " *"
-                << K->getDeviceArgNames()[i] << ";\n\n";
             Mask->setIsPrinted(true);
             break;
           case TARGET_Renderscript:
@@ -2703,7 +2728,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // write kernel parameters
   size_t comma = 0;
   for (size_t i=0, e=D->getNumParams(); i!=e; ++i) {
-    std::string Name = D->getParamDecl(i)->getNameAsString();
+    std::string Name(D->getParamDecl(i)->getNameAsString());
     FieldDecl *FD = K->getDeviceArgFields()[i];
 
     if (!K->getUsed(Name) &&
@@ -2734,10 +2759,19 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                 << Mask->getTypeStr() << "))))";
             }
           break;
+        case TARGET_C:
+          if (!Mask->isConstant()) {
+            if (comma++) *OS << ", ";
+            *OS << "const "
+                << Mask->getTypeStr()
+                << " " << Mask->getName() << K->getName()
+                << "[" << Mask->getSizeYStr() << "]"
+                << "[" << Mask->getSizeXStr() << "]";
+          }
+          break;
         case TARGET_CUDA:
           // mask/domain is declared as constant memory
           break;
-        case TARGET_C:
         case TARGET_Renderscript:
         case TARGET_Filterscript:
           // mask/domain is declared as static memory
@@ -2818,6 +2852,15 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           }
           break;
         case TARGET_C:
+          if (comma++) *OS << ", ";
+          if (memAcc==READ_ONLY) *OS << "const ";
+          *OS << Acc->getImage()->getTypeStr()
+              << " " << Name
+              << "[" << Acc->getImage()->getSizeXStr() << "]"
+              << "[" << Acc->getImage()->getSizeYStr() << "]";
+          // alternative for Pencil:
+          // *OS << "[static const restrict 2048][4096]";
+          break;
         case TARGET_Renderscript:
         case TARGET_Filterscript:
           break;

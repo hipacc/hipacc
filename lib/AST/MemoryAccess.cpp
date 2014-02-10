@@ -94,7 +94,7 @@ Expr *ASTTranslate::removeISOffsetY(Expr *idx_y, HipaccAccessor *Acc) {
 }
 
 
-// access 1D memory array
+// access memory
 Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     MemoryAccess memAcc, Expr *local_offset_x, Expr *local_offset_y) {
   Expr *idx_x = tileVars.global_id_x;
@@ -110,7 +110,8 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_x = removeISOffsetX(idx_x, Acc);
       }
-      if ((compilerOptions.emitRenderscript() ||
+      if ((compilerOptions.emitC() ||
+           compilerOptions.emitRenderscript() ||
            compilerOptions.emitFilterscript()) &&
           Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_y = removeISOffsetY(idx_y, Acc);
@@ -134,7 +135,8 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
     idx_x = addGlobalOffsetX(idx_x, Acc);
   }
-  if ((!compilerOptions.emitRenderscript() &&
+  if ((!compilerOptions.emitC() ||
+       !compilerOptions.emitRenderscript() ||
        !compilerOptions.emitFilterscript()) ||
       Acc!=Kernel->getIterationSpace()->getAccessor()) {
     idx_y = addGlobalOffsetY(idx_y, Acc);
@@ -176,9 +178,9 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           if (Kernel->useTextureMemory(Acc)) {
             return accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
           }
-          // fall through
-        case TARGET_C:
           return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        case TARGET_C:
+          return accessMem2DAt(LHS, idx_x, idx_y);
         case TARGET_Renderscript:
         case TARGET_Filterscript:
           return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
@@ -207,7 +209,7 @@ Expr *ASTTranslate::accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x,
   Kernel->setUsed(LHS->getNameInfo().getAsString());
 
   // for vectorization divide stride by vector size
-  if (Kernel->vectorize() && !compilerOptions.emitC()) {
+  if (Kernel->vectorize()) {
     stride = createBinaryOperator(Ctx, stride, createIntegerLiteral(Ctx, 4),
         BO_Div, Ctx.IntTy);
   }
@@ -221,39 +223,6 @@ Expr *ASTTranslate::accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x,
       SourceLocation());
 
   return result;
-}
-
-
-// access 2D memory array
-Expr *ASTTranslate::accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc,
-    MemoryAccess memAcc, Expr *local_offset_x, Expr *local_offset_y) {
-  Expr *idx_x = tileVars.global_id_x;
-  Expr *idx_y = gidYRef;
-
-  // step 0: add local offset: gid_[x|y] + local_offset_[x|y]
-  idx_x = addLocalOffset(idx_x, local_offset_x);
-  idx_y = addLocalOffset(idx_y, local_offset_y);
-
-  // step 1: remove is_offset and add interpolation & boundary handling
-  // no interpolation & boundary handling for Polly
-  if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
-    idx_x = removeISOffsetX(idx_x, Acc);
-  }
-
-  if ((compilerOptions.emitRenderscript() ||
-       compilerOptions.emitFilterscript()) &&
-      Acc!=Kernel->getIterationSpace()->getAccessor()) {
-    idx_y = removeISOffsetY(idx_y, Acc);
-  }
-
-  // step 2: add global Accessor/Iteration Space offset
-  if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
-    idx_x = addGlobalOffsetX(idx_x, Acc);
-  }
-  idx_y = addGlobalOffsetY(idx_y, Acc);
-
-  // step 3: access the appropriate memory
-  return accessMem2DAt(LHS, idx_x, idx_y);
 }
 
 

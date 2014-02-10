@@ -88,7 +88,45 @@ enum InterpolationMode {
 
 
 // common base class for images, masks and pyramids
-class HipaccMemory {
+class HipaccSize {
+  protected:
+    unsigned int size_x, size_y;
+    std::string size_x_str, size_y_str;
+
+  public:
+    HipaccSize() :
+      size_x(0), size_y(0),
+      size_x_str(), size_y_str()
+    {}
+
+    void setSizeX(unsigned int x) {
+      std::string Str;
+      llvm::raw_string_ostream SS(Str);
+      SS << x;
+      size_x_str = SS.str();
+      size_x = x;
+    }
+    void setSizeY(unsigned int y) {
+      std::string Str;
+      llvm::raw_string_ostream SS(Str);
+      SS << y;
+      size_y_str = SS.str();
+      size_y = y;
+    }
+    unsigned int getSizeX() { return size_x; }
+    unsigned int getSizeY() { return size_y; }
+    std::string getSizeXStr() {
+      assert(!size_x_str.empty());
+      return size_x_str;
+    }
+    std::string getSizeYStr() {
+      assert(!size_y_str.empty());
+      return size_y_str;
+    }
+};
+
+
+class HipaccMemory : public HipaccSize {
   protected:
     VarDecl *VD;
     std::string name;
@@ -96,6 +134,7 @@ class HipaccMemory {
 
   public:
     HipaccMemory(VarDecl *VD, std::string name, QualType type) :
+      HipaccSize(),
       VD(VD),
       name(name),
       type(type)
@@ -132,12 +171,10 @@ class HipaccPyramid : public HipaccImage {
 };
 
 
-class HipaccBoundaryCondition {
+class HipaccBoundaryCondition : public HipaccSize {
   private:
     HipaccImage *img;
     VarDecl *VD;
-    unsigned int size_x, size_y;
-    std::string size_x_str, size_y_str;
     BoundaryMode boundaryHandling;
     std::string pyr_idx_str;
     bool is_pyramid;
@@ -146,32 +183,15 @@ class HipaccBoundaryCondition {
 
   public:
     HipaccBoundaryCondition(HipaccImage *img, VarDecl *VD) :
+      HipaccSize(),
       img(img),
       VD(VD),
-      size_x(0),
-      size_y(0),
-      size_x_str(""),
-      size_y_str(""),
       boundaryHandling(BOUNDARY_UNDEFINED),
-      pyr_idx_str(""),
+      pyr_idx_str(),
       is_pyramid(false),
       constExpr(nullptr)
     {}
 
-    void setSizeX(unsigned int x) {
-      std::string Str;
-      llvm::raw_string_ostream SS(Str);
-      SS << x;
-      size_x_str = SS.str();
-      size_x = x;
-    }
-    void setSizeY(unsigned int y) {
-      std::string Str;
-      llvm::raw_string_ostream SS(Str);
-      SS << y;
-      size_y_str = SS.str();
-      size_y = y;
-    }
     void setPyramidIndex(std::string idx) {
       is_pyramid = true;
       pyr_idx_str = idx;
@@ -182,10 +202,6 @@ class HipaccBoundaryCondition {
     }
     VarDecl *getDecl() { return VD; }
     HipaccImage *getImage() { return img; }
-    unsigned int getSizeX() { return size_x; }
-    unsigned int getSizeY() { return size_y; }
-    std::string getSizeXStr() { return size_x_str; }
-    std::string getSizeYStr() { return size_y_str; }
     BoundaryMode getBoundaryHandling() { return boundaryHandling; }
     std::string getPyramidIndex() { return pyr_idx_str; }
     bool isPyramid() { return is_pyramid; }
@@ -293,8 +309,6 @@ class HipaccMask : public HipaccMemory {
   private:
     MaskType mask_type;
     InitListExpr *init_list;
-    unsigned int size_x, size_y;
-    std::string size_x_str, size_y_str;
     bool is_constant;
     bool is_printed;
     SmallVector<HipaccKernel *, 16> kernels;
@@ -306,38 +320,16 @@ class HipaccMask : public HipaccMemory {
       HipaccMemory(VD, "_const" + VD->getNameAsString(), QT),
       mask_type(type),
       init_list(nullptr),
-      size_x(0),
-      size_y(0),
-      size_x_str(""),
-      size_y_str(""),
       is_constant(false),
       is_printed(false),
       kernels(0),
-      hostMemName(""),
+      hostMemName(),
       hostMemExpr(nullptr)
     {}
 
-    void setSizeX(unsigned int x) {
-      std::string Str;
-      llvm::raw_string_ostream SS(Str);
-      SS << x;
-      size_x_str = SS.str();
-      size_x = x;
-    }
-    void setSizeY(unsigned int y) {
-      std::string Str;
-      llvm::raw_string_ostream SS(Str);
-      SS << y;
-      size_y_str = SS.str();
-      size_y = y;
-    }
     void setIsConstant(bool c) { is_constant = c; }
     void setIsPrinted(bool p) { is_printed = p; }
     void setInitList(InitListExpr *il) { init_list = il; }
-    unsigned int getSizeX() { return size_x; }
-    unsigned int getSizeY() { return size_y; }
-    std::string getSizeXStr() { return size_x_str; }
-    std::string getSizeYStr() { return size_y_str; }
     bool isDomain() { return (mask_type & Domain); }
     bool isConstant() { return is_constant; }
     bool isPrinted() { return is_printed; }
@@ -568,7 +560,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     SmallVector<QualType, 16> argTypesC;
     SmallVector<QualType, 16> argTypesCUDA;
     SmallVector<QualType, 16> argTypesOpenCL;
-    SmallVector<std::string, 16> argTypeNamesCUDA;
+    SmallVector<std::string, 16> argTypeNames;
     SmallVector<std::string, 16> argTypeNamesOpenCL;
     SmallVector<std::string, 16> hostArgNames;
     SmallVector<std::string, 16> deviceArgNames;
@@ -600,7 +592,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       kernelName(options.getTargetPrefix() + KC->getName() + name + "Kernel"),
       reduceName(options.getTargetPrefix() + KC->getName() + name + "Reduce"),
       fileName(options.getTargetPrefix() + KC->getName() + VD->getNameAsString()),
-      reduceStr(""), infoStr(""),
+      reduceStr(), infoStr(),
       infoStrCnt(0),
       iterationSpace(nullptr),
       imgMap(),
@@ -608,7 +600,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       argTypesC(),
       argTypesCUDA(),
       argTypesOpenCL(),
-      argTypeNamesCUDA(),
+      argTypeNames(),
       argTypeNamesOpenCL(),
       hostArgNames(),
       deviceArgNames(),
@@ -629,7 +621,7 @@ class HipaccKernel : public HipaccKernelFeatures {
         case TARGET_Filterscript:
           // Renderscript and Filterscript compiler expects lowercase file names
           std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-              std::bind2nd(std::ptr_fun(&std::tolower<char>), std::locale("")));
+              std::bind2nd(std::ptr_fun(&std::tolower<char>), std::locale()));
           break;
         default:
           break;
@@ -725,8 +717,8 @@ class HipaccKernel : public HipaccKernelFeatures {
     }
     std::string *getArgTypeNames() {
       createArgInfo();
-      if (options.emitCUDA()) return argTypeNamesCUDA.data();
-      else return argTypeNamesOpenCL.data();
+      if (options.emitOpenCL()) return argTypeNamesOpenCL.data();
+      else return argTypeNames.data();
     }
     ArrayRef<std::string> getDeviceArgNames() {
       createArgInfo();
@@ -762,7 +754,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       argTypesC.clear();
       argTypesCUDA.clear();
       argTypesOpenCL.clear();
-      argTypeNamesCUDA.clear();
+      argTypeNames.clear();
       argTypeNamesOpenCL.clear();
       // hostArgNames are set later on
       deviceArgNames.clear();

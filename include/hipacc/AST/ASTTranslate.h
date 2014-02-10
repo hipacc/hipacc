@@ -161,7 +161,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     void setExprProps(Expr *orig, Expr *clone);
     void setExprPropsClone(Expr *orig, Expr *clone);
     void setCastPath(CastExpr *orig, CXXCastPath &castPath);
-    void initC(SmallVector<Stmt *, 16> &kernelBody, Stmt *S);
+    void initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S);
     void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
     void initOpenCL(SmallVector<Stmt *, 16> &kernelBody);
     void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
@@ -271,8 +271,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *removeISOffsetY(Expr *idx_y, HipaccAccessor *Acc);
     Expr *accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess memAcc,
         Expr *offset_x=nullptr, Expr *offset_y=nullptr);
-    Expr *accessMemPolly(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
-        memAcc, Expr *offset_x=nullptr, Expr *offset_y=nullptr);
     Expr *accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
     Expr *accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x, Expr
         *idx_y);
