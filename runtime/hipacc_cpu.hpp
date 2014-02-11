@@ -28,6 +28,8 @@
 
 #include <string.h>
 
+#include <iostream>
+
 #include "hipacc_base.hpp"
 
 class HipaccContext : public HipaccContextBase {
@@ -38,6 +40,21 @@ class HipaccContext : public HipaccContextBase {
             return instance;
         }
 };
+
+long start_time = 0L;
+long end_time = 0L;
+
+void hipaccStartTiming() {
+    start_time = getMicroTime();
+}
+
+void hipaccStopTiming() {
+    end_time = getMicroTime();
+    last_gpu_timing = (end_time - start_time) * 1.0e-3f;
+
+    std::cerr << "<HIPACC:> Kernel timing: "
+              << last_gpu_timing << "(ms)" << std::endl;
+}
 
 
 // Allocate memory with alignment specified

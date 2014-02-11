@@ -726,6 +726,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       switch (options.getTargetCode()) {
         case TARGET_C:
           if (i==0) {
+            resultStr += "hipaccStartTiming();\n";
+            resultStr += indent;
             resultStr += kernelName + "(";
           } else {
             resultStr += ", ";
@@ -788,6 +790,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   if (options.getTargetCode()==TARGET_C) {
     // close parenthesis for function call
     resultStr += ");\n";
+    resultStr += indent;
+    resultStr += "hipaccStopTiming();\n";
     resultStr += indent;
   }
   resultStr += "\n" + indent;

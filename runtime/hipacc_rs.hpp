@@ -329,13 +329,6 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 }
 
 
-long getMicroTime() {
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
-}
-
-
 const char *getRSErrorCodeStr(int errorNum) {
     switch (errorNum) {
         case RS_ERROR_NONE:

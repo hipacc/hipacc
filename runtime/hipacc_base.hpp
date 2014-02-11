@@ -26,6 +26,12 @@
 #ifndef __HIPACC_BASE_HPP__
 #define __HIPACC_BASE_HPP__
 
+#include <time.h>
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 #include <cassert>
 #include <vector>
 #if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
@@ -47,6 +53,23 @@ float last_gpu_timing = 0.0f;
 // get GPU timing of last executed Kernel in ms
 float hipaccGetLastKernelTiming() {
     return last_gpu_timing;
+}
+
+long getMicroTime() {
+    struct timespec ts;
+
+    #ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
+    clock_serv_t cclock;
+    mach_timespec_t mts;
+    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+    clock_get_time(cclock, &mts);
+    mach_port_deallocate(mach_task_self(), cclock);
+    ts.tv_sec = mts.tv_sec;
+    ts.tv_nsec = mts.tv_nsec;
+    #else
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    #endif
+    return ts.tv_sec*1000000LL + ts.tv_nsec / 1000LL;
 }
 #endif // EXCLUDE_IMPL
 

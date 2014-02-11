@@ -38,12 +38,6 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-
-#ifdef __MACH__
-#include <mach/clock.h>
-#include <mach/mach.h>
-#endif
 
 #include <fstream>
 #include <iomanip>
@@ -132,24 +126,6 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *grid) {
     grid[0] = (int)ceilf((float)(info.is_width + info.offset_x)/(block[0]*info.simd_width)) * block[0];
     grid[1] = (int)ceilf((float)(info.is_height)/(block[1]*info.pixels_per_thread)) * block[1];
-}
-
-
-long getMicroTime() {
-    struct timespec ts;
-
-    #ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    ts.tv_sec = mts.tv_sec;
-    ts.tv_nsec = mts.tv_nsec;
-    #else
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    #endif
-    return ts.tv_sec*1000000LL + ts.tv_nsec / 1000LL;
 }
 
 
