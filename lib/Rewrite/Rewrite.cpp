@@ -1363,37 +1363,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             }
           }
 
-          // create function declaration for kernel
-          #ifdef USE_POLLY
-          if (!compilerOptions.exploreConfig()) {
-            TargetCode tc = compilerOptions.getTargetCode();
-            compilerOptions.setTargetCode(TARGET_C);
-
-            // create kernel declaration for Polly
-            FunctionDecl *kernelDeclPolly = createFunctionDecl(Context,
-                Context.getTranslationUnitDecl(), K->getKernelName(), Context.VoidTy,
-                K->getArgTypes(Context, TARGET_C), K->getDeviceArgNames());
-
-            // call Polly ...
-            ASTTranslate *HipaccPolly = new ASTTranslate(Context, kernelDeclPolly,
-                K, KC, builtins, compilerOptions, false);
-            Stmt *pollyStmts =
-              HipaccPolly->Hipacc(KC->getKernelFunction()->getBody());
-            kernelDeclPolly->setBody(pollyStmts);
-            llvm::errs() << "\nPassing the following function to Polly:\n";
-            kernelDeclPolly->print(llvm::errs(), Context.getPrintingPolicy());
-            llvm::errs() << "\n";
-
-            Polly *polly_analysis = new Polly(Context, CI, kernelDeclPolly);
-            polly_analysis->analyzeKernel();
-            compilerOptions.setTargetCode(tc);
-          }
-          #endif
-
-
           // set kernel configuration
           setKernelConfiguration(KC, K);
-
 
           // kernel declaration
           FunctionDecl *kernelDecl = createFunctionDecl(Context,
@@ -1405,9 +1376,21 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // replacing member variables
           ASTTranslate *Hipacc = new ASTTranslate(Context, kernelDecl, K, KC,
               builtins, compilerOptions);
-          Stmt *kernelStmts = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+          Stmt *kernelStmts =
+            Hipacc->Hipacc(KC->getKernelFunction()->getBody());
           kernelDecl->setBody(kernelStmts);
           K->printStats();
+
+          #ifdef USE_POLLY
+          if (!compilerOptions.exploreConfig() && compilerOptions.emitC()) {
+            llvm::errs() << "\nPassing the following function to Polly:\n";
+            kernelDecl->print(llvm::errs(), Context.getPrintingPolicy());
+            llvm::errs() << "\n";
+
+            Polly *polly_analysis = new Polly(Context, CI, kernelDecl);
+            polly_analysis->analyzeKernel();
+          }
+          #endif
 
           // write kernel to file
           printKernelFunction(kernelDecl, KC, K, K->getFileName(), true);
