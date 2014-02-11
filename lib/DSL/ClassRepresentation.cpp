@@ -540,14 +540,15 @@ void HipaccKernel::createArgInfo() {
             !(useTextureMemory(getImgFromMapping(FD)) == Ldg)) {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
               Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                    getImgFromMapping(FD)->getSizeX()), ArrayType::Normal,
-                  false)), QT.getAsString(), "cl_mem", name, FD);
+                    getImgFromMapping(FD)->getImage()->getSizeX()),
+                  ArrayType::Normal, false)), QT.getAsString(), "cl_mem", name,
+              FD);
         } else {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
               Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                    getImgFromMapping(FD)->getSizeX()), ArrayType::Normal,
-                  false)), Ctx.getPointerType(QT).getAsString(), "cl_mem", name,
-              FD);
+                    getImgFromMapping(FD)->getImage()->getSizeX()),
+                  ArrayType::Normal, false)),
+              Ctx.getPointerType(QT).getAsString(), "cl_mem", name, FD);
         }
 
         // add types for image width/height plus stride
