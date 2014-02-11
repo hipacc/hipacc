@@ -26,6 +26,8 @@
 #ifndef __HIPACC_CPU_HPP__
 #define __HIPACC_CPU_HPP__
 
+#include <string.h>
+
 #include "hipacc_base.hpp"
 
 class HipaccContext : public HipaccContextBase {
