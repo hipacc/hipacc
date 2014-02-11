@@ -2296,7 +2296,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
     // getY() method -> gid_y
     if (ME->getMemberNameInfo().getAsString() == "getY") {
-      if (compilerOptions.emitRenderscript() ||
+      if (compilerOptions.emitC() ||
+          compilerOptions.emitRenderscript() ||
           compilerOptions.emitFilterscript()) {
         return createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
       } else {

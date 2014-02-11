@@ -134,12 +134,13 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // step 2: add global Accessor/Iteration Space offset
   if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
     idx_x = addGlobalOffsetX(idx_x, Acc);
-  }
-  if ((!compilerOptions.emitC() ||
-       !compilerOptions.emitRenderscript() ||
-       !compilerOptions.emitFilterscript()) ||
-      Acc!=Kernel->getIterationSpace()->getAccessor()) {
     idx_y = addGlobalOffsetY(idx_y, Acc);
+  } else {
+    if (!(compilerOptions.emitC() ||
+          compilerOptions.emitRenderscript() ||
+          compilerOptions.emitFilterscript())) {
+      idx_y = addGlobalOffsetY(idx_y, Acc);
+    }
   }
 
   // step 3: access the appropriate memory

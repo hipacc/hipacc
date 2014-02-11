@@ -181,7 +181,8 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_x = removeISOffsetX(idx_x, Acc);
       }
-      if ((compilerOptions.emitRenderscript() ||
+      if ((compilerOptions.emitC() ||
+           compilerOptions.emitRenderscript() ||
            compilerOptions.emitFilterscript()) &&
           Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_y = removeISOffsetY(idx_y, Acc);
@@ -204,8 +205,14 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
   // step 2: add global Accessor/Iteration Space offset
   if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
     idx_x = addGlobalOffsetX(idx_x, Acc);
+    idx_y = addGlobalOffsetY(idx_y, Acc);
+  } else {
+    if (!(compilerOptions.emitC() ||
+          compilerOptions.emitRenderscript() ||
+          compilerOptions.emitFilterscript())) {
+      idx_y = addGlobalOffsetY(idx_y, Acc);
+    }
   }
-  idx_y = addGlobalOffsetY(idx_y, Acc);
 
   // add temporary variables for updated idx_x and idx_y
   if (local_offset_x) {
