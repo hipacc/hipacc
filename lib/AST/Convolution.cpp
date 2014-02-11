@@ -446,6 +446,8 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
             // DeclRefExpr for the Domain is retrieved when visiting the
             // MemberExpr
             if (!Mask->isConstant()) {
+              // set Domain as being used within Kernel
+              Kernel->setUsed(FD->getNameAsString());
               iteration = addDomainCheck(Mask,
                   dyn_cast_or_null<DeclRefExpr>(VisitMemberExpr(ME)),
                   iteration);
