@@ -1248,8 +1248,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                "Domain definition requires exactly two arguments!");
 
         Mask = new HipaccMask(VD, Context.UnsignedCharTy, HipaccMask::Domain);
-        // there are no holes in the Domain by default
-        Mask->setIsConstant(true);
       }
 
       if (Mask) {
