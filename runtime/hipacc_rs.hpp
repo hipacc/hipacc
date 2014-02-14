@@ -31,8 +31,14 @@
 using namespace android;
 
 #ifndef RS_TARGET_API
-# error RS_TARGET_API was not specified!
-#else // RS_TARGET_API
+  // RS_TARGET_API now defines development kit platform version. If not
+  // specified assume highest currently available version, which is also the
+  // only one supporting Renderscript in Android NDK. In the future, this define
+  // will be removed completely.
+# define RS_TARGET_API 19
+#endif
+
+#ifdef RS_TARGET_API // RS_TARGET_API
 # if RS_TARGET_API < 16
 #   error Renderscript target API < 16 is not supported!
 # elif RS_TARGET_API < 18
