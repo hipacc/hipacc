@@ -1444,14 +1444,16 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   // k) Pyr(x) = Img;
   // l) Pyr(x) = Acc;
   // m) Pyr(x) = Pyr(x);
-  // n) Domain(x, y) = literal;
+  // n) Domain(x, y) = literal; (return type of ()-operator is DomainSetter)
   if (E->getOperator() == OO_Equal) {
     if (E->getNumArgs() != 2) return true;
 
     HipaccImage *ImgLHS = nullptr, *ImgRHS = nullptr;
     HipaccAccessor *AccLHS = nullptr, *AccRHS = nullptr;
     HipaccPyramid *PyrLHS = nullptr, *PyrRHS = nullptr;
+    HipaccMask *DomLHS = nullptr;
     std::string PyrIdxLHS, PyrIdxRHS;
+    unsigned int DomIdxX, DomIdxY;
 
     // check first parameter
     if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
@@ -1469,7 +1471,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
     } else if (isa<CXXOperatorCallExpr>(E->getArg(0))) {
       CXXOperatorCallExpr *CE = dyn_cast<CXXOperatorCallExpr>(E->getArg(0));
 
-      // check if we have an Pyramid call at the LHS
+      // check if we have an Pyramid or Domain call at the LHS
       if (isa<DeclRefExpr>(CE->getArg(0))) {
         DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CE->getArg(0));
 
@@ -1500,6 +1502,57 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           }
           LSS << *(IL->getValue().getRawData());
           PyrIdxLHS = LSS.str();
+        } else if (MaskDeclMap.count(DRE->getDecl())) {
+          DomLHS = MaskDeclMap[DRE->getDecl()];
+
+          assert(DomLHS->isConstant() &&
+                 "Setting domain values only supported for constant Domains");
+
+          IntegerLiteral *IL1 = nullptr;
+          IntegerLiteral *IL2 = nullptr;
+
+          Expr* arg = CE->getArg(1);
+          if (isa<ImplicitCastExpr>(arg)) {
+            arg = dyn_cast<ImplicitCastExpr>(arg)->getSubExpr();
+          }
+          if (isa<IntegerLiteral>(arg)) {
+            IL1 = dyn_cast<IntegerLiteral>(arg);
+          } else if (isa<UnaryOperator>(arg)) {
+            UnaryOperator *UO = nullptr;
+            UO = dyn_cast<UnaryOperator>(arg);
+            // only support unary operators '+' and '-'
+            if (UO && (UO->getOpcode() == UO_Plus ||
+                       UO->getOpcode() == UO_Minus)) {
+              IL1 = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+            }
+          } else if (isa<BinaryOperator>(arg)) {
+            // TODO: Evaluate expression
+          }
+          assert(IL1 && "First integer in domain expression is non-const");
+
+          arg = CE->getArg(2);
+          if (isa<ImplicitCastExpr>(arg)) {
+            arg = dyn_cast<ImplicitCastExpr>(arg)->getSubExpr();
+          }
+          if (isa<IntegerLiteral>(arg)) {
+            IL2 = dyn_cast<IntegerLiteral>(arg);
+          } else if (isa<UnaryOperator>(arg)) {
+            UnaryOperator *UO = nullptr;
+            UO = dyn_cast<UnaryOperator>(arg);
+            // only support unary operators '+' and '-'
+            if (UO && (UO->getOpcode() == UO_Plus ||
+                       UO->getOpcode() == UO_Minus)) {
+              IL2 = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+            }
+          } else if (isa<BinaryOperator>(arg)) {
+            // TODO: Evaluate expression
+          }
+          assert(IL2 && "Second integer in domain expression is non-const");
+
+          DomIdxX = *(IL1->getValue().getRawData())
+                        + DomLHS->getSizeX()/2;
+          DomIdxY = *(IL2->getValue().getRawData())
+                        + DomLHS->getSizeY()/2;
         }
       }
     }
@@ -1553,6 +1606,27 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           PyrIdxRHS = LSS.str();
         }
       }
+    } else if (DomLHS) {
+      // check for RHS literal to set domain value
+      Expr *arg = E->getArg(1);
+      if (isa<ImplicitCastExpr>(arg)) {
+        arg = dyn_cast<ImplicitCastExpr>(arg)->getSubExpr();
+      }
+
+      assert(isa<IntegerLiteral>(arg) &&
+             "RHS argument for setting specific domain value must be integer "
+             "literal");
+
+      // set domain value
+      DomLHS->setDomainDefined(DomIdxX, DomIdxY,
+          dyn_cast<IntegerLiteral>(arg)->getValue() != 0);
+
+      SourceLocation startLoc = E->getLocStart();
+      const char *startBuf = SM->getCharacterData(startLoc);
+      const char *semiPtr = strchr(startBuf, ';');
+      TextRewriter.RemoveText(startLoc, semiPtr-startBuf+1);
+
+      return true;
     }
 
     if (ImgLHS || AccLHS || PyrLHS) {
@@ -1709,7 +1783,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
     if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
       DeclRefExpr *DRE_LHS =
         dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts());
-      // check if we have a Mask
+      // check if we have a Mask or Domain
       if (MaskDeclMap.count(DRE_LHS->getDecl())) {
         HipaccMask *Mask = MaskDeclMap[DRE_LHS->getDecl()];
         std::string newStr;
@@ -1746,6 +1820,18 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                   isMaskConstant = false;
                   break;
                 }
+                if (Mask->isDomain()) {
+                  // Copy values to compiler internal data structure
+                  Expr *E = ILE->getInit(i)
+                               ->IgnoreParenCasts();
+                  if (isa<IntegerLiteral>(E)) {
+                    Mask->setDomainDefined(i,
+                        dyn_cast<IntegerLiteral>(E)->getValue() != 0);
+                  } else {
+                    assert(false &&
+                           "Expected integer literal in domain initializer");
+                  }
+                }
               }
             }
             Mask->setIsConstant(isMaskConstant);
@@ -1770,29 +1856,6 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
         // rewrite Mask assignment to memory transfer
         // get the start location and compute the semi location.
-        SourceLocation startLoc = E->getLocStart();
-        const char *startBuf = SM->getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
-
-        return true;
-      }
-    }
-  }
-
-  if (E->getOperator() == OO_Call) {
-    if (E->getNumArgs() != 3) return true;
-    //E->dump();
-
-    if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
-      DeclRefExpr *DRE_LHS =
-        dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts());
-
-      if (MaskDeclMap.count(DRE_LHS->getDecl())) {
-        //TODO: Add memory transfer for non-const domains
-        HipaccMask *Domain = MaskDeclMap[DRE_LHS->getDecl()];
-        std::string newStr;
-
         SourceLocation startLoc = E->getLocStart();
         const char *startBuf = SM->getCharacterData(startLoc);
         const char *semiPtr = strchr(startBuf, ';');

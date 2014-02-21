@@ -314,6 +314,7 @@ class HipaccMask : public HipaccMemory {
     SmallVector<HipaccKernel *, 16> kernels;
     std::string hostMemName;
     Expr *hostMemExpr;
+    bool *domain_space;
 
   public:
     HipaccMask(VarDecl *VD, QualType QT, MaskType type) :
@@ -324,8 +325,15 @@ class HipaccMask : public HipaccMemory {
       is_printed(false),
       kernels(0),
       hostMemName(),
-      hostMemExpr(nullptr)
+      hostMemExpr(nullptr),
+      domain_space(nullptr)
     {}
+
+    ~HipaccMask() {
+      if (domain_space) {
+        delete[] domain_space;
+      }
+    }
 
     void setIsConstant(bool c) { is_constant = c; }
     void setIsPrinted(bool p) { is_printed = p; }
@@ -340,6 +348,37 @@ class HipaccMask : public HipaccMemory {
     std::string getHostMemName() { return hostMemName; }
     void setHostMemExpr(Expr *expr) { hostMemExpr = expr; }
     Expr *getHostMemExpr() { return hostMemExpr; }
+    void setSizeX(unsigned int x) {
+      HipaccMemory::setSizeX(x);
+      if (isDomain()) { setDomainSize(size_x*size_y); }
+    }
+    void setSizeY(unsigned int y) {
+      HipaccMemory::setSizeY(y);
+      if (isDomain()) { setDomainSize(size_x*size_y); }
+    }
+    void setDomainSize(unsigned int size) {
+      if (domain_space) {
+        delete[] domain_space;
+        domain_space = nullptr;
+      }
+      if (size > 0) {
+        domain_space = new bool[size];
+        for (unsigned int i = 0; i < size; ++i) {
+          domain_space[i] = true;
+        }
+      }
+    }
+    void setDomainDefined(unsigned int pos, bool def) {
+      if (domain_space) { domain_space[pos] = def; }
+    }
+    void setDomainDefined(unsigned int x, unsigned int y, bool def) {
+      unsigned int pos = (y * size_x) + x;
+      setDomainDefined(pos, def);
+    }
+    bool isDomainDefined(unsigned int x, unsigned int y) {
+      unsigned int pos = (y * size_x) + x;
+      return domain_space && domain_space[pos];
+    }
 };
 
 

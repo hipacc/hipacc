@@ -134,6 +134,25 @@ class Domain : public MaskBase {
                 }
             };
 
+        // Helper class: Force Domain assignment
+        //   D(1, 1) = 0;
+        // to be an CXXOperatorCallExpr, which is easier to track.
+        class DomainSetter {
+            friend class Domain;
+            private:
+                uchar *domain_space;
+                unsigned int pos;
+                DomainSetter(uchar *domain_space, unsigned int pos)
+                        : domain_space(domain_space), pos(pos) {
+                }
+
+            public:
+                DomainSetter &operator=(const uchar val) {
+                    domain_space[pos] = val;
+                    return *this;
+                }
+        };
+
     protected:
         DomainIterator *DI;
 
@@ -161,13 +180,13 @@ class Domain : public MaskBase {
             return DI->getY();
         }
 
-        uchar &operator()(unsigned int x, unsigned int y) {
+        DomainSetter operator()(unsigned int x, unsigned int y) {
             x += size_x >> 1;
             y += size_y >> 1;
             if ((int)x < size_x && (int)y < size_y) {
-                return domain_space[y * size_x + x];
+                return DomainSetter(domain_space, y * size_x + x);
             } else {
-                return domain_space[0];
+                return DomainSetter(domain_space, 0);
             }
         }
 

@@ -419,14 +419,9 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
     for (size_t x=0; x<Mask->getSizeX(); ++x) {
       bool doIterate = true;
 
-      if (Mask->isDomain() && Mask->isConstant() && Mask->getInitList()) {
-        Expr *E = Mask->getInitList()
-                      ->getInit(Mask->getSizeY() * x + y)
-                      ->IgnoreParenCasts();
-        if (isa<IntegerLiteral>(E) &&
-            dyn_cast<IntegerLiteral>(E)->getValue() == 0) {
-          doIterate = false;
-        }
+      if (Mask->isDomain() && Mask->isConstant() &&
+          !Mask->isDomainDefined(x, y)) {
+        doIterate = false;
       }
 
       if (doIterate) {

@@ -2050,8 +2050,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         // within reduce/iterate lambda-function
         if (Mask->isConstant()) {
           // propagate constants
-          result = Clone(Mask->getInitList()->getInit(Mask->getSizeY() *
-                redIdxX.back() + redIdxY.back())->IgnoreParenCasts());
+          result = Clone(Mask->getInitList()->getInit(Mask->getSizeX() *
+                redIdxY.back() + redIdxX.back())->IgnoreParenCasts());
         } else {
           // access mask elements
           Expr *midx_x = createIntegerLiteral(Ctx, redIdxX.back());
