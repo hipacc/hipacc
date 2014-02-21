@@ -1248,6 +1248,19 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                "Domain definition requires exactly two arguments!");
 
         Mask = new HipaccMask(VD, Context.UnsignedCharTy, HipaccMask::Domain);
+
+        // loop over arguments and check if they are constant
+        bool isDomConstant = true;
+        for (auto it = CCE->arg_begin(); it != CCE->arg_end(); ++it) {
+          Expr *arg = *it;
+          if (isa<ImplicitCastExpr>(arg)) {
+            arg = dyn_cast<ImplicitCastExpr>(arg)->getSubExpr();
+          }
+          isDomConstant = isDomConstant &&
+              isa<DeclRefExpr>(arg) &&
+              dyn_cast<DeclRefExpr>(arg)->getType().isConstQualified();
+        }
+        Mask->setIsConstant(isDomConstant);
       }
 
       if (Mask) {
