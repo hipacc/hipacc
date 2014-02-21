@@ -479,17 +479,17 @@ int main(int argc, const char **argv) {
     D(0, 0) = 0;
     #ifdef YORDER
     D(-1, 0) = 0; D(1, 0) = 0;
-    #ifdef SIZE_X>3
+    #if SIZE_X>3
     D(-2, 0) = 0; D(2, 0) = 0;
-    #ifdef SIZE_X>5
+    #if SIZE_X>5
     D(-3, 0) = 0; D(3, 0) = 0;
     #endif
     #endif
     #else
     D(0, -1) = 0; D(0, 1) = 0;
-    #ifdef SIZE_Y>3
+    #if SIZE_Y>3
     D(0, -2) = 0; D(0, 2) = 0;
-    #ifdef SIZE_Y>5
+    #if SIZE_Y>5
     D(0, -3) = 0; D(0, 3) = 0;
     #endif
     #endif
