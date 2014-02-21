@@ -1510,6 +1510,8 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
           IntegerLiteral *IL1 = nullptr;
           IntegerLiteral *IL2 = nullptr;
+          UnaryOperator *UO1 = nullptr;
+          UnaryOperator *UO2 = nullptr;
 
           Expr* arg = CE->getArg(1);
           if (isa<ImplicitCastExpr>(arg)) {
@@ -1518,12 +1520,11 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           if (isa<IntegerLiteral>(arg)) {
             IL1 = dyn_cast<IntegerLiteral>(arg);
           } else if (isa<UnaryOperator>(arg)) {
-            UnaryOperator *UO = nullptr;
-            UO = dyn_cast<UnaryOperator>(arg);
+            UO1 = dyn_cast<UnaryOperator>(arg);
             // only support unary operators '+' and '-'
-            if (UO && (UO->getOpcode() == UO_Plus ||
-                       UO->getOpcode() == UO_Minus)) {
-              IL1 = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+            if (UO1 && (UO1->getOpcode() == UO_Plus ||
+                        UO1->getOpcode() == UO_Minus)) {
+              IL1 = dyn_cast<IntegerLiteral>(UO1->getSubExpr());
             }
           } else if (isa<BinaryOperator>(arg)) {
             // TODO: Evaluate expression
@@ -1537,21 +1538,22 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           if (isa<IntegerLiteral>(arg)) {
             IL2 = dyn_cast<IntegerLiteral>(arg);
           } else if (isa<UnaryOperator>(arg)) {
-            UnaryOperator *UO = nullptr;
-            UO = dyn_cast<UnaryOperator>(arg);
+            UO2 = dyn_cast<UnaryOperator>(arg);
             // only support unary operators '+' and '-'
-            if (UO && (UO->getOpcode() == UO_Plus ||
-                       UO->getOpcode() == UO_Minus)) {
-              IL2 = dyn_cast<IntegerLiteral>(UO->getSubExpr());
+            if (UO2 && (UO2->getOpcode() == UO_Plus ||
+                        UO2->getOpcode() == UO_Minus)) {
+              IL2 = dyn_cast<IntegerLiteral>(UO2->getSubExpr());
             }
           } else if (isa<BinaryOperator>(arg)) {
             // TODO: Evaluate expression
           }
           assert(IL2 && "Second integer in domain expression is non-const");
 
-          DomIdxX = *(IL1->getValue().getRawData())
+          DomIdxX = (*(IL1->getValue().getRawData())
+                        * ((UO1 && UO1->getOpcode() == UO_Minus) ? -1 : 1))
                         + DomLHS->getSizeX()/2;
-          DomIdxY = *(IL2->getValue().getRawData())
+          DomIdxY = (*(IL2->getValue().getRawData())
+                        * ((UO2 && UO2->getOpcode() == UO_Minus) ? -1 : 1))
                         + DomLHS->getSizeY()/2;
         }
       }
