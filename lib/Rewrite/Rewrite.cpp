@@ -1289,7 +1289,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         }
         Mask->setSizeY(Arg1->EvaluateKnownConstInt(Context).getSExtValue());
 
-        if (compilerOptions.emitCUDA() || Mask->isConstant()) {
+        if (compilerOptions.emitCUDA()) {
           // remove Mask definition
           TextRewriter.RemoveText(D->getSourceRange());
         } else {
