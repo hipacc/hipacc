@@ -51,7 +51,9 @@
 //#define CONST_MASK
 #define USE_LAMBDA
 //#define RUN_UNDEF
-//#define NO_SEP
+#define NO_SEP
+#define ARRAY_DOMAIN
+//#define CONST_DOMAIN
 
 using namespace hipacc;
 
@@ -150,22 +152,24 @@ void sobel_filter_column(short int *in, short int *out, int *filter, int size_y,
 class SobelFilterMask : public Kernel<short int> {
     private:
         Accessor<unsigned char> &Input;
+        Domain &dom;
         Mask<int> &cMask;
         const int size;
 
     public:
         SobelFilterMask(IterationSpace<short int> &IS, Accessor<unsigned char>
-                &Input, Mask<int> &cMask, const int size) :
+                &Input, Domain &dom, Mask<int> &cMask, const int size) :
             Kernel(IS),
             Input(Input),
+            dom(dom),
             cMask(cMask),
             size(size)
         { addAccessor(&Input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = (short int)(convolve(cMask, HipaccSUM, [&] () -> int {
-                    return cMask() * Input(cMask);
+            output() = (short int)(reduce(dom, HipaccSUM, [&] () -> int {
+                    return cMask(dom) * Input(dom);
                     }));
         }
         #else
@@ -277,6 +281,34 @@ int main(int argc, const char **argv) {
 
 // filter coefficients
 #ifdef YORDER
+    #ifdef ARRAY_DOMAIN
+    #ifdef CONST_DOMAIN
+    const
+    #endif
+    uchar dom[] = {
+        #if SIZE_X==3
+         1,  1,  1,
+         0,  0,  0,
+         1,  1,  1,
+        #endif
+        #if SIZE_X==5
+         1,  1,  1,  1,  1,
+         1,  1,  1,  1,  1,
+         0,  0,  0,  0,  0,
+         1,  1,  1,  1,  1,
+         1,  1,  1,  1,  1,
+        #endif
+        #if SIZE_X==7
+         1,  1,  1,  1,  1,  1,  1,
+         1,  1,  1,  1,  1,  1,  1,
+         1,  1,  1,  1,  1,  1,  1,
+         0,  0,  0,  0,  0,  0,  0,
+         1,  1,  1,  1,  1,  1,  1,
+         1,  1,  1,  1,  1,  1,  1,
+         1,  1,  1,  1,  1,  1,  1,
+        #endif
+    };
+    #endif
     #ifdef CONST_MASK
     const
     #endif
@@ -332,6 +364,34 @@ int main(int argc, const char **argv) {
         #endif
     };
 #else
+    #ifdef ARRAY_DOMAIN
+    #ifdef CONST_DOMAIN
+    const
+    #endif
+    uchar dom[] = {
+        #if SIZE_X==3
+         1,  0,  1,
+         1,  0,  1,
+         1,  0,  1,
+        #endif
+        #if SIZE_X==5
+         1,  1,  0,  1,  1,
+         1,  1,  0,  1,  1,
+         1,  1,  0,  1,  1,
+         1,  1,  0,  1,  1,
+         1,  1,  0,  1,  1,
+        #endif
+        #if SIZE_X==7
+         1,  1,  1,  0,  1,  1,  1,
+         1,  1,  1,  0,  1,  1,  1,
+         1,  1,  1,  0,  1,  1,  1,
+         1,  1,  1,  0,  1,  1,  1,
+         1,  1,  1,  0,  1,  1,  1,
+         1,  1,  1,  0,  1,  1,  1,
+         1,  1,  1,  0,  1,  1,  1,
+        #endif
+    };
+    #endif
     #ifdef CONST_MASK
     const
     #endif
@@ -412,6 +472,30 @@ int main(int argc, const char **argv) {
     Image<short int> OUT(width, height);
     Image<short int> TMP(width, height);
 
+    Domain D(size_x, size_y);
+    #ifdef ARRAY_DOMAIN
+    D = dom;
+    #else
+    D(0, 0) = 0;
+    #ifdef YORDER
+    D(-1, 0) = 0; D(1, 0) = 0;
+    #ifdef SIZE_X>3
+    D(-2, 0) = 0; D(2, 0) = 0;
+    #ifdef SIZE_X>5
+    D(-3, 0) = 0; D(3, 0) = 0;
+    #endif
+    #endif
+    #else
+    D(0, -1) = 0; D(0, 1) = 0;
+    #ifdef SIZE_Y>3
+    D(0, -2) = 0; D(0, 2) = 0;
+    #ifdef SIZE_Y>5
+    D(0, -3) = 0; D(0, 3) = 0;
+    #endif
+    #endif
+    #endif
+    #endif
+
     // filter mask
     Mask<int> M(size_x, size_y);
     Mask<int> MX(size_x, 1);
@@ -435,7 +519,7 @@ int main(int argc, const char **argv) {
     #ifdef NO_SEP
     BoundaryCondition<unsigned char> BcInUndef2(IN, size_x, size_y, BOUNDARY_UNDEFINED);
     Accessor<unsigned char> AccInUndef2(BcInUndef2);
-    SobelFilterMask SFU(IsOut, AccInUndef2, M, size_x);
+    SobelFilterMask SFU(IsOut, AccInUndef2, D, M, size_x);
 
     SFU.execute();
     timing = hipaccGetLastKernelTiming();
@@ -462,7 +546,7 @@ int main(int argc, const char **argv) {
     #ifdef NO_SEP
     BoundaryCondition<unsigned char> BcInClamp2(IN, size_x, size_y, BOUNDARY_CLAMP);
     Accessor<unsigned char> AccInClamp2(BcInClamp2);
-    SobelFilterMask SFC(IsOut, AccInClamp2, M, size_x);
+    SobelFilterMask SFC(IsOut, AccInClamp2, D, M, size_x);
 
     SFC.execute();
     timing = hipaccGetLastKernelTiming();
@@ -488,7 +572,7 @@ int main(int argc, const char **argv) {
     #ifdef NO_SEP
     BoundaryCondition<unsigned char> BcInRepeat2(IN, size_x, size_y, BOUNDARY_REPEAT);
     Accessor<unsigned char> AccInRepeat2(BcInRepeat2);
-    SobelFilterMask SFR(IsOut, AccInRepeat2, M, size_x);
+    SobelFilterMask SFR(IsOut, AccInRepeat2, D, M, size_x);
 
     SFR.execute();
     timing = hipaccGetLastKernelTiming();
@@ -514,7 +598,7 @@ int main(int argc, const char **argv) {
     #ifdef NO_SEP
     BoundaryCondition<unsigned char> BcInMirror2(IN, size_x, size_y, BOUNDARY_MIRROR);
     Accessor<unsigned char> AccInMirror2(BcInMirror2);
-    SobelFilterMask SFM(IsOut, AccInMirror2, M, size_x);
+    SobelFilterMask SFM(IsOut, AccInMirror2, D, M, size_x);
 
     SFM.execute();
     timing = hipaccGetLastKernelTiming();
@@ -540,7 +624,7 @@ int main(int argc, const char **argv) {
     #ifdef NO_SEP
     BoundaryCondition<unsigned char> BcInConst2(IN, size_x, size_y, BOUNDARY_CONSTANT, '1');
     Accessor<unsigned char> AccInConst2(BcInConst2);
-    SobelFilterMask SFConst(IsOut, AccInConst2, M, size_x);
+    SobelFilterMask SFConst(IsOut, AccInConst2, D, M, size_x);
 
     SFConst.execute();
     timing = hipaccGetLastKernelTiming();
