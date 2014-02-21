@@ -2392,7 +2392,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           }
         }
 
-        assert(isDomainValid && "Getting Domain reduction IDs is only allow "
+        assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
                                 "within reduction lambda-function.");
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "getX") {

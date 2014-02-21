@@ -251,7 +251,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
       assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'reduce' call.");
       break;
     case Iterate:
-      // reduce(domain, [&] () { lambda-function; });
+      // iterate(domain, [&] () { lambda-function; });
       assert(E->getNumArgs() == 2 && "Expected 2 arguments to 'iterate' call.");
       break;
   }
