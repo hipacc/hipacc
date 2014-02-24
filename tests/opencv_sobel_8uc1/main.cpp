@@ -48,11 +48,12 @@
 //#define HEIGHT 4096
 //#define CPU
 //#define YORDER
-//#define CONST_MASK
+#define CONST_MASK
 #define USE_LAMBDA
 //#define RUN_UNDEF
 #define NO_SEP
-#define ARRAY_DOMAIN
+#define INFER_DOMAIN
+//#define ARRAY_DOMAIN
 //#define CONST_DOMAIN
 
 using namespace hipacc;
@@ -285,82 +286,82 @@ int main(int argc, const char **argv) {
     #ifdef CONST_DOMAIN
     const
     #endif
-    uchar dom[] = {
+    uchar dom[SIZE_Y][SIZE_X] = {
         #if SIZE_X==3
-         1,  1,  1,
-         0,  0,  0,
-         1,  1,  1,
+         { 1,  1,  1 },
+         { 0,  0,  0 },
+         { 1,  1,  1 }
         #endif
         #if SIZE_X==5
-         1,  1,  1,  1,  1,
-         1,  1,  1,  1,  1,
-         0,  0,  0,  0,  0,
-         1,  1,  1,  1,  1,
-         1,  1,  1,  1,  1,
+         { 1,  1,  1,  1,  1 },
+         { 1,  1,  1,  1,  1 },
+         { 0,  0,  0,  0,  0 },
+         { 1,  1,  1,  1,  1 },
+         { 1,  1,  1,  1,  1 }
         #endif
         #if SIZE_X==7
-         1,  1,  1,  1,  1,  1,  1,
-         1,  1,  1,  1,  1,  1,  1,
-         1,  1,  1,  1,  1,  1,  1,
-         0,  0,  0,  0,  0,  0,  0,
-         1,  1,  1,  1,  1,  1,  1,
-         1,  1,  1,  1,  1,  1,  1,
-         1,  1,  1,  1,  1,  1,  1,
+         { 1,  1,  1,  1,  1,  1,  1 },
+         { 1,  1,  1,  1,  1,  1,  1 },
+         { 1,  1,  1,  1,  1,  1,  1 },
+         { 0,  0,  0,  0,  0,  0,  0 },
+         { 1,  1,  1,  1,  1,  1,  1 },
+         { 1,  1,  1,  1,  1,  1,  1 },
+         { 1,  1,  1,  1,  1,  1,  1 }
         #endif
     };
     #endif
     #ifdef CONST_MASK
     const
     #endif
-    int mask[] = {
+    int mask[SIZE_Y][SIZE_X] = {
         #if SIZE_X==3
-        -1, -2, -1,
-         0,  0,  0,
-         1,  2,  1,
+        { -1, -2, -1 },
+        {  0,  0,  0 },
+        {  1,  2,  1 }
         #endif
         #if SIZE_X==5
-        -1, -4, -6,  -4, -1,
-        -2, -8, -12, -8, -2,
-         0,  0,  0,   0,  0,
-         2,  8,  12,  8,  2,
-         1,  4,  6,   4,  1,
+        { -1, -4, -6,  -4, -1 },
+        { -2, -8, -12, -8, -2 },
+        {  0,  0,  0,   0,  0 },
+        {  2,  8,  12,  8,  2 },
+        {  1,  4,  6,   4,  1 }
         #endif
         #if SIZE_X==7
-        -1, -6,  -15, -20,  -15, -6,  -1,
-        -4, -24, -60, -80,  -60, -24, -4,
-        -5, -30, -75, -100, -75, -30, -5,
-         0,  0,   0,   0,    0,   0,   0,
-         5,  30,  75,  100,  75,  30,  5,
-         4,  24,  60,  80,   60,  24,  4,
-         1,  6,   15,  20,   15,  6,   1,
+        { 1, -6,  -15, -20,  -15, -6,  -1 },
+        { 4, -24, -60, -80,  -60, -24, -4 },
+        { 5, -30, -75, -100, -75, -30, -5 },
+        { 0,  0,   0,   0,    0,   0,   0 },
+        { 5,  30,  75,  100,  75,  30,  5 },
+        { 4,  24,  60,  80,   60,  24,  4 },
+        { 1,  6,   15,  20,   15,  6,   1 }
         #endif
     };
     #ifdef CONST_MASK
     const
     #endif
-    int mask_x[] = {
+    int mask_x[1][SIZE_X] = {
         #if SIZE_X==3
-        1, 2, 1,
+        { 1, 2, 1 }
         #endif
         #if SIZE_X==5
-        1, 4, 6, 4, 1,
+        { 1, 4, 6, 4, 1 }
         #endif
         #if SIZE_X==7
-        1, 6, 15, 20, 15, 6, 1,
+        { 1, 6, 15, 20, 15, 6, 1 }
         #endif
     };
     #ifdef CONST_MASK
     const
     #endif
-    int mask_y[] = {
+    int mask_y[SIZE_Y][1] = {
         #if SIZE_X==3
-        -1, 0, +1,
+        {-1}, {0}, {+1}
         #endif
         #if SIZE_X==5
-        -1, -2, 0, +2, +1,
+        {-1}, {-2,} {0}, {+2}, {+1}
         #endif
         #if SIZE_X==7
-        -1, -4, -5, 0, 5, 4, 1,
+        {-1}, {-4}, {-5}, {0}, {5}, {4}, {1}
         #endif
     };
 #else
@@ -368,82 +369,82 @@ int main(int argc, const char **argv) {
     #ifdef CONST_DOMAIN
     const
     #endif
-    uchar dom[] = {
+    uchar dom[size_y][size_x] = {
         #if SIZE_X==3
-         1,  0,  1,
-         1,  0,  1,
-         1,  0,  1,
+         { 1,  0,  1 },
+         { 1,  0,  1 },
+         { 1,  0,  1 }
         #endif
         #if SIZE_X==5
-         1,  1,  0,  1,  1,
-         1,  1,  0,  1,  1,
-         1,  1,  0,  1,  1,
-         1,  1,  0,  1,  1,
-         1,  1,  0,  1,  1,
+         { 1,  1,  0,  1,  1 },
+         { 1,  1,  0,  1,  1 },
+         { 1,  1,  0,  1,  1 },
+         { 1,  1,  0,  1,  1 },
+         { 1,  1,  0,  1,  1 }
         #endif
         #if SIZE_X==7
-         1,  1,  1,  0,  1,  1,  1,
-         1,  1,  1,  0,  1,  1,  1,
-         1,  1,  1,  0,  1,  1,  1,
-         1,  1,  1,  0,  1,  1,  1,
-         1,  1,  1,  0,  1,  1,  1,
-         1,  1,  1,  0,  1,  1,  1,
-         1,  1,  1,  0,  1,  1,  1,
+         { 1,  1,  1,  0,  1,  1,  1 },
+         { 1,  1,  1,  0,  1,  1,  1 },
+         { 1,  1,  1,  0,  1,  1,  1 },
+         { 1,  1,  1,  0,  1,  1,  1 },
+         { 1,  1,  1,  0,  1,  1,  1 },
+         { 1,  1,  1,  0,  1,  1,  1 },
+         { 1,  1,  1,  0,  1,  1,  1 }
         #endif
     };
     #endif
     #ifdef CONST_MASK
     const
     #endif
-    int mask[] = {
+    int mask[SIZE_Y][SIZE_X] = {
         #if SIZE_X==3
-        -1, 0,  1,
-        -2, 0,  2,
-        -1, 0,  1,
+        { -1, 0,  1 },
+        { -2, 0,  2 },
+        { -1, 0,  1 }
         #endif
         #if SIZE_X==5
-        -1, -2,  0,  2,  1,
-        -4, -8,  0,  8,  4,
-        -6, -12, 0,  12, 6,
-        -4, -8,  0,  8,  4,
-        -1, -2,  0,  2,  1,
+        { -1, -2,  0,  2,  1 },
+        { -4, -8,  0,  8,  4 },
+        { -6, -12, 0,  12, 6 },
+        { -4, -8,  0,  8,  4 },
+        { -1, -2,  0,  2,  1 }
         #endif
         #if SIZE_X==7
-        -1,  -4,  -5,   0, 5,   4,  1,
-        -6,  -24, -30,  0, 30,  24,  6,
-        -15, -60, -75,  0, 75,  60, 15,
-        -20, -80, -100, 0, 100, 80, 20,
-        -15, -60, -75,  0, 75,  60, 15,
-        -6,  -24, -30,  0, 30,  24,  6,
-        -1,  -4,  -5,   0, 5,   4,  1,
+        { -1,  -4,  -5,   0, 5,   4,   1 },
+        { -6,  -24, -30,  0, 30,  24,  6 },
+        { -15, -60, -75,  0, 75,  60, 15 },
+        { -20, -80, -100, 0, 100, 80, 20 },
+        { -15, -60, -75,  0, 75,  60, 15 },
+        { -6,  -24, -30,  0, 30,  24,  6 },
+        { -1,  -4,  -5,   0, 5,   4,   1 }
         #endif
     };
     #ifdef CONST_MASK
     const
     #endif
-    int mask_x[] = {
+    int mask_x[1][SIZE_X] = {
         #if SIZE_X==3
-        -1, 0, +1,
+        { -1, 0, +1 }
         #endif
         #if SIZE_X==5
-        -1, -2, 0, +2, +1,
+        { -1, -2, 0, +2, +1 }
         #endif
         #if SIZE_X==7
-        -1, -4, -5, 0, 5, 4, 1,
+        { -1, -4, -5, 0, 5, 4, 1 }
         #endif
     };
     #ifdef CONST_MASK
     const
     #endif
-    int mask_y[] = {
+    int mask_y[SIZE_Y][SIZE_X] = {
         #if SIZE_X==3
-        1, 2, 1,
+        {1}, {2}, {1}
         #endif
         #if SIZE_X==5
-        1, 4, 6, 4, 1,
+        {1}, {4}, {6}, {4}, {1}
         #endif
         #if SIZE_X==7
-        1, 6, 15, 20, 15, 6, 1,
+        {1}, {6}, {15}, {20}, {15}, {6}, {1}
         #endif
     };
 #endif
@@ -472,10 +473,19 @@ int main(int argc, const char **argv) {
     Image<short int> OUT(width, height);
     Image<short int> TMP(width, height);
 
-    Domain D(size_x, size_y);
-    #ifdef ARRAY_DOMAIN
-    D = dom;
+    // filter mask
+    Mask<int> M(mask);
+    Mask<int> MX(mask_x);
+    Mask<int> MY(mask_y);
+
+    // filter domain
+    #ifdef INFER_DOMAIN
+    Domain D(M);
     #else
+    #ifdef ARRAY_DOMAIN
+    Domain D(dom);
+    #else
+    Domain D(size_x, size_y);
     D(0, 0) = 0;
     #ifdef YORDER
     D(-1, 0) = 0; D(1, 0) = 0;
@@ -495,14 +505,7 @@ int main(int argc, const char **argv) {
     #endif
     #endif
     #endif
-
-    // filter mask
-    Mask<int> M(size_x, size_y);
-    Mask<int> MX(size_x, 1);
-    Mask<int> MY(1, size_y);
-    M = mask;
-    MX = mask_x;
-    MY = mask_y;
+    #endif
 
     IterationSpace<short int> IsOut(OUT);
     IterationSpace<short int> IsTmp(TMP);

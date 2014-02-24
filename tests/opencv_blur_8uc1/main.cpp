@@ -43,7 +43,8 @@
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
-#define CONST_MASK
+#define ARRAY_DOMAIN
+#define CONST_DOMAIN
 #define USE_LAMBDA
 
 #define NT 100
@@ -258,25 +259,28 @@ int main(int argc, const char **argv) {
 
 
     // define Domain for blur filter
-    Domain dom(size_x, size_y);
-    #ifdef CONST_MASK
+    #ifdef ARRAY_DOMAIN
+    #ifdef CONST_DOMAIN
     const
     #endif
-    uchar domain[] = { 
+    uchar domain[size_y][size_x] = {
         #if SIZE_X==3
-        1, 1, 1,
-        1, 1, 1,
-        1, 1, 1
+        { 1, 1, 1 },
+        { 1, 1, 1 },
+        { 1, 1, 1 }
         #endif
         #if SIZE_X==5
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 }
         #endif
     };
-    dom = domain;
+    Domain dom(domain);
+    #else
+    Domain dom(size_x, size_y);
+    #endif
 
     // input and output image of width x height pixels
     Image<uchar> in(width, height);
