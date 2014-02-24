@@ -346,11 +346,12 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   if (compilerOptions.emitCUDA()) {
     for (auto it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
       HipaccMask *Mask = it->second;
-      std::string newStr;
 
       if (!compilerOptions.exploreConfig()) {
+        std::string newStr;
         stringCreator.writeMemoryTransferSymbol(Mask, Mask->getHostMemName(),
             HOST_TO_DEVICE, newStr);
+        TextRewriter.InsertTextBefore(Mask->getDecl()->getLocStart(), newStr);
       }
     }
   }
@@ -1193,7 +1194,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       }
 
       HipaccMask *Mask = nullptr;
-      CXXConstructExpr *CCE = nullptr;
       // found Mask decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Mask)) {
@@ -1204,7 +1204,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                "Currently only Mask definitions are supported, no "
                "declarations!");
 
-        CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
         assert((CCE->getNumArgs() == 1) &&
                "Mask definition requires exactly one argument!");
 
@@ -1242,6 +1242,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         Mask->setIsConstant(isMaskConstant);
         Mask->setHostMemName(V->getName());
       }
+
       // found Domain decl
       if (compilerClasses.isTypeOfClass(VD->getType(),
                                         compilerClasses.Domain)) {
@@ -1255,7 +1256,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccMask *Domain = new HipaccMask(VD, Context.UnsignedCharTy,
                                             HipaccMask::Domain);
 
-        CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
         if (CCE->getNumArgs() == 1) {
           // get initializer
           DeclRefExpr *DRE =
@@ -1363,29 +1364,24 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       }
 
       if (Mask) {
-        if (compilerOptions.emitCUDA()) {
-          // remove Mask definition
-          TextRewriter.RemoveText(D->getSourceRange());
-        } else {
-          std::string newStr;
-          if (!Mask->isConstant()) {
-            // create Buffer for Mask
-            stringCreator.writeMemoryAllocationConstant(Mask->getName(),
-                Mask->getTypeStr(), Mask->getSizeXStr(), Mask->getSizeYStr(),
-                newStr);
+        std::string newStr;
+        if (!Mask->isConstant() && !compilerOptions.emitCUDA()) {
+          // create Buffer for Mask
+          stringCreator.writeMemoryAllocationConstant(Mask->getName(),
+              Mask->getTypeStr(), Mask->getSizeXStr(), Mask->getSizeYStr(),
+              newStr);
 
-            // upload Mask to Buffer
-            stringCreator.writeMemoryTransferSymbol(Mask,
-                Mask->getHostMemName(), HOST_TO_DEVICE, newStr);
-          }
-
-          // replace Mask declaration by Buffer allocation
-          // get the start location and compute the semi location.
-          SourceLocation startLoc = D->getLocStart();
-          const char *startBuf = SM->getCharacterData(startLoc);
-          const char *semiPtr = strchr(startBuf, ';');
-          TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+          // upload Mask to Buffer
+          stringCreator.writeMemoryTransferSymbol(Mask, Mask->getHostMemName(),
+              HOST_TO_DEVICE, newStr);
         }
+
+        // replace Mask declaration by Buffer allocation
+        // get the start location and compute the semi location.
+        SourceLocation startLoc = D->getLocStart();
+        const char *startBuf = SM->getCharacterData(startLoc);
+        const char *semiPtr = strchr(startBuf, ';');
+        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
         // store Mask definition
         MaskDeclMap[VD] = Mask;
