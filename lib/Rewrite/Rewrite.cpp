@@ -786,8 +786,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         if (isa<CXXOperatorCallExpr>(CCE->getArg(0)) &&
             isa<DeclRefExpr>(dyn_cast<CXXOperatorCallExpr>(
                 CCE->getArg(0))->getArg(0))) {
-          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
-              dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0))->getArg(0));
+          CXXOperatorCallExpr *COCE =
+            dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0));
+          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(COCE->getArg(0));
 
           // get the Pyramid from the DRE if we have one
           if (PyrDeclMap.count(DRE->getDecl())) {
@@ -795,32 +796,15 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             BC = new HipaccBoundaryCondition(Pyr, VD);
 
             // add call expression to pyramid argument
-            IntegerLiteral *IL = nullptr;
-            UnaryOperator *UO = nullptr;
-
-            if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
-                    CCE->getArg(0))->getArg(1))) {
-              IL = dyn_cast<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
-                       CCE->getArg(0))->getArg(1));
-            } else if (isa<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
-                           CCE->getArg(0))->getArg(1))) {
-              UO = dyn_cast<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
-                       CCE->getArg(0))->getArg(1));
-              // only support unary operators '+' and '-'
-              if (UO && (UO->getOpcode() == UO_Plus ||
-                         UO->getOpcode() == UO_Minus)) {
-                IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
-              }
+            unsigned int DiagIDConstant =
+              Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                  "Missing integer literal in Pyramid %0 call expression.");
+            if (!COCE->getArg(1)->isEvaluatable(Context)) {
+              Diags.Report(COCE->getArg(1)->getExprLoc(), DiagIDConstant)
+                << Pyr->getName();
             }
-
-            assert(IL && "Missing integer literal in pyramid call expression.");
-
-            std::stringstream LSS;
-            if (UO && UO->getOpcode() == UO_Minus) {
-              LSS << "-";
-            }
-            LSS << *(IL->getValue().getRawData());
-            BC->setPyramidIndex(LSS.str());
+            BC->setPyramidIndex(
+                COCE->getArg(1)->EvaluateKnownConstInt(Context).toString(10));
           }
         }
 
@@ -834,7 +818,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         // img|pyramid-call, size_x, size_y, mode, const_val
         // img|pyramid-call, size, mode, const_val
         // img|pyramid-call, mask, mode, const_val
-        Expr::EvalResult constVal;
         unsigned int DiagIDConstant =
           Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Constant expression or Mask object for %ordinal0 parameter to BoundaryCondition %1 required.");
@@ -906,10 +889,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                     if (!CCE->getArg(i+1)->isEvaluatable(Context)) {
                       Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDConstant)
                         << (int)i+2 << VD->getName();
+                    } else {
+                      Expr::EvalResult val;
+                      CCE->getArg(i+1)->EvaluateAsRValue(val, Context);
+                      BC->setConstVal(val.Val, Context);
+                      i++;
                     }
-                    CCE->getArg(i+1)->EvaluateAsRValue(constVal, Context);
-                    BC->setConstVal(constVal.Val, Context);
-                    i++;
                     break;
                   default:
                     BC->setBoundaryHandling(BOUNDARY_UNDEFINED);
@@ -1296,26 +1281,17 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             for (int x = 0; x < size_x; ++x) {
               for (int y = 0; y < size_y; ++y) {
                 // copy values to compiler internal data structure
-                Expr* E = Mask->getInitExpr(x, y)->IgnoreImpCasts();
-                if (E && isa<UnaryOperator>(E)) {
-                  UnaryOperator *UO = dyn_cast<UnaryOperator>(E);
-                  // only support unary operators '+' and '-'
-                  if (UO && (UO->getOpcode() == UO_Plus ||
-                             UO->getOpcode() == UO_Minus)) {
-                    E = UO->getSubExpr();
-                  } else {
-                    assert(false && "Unary operator in mask initializer not "
-                                    "supported");
-                  }
-                }
-                if (E && isa<IntegerLiteral>(E)) {
+                Expr::EvalResult val;
+                Mask->getInitExpr(x, y)->EvaluateAsRValue(val, Context);
+                if (val.Val.isInt()) {
                   Domain->setDomainDefined(x, y,
-                      dyn_cast<IntegerLiteral>(E)->getValue() != 0);
-                } else if (E && isa<FloatingLiteral>(E)) {
+                      !val.Val.getInt().getSExtValue() != 0);
+                } else if (val.Val.isFloat()) {
                   Domain->setDomainDefined(x, y,
-                      !dyn_cast<FloatingLiteral>(E)->getValue().isZero());
+                      !val.Val.getFloat().isZero());
                 } else {
-                  assert(false && "Could not find literals in copy Mask");
+                  assert(false && "Only builtin integer and floating point "
+                                  "literals supported in copy Mask");
                 }
               }
             }
@@ -1582,75 +1558,36 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           PyrLHS = PyrDeclMap[DRE->getDecl()];
 
           // add call expression to pyramid argument
-          IntegerLiteral *IL = nullptr;
-          UnaryOperator *UO = nullptr;
-
-          if (isa<IntegerLiteral>(CE->getArg(1))) {
-            IL = dyn_cast<IntegerLiteral>(CE->getArg(1));
-          } else if (isa<UnaryOperator>(CE->getArg(1))) {
-            UO = dyn_cast<UnaryOperator>(CE->getArg(1));
-            // only support unary operators '+' and '-'
-            if (UO && (UO->getOpcode() == UO_Plus ||
-                       UO->getOpcode() == UO_Minus)) {
-              IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
-            }
+          unsigned int DiagIDConstant =
+            Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                "Missing integer literal in Pyramid %0 call expression.");
+          if (!CE->getArg(1)->isEvaluatable(Context)) {
+            Diags.Report(CE->getArg(1)->getExprLoc(), DiagIDConstant)
+              << PyrLHS->getName();
           }
-
-          assert(IL && "Missing integer literal in pyramid call expression.");
-
-          std::stringstream LSS;
-          if (UO && UO->getOpcode() == UO_Minus) {
-            LSS << "-";
-          }
-          LSS << *(IL->getValue().getRawData());
-          PyrIdxLHS = LSS.str();
+          PyrIdxLHS =
+            CE->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
         } else if (MaskDeclMap.count(DRE->getDecl())) {
           DomLHS = MaskDeclMap[DRE->getDecl()];
 
           assert(DomLHS->isConstant() &&
                  "Setting domain values only supported for constant Domains");
 
-          IntegerLiteral *IL1 = nullptr;
-          IntegerLiteral *IL2 = nullptr;
-          UnaryOperator *UO1 = nullptr;
-          UnaryOperator *UO2 = nullptr;
-
-          Expr* arg = CE->getArg(1)->IgnoreImpCasts();
-          if (isa<IntegerLiteral>(arg)) {
-            IL1 = dyn_cast<IntegerLiteral>(arg);
-          } else if (isa<UnaryOperator>(arg)) {
-            UO1 = dyn_cast<UnaryOperator>(arg);
-            // only support unary operators '+' and '-'
-            if (UO1 && (UO1->getOpcode() == UO_Plus ||
-                        UO1->getOpcode() == UO_Minus)) {
-              IL1 = dyn_cast<IntegerLiteral>(UO1->getSubExpr());
-            }
-          } else if (isa<BinaryOperator>(arg)) {
-            // TODO: Evaluate expression
+          unsigned int DiagIDConstant =
+            Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                "Integer expression in Domain %0 is non-const.");
+          if (!CE->getArg(1)->isEvaluatable(Context)) {
+            Diags.Report(CE->getArg(1)->getExprLoc(), DiagIDConstant)
+              << DomLHS->getName();
           }
-          assert(IL1 && "First integer in domain expression is non-const");
-
-          arg = CE->getArg(2)->IgnoreImpCasts();
-          if (isa<IntegerLiteral>(arg)) {
-            IL2 = dyn_cast<IntegerLiteral>(arg);
-          } else if (isa<UnaryOperator>(arg)) {
-            UO2 = dyn_cast<UnaryOperator>(arg);
-            // only support unary operators '+' and '-'
-            if (UO2 && (UO2->getOpcode() == UO_Plus ||
-                        UO2->getOpcode() == UO_Minus)) {
-              IL2 = dyn_cast<IntegerLiteral>(UO2->getSubExpr());
-            }
-          } else if (isa<BinaryOperator>(arg)) {
-            // TODO: Evaluate expression
+          if (!CE->getArg(2)->isEvaluatable(Context)) {
+            Diags.Report(CE->getArg(2)->getExprLoc(), DiagIDConstant)
+              << DomLHS->getName();
           }
-          assert(IL2 && "Second integer in domain expression is non-const");
-
-          DomIdxX = (*(IL1->getValue().getRawData())
-                        * ((UO1 && UO1->getOpcode() == UO_Minus) ? -1 : 1))
-                        + DomLHS->getSizeX()/2;
-          DomIdxY = (*(IL2->getValue().getRawData())
-                        * ((UO2 && UO2->getOpcode() == UO_Minus) ? -1 : 1))
-                        + DomLHS->getSizeY()/2;
+          DomIdxX = DomLHS->getSizeX()/2 +
+            CE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue();
+          DomIdxY = DomLHS->getSizeY()/2 +
+            CE->getArg(2)->EvaluateKnownConstInt(Context).getSExtValue();
         }
       }
     }
@@ -1680,28 +1617,15 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           PyrRHS = PyrDeclMap[DRE->getDecl()];
 
           // add call expression to pyramid argument
-          IntegerLiteral *IL = nullptr;
-          UnaryOperator *UO = nullptr;
-
-          if (isa<IntegerLiteral>(CE->getArg(1))) {
-            IL = dyn_cast<IntegerLiteral>(CE->getArg(1));
-          } else if (isa<UnaryOperator>(CE->getArg(1))) {
-            UO = dyn_cast<UnaryOperator>(CE->getArg(1));
-            // only support unary operators '+' and '-'
-            if (UO && (UO->getOpcode() == UO_Plus ||
-                       UO->getOpcode() == UO_Minus)) {
-              IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
-            }
+          unsigned int DiagIDConstant =
+            Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                "Missing integer literal in Pyramid %0 call expression.");
+          if (!CE->getArg(1)->isEvaluatable(Context)) {
+            Diags.Report(CE->getArg(1)->getExprLoc(), DiagIDConstant)
+              << PyrRHS->getName();
           }
-
-          assert(IL && "Missing integer literal in pyramid call expression.");
-
-          std::stringstream LSS;
-          if (UO && UO->getOpcode() == UO_Minus) {
-            LSS << "-";
-          }
-          LSS << *(IL->getValue().getRawData());
-          PyrIdxRHS = LSS.str();
+          PyrIdxRHS =
+            CE->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
         }
       }
     } else if (DomLHS) {
@@ -1809,37 +1733,23 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                   HipaccPyramid *Pyr = PyrDeclMap[DRE->getDecl()];
 
                   // add call expression to pyramid argument
-                  IntegerLiteral *IL = nullptr;
-                  UnaryOperator *UO = nullptr;
-
-                  if (isa<IntegerLiteral>(CE->getArg(1))) {
-                    IL = dyn_cast<IntegerLiteral>(CE->getArg(1));
-                  } else if (isa<UnaryOperator>(CE->getArg(1))) {
-                    UO = dyn_cast<UnaryOperator>(CE->getArg(1));
-                    // only support unary operators '+' and '-'
-                    if (UO && (UO->getOpcode() == UO_Plus ||
-                               UO->getOpcode() == UO_Minus)) {
-                      IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
-                    }
+                  unsigned int DiagIDConstant =
+                    Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                        "Missing integer literal in Pyramid %0 call expression.");
+                  if (!CE->getArg(1)->isEvaluatable(Context)) {
+                    Diags.Report(CE->getArg(1)->getExprLoc(), DiagIDConstant)
+                      << Pyr->getName();
                   }
-
-                  assert(IL && "Missing integer literal in pyramid call "
-                               "expression.");
-
-                  std::stringstream LSS;
-                  if (UO && UO->getOpcode() == UO_Minus) {
-                    LSS << "-";
-                  }
-                  LSS << *(IL->getValue().getRawData());
+                  std::string index =
+                    CE->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
 
                   if (PyrLHS) {
                     stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS,
-                        Pyr->getName() + "(" + LSS.str() + ")",
-                        DEVICE_TO_DEVICE, newStr);
+                        Pyr->getName() + "(" + index + ")", DEVICE_TO_DEVICE,
+                        newStr);
                   } else {
-                    stringCreator.writeMemoryTransfer(ImgLHS,
-                        Pyr->getName() + "(" + LSS.str() + ")",
-                        DEVICE_TO_DEVICE, newStr);
+                    stringCreator.writeMemoryTransfer(ImgLHS, Pyr->getName() +
+                        "(" + index + ")", DEVICE_TO_DEVICE, newStr);
                   }
                   write_pointer = false;
                 }
