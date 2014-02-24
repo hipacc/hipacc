@@ -235,20 +235,37 @@ class Mask : public MaskBase {
         ElementIterator *EI;
         data_t *array;
 
+        template <int size_y, int size_x>
+        void init(const data_t (&mask)[size_y][size_x]) {
+            for (int y=0; y<size_y; ++y) {
+                for (int x=0; x<size_x; ++x) {
+                    array[y*size_x + x] = mask[y][x];
+                    // set holes in underlying domain_space
+                    if (mask[y][x] == 0) {
+                        domain_space[y*size_x + x] = 0;
+                    } else {
+                        domain_space[y*size_x + x] = 1;
+                    }
+                }
+            }
+        }
+
+
     public:
-        Mask(int size_x, int size_y) :
+        template <int size_y, int size_x>
+        Mask(const data_t (&mask)[size_y][size_x]) :
             MaskBase(size_x, size_y),
             EI(nullptr),
             array(new data_t[size_x*size_y])
         {
-            assert(size_x>0 && size_y>0 && "size for Mask must be positive!");
+            init(mask);
         }
 
         Mask(const Mask &mask) :
             MaskBase(mask.size_x, mask.size_y),
             array(new data_t[mask.size_x*mask.size_y])
         {
-            operator=(mask.array);
+            init(mask.array);
         }
 
         ~Mask() {
@@ -278,22 +295,6 @@ class Mask : public MaskBase {
             assert(D.getSizeX()==size_x && D.getSizeY()==size_y &&
                     "Domain and Mask size must be equal.");
             return array[(D.getY()-offset_y)*size_x + D.getX()-offset_x];
-        }
-
-        Mask &operator=(const data_t *other) {
-            for (int y=0; y<size_y; ++y) {
-                for (int x=0; x<size_x; ++x) {
-                    array[y*size_x + x] = other[y*size_x + x];
-                    // set holes in underlying domain_space
-                    if (other[y*size_x + x] == 0) {
-                        domain_space[y*size_x + x] = 0;
-                    } else {
-                        domain_space[y*size_x + x] = 1;
-                    }
-                }
-            }
-
-            return *this;
         }
 
         void setEI(ElementIterator *ei) { EI = ei; }
