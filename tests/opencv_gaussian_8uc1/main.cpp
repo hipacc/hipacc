@@ -281,55 +281,55 @@ int main(int argc, const char **argv) {
     }
 
     // convolution filter mask
-    const float filter_x[] = {
+    const float filter_x[1][SIZE_X] = {
         #if SIZE_X == 3
-        0.238994f, 0.522011f, 0.238994f
+        {0.238994f, 0.522011f, 0.238994f}
         #endif
         #if SIZE_X == 5
-        0.070766f, 0.244460f, 0.369546f, 0.244460f, 0.070766f
+        {0.070766f, 0.244460f, 0.369546f, 0.244460f, 0.070766f}
         #endif
         #if SIZE_X == 7
-        0.028995f, 0.103818f, 0.223173f, 0.288026f, 0.223173f, 0.103818f, 0.028995f
+        {0.028995f, 0.103818f, 0.223173f, 0.288026f, 0.223173f, 0.103818f, 0.028995f}
         #endif
     };
-    const float filter_y[] = {
+    const float filter_y[SIZE_Y][1] = {
         #if SIZE_X == 3
-        0.238994f, 0.522011f, 0.238994f
+        {0.238994f}, {0.522011f}, {0.238994f}
         #endif
         #if SIZE_X == 5
-        0.070766f, 0.244460f, 0.369546f, 0.244460f, 0.070766f
+        {0.070766f}, {0.244460f}, {0.369546f}, {0.244460f}, {0.070766f}
         #endif
         #if SIZE_X == 7
-        0.028995f, 0.103818f, 0.223173f, 0.288026f, 0.223173f, 0.103818f, 0.028995f
+        {0.028995f}, {0.103818f}, {0.223173f}, {0.288026f}, {0.223173f}, {0.103818f}, {0.028995f}
         #endif
     };
-    const float filter_xy[] = {
+    const float filter_xy[SIZE_Y][SIZE_X] = {
         #if SIZE_X == 3
-        0.057118f, 0.124758f, 0.057118f,
-        0.124758f, 0.272496f, 0.124758f,
-        0.057118f, 0.124758f, 0.057118f
+        {0.057118f, 0.124758f, 0.057118f},
+        {0.124758f, 0.272496f, 0.124758f},
+        {0.057118f, 0.124758f, 0.057118f}
         #endif
         #if SIZE_X == 5
-        0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f,
-        0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f,
-        0.026151f, 0.090339f, 0.136565f, 0.090339f, 0.026151f,
-        0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f,
-        0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f
+        {0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f},
+        {0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f},
+        {0.026151f, 0.090339f, 0.136565f, 0.090339f, 0.026151f},
+        {0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f},
+        {0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f}
         #endif
         #if SIZE_X == 7
-        0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841,
-        0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010,
-        0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471,
-        0.008351, 0.029902, 0.064280, 0.082959, 0.064280, 0.029902, 0.008351,
-        0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471,
-        0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010,
-        0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841
+        {0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841},
+        {0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010},
+        {0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471},
+        {0.008351, 0.029902, 0.064280, 0.082959, 0.064280, 0.029902, 0.008351},
+        {0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471},
+        {0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010},
+        {0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841}
         #endif
     };
     #else
-    float *filter_x = (float *)malloc(sizeof(float)*size_x);
-    float *filter_y = (float *)malloc(sizeof(float)*size_y);
-    float *filter_xy = (float *)malloc(sizeof(float)*size_x*size_y);
+    float filter_x[1][SIZE_X];
+    float filter_y[SIZE_Y][1];
+    float filter_xy[SIZE_Y][SIZE_X];
 
     double scale2X = -0.5/(sigma1*sigma1);
     double scale2Y = -0.5/(sigma2*sigma2);
@@ -340,29 +340,29 @@ int main(int argc, const char **argv) {
         double x = i - (size_x-1)*0.5;
         double t = exp(scale2X*x*x);
 
-        filter_x[i] = (float)t;
-        sum_x += filter_x[i];
+        filter_x[0][i] = (float)t;
+        sum_x += filter_x[0][i];
     }
     for (int i=0; i < size_y; i++) {
         double x = i - (size_y-1)*0.5;
         double t = exp(scale2Y*x*x);
 
-        filter_y[i] = (float)t;
-        sum_y += filter_y[i];
+        filter_y[i][0] = (float)t;
+        sum_y += filter_y[i][0];
     }
 
     sum_x = 1./sum_x;
     sum_y = 1./sum_y;
     for (int i=0; i < size_x; i++) {
-        filter_x[i] = (float)(filter_x[i]*sum_x);
+        filter_x[0][i] = (float)(filter_x[0][i]*sum_x);
     }
     for (int i=0; i < size_y; i++) {
-        filter_y[i] = (float)(filter_y[i]*sum_y);
+        filter_y[i][0] = (float)(filter_y[i][0]*sum_y);
     }
 
     for (int y=0; y < size_y; y++) {
         for (int x=0; x < size_x; x++) {
-            filter_xy[y*size_x + x] = filter_x[x]*filter_y[y];
+            filter_xy[y][x] = filter_x[0][x]*filter_y[y][0];
         }
     }
     #endif
@@ -392,12 +392,9 @@ int main(int argc, const char **argv) {
     Image<float> TMP(width, height);
 
     // filter mask
-    Mask<float> M(size_x, size_y);
-    Mask<float> MX(size_x, 1);
-    Mask<float> MY(1, size_y);
-    M = filter_xy;
-    MX = filter_x;
-    MY = filter_y;
+    Mask<float> M(filter_xy);
+    Mask<float> MX(filter_x);
+    Mask<float> MY(filter_y);
 
     IterationSpace<unsigned char> IsOut(OUT);
     IterationSpace<float> IsTmp(TMP);
