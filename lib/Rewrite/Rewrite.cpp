@@ -1615,10 +1615,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           UnaryOperator *UO1 = nullptr;
           UnaryOperator *UO2 = nullptr;
 
-          Expr* arg = CE->getArg(1);
-          if (isa<ImplicitCastExpr>(arg)) {
-            arg = dyn_cast<ImplicitCastExpr>(arg)->getSubExpr();
-          }
+          Expr* arg = CE->getArg(1)->IgnoreImpCasts();
           if (isa<IntegerLiteral>(arg)) {
             IL1 = dyn_cast<IntegerLiteral>(arg);
           } else if (isa<UnaryOperator>(arg)) {
@@ -1633,10 +1630,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           }
           assert(IL1 && "First integer in domain expression is non-const");
 
-          arg = CE->getArg(2);
-          if (isa<ImplicitCastExpr>(arg)) {
-            arg = dyn_cast<ImplicitCastExpr>(arg)->getSubExpr();
-          }
+          arg = CE->getArg(2)->IgnoreImpCasts();
           if (isa<IntegerLiteral>(arg)) {
             IL2 = dyn_cast<IntegerLiteral>(arg);
           } else if (isa<UnaryOperator>(arg)) {
@@ -1712,10 +1706,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       }
     } else if (DomLHS) {
       // check for RHS literal to set domain value
-      Expr *arg = E->getArg(1);
-      if (isa<ImplicitCastExpr>(arg)) {
-        arg = dyn_cast<ImplicitCastExpr>(arg)->getSubExpr();
-      }
+      Expr *arg = E->getArg(1)->IgnoreImpCasts();
 
       assert(isa<IntegerLiteral>(arg) &&
              "RHS argument for setting specific domain value must be integer "
