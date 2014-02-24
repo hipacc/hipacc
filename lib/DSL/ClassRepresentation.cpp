@@ -129,7 +129,7 @@ std::string HipaccImage::getImageReadFunction() {
 }
 
 
-void HipaccBoundaryCondition::setConstExpr(APValue &val, ASTContext &Ctx) {
+void HipaccBoundaryCondition::setConstVal(APValue &val, ASTContext &Ctx) {
   QualType QT = getImage()->getType();
 
   bool isVecType = QT->isVectorType();

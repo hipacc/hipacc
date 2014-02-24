@@ -179,7 +179,6 @@ class HipaccBoundaryCondition : public HipaccSize {
     std::string pyr_idx_str;
     bool is_pyramid;
     Expr *constExpr;
-    void setConstExpr(APValue &val, ASTContext &Ctx);
 
   public:
     HipaccBoundaryCondition(HipaccImage *img, VarDecl *VD) :
@@ -197,9 +196,7 @@ class HipaccBoundaryCondition : public HipaccSize {
       pyr_idx_str = idx;
     }
     void setBoundaryHandling(BoundaryMode m) { boundaryHandling = m; }
-    void setConstVal(APValue &val, ASTContext &Ctx) {
-      setConstExpr(val, Ctx);
-    }
+    void setConstVal(APValue &val, ASTContext &Ctx);
     VarDecl *getDecl() { return VD; }
     HipaccImage *getImage() { return img; }
     BoundaryMode getBoundaryHandling() { return boundaryHandling; }
