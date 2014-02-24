@@ -1285,7 +1285,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                 Mask->getInitExpr(x, y)->EvaluateAsRValue(val, Context);
                 if (val.Val.isInt()) {
                   Domain->setDomainDefined(x, y,
-                      !val.Val.getInt().getSExtValue() != 0);
+                      val.Val.getInt().getSExtValue() != 0);
                 } else if (val.Val.isFloat()) {
                   Domain->setDomainDefined(x, y,
                       !val.Val.getFloat().isZero());
