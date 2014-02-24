@@ -47,7 +47,7 @@
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
-//#define CONST_MASK
+#define CONST_MASK
 #define USE_LAMBDA
 //#define RUN_UNDEF
 
@@ -101,22 +101,24 @@ void laplace_filter(unsigned char *in, unsigned char *out, int *filter, int
 class LaplaceFilter : public Kernel<unsigned char> {
     private:
         Accessor<unsigned char> &Input;
+        Domain &cDom;
         Mask<int> &cMask;
         const int size;
 
     public:
         LaplaceFilter(IterationSpace<unsigned char> &IS, Accessor<unsigned char>
-                &Input, Mask<int> &cMask, const int size) :
+                &Input, Domain &cDom, Mask<int> &cMask, const int size) :
             Kernel(IS),
             Input(Input),
+            cDom(cDom),
             cMask(cMask),
             size(size)
         { addAccessor(&Input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
-            int sum = convolve(cMask, HipaccSUM, [&] () -> int {
-                    return cMask() * Input(cMask);
+            int sum = reduce(cDom, HipaccSUM, [&] () -> int {
+                    return cMask(cDom) * Input(cDom);
                     });
             sum = min(sum, 255);
             sum = max(sum, 0);
@@ -165,23 +167,23 @@ int main(int argc, const char **argv) {
     #ifdef CONST_MASK
     const
     #endif
-    int mask[] = {
+    int mask[SIZE_Y][SIZE_X] = {
         #if SIZE_X==1
-        0,  1,  0,
-        1, -4,  1,
-        0,  1,  0,
+        { 0,  1,  0 },
+        { 1, -4,  1 },
+        { 0,  1,  0 }
         #endif
         #if SIZE_X==3
-        2,  0,  2,
-        0, -8,  0,
-        2,  0,  2,
+        { 2,  0,  2 },
+        { 0, -8,  0 },
+        { 2,  0,  2 }
         #endif
         #if SIZE_X==5
-        1,   1,   1,   1,   1,
-        1,   1,   1,   1,   1,
-        1,   1, -24,   1,   1,
-        1,   1,   1,   1,   1,
-        1,   1,   1,   1,   1,
+        { 1,   1,   1,   1,   1 },
+        { 1,   1,   1,   1,   1 },
+        { 1,   1, -24,   1,   1 },
+        { 1,   1,   1,   1,   1 },
+        { 1,   1,   1,   1,   1 }
         #endif
     };
 
@@ -207,8 +209,13 @@ int main(int argc, const char **argv) {
     Image<unsigned char> OUT(width, height);
 
     // filter mask
-    Mask<int> M(size_x, size_y);
-    M = mask;
+    Mask<int> M(mask);
+
+#ifdef CONST_MASK
+    Domain D(M);
+#else
+    Domain D(size_x, size_y);
+#endif
 
     IterationSpace<unsigned char> IsOut(OUT);
 
@@ -223,7 +230,7 @@ int main(int argc, const char **argv) {
     #ifdef RUN_UNDEF
     BoundaryCondition<unsigned char> BcInUndef(IN, size_x, BOUNDARY_UNDEFINED);
     Accessor<unsigned char> AccInUndef(BcInUndef);
-    LaplaceFilter LFU(IsOut, AccInUndef, M, size_x);
+    LaplaceFilter LFU(IsOut, AccInUndef, D, M, size_x);
 
     LFU.execute();
     timing = hipaccGetLastKernelTiming();
@@ -235,7 +242,7 @@ int main(int argc, const char **argv) {
     // BOUNDARY_CLAMP
     BoundaryCondition<unsigned char> BcInClamp(IN, size_x, BOUNDARY_CLAMP);
     Accessor<unsigned char> AccInClamp(BcInClamp);
-    LaplaceFilter LFC(IsOut, AccInClamp, M, size_x);
+    LaplaceFilter LFC(IsOut, AccInClamp, D, M, size_x);
 
     LFC.execute();
     timing = hipaccGetLastKernelTiming();
@@ -246,7 +253,7 @@ int main(int argc, const char **argv) {
     // BOUNDARY_REPEAT
     BoundaryCondition<unsigned char> BcInRepeat(IN, size_x, BOUNDARY_REPEAT);
     Accessor<unsigned char> AccInRepeat(BcInRepeat);
-    LaplaceFilter LFR(IsOut, AccInRepeat, M, size_x);
+    LaplaceFilter LFR(IsOut, AccInRepeat, D, M, size_x);
 
     LFR.execute();
     timing = hipaccGetLastKernelTiming();
@@ -257,7 +264,7 @@ int main(int argc, const char **argv) {
     // BOUNDARY_MIRROR
     BoundaryCondition<unsigned char> BcInMirror(IN, size_x, BOUNDARY_MIRROR);
     Accessor<unsigned char> AccInMirror(BcInMirror);
-    LaplaceFilter LFM(IsOut, AccInMirror, M, size_x);
+    LaplaceFilter LFM(IsOut, AccInMirror, D, M, size_x);
 
     LFM.execute();
     timing = hipaccGetLastKernelTiming();
@@ -268,7 +275,7 @@ int main(int argc, const char **argv) {
     // BOUNDARY_CONSTANT
     BoundaryCondition<unsigned char> BcInConst(IN, size_x, BOUNDARY_CONSTANT, '1');
     Accessor<unsigned char> AccInConst(BcInConst);
-    LaplaceFilter LFConst(IsOut, AccInConst, M, size_x);
+    LaplaceFilter LFConst(IsOut, AccInConst, D, M, size_x);
 
     LFConst.execute();
     timing = hipaccGetLastKernelTiming();
