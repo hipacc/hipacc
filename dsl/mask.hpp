@@ -161,6 +161,11 @@ class Domain : public MaskBase {
             MaskBase(size_x, size_y),
             DI(nullptr) {}
 
+        template <int size_y, int size_x>
+        Domain(const uchar (&domain)[size_y][size_x]) :
+            MaskBase(size_x, size_y),
+            DI(nullptr) {}
+
         Domain(const MaskBase &mask) :
             MaskBase(mask),
             DI(nullptr) {}

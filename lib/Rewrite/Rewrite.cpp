@@ -645,7 +645,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   // e) save Mask declarations, e.g.
   //    Mask<float> M(stencil);
   // f) save Domain declarations, e.g.
-  //    Domain D(3, 3)
+  //    Domain D(3, 3), Domain D(dom)
   // g) save user kernel declarations, and replace it by kernel compilation
   //    for OpenCL, e.g.
   //    AddKernel K(IS, IN, OUT, 23);
@@ -1249,18 +1249,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                 isMaskConstant = false;
                 break;
               }
-              // TODO: cleanup
-              if (Mask->isDomain()) {
-                // copy values to compiler internal data structure
-                Expr *E = ILEY->getInit(y)->IgnoreParenCasts();
-                if (isa<IntegerLiteral>(E)) {
-                  Mask->setDomainDefined(x, y,
-                      dyn_cast<IntegerLiteral>(E)->getValue() != 0);
-                } else {
-                  assert(false &&
-                         "Expected integer literal in domain initializer");
-                }
-              }
             }
           }
         }
@@ -1277,54 +1265,82 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                "Currently only Domain definitions are supported, no "
                "declarations!");
 
-        CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert((CCE->getNumArgs() == 2) &&
-               "Domain definition requires exactly two arguments!");
-
         Mask = new HipaccMask(VD, Context.UnsignedCharTy, HipaccMask::Domain);
 
-        // loop over arguments and check if they are constant
-        bool isDomConstant = true;
-        for (auto it = CCE->arg_begin(); it != CCE->arg_end(); ++it) {
-          Expr *arg = *it;
-          if (isa<ImplicitCastExpr>(arg)) {
-            arg = dyn_cast<ImplicitCastExpr>(arg)->getSubExpr();
+        CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+        if (CCE->getNumArgs() == 1) {
+          // get initializer
+          DeclRefExpr *DRE =
+              dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreImpCasts());
+          assert(DRE && "Domain must be initialized using a variable");
+          VarDecl *V = dyn_cast_or_null<VarDecl>(DRE->getDecl());
+          assert(V && "Domain must be initialized using a variable");
+          bool isDomainConstant = V->getType().isConstant(Context);
+
+          // extract size_y and size_x from type
+          const ConstantArrayType *Array =
+              Context.getAsConstantArrayType(V->getType());
+          Mask->setSizeY(Array->getSize().getSExtValue());
+          Array = Context.getAsConstantArrayType(Array->getElementType());
+          Mask->setSizeX(Array->getSize().getSExtValue());
+
+          // loop over initializers and check if each initializer is a constant
+          if (isDomainConstant && isa<InitListExpr>(V->getInit())) {
+            InitListExpr *ILEY = dyn_cast<InitListExpr>(V->getInit());
+            Mask->setInitList(ILEY);
+            for (size_t y=0; y<ILEY->getNumInits(); ++y) {
+              InitListExpr *ILEX = dyn_cast<InitListExpr>(ILEY->getInit(y));
+              for (size_t x=0; x<ILEX->getNumInits(); ++x) {
+                if (!ILEX->getInit(x)->isConstantInitializer(Context, false)) {
+                  isDomainConstant = false;
+                  break;
+                }
+                // copy values to compiler internal data structure
+                Expr *E = ILEX->getInit(x)->IgnoreParenCasts();
+                if (isa<IntegerLiteral>(E)) {
+                  Mask->setDomainDefined(x, y,
+                      dyn_cast<IntegerLiteral>(E)->getValue() != 0);
+                } else {
+                  assert(false &&
+                         "Expected integer literal in domain initializer");
+                }
+              }
+            }
           }
-          isDomConstant = isDomConstant &&
-              isa<DeclRefExpr>(arg) &&
-              dyn_cast<DeclRefExpr>(arg)->getType().isConstQualified();
+          Mask->setIsConstant(isDomainConstant);
+          Mask->setHostMemName(V->getName());
+        } else if (CCE->getNumArgs() == 2) {
+          unsigned int DiagIDConstant =
+              Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                  "Constant expression for %ordinal0 parameter to %1 %2 "
+                  "required.");
+
+          // check if the parameters can be resolved to a constant
+          Expr *Arg0 = CCE->getArg(0);
+          if (!Arg0->isEvaluatable(Context)) {
+            Diags.Report(Arg0->getExprLoc(), DiagIDConstant)
+              << 1
+              << (const char *)(Mask->isDomain()?"Domain":"Mask")
+              << VD->getName();
+          }
+          Mask->setSizeX(Arg0->EvaluateKnownConstInt(Context).getSExtValue());
+
+          Expr *Arg1 = CCE->getArg(1);
+          if (!Arg1->isEvaluatable(Context)) {
+            Diags.Report(Arg1->getExprLoc(), DiagIDConstant)
+              << 2
+              << (const char *)(Mask->isDomain()?"Domain":"Mask")
+              << VD->getName();
+          }
+          Mask->setSizeY(Arg1->EvaluateKnownConstInt(Context).getSExtValue());
+          Mask->setIsConstant(true);
+        } else {
+          assert(false && "Domain definition requires exactly two arguments "
+              "type constant integer or one argument of type uchar[]!");
         }
-        Mask->setIsConstant(isDomConstant);
       }
 
       if (Mask) {
-        unsigned int DiagIDConstant =
-            Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                                  "Constant expression for %ordinal0 parameter "
-                                  "to %1 %2 required.");
-
-        // TODO: cleanup
-        if (Mask->isDomain()) {
-        // check if the parameters can be resolved to a constant
-        Expr *Arg0 = CCE->getArg(0);
-        if (!Arg0->isEvaluatable(Context)) {
-          Diags.Report(Arg0->getExprLoc(), DiagIDConstant)
-            << 1
-            << (const char *)(Mask->isDomain()?"Domain":"Mask")
-            << VD->getName();
-        }
-        Mask->setSizeX(Arg0->EvaluateKnownConstInt(Context).getSExtValue());
-
-        Expr *Arg1 = CCE->getArg(1);
-        if (!Arg1->isEvaluatable(Context)) {
-          Diags.Report(Arg1->getExprLoc(), DiagIDConstant)
-            << 2
-            << (const char *)(Mask->isDomain()?"Domain":"Mask")
-            << VD->getName();
-        }
-        Mask->setSizeY(Arg1->EvaluateKnownConstInt(Context).getSExtValue());
-        }
-
         if (compilerOptions.emitCUDA()) {
           // remove Mask definition
           TextRewriter.RemoveText(D->getSourceRange());
@@ -1475,17 +1491,16 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   // convert overloaded operator 'operator=' function into memory transfer,
   // a) Img = host_array;
   // b) Pyr(x) = host_array;
-  // c) Domain = host_array;
-  // d) Img = Img;
-  // e) Img = Acc;
-  // f) Img = Pyr(x);
-  // g) Acc = Acc;
-  // h) Acc = Img;
-  // i) Acc = Pyr(x);
-  // j) Pyr(x) = Img;
-  // k) Pyr(x) = Acc;
-  // l) Pyr(x) = Pyr(x);
-  // m) Domain(x, y) = literal; (return type of ()-operator is DomainSetter)
+  // c) Img = Img;
+  // d) Img = Acc;
+  // e) Img = Pyr(x);
+  // f) Acc = Acc;
+  // g) Acc = Img;
+  // h) Acc = Pyr(x);
+  // i) Pyr(x) = Img;
+  // j) Pyr(x) = Acc;
+  // k) Pyr(x) = Pyr(x);
+  // l) Domain(x, y) = literal; (return type of ()-operator is DomainSetter)
   if (E->getOperator() == OO_Equal) {
     if (E->getNumArgs() != 2) return true;
 
