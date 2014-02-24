@@ -1998,8 +1998,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         // within convolute lambda-function
         if (Mask->isConstant()) {
           // propagate constants
-          result = Clone(Mask->getInitList()->getInit(Mask->getSizeY() *
-                convIdxX + convIdxY)->IgnoreParenCasts());
+          result = Clone(Mask->getInitExpr(convIdxX, convIdxY));
         } else {
           // access mask elements
           Expr *midx_x = createIntegerLiteral(Ctx, convIdxX);
@@ -2050,8 +2049,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         // within reduce/iterate lambda-function
         if (Mask->isConstant()) {
           // propagate constants
-          result = Clone(Mask->getInitList()->getInit(Mask->getSizeX() *
-                redIdxY.back() + redIdxX.back())->IgnoreParenCasts());
+          result = Clone(Mask->getInitExpr(redIdxX.back(), redIdxY.back()));
         } else {
           // access mask elements
           Expr *midx_x = createIntegerLiteral(Ctx, redIdxX.back());

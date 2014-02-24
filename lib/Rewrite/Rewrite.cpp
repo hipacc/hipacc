@@ -352,14 +352,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
         stringCreator.writeMemoryTransferSymbol(Mask, Mask->getHostMemName(),
             HOST_TO_DEVICE, newStr);
       }
-
-      Expr *E = Mask->getHostMemExpr();
-      if (E) {
-        SourceLocation startLoc = E->getLocStart();
-        const char *startBuf = SM->getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
-      }
     }
   }
 
@@ -651,7 +643,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   // d) save Accessor declarations, e.g.
   //    Accessor<int> AccIN(BcIN);
   // e) save Mask declarations, e.g.
-  //    Mask<float> M(2*sigma_d+1, 2*sigma_d+1);
+  //    Mask<float> M(stencil);
   // f) save Domain declarations, e.g.
   //    Domain D(3, 3)
   // g) save user kernel declarations, and replace it by kernel compilation
@@ -686,7 +678,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         CCE->getArg(0)->printPretty(WS, 0, PrintingPolicy(CI.getLangOpts()));
 
         if (compilerOptions.emitC()) {
-          Expr::EvalResult constWidth, constHeight;
           // check if the parameter can be resolved to a constant
           unsigned int DiagIDConstant =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
@@ -1227,11 +1218,54 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                "declarations!");
 
         CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert((CCE->getNumArgs() == 2) &&
-               "Mask definition requires exactly two arguments!");
+        assert((CCE->getNumArgs() == 1) &&
+               "Mask definition requires exactly one argument!");
 
         QualType QT = compilerClasses.getFirstTemplateType(VD->getType());
         Mask = new HipaccMask(VD, QT, HipaccMask::Mask);
+
+        // get initializer
+        DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreImpCasts());
+        assert(DRE && "Mask must be initialized using a variable");
+        VarDecl *V = dyn_cast_or_null<VarDecl>(DRE->getDecl());
+        assert(V && "Mask must be initialized using a variable");
+        bool isMaskConstant = V->getType().isConstant(Context);
+
+        // extract size_y and size_x from type
+        const ConstantArrayType *Array =
+          Context.getAsConstantArrayType(V->getType());
+        Mask->setSizeY(Array->getSize().getSExtValue());
+        Array = Context.getAsConstantArrayType(Array->getElementType());
+        Mask->setSizeX(Array->getSize().getSExtValue());
+
+        // loop over initializers and check if each initializer is a constant
+        if (isMaskConstant && isa<InitListExpr>(V->getInit())) {
+          InitListExpr *ILEY = dyn_cast<InitListExpr>(V->getInit());
+          Mask->setInitList(ILEY);
+          for (size_t y=0; y<ILEY->getNumInits(); ++y) {
+            InitListExpr *ILEX = dyn_cast<InitListExpr>(ILEY->getInit(y));
+            for (size_t x=0; x<ILEX->getNumInits(); ++x) {
+              if (!ILEX->getInit(x)->isConstantInitializer(Context, false)) {
+                isMaskConstant = false;
+                break;
+              }
+              // TODO: cleanup
+              if (Mask->isDomain()) {
+                // copy values to compiler internal data structure
+                Expr *E = ILEY->getInit(y)->IgnoreParenCasts();
+                if (isa<IntegerLiteral>(E)) {
+                  Mask->setDomainDefined(x, y,
+                      dyn_cast<IntegerLiteral>(E)->getValue() != 0);
+                } else {
+                  assert(false &&
+                         "Expected integer literal in domain initializer");
+                }
+              }
+            }
+          }
+        }
+        Mask->setIsConstant(isMaskConstant);
+        Mask->setHostMemName(V->getName());
       }
       // found Domain decl
       if (compilerClasses.isTypeOfClass(VD->getType(),
@@ -1264,12 +1298,13 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       }
 
       if (Mask) {
-        Expr::EvalResult constVal;
         unsigned int DiagIDConstant =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
                                   "Constant expression for %ordinal0 parameter "
                                   "to %1 %2 required.");
 
+        // TODO: cleanup
+        if (Mask->isDomain()) {
         // check if the parameters can be resolved to a constant
         Expr *Arg0 = CCE->getArg(0);
         if (!Arg0->isEvaluatable(Context)) {
@@ -1288,16 +1323,23 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             << VD->getName();
         }
         Mask->setSizeY(Arg1->EvaluateKnownConstInt(Context).getSExtValue());
+        }
 
         if (compilerOptions.emitCUDA()) {
           // remove Mask definition
           TextRewriter.RemoveText(D->getSourceRange());
         } else {
           std::string newStr;
-          // create Buffer for Mask
-          stringCreator.writeMemoryAllocationConstant(Mask->getName(),
-              Mask->getTypeStr(), Mask->getSizeXStr(), Mask->getSizeYStr(),
-              newStr);
+          if (!Mask->isConstant()) {
+            // create Buffer for Mask
+            stringCreator.writeMemoryAllocationConstant(Mask->getName(),
+                Mask->getTypeStr(), Mask->getSizeXStr(), Mask->getSizeYStr(),
+                newStr);
+
+            // upload Mask to Buffer
+            stringCreator.writeMemoryTransferSymbol(Mask,
+                Mask->getHostMemName(), HOST_TO_DEVICE, newStr);
+          }
 
           // replace Mask declaration by Buffer allocation
           // get the start location and compute the semi location.
@@ -1433,18 +1475,17 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   // convert overloaded operator 'operator=' function into memory transfer,
   // a) Img = host_array;
   // b) Pyr(x) = host_array;
-  // c) Mask = host_array;
-  // d) Domain = host_array;
-  // e) Img = Img;
-  // f) Img = Acc;
-  // g) Img = Pyr(x);
-  // h) Acc = Acc;
-  // i) Acc = Img;
-  // j) Acc = Pyr(x);
-  // k) Pyr(x) = Img;
-  // l) Pyr(x) = Acc;
-  // m) Pyr(x) = Pyr(x);
-  // n) Domain(x, y) = literal; (return type of ()-operator is DomainSetter)
+  // c) Domain = host_array;
+  // d) Img = Img;
+  // e) Img = Acc;
+  // f) Img = Pyr(x);
+  // g) Acc = Acc;
+  // h) Acc = Img;
+  // i) Acc = Pyr(x);
+  // j) Pyr(x) = Img;
+  // k) Pyr(x) = Acc;
+  // l) Pyr(x) = Pyr(x);
+  // m) Domain(x, y) = literal; (return type of ()-operator is DomainSetter)
   if (E->getOperator() == OO_Equal) {
     if (E->getNumArgs() != 2) return true;
 
@@ -1780,91 +1821,6 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
       return true;
-    }
-
-    if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
-      DeclRefExpr *DRE_LHS =
-        dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts());
-      // check if we have a Mask or Domain
-      if (MaskDeclMap.count(DRE_LHS->getDecl())) {
-        HipaccMask *Mask = MaskDeclMap[DRE_LHS->getDecl()];
-        std::string newStr;
-
-        // get the text string for the memory transfer src
-        std::string dataStr;
-        llvm::raw_string_ostream DS(dataStr);
-        E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
-
-        DeclRefExpr *DREVar =
-          dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts());
-        if (DREVar) {
-          if (VarDecl *V = dyn_cast<VarDecl>(DREVar->getDecl())) {
-            bool isMaskConstant = V->getType().isConstant(Context);
-
-            if (!isMaskConstant) {
-              unsigned int DiagIDConstant =
-                Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-                  "%0 '%1': Constant propagation only supported if "
-                  "coefficient array is declared as constant.");
-              Diags.Report(V->getLocation(), DiagIDConstant)
-                << (const char *)(Mask->isDomain()?"Domain":"Mask")
-                << Mask->getName();
-            }
-
-            // loop over initializers and check if each initializer is a
-            // constant
-            if (isMaskConstant && isa<InitListExpr>(V->getInit())) {
-              InitListExpr *ILE = dyn_cast<InitListExpr>(V->getInit());
-              Mask->setInitList(ILE);
-
-              for (size_t i=0; i<ILE->getNumInits(); ++i) {
-                if (!ILE->getInit(i)->isConstantInitializer(Context, false)) {
-                  isMaskConstant = false;
-                  break;
-                }
-                if (Mask->isDomain()) {
-                  // Copy values to compiler internal data structure
-                  Expr *E = ILE->getInit(i)
-                               ->IgnoreParenCasts();
-                  if (isa<IntegerLiteral>(E)) {
-                    Mask->setDomainDefined(i,
-                        dyn_cast<IntegerLiteral>(E)->getValue() != 0);
-                  } else {
-                    assert(false &&
-                           "Expected integer literal in domain initializer");
-                  }
-                }
-              }
-            }
-            Mask->setIsConstant(isMaskConstant);
-
-            // create memory transfer string for memory upload to constant
-            // memory
-            if (!isMaskConstant) {
-              if (compilerOptions.emitCUDA()) {
-                // store memory pointer and source location. The string is
-                // replaced later on.
-                Mask->setHostMemName(V->getName());
-                Mask->setHostMemExpr(E);
-
-                return true;
-              } else {
-                stringCreator.writeMemoryTransferSymbol(Mask, V->getName(),
-                    HOST_TO_DEVICE, newStr);
-              }
-            }
-          }
-        }
-
-        // rewrite Mask assignment to memory transfer
-        // get the start location and compute the semi location.
-        SourceLocation startLoc = E->getLocStart();
-        const char *startBuf = SM->getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
-
-        return true;
-      }
     }
   }
 
@@ -2661,19 +2617,16 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         *OS << Mask->getTypeStr() << " " << Mask->getName() << K->getName() << "["
             << Mask->getSizeYStr() << "][" << Mask->getSizeXStr() << "] = {\n";
 
-        InitListExpr *ILE = Mask->getInitList();
-        unsigned int num_init = 0;
-
         // print Mask constant literals to 2D array
-        for (size_t j=0; j<Mask->getSizeY(); ++j) {
+        for (size_t y=0; y<Mask->getSizeY(); ++y) {
           *OS << "        {";
-          for (size_t k=0; k<Mask->getSizeX(); ++k) {
-            ILE->getInit(num_init++)->printPretty(*OS, 0, Policy, 0);
-            if (k<Mask->getSizeX()-1) {
+          for (size_t x=0; x<Mask->getSizeX(); ++x) {
+            Mask->getInitExpr(x, y)->printPretty(*OS, 0, Policy, 0);
+            if (x<Mask->getSizeX()-1) {
               *OS << ", ";
             }
           }
-          if (j<Mask->getSizeY()-1) {
+          if (y<Mask->getSizeY()-1) {
             *OS << "},\n";
           } else {
             *OS << "}\n";

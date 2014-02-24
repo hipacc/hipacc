@@ -313,7 +313,6 @@ class HipaccMask : public HipaccMemory {
     bool is_printed;
     SmallVector<HipaccKernel *, 16> kernels;
     std::string hostMemName;
-    Expr *hostMemExpr;
     bool *domain_space;
 
   public:
@@ -325,7 +324,6 @@ class HipaccMask : public HipaccMemory {
       is_printed(false),
       kernels(0),
       hostMemName(),
-      hostMemExpr(nullptr),
       domain_space(nullptr)
     {}
 
@@ -341,13 +339,13 @@ class HipaccMask : public HipaccMemory {
     bool isDomain() { return (mask_type & Domain); }
     bool isConstant() { return is_constant; }
     bool isPrinted() { return is_printed; }
-    InitListExpr *getInitList() { return init_list; }
+    Expr *getInitExpr(size_t x, size_t y) {
+      return dyn_cast<InitListExpr>(init_list->getInit(y))->getInit(x);
+    }
     void addKernel(HipaccKernel *K) { kernels.push_back(K); }
     SmallVector<HipaccKernel *, 16> &getKernels() { return kernels; }
     void setHostMemName(std::string name) { hostMemName = name; }
     std::string getHostMemName() { return hostMemName; }
-    void setHostMemExpr(Expr *expr) { hostMemExpr = expr; }
-    Expr *getHostMemExpr() { return hostMemExpr; }
     void setSizeX(unsigned int x) {
       HipaccMemory::setSizeX(x);
       if (isDomain()) { setDomainSize(size_x*size_y); }
