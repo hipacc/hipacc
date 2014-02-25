@@ -403,7 +403,7 @@ int main(int argc, const char **argv) {
     std::vector<float> timings;
     float timing = 0.0f;
 
-    // host memory for image of of widthxheight pixels
+    // host memory for image of width x height pixels
     int *host_in0 = (int *)malloc(sizeof(int)*width*height);
     int *host_in1 = (int *)malloc(sizeof(int)*width*height);
     int *host_out0 = (int *)malloc(sizeof(int)*width*height);
@@ -415,7 +415,7 @@ int main(int argc, const char **argv) {
     int *reference_out1 = (int *)malloc(sizeof(int)*width*height);
     int *reference_out2 = (int *)malloc(sizeof(int)*width*height);
 
-    // input and output image of widthxheight pixels
+    // input and output image of width x height pixels
     Image<int> IN0(width, height);
     Image<int> IN1(width, height);
     Image<int> IN2(width, height);

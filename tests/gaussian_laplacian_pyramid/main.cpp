@@ -181,7 +181,7 @@ int main(int argc, const char **argv) {
 #endif
     };
 
-    // host memory for image of of width x height pixels
+    // host memory for image of width x height pixels
     char *host_in = (char *)malloc(sizeof(char)*width*height);
     char *host_out = (char *)malloc(sizeof(char)*width*height);
 

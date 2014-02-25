@@ -397,7 +397,7 @@ int main(int argc, const char **argv) {
     };
 #endif
 
-    // host memory for image of of width x height pixels
+    // host memory for image of width x height pixels
     uchar4 *host_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     short4 *host_out = (short4 *)malloc(sizeof(short4)*width*height);
     uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);

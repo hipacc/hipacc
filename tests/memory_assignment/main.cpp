@@ -93,13 +93,13 @@ int main(int argc, const char **argv) {
     const int roi_offset_x = 2;
     const int roi_offset_y = 2;
 
-    // host memory for image of of widthxheight pixels
+    // host memory for image of width x height pixels
     int *host_img0 = (int *)malloc(sizeof(int)*width*height);
     int *host_img1 = (int *)malloc(sizeof(int)*width*height);
     int *host_img2 = (int *)malloc(sizeof(int)*roi_width*roi_height);
     int *host_img3 = (int *)malloc(sizeof(int)*roi_width*roi_height);
 
-    // input and output image of widthxheight pixels
+    // input and output image of width x height pixels
     Image<int> IMG0(width, height);
     Image<int> IMG1(width, height);
     Image<int> IMG2(roi_width, roi_height);

@@ -221,7 +221,7 @@ int main(int argc, const char **argv) {
     const int width = WIDTH;
     const int height = HEIGHT;
 
-    // host memory for image of of widthxheight pixels
+    // host memory for image of width x height pixels
     int *host_in_int = (int *)malloc(sizeof(int)*width*height);
     int *host_out_int = (int *)malloc(sizeof(int)*width*height);
     int *reference_in_int = (int *)malloc(sizeof(int)*width*height);
@@ -231,7 +231,7 @@ int main(int argc, const char **argv) {
     float *reference_in_float = (float *)malloc(sizeof(float)*width*height);
     float *reference_out_float = (float *)malloc(sizeof(float)*width*height);
 
-    // input and output image of widthxheight pixels
+    // input and output image of width x height pixels
     Image<int> in_int(width, height);
     Image<int> out_int(width, height);
     Image<float> in_float(width, height);

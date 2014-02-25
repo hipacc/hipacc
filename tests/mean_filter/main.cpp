@@ -234,7 +234,7 @@ int main(int argc, const char **argv) {
     int t = NT;
     float timing = 0.0f;
 
-    // host memory for image of of width x height pixels
+    // host memory for image of width x height pixels
     float *host_in = (float *)malloc(sizeof(float)*width*height);
     float *host_out = (float *)malloc(sizeof(float)*width*height);
     float *reference_in = (float *)malloc(sizeof(float)*width*height);

@@ -103,13 +103,13 @@ int main(int argc, const char **argv) {
     const int is_offset_y = 2;
     float timing = 0.0f;
 
-    // host memory for image of of widthxheight pixels
+    // host memory for image of width x height pixels
     int *host_in = (int *)malloc(sizeof(int)*width*height);
     int *host_out = (int *)malloc(sizeof(int)*is_width*is_height);
     int *reference_in = (int *)malloc(sizeof(int)*width*height);
     int *reference_out = (int *)malloc(sizeof(int)*is_width*is_height);
 
-    // input and output image of widthxheight pixels
+    // input and output image of width x height pixels
     Image<int> IN(width, height);
     Image<int> OUT(is_width, is_height);
 

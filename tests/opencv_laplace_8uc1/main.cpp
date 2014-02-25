@@ -167,7 +167,14 @@ int main(int argc, const char **argv) {
     #ifdef CONST_MASK
     const
     #endif
-    int mask[SIZE_Y][SIZE_X] = {
+    #if SIZE_X == 1
+    #define SIZE 3
+    #elif SIZE_X == 3
+    #define SIZE 3
+    #else
+    #define SIZE 5
+    #endif
+    int mask[SIZE][SIZE] = {
         #if SIZE_X==1
         { 0,  1,  0 },
         { 1, -4,  1 },
@@ -187,7 +194,7 @@ int main(int argc, const char **argv) {
         #endif
     };
 
-    // host memory for image of of width x height pixels
+    // host memory for image of width x height pixels
     unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
     unsigned char *host_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
     unsigned char *reference_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
@@ -228,7 +235,7 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_UNDEFINED
     #ifdef RUN_UNDEF
-    BoundaryCondition<unsigned char> BcInUndef(IN, size_x, BOUNDARY_UNDEFINED);
+    BoundaryCondition<unsigned char> BcInUndef(IN, M, BOUNDARY_UNDEFINED);
     Accessor<unsigned char> AccInUndef(BcInUndef);
     LaplaceFilter LFU(IsOut, AccInUndef, D, M, size_x);
 
@@ -240,7 +247,7 @@ int main(int argc, const char **argv) {
 
 
     // BOUNDARY_CLAMP
-    BoundaryCondition<unsigned char> BcInClamp(IN, size_x, BOUNDARY_CLAMP);
+    BoundaryCondition<unsigned char> BcInClamp(IN, M, BOUNDARY_CLAMP);
     Accessor<unsigned char> AccInClamp(BcInClamp);
     LaplaceFilter LFC(IsOut, AccInClamp, D, M, size_x);
 
@@ -251,7 +258,7 @@ int main(int argc, const char **argv) {
 
 
     // BOUNDARY_REPEAT
-    BoundaryCondition<unsigned char> BcInRepeat(IN, size_x, BOUNDARY_REPEAT);
+    BoundaryCondition<unsigned char> BcInRepeat(IN, M, BOUNDARY_REPEAT);
     Accessor<unsigned char> AccInRepeat(BcInRepeat);
     LaplaceFilter LFR(IsOut, AccInRepeat, D, M, size_x);
 
@@ -262,7 +269,7 @@ int main(int argc, const char **argv) {
 
 
     // BOUNDARY_MIRROR
-    BoundaryCondition<unsigned char> BcInMirror(IN, size_x, BOUNDARY_MIRROR);
+    BoundaryCondition<unsigned char> BcInMirror(IN, M, BOUNDARY_MIRROR);
     Accessor<unsigned char> AccInMirror(BcInMirror);
     LaplaceFilter LFM(IsOut, AccInMirror, D, M, size_x);
 
@@ -273,7 +280,7 @@ int main(int argc, const char **argv) {
 
 
     // BOUNDARY_CONSTANT
-    BoundaryCondition<unsigned char> BcInConst(IN, size_x, BOUNDARY_CONSTANT, '1');
+    BoundaryCondition<unsigned char> BcInConst(IN, M, BOUNDARY_CONSTANT, '1');
     Accessor<unsigned char> AccInConst(BcInConst);
     LaplaceFilter LFConst(IsOut, AccInConst, D, M, size_x);
 

@@ -150,22 +150,24 @@ void sobel_filter_column(float *in, float *out, int *filter, int size_y, int
 class SobelFilterMask : public Kernel<float> {
     private:
         Accessor<float> &Input;
+        Domain &dom;
         Mask<int> &cMask;
         const int size;
 
     public:
         SobelFilterMask(IterationSpace<float> &IS, Accessor<float> &Input,
-                Mask<int> &cMask, const int size) :
+                Domain &dom, Mask<int> &cMask, const int size) :
             Kernel(IS),
             Input(Input),
+            dom(dom),
             cMask(cMask),
             size(size)
         { addAccessor(&Input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = convolve(cMask, HipaccSUM, [&] () -> float {
-                    return cMask() * Input(cMask);
+            output() = reduce(dom, HipaccSUM, [&] () -> float {
+                    return cMask(dom) * Input(dom);
                     });
         }
         #else
@@ -280,115 +282,115 @@ int main(int argc, const char **argv) {
     #ifdef CONST_MASK
     const
     #endif
-    int mask[] = {
+    int mask[SIZE_Y][SIZE_X] = {
         #if SIZE_X==3
-        -1, -2, -1,
-         0,  0,  0,
-         1,  2,  1,
+        { -1, -2, -1 },
+        {  0,  0,  0 },
+        {  1,  2,  1 }
         #endif
         #if SIZE_X==5
-        -1, -4, -6,  -4, -1,
-        -2, -8, -12, -8, -2,
-         0,  0,  0,   0,  0,
-         2,  8,  12,  8,  2,
-         1,  4,  6,   4,  1,
+        { -1, -4, -6,  -4, -1 },
+        { -2, -8, -12, -8, -2 },
+        {  0,  0,  0,   0,  0 },
+        {  2,  8,  12,  8,  2 },
+        {  1,  4,  6,   4,  1 }
         #endif
         #if SIZE_X==7
-        -1, -6,  -15, -20,  -15, -6,  -1,
-        -4, -24, -60, -80,  -60, -24, -4,
-        -5, -30, -75, -100, -75, -30, -5,
-         0,  0,   0,   0,    0,   0,   0,
-         5,  30,  75,  100,  75,  30,  5,
-         4,  24,  60,  80,   60,  24,  4,
-         1,  6,   15,  20,   15,  6,   1,
+        { -1, -6,  -15, -20,  -15, -6,  -1 },
+        { -4, -24, -60, -80,  -60, -24, -4 },
+        { -5, -30, -75, -100, -75, -30, -5 },
+        {  0,  0,   0,   0,    0,   0,   0 },
+        {  5,  30,  75,  100,  75,  30,  5 },
+        {  4,  24,  60,  80,   60,  24,  4 },
+        {  1,  6,   15,  20,   15,  6,   1 }
         #endif
     };
     #ifdef CONST_MASK
     const
     #endif
-    int mask_x[] = {
+    int mask_x[1][SIZE_X] = {
         #if SIZE_X==3
-        1, 2, 1,
+        { 1, 2, 1 }
         #endif
         #if SIZE_X==5
-        1, 4, 6, 4, 1,
+        { 1, 4, 6, 4, 1 }
         #endif
         #if SIZE_X==7
-        1, 6, 15, 20, 15, 6, 1,
+        { 1, 6, 15, 20, 15, 6, 1 }
         #endif
     };
     #ifdef CONST_MASK
     const
     #endif
-    int mask_y[] = {
-        #if SIZE_X==3
-        -1, 0, +1,
+    int mask_y[SIZE_Y][1] = {
+        #if SIZE_Y==3
+        { -1 }, { 0 }, { +1 },
         #endif
-        #if SIZE_X==5
-        -1, -2, 0, +2, +1,
+        #if SIZE_Y==5
+        { -1 }, { -2 }, { 0 }, { +2 }, { +1 },
         #endif
-        #if SIZE_X==7
-        -1, -4, -5, 0, 5, 4, 1,
+        #if SIZE_Y==7
+        { -1 }, { -4 }, { -5 }, { 0 }, { 5 }, { 4 }, { 1 },
         #endif
     };
 #else
     #ifdef CONST_MASK
     const
     #endif
-    int mask[] = {
+    int mask[SIZE_Y][SIZE_X] = {
         #if SIZE_X==3
-        -1, 0,  1,
-        -2, 0,  2,
-        -1, 0,  1,
+        { -1, 0,  1 },
+        { -2, 0,  2 },
+        { -1, 0,  1 }
         #endif
         #if SIZE_X==5
-        -1, -2,  0,  2,  1,
-        -4, -8,  0,  8,  4,
-        -6, -12, 0,  12, 6,
-        -4, -8,  0,  8,  4,
-        -1, -2,  0,  2,  1,
+        { -1,  -2, 0,  2, 1 },
+        { -4,  -8, 0,  8, 4 },
+        { -6, -12, 0, 12, 6 },
+        { -4,  -8, 0,  8, 4 },
+        { -1,  -2, 0,  2, 1 }
         #endif
         #if SIZE_X==7
-        -1,  -4,  -5,   0, 5,   4,  1,
-        -6,  -24, -30,  0, 30,  24,  6,
-        -15, -60, -75,  0, 75,  60, 15,
-        -20, -80, -100, 0, 100, 80, 20,
-        -15, -60, -75,  0, 75,  60, 15,
-        -6,  -24, -30,  0, 30,  24,  6,
-        -1,  -4,  -5,   0, 5,   4,  1,
+        {  -1,  -4,   -5, 0,   5,  4,  1 },
+        {  -6, -24,  -30, 0,  30, 24,  6 },
+        { -15, -60,  -75, 0,  75, 60, 15 },
+        { -20, -80, -100, 0, 100, 80, 20 },
+        { -15, -60,  -75, 0,  75, 60, 15 },
+        {  -6, -24,  -30, 0,  30, 24,  6 },
+        {  -1,  -4,   -5, 0,   5,  4,  1 }
         #endif
     };
     #ifdef CONST_MASK
     const
     #endif
-    int mask_x[] = {
+    int mask_x[1][SIZE_X] = {
         #if SIZE_X==3
-        -1, 0, +1,
+        { -1, 0, +1 }
         #endif
         #if SIZE_X==5
-        -1, -2, 0, +2, +1,
+        { -1, -2, 0, +2, +1 }
         #endif
         #if SIZE_X==7
-        -1, -4, -5, 0, 5, 4, 1,
+        { -1, -4, -5, 0, 5, 4, 1 }
         #endif
     };
     #ifdef CONST_MASK
     const
     #endif
-    int mask_y[] = {
+    int mask_y[SIZE_Y][1] = {
         #if SIZE_X==3
-        1, 2, 1,
+        { 1 }, { 2 }, { 1 },
         #endif
         #if SIZE_X==5
-        1, 4, 6, 4, 1,
+        { 1 }, { 4 }, { 6 }, { 4 }, { 1 },
         #endif
         #if SIZE_X==7
-        1, 6, 15, 20, 15, 6, 1,
+        { 1 }, { 6 }, { 15 }, { 20 }, { 15 }, { 6 }, { 1 },
         #endif
     };
 #endif
 
-    // host memory for image of of width x height pixels
+    // host memory for image of width x height pixels
     float *host_in = (float *)malloc(sizeof(float)*width*height);
     float *host_out = (float *)malloc(sizeof(float)*width*height);
     float *reference_in = (float *)malloc(sizeof(float)*width*height);
@@ -413,12 +415,12 @@ int main(int argc, const char **argv) {
     Image<float> TMP(width, height);
 
     // filter mask
-    Mask<int> M(size_x, size_y);
-    Mask<int> MX(size_x, 1);
-    Mask<int> MY(1, size_y);
-    M = mask;
-    MX = mask_x;
-    MY = mask_y;
+    Mask<int> M(mask);
+    Mask<int> MX(mask_x);
+    Mask<int> MY(mask_y);
+
+    // filter domain
+    Domain D(M);
 
     IterationSpace<float> IsOut(OUT);
     IterationSpace<float> IsTmp(TMP);
@@ -433,18 +435,18 @@ int main(int argc, const char **argv) {
     // BOUNDARY_UNDEFINED
     #ifdef RUN_UNDEF
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInUndef2(IN, size_x, size_y, BOUNDARY_UNDEFINED);
+    BoundaryCondition<float> BcInUndef2(IN, M, BOUNDARY_UNDEFINED);
     Accessor<float> AccInUndef2(BcInUndef2);
-    SobelFilterMask SFU(IsOut, AccInUndef2, M, size_x);
+    SobelFilterMask SFU(IsOut, AccInUndef2, D, M, size_x);
 
     SFU.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInUndef(IN, size_x, 1, BOUNDARY_UNDEFINED);
+    BoundaryCondition<float> BcInUndef(IN, MX, BOUNDARY_UNDEFINED);
     Accessor<float> AccInUndef(BcInUndef);
     SobelFilterMaskRow SFRU(IsTmp, AccInUndef, MX, size_x);
 
-    BoundaryCondition<float> BcTmpUndef(TMP, 1, size_y, BOUNDARY_UNDEFINED);
+    BoundaryCondition<float> BcTmpUndef(TMP, MY, BOUNDARY_UNDEFINED);
     Accessor<float> AccTmpUndef(BcTmpUndef);
     SobelFilterMaskColumn SFCU(IsOut, AccTmpUndef, MY, size_y);
 
@@ -460,18 +462,18 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_CLAMP
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInClamp2(IN, size_x, size_y, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcInClamp2(IN, M, BOUNDARY_CLAMP);
     Accessor<float> AccInClamp2(BcInClamp2);
-    SobelFilterMask SFC(IsOut, AccInClamp2, M, size_x);
+    SobelFilterMask SFC(IsOut, AccInClamp2, D, M, size_x);
 
     SFC.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInClamp(IN, size_x, 1, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcInClamp(IN, MX, BOUNDARY_CLAMP);
     Accessor<float> AccInClamp(BcInClamp);
     SobelFilterMaskRow SFRC(IsTmp, AccInClamp, MX, size_x);
 
-    BoundaryCondition<float> BcTmpClamp(TMP, 1, size_y, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcTmpClamp(TMP, MY, BOUNDARY_CLAMP);
     Accessor<float> AccTmpClamp(BcTmpClamp);
     SobelFilterMaskColumn SFCC(IsOut, AccTmpClamp, MY, size_y);
 
@@ -486,18 +488,18 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_REPEAT
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInRepeat2(IN, size_x, size_y, BOUNDARY_REPEAT);
+    BoundaryCondition<float> BcInRepeat2(IN, M, BOUNDARY_REPEAT);
     Accessor<float> AccInRepeat2(BcInRepeat2);
-    SobelFilterMask SFR(IsOut, AccInRepeat2, M, size_x);
+    SobelFilterMask SFR(IsOut, AccInRepeat2, D, M, size_x);
 
     SFR.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInRepeat(IN, size_x, 1, BOUNDARY_REPEAT);
+    BoundaryCondition<float> BcInRepeat(IN, MX, BOUNDARY_REPEAT);
     Accessor<float> AccInRepeat(BcInRepeat);
     SobelFilterMaskRow SFRR(IsTmp, AccInRepeat, MX, size_x);
 
-    BoundaryCondition<float> BcTmpRepeat(TMP, 1, size_y, BOUNDARY_REPEAT);
+    BoundaryCondition<float> BcTmpRepeat(TMP, MY, BOUNDARY_REPEAT);
     Accessor<float> AccTmpRepeat(BcTmpRepeat);
     SobelFilterMaskColumn SFCR(IsOut, AccTmpRepeat, MY, size_y);
 
@@ -512,18 +514,18 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_MIRROR
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInMirror2(IN, size_x, size_y, BOUNDARY_MIRROR);
+    BoundaryCondition<float> BcInMirror2(IN, M, BOUNDARY_MIRROR);
     Accessor<float> AccInMirror2(BcInMirror2);
-    SobelFilterMask SFM(IsOut, AccInMirror2, M, size_x);
+    SobelFilterMask SFM(IsOut, AccInMirror2, D, M, size_x);
 
     SFM.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInMirror(IN, size_x, 1, BOUNDARY_MIRROR);
+    BoundaryCondition<float> BcInMirror(IN, MX, BOUNDARY_MIRROR);
     Accessor<float> AccInMirror(BcInMirror);
     SobelFilterMaskRow SFRM(IsTmp, AccInMirror, MX, size_x);
 
-    BoundaryCondition<float> BcTmpMirror(TMP, 1, size_y, BOUNDARY_MIRROR);
+    BoundaryCondition<float> BcTmpMirror(TMP, MY, BOUNDARY_MIRROR);
     Accessor<float> AccTmpMirror(BcTmpMirror);
     SobelFilterMaskColumn SFCM(IsOut, AccTmpMirror, MY, size_y);
 
@@ -538,18 +540,18 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_CONSTANT
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInConst2(IN, size_x, size_y, BOUNDARY_CONSTANT, '1');
+    BoundaryCondition<float> BcInConst2(IN, M, BOUNDARY_CONSTANT, '1');
     Accessor<float> AccInConst2(BcInConst2);
-    SobelFilterMask SFConst(IsOut, AccInConst2, M, size_x);
+    SobelFilterMask SFConst(IsOut, AccInConst2, D, M, size_x);
 
     SFConst.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInConst(IN, size_x, 1, BOUNDARY_CONSTANT, '1');
+    BoundaryCondition<float> BcInConst(IN, MX, BOUNDARY_CONSTANT, '1');
     Accessor<float> AccInConst(BcInConst);
     SobelFilterMaskRow SFRConst(IsTmp, AccInConst, MX, size_x);
 
-    BoundaryCondition<float> BcTmpConst(TMP, 1, size_y, BOUNDARY_CONSTANT, 1);
+    BoundaryCondition<float> BcTmpConst(TMP, MY, BOUNDARY_CONSTANT, 1);
     Accessor<float> AccTmpConst(BcTmpConst);
     SobelFilterMaskColumn SFCConst(IsOut, AccTmpConst, MY, size_y);
 
