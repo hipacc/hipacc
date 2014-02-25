@@ -311,6 +311,7 @@ class HipaccMask : public HipaccMemory {
     SmallVector<HipaccKernel *, 16> kernels;
     std::string hostMemName;
     bool *domain_space;
+    HipaccMask *copy_mask;
 
   public:
     HipaccMask(VarDecl *VD, QualType QT, MaskType type) :
@@ -321,12 +322,16 @@ class HipaccMask : public HipaccMemory {
       is_printed(false),
       kernels(0),
       hostMemName(),
-      domain_space(nullptr)
+      domain_space(nullptr),
+      copy_mask(nullptr)
     {}
 
     ~HipaccMask() {
       if (domain_space) {
         delete[] domain_space;
+      }
+      if (copy_mask) {
+        delete copy_mask;
       }
     }
 
@@ -373,6 +378,15 @@ class HipaccMask : public HipaccMemory {
     bool isDomainDefined(unsigned int x, unsigned int y) {
       unsigned int pos = (y * size_x) + x;
       return domain_space && domain_space[pos];
+    }
+    void setCopyMask(HipaccMask *mask) {
+      copy_mask = mask;
+    }
+    bool hasCopyMask() {
+      return copy_mask != nullptr;
+    }
+    HipaccMask *getCopyMask() {
+      return copy_mask;
     }
 };
 

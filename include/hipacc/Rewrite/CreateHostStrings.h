@@ -89,6 +89,8 @@ class CreateHostStrings {
         &resultStr);
     void writeMemoryTransferSymbol(HipaccMask *Mask, std::string mem,
         MemoryTransferDirection direction, std::string &resultStr);
+    void writeMemoryTransferDomainFromMask(HipaccMask *Domain,
+        HipaccMask *Mask, std::string &resultStr);
     void writeMemoryRelease(HipaccMemory *Mem, std::string &resultStr,
         bool isPyramid=false);
     void writeKernelCall(std::string kernelName, HipaccKernelClass *KC,

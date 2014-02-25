@@ -378,6 +378,41 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
 }
 
 
+void CreateHostStrings::writeMemoryTransferDomainFromMask(
+    HipaccMask *Domain, HipaccMask *Mask, std::string &resultStr) {
+  switch (options.getTargetCode()) {
+    case TARGET_CUDA: {
+        SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
+        for (size_t i=0; i<kernels.size(); ++i) {
+          HipaccKernel *K = kernels[i];
+          if (i) resultStr += "\n" + indent;
+          resultStr += "hipaccWriteDomainFromMask<";
+          resultStr += Mask->getTypeStr() + ">(";
+          resultStr += "(const void *)&";
+          resultStr += Domain->getName() + K->getName() + ", ";
+          resultStr += "\"";
+          resultStr += Domain->getName() + K->getName() + "\", ";
+          resultStr += "(" + Mask->getTypeStr() + " *)";
+          resultStr += Mask->getHostMemName();
+          resultStr += ", " + Mask->getSizeXStr();
+          resultStr += ", " + Mask->getSizeYStr() + ");";
+        }
+      }
+      break;
+    case TARGET_C:
+    case TARGET_Renderscript:
+    case TARGET_Filterscript:
+    case TARGET_OpenCLACC:
+    case TARGET_OpenCLCPU:
+    case TARGET_OpenCLGPU:
+      resultStr += "hipaccWriteDomainFromMask<" + Mask->getTypeStr() + ">(";
+      resultStr += Domain->getName() + ", (" + Mask->getTypeStr() + "*)";
+      resultStr += Mask->getHostMemName() + ");";
+      break;
+  }
+}
+
+
 void CreateHostStrings::writeMemoryRelease(HipaccMemory *Mem,
     std::string &resultStr, bool isPyramid) {
   // The same runtime call for all targets, just distinguish between Pyramids

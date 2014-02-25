@@ -349,8 +349,14 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
       if (!compilerOptions.exploreConfig()) {
         std::string newStr;
-        stringCreator.writeMemoryTransferSymbol(Mask, Mask->getHostMemName(),
-            HOST_TO_DEVICE, newStr);
+        if (Mask->hasCopyMask()) {
+          stringCreator.writeMemoryTransferDomainFromMask(Mask,
+              Mask->getCopyMask(), newStr);
+        } else {
+          stringCreator.writeMemoryTransferSymbol(Mask, Mask->getHostMemName(),
+              HOST_TO_DEVICE, newStr);
+        }
+
         TextRewriter.InsertTextBefore(Mask->getDecl()->getLocStart(), newStr);
       }
     }
@@ -1243,6 +1249,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         Mask->setHostMemName(V->getName());
       }
 
+      HipaccMask *Domain = nullptr;
       // found Domain decl
       if (compilerClasses.isTypeOfClass(VD->getType(),
                                         compilerClasses.Domain)) {
@@ -1253,7 +1260,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                "Currently only Domain definitions are supported, no "
                "declarations!");
 
-        HipaccMask *Domain = new HipaccMask(VD, Context.UnsignedCharTy,
+        Domain = new HipaccMask(VD, Context.UnsignedCharTy,
                                             HipaccMask::Domain);
 
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
@@ -1270,31 +1277,35 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             // copy from mask
             HipaccMask *Mask = MaskDeclMap[DRE->getDecl()];
             assert(Mask && "Mask to copy from was not declared");
-            assert(Mask->isConstant() && "Mask to copy from must be constant");
 
             int size_x = Mask->getSizeX();
             int size_y = Mask->getSizeY();
 
             Domain->setSizeX(size_x);
             Domain->setSizeY(size_y);
-            Domain->setIsConstant(true);
 
-            for (int x = 0; x < size_x; ++x) {
-              for (int y = 0; y < size_y; ++y) {
-                // copy values to compiler internal data structure
-                Expr::EvalResult val;
-                Mask->getInitExpr(x, y)->EvaluateAsRValue(val, Context);
-                if (val.Val.isInt()) {
-                  Domain->setDomainDefined(x, y,
-                      val.Val.getInt().getSExtValue() != 0);
-                } else if (val.Val.isFloat()) {
-                  Domain->setDomainDefined(x, y,
-                      !val.Val.getFloat().isZero());
-                } else {
-                  assert(false && "Only builtin integer and floating point "
-                                  "literals supported in copy Mask");
+            Domain->setIsConstant(Mask->isConstant());
+
+            if (Mask->isConstant()) {
+              for (int x = 0; x < size_x; ++x) {
+                for (int y = 0; y < size_y; ++y) {
+                  // copy values to compiler internal data structure
+                  Expr::EvalResult val;
+                  Mask->getInitExpr(x, y)->EvaluateAsRValue(val, Context);
+                  if (val.Val.isInt()) {
+                    Domain->setDomainDefined(x, y,
+                        val.Val.getInt().getSExtValue() != 0);
+                  } else if (val.Val.isFloat()) {
+                    Domain->setDomainDefined(x, y,
+                        !val.Val.getFloat().isZero());
+                  } else {
+                    assert(false && "Only builtin integer and floating point "
+                                    "literals supported in copy Mask");
+                  }
                 }
               }
+            } else {
+              Domain->setCopyMask(Mask);
             }
           } else {
             // get from array
@@ -1357,23 +1368,30 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           Domain->setIsConstant(true);
         } else {
           assert(false && "Domain definition requires exactly two arguments "
-              "type constant integer or one argument of type uchar[]!");
+              "type constant integer or a single argument of type uchar[][] or "
+              "Mask!");
         }
-
-        Mask = Domain;
       }
 
-      if (Mask) {
-        std::string newStr;
-        if (!Mask->isConstant() && !compilerOptions.emitCUDA()) {
-          // create Buffer for Mask
-          stringCreator.writeMemoryAllocationConstant(Mask->getName(),
-              Mask->getTypeStr(), Mask->getSizeXStr(), Mask->getSizeYStr(),
-              newStr);
+      if (Mask || Domain) {
+        HipaccMask *Buf = Domain ? Domain : Mask;
 
-          // upload Mask to Buffer
-          stringCreator.writeMemoryTransferSymbol(Mask, Mask->getHostMemName(),
-              HOST_TO_DEVICE, newStr);
+        std::string newStr;
+        if (!Buf->isConstant() && !compilerOptions.emitCUDA()) {
+          // create Buffer for Mask
+          stringCreator.writeMemoryAllocationConstant(Buf->getName(),
+              Buf->getTypeStr(), Buf->getSizeXStr(), Buf->getSizeYStr(),
+            newStr);
+
+          if (Buf->hasCopyMask()) {
+            // create Domain from Mask and upload to Buffer
+            stringCreator.writeMemoryTransferDomainFromMask(Buf,
+                Buf->getCopyMask(), newStr);
+          } else {
+            // upload Mask to Buffer
+            stringCreator.writeMemoryTransferSymbol(Buf, Buf->getHostMemName(),
+                HOST_TO_DEVICE, newStr);
+          }
         }
 
         // replace Mask declaration by Buffer allocation
@@ -1384,7 +1402,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
         // store Mask definition
-        MaskDeclMap[VD] = Mask;
+        MaskDeclMap[VD] = Buf;
 
         break;
       }
