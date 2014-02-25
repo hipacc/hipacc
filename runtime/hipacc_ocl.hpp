@@ -790,6 +790,22 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img, int num_device=0) {
 }
 
 
+// Infer non-const Domain from non-const Mask
+template<typename T>
+void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
+  int size = dom.width * dom.height;
+  uchar *dom_mem = new uchar[size];
+
+  for (int i = 0; i < size; ++i) {
+    dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
+  }
+
+  hipaccWriteMemory(dom, dom_mem);
+
+  delete[] dom_mem;
+}
+
+
 // Copy between memory
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst, int num_device=0) {
     cl_int err = CL_SUCCESS;

@@ -575,6 +575,23 @@ void hipaccReadSymbol(T *host_mem, const void *symbol, const char *symbol_name, 
 }
 
 
+// Infer non-const Domain from non-const Mask
+template<typename T>
+void hipaccWriteDomainFromMask(const void *symbol, const char *symbol_name,
+                               T *host_mem, int width, int height) {
+  int size = width * height;
+  uchar *dom_mem = new uchar[size];
+
+  for (int i = 0; i < size; ++i) {
+    dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
+  }
+
+  hipaccWriteSymbol<uchar>(symbol, symbol_name, dom_mem, width, height);
+
+  delete[] dom_mem;
+}
+
+
 // Set the configuration for a kernel
 void hipaccConfigureCall(dim3 grid, dim3 block) {
     cudaError_t err = cudaSuccess;
