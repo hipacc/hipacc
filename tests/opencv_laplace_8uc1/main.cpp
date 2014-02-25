@@ -47,7 +47,7 @@
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
-#define CONST_MASK
+//#define CONST_MASK
 #define USE_LAMBDA
 //#define RUN_UNDEF
 
@@ -218,11 +218,8 @@ int main(int argc, const char **argv) {
     // filter mask
     Mask<int> M(mask);
 
-#ifdef CONST_MASK
+    // filter domain
     Domain D(M);
-#else
-    Domain D(size_x, size_y);
-#endif
 
     IterationSpace<unsigned char> IsOut(OUT);
 
