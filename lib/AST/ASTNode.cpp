@@ -159,36 +159,6 @@ IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint64_t val) {
 }
 
 
-FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, float val) {
-  FloatingLiteral *E = FloatingLiteral::Create(Ctx, llvm::APFloat(val), false,
-      Ctx.FloatTy, SourceLocation());
-
-  return E;
-}
-FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, double val) {
-  FloatingLiteral *E = FloatingLiteral::Create(Ctx, llvm::APFloat(val), false,
-      Ctx.DoubleTy, SourceLocation());
-
-  return E;
-}
-
-
-StringLiteral *createStringLiteral(ASTContext &Ctx, StringRef Name) {
-  StringLiteral *E = StringLiteral::CreateEmpty(Ctx, 1);
-  QualType StrTy = Ctx.CharTy;
-
-  if (Name.size() > 1) {
-    StrTy = Ctx.getConstantArrayType(StrTy, llvm::APInt(32, Name.size()+1),
-        ArrayType::Normal, 0);
-  }
-
-  E->setString(Ctx, Name, StringLiteral::UTF8, false);
-  E->setType(StrTy);
-
-  return E;
-}
-
-
 DeclStmt *createDeclStmt(ASTContext &Ctx, Decl *VD) {
   DeclStmt *S = new (Ctx) DeclStmt(Stmt::EmptyShell());
 

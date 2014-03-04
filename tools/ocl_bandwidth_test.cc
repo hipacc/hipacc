@@ -49,7 +49,6 @@ int main(int argc, char *argv[]) {
     cl_device_type device_type = CL_DEVICE_TYPE_ALL;
     cl_platform_name platform_name = ALL;
     size_t memory_size = 64*(1 << 20);      //64 M
-    float bandwidth_MBs = 0.0f;
 
     // scan command-line options
     while ((option = getopt(argc, (char * const *)argv, "hd:p:s:")) != -1) {
@@ -118,7 +117,7 @@ int main(int argc, char *argv[]) {
         // calculate bandwidth in MB/s
         // this is for kernels that read and write global memory simultaneously
         // obtained throughput for unidirectional block copies will be 1/2 of this #
-        bandwidth_MBs = 2.0f * ((double)memory_size)/(time * (double)(1 << 20));
+        float bandwidth_MBs = 2.0f * ((double)memory_size)/(time * (double)(1 << 20));
 
         // print statistic
         std::cout << "Device number: " << num_device << std::endl;

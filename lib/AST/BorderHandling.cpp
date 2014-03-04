@@ -141,7 +141,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
 Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     Expr *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
     SmallVector<CompoundStmt *, 16> &bhCStmt) {
-  Expr *RHS, *result;
+  Expr *result = nullptr;
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
 
   std::stringstream LSSX, LSSY, LSST;
@@ -234,7 +234,8 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
   }
 
   if (Acc->getBoundaryHandling() == BOUNDARY_CONSTANT) {
-    // <type> _tmp<0> = const_val;
+    // <typ, e> _tmp<0> = const_val;
+    Expr *RHS = nullptr;
     Expr *const_val = Acc->getConstExpr();
     VarDecl *tmp_t = createVarDecl(Ctx, kernelDecl, LSST.str(),
         const_val->getType(), const_val);

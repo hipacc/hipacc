@@ -1631,9 +1631,9 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
         if (NS->getNameAsString() == "hipacc") {
           // namespace hipacc::math
           targetFD = E->getDirectCallee();
-          bool doUpdate = false;
 
           if (!compilerOptions.emitCUDA()) {
+            bool doUpdate = false;
             std::string name = E->getDirectCallee()->getNameAsString();
             if (name.at(name.length()-1)=='f') {
               if (name!="modf" && name!="erf") {
@@ -2267,11 +2267,10 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
   MemberExpr *ME = dyn_cast<MemberExpr>(E->getCallee());
 
-  DeclRefExpr *LHS;
+  DeclRefExpr *LHS = nullptr;
   HipaccAccessor *Acc = nullptr;
-  HipaccMask *Mask = nullptr;
+  Expr *result = nullptr;
   MemoryAccess memAcc = UNDEFINED;
-  Expr *result;
 
   if (isa<CXXThisExpr>(ME->getBase()->IgnoreImpCasts())) {
     // check if this is a convolve function call
@@ -2342,7 +2341,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     FieldDecl *FD = dyn_cast<FieldDecl>(ImgAcc->getMemberDecl());
 
     Acc = Kernel->getImgFromMapping(FD);
-    Mask = Kernel->getMaskFromMapping(FD);
+    HipaccMask *Mask = Kernel->getMaskFromMapping(FD);
     memAcc = KernelClass->getImgAccess(FD);
     assert((Acc || Mask) &&
            "Could not find Image/Accessor/Mask/Domain Field Decl.");

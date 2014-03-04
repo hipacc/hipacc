@@ -874,7 +874,5 @@ KernelStatistics *KernelStatistics::computeKernelStatistics(AnalysisDeclContext
   return new KernelStatistics(KS);
 }
 
-const void *KernelStatistics::getTag() { static int x; return &x; }
-
 // vim: set ts=2 sw=2 sts=2 et ai:
 

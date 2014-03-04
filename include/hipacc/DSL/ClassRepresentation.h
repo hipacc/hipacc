@@ -596,7 +596,6 @@ class HipaccKernel : public HipaccKernelFeatures {
   private:
     ASTContext &Ctx;
     VarDecl *VD;
-    CompilerOptions &options;
     std::string name;
     std::string kernelName, reduceName;
     std::string fileName;
@@ -635,7 +634,6 @@ class HipaccKernel : public HipaccKernelFeatures {
       HipaccKernelFeatures(options, KC),
       Ctx(Ctx),
       VD(VD),
-      options(options),
       name(VD->getNameAsString()),
       kernelName(options.getTargetPrefix() + KC->getName() + name + "Kernel"),
       reduceName(options.getTargetPrefix() + KC->getName() + name + "Reduce"),

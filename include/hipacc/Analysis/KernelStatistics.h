@@ -130,8 +130,6 @@ class KernelStatistics : public ManagedAnalysis {
       //.setAlwaysAdd(Stmt::CXXThisExprClass)
       //.setAlwaysAdd(Stmt::ImplicitCastExprClass)
     }
-
-    static const void *getTag();
 };
 } // end namespace hipacc
 } // end namespace clang
