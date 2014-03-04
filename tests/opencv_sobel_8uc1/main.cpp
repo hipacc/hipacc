@@ -35,8 +35,12 @@
 #include <sys/time.h>
 
 #ifdef OpenCV
+#ifndef CPU
 #include "opencv2/gpu/gpu.hpp"
-#include "opencv2/imgproc/imgproc_c.h"
+#else
+#include "opencv2/core/core.hpp"
+#endif
+#include "opencv2/imgproc/imgproc.hpp"
 #endif
 
 #include "hipacc.hpp"
@@ -69,8 +73,8 @@ double time_ms () {
 
 
 // Sobel filter reference
-void sobel_filter(unsigned char *in, short int *out, int *filter, int size_x,
-        int size_y, int width, int height) {
+void sobel_filter(uchar *in, short *out, int *filter, int size_x, int size_y,
+        int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
 #ifdef OpenCV
@@ -87,15 +91,16 @@ void sobel_filter(unsigned char *in, short int *out, int *filter, int size_x,
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x]*in[(y+yf)*width + x + xf];
+                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x] *
+                           in[(y+yf)*width + x + xf];
                 }
             }
             out[y*width + x] = sum;
         }
     }
 }
-void sobel_filter_row(unsigned char *in, short int *out, int *filter, int size_x,
-        int width, int height) {
+void sobel_filter_row(uchar *in, short *out, int *filter, int size_x, int width,
+        int height) {
     int anchor_x = size_x >> 1;
 #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
@@ -116,8 +121,8 @@ void sobel_filter_row(unsigned char *in, short int *out, int *filter, int size_x
         //for (int x=upper_x; x<width; x++) out[y*width + x] = in[y*width + x];
     }
 }
-void sobel_filter_column(short int *in, short int *out, int *filter, int size_y,
-        int width, int height) {
+void sobel_filter_column(short *in, int *out, int *filter, int size_y, int
+        width, int height) {
     int anchor_y = size_y >> 1;
 #ifdef OpenCV
     int upper_y = height-size_y+anchor_y;
@@ -127,7 +132,7 @@ void sobel_filter_column(short int *in, short int *out, int *filter, int size_y,
 
     //for (int y=0; y<anchor_y; y++) {
     //    for (int x=0; x<width; ++x) {
-    //        out[y*width + x] = (unsigned char) in[y*width + x];
+    //        out[y*width + x] = (uchar) in[y*width + x];
     //    }
     //}
     for (int y=anchor_y; y<upper_y; ++y) {
@@ -135,14 +140,15 @@ void sobel_filter_column(short int *in, short int *out, int *filter, int size_y,
             int sum = 0;
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-                sum += filter[yf + anchor_y]*in[(y + yf)*width + x];
+                sum += filter[yf + anchor_y] *
+                       in[(y + yf)*width + x];
             }
             out[y*width + x] = sum;
         }
     }
     //for (int y=upper_y; y<height; y++) {
     //    for (int x=0; x<width; ++x) {
-    //        out[y*width + x] = (unsigned char) in[y*width + x];
+    //        out[y*width + x] = (uchar) in[y*width + x];
     //    }
     //}
 }
@@ -150,27 +156,27 @@ void sobel_filter_column(short int *in, short int *out, int *filter, int size_y,
 
 // Sobel filter in HIPAcc
 #ifdef NO_SEP
-class SobelFilterMask : public Kernel<short int> {
+class SobelFilterMask : public Kernel<short> {
     private:
-        Accessor<unsigned char> &Input;
+        Accessor<uchar> &input;
         Domain &dom;
-        Mask<int> &cMask;
+        Mask<int> &mask;
         const int size;
 
     public:
-        SobelFilterMask(IterationSpace<short int> &IS, Accessor<unsigned char>
-                &Input, Domain &dom, Mask<int> &cMask, const int size) :
-            Kernel(IS),
-            Input(Input),
+        SobelFilterMask(IterationSpace<short> &iter, Accessor<uchar> &input,
+                Domain &dom, Mask<int> &mask, const int size) :
+            Kernel(iter),
+            input(input),
             dom(dom),
-            cMask(cMask),
+            mask(mask),
             size(size)
-        { addAccessor(&Input); }
+        { addAccessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = (short int)(reduce(dom, HipaccSUM, [&] () -> int {
-                    return cMask(dom) * Input(dom);
+            output() = (short)(reduce(dom, HipaccSUM, [&] () -> int {
+                    return mask(dom) * input(dom);
                     }));
         }
         #else
@@ -180,34 +186,34 @@ class SobelFilterMask : public Kernel<short int> {
 
             for (int yf = -anchor; yf<=anchor; yf++) {
                 for (int xf = -anchor; xf<=anchor; xf++) {
-                    sum += cMask(xf, yf)*Input(xf, yf);
+                    sum += mask(xf, yf)*input(xf, yf);
                 }
             }
 
-            output() = (short int) sum;
+            output() = (short) sum;
         }
         #endif
 };
 #else
-class SobelFilterMaskRow : public Kernel<short int> {
+class SobelFilterMaskRow : public Kernel<short> {
     private:
-        Accessor<unsigned char> &Input;
-        Mask<int> &cMask;
+        Accessor<uchar> &input;
+        Mask<int> &mask;
         const int size;
 
     public:
-        SobelFilterMaskRow(IterationSpace<short int> &IS, Accessor<unsigned
-                char> &Input, Mask<int> &cMask, const int size):
-            Kernel(IS),
-            Input(Input),
-            cMask(cMask),
+        SobelFilterMaskRow(IterationSpace<short> &iter, Accessor<uchar> &input,
+                Mask<int> &mask, const int size):
+            Kernel(iter),
+            input(input),
+            mask(mask),
             size(size)
-        { addAccessor(&Input); }
+        { addAccessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = (short int)(convolve(cMask, HipaccSUM, [&] () -> int {
-                    return cMask() * Input(cMask);
+            output() = (short)(convolve(mask, HipaccSUM, [&] () -> int {
+                    return mask() * input(mask);
                     }));
         }
         #else
@@ -216,32 +222,32 @@ class SobelFilterMaskRow : public Kernel<short int> {
             int sum = 0;
 
             for (int xf = -anchor; xf<=anchor; xf++) {
-                sum += cMask(xf, 0)*Input(xf, 0);
+                sum += mask(xf, 0)*input(xf, 0);
             }
 
-            output() = (short int) sum;
+            output() = (short) sum;
         }
         #endif
 };
-class SobelFilterMaskColumn : public Kernel<short int> {
+class SobelFilterMaskColumn : public Kernel<short> {
     private:
-        Accessor<short int> &Input;
-        Mask<int> &cMask;
+        Accessor<short> &input;
+        Mask<int> &mask;
         const int size;
 
     public:
-        SobelFilterMaskColumn(IterationSpace<short int> &IS, Accessor<short int>
-                &Input, Mask<int> &cMask, const int size):
-            Kernel(IS),
-            Input(Input),
-            cMask(cMask),
+        SobelFilterMaskColumn(IterationSpace<short> &iter, Accessor<short>
+                &input, Mask<int> &mask, const int size):
+            Kernel(iter),
+            input(input),
+            mask(mask),
             size(size)
-        { addAccessor(&Input); }
+        { addAccessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = (short int)(convolve(cMask, HipaccSUM, [&] () -> int {
-                    return cMask() * Input(cMask);
+            output() = (short)(convolve(mask, HipaccSUM, [&] () -> int {
+                    return mask() * input(mask);
                     }));
         }
         #else
@@ -250,10 +256,10 @@ class SobelFilterMaskColumn : public Kernel<short int> {
             int sum = 0;
 
             for (int yf = -anchor; yf<=anchor; yf++) {
-                sum += cMask(0, yf)*Input(0, yf);
+                sum += mask(0, yf)*input(0, yf);
             }
 
-            output() = (short int) sum;
+            output() = (short) sum;
         }
         #endif
 };
@@ -450,16 +456,17 @@ int main(int argc, const char **argv) {
 #endif
 
     // host memory for image of width x height pixels
-    unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    short int *host_out = (short int *)malloc(sizeof(short int)*width*height);
-    unsigned char *reference_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    short int *reference_out = (short int *)malloc(sizeof(short int)*width*height);
-    short int *reference_tmp = (short int *)malloc(sizeof(short int)*width*height);
+    uchar *host_in = (uchar *)malloc(sizeof(uchar)*width*height);
+    short *host_out = (short *)malloc(sizeof(short)*width*height);
+    uchar *reference_in = (uchar *)malloc(sizeof(uchar)*width*height);
+    short *reference_out = (short *)malloc(sizeof(short)*width*height);
+    short *reference_tmp = (short *)malloc(sizeof(short)*width*height);
 
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = rand()%256;
+            uchar val = rand()%256;
+            host_in[y*width + x] = val;
             reference_in[y*width + x] = host_in[y*width + x];
             host_out[y*width + x] = 0;
             reference_out[y*width + x] = 0;
@@ -469,9 +476,9 @@ int main(int argc, const char **argv) {
 
 
     // input and output image of width x height pixels
-    Image<unsigned char> IN(width, height);
-    Image<short int> OUT(width, height);
-    Image<short int> TMP(width, height);
+    Image<uchar> IN(width, height);
+    Image<short> OUT(width, height);
+    Image<short> TMP(width, height);
 
     // filter mask
     Mask<int> M(mask);
@@ -507,8 +514,8 @@ int main(int argc, const char **argv) {
     #endif
     #endif
 
-    IterationSpace<short int> IsOut(OUT);
-    IterationSpace<short int> IsTmp(TMP);
+    IterationSpace<short> IsOut(OUT);
+    IterationSpace<short> IsTmp(TMP);
 
     IN = host_in;
     OUT = host_out;
@@ -520,19 +527,19 @@ int main(int argc, const char **argv) {
     // BOUNDARY_UNDEFINED
     #ifdef RUN_UNDEF
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInUndef2(IN, M, BOUNDARY_UNDEFINED);
-    Accessor<unsigned char> AccInUndef2(BcInUndef2);
+    BoundaryCondition<uchar> BcInUndef2(IN, M, BOUNDARY_UNDEFINED);
+    Accessor<uchar> AccInUndef2(BcInUndef2);
     SobelFilterMask SFU(IsOut, AccInUndef2, D, M, size_x);
 
     SFU.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInUndef(IN, MX, BOUNDARY_UNDEFINED);
-    Accessor<unsigned char> AccInUndef(BcInUndef);
+    BoundaryCondition<uchar> BcInUndef(IN, MX, BOUNDARY_UNDEFINED);
+    Accessor<uchar> AccInUndef(BcInUndef);
     SobelFilterMaskRow SFRU(IsTmp, AccInUndef, MX, size_x);
 
-    BoundaryCondition<short int> BcTmpUndef(TMP, MY, BOUNDARY_UNDEFINED);
-    Accessor<short int> AccTmpUndef(BcTmpUndef);
+    BoundaryCondition<short> BcTmpUndef(TMP, MY, BOUNDARY_UNDEFINED);
+    Accessor<short> AccTmpUndef(BcTmpUndef);
     SobelFilterMaskColumn SFCU(IsOut, AccTmpUndef, MY, size_y);
 
     SFRU.execute();
@@ -547,19 +554,19 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_CLAMP
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInClamp2(IN, M, BOUNDARY_CLAMP);
-    Accessor<unsigned char> AccInClamp2(BcInClamp2);
+    BoundaryCondition<uchar> BcInClamp2(IN, M, BOUNDARY_CLAMP);
+    Accessor<uchar> AccInClamp2(BcInClamp2);
     SobelFilterMask SFC(IsOut, AccInClamp2, D, M, size_x);
 
     SFC.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInClamp(IN, MX, BOUNDARY_CLAMP);
-    Accessor<unsigned char> AccInClamp(BcInClamp);
+    BoundaryCondition<uchar> BcInClamp(IN, MX, BOUNDARY_CLAMP);
+    Accessor<uchar> AccInClamp(BcInClamp);
     SobelFilterMaskRow SFRC(IsTmp, AccInClamp, MX, size_x);
 
-    BoundaryCondition<short int> BcTmpClamp(TMP, MY, BOUNDARY_CLAMP);
-    Accessor<short int> AccTmpClamp(BcTmpClamp);
+    BoundaryCondition<short> BcTmpClamp(TMP, MY, BOUNDARY_CLAMP);
+    Accessor<short> AccTmpClamp(BcTmpClamp);
     SobelFilterMaskColumn SFCC(IsOut, AccTmpClamp, MY, size_y);
 
     SFRC.execute();
@@ -573,19 +580,19 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_REPEAT
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInRepeat2(IN, M, BOUNDARY_REPEAT);
-    Accessor<unsigned char> AccInRepeat2(BcInRepeat2);
+    BoundaryCondition<uchar> BcInRepeat2(IN, M, BOUNDARY_REPEAT);
+    Accessor<uchar> AccInRepeat2(BcInRepeat2);
     SobelFilterMask SFR(IsOut, AccInRepeat2, D, M, size_x);
 
     SFR.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInRepeat(IN, MX, BOUNDARY_REPEAT);
-    Accessor<unsigned char> AccInRepeat(BcInRepeat);
+    BoundaryCondition<uchar> BcInRepeat(IN, MX, BOUNDARY_REPEAT);
+    Accessor<uchar> AccInRepeat(BcInRepeat);
     SobelFilterMaskRow SFRR(IsTmp, AccInRepeat, MX, size_x);
 
-    BoundaryCondition<short int> BcTmpRepeat(TMP, MY, BOUNDARY_REPEAT);
-    Accessor<short int> AccTmpRepeat(BcTmpRepeat);
+    BoundaryCondition<short> BcTmpRepeat(TMP, MY, BOUNDARY_REPEAT);
+    Accessor<short> AccTmpRepeat(BcTmpRepeat);
     SobelFilterMaskColumn SFCR(IsOut, AccTmpRepeat, MY, size_y);
 
     SFRR.execute();
@@ -599,19 +606,19 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_MIRROR
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInMirror2(IN, M, BOUNDARY_MIRROR);
-    Accessor<unsigned char> AccInMirror2(BcInMirror2);
+    BoundaryCondition<uchar> BcInMirror2(IN, M, BOUNDARY_MIRROR);
+    Accessor<uchar> AccInMirror2(BcInMirror2);
     SobelFilterMask SFM(IsOut, AccInMirror2, D, M, size_x);
 
     SFM.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInMirror(IN, MX, BOUNDARY_MIRROR);
-    Accessor<unsigned char> AccInMirror(BcInMirror);
+    BoundaryCondition<uchar> BcInMirror(IN, MX, BOUNDARY_MIRROR);
+    Accessor<uchar> AccInMirror(BcInMirror);
     SobelFilterMaskRow SFRM(IsTmp, AccInMirror, MX, size_x);
 
-    BoundaryCondition<short int> BcTmpMirror(TMP, MY, BOUNDARY_MIRROR);
-    Accessor<short int> AccTmpMirror(BcTmpMirror);
+    BoundaryCondition<short> BcTmpMirror(TMP, MY, BOUNDARY_MIRROR);
+    Accessor<short> AccTmpMirror(BcTmpMirror);
     SobelFilterMaskColumn SFCM(IsOut, AccTmpMirror, MY, size_y);
 
     SFRM.execute();
@@ -625,19 +632,19 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_CONSTANT
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInConst2(IN, M, BOUNDARY_CONSTANT, '1');
-    Accessor<unsigned char> AccInConst2(BcInConst2);
+    BoundaryCondition<uchar> BcInConst2(IN, M, BOUNDARY_CONSTANT, '1');
+    Accessor<uchar> AccInConst2(BcInConst2);
     SobelFilterMask SFConst(IsOut, AccInConst2, D, M, size_x);
 
     SFConst.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInConst(IN, MX, BOUNDARY_CONSTANT, '1');
-    Accessor<unsigned char> AccInConst(BcInConst);
+    BoundaryCondition<uchar> BcInConst(IN, MX, BOUNDARY_CONSTANT, '1');
+    Accessor<uchar> AccInConst(BcInConst);
     SobelFilterMaskRow SFRConst(IsTmp, AccInConst, MX, size_x);
 
-    BoundaryCondition<short int> BcTmpConst(TMP, MY, BOUNDARY_CONSTANT, 1);
-    Accessor<short int> AccTmpConst(BcTmpConst);
+    BoundaryCondition<short> BcTmpConst(TMP, MY, BOUNDARY_CONSTANT, 1);
+    Accessor<short> AccTmpConst(BcTmpConst);
     SobelFilterMaskColumn SFCConst(IsOut, AccTmpConst, MY, size_y);
 
     SFRConst.execute();
