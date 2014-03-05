@@ -234,7 +234,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
   }
 
   if (Acc->getBoundaryHandling() == BOUNDARY_CONSTANT) {
-    // <typ, e> _tmp<0> = const_val;
+    // <type> _tmp<0> = const_val;
     Expr *RHS = nullptr;
     Expr *const_val = Acc->getConstExpr();
     VarDecl *tmp_t = createVarDecl(Ctx, kernelDecl, LSST.str(),
