@@ -141,22 +141,19 @@ int main(int argc, char *argv[]) {
         printf("kernels: '%s'\n", kernel_file_name.c_str());
 
         std::string line;
-        int num_gprs=-1, stack_size=-1, lds_size=-1;
+        int num_gprs=-1, lds_size=-1;
         while (std::getline(file, line)) {
             if (num_gprs < 0) {
                 sscanf(line.c_str(), "SQ_PGM_RESOURCES:NUM_GPRS = %d", &num_gprs);
-            }
-            if (stack_size < 0) {
-                sscanf(line.c_str(), "SQ_PGM_RESOURCES:STACK_SIZE = %d", &stack_size);
             }
             if (lds_size < 0) {
                 sscanf(line.c_str(), "SQ_LDS_ALLOC:SIZE = %i", &lds_size);
             }
         }
-        if (num_gprs < 0 || stack_size < 0 || lds_size < 0) {
-            printf("isa error while determining resource usage : Used %d gprs, %d bytes lds, stack size: %d\n", num_gprs, lds_size, stack_size);
+        if (num_gprs < 0 || lds_size < 0) {
+            printf("isa error while determining resource usage : Used %d gprs, %d bytes lds\n", num_gprs, lds_size);
         } else {
-            printf("isa info : Used %d gprs, %d bytes lds, stack size: %d\n", num_gprs, lds_size, stack_size);
+            printf("isa info : Used %d gprs, %d bytes lds\n", num_gprs, lds_size);
         }
         fflush(stdout);
     }

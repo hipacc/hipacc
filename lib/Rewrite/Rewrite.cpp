@@ -2043,7 +2043,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
     info = "ptxas info : Used %d registers";
   } else {
     if (targetDevice.isAMDGPU()) {
-      info = "isa info : Used %d gprs, %d bytes lds, stack size: %d";
+      info = "isa info : Used %d gprs, %d bytes lds";
     } else {
       info = "ptxas info : Used %d registers";
     }
@@ -2051,7 +2051,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
     lines.push_back(std::string(line));
     if (targetDevice.isAMDGPU()) {
-      sscanf(line, info.c_str(), &reg, &smem, &lmem);
+      sscanf(line, info.c_str(), &reg, &smem);
     } else {
       char *ptr = line;
       int num_read = 0, val1 = 0, val2 = 0;
@@ -2130,7 +2130,6 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
     if (targetDevice.isAMDGPU()) {
       llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
                    << ": " << reg << " gprs, "
-                   << lmem << " bytes stack, "
                    << smem << " bytes lds\n";
     } else {
       llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
