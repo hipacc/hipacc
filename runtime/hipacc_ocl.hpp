@@ -27,7 +27,7 @@
 #ifndef __HIPACC_OCL_HPP__
 #define __HIPACC_OCL_HPP__
 
-#if defined(__APPLE__) || defined(MACOSX)
+#ifdef __APPLE__
 #include <OpenCL/cl.h>
 #else
 #include <CL/cl.h>
