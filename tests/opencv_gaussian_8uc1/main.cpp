@@ -65,8 +65,8 @@ double time_ms () {
 
 
 // Gaussian blur filter reference
-void gaussian_filter(unsigned char *in, unsigned char *out, float *filter, int
-        size_x, int size_y, int width, int height) {
+void gaussian_filter(uchar *in, uchar *out, float *filter, int size_x, int
+        size_y, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
     #ifdef OpenCV
@@ -83,15 +83,16 @@ void gaussian_filter(unsigned char *in, unsigned char *out, float *filter, int
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x]*in[(y+yf)*width + x + xf];
+                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x] *
+                           in[(y+yf)*width + x + xf];
                 }
             }
-            out[y*width + x] = (unsigned char) (sum);
+            out[y*width + x] = (uchar) (sum);
         }
     }
 }
-void gaussian_filter_row(unsigned char *in, float *out, float *filter, int
-        size_x, int width, int height) {
+void gaussian_filter_row(uchar *in, float *out, float *filter, int size_x, int
+        width, int height) {
     int anchor_x = size_x >> 1;
     #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
@@ -105,15 +106,15 @@ void gaussian_filter_row(unsigned char *in, float *out, float *filter, int
             float sum = 0;
 
             for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                sum += filter[xf+anchor_x]*in[(y)*width + x + xf];
+                sum += filter[xf+anchor_x] * in[(y)*width + x + xf];
             }
             out[y*width + x] = sum;
         }
         //for (int x=upper_x; x<width; x++) out[y*width + x] = in[y*width + x];
     }
 }
-void gaussian_filter_column(float *in, unsigned char *out, float *filter, int
-        size_y, int width, int height) {
+void gaussian_filter_column(float *in, uchar *out, float *filter, int size_y,
+        int width, int height) {
     int anchor_y = size_y >> 1;
     #ifdef OpenCV
     int upper_y = height-size_y+anchor_y;
@@ -123,7 +124,7 @@ void gaussian_filter_column(float *in, unsigned char *out, float *filter, int
 
     //for (int y=0; y<anchor_y; y++) {
     //    for (int x=0; x<width; ++x) {
-    //        out[y*width + x] = (unsigned char) in[y*width + x];
+    //        out[y*width + x] = (uchar) in[y*width + x];
     //    }
     //}
     for (int y=anchor_y; y<upper_y; ++y) {
@@ -131,14 +132,14 @@ void gaussian_filter_column(float *in, unsigned char *out, float *filter, int
             float sum = 0.5f;
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-                sum += filter[yf + anchor_y]*in[(y + yf)*width + x];
+                sum += filter[yf + anchor_y] * in[(y + yf)*width + x];
             }
-            out[y*width + x] = (unsigned char) (sum);
+            out[y*width + x] = (uchar) (sum);
         }
     }
     //for (int y=upper_y; y<height; y++) {
     //    for (int x=0; x<width; ++x) {
-    //        out[y*width + x] = (unsigned char) in[y*width + x];
+    //        out[y*width + x] = (uchar) in[y*width + x];
     //    }
     //}
 }
@@ -146,16 +147,15 @@ void gaussian_filter_column(float *in, unsigned char *out, float *filter, int
 
 // Gaussian blur filter in HIPAcc
 #ifdef NO_SEP
-class GaussianBlurFilterMask : public Kernel<unsigned char> {
+class GaussianBlurFilterMask : public Kernel<uchar> {
     private:
-        Accessor<unsigned char> &input;
+        Accessor<uchar> &input;
         Mask<float> &mask;
         const int size_x, size_y;
 
     public:
-        GaussianBlurFilterMask(IterationSpace<unsigned char> &iter,
-                Accessor<unsigned char> &input, Mask<float> &mask, const int
-                size_x, const int size_y) :
+        GaussianBlurFilterMask(IterationSpace<uchar> &iter, Accessor<uchar>
+                &input, Mask<float> &mask, const int size_x, const int size_y) :
             Kernel(iter),
             input(input),
             mask(mask),
@@ -165,7 +165,7 @@ class GaussianBlurFilterMask : public Kernel<unsigned char> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = (unsigned char)(convolve(mask, HipaccSUM, [&] () -> float {
+            output() = (uchar)(convolve(mask, HipaccSUM, [&] () -> float {
                     return mask() * input(mask);
                     }) + 0.5f);
         }
@@ -181,20 +181,20 @@ class GaussianBlurFilterMask : public Kernel<unsigned char> {
                 }
             }
 
-            output() = (unsigned char) sum;
+            output() = (uchar) sum;
         }
         #endif
 };
 #else
 class GaussianBlurFilterMaskRow : public Kernel<float> {
     private:
-        Accessor<unsigned char> &input;
+        Accessor<uchar> &input;
         Mask<float> &mask;
         const int size;
 
     public:
-        GaussianBlurFilterMaskRow(IterationSpace<float> &iter, Accessor<unsigned
-                char> &input, Mask<float> &mask, const int size) :
+        GaussianBlurFilterMaskRow(IterationSpace<float> &iter, Accessor<uchar>
+                &input, Mask<float> &mask, const int size) :
             Kernel(iter),
             input(input),
             mask(mask),
@@ -220,14 +220,14 @@ class GaussianBlurFilterMaskRow : public Kernel<float> {
         }
         #endif
 };
-class GaussianBlurFilterMaskColumn : public Kernel<unsigned char> {
+class GaussianBlurFilterMaskColumn : public Kernel<uchar> {
     private:
         Accessor<float> &input;
         Mask<float> &mask;
         const int size;
 
     public:
-        GaussianBlurFilterMaskColumn(IterationSpace<unsigned char> &iter,
+        GaussianBlurFilterMaskColumn(IterationSpace<uchar> &iter,
                 Accessor<float> &input, Mask<float> &mask, const int size) :
             Kernel(iter),
             input(input),
@@ -237,7 +237,7 @@ class GaussianBlurFilterMaskColumn : public Kernel<unsigned char> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = (unsigned char)(convolve(mask, HipaccSUM, [&] () -> float {
+            output() = (uchar)(convolve(mask, HipaccSUM, [&] () -> float {
                     return mask() * input(mask);
                     }) + 0.5f);
         }
@@ -250,7 +250,7 @@ class GaussianBlurFilterMaskColumn : public Kernel<unsigned char> {
                 sum += mask(0, yf)*input(0, yf);
             }
 
-            output() = (unsigned char) (sum);
+            output() = (uchar) (sum);
         }
         #endif
 };
@@ -368,17 +368,17 @@ int main(int argc, const char **argv) {
     #endif
 
     // host memory for image of width x height pixels
-    unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    unsigned char *host_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    unsigned char *reference_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    unsigned char *reference_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
+    uchar *host_in = (uchar *)malloc(sizeof(uchar)*width*height);
+    uchar *host_out = (uchar *)malloc(sizeof(uchar)*width*height);
+    uchar *reference_in = (uchar *)malloc(sizeof(uchar)*width*height);
+    uchar *reference_out = (uchar *)malloc(sizeof(uchar)*width*height);
     float *reference_tmp = (float *)malloc(sizeof(float)*width*height);
 
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = (unsigned char)(y*width + x) % 256;
-            reference_in[y*width + x] = (unsigned char)(y*width + x) % 256;
+            host_in[y*width + x] = (uchar)(y*width + x) % 256;
+            reference_in[y*width + x] = (uchar)(y*width + x) % 256;
             host_out[y*width + x] = 0;
             reference_out[y*width + x] = 0;
             reference_tmp[y*width + x] = 0;
@@ -387,8 +387,8 @@ int main(int argc, const char **argv) {
 
 
     // input and output image of width x height pixels
-    Image<unsigned char> IN(width, height);
-    Image<unsigned char> OUT(width, height);
+    Image<uchar> IN(width, height);
+    Image<uchar> OUT(width, height);
     Image<float> TMP(width, height);
 
     // filter mask
@@ -396,7 +396,7 @@ int main(int argc, const char **argv) {
     Mask<float> MX(filter_x);
     Mask<float> MY(filter_y);
 
-    IterationSpace<unsigned char> IsOut(OUT);
+    IterationSpace<uchar> IsOut(OUT);
     IterationSpace<float> IsTmp(TMP);
 
     IN = host_in;
@@ -410,15 +410,15 @@ int main(int argc, const char **argv) {
     // BOUNDARY_UNDEFINED
     #ifdef RUN_UNDEF
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInUndef2(IN, M, BOUNDARY_UNDEFINED);
-    Accessor<unsigned char> AccInUndef2(BcInUndef2);
+    BoundaryCondition<uchar> BcInUndef2(IN, M, BOUNDARY_UNDEFINED);
+    Accessor<uchar> AccInUndef2(BcInUndef2);
     GaussianBlurFilterMask GFU(IsOut, AccInUndef2, M, size_x, size_y);
 
     GFU.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInUndef(IN, MX, BOUNDARY_UNDEFINED);
-    Accessor<unsigned char> AccInUndef(BcInUndef);
+    BoundaryCondition<uchar> BcInUndef(IN, MX, BOUNDARY_UNDEFINED);
+    Accessor<uchar> AccInUndef(BcInUndef);
     GaussianBlurFilterMaskRow GFRU(IsTmp, AccInUndef, MX, size_x);
 
     BoundaryCondition<float> BcTmpUndef(TMP, MY, BOUNDARY_UNDEFINED);
@@ -437,15 +437,15 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_CLAMP
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInClamp2(IN, M, BOUNDARY_CLAMP);
-    Accessor<unsigned char> AccInClamp2(BcInClamp2);
+    BoundaryCondition<uchar> BcInClamp2(IN, M, BOUNDARY_CLAMP);
+    Accessor<uchar> AccInClamp2(BcInClamp2);
     GaussianBlurFilterMask GFC(IsOut, AccInClamp2, M, size_x, size_y);
 
     GFC.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInClamp(IN, MX, BOUNDARY_CLAMP);
-    Accessor<unsigned char> AccInClamp(BcInClamp);
+    BoundaryCondition<uchar> BcInClamp(IN, MX, BOUNDARY_CLAMP);
+    Accessor<uchar> AccInClamp(BcInClamp);
     GaussianBlurFilterMaskRow GFRC(IsTmp, AccInClamp, MX, size_x);
 
     BoundaryCondition<float> BcTmpClamp(TMP, MY, BOUNDARY_CLAMP);
@@ -463,15 +463,15 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_REPEAT
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInRepeat2(IN, M, BOUNDARY_REPEAT);
-    Accessor<unsigned char> AccInRepeat2(BcInRepeat2);
+    BoundaryCondition<uchar> BcInRepeat2(IN, M, BOUNDARY_REPEAT);
+    Accessor<uchar> AccInRepeat2(BcInRepeat2);
     GaussianBlurFilterMask GFR(IsOut, AccInRepeat2, M, size_x, size_y);
 
     GFR.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInRepeat(IN, MX, BOUNDARY_REPEAT);
-    Accessor<unsigned char> AccInRepeat(BcInRepeat);
+    BoundaryCondition<uchar> BcInRepeat(IN, MX, BOUNDARY_REPEAT);
+    Accessor<uchar> AccInRepeat(BcInRepeat);
     GaussianBlurFilterMaskRow GFRR(IsTmp, AccInRepeat, MX, size_x);
 
     BoundaryCondition<float> BcTmpRepeat(TMP, MY, BOUNDARY_REPEAT);
@@ -489,15 +489,15 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_MIRROR
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInMirror2(IN, M, BOUNDARY_MIRROR);
-    Accessor<unsigned char> AccInMirror2(BcInMirror2);
+    BoundaryCondition<uchar> BcInMirror2(IN, M, BOUNDARY_MIRROR);
+    Accessor<uchar> AccInMirror2(BcInMirror2);
     GaussianBlurFilterMask GFM(IsOut, AccInMirror2, M, size_x, size_y);
 
     GFM.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInMirror(IN, MX, BOUNDARY_MIRROR);
-    Accessor<unsigned char> AccInMirror(BcInMirror);
+    BoundaryCondition<uchar> BcInMirror(IN, MX, BOUNDARY_MIRROR);
+    Accessor<uchar> AccInMirror(BcInMirror);
     GaussianBlurFilterMaskRow GFRM(IsTmp, AccInMirror, MX, size_x);
 
     BoundaryCondition<float> BcTmpMirror(TMP, MY, BOUNDARY_MIRROR);
@@ -515,15 +515,15 @@ int main(int argc, const char **argv) {
 
     // BOUNDARY_CONSTANT
     #ifdef NO_SEP
-    BoundaryCondition<unsigned char> BcInConst2(IN, M, BOUNDARY_CONSTANT, '1');
-    Accessor<unsigned char> AccInConst2(BcInConst2);
+    BoundaryCondition<uchar> BcInConst2(IN, M, BOUNDARY_CONSTANT, '1');
+    Accessor<uchar> AccInConst2(BcInConst2);
     GaussianBlurFilterMask GFConst(IsOut, AccInConst2, M, size_x, size_y);
 
     GFConst.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<unsigned char> BcInConst(IN, MX, BOUNDARY_CONSTANT, '1');
-    Accessor<unsigned char> AccInConst(BcInConst);
+    BoundaryCondition<uchar> BcInConst(IN, MX, BOUNDARY_CONSTANT, '1');
+    Accessor<uchar> AccInConst(BcInConst);
     GaussianBlurFilterMaskRow GFRConst(IsTmp, AccInConst, MX, size_x);
 
     BoundaryCondition<float> BcTmpConst(TMP, MY, BOUNDARY_CONSTANT, 1.0f);
