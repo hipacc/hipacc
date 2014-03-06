@@ -233,13 +233,33 @@ int main(int argc, const char **argv) {
     const int offset_x = size_x >> 1;
     const int offset_y = size_y >> 1;
     const int t = NT;
-    float timing = 0.0f;
 
     // only filter kernel sizes 3x3 and 5x5 implemented
     if (size_x != size_y && (size_x != 3 || size_x != 5)) {
         fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!\n");
         exit(EXIT_FAILURE);
     }
+
+    // domain for blur filter
+    #ifdef ARRAY_DOMAIN
+    #ifdef CONST_DOMAIN
+    const
+    #endif
+    uchar domain[SIZE_Y][SIZE_X] = {
+        #if SIZE_X == 3
+        { 1, 1, 1 },
+        { 1, 1, 1 },
+        { 1, 1, 1 }
+        #endif
+        #if SIZE_X == 5
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 }
+        #endif
+    };
+    #endif
 
     // host memory for image of width x height pixels
     uchar *host_in = (uchar *)malloc(sizeof(uchar)*width*height);
@@ -258,33 +278,17 @@ int main(int argc, const char **argv) {
     }
 
 
+    // input and output image of width x height pixels
+    Image<uchar> in(width, height);
+    Image<uchar> out(width, height);
+
     // define Domain for blur filter
     #ifdef ARRAY_DOMAIN
-    #ifdef CONST_DOMAIN
-    const
-    #endif
-    uchar domain[size_y][size_x] = {
-        #if SIZE_X==3
-        { 1, 1, 1 },
-        { 1, 1, 1 },
-        { 1, 1, 1 }
-        #endif
-        #if SIZE_X==5
-        { 1, 1, 1, 1, 1 },
-        { 1, 1, 1, 1, 1 },
-        { 1, 1, 1, 1, 1 },
-        { 1, 1, 1, 1, 1 },
-        { 1, 1, 1, 1, 1 }
-        #endif
-    };
     Domain dom(domain);
     #else
     Domain dom(size_x, size_y);
     #endif
 
-    // input and output image of width x height pixels
-    Image<uchar> in(width, height);
-    Image<uchar> out(width, height);
     // use undefined boundary handling to access image pixels beyond region
     // defined by Accessor
     BoundaryCondition<uchar> bound(in, size_x, size_y, BOUNDARY_UNDEFINED);
@@ -302,6 +306,7 @@ int main(int argc, const char **argv) {
     out = host_out;
 
     fprintf(stderr, "Calculating HIPAcc blur filter ...\n");
+    float timing = 0.0f;
 
     filter.execute();
     timing = hipaccGetLastKernelTiming();

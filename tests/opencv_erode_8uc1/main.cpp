@@ -139,13 +139,31 @@ int main(int argc, const char **argv) {
     const int size_y = SIZE_Y;
     const int offset_x = size_x >> 1;
     const int offset_y = size_y >> 1;
-    float timing = 0.0f;
 
     // only filter kernel sizes 3x3 and 5x5 implemented
     if (size_x != size_y && (size_x != 3 || size_x != 5)) {
         fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!\n");
         exit(EXIT_FAILURE);
     }
+
+    // domain for erode filter
+    #ifdef CONST_MASK
+    const
+    #endif
+    uchar domain[SIZE_Y][SIZE_X] = {
+        #if SIZE_X == 3
+        { 1, 1, 1 },
+        { 1, 1, 1 },
+        { 1, 1, 1 }
+        #endif
+        #if SIZE_X == 5
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 },
+        { 1, 1, 1, 1, 1 }
+        #endif
+    };
 
     // host memory for image of width x height pixels
     uchar *host_in = (uchar *)malloc(sizeof(uchar)*width*height);
@@ -164,30 +182,13 @@ int main(int argc, const char **argv) {
     }
 
 
-    // define Domain for Erode filter
-    Domain dom(size_x, size_y);
-    #ifdef CONST_MASK
-    const
-    #endif
-    uchar domain[] = { 
-        #if SIZE_X==3
-        1, 1, 1,
-        1, 1, 1,
-        1, 1, 1
-        #endif
-        #if SIZE_X==5
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1
-        #endif
-    };
-    dom = domain;
-
     // input and output image of width x height pixels
     Image<uchar> in(width, height);
     Image<uchar> out(width, height);
+
+    // define Domain for Erode filter
+    Domain dom(domain);
+
     // use undefined boundary handling to access image pixels beyond region
     // defined by Accessor
     BoundaryCondition<uchar> bound(in, size_x, size_y, BOUNDARY_UNDEFINED);
@@ -200,6 +201,7 @@ int main(int argc, const char **argv) {
     out = host_out;
 
     fprintf(stderr, "Calculating HIPAcc Erode filter ...\n");
+    float timing = 0.0f;
 
     filter.execute();
     timing = hipaccGetLastKernelTiming();
@@ -290,9 +292,9 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x] != host_out[y*width +x]) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): %d vs. %d\n", x,
-                        y, reference_out[y*width + x], host_out[y*width +x]);
+            if (reference_out[y*width + x] != host_out[y*width + x]) {
+                fprintf(stderr, "Test FAILED, at (%d,%d): %hhu vs. %hhu\n", x,
+                        y, reference_out[y*width + x], host_out[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }

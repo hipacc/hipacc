@@ -47,7 +47,7 @@
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
-//#define CONST_MASK
+#define CONST_MASK
 #define USE_LAMBDA
 //#define RUN_UNDEF
 
@@ -65,8 +65,8 @@ double time_ms () {
 
 
 // Laplace filter reference
-void laplace_filter(unsigned char *in, unsigned char *out, int *filter, int
-        size, int width, int height) {
+void laplace_filter(uchar *in, uchar *out, int *filter, int size, int width, int
+        height) {
     const int size_x = size;
     const int size_y = size;
     int anchor_x = size_x >> 1;
@@ -85,7 +85,8 @@ void laplace_filter(unsigned char *in, unsigned char *out, int *filter, int
 
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x]*in[(y+yf)*width + x + xf];
+                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x] *
+                           in[(y+yf)*width + x + xf];
                 }
             }
 
@@ -98,31 +99,31 @@ void laplace_filter(unsigned char *in, unsigned char *out, int *filter, int
 
 
 // Laplace filter in HIPAcc
-class LaplaceFilter : public Kernel<unsigned char> {
+class LaplaceFilter : public Kernel<uchar> {
     private:
-        Accessor<unsigned char> &Input;
-        Domain &cDom;
-        Mask<int> &cMask;
+        Accessor<uchar> &input;
+        Domain &dom;
+        Mask<int> &mask;
         const int size;
 
     public:
-        LaplaceFilter(IterationSpace<unsigned char> &IS, Accessor<unsigned char>
-                &Input, Domain &cDom, Mask<int> &cMask, const int size) :
-            Kernel(IS),
-            Input(Input),
-            cDom(cDom),
-            cMask(cMask),
+        LaplaceFilter(IterationSpace<uchar> &iter, Accessor<uchar> &input,
+                Domain &dom, Mask<int> &mask, const int size) :
+            Kernel(iter),
+            input(input),
+            dom(dom),
+            mask(mask),
             size(size)
-        { addAccessor(&Input); }
+        { addAccessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
-            int sum = reduce(cDom, HipaccSUM, [&] () -> int {
-                    return cMask(cDom) * Input(cDom);
+            int sum = reduce(dom, HipaccSUM, [&] () -> int {
+                    return mask(dom) * input(dom);
                     });
             sum = min(sum, 255);
             sum = max(sum, 0);
-            output() = (unsigned char) (sum);
+            output() = (uchar) (sum);
         }
         #else
         void kernel() {
@@ -131,13 +132,13 @@ class LaplaceFilter : public Kernel<unsigned char> {
 
             for (int yf = -anchor; yf<=anchor; yf++) {
                 for (int xf = -anchor; xf<=anchor; xf++) {
-                    sum += cMask(xf, yf)*Input(xf, yf);
+                    sum += mask(xf, yf)*input(xf, yf);
                 }
             }
 
             sum = min(sum, 255);
             sum = max(sum, 0);
-            output() = (unsigned char) (sum);
+            output() = (uchar) (sum);
         }
         #endif
 };
@@ -155,7 +156,6 @@ int main(int argc, const char **argv) {
     const int offset_x = size_x >> 1;
     const int offset_y = size_y >> 1;
     std::vector<float> timings;
-    float timing = 0.0f;
 
     // only filter kernel sizes 3x3 and 5x5 supported
     if (size_x != size_y || !(size_x == 3 || size_x == 5)) {
@@ -195,16 +195,16 @@ int main(int argc, const char **argv) {
     };
 
     // host memory for image of width x height pixels
-    unsigned char *host_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    unsigned char *host_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    unsigned char *reference_in = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
-    unsigned char *reference_out = (unsigned char *)malloc(sizeof(unsigned char)*width*height);
+    uchar *host_in = (uchar *)malloc(sizeof(uchar)*width*height);
+    uchar *host_out = (uchar *)malloc(sizeof(uchar)*width*height);
+    uchar *reference_in = (uchar *)malloc(sizeof(uchar)*width*height);
+    uchar *reference_out = (uchar *)malloc(sizeof(uchar)*width*height);
 
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = (unsigned char)(y*width + x) % 256;
-            reference_in[y*width + x] = (unsigned char)(y*width + x) % 256;
+            host_in[y*width + x] = (uchar)(y*width + x) % 256;
+            reference_in[y*width + x] = (uchar)(y*width + x) % 256;
             host_out[y*width + x] = 0;
             reference_out[y*width + x] = 0;
         }
@@ -212,8 +212,8 @@ int main(int argc, const char **argv) {
 
 
     // input and output image of width x height pixels
-    Image<unsigned char> IN(width, height);
-    Image<unsigned char> OUT(width, height);
+    Image<uchar> IN(width, height);
+    Image<uchar> OUT(width, height);
 
     // filter mask
     Mask<int> M(mask);
@@ -221,19 +221,20 @@ int main(int argc, const char **argv) {
     // filter domain
     Domain D(M);
 
-    IterationSpace<unsigned char> IsOut(OUT);
+    IterationSpace<uchar> IsOut(OUT);
 
     IN = host_in;
     OUT = host_out;
 
 
-#ifndef OpenCV
+    #ifndef OpenCV
     fprintf(stderr, "Calculating Laplace filter ...\n");
+    float timing = 0.0f;
 
     // BOUNDARY_UNDEFINED
     #ifdef RUN_UNDEF
-    BoundaryCondition<unsigned char> BcInUndef(IN, M, BOUNDARY_UNDEFINED);
-    Accessor<unsigned char> AccInUndef(BcInUndef);
+    BoundaryCondition<uchar> BcInUndef(IN, M, BOUNDARY_UNDEFINED);
+    Accessor<uchar> AccInUndef(BcInUndef);
     LaplaceFilter LFU(IsOut, AccInUndef, D, M, size_x);
 
     LFU.execute();
@@ -244,8 +245,8 @@ int main(int argc, const char **argv) {
 
 
     // BOUNDARY_CLAMP
-    BoundaryCondition<unsigned char> BcInClamp(IN, M, BOUNDARY_CLAMP);
-    Accessor<unsigned char> AccInClamp(BcInClamp);
+    BoundaryCondition<uchar> BcInClamp(IN, M, BOUNDARY_CLAMP);
+    Accessor<uchar> AccInClamp(BcInClamp);
     LaplaceFilter LFC(IsOut, AccInClamp, D, M, size_x);
 
     LFC.execute();
@@ -255,8 +256,8 @@ int main(int argc, const char **argv) {
 
 
     // BOUNDARY_REPEAT
-    BoundaryCondition<unsigned char> BcInRepeat(IN, M, BOUNDARY_REPEAT);
-    Accessor<unsigned char> AccInRepeat(BcInRepeat);
+    BoundaryCondition<uchar> BcInRepeat(IN, M, BOUNDARY_REPEAT);
+    Accessor<uchar> AccInRepeat(BcInRepeat);
     LaplaceFilter LFR(IsOut, AccInRepeat, D, M, size_x);
 
     LFR.execute();
@@ -266,8 +267,8 @@ int main(int argc, const char **argv) {
 
 
     // BOUNDARY_MIRROR
-    BoundaryCondition<unsigned char> BcInMirror(IN, M, BOUNDARY_MIRROR);
-    Accessor<unsigned char> AccInMirror(BcInMirror);
+    BoundaryCondition<uchar> BcInMirror(IN, M, BOUNDARY_MIRROR);
+    Accessor<uchar> AccInMirror(BcInMirror);
     LaplaceFilter LFM(IsOut, AccInMirror, D, M, size_x);
 
     LFM.execute();
@@ -277,8 +278,8 @@ int main(int argc, const char **argv) {
 
 
     // BOUNDARY_CONSTANT
-    BoundaryCondition<unsigned char> BcInConst(IN, M, BOUNDARY_CONSTANT, '1');
-    Accessor<unsigned char> AccInConst(BcInConst);
+    BoundaryCondition<uchar> BcInConst(IN, M, BOUNDARY_CONSTANT, '1');
+    Accessor<uchar> AccInConst(BcInConst);
     LaplaceFilter LFConst(IsOut, AccInConst, D, M, size_x);
 
     LFConst.execute();
@@ -289,16 +290,16 @@ int main(int argc, const char **argv) {
 
     // get results
     host_out = OUT.getData();
-#endif
+    #endif
 
 
 
-#ifdef OpenCV
-#ifdef CPU
+    #ifdef OpenCV
+    #ifdef CPU
     fprintf(stderr, "\nCalculating OpenCV Laplacian filter on the CPU ...\n");
-#else
+    #else
     fprintf(stderr, "\nCalculating OpenCV Laplacian filter on the GPU ...\n");
-#endif
+    #endif
 
 
     cv::Mat cv_data_in(height, width, CV_8UC1, host_in);
@@ -308,7 +309,7 @@ int main(int argc, const char **argv) {
     double delta = 0.0f;
 
     for (int brd_type=0; brd_type<5; brd_type++) {
-#ifdef CPU
+        #ifdef CPU
         if (brd_type==cv::BORDER_WRAP) {
             // BORDER_WRAP is not supported on the CPU by OpenCV
             timings.push_back(0.0f);
@@ -324,7 +325,7 @@ int main(int argc, const char **argv) {
             dt = time1 - time0;
             if (dt < min_dt) min_dt = dt;
         }
-#else
+        #else
         #if SIZE_X==5
         #error "OpenCV supports only 1x1 and 3x3 Laplace filters on the GPU!"
         #endif
@@ -343,7 +344,7 @@ int main(int argc, const char **argv) {
         }
 
         gpu_out.download(cv_data_out);
-#endif
+        #endif
 
         fprintf(stderr, "OpenCV(");
         switch (brd_type) {
@@ -368,7 +369,7 @@ int main(int argc, const char **argv) {
         timings.push_back(min_dt);
         fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
     }
-#endif
+    #endif
 
     // print statistics
     for (unsigned int i=0; i<timings.size(); i++) {
@@ -392,18 +393,18 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
 
     fprintf(stderr, "\nComparing results ...\n");
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_y = height-size_y+offset_y;
     int upper_x = width-size_x+offset_x;
-#else
+    #else
     int upper_y = height-offset_y;
     int upper_x = width-offset_x;
-#endif
+    #endif
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
             if (reference_out[y*width + x] != host_out[y*width + x]) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): %d vs. %d\n", x,
+                fprintf(stderr, "Test FAILED, at (%d,%d): %hhu vs. %hhu\n", x,
                         y, reference_out[y*width + x], host_out[y*width + x]);
                 exit(EXIT_FAILURE);
             }

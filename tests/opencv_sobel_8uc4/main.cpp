@@ -51,7 +51,7 @@
 //#define HEIGHT 4096
 //#define CPU
 //#define YORDER
-//#define CONST_MASK
+#define CONST_MASK
 #define USE_LAMBDA
 //#define RUN_UNDEF
 //#define NO_SEP
@@ -69,17 +69,17 @@ double time_ms () {
 
 
 // Sobel filter reference
-void sobel_filter(uchar4 *in, short4 *out, int *filter, int size_x,
-        int size_y, int width, int height) {
+void sobel_filter(uchar4 *in, short4 *out, int *filter, int size_x, int size_y,
+        int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
     int upper_y = height-size_y+anchor_y;
-#else
+    #else
     int upper_x = width-anchor_x;
     int upper_y = height-anchor_y;
-#endif
+    #endif
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
@@ -98,11 +98,11 @@ void sobel_filter(uchar4 *in, short4 *out, int *filter, int size_x,
 void sobel_filter_row(uchar4 *in, short4 *out, int *filter, int size_x,
         int width, int height) {
     int anchor_x = size_x >> 1;
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_x = width-size_x+anchor_x;
-#else
+    #else
     int upper_x = width-anchor_x;
-#endif
+    #endif
 
     for (int y=0; y<height; ++y) {
         //for (int x=0; x<anchor_x; x++) out[y*width + x] = in[y*width + x];
@@ -110,7 +110,7 @@ void sobel_filter_row(uchar4 *in, short4 *out, int *filter, int size_x,
             int4 sum = {0, 0, 0, 0};
 
             for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                sum += filter[xf+anchor_x]*
+                sum += filter[xf+anchor_x] *
                        convert_int4(in[(y)*width + x + xf]);
             }
             out[y*width + x] = convert_short4(sum);
@@ -121,11 +121,11 @@ void sobel_filter_row(uchar4 *in, short4 *out, int *filter, int size_x,
 void sobel_filter_column(short4 *in, short4 *out, int *filter, int size_y,
         int width, int height) {
     int anchor_y = size_y >> 1;
-#ifdef OpenCV
+    #ifdef OpenCV
     int upper_y = height-size_y+anchor_y;
-#else
+    #else
     int upper_y = height-anchor_y;
-#endif
+    #endif
 
     //for (int y=0; y<anchor_y; y++) {
     //    for (int x=0; x<width; ++x) {
@@ -174,7 +174,7 @@ class SobelFilterMask : public Kernel<short4> {
         void kernel() {
             int4 sum = reduce(dom, HipaccSUM, [&] () -> int4 {
                     return mask(dom) * convert_int4(input(dom));
-                    }));
+                    });
             output() = convert_short4(sum);
         }
         #else
@@ -278,7 +278,6 @@ int main(int argc, const char **argv) {
     const int offset_x = size_x >> 1;
     const int offset_y = size_y >> 1;
     std::vector<float> timings;
-    float timing = 0.0f;
 
     // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
     if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
@@ -286,8 +285,8 @@ int main(int argc, const char **argv) {
         exit(EXIT_FAILURE);
     }
 
-// filter coefficients
-#ifdef YORDER
+    // filter coefficients
+    #ifdef YORDER
     #ifdef CONST_MASK
     const
     #endif
@@ -342,7 +341,7 @@ int main(int argc, const char **argv) {
         { -1 }, { -4 }, { -5 }, { 0 }, { 5 }, { 4 }, { 1 },
         #endif
     };
-#else
+    #else
     #ifdef CONST_MASK
     const
     #endif
@@ -397,7 +396,7 @@ int main(int argc, const char **argv) {
         { 1 }, { 6 }, { 15 }, { 20 }, { 15 }, { 6 }, { 1 },
         #endif
     };
-#endif
+    #endif
 
     // host memory for image of width x height pixels
     uchar4 *host_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
@@ -438,8 +437,9 @@ int main(int argc, const char **argv) {
     OUT = host_out;
 
 
-#ifndef OpenCV
+    #ifndef OpenCV
     fprintf(stderr, "Calculating Sobel filter ...\n");
+    float timing = 0.0f;
 
     // BOUNDARY_UNDEFINED
     #ifdef RUN_UNDEF
@@ -499,7 +499,7 @@ int main(int argc, const char **argv) {
     #ifdef NO_SEP
     BoundaryCondition<uchar4> BcInRepeat2(IN, M, BOUNDARY_REPEAT);
     Accessor<uchar4> AccInRepeat2(BcInRepeat2);
-    SobelFilterMask SFR(IsOut, AccInRepeat2, M, size_x);
+    SobelFilterMask SFR(IsOut, AccInRepeat2, D, M, size_x);
 
     SFR.execute();
     timing = hipaccGetLastKernelTiming();
@@ -525,7 +525,7 @@ int main(int argc, const char **argv) {
     #ifdef NO_SEP
     BoundaryCondition<uchar4> BcInMirror2(IN, M, BOUNDARY_MIRROR);
     Accessor<uchar4> AccInMirror2(BcInMirror2);
-    SobelFilterMask SFM(IsOut, AccInMirror2, M, size_x);
+    SobelFilterMask SFM(IsOut, AccInMirror2, D, M, size_x);
 
     SFM.execute();
     timing = hipaccGetLastKernelTiming();
@@ -575,16 +575,16 @@ int main(int argc, const char **argv) {
 
     // get results
     host_out = OUT.getData();
-#endif
+    #endif
 
 
 
-#ifdef OpenCV
-#ifdef CPU
+    #ifdef OpenCV
+    #ifdef CPU
     fprintf(stderr, "\nCalculating OpenCV Sobel filter on the CPU ...\n");
-#else
+    #else
     fprintf(stderr, "\nCalculating OpenCV Sobel filter on the GPU ...\n");
-#endif
+    #endif
 
 
     cv::Mat cv_data_in(height, width, CV_8UC4, host_in);
@@ -594,7 +594,7 @@ int main(int argc, const char **argv) {
     double delta = 0.0f;
 
     for (int brd_type=0; brd_type<5; brd_type++) {
-#ifdef CPU
+        #ifdef CPU
         if (brd_type==cv::BORDER_WRAP) {
             // BORDER_WRAP is not supported on the CPU by OpenCV
             timings.push_back(0.0f);
@@ -614,7 +614,7 @@ int main(int argc, const char **argv) {
             dt = time1 - time0;
             if (dt < min_dt) min_dt = dt;
         }
-#else
+        #else
         cv::gpu::GpuMat gpu_in, gpu_out;
         gpu_in.upload(cv_data_in);
 
@@ -634,7 +634,7 @@ int main(int argc, const char **argv) {
         }
 
         gpu_out.download(cv_data_out);
-#endif
+        #endif
 
         fprintf(stderr, "OpenCV(");
         switch (brd_type) {
@@ -659,11 +659,12 @@ int main(int argc, const char **argv) {
         timings.push_back(min_dt);
         fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
     }
-#endif
+    #endif
 
     // print statistics
-    for (unsigned int i=0; i<timings.size(); i++) {
-        fprintf(stderr, "\t%.3f", timings.data()[i]);
+    for (std::vector<float>::const_iterator it = timings.begin();
+         it != timings.end(); ++it) {
+        fprintf(stderr, "\t%.3f", *it);
     }
     fprintf(stderr, "\n\n");
 
@@ -688,16 +689,16 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
 
     fprintf(stderr, "\nComparing results ...\n");
-#ifdef OpenCV
-#ifndef CPU
+    #ifdef OpenCV
+    #ifndef CPU
     fprintf(stderr, "\nWarning: OpenCV implementation on the GPU is currently broken (wrong results) ...\n");
-#endif
+    #endif
     int upper_y = height-size_y+offset_y;
     int upper_x = width-size_x+offset_x;
-#else
+    #else
     int upper_y = height-offset_y;
     int upper_x = width-offset_x;
-#endif
+    #endif
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {

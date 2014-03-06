@@ -46,7 +46,7 @@
 //#define WIDTH 4096
 //#define HEIGHT 4096
 //#define CPU
-//#define CONST_MASK
+#define CONST_MASK
 #define USE_LAMBDA
 //#define RUN_UNDEF
 //#define NO_SEP
