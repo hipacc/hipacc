@@ -1,6 +1,12 @@
 INCLUDE_DIRECTORIES(${LLVM_INCLUDE_DIRS})
 ADD_DEFINITIONS(${LLVM_DEFINITIONS})
 
+IF (MSVC)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LLVM_CXXFLAGS}")
+ELSE()
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti ${LLVM_CXXFLAGS}")
+ENDIF()
+
 llvm_map_components_to_libnames(LLVM_LIBS analysis core instcombine instrumentation ipa ipo option scalaropts support target transformutils vectorize)
 clang_map_components_to_libnames(CLANG_LIBS)
 
@@ -24,8 +30,12 @@ LIST(APPEND HIPACC_LIBS
     hipaccBuiltins
     hipaccASTNode)
 
+LINK_DIRECTORIES(${LLVM_LIBRARY_DIR})
+
 SET(hipacc_SOURCES hipacc.cpp)
-ADD_EXECUTABLE(hipacc ${hipacc_SOURCES})
+SET(hipacc_HEADERS hipacc.h "../include/hipacc/Config/CompilerOptions.h"
+                            "${HIPACC_BINARY_DIR}/include/hipacc/Config/config.h")
+ADD_EXECUTABLE(hipacc ${hipacc_SOURCES} ${hipacc_HEADERS})
 
 TARGET_LINK_LIBRARIES(hipacc ${HIPACC_LIBS} ${CLANG_LIBS} ${LLVM_LIBS})
 ADD_DEPENDENCIES(hipacc ${HIPACC_LIBS})

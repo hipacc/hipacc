@@ -45,6 +45,10 @@
 #include <set>
 #include <string>
 
+#ifdef _MSC_VER
+#include <locale>
+#endif
+
 namespace clang {
 namespace hipacc {
 // forward declaration

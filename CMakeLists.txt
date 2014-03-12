@@ -27,21 +27,33 @@ INCLUDE(CMakeDependentOption)
 CMAKE_DEPENDENT_OPTION(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
 
+# Check MinGW setting
+OPTION(USE_MINGW "Use MinGW include files instead of the ones from the installed compiler" OFF)
+
+IF(MSVC)
+    IF(NOT USE_MINGW)
+        MESSAGE(FATAL_ERROR "HIPACC cannot parse the Visual Studio STL! You have to use MinGW instead -> Check USE_MINGW")
+    ENDIF()
+ENDIF(MSVC)
+
+
 # get repository and revision
-EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_repository_path.sh
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    TIMEOUT 5
-    RESULT_VARIABLE git_result
-    OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
-STRING(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
+OPTION(CHECK_GIT_REPO_VERSION "Check GIT repository and version" ON)
+IF(CHECK_GIT_REPO_VERSION)
+    EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_repository_path.sh
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        TIMEOUT 5
+        RESULT_VARIABLE git_result
+        OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
+    STRING(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
 
-EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_source_version.sh
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    TIMEOUT 5
-    RESULT_VARIABLE git_result
-    OUTPUT_VARIABLE HIPACC_GIT_VERSION)
-STRING(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
-
+    EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_source_version.sh
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        TIMEOUT 5
+        RESULT_VARIABLE git_result
+        OUTPUT_VARIABLE HIPACC_GIT_VERSION)
+    STRING(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
+ENDIF()
 
 # add path for custom modules
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
@@ -52,8 +64,17 @@ FIND_PACKAGE(OpenCL)
 FIND_PACKAGE(RenderScript)
 FIND_PACKAGE(OpenCV)
 
+IF(USE_MINGW)
+    FIND_PACKAGE(MinGW REQUIRED)
+
+    IF(NOT MINGW_FOUND)
+        MESSAGE(FATAL_ERROR "MinGW could not be found! HIPACC most probably will not function correctly.")
+    ENDIF(NOT MINGW_FOUND)
+ENDIF(USE_MINGW)
+
+
 IF(NOT CUDA_FOUND AND NOT OPENCL_FOUND AND NOT RENDERSCRIPT_FOUND)
-    MESSAGE(FATAL_ERROR "Neither CUDA, OpenCL nor RenderScript found. At least one of them is required to use HIPACC properly.")
+    MESSAGE(WARNING "Neither CUDA, OpenCL nor RenderScript found. At least one of them is required to use HIPACC properly.")
 ENDIF(NOT CUDA_FOUND AND NOT OPENCL_FOUND AND NOT RENDERSCRIPT_FOUND)
 
 IF(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "5.0")
@@ -92,25 +113,84 @@ MESSAGE(STATUS "JIT estimates: ${USE_JIT_ESTIMATE}")
 MESSAGE(STATUS "===")
 
 
-# platform specific fixes
-IF(APPLE)
+# platform specific fixes linker flags
+IF(MSVC)
+    # Correct syntax for LLVM libraries
+    STRING(STRIP "${LLVM_MODULE_LIBS}" LLVM_MODULE_LIBS)
+    STRING(REPLACE "-lLLVM" "LLVM" LLVM_MODULE_LIBS "${LLVM_MODULE_LIBS}")
+    STRING(REPLACE " " ";" LLVM_MODULE_LIBS "${LLVM_MODULE_LIBS}")
+
+    # Erase incompatible LLVM linker flags
+    SET(LLVM_LFLAGS "")
+
+    # Additional linker settings
+    SET(CUDA_LINK "")
+    SET(CUDA_COMP "")
+    SET(TIME_LINK "")
+ELSEIF(APPLE)
     SET(CUDA_LINK "-Xlinker -framework,CUDA")
     SET(NVCC_COMP "${NVCC_CPP_STD} -ccbin ${CLANG_EXECUTABLE} -Xcompiler -arch -Xcompiler x86_64 -Xcompiler -stdlib=libstdc++")
     SET(TIME_LINK "")
-ELSE(APPLE)
+ELSE()
     SET(CUDA_LINK "-lcuda -lcudart")
     SET(NVCC_COMP "${NVCC_CPP_STD}")
     SET(TIME_LINK "-lrt")
-ENDIF(APPLE)
+
+    OPTION(USE_NCURSES "Use NCurses library instead of Curses library" OFF)
+    IF(USE_NCURSES)
+        STRING(REPLACE " -lcurses" " -lncurses" LLVM_LFLAGS "${LLVM_LFLAGS}")
+    ENDIF()
+ENDIF()
 
 
 # debug and release builds
 STRING(TOUPPER "${CMAKE_BUILD_TYPE}" build)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti")
-IF(build STREQUAL "RELEASE")
-    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+
+# Set compiler-specific flags
+IF(MSVC)
+    # Disable generation of runtime type information
+    STRING(REPLACE "/GR " "/GR- " LLVM_CXXFLAGS "${LLVM_CXXFLAGS}")
+
+    # Remove invalid compiler flags
+    STRING(REPLACE " -w14062" "" LLVM_CXXFLAGS "${LLVM_CXXFLAGS}")
+
+    # Add required include directories
+    IF(NOT LLVM_SOURCE_DIR)
+        MESSAGE(FATAL_ERROR "LLVM_SOURCE_DIR has to be an absolute path!")
+    ENDIF()
+    IF(NOT LLVM_BUILD_DIR)
+        MESSAGE(FATAL_ERROR "LLVM_BUILD_DIR has to be an absolute path!")
+    ENDIF()
+    SET(CLANG_INCLUDE_DIR "tools/clang/include")
+    SET(LLVM_CXXFLAGS "/I${LLVM_BUILD_DIR}/${CLANG_INCLUDE_DIR} ${LLVM_CXXFLAGS}")
+    SET(LLVM_CXXFLAGS "/I${LLVM_SOURCE_DIR}/${CLANG_INCLUDE_DIR} ${LLVM_CXXFLAGS}")
+
+
+    IF(build STREQUAL "RELEASE")
+        SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    ELSE()
+        SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    ENDIF()
 ELSE()
-    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wunused")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti")
+
+    # Add required include directories
+    IF(NOT LLVM_SOURCE_DIR)
+        MESSAGE(FATAL_ERROR "LLVM_SOURCE_DIR has to be an absolute path!")
+    ENDIF()
+    IF(NOT LLVM_BUILD_DIR)
+        MESSAGE(FATAL_ERROR "LLVM_BUILD_DIR has to be an absolute path!")
+    ENDIF()
+    SET(CLANG_INCLUDE_DIR "tools/clang/include")
+    SET(LLVM_CXXFLAGS "-I${LLVM_BUILD_DIR}/${CLANG_INCLUDE_DIR} ${LLVM_CXXFLAGS}")
+    SET(LLVM_CXXFLAGS "-I${LLVM_SOURCE_DIR}/${CLANG_INCLUDE_DIR} ${LLVM_CXXFLAGS}")
+
+
+    IF(build STREQUAL "RELEASE")
+        SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    ELSE()
+        SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wunused")
+    ENDIF()
 ENDIF()
 
 

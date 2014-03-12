@@ -378,10 +378,26 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
 {
   CommonDefines::ArgumentVectorType vecClangArguments;
 
-  // Add HIPAcc runtime include paths
-  vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES));
-  vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES) + string("/dsl"));
+	// Add HIPAcc runtime include paths
+	vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES));
+	vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES) + string("/dsl"));
 
+
+#ifdef USE_MINGW
+	// Add MinGW system include paths
+	vecClangArguments.push_back("-isystem");
+	vecClangArguments.push_back(MINGW_INCLUDE_ROOT);
+
+	vecClangArguments.push_back("-isystem");
+	vecClangArguments.push_back(MINGW_INCLUDE_ROOT_CPP);
+	vecClangArguments.push_back("-isystem");
+	vecClangArguments.push_back(string(MINGW_INCLUDE_ROOT_CPP) + string("/c++"));
+	vecClangArguments.push_back("-isystem");
+	vecClangArguments.push_back(string(MINGW_INCLUDE_ROOT_CPP) + string("/c++/mingw32"));
+#endif
+
+	// Add exception support
+	vecClangArguments.push_back("-fexceptions");
 
 #ifdef USE_MINGW
   // Add MinGW system include paths

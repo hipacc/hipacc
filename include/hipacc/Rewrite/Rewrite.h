@@ -36,6 +36,10 @@
 
 #include <clang/Frontend/FrontendAction.h>
 
+#ifndef _MSC_VER
+#include <unistd.h>
+#endif
+
 namespace clang {
 namespace hipacc {
 class CompilerOptions;
