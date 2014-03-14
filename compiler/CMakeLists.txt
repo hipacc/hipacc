@@ -6,6 +6,7 @@ clang_map_components_to_libnames(CLANG_LIBS)
 
 SET(HIPACC_LIBS
     hipaccRewrite
+    hipaccBackend
     hipaccCreateHostStrings
     hipaccClassRepresentation
     hipaccASTTranslate
