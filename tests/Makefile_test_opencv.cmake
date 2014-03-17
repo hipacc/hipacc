@@ -1,11 +1,12 @@
 CC = clang++
 CC = g++
 
+HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
 OPENCV_DIR   ?= /opt/local
 
 MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5 -D OpenCV
 CFLAGS        = $(MYFLAGS) -Wall -Wunused \
-                -I@DSL_INCLUDES@ \
+                -I$(HIPACC_DIR)/include/dsl \
                 -I$(OPENCV_DIR)/include
 LDFLAGS       = -lm \
                 -L$(OPENCV_DIR)/lib -lopencv_core -lopencv_gpu -lopencv_imgproc

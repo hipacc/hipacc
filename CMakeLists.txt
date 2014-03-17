@@ -105,8 +105,6 @@ ADD_SUBDIRECTORY(tools)
 
 
 # configure header files to pass some of the CMake settings to the source code
-SET(RUNTIME_INCLUDES "${CMAKE_INSTALL_PREFIX}/include")
-SET(DSL_INCLUDES "${CMAKE_INSTALL_PREFIX}/include/dsl")
 CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/include/hipacc/Config/config.h.cmake"
     "${HIPACC_BINARY_DIR}/include/hipacc/Config/config.h")

@@ -1,11 +1,12 @@
 # Configuration
-COMPILER     ?= ./bin/hipacc
+HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
+COMPILER     ?= $(HIPACC_DIR)/bin/hipacc
 COMPILER_INC ?= -std=c++11 \
                 -resource-dir `@CLANG_EXECUTABLE@ -print-file-name=` \
                 -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                 -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                 -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
-                -I@DSL_INCLUDES@ \
+                -I$(HIPACC_DIR)/include/dsl \
                 -I/usr/include
 TEST_CASE    ?= ./tests/opencv_blur_8uc1
 MYFLAGS      ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
@@ -87,7 +88,7 @@ cpu:
 	@echo 'Executing HIPAcc Compiler for C++:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cpu $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling C++ file using g++:'
-	$(OCL_CC) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc -lm -ldl -lstdc++ -lpthread @TIME_LINK@
+	$(OCL_CC) -I$(HIPACC_DIR)/include -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc -lm -ldl -lstdc++ -lpthread @TIME_LINK@
 	@echo 'Executing C++ binary'
 	./main_cpu
 
@@ -95,7 +96,7 @@ cuda:
 	@echo 'Executing HIPAcc Compiler for CUDA:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cuda $(HIPACC_OPTS) -o main.cu
 	@echo 'Compiling CUDA file using nvcc:'
-	@NVCC_COMPILER@ $(NVCC_FLAGS) @CUDA_COMP@ -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cuda main.cu @CUDA_LINK@ @TIME_LINK@
+	@NVCC_COMPILER@ $(NVCC_FLAGS) @CUDA_COMP@ -I$(HIPACC_DIR)/include -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cuda main.cu @CUDA_LINK@ @TIME_LINK@
 	@echo 'Executing CUDA binary'
 	./main_cuda
 
@@ -103,7 +104,7 @@ opencl-acc opencl-cpu opencl-gpu:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-$@ $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
-	$(OCL_CC) $(OCL_INC) -I@RUNTIME_INCLUDES@ -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(OCL_LINK)
+	$(OCL_CC) $(OCL_INC) -I$(HIPACC_DIR)/include -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(OCL_LINK)
 ifneq ($(HIPACC_TARGET),Midgard)
 	@echo 'Executing OpenCL binary'
 	./main_opencl
@@ -122,7 +123,7 @@ ifeq ($(call ifge, $(RS_TARGET_API), 19), true) # build using ndk-build
 	@echo 'Compiling $@ file using llvm-rs-cc and g++:'
 	export CASE_FLAGS="$(MYFLAGS)"; \
 	export RS_TARGET_API=$(RS_TARGET_API); \
-	export HIPACC_INCLUDE=@RUNTIME_INCLUDES@; \
+	export HIPACC_INCLUDE=$(HIPACC_DIR)/include; \
 	cd build_$@; ndk-build -B APP_PLATFORM=android-$(RS_TARGET_API) APP_STL=stlport_static
 	cp build_$@/libs/armeabi/main_renderscript ./main_$@
 else
