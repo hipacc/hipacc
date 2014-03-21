@@ -24,9 +24,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <iostream>
-#include <vector>
-
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
@@ -34,13 +31,14 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
+#include <vector>
+
+//#define CPU
 #ifdef OpenCV
+#include "opencv2/opencv.hpp"
 #ifndef CPU
 #include "opencv2/gpu/gpu.hpp"
-#else
-#include "opencv2/core/core.hpp"
 #endif
-#include "opencv2/imgproc/imgproc.hpp"
 #endif
 
 #include "hipacc.hpp"
@@ -50,7 +48,6 @@
 //#define SIZE_Y 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
-//#define CPU
 //#define YORDER
 #define CONST_MASK
 #define USE_LAMBDA
