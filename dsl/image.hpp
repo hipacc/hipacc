@@ -58,7 +58,6 @@ class Image {
         unsigned int *refcount;
 
         data_t &getPixel(int x, int y) { return array[y*width + x]; }
-        void setPixel(int x, int y, data_t val) { array[y*width + x] = val; }
 
     public:
         Image(int width, int height) :
