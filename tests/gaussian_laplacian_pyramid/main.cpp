@@ -47,96 +47,96 @@ using namespace hipacc;
 
 class Gaussian : public Kernel<char> {
   private:
-    Accessor<char> &Input;
-    Mask<float> &cMask;
+    Accessor<char> &input;
+    Mask<float> &mask;
     int size_x;
     int size_y;
 
   public:
-    Gaussian(IterationSpace<char> &IS, Accessor<char> &Input,
-             Mask<float> &cMask, int size_x, int size_y)
-        : Kernel(IS),
-          Input(Input),
-          cMask(cMask),
+    Gaussian(IterationSpace<char> &iter, Accessor<char> &input,
+             Mask<float> &mask, int size_x, int size_y)
+        : Kernel(iter),
+          input(input),
+          mask(mask),
           size_x(size_x),
           size_y(size_y) {
-      addAccessor(&Input);
+      addAccessor(&input);
     }
 
     void kernel() {
-#ifdef USE_LAMBDA
-      output() = convolve(cMask, HipaccSUM, [&] () {
-        return Input(cMask) * cMask();
+      #ifdef USE_LAMBDA
+      output() = convolve(mask, HipaccSUM, [&] () {
+        return input(mask) * mask();
       });
-#else
+      #else
       const int anchor_x = size_x >> 1;
       const int anchor_y = size_y >> 1;
       float sum = 0.0f;
 
       for (int yf = -anchor_y; yf<=anchor_y; yf++) {
         for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-          sum += cMask(xf, yf)*Input(xf, yf);
+          sum += mask(xf, yf)*input(xf, yf);
         }
       }
 
       output() = (unsigned char) sum;
-#endif
+      #endif
     }
 };
 
 class Subsample : public Kernel<char> {
   private:
-    Accessor<char> &Input;
+    Accessor<char> &input;
 
   public:
-    Subsample(IterationSpace<char> &IS, Accessor<char> &Input)
-        : Kernel(IS),
-          Input(Input) {
-      addAccessor(&Input);
+    Subsample(IterationSpace<char> &iter, Accessor<char> &input)
+        : Kernel(iter),
+          input(input) {
+      addAccessor(&input);
     }
 
     void kernel() {
-      output() = Input();
+      output() = input();
     }
 };
 
 class DifferenceOfGaussian : public Kernel<char> {
   private:
-    Accessor<char> &Input1;
-    Accessor<char> &Input2;
+    Accessor<char> &input1;
+    Accessor<char> &input2;
 
   public:
-    DifferenceOfGaussian(IterationSpace<char> &IS, Accessor<char> &Input1,
-                         Accessor<char> &Input2)
-        : Kernel(IS),
-          Input1(Input1),
-          Input2(Input2) {
-      addAccessor(&Input1);
-      addAccessor(&Input2);
+    DifferenceOfGaussian(IterationSpace<char> &iter, Accessor<char> &input1,
+                         Accessor<char> &input2)
+        : Kernel(iter),
+          input1(input1),
+          input2(input2) {
+      addAccessor(&input1);
+      addAccessor(&input2);
     }
 
     void kernel() {
-      output() = Input1() - Input2();
+      output() = input1() - input2();
     }
 };
 
 class Collapse : public Kernel<char> {
   private:
-    Accessor<char> &Input1;
-    Accessor<char> &Input2;
+    Accessor<char> &input1;
+    Accessor<char> &input2;
 
   public:
-    Collapse(IterationSpace<char> &IS, Accessor<char> &Input1,
-             Accessor<char> &Input2)
-        : Kernel(IS),
-          Input1(Input1),
-          Input2(Input2) {
-      addAccessor(&Input1);
-      addAccessor(&Input2);
+    Collapse(IterationSpace<char> &iter, Accessor<char> &input1,
+             Accessor<char> &input2)
+        : Kernel(iter),
+          input1(input1),
+          input2(input2) {
+      addAccessor(&input1);
+      addAccessor(&input2);
     }
 
     void kernel() {
-      output() = Input1() + Input2();
+      output() = input1() + input2();
     }
 };
 
@@ -158,19 +158,19 @@ int main(int argc, const char **argv) {
 
     // convolution filter mask
     const float filter_xy[SIZE_Y][SIZE_X] = {
-#if SIZE_X == 3
+        #if SIZE_X == 3
         { 0.057118f, 0.124758f, 0.057118f },
         { 0.124758f, 0.272496f, 0.124758f },
         { 0.057118f, 0.124758f, 0.057118f }
-#endif
-#if SIZE_X == 5
+        #endif
+        #if SIZE_X == 5
         { 0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f },
         { 0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f },
         { 0.026151f, 0.090339f, 0.136565f, 0.090339f, 0.026151f },
         { 0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f },
         { 0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f }
-#endif
-#if SIZE_X == 7
+        #endif
+        #if SIZE_X == 7
         { 0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841 },
         { 0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010 },
         { 0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471 },
@@ -178,7 +178,7 @@ int main(int argc, const char **argv) {
         { 0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471 },
         { 0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010 },
         { 0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841 }
-#endif
+        #endif
     };
 
     // host memory for image of width x height pixels
@@ -197,7 +197,7 @@ int main(int argc, const char **argv) {
     Image<char> GAUS(width, height);
     Image<char> TMP(width, height);
     Image<char> LAP(width, height);
-    Mask<float> cMask(filter_xy);
+    Mask<float> M(filter_xy);
 
     GAUS = host_in;
     TMP = host_out;
@@ -221,10 +221,10 @@ int main(int argc, const char **argv) {
     traverse(PGAUS, PTMP, PLAP, [&] () {
         if (!PGAUS.isTopLevel()) {
           // Construct gaussian pyramid
-          BoundaryCondition<char> BC(PGAUS(-1), cMask, BOUNDARY_CLAMP);
+          BoundaryCondition<char> BC(PGAUS(-1), M, BOUNDARY_CLAMP);
           Accessor<char> Acc1(BC);
           IterationSpace<char> IS1(PTMP(-1));
-          Gaussian Gaus(IS1, Acc1, cMask, size_x, size_y);
+          Gaussian Gaus(IS1, Acc1, M, size_x, size_y);
           printf("Level %d: Gaussian\n", PGAUS.getLevel()-1);
           Gaus.execute();
 

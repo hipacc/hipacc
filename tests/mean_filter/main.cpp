@@ -135,27 +135,25 @@ void vertical_mean_filter(float *in, float *out, int d, int t, int width, int he
 // Kernel description in HIPAcc
 class HorizontalMeanFilter : public Kernel<float> {
     private:
-        Accessor<float> &Input;
+        Accessor<float> &input;
         int d, nt, width;
 
     public:
-        HorizontalMeanFilter(IterationSpace<float> &IS, Accessor<float> &Input,
-                int d, int nt, int width) :
-            Kernel(IS),
-            Input(Input),
+        HorizontalMeanFilter(IterationSpace<float> &iter, Accessor<float>
+                &input, int d, int nt, int width) :
+            Kernel(iter),
+            input(input),
             d(d),
             nt(nt),
             width(width)
-        {
-            addAccessor(&Input);
-        }
+        { addAccessor(&input); }
 
         void kernel() {
             float sum = 0.0f;
 
             #ifdef SIMPLE
             for (int k=0; k<d; ++k) {
-                sum += Input(k, 0);
+                sum += input(k, 0);
             }
 
             output() = sum/(float)d;
@@ -164,15 +162,15 @@ class HorizontalMeanFilter : public Kernel<float> {
 
             // first phase: convolution
             for (int k=0; k<d; ++k) {
-                sum += Input.getPixel(k + t0*nt, Input.getY());
+                sum += input.getPixel(k + t0*nt, input.getY());
             }
             outputAtPixel(t0*nt, getY()) = sum/(float)d;
 
             // second phase: rolling sum
             for (int dt=1; dt<min(nt, width-d-(t0*nt)); ++dt) {
                 int t = t0*nt + dt;
-                sum -= Input.getPixel(t-1, Input.getY());
-                sum += Input.getPixel(t-1+d, Input.getY());
+                sum -= input.getPixel(t-1, input.getY());
+                sum += input.getPixel(t-1+d, input.getY());
                 outputAtPixel(t, getY()) = sum/(float)d;
             }
             #endif
@@ -181,27 +179,25 @@ class HorizontalMeanFilter : public Kernel<float> {
 
 class VerticalMeanFilter : public Kernel<float> {
     private:
-        Accessor<float> &Input;
+        Accessor<float> &input;
         int d, nt, height;
 
     public:
-        VerticalMeanFilter(IterationSpace<float> &IS, Accessor<float> &Input,
+        VerticalMeanFilter(IterationSpace<float> &iter, Accessor<float> &input,
                 int d, int nt, int height) :
-            Kernel(IS),
-            Input(Input),
+            Kernel(iter),
+            input(input),
             d(d),
             nt(nt),
             height(height)
-        {
-            addAccessor(&Input);
-        }
+        { addAccessor(&input); }
 
         void kernel() {
             float sum = 0.0f;
 
             #ifdef SIMPLE
             for (int k=0; k<d; ++k) {
-                sum += Input(0, k);
+                sum += input(0, k);
             }
 
             output() = sum/(float)d;
@@ -210,15 +206,15 @@ class VerticalMeanFilter : public Kernel<float> {
 
             // first phase: convolution
             for (int k=0; k<d; ++k) {
-                sum += Input.getPixel(Input.getX(), k + t0*nt);
+                sum += input.getPixel(input.getX(), k + t0*nt);
             }
             outputAtPixel(getX(), t0*nt) = sum/(float)d;
 
             // second phase: rolling sum
             for (int dt=1; dt<min(nt, height-d-(t0*nt)); ++dt) {
                 int t = t0*nt + dt;
-                sum -= Input.getPixel(Input.getX(), t-1);
-                sum += Input.getPixel(Input.getX(), t-1+d);
+                sum -= input.getPixel(input.getX(), t-1);
+                sum += input.getPixel(input.getX(), t-1+d);
                 outputAtPixel(getX(), t) = sum/(float)d;
             }
             #endif

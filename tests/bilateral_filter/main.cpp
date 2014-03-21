@@ -138,18 +138,18 @@ void bilateral_filter(float *in, float *out, int sigma_d, int sigma_r, int
 // Kernel description in HIPAcc
 class BilateralFilter : public Kernel<float> {
     private:
-        Accessor<float> &in;
+        Accessor<float> &input;
         int sigma_d;
         int sigma_r;
 
     public:
-        BilateralFilter(IterationSpace<float> &iter, Accessor<float> &in, int
+        BilateralFilter(IterationSpace<float> &iter, Accessor<float> &input, int
                 sigma_d, int sigma_r) :
             Kernel(iter),
-            in(in),
+            input(input),
             sigma_d(sigma_d),
             sigma_r(sigma_r)
-        { addAccessor(&in); }
+        { addAccessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -159,12 +159,12 @@ class BilateralFilter : public Kernel<float> {
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    float diff = in(xf, yf) - in();
+                    float diff = input(xf, yf) - input();
 
                     float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
                         expf(-c_d * yf*yf);
                     d += s;
-                    p += s * in(xf, yf);
+                    p += s * input(xf, yf);
                 }
             }
 
@@ -174,21 +174,21 @@ class BilateralFilter : public Kernel<float> {
 
 class BilateralFilterMask : public Kernel<float> {
     private:
-        Accessor<float> &in;
+        Accessor<float> &input;
         Mask<float> &mask;
         Domain &dom;
         int sigma_d, sigma_r;
 
     public:
-        BilateralFilterMask(IterationSpace<float> &iter, Accessor<float> &in,
+        BilateralFilterMask(IterationSpace<float> &iter, Accessor<float> &input,
                 Mask<float> &mask, Domain &dom, int sigma_d, int sigma_r) :
             Kernel(iter),
-            in(in),
+            input(input),
             mask(mask),
             dom(dom),
             sigma_d(sigma_d),
             sigma_r(sigma_r)
-        { addAccessor(&in); }
+        { addAccessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -197,11 +197,11 @@ class BilateralFilterMask : public Kernel<float> {
             float p = 0;
 
             iterate(dom, [&] () -> void {
-                    float diff = in(dom) - in();
+                    float diff = input(dom) - input();
 
                     float s = expf(-c_r * diff*diff) * mask(dom);
                     d += s;
-                    p += s * in(dom);
+                    p += s * input(dom);
                     });
 
             output() = p/d;
@@ -214,11 +214,11 @@ class BilateralFilterMask : public Kernel<float> {
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    float diff = in(xf, yf) - in();
+                    float diff = input(xf, yf) - input();
 
                     float s = expf(-c_r * diff*diff) * mask(xf, yf);
                     d += s;
-                    p += s * in(xf, yf);
+                    p += s * input(xf, yf);
                 }
             }
 
@@ -229,22 +229,22 @@ class BilateralFilterMask : public Kernel<float> {
 
 class BilateralFilterBHCLAMP : public Kernel<float> {
     private:
-        Accessor<float> &in;
+        Accessor<float> &input;
         int sigma_d;
         int sigma_r;
         int width;
         int height;
 
     public:
-        BilateralFilterBHCLAMP(IterationSpace<float> &iter, Accessor<float> &in,
-                int sigma_d, int sigma_r, int width, int height) :
+        BilateralFilterBHCLAMP(IterationSpace<float> &iter, Accessor<float>
+                &input, int sigma_d, int sigma_r, int width, int height) :
             Kernel(iter),
-            in(in),
+            input(input),
             sigma_d(sigma_d),
             sigma_r(sigma_r),
             width(width),
             height(height)
-        { addAccessor(&in); }
+        { addAccessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -253,17 +253,17 @@ class BilateralFilterBHCLAMP : public Kernel<float> {
             float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                int iy = in.getY() + yf;
+                int iy = input.getY() + yf;
                 iy = min(max(iy, 0), height-1);
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    int ix = in.getX() + xf;
+                    int ix = input.getX() + xf;
                     ix = min(max(ix, 0), width-1);
-                    float diff = in.getPixel(ix, iy) - in();
+                    float diff = input.getPixel(ix, iy) - input();
 
                     float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
                         expf(-c_d * yf*yf);
                     d += s;
-                    p += s * in.getPixel(ix, iy);
+                    p += s * input.getPixel(ix, iy);
                 }
             }
 
@@ -273,7 +273,7 @@ class BilateralFilterBHCLAMP : public Kernel<float> {
 
 class BilateralFilterBHREPEAT : public Kernel<float> {
     private:
-        Accessor<float> &in;
+        Accessor<float> &input;
         int sigma_d;
         int sigma_r;
         int width;
@@ -281,14 +281,14 @@ class BilateralFilterBHREPEAT : public Kernel<float> {
 
     public:
         BilateralFilterBHREPEAT(IterationSpace<float> &iter, Accessor<float>
-                &in, int sigma_d, int sigma_r, int width, int height) :
+                &input, int sigma_d, int sigma_r, int width, int height) :
             Kernel(iter),
-            in(in),
+            input(input),
             sigma_d(sigma_d),
             sigma_r(sigma_r),
             width(width),
             height(height)
-        { addAccessor(&in); }
+        { addAccessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -297,19 +297,19 @@ class BilateralFilterBHREPEAT : public Kernel<float> {
             float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                int iy = in.getY() + yf;
+                int iy = input.getY() + yf;
                 while (iy < 0) iy += height;
                 while (iy >= height) iy -= height;
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    int ix = in.getX() + xf;
+                    int ix = input.getX() + xf;
                     while (ix < 0) ix += width;
                     while (ix >= width) ix -= width;
-                    float diff = in.getPixel(ix, iy) - in();
+                    float diff = input.getPixel(ix, iy) - input();
 
                     float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
                         expf(-c_d * yf*yf);
                     d += s;
-                    p += s * in.getPixel(ix, iy);
+                    p += s * input.getPixel(ix, iy);
                 }
             }
 
@@ -319,7 +319,7 @@ class BilateralFilterBHREPEAT : public Kernel<float> {
 
 class BilateralFilterBHMIRROR : public Kernel<float> {
     private:
-        Accessor<float> &in;
+        Accessor<float> &input;
         int sigma_d;
         int sigma_r;
         int width;
@@ -327,14 +327,14 @@ class BilateralFilterBHMIRROR : public Kernel<float> {
 
     public:
         BilateralFilterBHMIRROR(IterationSpace<float> &iter, Accessor<float>
-                &in, int sigma_d, int sigma_r, int width, int height) :
+                &input, int sigma_d, int sigma_r, int width, int height) :
             Kernel(iter),
-            in(in),
+            input(input),
             sigma_d(sigma_d),
             sigma_r(sigma_r),
             width(width),
             height(height)
-        { addAccessor(&in); }
+        { addAccessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -343,19 +343,19 @@ class BilateralFilterBHMIRROR : public Kernel<float> {
             float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                int iy = in.getY() + yf;
+                int iy = input.getY() + yf;
                 if (iy < 0) iy = -iy - 1;
                 if (iy >= height) iy = height - (iy+1 - height);
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    int ix = in.getX() + xf;
+                    int ix = input.getX() + xf;
                     if (ix < 0) ix = -ix - 1;
                     if (ix >= width) ix = width - (ix+1 - width);
-                    float diff = in.getPixel(ix, iy) - in();
+                    float diff = input.getPixel(ix, iy) - input();
 
                     float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
                         expf(-c_d * yf*yf);
                     d += s;
-                    p += s * in.getPixel(ix, iy);
+                    p += s * input.getPixel(ix, iy);
                 }
             }
 
@@ -365,7 +365,7 @@ class BilateralFilterBHMIRROR : public Kernel<float> {
 
 class BilateralFilterBHCONSTANT : public Kernel<float> {
     private:
-        Accessor<float> &in;
+        Accessor<float> &input;
         int sigma_d;
         int sigma_r;
         int width;
@@ -373,14 +373,14 @@ class BilateralFilterBHCONSTANT : public Kernel<float> {
 
     public:
         BilateralFilterBHCONSTANT(IterationSpace<float> &iter, Accessor<float>
-                &in, int sigma_d, int sigma_r, int width, int height) :
+                &input, int sigma_d, int sigma_r, int width, int height) :
             Kernel(iter),
-            in(in),
+            input(input),
             sigma_d(sigma_d),
             sigma_r(sigma_r),
             width(width),
             height(height)
-        { addAccessor(&in); }
+        { addAccessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -389,14 +389,14 @@ class BilateralFilterBHCONSTANT : public Kernel<float> {
             float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                int iy = in.getY() + yf;
+                int iy = input.getY() + yf;
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    int ix = in.getX() + xf;
+                    int ix = input.getX() + xf;
                     float diff;
                     if (ix < 0 || iy < 0 || ix >= width || iy >= height) {
                         diff = CONSTANT;
                     } else {
-                        diff = in.getPixel(ix, iy) - in();
+                        diff = input.getPixel(ix, iy) - input();
                     }
 
                     float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
@@ -405,7 +405,7 @@ class BilateralFilterBHCONSTANT : public Kernel<float> {
                     if (ix < 0 || iy < 0 || ix >= width || iy >= height) {
                         p += s * CONSTANT;
                     } else {
-                        p += s * in.getPixel(ix, iy);
+                        p += s * input.getPixel(ix, iy);
                     }
                 }
             }
@@ -605,7 +605,7 @@ int main(int argc, const char **argv) {
     rms_err = sqrtf(rms_err / ((float)(width*height)));
     // check RMS error
     if (rms_err > EPS) {
-        fprintf(stderr, "Test FAILED: RMS error in image: %.5f > %.5f, aborting...\n", rms_err, EPS);
+        fprintf(stderr, "Test FAILED: RMS error in image: %.3f > %.3f, aborting...\n", rms_err, EPS);
         exit(EXIT_FAILURE);
     }
     fprintf(stderr, "Test PASSED\n");

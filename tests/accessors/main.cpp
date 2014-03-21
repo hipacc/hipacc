@@ -77,16 +77,16 @@ void access_nn(data_t *in, data_t *out, int in_width, int in_height, int
 // Kernel description in HIPAcc
 class CopyKernel : public Kernel<int> {
     private:
-        Accessor<int> &Input;
+        Accessor<int> &input;
 
     public:
-        CopyKernel(IterationSpace<int> &IS, Accessor<int> &Input) :
-            Kernel(IS),
-            Input(Input)
-        { addAccessor(&Input); }
+        CopyKernel(IterationSpace<int> &iter, Accessor<int> &input) :
+            Kernel(iter),
+            input(input)
+        { addAccessor(&input); }
 
         void kernel() {
-            output() = Input();
+            output() = input();
         }
 };
 

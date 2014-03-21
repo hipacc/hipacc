@@ -109,288 +109,288 @@ int calc_ssd(int *in0, int *in1, int *out, int width, int height) {
 // Kernel description in HIPAcc
 class GlobalOffsetCorrection : public Kernel<int> {
     private:
-        Accessor<int> &Input;
+        Accessor<int> &input;
         int offset;
 
     public:
-        GlobalOffsetCorrection(IterationSpace<int> &IS, Accessor<int> &Input,
+        GlobalOffsetCorrection(IterationSpace<int> &iter, Accessor<int> &input,
                 int offset) :
-            Kernel(IS),
-            Input(Input),
+            Kernel(iter),
+            input(input),
             offset(offset)
         {
-            addAccessor(&Input);
+            addAccessor(&input);
         }
 
         void kernel() {
-            output() = Input() + offset;
+            output() = input() + offset;
         }
 };
 class AbsoluteDifferences : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
-        Accessor<int> &Input1;
+        Accessor<int> &input0;
+        Accessor<int> &input1;
 
     public:
-        AbsoluteDifferences(IterationSpace<int> &IS, Accessor<int> &Input0,
-                Accessor<int> &Input1) :
-            Kernel(IS),
-            Input0(Input0),
-            Input1(Input1)
+        AbsoluteDifferences(IterationSpace<int> &iter, Accessor<int> &input0,
+                Accessor<int> &input1) :
+            Kernel(iter),
+            input0(input0),
+            input1(input1)
         {
-            addAccessor(&Input0);
-            addAccessor(&Input1);
+            addAccessor(&input0);
+            addAccessor(&input1);
         }
 
         void kernel() {
-            output() = abs(Input0()-Input1());
+            output() = abs(input0()-input1());
         }
 };
 class SquareDifferences : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
-        Accessor<int> &Input1;
+        Accessor<int> &input0;
+        Accessor<int> &input1;
 
     public:
-        SquareDifferences(IterationSpace<int> &IS, Accessor<int> &Input0,
-                Accessor<int> &Input1) :
-            Kernel(IS),
-            Input0(Input0),
-            Input1(Input1)
+        SquareDifferences(IterationSpace<int> &iter, Accessor<int> &input0,
+                Accessor<int> &input1) :
+            Kernel(iter),
+            input0(input0),
+            input1(input1)
         {
-            addAccessor(&Input0);
-            addAccessor(&Input1);
+            addAccessor(&input0);
+            addAccessor(&input1);
         }
 
         void kernel() {
-            output() = (Input0()-Input1())*(Input0()-Input1());
+            output() = (input0()-input1())*(input0()-input1());
         }
 };
 class Read1 : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
+        Accessor<int> &input0;
 
     public:
-        Read1(IterationSpace<int> &IS, Accessor<int> &Input0) :
-            Kernel(IS),
-            Input0(Input0)
+        Read1(IterationSpace<int> &iter, Accessor<int> &input0) :
+            Kernel(iter),
+            input0(input0)
         {
-            addAccessor(&Input0);
+            addAccessor(&input0);
         }
 
         void kernel() {
-            output() = Input0();
+            output() = input0();
         }
 };
 class Read2 : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
-        Accessor<int> &Input1;
+        Accessor<int> &input0;
+        Accessor<int> &input1;
 
     public:
-        Read2(IterationSpace<int> &IS, Accessor<int> &Input0,
-                Accessor<int> &Input1) :
-            Kernel(IS),
-            Input0(Input0),
-            Input1(Input1)
+        Read2(IterationSpace<int> &iter, Accessor<int> &input0,
+                Accessor<int> &input1) :
+            Kernel(iter),
+            input0(input0),
+            input1(input1)
         {
-            addAccessor(&Input0);
-            addAccessor(&Input1);
+            addAccessor(&input0);
+            addAccessor(&input1);
         }
 
         void kernel() {
-            output() = Input0() + Input1();
+            output() = input0() + input1();
         }
 };
 class Read3 : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
-        Accessor<int> &Input1;
-        Accessor<int> &Input2;
+        Accessor<int> &input0;
+        Accessor<int> &input1;
+        Accessor<int> &input2;
 
     public:
-        Read3(IterationSpace<int> &IS, Accessor<int> &Input0,
-                Accessor<int> &Input1, Accessor<int> &Input2) :
-            Kernel(IS),
-            Input0(Input0),
-            Input1(Input1),
-            Input2(Input2)
+        Read3(IterationSpace<int> &iter, Accessor<int> &input0,
+                Accessor<int> &input1, Accessor<int> &input2) :
+            Kernel(iter),
+            input0(input0),
+            input1(input1),
+            input2(input2)
         {
-            addAccessor(&Input0);
-            addAccessor(&Input1);
-            addAccessor(&Input2);
+            addAccessor(&input0);
+            addAccessor(&input1);
+            addAccessor(&input2);
         }
 
         void kernel() {
-            output() = Input0() + Input1() + Input2();
+            output() = input0() + input1() + input2();
         }
 };
 class Read4 : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
-        Accessor<int> &Input1;
-        Accessor<int> &Input2;
-        Accessor<int> &Input3;
+        Accessor<int> &input0;
+        Accessor<int> &input1;
+        Accessor<int> &input2;
+        Accessor<int> &input3;
 
     public:
-        Read4(IterationSpace<int> &IS, Accessor<int> &Input0, Accessor<int>
-                &Input1, Accessor<int> &Input2, Accessor<int> &Input3) :
-            Kernel(IS),
-            Input0(Input0),
-            Input1(Input1),
-            Input2(Input2),
-            Input3(Input3)
+        Read4(IterationSpace<int> &iter, Accessor<int> &input0, Accessor<int>
+                &input1, Accessor<int> &input2, Accessor<int> &input3) :
+            Kernel(iter),
+            input0(input0),
+            input1(input1),
+            input2(input2),
+            input3(input3)
         {
-            addAccessor(&Input0);
-            addAccessor(&Input1);
-            addAccessor(&Input2);
-            addAccessor(&Input3);
+            addAccessor(&input0);
+            addAccessor(&input1);
+            addAccessor(&input2);
+            addAccessor(&input3);
         }
 
         void kernel() {
-            output() = Input0() + Input1() + Input2() + Input3();
+            output() = input0() + input1() + input2() + input3();
         }
 };
 class Read5 : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
-        Accessor<int> &Input1;
-        Accessor<int> &Input2;
-        Accessor<int> &Input3;
-        Accessor<int> &Input4;
+        Accessor<int> &input0;
+        Accessor<int> &input1;
+        Accessor<int> &input2;
+        Accessor<int> &input3;
+        Accessor<int> &input4;
 
     public:
-        Read5(IterationSpace<int> &IS, Accessor<int> &Input0,
-                Accessor<int> &Input1, Accessor<int> &Input2,
-                Accessor<int> &Input3, Accessor<int> &Input4) :
-            Kernel(IS),
-            Input0(Input0),
-            Input1(Input1),
-            Input2(Input2),
-            Input3(Input3),
-            Input4(Input4)
+        Read5(IterationSpace<int> &iter, Accessor<int> &input0,
+                Accessor<int> &input1, Accessor<int> &input2,
+                Accessor<int> &input3, Accessor<int> &input4) :
+            Kernel(iter),
+            input0(input0),
+            input1(input1),
+            input2(input2),
+            input3(input3),
+            input4(input4)
         {
-            addAccessor(&Input0);
-            addAccessor(&Input1);
-            addAccessor(&Input2);
-            addAccessor(&Input3);
-            addAccessor(&Input4);
+            addAccessor(&input0);
+            addAccessor(&input1);
+            addAccessor(&input2);
+            addAccessor(&input3);
+            addAccessor(&input4);
         }
 
         void kernel() {
-            output() = Input0() + Input1() + Input2() + Input3() + Input4();
+            output() = input0() + input1() + input2() + input3() + input4();
         }
 };
 class Read6 : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
-        Accessor<int> &Input1;
-        Accessor<int> &Input2;
-        Accessor<int> &Input3;
-        Accessor<int> &Input4;
-        Accessor<int> &Input5;
+        Accessor<int> &input0;
+        Accessor<int> &input1;
+        Accessor<int> &input2;
+        Accessor<int> &input3;
+        Accessor<int> &input4;
+        Accessor<int> &input5;
 
     public:
-        Read6(IterationSpace<int> &IS, Accessor<int> &Input0,
-                Accessor<int> &Input1, Accessor<int> &Input2,
-                Accessor<int> &Input3, Accessor<int> &Input4,
-                Accessor<int> &Input5) :
-            Kernel(IS),
-            Input0(Input0),
-            Input1(Input1),
-            Input2(Input2),
-            Input3(Input3),
-            Input4(Input4),
-            Input5(Input5)
+        Read6(IterationSpace<int> &iter, Accessor<int> &input0,
+                Accessor<int> &input1, Accessor<int> &input2,
+                Accessor<int> &input3, Accessor<int> &input4,
+                Accessor<int> &input5) :
+            Kernel(iter),
+            input0(input0),
+            input1(input1),
+            input2(input2),
+            input3(input3),
+            input4(input4),
+            input5(input5)
         {
-            addAccessor(&Input0);
-            addAccessor(&Input1);
-            addAccessor(&Input2);
-            addAccessor(&Input3);
-            addAccessor(&Input4);
-            addAccessor(&Input5);
+            addAccessor(&input0);
+            addAccessor(&input1);
+            addAccessor(&input2);
+            addAccessor(&input3);
+            addAccessor(&input4);
+            addAccessor(&input5);
         }
 
         void kernel() {
-            output() = Input0() + Input1() + Input2() + Input3() + Input4() + Input5();
+            output() = input0() + input1() + input2() + input3() + input4() + input5();
         }
 };
 class Read7 : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
-        Accessor<int> &Input1;
-        Accessor<int> &Input2;
-        Accessor<int> &Input3;
-        Accessor<int> &Input4;
-        Accessor<int> &Input5;
-        Accessor<int> &Input6;
+        Accessor<int> &input0;
+        Accessor<int> &input1;
+        Accessor<int> &input2;
+        Accessor<int> &input3;
+        Accessor<int> &input4;
+        Accessor<int> &input5;
+        Accessor<int> &input6;
 
     public:
-        Read7(IterationSpace<int> &IS, Accessor<int> &Input0,
-                Accessor<int> &Input1, Accessor<int> &Input2,
-                Accessor<int> &Input3, Accessor<int> &Input4,
-                Accessor<int> &Input5, Accessor<int> &Input6) :
-            Kernel(IS),
-            Input0(Input0),
-            Input1(Input1),
-            Input2(Input2),
-            Input3(Input3),
-            Input4(Input4),
-            Input5(Input5),
-            Input6(Input6)
+        Read7(IterationSpace<int> &iter, Accessor<int> &input0,
+                Accessor<int> &input1, Accessor<int> &input2,
+                Accessor<int> &input3, Accessor<int> &input4,
+                Accessor<int> &input5, Accessor<int> &input6) :
+            Kernel(iter),
+            input0(input0),
+            input1(input1),
+            input2(input2),
+            input3(input3),
+            input4(input4),
+            input5(input5),
+            input6(input6)
         {
-            addAccessor(&Input0);
-            addAccessor(&Input1);
-            addAccessor(&Input2);
-            addAccessor(&Input3);
-            addAccessor(&Input4);
-            addAccessor(&Input5);
-            addAccessor(&Input6);
+            addAccessor(&input0);
+            addAccessor(&input1);
+            addAccessor(&input2);
+            addAccessor(&input3);
+            addAccessor(&input4);
+            addAccessor(&input5);
+            addAccessor(&input6);
         }
 
         void kernel() {
-            output() = Input0() + Input1() + Input2() + Input3() + Input4() + Input5() + Input6();
+            output() = input0() + input1() + input2() + input3() + input4() + input5() + input6();
         }
 };
 class Read8 : public Kernel<int> {
     private:
-        Accessor<int> &Input0;
-        Accessor<int> &Input1;
-        Accessor<int> &Input2;
-        Accessor<int> &Input3;
-        Accessor<int> &Input4;
-        Accessor<int> &Input5;
-        Accessor<int> &Input6;
-        Accessor<int> &Input7;
+        Accessor<int> &input0;
+        Accessor<int> &input1;
+        Accessor<int> &input2;
+        Accessor<int> &input3;
+        Accessor<int> &input4;
+        Accessor<int> &input5;
+        Accessor<int> &input6;
+        Accessor<int> &input7;
 
     public:
-        Read8(IterationSpace<int> &IS, Accessor<int> &Input0,
-                Accessor<int> &Input1, Accessor<int> &Input2,
-                Accessor<int> &Input3, Accessor<int> &Input4,
-                Accessor<int> &Input5, Accessor<int> &Input6,
-                Accessor<int> &Input7) :
-            Kernel(IS),
-            Input0(Input0),
-            Input1(Input1),
-            Input2(Input2),
-            Input3(Input3),
-            Input4(Input4),
-            Input5(Input5),
-            Input6(Input6),
-            Input7(Input7)
+        Read8(IterationSpace<int> &iter, Accessor<int> &input0,
+                Accessor<int> &input1, Accessor<int> &input2,
+                Accessor<int> &input3, Accessor<int> &input4,
+                Accessor<int> &input5, Accessor<int> &input6,
+                Accessor<int> &input7) :
+            Kernel(iter),
+            input0(input0),
+            input1(input1),
+            input2(input2),
+            input3(input3),
+            input4(input4),
+            input5(input5),
+            input6(input6),
+            input7(input7)
         {
-            addAccessor(&Input0);
-            addAccessor(&Input1);
-            addAccessor(&Input2);
-            addAccessor(&Input3);
-            addAccessor(&Input4);
-            addAccessor(&Input5);
-            addAccessor(&Input6);
-            addAccessor(&Input7);
+            addAccessor(&input0);
+            addAccessor(&input1);
+            addAccessor(&input2);
+            addAccessor(&input3);
+            addAccessor(&input4);
+            addAccessor(&input5);
+            addAccessor(&input6);
+            addAccessor(&input7);
         }
 
         void kernel() {
-            output() = Input0() + Input1() + Input2() + Input3() + Input4() + Input5() + Input6() + Input7();
+            output() = input0() + input1() + input2() + input3() + input4() + input5() + input6() + input7();
         }
 };
 
