@@ -274,7 +274,7 @@ HipaccPyramid hipaccCreatePyramid(HipaccImage &img, size_t depth) {
   int height = img.height/2;
   int width = img.width/2;
   for (size_t i=1; i<depth; ++i) {
-    assert(width * height > 0 && "Pyramid stages to deep for image size");
+    assert(width * height > 0 && "Pyramid stages too deep for image size");
     p.add(hipaccCreatePyramidImage<data_t>(img, width, height));
     height /= 2;
     width /= 2;
@@ -471,8 +471,7 @@ void hipaccTraverse(unsigned int loop=1,
   std::vector<HipaccPyramid*> pyrs = hipaccPyramids.back();
 
   if (!pyrs.at(0)->isBottomLevel()) {
-    for (std::vector<HipaccPyramid*>::iterator it = pyrs.begin();
-           it != pyrs.end(); ++it) {
+    for (auto it = pyrs.begin(); it != pyrs.end(); ++it) {
       ++((*it)->level_);
     }
 
@@ -483,8 +482,7 @@ void hipaccTraverse(unsigned int loop=1,
       }
     }
 
-    for (std::vector<HipaccPyramid*>::iterator it = pyrs.begin();
-         it != pyrs.end(); ++it) {
+    for (auto it = pyrs.begin(); it != pyrs.end(); ++it) {
       --((*it)->level_);
     }
   }
