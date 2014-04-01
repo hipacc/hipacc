@@ -187,12 +187,10 @@ class Recursion {
 
     void run(int loop) {
       std::vector<PyramidBase*> pyrs = gPyramids.back();
-      if (pyrs.at(0)->getLevel() < pyrs.at(0)->getDepth()-1) {
-        for (int i=0; i<loop; i++) {
-          (*gTraverse.back())();
-          if (i < loop-1) {
-            func_();
-          }
+      for (int i=0; i<loop; i++) {
+        (*gTraverse.back())();
+        if (i < loop-1) {
+          func_();
         }
       }
     }
@@ -286,8 +284,12 @@ void traverse(unsigned int loop=1, const std::function<void()> &func=[]{}) {
   assert(!gPyramids.empty() &&
          "Traverse recursion called outside of traverse.");
 
-  Recursion r(func);
-  r.run(loop);
+  std::vector<PyramidBase*> pyrs = gPyramids.back();
+
+  if (!pyrs.at(0)->isBottomLevel()) {
+    Recursion r(func);
+    r.run(loop);
+  }
 }
 
 } // end namespace hipacc
