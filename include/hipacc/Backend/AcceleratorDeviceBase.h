@@ -36,6 +36,7 @@
 #include "hipacc/Device/TargetDevices.h"
 #include "BackendExceptions.h"
 #include "CommonDefines.h"
+#include "OptionParsers.h"
 #include <string>
 
 namespace clang

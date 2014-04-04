@@ -33,9 +33,7 @@
 #ifndef _BACKEND_COMMON_DEFINES_H_
 #define _BACKEND_COMMON_DEFINES_H_
 
-#include "hipacc/Config/CompilerOptions.h"
 #include "BackendExceptions.h"
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -48,10 +46,8 @@ namespace hipacc
 namespace Backend
 {
   /** \brief  Contains a set of common type definitions, classes etc. for the backend library. */
-  class CommonDefines final
+  namespace CommonDefines
   {
-  public:
-
     typedef std::vector< std::string >              ArgumentVectorType;           //!< Type definition for a vector of command arguments.
 
     typedef std::pair< std::string, std::string >   SwitchDisplayInfoType;        //!< Type definition for the display information of a compiler switch (for the compiler usage).
@@ -141,59 +137,7 @@ namespace Backend
 
       //@}
     };
-
-
-    /** \brief    Contains common parsing routines for command line options.
-     *  \remarks  The internal option parsers rely on static polymorphism, thus each parser struct must define the type <b>ReturnType</b>
-     *            and the static method <b>Parse()</b>. */
-    class OptionParsers final
-    {
-    public:
-
-      /** \brief  Common parser for integral options. */
-      struct Integer final
-      {
-        typedef int   ReturnType;   //!<  The type of the parsed option.
-
-        /** \brief  Tries to parse the option as an integer.
-         *  \param  strOption   The command line option as string.
-         *  \return If successful, the option as an integer value. */
-        inline static ReturnType Parse(std::string strOption)
-        {
-          std::istringstream buffer(strOption.c_str());
-
-          int iRetVal;
-          buffer >> iRetVal;
-
-          if (buffer.fail())
-          {
-            throw RuntimeErrorException("Expected integer value");
-          }
-
-          return iRetVal;
-        }
-      };
-
-      /** \brief  Common parser for "boolean" options, which can be either <b>on</b> or <b>off</b>. */
-      struct OnOff final
-      {
-        typedef ::clang::hipacc::CompilerOption   ReturnType;
-
-        /** \brief  Tries to parse the option as a pseudo-boolean <b>on / off</b> value.
-         *  \param  strOption   The command line option as string.
-         *  \return If successful, the option as a <b>clang::hipacc::CompilerOption</b> value. */
-        inline static ReturnType Parse(std::string strOption)
-        {
-          if      (strOption == "off")  return USER_OFF;
-          else if (strOption == "on")   return USER_ON;
-          else
-          {
-            throw RuntimeErrorException("Invalid value");
-          }
-        }
-      };
-    };
-  };
+  }
 } // end namespace Backend
 } // end namespace hipacc
 } // end namespace clang

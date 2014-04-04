@@ -39,6 +39,8 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <string>
+#include "hipacc/Backend/ICodeGenerator.h"
+
 
 namespace clang {
 namespace hipacc {
@@ -85,6 +87,9 @@ class CompilerOptions {
     Texture texture_type;
     std::string rs_package_name;
 
+    // The selected code generator
+    Backend::ICodeGeneratorPtr  _spCodeGenerator;
+
     void getOptionAsString(CompilerOption option, int val=-1) {
       switch (option) {
         case USER_ON:
@@ -123,7 +128,8 @@ class CompilerOptions {
       align_bytes(0),
       pixels_per_thread(1),
       texture_type(Texture::None),
-      rs_package_name("org.hipacc.rs")
+      rs_package_name("org.hipacc.rs"),
+      _spCodeGenerator(nullptr)
     {}
 
     bool emitC99() { return target_lang == Language::C99; }
@@ -233,6 +239,10 @@ class CompilerOptions {
         case Language::Filterscript: return "fs";
       }
     }
+
+
+    Backend::ICodeGeneratorPtr  getCodeGenerator()                                            { return _spCodeGenerator; }
+    void                        setCodeGenerator(Backend::ICodeGeneratorPtr spCodeGenerator)  { _spCodeGenerator = spCodeGenerator; }
 
     void printSummary(std::string target_device) {
       llvm::errs() << "HIPACC compiler configuration summary: \n";

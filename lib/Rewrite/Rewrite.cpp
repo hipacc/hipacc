@@ -2388,181 +2388,222 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     fun->print(*OS, Policy);
   }
 
-  // write kernel name and qualifiers
-  switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
-    case Language::Renderscript:
-      break;
-    case Language::CUDA:
-      *OS << "__global__ ";
-      if (compilerOptions.exploreConfig() && emitHints) {
-        *OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";
-      } else {
-        *OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
-            << K->getNumThreadsY() << ") ";
-      }
-      break;
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
-      if (compilerOptions.useTextureMemory() &&
-          compilerOptions.getTextureType()==Texture::Array2D) {
-        *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
-            << "Sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | "
-            << " CLK_FILTER_NEAREST; \n\n";
-      }
-      *OS << "__kernel ";
-      if (compilerOptions.exploreConfig() && emitHints) {
-        *OS << "__attribute__((reqd_work_group_size(BSX_EXPLORE, BSY_EXPLORE, "
-            << "1))) ";
-      } else {
-        *OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
-            << ", " << K->getNumThreadsY() << ", 1))) ";
-      }
-      break;
-    case Language::Filterscript:
-      *OS << K->getIterationSpace()->getImage()->getTypeStr()
-          << " __attribute__((kernel)) ";
-      break;
-  }
-  if (!compilerOptions.emitFilterscript()) {
-    *OS << "void ";
-  }
-  *OS << K->getKernelName();
-  *OS << "(";
+  // Launch the print method of the code generator
+  compilerOptions.getCodeGenerator()->SetPrintingPolicy(&Policy);
+  bool bKernelPrinted = compilerOptions.getCodeGenerator()->PrintKernelFunction(D, K, *OS);
 
-  // write kernel parameters
-  size_t comma = 0; num_arg = 0;
-  for (auto param : D->params()) {
-    // print default parameters for Renderscript and Filterscript only
-    if (compilerOptions.emitFilterscript()) {
-      *OS << "uint32_t x, uint32_t y";
-      break;
+  // Check if the code generator handled the printing of the kernel function
+  if (!bKernelPrinted)
+  {
+    // write kernel name and qualifiers
+    switch (compilerOptions.getTargetCode()) {
+      case TARGET_CUDA:
+        *OS << "__global__ ";
+        if (compilerOptions.exploreConfig() && emitHints) {
+          *OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";
+        } else {
+          *OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
+              << K->getNumThreadsY() << ") ";
+        }
+        break;
+      case TARGET_OpenCLACC:
+      case TARGET_OpenCLCPU:
+      case TARGET_OpenCLGPU:
+        if (compilerOptions.useTextureMemory() &&
+            compilerOptions.getTextureType()==Array2D) {
+          *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
+              << "Sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | "
+              << " CLK_FILTER_NEAREST; \n\n";
+        }
+        *OS << "__kernel ";
+        if (compilerOptions.exploreConfig() && emitHints) {
+          *OS << "__attribute__((reqd_work_group_size(BSX_EXPLORE, BSY_EXPLORE, "
+              << "1))) ";
+        } else {
+          *OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
+              << ", " << K->getNumThreadsY() << ", 1))) ";
+        }
+        break;
+      case TARGET_C:
+      case TARGET_Renderscript:
+        break;
+      case TARGET_Filterscript:
+        *OS << K->getIterationSpace()->getAccessor()->getImage()->getTypeStr()
+            << " __attribute__((kernel)) ";
+        break;
     }
-    if (compilerOptions.emitRenderscript()) {
-      *OS << K->getIterationSpace()->getImage()->getTypeStr()
-          << " *_iter, uint32_t x, uint32_t y";
-      break;
+    if (!compilerOptions.emitFilterscript()) {
+      *OS << "void ";
     }
+    *OS << K->getKernelName();
+    *OS << "(";
 
-    size_t i = num_arg++;
-    FieldDecl *FD = K->getDeviceArgFields()[i];
+    // write kernel parameters
+    size_t comma = 0;
+    for (size_t i=0, e=D->getNumParams(); i!=e; ++i) {
+      std::string Name(D->getParamDecl(i)->getNameAsString());
+      FieldDecl *FD = K->getDeviceArgFields()[i];
 
-    QualType T = param->getType();
-    T.removeLocalConst();
-    T.removeLocalRestrict();
-
-    std::string Name(param->getNameAsString());
-    if (!K->getUsed(Name)) continue;
-
-    // check if we have a Mask or Domain
-    HipaccMask *Mask = K->getMaskFromMapping(FD);
-    if (Mask) {
-      if (Mask->isConstant()) continue;
-      switch (compilerOptions.getTargetLang()) {
-        case Language::C99:
-          if (comma++) *OS << ", ";
-          *OS << "const "
-              << Mask->getTypeStr()
-              << " " << Mask->getName() << K->getName()
-              << "[" << Mask->getSizeYStr() << "]"
-              << "[" << Mask->getSizeXStr() << "]";
-          break;
-        case Language::OpenCLACC:
-        case Language::OpenCLCPU:
-        case Language::OpenCLGPU:
-          if (comma++) *OS << ", ";
-          *OS << "__constant ";
-          T.getAsStringInternal(Name, Policy);
-          *OS << Name;
-          break;
-        case Language::CUDA:
-          // mask/domain is declared as constant memory
-          break;
-        case Language::Renderscript:
-        case Language::Filterscript:
-          // mask/domain is declared as static memory
-          break;
+      if (!K->getUsed(Name) &&
+          !compilerOptions.emitFilterscript() &&
+          !compilerOptions.emitRenderscript()) {
+          // Proceed for Filterscript, because output image is never explicitly used
+          continue;
       }
-      continue;
-    }
 
-    // check if we have an Accessor
-    HipaccAccessor *Acc = K->getImgFromMapping(FD);
-    if (Acc) {
-      MemoryAccess mem_acc = KC->getMemAccess(FD);
-      switch (compilerOptions.getTargetLang()) {
-        case Language::C99:
-          if (comma++) *OS << ", ";
-          if (mem_acc==READ_ONLY) *OS << "const ";
-          *OS << Acc->getImage()->getTypeStr()
-              << " " << Name
-              << "[" << Acc->getImage()->getSizeYStr() << "]"
-              << "[" << Acc->getImage()->getSizeXStr() << "]";
-          // alternative for Pencil:
-          // *OS << "[static const restrict 2048][4096]";
-          break;
-        case Language::CUDA:
-          if (K->useTextureMemory(Acc)!=Texture::None &&
-              // parameter required for __ldg() intrinsic
-              !(K->useTextureMemory(Acc) == Texture::Ldg)) {
-            // no parameter is emitted for textures
-            continue;
-          } else {
-            if (comma++) *OS << ", ";
-            if (mem_acc==READ_ONLY) *OS << "const ";
-            *OS << T->getPointeeType().getAsString();
-            *OS << " * __restrict__ ";
-            *OS << Name;
-          }
-          break;
-        case Language::OpenCLACC:
-        case Language::OpenCLCPU:
-        case Language::OpenCLGPU:
-          // __global keyword to specify memory location is only needed for OpenCL
-          if (comma++) *OS << ", ";
-          if (K->useTextureMemory(Acc)!=Texture::None) {
-            if (mem_acc==WRITE_ONLY) {
-              *OS << "__write_only image2d_t ";
-            } else {
-              *OS << "__read_only image2d_t ";
+      QualType T = D->getParamDecl(i)->getType();
+      T.removeLocalConst();
+      T.removeLocalRestrict();
+
+      // check if we have a Mask or Domain
+      HipaccMask *Mask = K->getMaskFromMapping(FD);
+      if (Mask) {
+        switch (compilerOptions.getTargetCode()) {
+          case TARGET_OpenCLACC:
+          case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
+            if (!Mask->isConstant()) {
+              if (comma++) *OS << ", ";
+              *OS << "__constant ";
+              T.getAsStringInternal(Name, Policy);
+              *OS << Name;
+              *OS << " __attribute__ ((max_constant_size (" << Mask->getSizeXStr()
+                  << "*" << Mask->getSizeYStr() << "*sizeof("
+                  << Mask->getTypeStr() << "))))";
+              }
+            break;
+          case TARGET_C:
+            if (!Mask->isConstant()) {
+              if (comma++) *OS << ", ";
+              *OS << "const "
+                  << Mask->getTypeStr()
+                  << " " << Mask->getName() << K->getName()
+                  << "[" << Mask->getSizeYStr() << "]"
+                  << "[" << Mask->getSizeXStr() << "]";
             }
-          } else {
-            *OS << "__global ";
-            if (mem_acc==READ_ONLY) *OS << "const ";
-            *OS << T->getPointeeType().getAsString();
-            *OS << " * restrict ";
-          }
-          *OS << Name;
-          break;
-        case Language::Renderscript:
-        case Language::Filterscript:
-          break;
+            break;
+          case TARGET_CUDA:
+            // mask/domain is declared as constant memory
+            break;
+          case TARGET_Renderscript:
+          case TARGET_Filterscript:
+            // mask/domain is declared as static memory
+            break;
+        }
+        continue;
       }
-      continue;
+
+      // check if we have an Accessor
+      HipaccAccessor *Acc = K->getImgFromMapping(FD);
+      MemoryAccess memAcc = UNDEFINED;
+      if (i==0) { // first argument is always the output image
+        bool doBreak = false;
+        switch (compilerOptions.getTargetCode()) {
+          case TARGET_C:
+          case TARGET_OpenCLACC:
+          case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
+            break;
+          case TARGET_CUDA:
+            if (compilerOptions.useTextureMemory() &&
+                compilerOptions.getTextureType()==Array2D) {
+                continue;
+            }
+            break;
+          case TARGET_Renderscript:
+            // parameters are set separately for Renderscript
+            // add parameters for dummy allocation and indices
+            *OS << K->getIterationSpace()->getAccessor()->getImage()->getTypeStr()
+                << " *_IS, uint32_t x, uint32_t y";
+            doBreak = true;
+            break;
+          case TARGET_Filterscript:
+            *OS << "uint32_t x, uint32_t y";
+            doBreak = true;
+            break;
+        }
+        if (doBreak) break;
+        Acc = K->getIterationSpace()->getAccessor();
+        memAcc = WRITE_ONLY;
+      } else if (Acc) {
+        memAcc = KC->getImgAccess(FD);
+      }
+
+      if (Acc) {
+        switch (compilerOptions.getTargetCode()) {
+          case TARGET_OpenCLACC:
+          case TARGET_OpenCLCPU:
+          case TARGET_OpenCLGPU:
+            // __global keyword to specify memory location is only needed for OpenCL
+            if (comma++) *OS << ", ";
+            if (K->useTextureMemory(Acc)) {
+              if (memAcc==WRITE_ONLY) {
+                *OS << "__write_only image2d_t ";
+              } else {
+                *OS << "__read_only image2d_t ";
+              }
+            } else {
+              *OS << "__global ";
+              if (memAcc==READ_ONLY) *OS << "const ";
+              *OS << T->getPointeeType().getAsString();
+              *OS << " * restrict ";
+            }
+            *OS << Name;
+            break;
+          case TARGET_CUDA:
+            if (K->useTextureMemory(Acc) && memAcc==READ_ONLY &&
+                // parameter required for __ldg() intrinsic
+                !(K->useTextureMemory(Acc) == Ldg)) {
+              // no parameter is emitted for textures
+              continue;
+            } else {
+              if (comma++) *OS << ", ";
+              if (memAcc==READ_ONLY) *OS << "const ";
+              *OS << T->getPointeeType().getAsString();
+              *OS << " * __restrict__ ";
+              *OS << Name;
+            }
+            break;
+          case TARGET_C:
+            if (comma++) *OS << ", ";
+            if (memAcc==READ_ONLY) *OS << "const ";
+            *OS << Acc->getImage()->getTypeStr()
+                << " " << Name
+                << "[" << Acc->getImage()->getSizeXStr() << "]"
+                << "[" << Acc->getImage()->getSizeYStr() << "]";
+            // alternative for Pencil:
+            // *OS << "[static const restrict 2048][4096]";
+            break;
+          case TARGET_Renderscript:
+          case TARGET_Filterscript:
+            break;
+        }
+        continue;
+      }
+
+      // normal arguments
+      if (comma++) *OS << ", ";
+      T.getAsStringInternal(Name, Policy);
+      *OS << Name;
+
+      // default arguments ...
+      if (Expr *Init = D->getParamDecl(i)->getInit()) {
+        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(Init);
+        if (!CCE || CCE->getConstructor()->isCopyConstructor()) {
+          *OS << " = ";
+        }
+        Init->printPretty(*OS, 0, Policy, 0);
+      }
     }
+    *OS << ") ";
 
-    // normal arguments
-    if (comma++) *OS << ", ";
-    T.getAsStringInternal(Name, Policy);
-    *OS << Name;
-
-    // default arguments ...
-    if (Expr *Init = param->getInit()) {
-      CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(Init);
-      if (!CCE || CCE->getConstructor()->isCopyConstructor()) {
-        *OS << " = ";
-      }
-      Init->printPretty(*OS, 0, Policy, 0);
+    // print kernel body
+    D->getBody()->printPretty(*OS, 0, Policy, 0);
+    if (compilerOptions.emitCUDA()) {
+      *OS << "}\n";
     }
   }
-  *OS << ") ";
 
-  // print kernel body
-  D->getBody()->printPretty(*OS, 0, Policy, 0);
-  if (compilerOptions.emitCUDA()) {
-    *OS << "}\n";
-  }
   *OS << "\n";
 
   if (KC->getReduceFunction()) {
@@ -2572,8 +2613,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   *OS << "#endif //" + ifdef + "\n";
   *OS << "\n";
   OS->flush();
-  fsync(fd);
-  close(fd);
+  if (!dump) {
+    fsync(fd);
+    close(fd);
+  }
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

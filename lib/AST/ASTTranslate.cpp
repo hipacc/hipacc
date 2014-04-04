@@ -214,37 +214,63 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
     }
   }
 
+
   // convert the function body to kernel syntax
   Stmt *clonedStmt = Clone(S);
   assert(isa<CompoundStmt>(clonedStmt) && "CompoundStmt for kernel function body expected!");
 
-  //
-  // for (int gid_y=offset_y; gid_y<is_height+offset_y; gid_y++) {
-  //     for (int gid_x=offset_x; gid_x<is_width+offset_x; gid_x++) {
-  //         body
-  //     }
-  // }
-  //
-  Expr *upper_x = getWidthDecl(Kernel->getIterationSpace());
-  Expr *upper_y = getHeightDecl(Kernel->getIterationSpace());
-  if (Kernel->getIterationSpace()->getOffsetXDecl()) {
-    upper_x = createBinaryOperator(Ctx, upper_x,
-        getOffsetXDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy);
-  }
-  if (Kernel->getIterationSpace()->getOffsetYDecl()) {
-    upper_y = createBinaryOperator(Ctx, upper_y,
-        getOffsetYDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy);
-  }
-  ForStmt *innerLoop = createForStmt(Ctx, gid_x_stmt, createBinaryOperator(Ctx,
-        tileVars.global_id_x, upper_x, BO_LT, Ctx.BoolTy),
-      createUnaryOperator(Ctx, tileVars.global_id_x, UO_PostInc,
-        tileVars.global_id_x->getType()), clonedStmt);
-  ForStmt *outerLoop = createForStmt(Ctx, gid_y_stmt, createBinaryOperator(Ctx,
-        tileVars.global_id_y, upper_y, BO_LT, Ctx.BoolTy),
-      createUnaryOperator(Ctx, tileVars.global_id_y, UO_PostInc,
-        tileVars.global_id_y->getType()), innerLoop);
 
-  kernelBody.push_back(outerLoop);
+  const bool cbSetLoops = false;
+
+  if (cbSetLoops)
+  {
+    // Create the iteration space loops the same way as before
+    //
+    // for (int gid_y=offset_y; gid_y<is_height+offset_y; gid_y++) {
+    //     for (int gid_x=offset_x; gid_x<is_width+offset_x; gid_x++) {
+    //         body
+    //     }
+    // }
+    //
+    Expr *upper_x = getWidthDecl(Kernel->getIterationSpace());
+    Expr *upper_y = getHeightDecl(Kernel->getIterationSpace());
+    if (Kernel->getIterationSpace()->getOffsetXDecl()) {
+      upper_x = createBinaryOperator(Ctx, upper_x,
+          getOffsetXDecl(Kernel->getIterationSpace()), BO_Add,
+          Ctx.IntTy);
+    }
+    if (Kernel->getIterationSpace()->getOffsetYDecl()) {
+      upper_y = createBinaryOperator(Ctx, upper_y,
+          getOffsetYDecl(Kernel->getIterationSpace()), BO_Add,
+          Ctx.IntTy);
+    }
+    ForStmt *innerLoop = createForStmt(Ctx, gid_x_stmt, createBinaryOperator(Ctx,
+          tileVars.global_id_x, upper_x, BO_LT, Ctx.BoolTy),
+        createUnaryOperator(Ctx, tileVars.global_id_x, UO_PostInc,
+          tileVars.global_id_x->getType()), clonedStmt);
+    ForStmt *outerLoop = createForStmt(Ctx, gid_y_stmt, createBinaryOperator(Ctx,
+          tileVars.global_id_y, upper_y, BO_LT, Ctx.BoolTy),
+        createUnaryOperator(Ctx, tileVars.global_id_y, UO_PostInc,
+          tileVars.global_id_y->getType()), innerLoop);
+
+    kernelBody.push_back(outerLoop);
+  }
+  else
+  {
+    // The iteration space loops will be created by the code generator later on =>
+    // Mark the width and height declaration as used
+    getWidthDecl(Kernel->getIterationSpace()->getAccessor());
+    getHeightDecl(Kernel->getIterationSpace()->getAccessor());
+
+    // Set actual inner loop body as kernel function body (will be exported by the code generator)
+    for (auto itChild = clonedStmt->child_begin(); itChild != clonedStmt->child_end(); itChild++)
+    {
+      if (*itChild != nullptr)
+      {
+        kernelBody.push_back(*itChild);
+      }
+    }
+  }
 }
 
 

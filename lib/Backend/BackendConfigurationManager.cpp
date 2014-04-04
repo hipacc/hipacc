@@ -367,6 +367,9 @@ void BackendConfigurationManager::Configure(CommonDefines::ArgumentVectorType & 
     {
       throw RuntimeErrorException(string("No code generator has been selected! Did you forget the \"") + KnownSwitches::EmissionSwitchBase() + string("<X>\" switch?"));
     }
+
+    // Set the selected code generator in the compiler options
+    _pCompilerOptions->setCodeGenerator(_spSelectedCodeGenerator);
   }
   catch (RuntimeErrors::AbortException &e)
   {
@@ -381,6 +384,17 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
 	// Add HIPAcc runtime include paths
 	vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES));
 	vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES) + string("/dsl"));
+
+  // Add Clang library include path (required for e.g. intrinsics)
+  vecClangArguments.push_back(string("-I") + string(CLANG_LIB_INCLUDE_DIR));
+
+  // Add code generator specific additional arguments
+  if (_spSelectedCodeGenerator)
+  {
+    CommonDefines::ArgumentVectorType vecCodeGenArgs = _spSelectedCodeGenerator->GetAdditionalClangArguments();
+
+    vecClangArguments.insert( vecClangArguments.end(), vecCodeGenArgs.begin(), vecCodeGenArgs.end() );
+  }
 
 
 #ifdef USE_MINGW

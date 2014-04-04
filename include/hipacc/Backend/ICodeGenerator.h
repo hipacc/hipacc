@@ -39,8 +39,17 @@
 
 namespace clang
 {
+  // Required forward declarations for CLang classes
+  class FunctionDecl;
+  struct PrintingPolicy;
+
 namespace hipacc
 {
+  // Required forward declarations for HIPAcc classes
+  class HipaccKernelClass;
+  class HipaccKernel;
+
+
 namespace Backend
 {
   /** \brief    The base interface for all code generators.
@@ -66,8 +75,30 @@ namespace Backend
     virtual CommonDefines::SwitchDisplayInfoVectorType GetCompilerSwitches() const = 0;
 
 
-    /** \brief  Parses a vector of command line arguments and configures the compiler. */
+    /** \brief  Parses a vector of command line arguments and configures the compiler.
+     *  \param  rvecArguments   A reference to a vector containing the command arguments for the code generator. */
     virtual void Configure(CommonDefines::ArgumentVectorType & rvecArguments) = 0;
+    //@}
+
+
+
+    /** \name Methods for the actual code generation */
+    //@{
+
+    /** \brief  Returns additional arguments for the Clang front-end, which are required for correct bahavior of the code generator. */
+    virtual CommonDefines::ArgumentVectorType GetAdditionalClangArguments() const = 0;
+
+    /** \brief  Prints a kernel function to an output stream.
+     *  \param  pKernelFunction   A pointer to the AST object declaring the kernel function.
+     *  \param  pKernel           A pointer to the <b>HipaccKernel</b> object containing semantical meta-information about the kernel.
+     *  \param  rOutputStream     A reference to the LLVM output stream the kernel shall be written to.
+     *  \return <b>True</b> if the kernel function has been printed by the code generator, and <b>false</b> otherwise. */
+    virtual bool PrintKernelFunction(FunctionDecl *pKernelFunction, HipaccKernel *pKernel, llvm::raw_ostream &rOutputStream) = 0;
+
+    /** \brief  Sets a new printing policy object for the code generator.
+     *  \param  pPrintingPolicy   A pointer to the printing policy object which shall be used by clang's pretty printers. */
+    virtual void SetPrintingPolicy(PrintingPolicy *pPrintingPolicy) = 0;
+
     //@}
   };
 
