@@ -278,9 +278,8 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
       resultStr += ", " + mem + ");";
       break;
     case DEVICE_TO_HOST:
-      resultStr += "hipaccReadMemory(";
-      resultStr += mem;
-      resultStr += ", " + Img->getName() + ");";
+      resultStr += "hipaccReadMemory<" + Img->getTypeStr() + ">(";
+      resultStr += Img->getName() + ");";
       break;
     case DEVICE_TO_DEVICE:
       resultStr += "hipaccCopyMemory(";
@@ -304,9 +303,8 @@ void CreateHostStrings::writeMemoryTransfer(
       resultStr += ", " + mem + ");";
       break;
     case DEVICE_TO_HOST:
-      resultStr += "hipaccReadMemory(";
-      resultStr += mem;
-      resultStr += ", " + Pyr->getName() + "(" + idx + "));";
+      resultStr += "hipaccReadMemory<" + Pyr->getTypeStr() + ">(";
+      resultStr += Pyr->getName() + "(" + idx + "));";
       break;
     case DEVICE_TO_DEVICE:
       resultStr += "hipaccCopyMemory(";

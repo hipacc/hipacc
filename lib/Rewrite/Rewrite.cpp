@@ -78,6 +78,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     FileID mainFileID;
     unsigned int literalCount;
     unsigned int isLiteralCount;
+    bool skipTransfer;
 
   public:
     Rewrite(CompilerInstance &CI, CompilerOptions &options, llvm::raw_ostream*
@@ -95,7 +96,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       compilerClasses(CompilerKnownClasses()),
       mainFD(nullptr),
       literalCount(0),
-      isLiteralCount(0)
+      isLiteralCount(0),
+      skipTransfer(false)
     {}
 
     void HandleTranslationUnit(ASTContext &Context);
@@ -105,7 +107,6 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     bool VisitDeclStmt(DeclStmt *D);
     bool VisitFunctionDecl(FunctionDecl *D);
     bool VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
-    bool VisitBinaryOperator(BinaryOperator *E);
     bool VisitCXXMemberCallExpr(CXXMemberCallExpr *E);
     bool VisitCallExpr (CallExpr *E);
 
@@ -1714,6 +1715,8 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
           // match only getData calls to Image instances
           if (MCE->getDirectCallee()->getNameAsString() == "getData") {
+            // sideeffect ! do not handle the next call to getData
+            skipTransfer = true;
             if (isa<DeclRefExpr>(MCE->getImplicitObjectArgument())) {
               DeclRefExpr *DRE =
                 dyn_cast<DeclRefExpr>(MCE->getImplicitObjectArgument());
@@ -1802,50 +1805,6 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 }
 
 
-bool Rewrite::VisitBinaryOperator(BinaryOperator *E) {
-  if (!compilerClasses.HipaccEoP) return true;
-
-  // convert Image assignments to a variable into memory transfer,
-  // e.g. in_ptr = IN.getData();
-  if (E->getOpcode() == BO_Assign && isa<CXXMemberCallExpr>(E->getRHS())) {
-    CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getRHS());
-
-    // match only getData calls to Image instances
-    if (MCE->getDirectCallee()->getNameAsString() != "getData") return true;
-
-    if (isa<DeclRefExpr>(MCE->getImplicitObjectArgument())) {
-      DeclRefExpr *DRE =
-        dyn_cast<DeclRefExpr>(MCE->getImplicitObjectArgument());
-
-      // check if we have an Image
-      if (ImgDeclMap.count(DRE->getDecl())) {
-        HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
-
-        std::string newStr;
-
-        // get the text string for the memory transfer dst
-        std::string dataStr;
-        llvm::raw_string_ostream DS(dataStr);
-        E->getLHS()->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
-
-        // create memory transfer string
-        stringCreator.writeMemoryTransfer(Img, DS.str(), DEVICE_TO_HOST,
-            newStr);
-
-        // rewrite Image assignment to memory transfer
-        // get the start location and compute the semi location.
-        SourceLocation startLoc = E->getLocStart();
-        const char *startBuf = SM.getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
-      }
-    }
-  }
-
-  return true;
-}
-
-
 bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   if (!compilerClasses.HipaccEoP) return true;
 
@@ -1857,9 +1816,11 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   //    IS -> kernel launch configuration
   //    IN, OUT, 23 -> kernel parameters
   //    Image width, height, and stride -> kernel parameters
-  // b) convert getReducedData calls
+  // b) convert getData() calls
+  //    float *out = img.getData();
+  // c) convert getReducedData calls
   //    float min = MinReduction.getReducedData();
-  // c) convert getWidth/getHeight calls
+  // d) convert getWidth/getHeight calls
 
   if (E->getImplicitObjectArgument() &&
       isa<DeclRefExpr>(E->getImplicitObjectArgument()->IgnoreParenCasts())) {
@@ -1908,7 +1869,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     }
   }
 
-  // getWidth/getHeight MemberExpr calls
+  // getData & getWidth/getHeight MemberExpr calls
   if (isa<MemberExpr>(E->getCallee())) {
     MemberExpr *ME = dyn_cast<MemberExpr>(E->getCallee());
 
@@ -1935,7 +1896,24 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       // get the Image from the DRE if we have one
       if (ImgDeclMap.count(DRE->getDecl())) {
         // match for supported member calls
-        if (ME->getMemberNameInfo().getAsString() == "getWidth") {
+        if (ME->getMemberNameInfo().getAsString() == "getData") {
+          if (skipTransfer) {
+            skipTransfer = false;
+            return true;
+          }
+          HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
+          // create memory transfer string
+          stringCreator.writeMemoryTransfer(Img, "nullptr", DEVICE_TO_HOST,
+              newStr);
+          // rewrite Image assignment to memory transfer
+          // get the start location and compute the semi location.
+          SourceLocation startLoc = E->getLocStart();
+          const char *startBuf = SM.getCharacterData(startLoc);
+          const char *semiPtr = strchr(startBuf, ';');
+          TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+
+          return true;
+        } else if (ME->getMemberNameInfo().getAsString() == "getWidth") {
           newStr = "width";
         } else if (ME->getMemberNameInfo().getAsString() == "getHeight") {
           newStr = "height";
