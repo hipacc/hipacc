@@ -104,8 +104,8 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     // host memory for image of width x height pixels
-    int *host_in = (int *)malloc(sizeof(int)*width*height);
-    int *host_out = (int *)malloc(sizeof(int)*is_width*is_height);
+    int *input = (int *)malloc(sizeof(int)*width*height);
+    int *out_init = (int *)malloc(sizeof(int)*is_width*is_height);
     int *reference_in = (int *)malloc(sizeof(int)*width*height);
     int *reference_out = (int *)malloc(sizeof(int)*is_width*is_height);
 
@@ -121,19 +121,19 @@ int main(int argc, const char **argv) {
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = x*height + y;
+            input[y*width + x] = x*height + y;
             reference_in[y*width + x] = x*height + y;
         }
     }
     for (int y=0; y<is_height; ++y) {
         for (int x=0; x<is_width; ++x) {
-            host_out[y*is_width + x] = 23;
+            out_init[y*is_width + x] = 23;
             reference_out[y*is_width + x] = 23;
         }
     }
 
-    IN = host_in;
-    OUT = host_out;
+    IN = input;
+    OUT = out_init;
 
     IterationSpace<int> CIS(OUT);
 
@@ -147,8 +147,8 @@ int main(int argc, const char **argv) {
     timing = hipaccGetLastKernelTiming();
 
 
-    // get results
-    host_out = OUT.getData();
+    // get pointer to result data
+    int *output = OUT.getData();
 
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (is_width*is_height/timing)/1000);
 
@@ -170,9 +170,9 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=0; y<is_height; y++) {
         for (int x=0; x<is_width; x++) {
-            if (reference_out[y*is_width + x] != host_out[y*is_width +x]) {
+            if (reference_out[y*is_width + x] != output[y*is_width +x]) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out[y*is_width + x], host_out[y*is_width +x]);
+                        reference_out[y*is_width + x], output[y*is_width +x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -180,8 +180,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Test PASSED\n");
 
     // memory cleanup
-    free(host_in);
-    //free(host_out);
+    free(input);
+    free(out_init);
     free(reference_in);
     free(reference_out);
 

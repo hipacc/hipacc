@@ -404,11 +404,9 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     // host memory for image of width x height pixels
-    int *host_in0 = (int *)malloc(sizeof(int)*width*height);
-    int *host_in1 = (int *)malloc(sizeof(int)*width*height);
-    int *host_out0 = (int *)malloc(sizeof(int)*width*height);
-    int *host_out1 = (int *)malloc(sizeof(int)*width*height);
-    int *host_out2 = (int *)malloc(sizeof(int)*width*height);
+    int *input0 = (int *)malloc(sizeof(int)*width*height);
+    int *input1 = (int *)malloc(sizeof(int)*width*height);
+    int *out_init = (int *)malloc(sizeof(int)*width*height);
     int *reference_in0 = (int *)malloc(sizeof(int)*width*height);
     int *reference_in1 = (int *)malloc(sizeof(int)*width*height);
     int *reference_out0 = (int *)malloc(sizeof(int)*width*height);
@@ -441,13 +439,11 @@ int main(int argc, const char **argv) {
     #define DELTA 0.001f
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in0[y*width + x] = (int) (x*height + y) * DELTA;
-            host_in1[y*width + x] = (int) (y*width + x) * DELTA;
+            input0[y*width + x] = (int) (x*height + y) * DELTA;
+            input1[y*width + x] = (int) (y*width + x) * DELTA;
             reference_in0[y*width + x] = (int) (x*height + y) * DELTA;
             reference_in1[y*width + x] = (int) (y*width + x) * DELTA;
-            host_out0[y*width + x] = (int) (3.12451);
-            host_out1[y*width + x] = (int) (3.12451);
-            host_out2[y*width + x] = (int) (3.12451);
+            out_init[y*width + x] = (int) (3.12451);
             reference_out0[y*width + x] = (int) (3.12451);
             reference_out1[y*width + x] = (int) (3.12451);
             reference_out2[y*width + x] = (int) (3.12451);
@@ -469,17 +465,17 @@ int main(int argc, const char **argv) {
     Read7 R7(ISOut0, AccIn0, AccIn1, AccIn2, AccIn3, AccIn4, AccIn5, AccIn6);
     Read8 R8(ISOut0, AccIn0, AccIn1, AccIn2, AccIn3, AccIn4, AccIn5, AccIn6, AccIn7);
 
-    IN0 = host_in0;
-    IN1 = host_in1;
-    IN2 = host_in1;
-    IN3 = host_in1;
-    IN4 = host_in1;
-    IN5 = host_in1;
-    IN6 = host_in1;
-    IN7 = host_in1;
-    OUT0 = host_out0;
-    OUT1 = host_out1;
-    OUT2 = host_out2;
+    IN0 = input0;
+    IN1 = input1;
+    IN2 = input1;
+    IN3 = input1;
+    IN4 = input1;
+    IN5 = input1;
+    IN6 = input1;
+    IN7 = input1;
+    OUT0 = out_init;
+    OUT1 = out_init;
+    OUT2 = out_init;
 
     // warmup
     R1.execute();
@@ -588,10 +584,10 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "\n\n");
 
 
-    // get results
-    host_out0 = OUT0.getData();
-    host_out1 = OUT1.getData();
-    host_out2 = OUT2.getData();
+    // get pointer to result data
+    int *output0 = OUT0.getData();
+    int *output1 = OUT1.getData();
+    int *output2 = OUT2.getData();
 
 
     // GOC
@@ -628,9 +624,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "\nComparing results for GOC ... ");
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
-            if (reference_out0[y*width + x] != host_out0[y*width +x]) {
+            if (reference_out0[y*width + x] != output0[y*width +x]) {
                 fprintf(stderr, " FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out0[y*width + x], host_out0[y*width +x]);
+                        reference_out0[y*width + x], output0[y*width +x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -639,9 +635,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Comparing results for AD ... ");
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
-            if (reference_out1[y*width + x] != host_out1[y*width +x]) {
+            if (reference_out1[y*width + x] != output1[y*width +x]) {
                 fprintf(stderr, " FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out1[y*width + x], host_out1[y*width +x]);
+                        reference_out1[y*width + x], output1[y*width +x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -650,9 +646,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Comparing results for SD ... ");
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
-            if (reference_out2[y*width + x] != host_out2[y*width +x]) {
+            if (reference_out2[y*width + x] != output2[y*width +x]) {
                 fprintf(stderr, " FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out2[y*width + x], host_out2[y*width +x]);
+                        reference_out2[y*width + x], output2[y*width +x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -661,8 +657,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "All Tests PASSED\n");
 
     // memory cleanup
-    free(host_in0);
-    free(host_in1);
+    free(input0);
+    free(input1);
+    free(out_init);
     free(reference_in0);
     free(reference_in1);
     free(reference_out0);

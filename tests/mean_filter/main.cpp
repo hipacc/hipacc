@@ -231,8 +231,8 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     // host memory for image of width x height pixels
-    float *host_in = (float *)malloc(sizeof(float)*width*height);
-    float *host_out = (float *)malloc(sizeof(float)*width*height);
+    float *input = (float *)malloc(sizeof(float)*width*height);
+    float *out_init = (float *)malloc(sizeof(float)*width*height);
     float *reference_in = (float *)malloc(sizeof(float)*width*height);
     float *reference_out = (float *)malloc(sizeof(float)*width*height);
 
@@ -245,9 +245,9 @@ int main(int argc, const char **argv) {
     #define DELTA 0.001f
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = (float) (x*height + y) * DELTA;
+            input[y*width + x] = (float) (x*height + y) * DELTA;
             reference_in[y*width + x] = (float) (x*height + y) * DELTA;
-            host_out[y*width + x] = (float) (3.12451);
+            out_init[y*width + x] = (float) (3.12451);
             reference_out[y*width + x] = (float) (3.12451);
         }
     }
@@ -269,8 +269,8 @@ int main(int argc, const char **argv) {
     VerticalMeanFilter VMF(VIS, AccIN, d, t, height);
     #endif
 
-    IN = host_in;
-    OUT = host_out;
+    IN = input;
+    OUT = out_init;
 
     fprintf(stderr, "Calculating mean filter ...\n");
 
@@ -281,8 +281,8 @@ int main(int argc, const char **argv) {
     #endif
     timing = hipaccGetLastKernelTiming();
 
-    // get results
-    host_out = OUT.getData();
+    // get pointer to result data
+    float *output = OUT.getData();
 
     #ifdef HSCAN
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-d)*height/timing)/1000);
@@ -315,12 +315,12 @@ int main(int argc, const char **argv) {
     float rms_err = 0.0f;   // RMS error
     for (int y=0; y<height; y++) {
         for (int x=0; x<width-d; x++) {
-            float derr = reference_out[y*width + x] - host_out[y*width +x];
+            float derr = reference_out[y*width + x] - output[y*width +x];
             rms_err += derr*derr;
 
             if (fabs(derr) > EPS) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
-                        reference_out[y*width + x], host_out[y*width +x]);
+                        reference_out[y*width + x], output[y*width +x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -335,12 +335,12 @@ int main(int argc, const char **argv) {
     float rms_err = 0.0f;   // RMS error
     for (int y=0; y<height-d; y++) {
         for (int x=0; x<width; x++) {
-            float derr = reference_out[y*width + x] - host_out[y*width +x];
+            float derr = reference_out[y*width + x] - output[y*width +x];
             rms_err += derr*derr;
 
             if (fabs(derr) > EPS) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
-                        reference_out[y*width + x], host_out[y*width +x]);
+                        reference_out[y*width + x], output[y*width +x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -355,8 +355,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Test PASSED\n");
 
     // memory cleanup
-    free(host_in);
-    //free(host_out);
+    free(input);
     free(reference_in);
     free(reference_out);
 

@@ -167,17 +167,15 @@ int main(int argc, const char **argv) {
     };
 
     // host memory for image of width x height pixels
-    uchar *host_in = (uchar *)malloc(sizeof(uchar)*width*height);
-    uchar *host_out = (uchar *)malloc(sizeof(uchar)*width*height);
+    uchar *input = (uchar *)malloc(sizeof(uchar)*width*height);
     uchar *reference_in = (uchar *)malloc(sizeof(uchar)*width*height);
     uchar *reference_out = (uchar *)malloc(sizeof(uchar)*width*height);
 
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = (uchar)(y*width + x) % 256;
+            input[y*width + x] = (uchar)(y*width + x) % 256;
             reference_in[y*width + x] = (uchar)(y*width + x) % 256;
-            host_out[y*width + x] = 0;
             reference_out[y*width + x] = 0;
         }
     }
@@ -198,8 +196,7 @@ int main(int argc, const char **argv) {
     IterationSpace<uchar> iter(out, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
     ErodeFilter filter(iter, acc, dom, size_x, size_y);
 
-    in = host_in;
-    out = host_out;
+    in = input;
 
     fprintf(stderr, "Calculating HIPAcc Erode filter ...\n");
     float timing = 0.0f;
@@ -207,8 +204,8 @@ int main(int argc, const char **argv) {
     filter.execute();
     timing = hipaccGetLastKernelTiming();
 
-    // get results
-    host_out = out.getData();
+    // get pointer to result data
+    uchar *output = out.getData();
 
     fprintf(stderr, "HIPACC: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
 
@@ -231,8 +228,8 @@ int main(int argc, const char **argv) {
     #endif
 
 
-    cv::Mat cv_data_in(height, width, CV_8UC1, host_in);
-    cv::Mat cv_data_out(height, width, CV_8UC1, host_out);
+    cv::Mat cv_data_in(height, width, CV_8UC1, input);
+    cv::Mat cv_data_out(height, width, CV_8UC1, output);
     cv::Mat kernel(cv::Mat::ones(size_x, size_y, CV_8U));
 
     #ifdef CPU
@@ -293,9 +290,9 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x] != host_out[y*width + x]) {
+            if (reference_out[y*width + x] != output[y*width + x]) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %hhu vs. %hhu\n", x,
-                        y, reference_out[y*width + x], host_out[y*width + x]);
+                        y, reference_out[y*width + x], output[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -303,8 +300,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Test PASSED\n");
 
     // memory cleanup
-    free(host_in);
-    //free(host_out);
+    free(input);
     free(reference_in);
     free(reference_out);
 

@@ -94,10 +94,10 @@ int main(int argc, const char **argv) {
     const int roi_offset_y = 2;
 
     // host memory for image of width x height pixels
-    int *host_img0 = (int *)malloc(sizeof(int)*width*height);
-    int *host_img1 = (int *)malloc(sizeof(int)*width*height);
-    int *host_img2 = (int *)malloc(sizeof(int)*roi_width*roi_height);
-    int *host_img3 = (int *)malloc(sizeof(int)*roi_width*roi_height);
+    int *img0 = (int *)malloc(sizeof(int)*width*height);
+    int *img1 = (int *)malloc(sizeof(int)*width*height);
+    int *img2 = (int *)malloc(sizeof(int)*roi_width*roi_height);
+    int *img3 = (int *)malloc(sizeof(int)*roi_width*roi_height);
 
     // input and output image of width x height pixels
     Image<int> IMG0(width, height);
@@ -109,32 +109,33 @@ int main(int argc, const char **argv) {
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_img0[y*width + x] = x*height + y;
-            host_img1[y*width + x] = 23;
+            img0[y*width + x] = x*height + y;
+            img1[y*width + x] = 23;
         }
     }
     for (int y=0; y<roi_height; ++y) {
         for (int x=0; x<roi_width; ++x) {
-            host_img2[y*roi_width + x] = x*roi_height + y;
-            host_img3[y*roi_width + x] = 23;
+            img2[y*roi_width + x] = x*roi_height + y;
+            img3[y*roi_width + x] = 23;
         }
     }
 
-    IMG0 = host_img0;
-    IMG1 = host_img1;
-    IMG2 = host_img2;
-    IMG3 = host_img3;
+    IMG0 = img0;
+    IMG1 = img1;
+    IMG2 = img2;
+    IMG3 = img3;
+    int *out = NULL;
 
     // Image = Image
     IMG1 = IMG0;
-    host_img1 = IMG1.getData();
-    compare_results(host_img0, host_img1, img_roi, img_roi);
+    out = IMG1.getData();
+    compare_results(img0, out, img_roi, img_roi);
 
     // Accessor = Image
     AccessorNN<int> AccImg1NN(IMG1);
     AccImg1NN = IMG0;
-    host_img1 = IMG1.getData();
-    compare_results(host_img0, host_img1, img_roi, img_roi);
+    out = IMG1.getData();
+    compare_results(img0, out, img_roi, img_roi);
 
     // Accessor = Accessor
     Accessor<int> AccImg0(IMG0, roi_width, roi_height, roi_width/2, roi_height/2);
@@ -142,26 +143,26 @@ int main(int argc, const char **argv) {
     roi_t acc_roi0(width, height, roi_width, roi_height, roi_width/2, roi_height/2);
     roi_t acc_roi1(width, height, roi_width, roi_height, roi_offset_x, roi_offset_y);
     AccImg1LF = AccImg0;
-    host_img1 = IMG1.getData();
-    compare_results(host_img0, host_img1, acc_roi0, acc_roi1);
+    out = IMG1.getData();
+    compare_results(img0, out, acc_roi0, acc_roi1);
 
     // Image = Accessor
     IMG2 = AccImg0;
     roi_t img_roi2(roi_width, roi_height);
-    host_img2 = IMG2.getData();
-    compare_results(host_img0, host_img2, acc_roi0, img_roi2);
+    out = IMG2.getData();
+    compare_results(img0, out, acc_roi0, img_roi2);
 
     // Image = Image.getData()
     IMG1 = IMG0.getData();
-    host_img1 = IMG1.getData();
-    compare_results(host_img0, host_img1, img_roi, img_roi);
+    out = IMG1.getData();
+    compare_results(img0, out, img_roi, img_roi);
 
 
     // memory cleanup
-    //free(host_img0);
-    //free(host_img1);
-    //free(host_img2);
-    //free(host_img3);
+    free(img0);
+    free(img1);
+    free(img2);
+    free(img3);
 
     return EXIT_SUCCESS;
 }

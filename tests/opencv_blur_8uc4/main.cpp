@@ -263,8 +263,7 @@ int main(int argc, const char **argv) {
     #endif
 
     // host memory for image of width x height pixels
-    uchar4 *host_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
-    uchar4 *host_out = (uchar4 *)malloc(sizeof(uchar4)*width*height);
+    uchar4 *input = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *reference_out = (uchar4 *)malloc(sizeof(uchar4)*width*height);
 
@@ -276,9 +275,8 @@ int main(int argc, const char **argv) {
             val.y = (y*width + x + 2) % 256;
             val.z = (y*width + x + 3) % 256;
             val.w = (y*width + x + 4) % 256;
-            host_in[y*width + x] = val;
+            input[y*width + x] = val;
             reference_in[y*width + x] = val;
-            host_out[y*width + x] = (uchar4){ 0, 0, 0, 0 };
             reference_out[y*width + x] = (uchar4){ 0, 0, 0, 0 };
         }
     }
@@ -308,8 +306,7 @@ int main(int argc, const char **argv) {
     BlurFilter filter(iter, acc, dom, size_x, size_y, t, height);
     #endif
 
-    in = host_in;
-    out = host_out;
+    in = input;
 
     fprintf(stderr, "Calculating HIPAcc blur filter ...\n");
     float timing = 0.0f;
@@ -317,8 +314,8 @@ int main(int argc, const char **argv) {
     filter.execute();
     timing = hipaccGetLastKernelTiming();
 
-    // get results
-    host_out = out.getData();
+    // get pointer to result data
+    uchar4 *output = out.getData();
 
     fprintf(stderr, "HIPACC: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
 
@@ -341,8 +338,8 @@ int main(int argc, const char **argv) {
     #endif
 
 
-    cv::Mat cv_data_in(height, width, CV_8UC4, host_in);
-    cv::Mat cv_data_out(height, width, CV_8UC4, host_out);
+    cv::Mat cv_data_in(height, width, CV_8UC4, input);
+    cv::Mat cv_data_out(height, width, CV_8UC4, output);
     cv::Size ksize(size_x, size_y);
 
     #ifdef CPU
@@ -407,20 +404,20 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x].x != host_out[y*width + x].x ||
-                reference_out[y*width + x].y != host_out[y*width + x].y ||
-                reference_out[y*width + x].z != host_out[y*width + x].z ||
-                reference_out[y*width + x].w != host_out[y*width + x].w) {
+            if (reference_out[y*width + x].x != output[y*width + x].x ||
+                reference_out[y*width + x].y != output[y*width + x].y ||
+                reference_out[y*width + x].z != output[y*width + x].z ||
+                reference_out[y*width + x].w != output[y*width + x].w) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): "
                         "%hhu,%hhu,%hhu,%hhu vs. %hhu,%hhu,%hhu,%hhu\n", x, y,
                         reference_out[y*width + x].x,
                         reference_out[y*width + x].y,
                         reference_out[y*width + x].z,
                         reference_out[y*width + x].w,
-                        host_out[y*width + x].x,
-                        host_out[y*width + x].y,
-                        host_out[y*width + x].z,
-                        host_out[y*width + x].z);
+                        output[y*width + x].x,
+                        output[y*width + x].y,
+                        output[y*width + x].z,
+                        output[y*width + x].z);
                 exit(EXIT_FAILURE);
             }
         }
@@ -428,8 +425,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Test PASSED\n");
 
     // memory cleanup
-    free(host_in);
-    //free(host_out);
+    free(input);
     free(reference_in);
     free(reference_out);
 

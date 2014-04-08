@@ -222,12 +222,10 @@ int main(int argc, const char **argv) {
     const int height = HEIGHT;
 
     // host memory for image of width x height pixels
-    int *host_in_int = (int *)malloc(sizeof(int)*width*height);
-    int *host_out_int = (int *)malloc(sizeof(int)*width*height);
+    int *input_int = (int *)malloc(sizeof(int)*width*height);
     int *reference_in_int = (int *)malloc(sizeof(int)*width*height);
     int *reference_out_int = (int *)malloc(sizeof(int)*width*height);
-    float *host_in_float = (float *)malloc(sizeof(float)*width*height);
-    float *host_out_float = (float *)malloc(sizeof(float)*width*height);
+    float *input_float = (float *)malloc(sizeof(float)*width*height);
     float *reference_in_float = (float *)malloc(sizeof(float)*width*height);
     float *reference_out_float = (float *)malloc(sizeof(float)*width*height);
 
@@ -252,21 +250,19 @@ int main(int argc, const char **argv) {
     #define DELTA 0.001f
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in_int[y*width + x] = (int) (x*height + y) * DELTA;
+            input_int[y*width + x] = (int) (x*height + y) * DELTA;
             reference_in_int[y*width + x] = (int) (x*height + y) * DELTA;
-            host_out_int[y*width + x] = (int) (3.12451);
             reference_out_int[y*width + x] = (int) (3.12451);
-            host_in_float[y*width + x] = (float) (x*height + y) * DELTA;
+            input_float[y*width + x] = (float) (x*height + y) * DELTA;
             reference_in_float[y*width + x] = (float) (x*height + y) * DELTA;
-            host_out_float[y*width + x] = (float) (3.12451);
             reference_out_float[y*width + x] = (float) (3.12451);
         }
     }
 
-    in_int = host_in_int;
-    out_int = host_out_int;
-    in_float = host_in_float;
-    out_float = host_out_float;
+    in_int = input_int;
+    out_int = reference_out_int;
+    in_float = input_float;
+    out_float = reference_out_float;
 
     // global operation using functors: Images
     MinReductionInt redMinINInt(out_int_iter, img_in_int);
@@ -341,10 +337,6 @@ int main(int argc, const char **argv) {
     time1 = time_ms();
     dt = time1 - time0;
 
-    // get results
-    host_out_int = out_int.getData();
-    host_out_float = out_float.getData();
-
 
     // Mpixel/s = (width*height/1000000) / (dt/1000) = (width*height/dt)/1000
     // NB: actually there are (width-d)*(height) output pixels
@@ -355,20 +347,20 @@ int main(int argc, const char **argv) {
     time0 = time_ms();
 
     // calculate reference: Images
-    int min_pixel_ref_int_img = calc_min_pixel(host_in_int, width, height);
-    int max_pixel_ref_int_img = calc_max_pixel(host_in_int, width, height);
-    int sum_pixel_ref_int_img = calc_sum_pixel(host_in_int, width, height);
-    float min_pixel_ref_float_img = calc_min_pixel(host_in_float, width, height);
-    float max_pixel_ref_float_img = calc_max_pixel(host_in_float, width, height);
-    float sum_pixel_ref_float_img = calc_sum_pixel(host_in_float, width, height);
+    int min_pixel_ref_int_img = calc_min_pixel(input_int, width, height);
+    int max_pixel_ref_int_img = calc_max_pixel(input_int, width, height);
+    int sum_pixel_ref_int_img = calc_sum_pixel(input_int, width, height);
+    float min_pixel_ref_float_img = calc_min_pixel(input_float, width, height);
+    float max_pixel_ref_float_img = calc_max_pixel(input_float, width, height);
+    float sum_pixel_ref_float_img = calc_sum_pixel(input_float, width, height);
 
     // calculate reference: Accessors
-    int min_pixel_ref_int_acc = calc_min_pixel(host_in_int, width, height, width/3, height/3, width/3, height/3);
-    int max_pixel_ref_int_acc = calc_max_pixel(host_in_int, width, height, width/3, height/3, width/3, height/3);
-    int sum_pixel_ref_int_acc = calc_sum_pixel(host_in_int, width, height, width/3, height/3, width/3, height/3);
-    float min_pixel_ref_float_acc = calc_min_pixel(host_in_float, width, height, width/3, height/3, width/3, height/3);
-    float max_pixel_ref_float_acc = calc_max_pixel(host_in_float, width, height, width/3, height/3, width/3, height/3);
-    float sum_pixel_ref_float_acc = calc_sum_pixel(host_in_float, width, height, width/3, height/3, width/3, height/3);
+    int min_pixel_ref_int_acc = calc_min_pixel(input_int, width, height, width/3, height/3, width/3, height/3);
+    int max_pixel_ref_int_acc = calc_max_pixel(input_int, width, height, width/3, height/3, width/3, height/3);
+    int sum_pixel_ref_int_acc = calc_sum_pixel(input_int, width, height, width/3, height/3, width/3, height/3);
+    float min_pixel_ref_float_acc = calc_min_pixel(input_float, width, height, width/3, height/3, width/3, height/3);
+    float max_pixel_ref_float_acc = calc_max_pixel(input_float, width, height, width/3, height/3, width/3, height/3);
+    float sum_pixel_ref_float_acc = calc_sum_pixel(input_float, width, height, width/3, height/3, width/3, height/3);
 
     time1 = time_ms();
     dt = time1 - time0;
@@ -463,10 +455,8 @@ int main(int argc, const char **argv) {
     }
 
     // memory cleanup
-    free(host_in_int);
-    free(host_in_float);
-    //free(host_out_int);
-    //free(host_out_float);
+    free(input_int);
+    free(input_float);
     free(reference_in_int);
     free(reference_in_float);
     free(reference_out_int);

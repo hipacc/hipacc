@@ -182,14 +182,12 @@ int main(int argc, const char **argv) {
     };
 
     // host memory for image of width x height pixels
-    char *host_in = (char *)malloc(sizeof(char)*width*height);
-    char *host_out = (char *)malloc(sizeof(char)*width*height);
+    char *input = (char *)malloc(sizeof(char)*width*height);
 
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = (char)(y*width + x) % 256;
-            host_out[y*width + x] = 0;
+            input[y*width + x] = (char)(y*width + x) % 256;
         }
     }
 
@@ -199,9 +197,7 @@ int main(int argc, const char **argv) {
     Image<char> LAP(width, height);
     Mask<float> M(filter_xy);
 
-    GAUS = host_in;
-    TMP = host_out;
-    LAP = host_out;
+    GAUS = input;
 
     int depth = 1;
     {
@@ -256,13 +252,14 @@ int main(int argc, const char **argv) {
         }
     });
 
-    host_out = GAUS.getData();
+    // get pointer to result data
+    char *output = GAUS.getData();
 
     for (int y = 0; y < height; ++y) {
       for (int x = 0; x < width; ++x) {
-        if (host_in[y*height+x] != host_out[y*height+x]) {
+        if (input[y*height+x] != output[y*height+x]) {
           fprintf(stderr, "Test FAILED, at (%d,%d): %hhu vs. %hhu\n",
-                  x, y, host_in[y*width + x], host_out[y*width + x]);
+                  x, y, input[y*width + x], output[y*width + x]);
           exit(EXIT_FAILURE);
         }
       }
@@ -270,8 +267,7 @@ int main(int argc, const char **argv) {
 
     fprintf(stderr, "Test PASSED\n");
 
-    free(host_in);
-    free(host_out);
+    free(input);
 
     return EXIT_SUCCESS;
 }

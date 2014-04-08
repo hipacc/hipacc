@@ -396,8 +396,7 @@ int main(int argc, const char **argv) {
     #endif
 
     // host memory for image of width x height pixels
-    uchar4 *host_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
-    short4 *host_out = (short4 *)malloc(sizeof(short4)*width*height);
+    uchar4 *input = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
     short4 *reference_out = (short4 *)malloc(sizeof(short4)*width*height);
     short4 *reference_tmp = (short4 *)malloc(sizeof(short4)*width*height);
@@ -406,9 +405,8 @@ int main(int argc, const char **argv) {
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
             uchar val = rand()%256;
-            host_in[y*width + x] = (uchar4){val, val, val, val};
-            reference_in[y*width + x] = host_in[y*width + x];
-            host_out[y*width + x] = (short4){0, 0, 0, 0};
+            input[y*width + x] = (uchar4){val, val, val, val};
+            reference_in[y*width + x] = input[y*width + x];
             reference_out[y*width + x] = (short4){0, 0, 0, 0};
             reference_tmp[y*width + x] = (short4){0, 0, 0, 0};
         }
@@ -430,8 +428,7 @@ int main(int argc, const char **argv) {
     IterationSpace<short4> IsOut(OUT);
     IterationSpace<short4> IsTmp(TMP);
 
-    IN = host_in;
-    OUT = host_out;
+    IN = input;
 
 
     #ifndef OpenCV
@@ -570,8 +567,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // get results
-    host_out = OUT.getData();
+    // get pointer to result data
+    short4 *output = OUT.getData();
     #endif
 
 
@@ -584,8 +581,8 @@ int main(int argc, const char **argv) {
     #endif
 
 
-    cv::Mat cv_data_in(height, width, CV_8UC4, host_in);
-    cv::Mat cv_data_out(height, width, CV_16SC4, host_out);
+    cv::Mat cv_data_in(height, width, CV_8UC4, input);
+    cv::Mat cv_data_out(height, width, CV_16SC4, output);
     int ddepth = CV_16S;
     double scale = 1.0f;
     double delta = 0.0f;
@@ -699,19 +696,19 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x].x != host_out[y*width + x].x ||
-                reference_out[y*width + x].y != host_out[y*width + x].y ||
-                reference_out[y*width + x].z != host_out[y*width + x].z ||
-                reference_out[y*width + x].w != host_out[y*width + x].w) {
+            if (reference_out[y*width + x].x != output[y*width + x].x ||
+                reference_out[y*width + x].y != output[y*width + x].y ||
+                reference_out[y*width + x].z != output[y*width + x].z ||
+                reference_out[y*width + x].w != output[y*width + x].w) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %d,%d,%d,%d vs. %d,%d,%d,%d\n", x, y,
                         reference_out[y*width + x].x,
                         reference_out[y*width + x].y,
                         reference_out[y*width + x].z,
                         reference_out[y*width + x].w,
-                        host_out[y*width + x].x,
-                        host_out[y*width + x].y,
-                        host_out[y*width + x].z,
-                        host_out[y*width + x].w);
+                        output[y*width + x].x,
+                        output[y*width + x].y,
+                        output[y*width + x].z,
+                        output[y*width + x].w);
                 exit(EXIT_FAILURE);
             }
         }
@@ -719,8 +716,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Test PASSED\n");
 
     // memory cleanup
-    free(host_in);
-    //free(host_out);
+    free(input);
     free(reference_in);
     free(reference_tmp);
     free(reference_out);

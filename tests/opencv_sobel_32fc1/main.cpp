@@ -392,8 +392,7 @@ int main(int argc, const char **argv) {
     #endif
 
     // host memory for image of width x height pixels
-    float *host_in = (float *)malloc(sizeof(float)*width*height);
-    float *host_out = (float *)malloc(sizeof(float)*width*height);
+    float *input = (float *)malloc(sizeof(float)*width*height);
     float *reference_in = (float *)malloc(sizeof(float)*width*height);
     float *reference_out = (float *)malloc(sizeof(float)*width*height);
     float *reference_tmp = (float *)malloc(sizeof(float)*width*height);
@@ -401,9 +400,8 @@ int main(int argc, const char **argv) {
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
-            host_in[y*width + x] = rand()%256;
-            reference_in[y*width + x] = host_in[y*width + x];
-            host_out[y*width + x] = 0;
+            input[y*width + x] = rand()%256;
+            reference_in[y*width + x] = input[y*width + x];
             reference_out[y*width + x] = 0;
             reference_tmp[y*width + x] = 0;
         }
@@ -426,8 +424,7 @@ int main(int argc, const char **argv) {
     IterationSpace<float> IsOut(OUT);
     IterationSpace<float> IsTmp(TMP);
 
-    IN = host_in;
-    OUT = host_out;
+    IN = input;
 
 
     #ifndef OpenCV
@@ -566,8 +563,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // get results
-    host_out = OUT.getData();
+    // get pointer to result data
+    output = OUT.getData();
     #endif
 
 
@@ -580,8 +577,8 @@ int main(int argc, const char **argv) {
     #endif
 
 
-    cv::Mat cv_data_in(height, width, CV_32FC1, host_in);
-    cv::Mat cv_data_out(height, width, CV_32FC1, host_out);
+    cv::Mat cv_data_in(height, width, CV_32FC1, input);
+    cv::Mat cv_data_out(height, width, CV_32FC1, output);
     int ddepth = CV_32F;
     double scale = 1.0f;
     double delta = 0.0f;
@@ -692,9 +689,9 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
-            if (reference_out[y*width + x] != host_out[y*width + x]) {
+            if (reference_out[y*width + x] != output[y*width + x]) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x,
-                        y, reference_out[y*width + x], host_out[y*width + x]);
+                        y, reference_out[y*width + x], output[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -702,8 +699,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Test PASSED\n");
 
     // memory cleanup
-    free(host_in);
-    //free(host_out);
+    free(input);
     free(reference_in);
     free(reference_tmp);
     free(reference_out);
