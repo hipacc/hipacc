@@ -70,7 +70,7 @@ typedef struct hipacc_tex_info {
         name(name), format(format), image(image), tex_type(tex_type) {}
     std::string name;
     CUarray_format format;
-    HipaccImage image;
+    HipaccImage &image;
     hipaccMemoryType tex_type;
 } hipacc_tex_info;
 
@@ -405,6 +405,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
     int height = img.height;
     int stride = img.stride;
 
+    std::copy(host_mem, host_mem + width*height, (T*)img.host);
     if (img.mem_type >= Array2D) {
         err = cudaMemcpyToArray((cudaArray *)img.mem, 0, 0, host_mem, sizeof(T)*width*height, cudaMemcpyHostToDevice);
         checkErr(err, "cudaMemcpyToArray()");
@@ -422,7 +423,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
 
 // Read from memory
 template<typename T>
-void hipaccReadMemory(T *host_mem, HipaccImage &img) {
+T *hipaccReadMemory(HipaccImage &img) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
@@ -431,17 +432,19 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img) {
     int stride = img.stride;
 
     if (img.mem_type >= Array2D) {
-        err = cudaMemcpyFromArray(host_mem, (cudaArray *)img.mem, 0, 0, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
+        err = cudaMemcpyFromArray((T*)img.host, (cudaArray *)img.mem, 0, 0, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
         checkErr(err, "cudaMemcpyFromArray()");
     } else {
         if (stride > width) {
-            err = cudaMemcpy2D(host_mem, width*sizeof(T), img.mem, stride*sizeof(T), width*sizeof(T), height, cudaMemcpyDeviceToHost);
+            err = cudaMemcpy2D((T*)img.host, width*sizeof(T), img.mem, stride*sizeof(T), width*sizeof(T), height, cudaMemcpyDeviceToHost);
             checkErr(err, "cudaMemcpy2D()");
         } else {
-            err = cudaMemcpy(host_mem, img.mem, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
+            err = cudaMemcpy((T*)img.host, img.mem, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
             checkErr(err, "cudaMemcpy()");
         }
     }
+
+    return (T*)img.host;
 }
 
 

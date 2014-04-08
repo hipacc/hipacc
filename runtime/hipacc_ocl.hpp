@@ -728,6 +728,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
+    std::copy(host_mem, host_mem + img.width*img.height, (T*)img.host);
     if (img.mem_type >= Array2D) {
         const size_t origin[] = { 0, 0, 0 };
         const size_t region[] = { (size_t)img.width, (size_t)img.height, 1 };
@@ -758,7 +759,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem, int num_device=0) {
 
 // Read from memory
 template<typename T>
-void hipaccReadMemory(T *host_mem, HipaccImage &img, int num_device=0) {
+T *hipaccReadMemory(HipaccImage &img, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
@@ -769,7 +770,7 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img, int num_device=0) {
         const size_t row_pitch = img.width*sizeof(T);
         const size_t slice_pitch = 0;
 
-        err = clEnqueueReadImage(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, origin, region, row_pitch, slice_pitch, host_mem, 0, NULL, NULL);
+        err = clEnqueueReadImage(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, origin, region, row_pitch, slice_pitch, (T*)img.host, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueReadImage()");
     } else {
@@ -779,14 +780,16 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img, int num_device=0) {
 
         if (stride > width) {
             for (size_t i=0; i<height; ++i) {
-                err |= clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &host_mem[i*width], 0, NULL, NULL);
+                err |= clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &((T*)img.host)[i*width], 0, NULL, NULL);
             }
         } else {
-            err = clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, 0, sizeof(T)*width*height, host_mem, 0, NULL, NULL);
+            err = clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, 0, sizeof(T)*width*height, (T*)img.host, 0, NULL, NULL);
         }
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueReadBuffer()");
     }
+
+    return (T*)img.host;
 }
 
 

@@ -153,7 +153,7 @@ class HipaccContext : public HipaccContextBase {
             return instance;
         }
         void add_image(HipaccImage &img, sp<Allocation> id) {
-            imgs.push_back(img);
+            imgs.push_back(&img);
             allocs.push_back(std::make_pair(id, img));
         }
         void del_image(HipaccImage &img) {
@@ -405,6 +405,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
     int height = img.height;
     int stride = img.stride;
 
+    std::copy(host_mem, host_mem + img.width*img.height, (T*)img.host);
     if (stride > width) {
         T* buff = new T[stride * height];
         for (size_t i=0; i<height; ++i) {
@@ -421,7 +422,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
 
 // Read from allocation
 template<typename T>
-void hipaccReadMemory(T *host_mem, HipaccImage &img) {
+T *hipaccReadMemory(HipaccImage &img) {
     HipaccContext &Ctx = HipaccContext::getInstance();
 
     int width = img.width;
@@ -432,13 +433,15 @@ void hipaccReadMemory(T *host_mem, HipaccImage &img) {
         T* buff = new T[stride * height];
         COPYTO(T, (Allocation *)img.mem, 0, stride * height, buff);
         for (size_t i=0; i<height; ++i) {
-            memcpy(host_mem + (i * width), buff + (i * stride),
+            memcpy(&((T*)img.host)[i*width], buff + (i * stride),
                    sizeof(T) * width);
         }
         delete[] buff;
     } else {
-        COPYTO(T, (Allocation *)img.mem, 0, width * height, host_mem);
+        COPYTO(T, (Allocation *)img.mem, 0, width * height, (T*)img.host);
     }
+
+    return (T*)img.host;
 }
 
 

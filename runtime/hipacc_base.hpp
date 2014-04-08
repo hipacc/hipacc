@@ -26,12 +26,14 @@
 #ifndef __HIPACC_BASE_HPP__
 #define __HIPACC_BASE_HPP__
 
+#include <stdint.h>
 #include <time.h>
 #ifdef __APPLE__
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
 
+#include <algorithm>
 #include <cassert>
 #include <vector>
 #if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
@@ -90,6 +92,8 @@ class HipaccImage {
         int32_t pixel_size;
         void *mem;
         hipaccMemoryType mem_type;
+        char *host;
+        uint32_t *refcount;
 
     public:
         HipaccImage(int32_t width, int32_t height, int32_t stride, int32_t
@@ -101,10 +105,38 @@ class HipaccImage {
             alignment(alignment),
             pixel_size(pixel_size),
             mem(mem),
-            mem_type(mem_type)
-            {}
+            mem_type(mem_type),
+            host(new char[width*height*pixel_size]),
+            refcount(new uint32_t(1))
+        {
+            std::fill(host, host + width*height*pixel_size, 0);
+        }
 
-        bool operator==(HipaccImage other) const {
+        HipaccImage(const HipaccImage &image) :
+            width(image.width),
+            height(image.height),
+            stride(image.stride),
+            alignment(image.alignment),
+            pixel_size(image.pixel_size),
+            mem(image.mem),
+            mem_type(image.mem_type),
+            host(image.host),
+            refcount(image.refcount)
+        {
+            ++(*refcount);
+        }
+
+        ~HipaccImage() {
+            --(*refcount);
+            if (host != NULL &&
+                *refcount == 0) {
+              delete refcount;
+              delete[] host;
+              host = NULL;
+            }
+        }
+
+        bool operator==(HipaccImage &other) const {
             return mem==other.mem;
         }
 };
@@ -134,16 +166,16 @@ class HipaccAccessor {
 
 class HipaccContextBase {
     protected:
-        std::vector<HipaccImage> imgs;
+        std::vector<HipaccImage*> imgs;
 
         HipaccContextBase() {};
         HipaccContextBase(HipaccContextBase const &);
         void operator=(HipaccContextBase const &);
 
     public:
-        void add_image(HipaccImage &img) { imgs.push_back(img); }
+        void add_image(HipaccImage &img) { imgs.push_back(&img); }
         void del_image(HipaccImage &img) {
-            imgs.erase(std::remove(imgs.begin(), imgs.end(), img), imgs.end());
+            imgs.erase(std::remove(imgs.begin(), imgs.end(), &img), imgs.end());
         }
 };
 
@@ -213,7 +245,7 @@ class HipaccPyramid {
         : depth_(depth), level_(0), bound_(false) {
     }
 
-    void add(HipaccImage img) {
+    void add(HipaccImage &img) {
       imgs_.push_back(img);
     }
 
