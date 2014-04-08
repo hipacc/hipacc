@@ -65,7 +65,9 @@ class Image {
             height(height),
             array(new data_t[width*height]),
             refcount(new unsigned int(1))
-        {}
+        {
+            std::fill(array, array + width*height, 0);
+        }
 
         Image(const Image &image) :
             width(image.width),
