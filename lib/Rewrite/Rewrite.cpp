@@ -2819,8 +2819,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           if (memAcc==READ_ONLY) *OS << "const ";
           *OS << Acc->getImage()->getTypeStr()
               << " " << Name
-              << "[" << Acc->getImage()->getSizeXStr() << "]"
-              << "[" << Acc->getImage()->getSizeYStr() << "]";
+              << "[" << Acc->getImage()->getSizeYStr() << "]"
+              << "[" << Acc->getImage()->getSizeXStr() << "]";
           // alternative for Pencil:
           // *OS << "[static const restrict 2048][4096]";
           break;
