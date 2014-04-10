@@ -66,12 +66,14 @@ void fir_filter(uchar4 *in, uchar4 *out, float *filter, int
         size_x, int width) {
     int anchor_x = size_x >> 1;
 
-    for (int x=0; x<width; ++x) {
+    for (int x=anchor_x; x<width-anchor_x; ++x) {
         float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
-        for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+        // size_x is even => -size_x/2 .. +size_x/2 - 1
+        for (int xf = -anchor_x; xf<anchor_x; xf++) {
             sum += filter[xf + anchor_x]*convert_float4(in[x + xf]);
         }
+
         out[x] = convert_uchar4(sum);
     }
 }
@@ -107,7 +109,8 @@ class FIRFilterMask : public Kernel<uchar4> {
             const int anchor_x = size_x >> 1;
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
-            for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+            // size_x is even => -size_x/2 .. +size_x/2 - 1
+            for (int xf = -anchor_x; xf<anchor_x; xf++) {
                 sum += mask(xf, 0)*convert_float4(input(xf, 0));
             }
 
@@ -160,7 +163,6 @@ int main(int argc, const char **argv) {
     uchar4 *input = (uchar4 *)malloc(sizeof(uchar4)*width);
     uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width);
     uchar4 *reference_out = (uchar4 *)malloc(sizeof(uchar4)*width);
-    float4 *reference_tmp = (float4 *)malloc(sizeof(float4)*width);
 
     // initialize data
     for (int x=0; x<width; ++x) {
@@ -168,7 +170,6 @@ int main(int argc, const char **argv) {
         input[x] = (uchar4){ val, val, val, val };
         reference_in[x] = (uchar4){ val, val, val, val };
         reference_out[x] = (uchar4){ 0, 0, 0, 0 };
-        reference_tmp[x] = (float4){ 0.0f, 0.0f, 0.0f, 0.0f };
     }
 
 
@@ -354,7 +355,7 @@ int main(int argc, const char **argv) {
         time0 = time_ms();
 
         // calculate reference
-        fir_filter(reference_in, reference_out, (float *)filter_x, size_x, width);
+        fir_filter(reference_in, reference_out, (float *)filter_x[0], size_x, width);
 
         time1 = time_ms();
         dt = time1 - time0;
@@ -392,7 +393,6 @@ int main(int argc, const char **argv) {
     // memory cleanup
     free(input);
     free(reference_in);
-    free(reference_tmp);
     free(reference_out);
 
     return EXIT_SUCCESS;
