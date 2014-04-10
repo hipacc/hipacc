@@ -23,9 +23,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <iostream>
-#include <vector>
-
 #include <float.h>
 #include <math.h>
 #include <stdio.h>
@@ -33,13 +30,14 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
+#include <vector>
+
+//#define CPU
 #ifdef OpenCV
+#include "opencv2/opencv.hpp"
 #ifndef CPU
 #include "opencv2/gpu/gpu.hpp"
-#else
-#include "opencv2/core/core.hpp"
 #endif
-#include "opencv2/imgproc/imgproc.hpp"
 #endif
 
 #include "hipacc.hpp"
@@ -47,9 +45,8 @@
 // variables set by Makefile
 #define SIZE_X 32
 #define WIDTH 1048576
-//#define CPU
-//#define CONST_MASK
-//#define USE_LAMBDA
+#define CONST_MASK
+#define USE_LAMBDA
 //#define RUN_UNDEF
 
 using namespace hipacc;
@@ -83,25 +80,24 @@ void fir_filter(uchar4 *in, uchar4 *out, float *filter, int
 // FIR filter in HIPAcc
 class FIRFilterMask : public Kernel<uchar4> {
     private:
-        Accessor<uchar4> &Input;
-        Mask<float> &cMask;
+        Accessor<uchar4> &input;
+        Mask<float> &mask;
         const int size_x;
 
     public:
-        FIRFilterMask(IterationSpace<uchar4> &IS,
-                Accessor<uchar4> &Input, Mask<float> &cMask, const int
-                size_x) :
-            Kernel(IS),
-            Input(Input),
-            cMask(cMask),
+        FIRFilterMask(IterationSpace<uchar4> &iter, Accessor<uchar4> &input,
+                Mask<float> &mask, const int size_x) :
+            Kernel(iter),
+            input(input),
+            mask(mask),
             size_x(size_x)
-        { addAccessor(&Input); }
+        { addAccessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
-            sum += convolve(cMask, HipaccSUM, [&] () -> float4 {
-                    return cMask()*convert_float4(Input(cMask));
+            sum += convolve(mask, HipaccSUM, [&] () -> float4 {
+                    return mask()*convert_float4(input(mask));
                     });
 
             output() = convert_uchar4(sum);
@@ -112,7 +108,7 @@ class FIRFilterMask : public Kernel<uchar4> {
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
             for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                sum += cMask(xf, 0)*convert_float4(Input(xf, 0));
+                sum += mask(xf, 0)*convert_float4(input(xf, 0));
             }
 
             output() = convert_uchar4(sum);
@@ -244,7 +240,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
 
 
-    // get results
+    // get pointer to result data
     uchar4 *output = OUT.getData();
     #endif
 
