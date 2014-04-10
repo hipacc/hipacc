@@ -9,7 +9,7 @@ CFLAGS        = $(MYFLAGS) -Wall -Wunused \
                 -I$(HIPACC_DIR)/include/dsl \
                 -I$(OPENCV_DIR)/include
 LDFLAGS       = -lm \
-                -L$(OPENCV_DIR)/lib -lopencv_core -lopencv_gpu -lopencv_imgproc
+                -L$(OPENCV_DIR)/lib -lopencv_core -lopencv_gpu -lopencv_highgui -lopencv_imgproc
 OFLAGS        = -O3
 
 ifeq ($(CC),clang++)
