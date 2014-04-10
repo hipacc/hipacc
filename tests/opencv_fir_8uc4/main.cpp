@@ -246,8 +246,6 @@ int main(int argc, const char **argv) {
 
 
     #ifdef OpenCV
-    uchar4 *output = (uchar4 *)malloc(sizeof(uchar4)*width);
-
     #ifdef CPU
     fprintf(stderr, "\nCalculating OpenCV FIR filter on the CPU ...\n");
     #else
@@ -256,7 +254,7 @@ int main(int argc, const char **argv) {
 
 
     cv::Mat cv_data_in(1, width, CV_8UC4, input);
-    cv::Mat cv_data_out(1, width, CV_8UC4, output);
+    cv::Mat cv_data_out(1, width, CV_8UC4, cv::Scalar(0));
 
     cv::Mat kernel = cv::Mat::ones(size_x, 1, CV_32F ) / (float)(size_x);
     cv::Point anchor = cv::Point(-1,-1);
@@ -329,6 +327,9 @@ int main(int argc, const char **argv) {
         timings.push_back(min_dt);
         fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width/min_dt)/1000);
     }
+
+    // get pointer to result data
+    uchar4 *output = (uchar4 *)cv_data_out.data;
     #endif
 
     // print statistics
