@@ -334,7 +334,7 @@ int main(int argc, const char **argv) {
 
 
     cv::Mat cv_data_in(height, width, CV_8UC1, input);
-    cv::Mat cv_data_out(height, width, CV_8UC1, output);
+    cv::Mat cv_data_out(height, width, CV_8UC1, cv::Scalar(0));
     cv::Size ksize(size_x, size_y);
 
     #ifdef CPU
@@ -362,8 +362,10 @@ int main(int argc, const char **argv) {
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
-
     gpu_out.download(cv_data_out);
+
+    // get pointer to result data
+    output = (uchar *)cv_data_out.data;
     #endif
 
     fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt, ((width-size_x)*(height-size_y)/min_dt)/1000);

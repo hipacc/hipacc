@@ -564,7 +564,7 @@ int main(int argc, const char **argv) {
 
 
     // get pointer to result data
-    output = OUT.getData();
+    float *output = OUT.getData();
     #endif
 
 
@@ -578,7 +578,7 @@ int main(int argc, const char **argv) {
 
 
     cv::Mat cv_data_in(height, width, CV_32FC1, input);
-    cv::Mat cv_data_out(height, width, CV_32FC1, output);
+    cv::Mat cv_data_out(height, width, CV_32FC1, cv::Scalar(0));
     int ddepth = CV_32F;
     double scale = 1.0f;
     double delta = 0.0f;
@@ -649,6 +649,9 @@ int main(int argc, const char **argv) {
         timings.push_back(min_dt);
         fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
     }
+
+    // get pointer to result data
+    float *output = (float *)cv_data_out.data;
     #endif
 
     // print statistics

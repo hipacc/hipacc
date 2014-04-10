@@ -582,7 +582,7 @@ int main(int argc, const char **argv) {
 
 
     cv::Mat cv_data_in(height, width, CV_8UC4, input);
-    cv::Mat cv_data_out(height, width, CV_16SC4, output);
+    cv::Mat cv_data_out(height, width, CV_16SC4, cv::Scalar(0));
     int ddepth = CV_16S;
     double scale = 1.0f;
     double delta = 0.0f;
@@ -653,6 +653,9 @@ int main(int argc, const char **argv) {
         timings.push_back(min_dt);
         fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
     }
+
+    // get pointer to result data
+    short4 *output = (short4 *)cv_data_out.data;
     #endif
 
     // print statistics
