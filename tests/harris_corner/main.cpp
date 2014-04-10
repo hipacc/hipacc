@@ -5,28 +5,23 @@
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 //
-// 1. Redistributions of source code must retain the above copyright notice,
-//    this list of conditions and the following disclaimer.
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
 // 2. Redistributions in binary form must reproduce the above copyright notice,
 //    this list of conditions and the following disclaimer in the documentation
 //    and/or other materials provided with the distribution.
 //
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-// POSSIBILITY OF SUCH DAMAGE.
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-
-#include <iostream>
-#include <vector>
-#include <numeric>
 
 #include <float.h>
 #include <math.h>
@@ -35,22 +30,21 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
+#include <iostream>
+#include <numeric>
+#include <vector>
+
 #ifdef OpenCV
-#ifndef CPU
-#include "opencv2/gpu/gpu.hpp"
-#else
-#include "opencv2/core/core.hpp"
-#endif
-#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/opencv.hpp"
 #endif
 
 #include "hipacc.hpp"
 
 // variables set by Makefile
-//#define WIDTH 4096
-//#define HEIGHT 4096
 //#define SIZE_X 7
 //#define SIZE_Y 7
+//#define WIDTH 4096
+//#define HEIGHT 4096
 #define USE_LAMBDA
 //#define NO_SEP
 //#define USE_FREEIMAGE
@@ -96,50 +90,48 @@ class Deriv1D : public Kernel<float> {
 #else
 class Deriv1DCol : public Kernel<float> {
   private:
-    Accessor<uchar> &Input;
-    Mask<float> &cMask;
+    Accessor<uchar> &input;
+    Mask<float> &mask;
     const int size;
 
   public:
-    Deriv1DCol(IterationSpace<float> &IS,
-            Accessor<uchar> &Input, Mask<float> &cMask,
-            const int size)
-          : Kernel(IS),
-            Input(Input),
-            cMask(cMask),
+    Deriv1DCol(IterationSpace<float> &iter, Accessor<uchar> &input,
+            Mask<float> &mask, const int size)
+          : Kernel(iter),
+            input(input),
+            mask(mask),
             size(size) {
-      addAccessor(&Input);
+      addAccessor(&input);
     }
 
     void kernel() {
       float sum = 0.0f;
-      sum += convolve(cMask, HipaccSUM, [&] () -> float {
-          return Input(cMask) * cMask();
+      sum += convolve(mask, HipaccSUM, [&] () -> float {
+          return input(mask) * mask();
       });
       output() = sum;
     }
 };
 class Deriv1DRow : public Kernel<float> {
   private:
-    Accessor<float> &Input;
-    Mask<float> &cMask;
+    Accessor<float> &input;
+    Mask<float> &mask;
     const int size;
 
   public:
-    Deriv1DRow(IterationSpace<float> &IS,
-            Accessor<float> &Input, Mask<float> &cMask,
-            const int size)
-          : Kernel(IS),
-            Input(Input),
-            cMask(cMask),
+    Deriv1DRow(IterationSpace<float> &iter, Accessor<float> &input,
+            Mask<float> &mask, const int size)
+          : Kernel(iter),
+            input(input),
+            mask(mask),
             size(size) {
-      addAccessor(&Input);
+      addAccessor(&input);
     }
 
     void kernel() {
       float sum = 0.0f;
-      sum += convolve(cMask, HipaccSUM, [&] () -> float {
-          return Input(cMask) * cMask();
+      sum += convolve(mask, HipaccSUM, [&] () -> float {
+          return input(mask) * mask();
       });
       output() = sum*sum;
     }
@@ -154,8 +146,7 @@ class Deriv2D : public Kernel<float> {
     Mask<float> &mask2;
 
   public:
-    Deriv2D(IterationSpace<float> &iter,
-            Accessor<uchar> &input, Domain &dom,
+    Deriv2D(IterationSpace<float> &iter, Accessor<uchar> &input, Domain &dom,
             Mask<float> &mask1, Mask<float> &mask2)
           : Kernel(iter),
             input(input),
@@ -178,75 +169,74 @@ class Deriv2D : public Kernel<float> {
 
 class GaussianBlurFilterMaskRow : public Kernel<float> {
   private:
-    Accessor<float> &Input;
-    Mask<float> &cMask;
+    Accessor<float> &input;
+    Mask<float> &mask;
     const int size;
 
   public:
-    GaussianBlurFilterMaskRow(IterationSpace<float> &IS, Accessor<float> &Input,
-                              Mask<float> &cMask, const int size)
-        : Kernel(IS),
-          Input(Input),
-          cMask(cMask),
+    GaussianBlurFilterMaskRow(IterationSpace<float> &iter,
+          Accessor<float> &input, Mask<float> &mask, const int size)
+        : Kernel(iter),
+          input(input),
+          mask(mask),
           size(size) {
-      addAccessor(&Input);
+      addAccessor(&input);
     }
 
-#ifdef USE_LAMBDA
+    #ifdef USE_LAMBDA
     void kernel() {
-      output() = convolve(cMask, HipaccSUM, [&] () -> float {
-          return cMask() * Input(cMask);
+      output() = convolve(mask, HipaccSUM, [&] () -> float {
+          return mask() * input(mask);
       });
     }
-#else
+    #else
     void kernel() {
       const int anchor = size >> 1;
       float sum = 0;
 
       for (int xf = -anchor; xf<=anchor; xf++) {
-        sum += cMask(xf, 0)*Input(xf, 0);
+        sum += mask(xf, 0)*input(xf, 0);
       }
 
       output() = sum;
     }
-#endif
+    #endif
 };
 
 class GaussianBlurFilterMaskColumn : public Kernel<float> {
   private:
-    Accessor<float> &Input;
-    Mask<float> &cMask;
+    Accessor<float> &input;
+    Mask<float> &mask;
     const int size;
 
   public:
-    GaussianBlurFilterMaskColumn(IterationSpace<float> &IS,
-                                 Accessor<float> &Input, Mask<float> &cMask,
-                                 const int size)
-        : Kernel(IS),
-          Input(Input),
-          cMask(cMask),
+    GaussianBlurFilterMaskColumn(IterationSpace<float> &iter,
+          Accessor<float> &input, Mask<float> &mask, const int size)
+        : Kernel(iter),
+          input(input),
+          mask(mask),
           size(size) {
-      addAccessor(&Input);
+      addAccessor(&input);
     }
 
-#ifdef USE_LAMBDA
+    #ifdef USE_LAMBDA
     void kernel() {
-      output() = convolve(cMask, HipaccSUM, [&] () -> float {
-          return cMask() * Input(cMask);
+      output() = convolve(mask, HipaccSUM, [&] () -> float {
+          return mask() * input(mask);
       }) + 0.5f;
     }
-#else
+    #else
     void kernel() {
       const int anchor = size >> 1;
       float sum = 0.5f;
 
       for (int yf = -anchor; yf<=anchor; yf++) {
-        sum += cMask(0, yf)*Input(0, yf);
+        sum += mask(0, yf)*input(0, yf);
       }
 
       output() = (uchar) (sum);
     }
-#endif
+    #endif
 };
 
 class HarrisCorner : public Kernel<float> {
@@ -257,10 +247,9 @@ class HarrisCorner : public Kernel<float> {
     float k;
 
   public:
-    HarrisCorner(IterationSpace<float> &IS,
-            Accessor<float> &Dx, Accessor<float> &Dy, Accessor<float> &Dxy,
-            float k)
-          : Kernel(IS),
+    HarrisCorner(IterationSpace<float> &iter, Accessor<float> &Dx,
+            Accessor<float> &Dy, Accessor<float> &Dxy, float k)
+          : Kernel(iter),
             Dx(Dx),
             Dy(Dy),
             Dxy(Dxy),
@@ -292,7 +281,7 @@ int main(int argc, const char **argv) {
       threshold = atof(argv[2]);
     }
 
-#ifdef USE_FREEIMAGE
+    #ifdef USE_FREEIMAGE
     FreeImage_Initialise();
 
     FIBITMAP* img = FreeImage_Load(FIF_PNG, "lenna.png");
@@ -320,10 +309,10 @@ int main(int argc, const char **argv) {
 
     const int width = FreeImage_GetWidth(gray);
     const int height = FreeImage_GetHeight(gray);
-#else
+    #else
     const int width = WIDTH;
     const int height = HEIGHT;
-#endif
+    #endif
 
     const int size_x = SIZE_X;
     const int size_y = SIZE_Y;
@@ -339,22 +328,22 @@ int main(int argc, const char **argv) {
     Image<float> TMP(width, height);
 
     // host memory for image of of width x height pixels
-#ifdef USE_FREEIMAGE
+    #ifdef USE_FREEIMAGE
     uchar *input = FreeImage_GetBits(gray);
-#else
+    #else
     uchar *input = (uchar *)malloc(sizeof(uchar)*width*height);
-#endif
+    #endif
 
     // initialize data
     for (int y=0; y<height; ++y) {
       for (int x=0; x<width; ++x) {
-#ifndef USE_FREEIMAGE
+        #ifndef USE_FREEIMAGE
         input[y*width + x] = (char)(y*width + x) % 256;
-#endif
+        #endif
       }
     }
 
-#ifndef OpenCV
+    #ifndef OpenCV
     // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
     if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
         fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3, 5x5, and 7x7!\n");
@@ -394,7 +383,7 @@ int main(int argc, const char **argv) {
     Mask<float> MX(mask_x);
     Mask<float> MY(mask_y);
 
-#ifndef NO_SEP
+    #ifndef NO_SEP
     const float mask_vx[1][3] = { { 0.166666667f,     0.166666667f,     0.166666667f } };
     const float mask_vy[3][1] = { { 0.166666667f }, { 0.166666667f }, { 0.166666667f } };
     const float mask_mx[1][3] = { {        -1.0f,             0.0f,             1.0f } };
@@ -403,7 +392,7 @@ int main(int argc, const char **argv) {
     Mask<float> MXY(mask_vy);
     Mask<float> MYX(mask_vx);
     Mask<float> MYY(mask_my);
-#endif
+    #endif
 
     Mask<float> GX(filter_x);
     Mask<float> GY(filter_y);
@@ -421,7 +410,7 @@ int main(int argc, const char **argv) {
     BoundaryCondition<uchar> BcInClamp(IN, 3, 3, BOUNDARY_CLAMP);
     Accessor<uchar> AccInClamp(BcInClamp);
 
-#ifdef NO_SEP
+    #ifdef NO_SEP
     Deriv1D D1dx(IsDx, AccInClamp, MX);
     D1dx.execute();
     timing = hipaccGetLastKernelTiming();
@@ -431,7 +420,7 @@ int main(int argc, const char **argv) {
     D1dy.execute();
     timing = hipaccGetLastKernelTiming();
     timings.push_back(timing);
-#else
+    #else
     BoundaryCondition<float> BcTmpDcClamp(TMP, 1, 3, BOUNDARY_CLAMP);
     Accessor<float> AccTmpDcClamp(BcTmpDcClamp);
 
@@ -454,7 +443,7 @@ int main(int argc, const char **argv) {
     D1dyr.execute();
     timing = hipaccGetLastKernelTiming();
     timings.push_back(timing);
-#endif
+    #endif
 
     Domain dom(3, 3);
     Deriv2D D2dxy(IsDxy, AccInClamp, dom, MX, MY);
@@ -503,7 +492,7 @@ int main(int argc, const char **argv) {
     timing = hipaccGetLastKernelTiming();
     timings.push_back(timing);
 
-    // get results
+    // get pointer to result data
     float *output = OUT.getData();
 
     for (int x = 0; x < width; ++x) {
@@ -521,10 +510,9 @@ int main(int argc, const char **argv) {
         }
       }
     }
-#endif
+    #endif
 
-#ifdef OpenCV
-#ifdef CPU
+    #ifdef OpenCV
     fprintf(stderr, "\nCalculating OpenCV Harris Corner filter on the CPU ...\n");
 
     cv::Mat cv_data_in(height, width, CV_8UC1, input);
@@ -568,25 +556,24 @@ int main(int argc, const char **argv) {
         }
       }
     }
-#endif
-#endif
+    #endif
 
     timing = std::accumulate(timings.begin(), timings.end(), 0.0f);
     fprintf(stderr, "Harris Corner: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
-#ifdef USE_FREEIMAGE
+    #ifdef USE_FREEIMAGE
     FIBITMAP* out = FreeImage_ConvertFromRawBits(input, width, height, width,
                                                  8, 255, 255, 255, FALSE);
     FreeImage_Save(FIF_PNG, out, "filtered.png");
-#endif
+    #endif
 
     // memory cleanup
-#ifdef USE_FREEIMAGE
+    #ifdef USE_FREEIMAGE
     FreeImage_Unload(out);
     FreeImage_Unload(gray);
-#else
+    #else
     free(input);
-#endif
+    #endif
 
     return EXIT_SUCCESS;
 }
