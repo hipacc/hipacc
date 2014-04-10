@@ -291,7 +291,7 @@ int main(int argc, const char **argv) {
         for (int nt=0; nt<10; nt++) {
             time0 = time_ms();
 
-            cv::gpu::filter2D(gpu_in, gpu_out, ddepth, kernel, anchor, delta, brd_type);
+            cv::gpu::filter2D(gpu_in, gpu_out, ddepth, kernel, anchor, brd_type);
 
             time1 = time_ms();
             dt = time1 - time0;
