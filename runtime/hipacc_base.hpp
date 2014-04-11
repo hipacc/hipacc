@@ -245,7 +245,7 @@ class HipaccPyramid {
         : depth_(depth), level_(0), bound_(false) {
     }
 
-    void add(HipaccImage &img) {
+    void add(HipaccImage img) {
       imgs_.push_back(img);
     }
 
