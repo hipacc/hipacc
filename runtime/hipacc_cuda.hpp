@@ -114,7 +114,16 @@ dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
 }
 
 
-const char *getCUDAErrorCodeStrDrv(int errorCode) {
+#if CUDA_VERSION >= 6000
+std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
+    const char *errorName;
+    const char *errorString;
+    cuGetErrorName(errorCode, &errorName);
+    cuGetErrorString(errorCode, &errorString);
+    return std::string(errorName) + ": " + std::string(errorString);
+}
+#else
+const char *getCUDAErrorCodeStrDrv(CUresult errorCode) {
     switch (errorCode) {
         case CUDA_SUCCESS:
             return "CUDA_SUCCESS";
@@ -224,6 +233,7 @@ const char *getCUDAErrorCodeStrDrv(int errorCode) {
             return "unknown error code";
     }
 }
+#endif
 // Macro for error checking device driver
 #if 1
 #define checkErrDrv(err, name) \
