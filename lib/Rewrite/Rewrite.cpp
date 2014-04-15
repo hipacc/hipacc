@@ -2026,6 +2026,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
       info = "ptxas info : Used %d registers";
     }
   }
+
   while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
     lines.push_back(std::string(line));
     if (targetDevice.isAMDGPU()) {
@@ -2050,6 +2051,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
 
       while ((ptr = strchr(ptr, ','))) {
         ptr++;
+
         num_read = sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type);
         if (num_read == 3) {
           switch (mem_type) {
@@ -2067,28 +2069,44 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
               smem += val1 + val2;
               break;
           }
-        } else {
-          num_read = sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type);
-          if (num_read == 2) {
-            switch (mem_type) {
-              default:
-                llvm::errs() << "wrong memory specifier '" << mem_type
-                             << "': " << ptr;
-                break;
-              case 'c':
-                cmem += val1;
-                break;
-              case 'l':
-                lmem += val1;
-                break;
-              case 's':
-                smem += val1;
-                break;
-            }
-          } else {
-            llvm::errs() << "Unexpected memory usage specification: '" << ptr;
-          }
+          continue;
         }
+
+        num_read = sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type);
+        if (num_read == 2) {
+          switch (mem_type) {
+            default:
+              llvm::errs() << "wrong memory specifier '" << mem_type
+                           << "': " << ptr;
+              break;
+            case 'c':
+              cmem += val1;
+              break;
+            case 'l':
+              lmem += val1;
+              break;
+            case 's':
+              smem += val1;
+              break;
+          }
+          continue;
+        }
+
+        num_read = sscanf(ptr, "%d texture %1c", &val1, &mem_type);
+        if (num_read == 2) {
+          continue;
+        }
+        num_read = sscanf(ptr, "%d sampler %1c", &val1, &mem_type);
+        if (num_read == 2) {
+          continue;
+        }
+        num_read = sscanf(ptr, "%d surface %1c", &val1, &mem_type);
+        if (num_read == 2) {
+          continue;
+        }
+
+        // no match found
+        llvm::errs() << "Unexpected memory usage specification: '" << ptr;
       }
     }
   }
