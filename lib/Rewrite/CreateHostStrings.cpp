@@ -1087,7 +1087,7 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
   std::string const_suffix;
   switch (bh_mode) {
     case BOUNDARY_CLAMP:
-      resultStr += "_clamp, BH_CONSTANT_LOWER, BH_CONSTANT_UPPER, "; break;
+      resultStr += "_clamp, BH_CLAMP_LOWER, BH_CLAMP_UPPER, "; break;
     case BOUNDARY_REPEAT:
       resultStr += "_repeat, BH_REPEAT_LOWER, BH_REPEAT_UPPER, "; break;
     case BOUNDARY_MIRROR:
