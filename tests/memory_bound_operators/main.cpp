@@ -118,9 +118,7 @@ class GlobalOffsetCorrection : public Kernel<int> {
             Kernel(iter),
             input(input),
             offset(offset)
-        {
-            addAccessor(&input);
-        }
+        { addAccessor(&input); }
 
         void kernel() {
             output() = input() + offset;
@@ -174,9 +172,7 @@ class Read1 : public Kernel<int> {
         Read1(IterationSpace<int> &iter, Accessor<int> &input0) :
             Kernel(iter),
             input0(input0)
-        {
-            addAccessor(&input0);
-        }
+        { addAccessor(&input0); }
 
         void kernel() {
             output() = input0();
@@ -406,7 +402,6 @@ int main(int argc, const char **argv) {
     // host memory for image of width x height pixels
     int *input0 = (int *)malloc(sizeof(int)*width*height);
     int *input1 = (int *)malloc(sizeof(int)*width*height);
-    int *out_init = (int *)malloc(sizeof(int)*width*height);
     int *reference_in0 = (int *)malloc(sizeof(int)*width*height);
     int *reference_in1 = (int *)malloc(sizeof(int)*width*height);
     int *reference_out0 = (int *)malloc(sizeof(int)*width*height);
@@ -443,7 +438,6 @@ int main(int argc, const char **argv) {
             input1[y*width + x] = (int) (y*width + x) * DELTA;
             reference_in0[y*width + x] = (int) (x*height + y) * DELTA;
             reference_in1[y*width + x] = (int) (y*width + x) * DELTA;
-            out_init[y*width + x] = (int) (3.12451);
             reference_out0[y*width + x] = (int) (3.12451);
             reference_out1[y*width + x] = (int) (3.12451);
             reference_out2[y*width + x] = (int) (3.12451);
@@ -473,9 +467,6 @@ int main(int argc, const char **argv) {
     IN5 = input1;
     IN6 = input1;
     IN7 = input1;
-    OUT0 = out_init;
-    OUT1 = out_init;
-    OUT2 = out_init;
 
     // warmup
     R1.execute();
@@ -624,9 +615,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "\nComparing results for GOC ... ");
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
-            if (reference_out0[y*width + x] != output0[y*width +x]) {
+            if (reference_out0[y*width + x] != output0[y*width + x]) {
                 fprintf(stderr, " FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out0[y*width + x], output0[y*width +x]);
+                        reference_out0[y*width + x], output0[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -635,9 +626,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Comparing results for AD ... ");
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
-            if (reference_out1[y*width + x] != output1[y*width +x]) {
+            if (reference_out1[y*width + x] != output1[y*width + x]) {
                 fprintf(stderr, " FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out1[y*width + x], output1[y*width +x]);
+                        reference_out1[y*width + x], output1[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -646,9 +637,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Comparing results for SD ... ");
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
-            if (reference_out2[y*width + x] != output2[y*width +x]) {
+            if (reference_out2[y*width + x] != output2[y*width + x]) {
                 fprintf(stderr, " FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out2[y*width + x], output2[y*width +x]);
+                        reference_out2[y*width + x], output2[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -659,7 +650,6 @@ int main(int argc, const char **argv) {
     // memory cleanup
     free(input0);
     free(input1);
-    free(out_init);
     free(reference_in0);
     free(reference_in1);
     free(reference_out0);

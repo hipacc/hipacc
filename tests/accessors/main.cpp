@@ -170,9 +170,9 @@ int main(int argc, const char **argv) {
     // compare results
     for (int y=0; y<is_height; y++) {
         for (int x=0; x<is_width; x++) {
-            if (reference_out[y*is_width + x] != output[y*is_width +x]) {
+            if (reference_out[y*is_width + x] != output[y*is_width + x]) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out[y*is_width + x], output[y*is_width +x]);
+                        reference_out[y*is_width + x], output[y*is_width + x]);
                 exit(EXIT_FAILURE);
             }
         }

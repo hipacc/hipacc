@@ -589,12 +589,12 @@ int main(int argc, const char **argv) {
     float rms_err = 0.0f;   // RMS error
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
-            float derr = reference_out[y*width + x] - output[y*width +x];
+            float derr = reference_out[y*width + x] - output[y*width + x];
             rms_err += derr*derr;
 
             if (fabs(derr) > EPS) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
-                        reference_out[y*width + x], output[y*width +x]);
+                        reference_out[y*width + x], output[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }

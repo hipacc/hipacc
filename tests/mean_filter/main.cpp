@@ -25,7 +25,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -59,7 +58,7 @@ void horizontal_mean_filter(float *in, float *out, int d, int t, int width, int 
     #ifdef SIMPLE
     for (int y=0; y<height; ++y) {
         for (int x=0; x<(width-d); ++x) {
-            float sum = 0.0f;
+            float sum = 0;
 
             for (int k=0; k<d; ++k) {
                 sum += in[y*width + x + k];
@@ -72,7 +71,7 @@ void horizontal_mean_filter(float *in, float *out, int d, int t, int width, int 
 
     for (int y=0; y<height; ++y) {
         for (int t0=0; t0<N; t0+=t) {
-            float sum = 0.0f;
+            float sum = 0;
 
             // first phase: convolution
             for (int k=0; k<d; ++k) {
@@ -98,7 +97,7 @@ void vertical_mean_filter(float *in, float *out, int d, int t, int width, int he
     #ifdef SIMPLE
     for (int y=0; y<(height-d); ++y) {
         for (int x=0; x<width; ++x) {
-            float sum = 0.0f;
+            float sum = 0;
 
             for (int k=0; k<d; ++k) {
                 sum += in[(y+k)*width + x];
@@ -111,7 +110,7 @@ void vertical_mean_filter(float *in, float *out, int d, int t, int width, int he
 
     for (int x=0; x<width; ++x) {
         for (int t0=0; t0<N; t0+=t) {
-            float sum = 0.0f;
+            float sum = 0;
 
             // first phase: convolution
             for (int k=0; k<d; ++k) {
@@ -193,7 +192,7 @@ class VerticalMeanFilter : public Kernel<float> {
         { addAccessor(&input); }
 
         void kernel() {
-            float sum = 0.0f;
+            float sum = 0;
 
             #ifdef SIMPLE
             for (int k=0; k<d; ++k) {
@@ -232,7 +231,6 @@ int main(int argc, const char **argv) {
 
     // host memory for image of width x height pixels
     float *input = (float *)malloc(sizeof(float)*width*height);
-    float *out_init = (float *)malloc(sizeof(float)*width*height);
     float *reference_in = (float *)malloc(sizeof(float)*width*height);
     float *reference_out = (float *)malloc(sizeof(float)*width*height);
 
@@ -247,7 +245,6 @@ int main(int argc, const char **argv) {
         for (int x=0; x<width; ++x) {
             input[y*width + x] = (float) (x*height + y) * DELTA;
             reference_in[y*width + x] = (float) (x*height + y) * DELTA;
-            out_init[y*width + x] = (float) (3.12451);
             reference_out[y*width + x] = (float) (3.12451);
         }
     }
@@ -270,7 +267,6 @@ int main(int argc, const char **argv) {
     #endif
 
     IN = input;
-    OUT = out_init;
 
     fprintf(stderr, "Calculating mean filter ...\n");
 
@@ -315,12 +311,12 @@ int main(int argc, const char **argv) {
     float rms_err = 0.0f;   // RMS error
     for (int y=0; y<height; y++) {
         for (int x=0; x<width-d; x++) {
-            float derr = reference_out[y*width + x] - output[y*width +x];
+            float derr = reference_out[y*width + x] - output[y*width + x];
             rms_err += derr*derr;
 
             if (fabs(derr) > EPS) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
-                        reference_out[y*width + x], output[y*width +x]);
+                        reference_out[y*width + x], output[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }
@@ -335,12 +331,12 @@ int main(int argc, const char **argv) {
     float rms_err = 0.0f;   // RMS error
     for (int y=0; y<height-d; y++) {
         for (int x=0; x<width; x++) {
-            float derr = reference_out[y*width + x] - output[y*width +x];
+            float derr = reference_out[y*width + x] - output[y*width + x];
             rms_err += derr*derr;
 
             if (fabs(derr) > EPS) {
                 fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
-                        reference_out[y*width + x], output[y*width +x]);
+                        reference_out[y*width + x], output[y*width + x]);
                 exit(EXIT_FAILURE);
             }
         }
