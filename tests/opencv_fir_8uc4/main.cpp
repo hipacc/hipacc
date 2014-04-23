@@ -159,7 +159,7 @@ int main(int argc, const char **argv) {
     Image<uchar4> IN(width, 1);
     Image<uchar4> OUT(width, 1);
 
-    // host memory for image of of width pixels
+    // host memory for image of width pixels
     uchar4 *input = (uchar4 *)malloc(sizeof(uchar4)*width);
     uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width);
     uchar4 *reference_out = (uchar4 *)malloc(sizeof(uchar4)*width);

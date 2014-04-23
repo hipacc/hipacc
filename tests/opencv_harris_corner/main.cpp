@@ -327,7 +327,7 @@ int main(int argc, const char **argv) {
     Image<float> DXY(width, height);
     Image<float> TMP(width, height);
 
-    // host memory for image of of width x height pixels
+    // host memory for image of width x height pixels
     #ifdef USE_FREEIMAGE
     uchar *input = FreeImage_GetBits(gray);
     #else
