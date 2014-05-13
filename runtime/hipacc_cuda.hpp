@@ -28,6 +28,9 @@
 #define __HIPACC_CUDA_HPP__
 
 #include <cuda.h>
+#if CUDA_VERSION >= 6000
+#include <cuda_occupancy.h>
+#endif
 
 #include <assert.h>
 #include <float.h>
@@ -804,7 +807,7 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
     CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET };
     void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize, (void *)target_cc };
 
-    // Load ptx source
+    // Load PTX source
     err = cuModuleLoadDataEx(&module, ptxString.c_str(), 2, options, optionValues);
     if (err != CUDA_SUCCESS) {
         std::cerr << "Error log: " << errorLogBuffer << std::endl;
@@ -817,6 +820,58 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
 
     *result_function = function;
     *result_module = module;
+}
+
+
+// Computes occupancy for kernel function
+void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y) {
+    #if CUDA_VERSION >= 6000
+    cudaOccDeviceProp dev_props;
+    cudaOccFuncAttributes fun_attrs;
+    cudaOccDeviceState dev_state = { CACHE_PREFER_NONE };
+    int major, minor, maxThreadsPerBlock, maxThreadsPerMultiProcessor, regsPerBlock, regsPerMultiprocessor, warpSize, sharedMemPerBlock, sharedMemPerMultiprocessor;
+    int funcMaxThreadsPerBlock, numRegs, sharedSizeBytes;
+    CUresult err = CUDA_SUCCESS;
+    CUdevice dev = 0;
+
+    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, dev);                                   checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, dev);                                   checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&maxThreadsPerBlock, CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, dev);                         checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&maxThreadsPerMultiProcessor, CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR, dev);       checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&regsPerBlock, CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_BLOCK, dev);                             checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&regsPerMultiprocessor, CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR, dev);           checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&warpSize, CU_DEVICE_ATTRIBUTE_WARP_SIZE, dev);                                               checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&sharedMemPerBlock, CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK, dev);                    checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&sharedMemPerMultiprocessor, CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_MULTIPROCESSOR, dev);  checkErrDrv(err, "cuDeviceGetAttribute()");
+    cudaOccSetDeviceProp(&dev_props, major, minor, sharedMemPerBlock, sharedMemPerMultiprocessor, regsPerBlock, regsPerMultiprocessor, warpSize, maxThreadsPerBlock, maxThreadsPerMultiProcessor);
+
+    err = cuFuncGetAttribute(&funcMaxThreadsPerBlock, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, fun);   checkErrDrv(err, "cuFuncGetAttribute()");
+    err = cuFuncGetAttribute(&numRegs, CU_FUNC_ATTRIBUTE_NUM_REGS, fun);                               checkErrDrv(err, "cuFuncGetAttribute()");
+    err = cuFuncGetAttribute(&sharedSizeBytes, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, fun);              checkErrDrv(err, "cuFuncGetAttribute()");
+    funcMaxThreadsPerBlock = maxThreadsPerBlock;
+    cudaOccSetFuncAttributes(&fun_attrs, funcMaxThreadsPerBlock, numRegs, sharedSizeBytes);
+
+
+    int blockSize = tile_size_x*tile_size_y;
+    size_t dynamic_smem_bytes = 0;
+    cudaOccResult fun_occ;
+    int active_blocks = cudaOccMaxActiveBlocksPerMultiprocessor(&dev_props, &fun_attrs, blockSize, dynamic_smem_bytes, &dev_state, &fun_occ);
+    int opt_block_size = cudaOccMaxPotentialOccupancyBlockSize(&dev_props, &fun_attrs, &dev_state, dynamic_smem_bytes);
+    int active_warps = active_blocks * (blockSize/warpSize);
+
+    // re-compute with optimal block size
+    cudaOccMaxActiveBlocksPerMultiprocessor(&dev_props, &fun_attrs, opt_block_size, dynamic_smem_bytes, &dev_state, &fun_occ);
+    int max_blocks = std::min(fun_occ.blockLimitRegs, std::min(fun_occ.blockLimitSharedMem, std::min(fun_occ.blockLimitWarps, fun_occ.blockLimitBlocks)));
+    int max_warps = max_blocks * (opt_block_size/warpSize);
+    float occupancy = (float)active_warps/(float)max_warps;
+    std::cerr << ";  occupancy: "
+              << std::fixed << std::setprecision(2) << occupancy << " ("
+              << active_warps << " out of " << max_warps << " warps"
+              //<< "; optimal block size: " << opt_block_size
+              << ")" << std::endl;
+    #else
+    std::cerr << std::endl;
+    #endif
 }
 
 
@@ -1381,7 +1436,8 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                       << std::setw(5-floor(log10(tile_size_x*tile_size_y)))
                       << std::right << "(" << tile_size_x*tile_size_y << "): "
                       << std::setw(8) << std::fixed << std::setprecision(4)
-                      << min_dt << " ms" << std::endl;
+                      << min_dt << " ms";
+            hipaccPrintKernelOccupancy(exploreKernel, tile_size_x, tile_size_y);
         }
     }
     std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
