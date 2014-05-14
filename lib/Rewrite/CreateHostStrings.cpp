@@ -478,7 +478,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += indent + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
         }
         resultStr += indent + "std::vector<hipacc_const_info> _consts" + kernelName + ";\n";
-        resultStr += indent + "std::vector<hipacc_tex_info> _texs" + kernelName + ";\n";
+        resultStr += indent + "std::vector<hipacc_tex_info*> _texs" + kernelName + ";\n";
         break;
       case TARGET_OpenCLACC:
       case TARGET_OpenCLCPU:
@@ -603,8 +603,11 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             !(K->useTextureMemory(Acc) == Ldg)) {
           // bind texture
           if (options.exploreConfig()) {
-            resultStr += "_texs" + kernelName + ".push_back(";
-            resultStr += "hipacc_tex_info(std::string(\"_tex" + deviceArgNames[i] + K->getName() + "\"), ";
+            LSS.str(std::string());
+            LSS.clear();
+            LSS << literal_count++;
+            resultStr += "hipacc_tex_info tex_info" + LSS.str();
+            resultStr += "(std::string(\"_tex" + deviceArgNames[i] + K->getName() + "\"), ";
             resultStr += K->getImgFromMapping(FD)->getImage()->getTextureType() + ", ";
             resultStr += hostArgNames[i] + ", ";
             switch (K->useTextureMemory(Acc)) {
@@ -613,7 +616,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
               case Array2D:  resultStr += "Array2D";  break;
               default: assert(0 && "unsupported texture type!");
             }
-            resultStr += "));\n";
+            resultStr += ");\n";
+            resultStr += indent;
+            resultStr += "_texs" + kernelName + ".push_back(";
+            resultStr += "&tex_info" + LSS.str() + ");\n";
           } else {
             resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(_tex";
             resultStr += deviceArgNames[i] + K->getName() + ", ";
@@ -652,10 +658,16 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       options.getTextureType()==Array2D) {
     // bind surface
     if (options.exploreConfig()) {
-      resultStr += "_texs" + kernelName + ".push_back(";
-      resultStr += "hipacc_tex_info(std::string(\"_surfOutput" + K->getName() + "\"), ";
+      LSS.str(std::string());
+      LSS.clear();
+      LSS << literal_count++;
+      resultStr += "hipacc_tex_info tex_info" + LSS.str();
+      resultStr += "(std::string(\"_surfOutput" + K->getName() + "\"), ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTextureType() + ", ";
-      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface));\n";
+      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface);\n";
+      resultStr += indent;
+      resultStr += "_texs" + kernelName + ".push_back(";
+      resultStr += "&tex_info" + LSS.str() + ");\n";
     } else {
       resultStr += "hipaccBindSurface<";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTypeStr();
@@ -951,6 +963,11 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
     case TARGET_C:
       break;
     case TARGET_CUDA:
+      resultStr += "hipacc_tex_info tex_info" + K->getReduceStr();
+      resultStr += "(std::string(\"_tex";
+      resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
+      resultStr += "\");\n";
+      resultStr += indent;
       resultStr += red_decl;
       if (options.getTargetDevice() >= FERMI_20 && !options.exploreConfig()) {
         resultStr += "hipaccApplyReductionThreadFence<" + typeStr + ">(";
@@ -1015,9 +1032,7 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
     // print 2D CUDA array texture information - this parameter is only used if
     // the texture type is Array2D
     if (options.exploreConfig()) {
-      resultStr += ", hipacc_tex_info(std::string(\"_tex";
-      resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
-      resultStr += "\"), ";
+      resultStr += ", &tex_info" + K->getReduceStr() + ", ";
       resultStr += K->getIterationSpace()->getImage()->getTextureType() + ", ";
       resultStr += K->getIterationSpace()->getImage()->getName() + ", ";
       if (options.useTextureMemory() && options.getTextureType()==Array2D) {

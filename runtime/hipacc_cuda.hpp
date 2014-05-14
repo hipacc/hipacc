@@ -1344,7 +1344,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 // Perform configuration exploration for a kernel call
 void hipaccKernelExploration(const char *filename, const char *kernel,
         std::vector<void *> args, std::vector<hipacc_smem_info> smems,
-        std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info>
+        std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info*>
         texs, hipacc_launch_info &info, int warp_size, int
         max_threads_per_block, int max_threads_for_kernel, int
         max_smem_per_block, int heu_tx, int heu_ty, int cc) {
@@ -1396,15 +1396,15 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             CUtexref texImage;
             CUsurfref surfImage;
             for (size_t i=0; i<texs.size(); ++i) {
-                if (texs.data()[i].tex_type==Surface) {
+                if (texs.data()[i]->tex_type==Surface) {
                     // bind surface memory
-                    hipaccGetSurfRef(&surfImage, modKernel, texs.data()[i].name);
-                    hipaccBindSurfaceDrv(surfImage, texs.data()[i].image);
+                    hipaccGetSurfRef(&surfImage, modKernel, texs.data()[i]->name);
+                    hipaccBindSurfaceDrv(surfImage, texs.data()[i]->image);
                 } else {
                     // bind texture memory
-                    hipaccGetTexRef(&texImage, modKernel, texs.data()[i].name);
-                    hipaccBindTextureDrv(texImage, texs.data()[i].image,
-                            texs.data()[i].format, texs.data()[i].tex_type);
+                    hipaccGetTexRef(&texImage, modKernel, texs.data()[i]->name);
+                    hipaccBindTextureDrv(texImage, texs.data()[i]->image,
+                            texs.data()[i]->format, texs.data()[i]->tex_type);
                 }
             }
 
