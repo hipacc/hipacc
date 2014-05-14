@@ -220,11 +220,6 @@ class HipaccDeviceOptions {
 
 class HipaccDevice : public HipaccDeviceOptions {
   public:
-    // allocation granularity
-    enum AllocGranularity {
-      BLOCK,
-      WARP
-    };
     TargetDevice target_device;
     unsigned int max_threads_per_warp;
     unsigned int max_threads_per_block;
@@ -234,10 +229,6 @@ class HipaccDevice : public HipaccDeviceOptions {
     unsigned int max_total_registers;
     unsigned int max_total_shared_memory;
     unsigned int max_register_per_thread;
-    unsigned int register_alloc_size;
-    unsigned int shared_memory_alloc_size;
-    unsigned int warp_register_alloc_size;
-    AllocGranularity allocation_granularity;
 
     // NVIDIA only device properties
     unsigned int num_alus;
@@ -249,7 +240,6 @@ class HipaccDevice : public HipaccDeviceOptions {
       target_device(options.getTargetDevice()),
       max_threads_per_warp(32),
       max_blocks_per_multiprocessor(8),
-      warp_register_alloc_size(2),
       num_alus(0),
       num_sfus(0)
     {
@@ -262,9 +252,6 @@ class HipaccDevice : public HipaccDeviceOptions {
           max_total_registers = 8192;
           max_total_shared_memory = 16384;
           max_register_per_thread = 124;
-          register_alloc_size = 256;
-          shared_memory_alloc_size = 512;
-          allocation_granularity = BLOCK;
           num_alus = 8;
           num_sfus = 2;
           break;
@@ -276,9 +263,6 @@ class HipaccDevice : public HipaccDeviceOptions {
           max_total_registers = 16384;
           max_total_shared_memory = 16384;
           max_register_per_thread = 124;
-          register_alloc_size = 512;
-          shared_memory_alloc_size = 512;
-          allocation_granularity = BLOCK;
           num_alus = 8;
           num_sfus = 2;
           break;
@@ -289,9 +273,6 @@ class HipaccDevice : public HipaccDeviceOptions {
           max_total_registers = 32768;
           max_total_shared_memory = 49152;
           max_register_per_thread = 63;
-          register_alloc_size = 64;
-          shared_memory_alloc_size = 128;
-          allocation_granularity = WARP;
           num_alus = 32;
           num_sfus = 4;
           break;
@@ -302,9 +283,6 @@ class HipaccDevice : public HipaccDeviceOptions {
           max_total_registers = 32768;
           max_total_shared_memory = 49152;
           max_register_per_thread = 63;
-          register_alloc_size = 64;
-          shared_memory_alloc_size = 128;
-          allocation_granularity = WARP;
           num_alus = 48;
           num_sfus = 8;
           break;
@@ -318,10 +296,6 @@ class HipaccDevice : public HipaccDeviceOptions {
           max_total_shared_memory = 49152;
           if (target_device==KEPLER_30) max_register_per_thread = 63;
           else max_register_per_thread = 255;
-          register_alloc_size = 256;
-          shared_memory_alloc_size = 256;
-          allocation_granularity = WARP;
-          warp_register_alloc_size = 4;
           num_alus = 192;
           num_sfus = 32;
           // plus 8 CUDA FP64 cores according to andatech
@@ -339,10 +313,6 @@ class HipaccDevice : public HipaccDeviceOptions {
           max_threads_per_multiprocessor = 1024;
           max_total_registers = 16384;    // each 4x32bit => 256kB
           max_total_shared_memory = 32768;
-          register_alloc_size = 1;        // 1 register is 4 times 32bit => 16 bytes
-          shared_memory_alloc_size = 1;   // 4 times 32bit => 16 bytes; only 1/4th of this is reported
-          allocation_granularity = BLOCK;
-          // Stack size? FCStacks? -> depth of branch stack ?
           num_alus = 4; // 5 on 58; 4 on 69
           num_sfus = 1; // 1 sfu -> 1 alu
           break;
@@ -354,9 +324,6 @@ class HipaccDevice : public HipaccDeviceOptions {
           max_threads_per_multiprocessor = 256;
           max_total_registers = 32768; // unknown
           max_total_shared_memory = 32768;
-          register_alloc_size = 1; // unknown
-          shared_memory_alloc_size = 1; // unknown
-          allocation_granularity = BLOCK; // unknown
           num_alus = 4; // vector 4
           num_sfus = 1; // just a guess
           break;
@@ -368,9 +335,6 @@ class HipaccDevice : public HipaccDeviceOptions {
           max_threads_per_multiprocessor = 256; // unknown
           max_total_registers = 32; // each 512bit => 2kB
           max_total_shared_memory = 32768;
-          register_alloc_size = 1; // unknown
-          shared_memory_alloc_size = 1; // unknown
-          allocation_granularity = BLOCK; // unknown
           num_alus = 16; // 512 bit vector units - for single precision
           num_sfus = 0;
           break;
