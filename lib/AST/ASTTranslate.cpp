@@ -1296,7 +1296,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
         case TARGET_OpenCLGPU:
-          // CLK LOCAL MEM FENCE -> 1
+          // CLK_LOCAL_MEM_FENCE -> 1
           // CLK_GLOBAL_MEM_FENCE -> 2
           args.push_back(createIntegerLiteral(Ctx, 1));
           labelBody.push_back(createFunctionCall(Ctx, barrier, args));
