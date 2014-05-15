@@ -2725,30 +2725,23 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
     // check if we have a Mask or Domain
     HipaccMask *Mask = K->getMaskFromMapping(FD);
-    if (Mask) {
+    if (Mask && !Mask->isConstant()) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
         case TARGET_OpenCLGPU:
-          if (!Mask->isConstant()) {
-            if (comma++) *OS << ", ";
-            *OS << "__constant ";
-            T.getAsStringInternal(Name, Policy);
-            *OS << Name;
-            *OS << " __attribute__ ((max_constant_size (" << Mask->getSizeXStr()
-                << "*" << Mask->getSizeYStr() << "*sizeof("
-                << Mask->getTypeStr() << "))))";
-            }
+          if (comma++) *OS << ", ";
+          *OS << "__constant ";
+          T.getAsStringInternal(Name, Policy);
+          *OS << Name;
           break;
         case TARGET_C:
-          if (!Mask->isConstant()) {
-            if (comma++) *OS << ", ";
-            *OS << "const "
-                << Mask->getTypeStr()
-                << " " << Mask->getName() << K->getName()
-                << "[" << Mask->getSizeYStr() << "]"
-                << "[" << Mask->getSizeXStr() << "]";
-          }
+          if (comma++) *OS << ", ";
+          *OS << "const "
+              << Mask->getTypeStr()
+              << " " << Mask->getName() << K->getName()
+              << "[" << Mask->getSizeYStr() << "]"
+              << "[" << Mask->getSizeXStr() << "]";
           break;
         case TARGET_CUDA:
           // mask/domain is declared as constant memory

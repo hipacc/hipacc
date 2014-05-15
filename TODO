@@ -1,8 +1,7 @@
 KNOWN BUGS:
 ===========
 - pretty-printing C-code: currently, the following OpenCL attributes are not
-  supported: __attribute__ ((max_constant_size(<size>)))
-  image type qualifiers: __write_only, __read_only, __read_write
+  supported: image type qualifiers: __write_only, __read_only, __read_write
 - ext_vector_type does not support post- and pre- increment/decrement:
   typedef int int4 __attribute__ ((ext_vector_type(4)));
   int4 a;
