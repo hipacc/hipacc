@@ -3,8 +3,6 @@ KNOWN BUGS:
 - pretty-printing C-code: currently, the following OpenCL attributes are not
   supported: __attribute__ ((max_constant_size(<size>)))
   image type qualifiers: __write_only, __read_only, __read_write
-- pass 'CLK_LOCAL_MEM_FENCE' as parameter to the OpenCL barrier command instead
-  of the integer constant '0'
 - ext_vector_type does not support post- and pre- increment/decrement:
   typedef int int4 __attribute__ ((ext_vector_type(4)));
   int4 a;
