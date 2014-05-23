@@ -396,6 +396,13 @@ int main(int argc, char *argv[]) {
                  << "  Computing only a single pixel per thread instead!\n";
     compilerOptions.setPixelsPerThread(1);
   }
+  // No scratchpad memory support in Renderscript/Filterscript
+  if ((compilerOptions.emitFilterscript() ||compilerOptions.emitRenderscript())
+      && compilerOptions.useLocalMemory(USER_ON)) {
+    llvm::errs() << "Warning: local memory support is not available in Renderscript and Filterscript!\n"
+                 << "  Local memory disabled!\n";
+    compilerOptions.setLocalMemory(USER_OFF);
+  }
   if (compilerOptions.timeKernels(USER_ON) &&
       compilerOptions.exploreConfig(USER_ON)) {
     // kernels are timed internally by the runtime in case of exploration
