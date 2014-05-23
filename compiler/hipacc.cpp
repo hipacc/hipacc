@@ -363,18 +363,18 @@ int main(int argc, char *argv[]) {
   }
   // Textures in OpenCL - only supported on some CPU platforms
   if (compilerOptions.emitOpenCLCPU() && compilerOptions.useTextureMemory(USER_ON)) {
-      llvm::errs() << "\nWarning: image support is only available on some CPU devices!\n\n";
+      llvm::errs() << "Warning: image support is only available on some CPU devices!\n";
   }
   // Textures in OpenCL - only supported on some CPU platforms
   if (compilerOptions.emitOpenCLACC() && compilerOptions.useTextureMemory(USER_ON)) {
-      llvm::errs() << "\nWarning: image support is not available on ACC devices!\n\n";
+      llvm::errs() << "ERROR: image support is not available on ACC devices!\n\n";
       printUsage();
       return EXIT_FAILURE;
   }
   // Textures in OpenCL - only Array2D textures supported
   if (compilerOptions.emitOpenCLGPU() && compilerOptions.useTextureMemory(USER_ON)) {
     if (compilerOptions.getTextureType()!=Array2D) {
-      llvm::errs() << "Warning: 'Linear1D', 'Linear2D', and 'Ldg' texture memory not supported by OpenCL!"
+      llvm::errs() << "Warning: 'Linear1D', 'Linear2D', and 'Ldg' texture memory not supported by OpenCL!\n"
                    << "  Using 'Array2D' instead!\n";
       compilerOptions.setTextureMemory(Array2D);
     }
@@ -392,10 +392,9 @@ int main(int argc, char *argv[]) {
   // Pixels per thread > 1 not supported on Filterscript
   if (compilerOptions.emitFilterscript() &&
       compilerOptions.getPixelsPerThread() > 1) {
-    llvm::errs() << "ERROR: Calculating multiple pixels per thread selected, which is not supported for Filterscript!\n"
-                 << "  Please disable multiple pixels per thread oder switch target code generation back end.\n\n";
-    printUsage();
-    return EXIT_FAILURE;
+    llvm::errs() << "Warning: computing multiple pixels per thread is not supported by Filterscript!\n"
+                 << "  Computing only a single pixel per thread instead!\n";
+    compilerOptions.setPixelsPerThread(1);
   }
   if (compilerOptions.timeKernels(USER_ON) &&
       compilerOptions.exploreConfig(USER_ON)) {
