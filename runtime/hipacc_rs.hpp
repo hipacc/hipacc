@@ -88,19 +88,20 @@ using namespace android;
 # endif // RS_TARGET_API > 19
 #endif // RS_TARGET_API
 
-#include <assert.h>
 #include <float.h>
 #include <math.h>
+#include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
+#include <memory>
 #include <sstream>
+#include <string>
 #include <utility>
-#include <vector>
-#include <algorithm>
 
 #include "hipacc_base.hpp"
 

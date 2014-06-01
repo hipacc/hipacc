@@ -32,19 +32,20 @@
 #include <cuda_occupancy.h>
 #endif
 
-#include <assert.h>
 #include <float.h>
 #include <math.h>
+#include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
+#include <memory>
 #include <sstream>
+#include <string>
 #include <utility>
-#include <vector>
 
 #include "hipacc_base.hpp"
 
