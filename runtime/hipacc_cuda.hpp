@@ -247,10 +247,10 @@ const char *getCUDAErrorCodeStrDrv(CUresult errorCode) {
     }
 #else
 inline void checkErrDrv(CUresult err, const char *name) {
-    if (err != CUDA_SUCCESS) { \
-        std::cerr << "ERROR: " << name << " (" << (err) << "): "; \
-        std::cerr << getCUDAErrorCodeStrDrv(err) << std::endl; \
-        exit(EXIT_FAILURE); \
+    if (err != CUDA_SUCCESS) {
+        std::cerr << "ERROR: " << name << " (" << (err) << "): ";
+        std::cerr << getCUDAErrorCodeStrDrv(err) << std::endl;
+        exit(EXIT_FAILURE);
     }
 }
 #endif
@@ -646,11 +646,11 @@ void hipaccLaunchKernel(const void *kernel, const char *kernel_name, dim3 grid, 
     cudaEventRecord(start, 0);
 
     err = cudaLaunch(kernel);
-    checkErr(err, error_string);
+    checkErr(err, error_string.c_str());
 
     cudaThreadSynchronize();
     err = cudaGetLastError();
-    checkErr(err, error_string);
+    checkErr(err, error_string.c_str());
 
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
@@ -891,9 +891,9 @@ void hipaccLaunchKernel(CUfunction &kernel, const char *kernel_name, dim3 grid, 
 
     // Launch the kernel
     err = cuLaunchKernel(kernel, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, args, NULL);
-    checkErrDrv(err, error_string);
+    checkErrDrv(err, error_string.c_str());
     err = cuCtxSynchronize();
-    checkErrDrv(err, error_string);
+    checkErrDrv(err, error_string.c_str());
 
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
