@@ -26,6 +26,9 @@
 #ifndef __HIPACC_CPU_HPP__
 #define __HIPACC_CPU_HPP__
 
+#include <math.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <iostream>
