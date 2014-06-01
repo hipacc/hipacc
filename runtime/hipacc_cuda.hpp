@@ -524,7 +524,6 @@ void hipaccBindTexture(const struct texture<T, cudaTextureType2D, cudaReadModeEl
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
 
     switch (img.mem_type) {
-        default:
         case Linear2D:
             err = cudaBindTexture2D(NULL, tex, img.mem, channelDesc, img.width,
                     img.height, img.stride*sizeof(T));
@@ -534,6 +533,8 @@ void hipaccBindTexture(const struct texture<T, cudaTextureType2D, cudaReadModeEl
             err = cudaBindTextureToArray(tex, (cudaArray *)img.mem, channelDesc);
             checkErr(err, "cudaBindTextureToArray()");
             break;
+        default:
+            assert(false && "wrong texture type");
     }
 }
 
@@ -991,6 +992,8 @@ void hipaccBindTextureDrv(CUtexref &texture, HipaccImage &img, CUarray_format
             checkErrDrv(cuTexRefSetArray(texture, (CUarray)img.mem,
                         CU_TRSA_OVERRIDE_FORMAT), "cuTexRefSetArray()");
             break;
+        default:
+            assert(false && "not a texture");
     }
 }
 
