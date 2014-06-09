@@ -535,7 +535,10 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
     err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
     if (print_progress) std::cerr << ".";
 
-    if (err != CL_SUCCESS || print_log) {
+    cl_build_status build_status;
+    clGetProgramBuildInfo(program, 0, CL_PROGRAM_BUILD_STATUS, sizeof(build_status), &build_status, NULL);
+
+    if (build_status == CL_BUILD_ERROR || err != CL_SUCCESS || print_log) {
         // determine the size of the options and log
         size_t log_size, options_size;
         err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
