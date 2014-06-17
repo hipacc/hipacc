@@ -75,7 +75,7 @@ namespace Backend
       typedef BaseType::CompilerSwitchInfoType                  CompilerSwitchInfoType;   //!< The type of the switch information class for this code generator.
 
       /** \brief    The specific descriptor class for this code generator.
-       *  \extends  CodeGeneratorBaseImplT::CodeGeneratorDescriptorBase. */
+       *  \extends  CodeGeneratorBaseImplT::CodeGeneratorDescriptorBase */
       class Descriptor final : public BaseType::CodeGeneratorDescriptorBase
       {
       public:

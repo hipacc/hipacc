@@ -141,9 +141,9 @@ void Vectorizer::VASTBuilder::_BuildBranchingStatement(::clang::IfStmt *pIfStmt,
 
   // Unroll the "if-else"-cascade in the clang AST
   ::clang::Stmt *pCurrentStatement = pIfStmt;
-  while (isa<::clang::IfStmt>(pCurrentStatement))
+  while ( isa< ::clang::IfStmt >(pCurrentStatement) )
   {
-    pCurrentStatement = _BuildConditionalBranch(dyn_cast<::clang::IfStmt>(pCurrentStatement), spBranchingStmt);
+    pCurrentStatement = _BuildConditionalBranch( dyn_cast< ::clang::IfStmt >(pCurrentStatement), spBranchingStmt );
     if (pCurrentStatement == nullptr)
     {
       break;
@@ -154,9 +154,9 @@ void Vectorizer::VASTBuilder::_BuildBranchingStatement(::clang::IfStmt *pIfStmt,
   AST::ScopePtr spDefaultBranch = spBranchingStmt->GetDefaultBranch();
   if (pCurrentStatement != nullptr)
   {
-    if (isa<::clang::CompoundStmt>(pCurrentStatement))
+    if ( isa< ::clang::CompoundStmt >(pCurrentStatement) )
     {
-      _ConvertScope(spDefaultBranch, dyn_cast<::clang::CompoundStmt>(pCurrentStatement));
+      _ConvertScope( spDefaultBranch, dyn_cast< ::clang::CompoundStmt >(pCurrentStatement) );
     }
     else
     {
@@ -178,9 +178,9 @@ void Vectorizer::VASTBuilder::_BuildBranchingStatement(::clang::IfStmt *pIfStmt,
   ::clang::Stmt *pIfBody      = pIfStmt->getThen();
   if (pIfBody != nullptr)
   {
-    if (isa<::clang::CompoundStmt>(pIfBody))
+    if ( isa< ::clang::CompoundStmt >(pIfBody) )
     {
-      _ConvertScope(spBranchBody, dyn_cast<::clang::CompoundStmt>(pIfBody));
+      _ConvertScope(spBranchBody, dyn_cast< ::clang::CompoundStmt >(pIfBody));
     }
     else
     {
@@ -197,9 +197,9 @@ void Vectorizer::VASTBuilder::_BuildBranchingStatement(::clang::IfStmt *pIfStmt,
 
 AST::Expressions::ConstantPtr Vectorizer::VASTBuilder::_BuildConstantExpression(::clang::Expr *pExpression)
 {
-  if (isa<::clang::IntegerLiteral>(pExpression))
+  if ( isa< ::clang::IntegerLiteral >(pExpression) )
   {
-    ::clang::IntegerLiteral *pIntLiteral  = dyn_cast<::clang::IntegerLiteral>(pExpression);
+    ::clang::IntegerLiteral *pIntLiteral  = dyn_cast< ::clang::IntegerLiteral >(pExpression);
     llvm::APInt             llvmIntValue  = pIntLiteral->getValue();
 
     bool          bSigned     = pIntLiteral->getType()->isSignedIntegerType();
@@ -228,9 +228,9 @@ AST::Expressions::ConstantPtr Vectorizer::VASTBuilder::_BuildConstantExpression(
       else          return AST::Expressions::Constant::Create( static_cast<uint64_t>(ui64Value) );
     }
   }
-  else if (isa<::clang::FloatingLiteral>(pExpression))
+  else if ( isa< ::clang::FloatingLiteral >(pExpression) )
   {
-    llvm::APFloat llvmFloatValue = dyn_cast<::clang::FloatingLiteral>(pExpression)->getValue();
+    llvm::APFloat llvmFloatValue = dyn_cast< ::clang::FloatingLiteral >(pExpression)->getValue();
 
     if ( (llvm::APFloat::semanticsPrecision(llvmFloatValue.getSemantics()) == llvm::APFloat::semanticsPrecision(llvm::APFloat::IEEEhalf)) ||
          (llvm::APFloat::semanticsPrecision(llvmFloatValue.getSemantics()) == llvm::APFloat::semanticsPrecision(llvm::APFloat::IEEEsingle)) )
@@ -242,9 +242,9 @@ AST::Expressions::ConstantPtr Vectorizer::VASTBuilder::_BuildConstantExpression(
       return AST::Expressions::Constant::Create( llvmFloatValue.convertToDouble() );
     }
   }
-  else if (isa<::clang::CXXBoolLiteralExpr>(pExpression))
+  else if ( isa< ::clang::CXXBoolLiteralExpr >(pExpression) )
   {
-    return AST::Expressions::Constant::Create( dyn_cast<::clang::CXXBoolLiteralExpr>(pExpression)->getValue() );
+    return AST::Expressions::Constant::Create( dyn_cast< ::clang::CXXBoolLiteralExpr >(pExpression)->getValue() );
   }
   else if (isa<::clang::CharacterLiteral>(pExpression))
   {
@@ -259,7 +259,7 @@ AST::Expressions::ConstantPtr Vectorizer::VASTBuilder::_BuildConstantExpression(
 
 AST::Expressions::ConversionPtr Vectorizer::VASTBuilder::_BuildConversionExpression(::clang::CastExpr *pCastExpr)
 {
-  return AST::Expressions::Conversion::Create( _ConvertTypeInfo(pCastExpr->getType()), _BuildExpression(pCastExpr->getSubExpr()), (! isa<::clang::ImplicitCastExpr>(pCastExpr)) );
+  return AST::Expressions::Conversion::Create( _ConvertTypeInfo(pCastExpr->getType()), _BuildExpression(pCastExpr->getSubExpr()), (! isa< ::clang::ImplicitCastExpr >(pCastExpr)) );
 }
 
 AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clang::Expr *pExpression)
@@ -272,13 +272,13 @@ AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clan
       isa<::clang::CharacterLiteral>(pExpression)) {
     spReturnExpression = _BuildConstantExpression(pExpression);
   }
-  else if (isa<::clang::DeclRefExpr>(pExpression))
+  else if ( isa< ::clang::DeclRefExpr >(pExpression) )
   {
     spReturnExpression = _BuildIdentifier( dyn_cast< ::clang::DeclRefExpr >(pExpression)->getNameInfo().getAsString() );
   }
-  else if (isa<::clang::CompoundAssignOperator>(pExpression))
+  else if ( isa< ::clang::CompoundAssignOperator >(pExpression) )
   {
-    ::clang::CompoundAssignOperator *pCompoundAssignment  = dyn_cast<::clang::CompoundAssignOperator>(pExpression);
+    ::clang::CompoundAssignOperator *pCompoundAssignment  = dyn_cast< ::clang::CompoundAssignOperator >(pExpression);
     ::clang::Expr                   *pExprLHS             = pCompoundAssignment->getLHS();
     ::clang::Expr                   *pExprRHS             = pCompoundAssignment->getRHS();
     ::clang::BinaryOperatorKind     eOpKind               = pCompoundAssignment->getOpcode();
@@ -295,33 +295,34 @@ AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clan
     case BO_ShrAssign:  eOpKind = BO_Shr;   break;
     case BO_SubAssign:  eOpKind = BO_Sub;   break;
     case BO_XorAssign:  eOpKind = BO_Xor;   break;
+    default:            throw InternalErrorException( "Invalid Clang compound assignment operator!" );
     }
 
     spReturnExpression = AST::Expressions::AssignmentOperator::Create( _BuildExpression(pExprLHS), _BuildBinaryOperatorExpression(pExprLHS, pExprRHS, eOpKind) );
   }
-  else if (isa<::clang::BinaryOperator>(pExpression))
+  else if ( isa< ::clang::BinaryOperator >(pExpression) )
   {
-    ::clang::BinaryOperator *pBinOp = dyn_cast<::clang::BinaryOperator>(pExpression);
+    ::clang::BinaryOperator *pBinOp = dyn_cast< ::clang::BinaryOperator >(pExpression);
 
     spReturnExpression = _BuildBinaryOperatorExpression( pBinOp->getLHS(), pBinOp->getRHS(), pBinOp->getOpcode() );
   }
-  else if (isa<::clang::CastExpr>(pExpression))
+  else if ( isa< ::clang::CastExpr >(pExpression) )
   {
-    spReturnExpression = _BuildConversionExpression(dyn_cast<::clang::CastExpr>(pExpression));
+    spReturnExpression = _BuildConversionExpression( dyn_cast< ::clang::CastExpr >(pExpression) );
   }
-  else if (isa<::clang::ParenExpr>(pExpression))
+  else if ( isa< ::clang::ParenExpr >(pExpression) )
   {
-    spReturnExpression = AST::Expressions::Parenthesis::Create( _BuildExpression(dyn_cast<::clang::ParenExpr>(pExpression)->getSubExpr()) );
+    spReturnExpression = AST::Expressions::Parenthesis::Create( _BuildExpression( dyn_cast< ::clang::ParenExpr >(pExpression)->getSubExpr() ) );
   }
-  else if (isa<::clang::ArraySubscriptExpr>(pExpression))
+  else if ( isa< ::clang::ArraySubscriptExpr >(pExpression) )
   {
-    ::clang::ArraySubscriptExpr *pArraySubscript = dyn_cast<::clang::ArraySubscriptExpr>(pExpression);
+    ::clang::ArraySubscriptExpr *pArraySubscript = dyn_cast< ::clang::ArraySubscriptExpr >(pExpression);
 
     spReturnExpression = AST::Expressions::MemoryAccess::Create( _BuildExpression(pArraySubscript->getLHS()), _BuildExpression(pArraySubscript->getRHS()) );
   }
-  else if (isa<::clang::UnaryOperator>(pExpression))
+  else if ( isa< ::clang::UnaryOperator >(pExpression) )
   {
-    ::clang::UnaryOperator      *pUnaryOp = dyn_cast<::clang::UnaryOperator>(pExpression);
+    ::clang::UnaryOperator      *pUnaryOp = dyn_cast< ::clang::UnaryOperator >(pExpression);
     ::clang::Expr               *pSubExpr = pUnaryOp->getSubExpr();
     ::clang::UnaryOperatorKind  eOpCode   = pUnaryOp->getOpcode();
 
@@ -334,9 +335,9 @@ AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clan
       spReturnExpression = _BuildUnaryOperatorExpression(pSubExpr, eOpCode);
     }
   }
-  else if (isa<::clang::CallExpr>(pExpression))
+  else if ( isa< ::clang::CallExpr >(pExpression) )
   {
-    ::clang::CallExpr *pCallExpr  = dyn_cast<::clang::CallExpr>(pExpression);
+    ::clang::CallExpr *pCallExpr  = dyn_cast< ::clang::CallExpr >(pExpression);
 
     // Build the function call node
     AST::Expressions::FunctionCallPtr spFunctionCall(nullptr);
@@ -394,11 +395,11 @@ void Vectorizer::VASTBuilder::_BuildLoop(::clang::Stmt *pLoopStatement, AST::Sco
   ::clang::Stmt   *pLoopBody  = nullptr;
   ::clang::Expr   *pCondition = nullptr;
 
-  if (isa<::clang::ForStmt>(pLoopStatement))
+  if ( isa< ::clang::ForStmt >(pLoopStatement) )
   {
     spLoop->SetLoopType(AST::ControlFlow::Loop::LoopType::TopControlled);
 
-    ::clang::ForStmt *pForLoop = dyn_cast<::clang::ForStmt>(pLoopStatement);
+    ::clang::ForStmt *pForLoop = dyn_cast< ::clang::ForStmt >(pLoopStatement);
 
     // If we have an init statement, create a container scope around the loop and add the init statement
     if (pForLoop->getInit())
@@ -432,19 +433,19 @@ void Vectorizer::VASTBuilder::_BuildLoop(::clang::Stmt *pLoopStatement, AST::Sco
   {
     spEnclosingScope->AddChild(spLoop);
 
-    if (isa<::clang::DoStmt>(pLoopStatement))
+    if ( isa< ::clang::DoStmt >(pLoopStatement) )
     {
       spLoop->SetLoopType(AST::ControlFlow::Loop::LoopType::BottomControlled);
 
-      ::clang::DoStmt *pDoWhileLoop = dyn_cast<::clang::DoStmt>(pLoopStatement);
+      ::clang::DoStmt *pDoWhileLoop = dyn_cast< ::clang::DoStmt >(pLoopStatement);
       pCondition  = pDoWhileLoop->getCond();
       pLoopBody   = pDoWhileLoop->getBody();
     }
-    else if (isa<::clang::WhileStmt>(pLoopStatement))
+    else if ( isa< ::clang::WhileStmt >(pLoopStatement) )
     {
       spLoop->SetLoopType(AST::ControlFlow::Loop::LoopType::TopControlled);
 
-      ::clang::WhileStmt *pWhileLoop = dyn_cast<::clang::WhileStmt>(pLoopStatement);
+      ::clang::WhileStmt *pWhileLoop = dyn_cast< ::clang::WhileStmt >(pLoopStatement);
       pCondition  = pWhileLoop->getCond();
       pLoopBody   = pWhileLoop->getBody();
     }
@@ -463,9 +464,9 @@ void Vectorizer::VASTBuilder::_BuildLoop(::clang::Stmt *pLoopStatement, AST::Sco
   {
     AST::ScopePtr spLoopBody = spLoop->GetBody();
 
-    if (isa<::clang::CompoundStmt>(pLoopBody))
+    if ( isa< ::clang::CompoundStmt >(pLoopBody) )
     {
-      _ConvertScope(spLoopBody, dyn_cast<::clang::CompoundStmt>(pLoopBody));
+      _ConvertScope(spLoopBody, dyn_cast< ::clang::CompoundStmt >(pLoopBody));
     }
     else
     {
@@ -482,9 +483,9 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
 {
   AST::BaseClasses::NodePtr spStatement(nullptr);
 
-  if (isa<::clang::CompoundStmt>(pStatement))
+  if ( isa< ::clang::CompoundStmt >(pStatement) )
   {
-    ::clang::CompoundStmt *pCurrentCompound = dyn_cast<::clang::CompoundStmt>(pStatement);
+    ::clang::CompoundStmt *pCurrentCompound = dyn_cast< ::clang::CompoundStmt >(pStatement);
 
     AST::ScopePtr spChildScope = AST::Scope::Create();
     spEnclosingScope->AddChild( spChildScope );
@@ -493,9 +494,9 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
 
     spStatement = nullptr;
   }
-  else if (isa<::clang::DeclStmt>(pStatement))
+  else if ( isa< ::clang::DeclStmt >(pStatement) )
   {
-    ::clang::DeclStmt     *pDeclStatement = dyn_cast<::clang::DeclStmt>(pStatement);
+    ::clang::DeclStmt     *pDeclStatement = dyn_cast< ::clang::DeclStmt >(pStatement);
     ::clang::DeclGroupRef  DeclGroup      = pDeclStatement->getDeclGroup();
 
     for (auto itDecl = DeclGroup.begin(); itDecl != DeclGroup.end(); itDecl++)
@@ -505,12 +506,12 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
       {
         continue;
       }
-      else if (! isa<::clang::VarDecl>(pDecl))
+      else if (! isa< ::clang::VarDecl >(pDecl))
       {
         continue;
       }
 
-      ::clang::VarDecl  *pVarDecl = dyn_cast<::clang::VarDecl>(pDecl);
+      ::clang::VarDecl  *pVarDecl = dyn_cast< ::clang::VarDecl >(pDecl);
       spEnclosingScope->AddVariableDeclaration( _BuildVariableInfo(pVarDecl, spEnclosingScope) );
 
       ::clang::Expr     *pInitExpr = pVarDecl->getInit();
@@ -524,9 +525,9 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
 
     spStatement = nullptr;
   }
-  else if (isa<::clang::Expr>(pStatement))
+  else if ( isa< ::clang::Expr >(pStatement) )
   {
-    AST::BaseClasses::ExpressionPtr spExpression = _BuildExpression(dyn_cast<::clang::Expr>(pStatement));
+    AST::BaseClasses::ExpressionPtr spExpression = _BuildExpression( dyn_cast< ::clang::Expr >(pStatement) );
     if (!spExpression)
     {
       throw InternalErrors::NullPointerException("spStatement");
@@ -534,25 +535,25 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
 
     spStatement = spExpression;
   }
-  else if ( isa<::clang::DoStmt>(pStatement) || isa<::clang::ForStmt>(pStatement) || isa<::clang::WhileStmt>(pStatement) )
+  else if ( isa< ::clang::DoStmt >(pStatement) || isa< ::clang::ForStmt >(pStatement) || isa< ::clang::WhileStmt >(pStatement) )
   {
     _BuildLoop(pStatement, spEnclosingScope);
   }
-  else if (isa<::clang::IfStmt>(pStatement))
+  else if (isa< ::clang::IfStmt >(pStatement))
   {
-    _BuildBranchingStatement(dyn_cast<::clang::IfStmt>(pStatement), spEnclosingScope);
+    _BuildBranchingStatement( dyn_cast< ::clang::IfStmt >(pStatement), spEnclosingScope );
   }
-  else if (isa<::clang::BreakStmt>(pStatement))
+  else if (isa< ::clang::BreakStmt >(pStatement))
   {
     spStatement = AST::ControlFlow::LoopControlStatement::Create( AST::ControlFlow::LoopControlStatement::LoopControlType::Break );
   }
-  else if (isa<::clang::ContinueStmt>(pStatement))
+  else if (isa< ::clang::ContinueStmt >(pStatement))
   {
     spStatement = AST::ControlFlow::LoopControlStatement::Create( AST::ControlFlow::LoopControlStatement::LoopControlType::Continue );
   }
-  else if (isa<::clang::ReturnStmt>(pStatement))
+  else if (isa< ::clang::ReturnStmt >(pStatement))
   {
-    ::clang::ReturnStmt *pRetStmt = dyn_cast<::clang::ReturnStmt>(pStatement);
+    ::clang::ReturnStmt *pRetStmt = dyn_cast< ::clang::ReturnStmt >(pStatement);
 
     if (pRetStmt->getRetValue() != nullptr)
     {
@@ -637,7 +638,7 @@ void Vectorizer::VASTBuilder::_ConvertTypeInfo(AST::BaseClasses::TypeInfo &rType
 
     if (pArrayType->isConstantArrayType())
     {
-      const ::clang::ConstantArrayType *pConstArrayType = dyn_cast<::clang::ConstantArrayType>(pArrayType);
+      const ::clang::ConstantArrayType *pConstArrayType = dyn_cast< ::clang::ConstantArrayType >(pArrayType);
 
       rTypeInfo.GetArrayDimensions().push_back( static_cast< size_t >( *(pConstArrayType->getSize().getRawData()) ) );
     }
@@ -675,7 +676,7 @@ void Vectorizer::VASTBuilder::_ConvertTypeInfo(AST::BaseClasses::TypeInfo &rType
       typedef ::clang::BuiltinType                    ClangTypes;
       typedef AST::BaseClasses::TypeInfo::KnownTypes  KnownTypes;
 
-      const ::clang::BuiltinType *pBuiltInType = qtSourceType->getAs<::clang::BuiltinType>();
+      const ::clang::BuiltinType *pBuiltInType = qtSourceType->getAs< ::clang::BuiltinType >();
 
       KnownTypes eType;
 
@@ -722,12 +723,12 @@ AST::FunctionDeclarationPtr Vectorizer::VASTBuilder::BuildFunctionDecl(::clang::
 
   ::clang::Stmt* pBody = pFunctionDeclaration->getBody();
 
-  if ((pBody == nullptr) || (!isa<::clang::CompoundStmt>(pBody)))
+  if ((pBody == nullptr) || (! isa< ::clang::CompoundStmt >(pBody)))
   {
     throw RuntimeErrorException("Invalid function body");
   }
 
-  _ConvertScope(spFunctionDecl->GetBody(), dyn_cast<::clang::CompoundStmt>(pBody));
+  _ConvertScope(spFunctionDecl->GetBody(), dyn_cast< ::clang::CompoundStmt >(pBody));
 
   return spFunctionDecl;
 }
@@ -1229,7 +1230,7 @@ void Vectorizer::VASTExporterBase::_Reset()
   switch (_ceIndexType)
   {
   case VectorIndexType::Constant:     return rASTHelper.CreateIntegerLiteral( static_cast<int32_t>(_ciVectorIndex) );
-  case VectorIndexType::Identifier:   return rASTHelper.CreateDeclarationReferenceExpression( const_cast<::clang::ValueDecl*>( _cpIndexExprDecl ) );
+  case VectorIndexType::Identifier:   return rASTHelper.CreateDeclarationReferenceExpression( const_cast< ::clang::ValueDecl* >( _cpIndexExprDecl ) );
   default:                            throw InternalErrorException("Unknown vector index type!");
   }
 }
@@ -1678,7 +1679,6 @@ Vectorizer::VASTExportArray::VASTExportArray(IndexType VectorWidth, ::clang::AST
     throw RuntimeErrorException("Cannot export loops with vectorized conditions => Rebuild the loops before calling the export!");
   }
 
-  ::clang::CompoundStmt *pLoopBody      = _BuildCompoundStatement( spLoop->GetBody() );
   ::clang::Expr         *pConditionExpr = _BuildExpression( spLoop->GetCondition(), VectorIndex() );
   ::clang::Expr         *pIncrementExpr = nullptr;
 
@@ -1708,7 +1708,7 @@ Vectorizer::VASTExportArray::VASTExportArray(IndexType VectorWidth, ::clang::AST
     }
   }
 
-  return BaseType::_BuildLoop( spLoop->GetLoopType(), pConditionExpr, pIncrementExpr );
+  return BaseType::_BuildLoop( spLoop->GetLoopType(), pConditionExpr, _BuildCompoundStatement( spLoop->GetBody() ), pIncrementExpr );
 }
 
 
@@ -1952,6 +1952,25 @@ void Vectorizer::Transformations::InsertRequiredConversions::Execute(AST::Expres
     return; // Nothing to do for incomplete binary operator expressions
   }
 
+  // Perform constant conversion to avoid unnecessary conversion expressions
+  if (spCurrentBinOp->IsType<AST::Expressions::ArithmeticOperator>() || spCurrentBinOp->IsType<AST::Expressions::RelationalOperator>())
+  {
+    if (spCurrentBinOp->GetResultType().GetType() == AST::BaseClasses::TypeInfo::KnownTypes::Int32)
+    {
+      // Remove constant promotions to 32-bit integer type (clang-specific) beacuse they leed to undesired, expensive vector conversions
+      if (spLHS->IsType< AST::Expressions::Constant >())
+      {
+        spLHS->CastToType< AST::Expressions::Constant >()->ChangeType( spRHS->GetResultType().GetType() );
+      }
+      else if (spRHS->IsType< AST::Expressions::Constant >())
+      {
+        spRHS->CastToType< AST::Expressions::Constant >()->ChangeType( spLHS->GetResultType().GetType() );
+      }
+    }
+  }
+
+
+  // Convert the sub-expressions to the corresponding type
   if (spCurrentBinOp->IsType<AST::Expressions::ArithmeticOperator>())
   {
     AST::BaseClasses::TypeInfo ResultType = spCurrentBinOp->CastToType< AST::Expressions::ArithmeticOperator >()->GetResultType();
@@ -2031,24 +2050,22 @@ Vectorizer::IndexType Vectorizer::Transformations::RemoveUnnecessaryConversions:
 
     if (bRemoveConversion)
     {
-      if (spParentExpression->IsType<AST::Expressions::Conversion>())
+      AST::BaseClasses::ExpressionPtr spSubExpr = spConversion->GetSubExpression();
+
+      if (spSubExpr && spSubExpr->IsType<AST::Expressions::Conversion>())
+      {
+        AST::Expressions::ConversionPtr spChildConversion = spSubExpr->CastToType<AST::Expressions::Conversion>();
+
+        spChildConversion->SetExplicit( spChildConversion->GetExplicit() || spConversion->GetExplicit() );
+      }
+      else if (spParentExpression->IsType<AST::Expressions::Conversion>())
       {
         AST::Expressions::ConversionPtr spParentConversion = spParentExpression->CastToType<AST::Expressions::Conversion>();
 
         spParentConversion->SetExplicit( spParentConversion->GetExplicit() || spConversion->GetExplicit() );
       }
-      else
-      {
-        AST::BaseClasses::ExpressionPtr spSubExpr = spConversion->GetSubExpression();
-        if (spSubExpr && spSubExpr->IsType<AST::Expressions::Conversion>())
-        {
-          AST::Expressions::ConversionPtr spChildConversion = spSubExpr->CastToType<AST::Expressions::Conversion>();
 
-          spChildConversion->SetExplicit( spChildConversion->GetExplicit() || spConversion->GetExplicit() );
-        }
-      }
-
-      spParentExpression->SetSubExpression(iChildIndex, spConversion->GetSubExpression());
+      spParentExpression->SetSubExpression(iChildIndex, spSubExpr);
     }
   }
 
@@ -2208,8 +2225,6 @@ AST::BaseClasses::VariableInfoPtr Vectorizer::_GetAssigneeInfo(AST::Expressions:
 
 AST::FunctionDeclarationPtr Vectorizer::ConvertClangFunctionDecl(::clang::FunctionDecl *pFunctionDeclaration)
 {
-//VASTBuilder().Import(pFunctionDeclaration);
-
   return VASTBuilder().BuildFunctionDecl(pFunctionDeclaration);
 }
 
@@ -2243,7 +2258,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 {
   typedef map< AST::BaseClasses::NodePtr, list< string > >      ControlMaskMapType;
 
-  const AST::BaseClasses::TypeInfo  MaskTypeInfo(AST::BaseClasses::TypeInfo::KnownTypes::Bool, true, false);
+  const AST::BaseClasses::TypeInfo  MaskTypeInfo(AST::BaseClasses::TypeInfo::KnownTypes::Bool, false, false);
   ControlMaskMapType                mapControlMasks;
 
 
@@ -2284,6 +2299,24 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
                                                                                              AST::VectorSupport::BroadCast::Create( AST::Expressions::Constant::Create( true ) ) ) );
 
         break;
+      }
+    }
+  }
+
+  // Find vectorized loop control statement which control a scalar loop (which must be forced to a vectorized loop)
+  {
+    Transformations::FindNodes< AST::ControlFlow::LoopControlStatement >  LoopControlFinder;
+    Transformations::Run(spFunction, LoopControlFinder);
+
+    for (auto itLoopControl : LoopControlFinder.lstFoundNodes)
+    {
+      if (itLoopControl->IsVectorized())
+      {
+        AST::ControlFlow::LoopPtr spControlledLoop = itLoopControl->GetControlledLoop();
+        if (! spControlledLoop->IsVectorized())
+        {
+          spControlledLoop->SetForcedVectorization(true);
+        }
       }
     }
   }
@@ -2431,6 +2464,19 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
         // Rebuild the loop
         if (spLoop->GetLoopType() == AST::ControlFlow::Loop::LoopType::TopControlled)
         {
+          // Create the loop exit condition
+          AST::ControlFlow::BranchingStatementPtr spLoopExit = AST::ControlFlow::BranchingStatement::Create();
+          {
+            AST::VectorSupport::CheckActiveElementsPtr  spExitCondition = AST::VectorSupport::CheckActiveElements::Create( VectorCheckType::None,
+                                                                                                                           AST::Expressions::Identifier::Create(strGlobalMaskName) );
+
+            AST::ControlFlow::ConditionalBranchPtr spExitBranch = AST::ControlFlow::ConditionalBranch::Create( spExitCondition );
+            spExitBranch->GetBody()->AddChild( AST::ControlFlow::LoopControlStatement::Create( AST::ControlFlow::LoopControlStatement::LoopControlType::Break ) );
+
+            spLoopExit->AddConditionalBranch( spExitBranch );
+          }
+
+          // Rebuild the loop condition
           if (strLocalMaskName.empty())
           {
             // Only global control mask is used
@@ -2439,12 +2485,15 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
                                                                                                                        AST::Expressions::Identifier::Create(strGlobalMaskName) );
 
             spLoopBody->InsertChild(0, spGlobalMaskUpdate);
+            spLoopBody->InsertChild(1, spLoopExit);
           }
           else
           {
             // Local control is used
             AST::ScopePtr spTempScope = AST::Scope::Create();
             _CreateLocalMaskComputation(spTempScope, spLoop->GetCondition(), strLocalMaskName, strGlobalMaskName, false);
+
+            spTempScope->AddChild(spLoopExit);
 
             spLoopBody->ImportVariableDeclarations(spTempScope);
 
@@ -2459,7 +2508,11 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
           throw InternalErrorException("Only top controlled VAST loops can be vectorized => please rewrite the kernel code!");
         }
 
-        spLoop->SetCondition( AST::VectorSupport::CheckActiveElements::Create(VectorCheckType::Any, AST::Expressions::Identifier::Create(strGlobalMaskName)) );
+        spLoop->SetCondition( AST::Expressions::Constant::Create( true ) );
+        if (spLoop->GetForcedVectorization())   // Clear the forced vectorization setting
+        {
+          spLoop->SetForcedVectorization(false);
+        }
       }
       else if (itControlFlow->IsType<AST::ControlFlow::BranchingStatement>())
       {
@@ -2479,6 +2532,9 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
           }
         }
 
+        // Check for single branch statements (whose don't need a local mask)
+        bool bSingleBranchStatement = ( (spBranchingStatement->GetConditionalBranchesCount() == 1) && spBranchingStatement->GetDefaultBranch()->IsEmpty() );
+
         // Create the control masks
         string strGlobalMaskName, strLocalMaskName;
         AST::ScopePtr spBranchingScope = AST::Scope::Create();
@@ -2487,36 +2543,67 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
           BranchingScopePos.GetScope()->SetChild( BranchingScopePos.GetChildIndex(), spBranchingScope );
 
           strGlobalMaskName = VASTBuilder::GetNextFreeVariableName(spBranchingScope, "_mask_branch_global");
-          strLocalMaskName  = VASTBuilder::GetNextFreeVariableName(spBranchingScope, "_mask_branch_local");
 
           spBranchingScope->AddVariableDeclaration( AST::BaseClasses::VariableInfo::Create(strGlobalMaskName, MaskTypeInfo, true) );
-          spBranchingScope->AddVariableDeclaration( AST::BaseClasses::VariableInfo::Create(strLocalMaskName,  MaskTypeInfo, true) );
 
           // Create global mask assignment
           spBranchingScope->AddChild( AST::Expressions::AssignmentOperator::Create(AST::Expressions::Identifier::Create(strGlobalMaskName), spParentMask) );
 
           // Insert the control masks into the map
           mapControlMasks[ spBranchingScope ].push_front( strGlobalMaskName );
-          mapControlMasks[ spBranchingScope ].push_front( strLocalMaskName );
 
-          strCurrentMaskName = strLocalMaskName;
+          strCurrentMaskName = strGlobalMaskName;
+
+
+          // Create a local mask only for multi-branch statements
+          if (! bSingleBranchStatement)
+          {
+            strLocalMaskName  = VASTBuilder::GetNextFreeVariableName(spBranchingScope, "_mask_branch_local");
+
+            spBranchingScope->AddVariableDeclaration( AST::BaseClasses::VariableInfo::Create(strLocalMaskName,  MaskTypeInfo, true) );
+
+            mapControlMasks[ spBranchingScope ].push_front( strLocalMaskName );
+
+            strCurrentMaskName = strLocalMaskName;
+          }
         }
 
 
-        // Convert all conditional branches
-        for (IndexType iBranchIdx = static_cast<IndexType>(0); iBranchIdx < spBranchingStatement->GetConditionalBranchesCount(); ++iBranchIdx)
+        if (bSingleBranchStatement)
         {
-          AST::ControlFlow::ConditionalBranchPtr spBranch = spBranchingStatement->GetConditionalBranch(iBranchIdx);
+          // Only the first is branch is used, thus we don't need local masks
+          AST::ControlFlow::ConditionalBranchPtr spSingleBranch = spBranchingStatement->GetConditionalBranch( 0 );
 
-          // Add local mask assignment
-          _CreateLocalMaskComputation( spBranchingScope, spBranch->GetCondition(), strLocalMaskName, strGlobalMaskName, true );
+          spBranchingScope->AddChild( AST::Expressions::AssignmentOperator::Create( AST::Expressions::Identifier::Create(strGlobalMaskName), spSingleBranch->GetCondition(),
+                                                                                    AST::Expressions::Identifier::Create(strGlobalMaskName) ) );
 
-          // Add a single branch branching statement
-          _CreateVectorizedConditionalBranch(spBranchingScope, spBranch->GetBody(), strLocalMaskName);
+          _CreateVectorizedConditionalBranch( spBranchingScope, spSingleBranch->GetBody(), strGlobalMaskName );
         }
+        else
+        {
+          // Convert all conditional branches
+          for (IndexType iBranchIdx = static_cast<IndexType>(0); iBranchIdx < spBranchingStatement->GetConditionalBranchesCount(); ++iBranchIdx)
+          {
+            AST::ControlFlow::ConditionalBranchPtr spBranch = spBranchingStatement->GetConditionalBranch(iBranchIdx);
 
-        // Convert default branch
-        _CreateVectorizedConditionalBranch(spBranchingScope, spBranchingStatement->GetDefaultBranch(), strGlobalMaskName);
+            // Add local mask assignment
+            _CreateLocalMaskComputation( spBranchingScope, spBranch->GetCondition(), strLocalMaskName, strGlobalMaskName, true );
+
+            // Add a single branch branching statement
+            _CreateVectorizedConditionalBranch(spBranchingScope, spBranch->GetBody(), strLocalMaskName);
+          }
+
+          // Convert default branch
+          AST::ScopePtr spDefaultBranch = spBranchingStatement->GetDefaultBranch();
+          if (! spDefaultBranch->IsEmpty())
+          {
+            // Set the local mask equal to the global mask since all remaining elements are now active
+            spBranchingScope->AddChild( AST::Expressions::AssignmentOperator::Create( AST::Expressions::Identifier::Create(strLocalMaskName),
+                                                                                      AST::Expressions::Identifier::Create(strGlobalMaskName) ) );
+
+            _CreateVectorizedConditionalBranch( spBranchingScope, spDefaultBranch, strLocalMaskName );
+          }
+        }
       }
 
 
@@ -2602,11 +2689,13 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
           {
             typedef AST::Expressions::ArithmeticOperator::ArithmeticOperatorType  ArithmeticOperatorType;
 
-            AST::Expressions::ArithmeticOperatorPtr spUnsetOp = AST::Expressions::ArithmeticOperator::Create( ArithmeticOperatorType::BitwiseXOr,
-                                                                                                              AST::Expressions::Identifier::Create(itMaskName),
-                                                                                                              AST::Expressions::Identifier::Create(strConditionMask) );
+            AST::Expressions::UnaryOperatorPtr      spNegatedMask = AST::Expressions::UnaryOperator::Create( AST::Expressions::UnaryOperator::UnaryOperatorType::BitwiseNot, 
+                                                                                                             AST::Expressions::Identifier::Create(strConditionMask) );
 
-            LoopControlPos.GetScope()->InsertChild( iCurrentIdx++, AST::Expressions::AssignmentOperator::Create(AST::Expressions::Identifier::Create(itMaskName), spUnsetOp) );
+            AST::Expressions::ArithmeticOperatorPtr spUnsetOp     = AST::Expressions::ArithmeticOperator::Create( ArithmeticOperatorType::BitwiseAnd, spNegatedMask,
+                                                                                                                  AST::Expressions::Identifier::Create(itMaskName) );
+
+            LoopControlPos.GetScope()->InsertChild( iCurrentIdx, AST::Expressions::AssignmentOperator::Create(AST::Expressions::Identifier::Create(itMaskName), spUnsetOp) );
           }
         }
       }
@@ -2659,11 +2748,13 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
         {
           typedef AST::Expressions::ArithmeticOperator::ArithmeticOperatorType  ArithmeticOperatorType;
 
-          AST::Expressions::ArithmeticOperatorPtr spUnsetOp = AST::Expressions::ArithmeticOperator::Create( ArithmeticOperatorType::BitwiseXOr,
-                                                                                                            AST::Expressions::Identifier::Create(itMaskName),
-                                                                                                            AST::Expressions::Identifier::Create(strConditionMask) );
+          AST::Expressions::UnaryOperatorPtr      spNegatedMask = AST::Expressions::UnaryOperator::Create( AST::Expressions::UnaryOperator::UnaryOperatorType::BitwiseNot, 
+                                                                                                           AST::Expressions::Identifier::Create(strConditionMask) );
 
-          ReturnPos.GetScope()->InsertChild( iCurrentIdx++, AST::Expressions::AssignmentOperator::Create(AST::Expressions::Identifier::Create(itMaskName), spUnsetOp) );
+          AST::Expressions::ArithmeticOperatorPtr spUnsetOp     = AST::Expressions::ArithmeticOperator::Create( ArithmeticOperatorType::BitwiseAnd, spNegatedMask,
+                                                                                                                AST::Expressions::Identifier::Create(itMaskName) );
+
+          ReturnPos.GetScope()->InsertChild( iCurrentIdx, AST::Expressions::AssignmentOperator::Create(AST::Expressions::Identifier::Create(itMaskName), spUnsetOp) );
         }
       }
     }
@@ -2672,17 +2763,13 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
 void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bEnsureMonoTypeVectorExpressions)
 {
-  auto rmvImplict = Transformations::RemoveImplicitConversions();
-  auto insrtRequiredC = Transformations::InsertRequiredConversions();
-  auto insrtRequiredBC = Transformations::InsertRequiredBroadcasts();
+  Transformations::RunSimple< Transformations::RemoveImplicitConversions >( spFunction );
 
-  Transformations::Run( spFunction, rmvImplict );
-
-  Transformations::Run( spFunction, insrtRequiredC );
+  Transformations::RunSimple< Transformations::InsertRequiredConversions >( spFunction );
 
   RemoveUnnecessaryConversions( spFunction );
 
-  Transformations::Run(spFunction, insrtRequiredBC ); 
+  Transformations::RunSimple< Transformations::InsertRequiredBroadcasts >( spFunction );
 
   if (bEnsureMonoTypeVectorExpressions)
   {
@@ -2693,10 +2780,13 @@ void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bE
 
       for (auto itConversion : ConversionFinder.lstFoundNodes)
       {
-        if ( itConversion->IsVectorized() && (! itConversion->GetParent()->IsType<AST::Expressions::AssignmentOperator>()) )
+        if (itConversion->IsVectorized())
         {
-          // Extract conversion into an own assignment to a temporary variable
-          _FlattenSubExpression( VASTBuilder::GetTemporaryNamePrefix() + string("_conv"), itConversion );
+          // Extract conversion into an own assignment to a temporary variable if it not already an assignment value
+          if (! itConversion->GetParent()->IsType<AST::Expressions::AssignmentOperator>())
+          {
+            _FlattenSubExpression( VASTBuilder::GetTemporaryNamePrefix() + string("_conv"), itConversion );
+          }
 
           // If the sub-expression of the conversion is not a leaf expression (i.e. identifier, constant etc.) extract it too
           AST::BaseClasses::ExpressionPtr spSubExpression = itConversion->GetSubExpression();

@@ -49,7 +49,7 @@ namespace Backend
   {
   public:
 
-    template <typename ElementType>   using VectorType = ::llvm::SmallVector< ElementType, 16U >;   // Type alias for LLVM SmallVector type
+    template <typename ElementType>   using VectorType = ::llvm::SmallVector< ElementType, 16U >;   //!< Type alias for LLVM SmallVector type
 
     typedef VectorType< ::clang::Expr* >          ExpressionVectorType;             //!< Type definition for a vector of expressions.
     typedef VectorType< ::clang::FunctionDecl* >  FunctionDeclarationVectorType;    //!< Type definition for a vector of function declarations.
@@ -149,7 +149,7 @@ namespace Backend
     ::clang::DeclStmt*                CreateDeclarationStatement(::clang::ValueDecl *pValueDecl);
 
     /** \brief    Creates a floating point literal expression (i.e. a compile time constant).
-     *  \tparam   ValueType The value type of the floating point literal (must be <b>float</b> or <b>double</b).
+     *  \tparam   ValueType The value type of the floating point literal (must be <b>float</b> or <b>double</b>).
      *  \param    TValue    The value of the floating point literal. */
     template <typename ValueType>
     ::clang::FloatingLiteral*         CreateFloatingLiteral(ValueType TValue)
@@ -264,11 +264,11 @@ namespace Backend
     /** \brief  Creates an unary operator object of a specified type.
      *  \param  pSubExpression  A pointer to the expression object, which shall be the sub-expression of the operator.
      *  \param  eOperatorKind   The type of the unary operator.
-     *  \param  crReturnType    The return type of the operator expression. */
+     *  \param  crResultType    The return type of the operator expression. */
     ::clang::UnaryOperator*           CreateUnaryOperator(::clang::Expr *pSubExpression, ::clang::UnaryOperatorKind eOperatorKind, const ::clang::QualType &crResultType);
 
     /** \brief    Creates a new variable declaration object.
-     *  \param    pParentFunction     A pointer to the declaration context which the new variable shall be declared in.
+     *  \param    pDeclContext        A pointer to the declaration context which the new variable shall be declared in.
      *  \param    crstrVariableName   The name of the newly declared variable.
      *  \param    crVariableType      The qualified type of newly declared variable.
      *  \param    pInitExpression     A pointer to the initialization expression object for the variable declaration (i.e. the R-value of the assignment).

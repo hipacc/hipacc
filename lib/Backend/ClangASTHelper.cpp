@@ -44,7 +44,7 @@ unsigned int ClangASTHelper::CountNumberOfReferences(Stmt *pStatement, const str
   {
     return 0;
   }
-  else if (isa<::clang::DeclRefExpr>(pStatement))
+  else if (isa< ::clang::DeclRefExpr >(pStatement))
   {
     DeclRefExpr *pCurrentDeclRef = dyn_cast<DeclRefExpr>(pStatement);
 
@@ -416,7 +416,7 @@ void ClangASTHelper::ReplaceDeclarationReferences(Stmt* pStatement, const string
   {
     return;
   }
-  else if (isa<::clang::DeclRefExpr>(pStatement))
+  else if (isa< ::clang::DeclRefExpr >(pStatement))
   {
     DeclRefExpr *pDeclRef = dyn_cast<DeclRefExpr>(pStatement);
 

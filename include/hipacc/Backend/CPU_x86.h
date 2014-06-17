@@ -74,7 +74,9 @@ namespace Backend
       SSE_3,    //!< ID of the "Streaming SIMD Extensions 3" instruction set.
       SSSE_3,   //!< ID of the "Supplemental SIMD Extensions 3" instruction set.
       SSE_4_1,  //!< ID of the "Streaming SIMD Extensions 4.1" instruction set.
-      SSE_4_2   //!< ID of the "Streaming SIMD Extensions 4.2" instruction set.
+      SSE_4_2,  //!< ID of the "Streaming SIMD Extensions 4.2" instruction set.
+      AVX,      //!< ID of the "Advanced vector extensions" instruction set.
+      AVX_2     //!< ID of the "Advanced vector extensions 2" instruction set.
     };
 
 
@@ -100,7 +102,8 @@ namespace Backend
         DF_ShiftElements    = 0x00000400,
         DF_Unary            = 0x00000800,
         DF_VecMemTransfers  = 0x00001000,
-        DF_BuiltinFunctions = 0x00002000
+        DF_BuiltinFunctions = 0x00002000,
+        DF_CheckMaskElement = 0x00004000
       };
 
     private:
@@ -152,7 +155,9 @@ namespace Backend
           strDescription += "  sse3    -  Uses the intrinsic functions of the SSE 3 vector instruction set.\n";
           strDescription += "  ssse3   -  Uses the intrinsic functions of the SSSE 3 vector instruction set.\n";
           strDescription += "  sse4.1  -  Uses the intrinsic functions of the SSE 4.1 vector instruction set.\n";
-          strDescription += "  sse4.2  -  Uses the intrinsic functions of the SSE 4.2 vector instruction set.";
+          strDescription += "  sse4.2  -  Uses the intrinsic functions of the SSE 4.2 vector instruction set.\n";
+          strDescription += "  avx     -  Uses the intrinsic functions of the AVX vector instruction set.\n";
+          strDescription += "  avx2    -  Uses the intrinsic functions of the AVX 2 vector instruction set.";
 
           return strDescription;
         }
@@ -175,6 +180,8 @@ namespace Backend
             else if (strOption == "ssse3")    return InstructionSetEnum::SSSE_3;
             else if (strOption == "sse4.1")   return InstructionSetEnum::SSE_4_1;
             else if (strOption == "sse4.2")   return InstructionSetEnum::SSE_4_2;
+            else if (strOption == "avx")      return InstructionSetEnum::AVX;
+            else if (strOption == "avx2")     return InstructionSetEnum::AVX_2;
             else
             {
               throw RuntimeErrors::InvalidOptionException(Key(), strOption);
@@ -336,16 +343,14 @@ namespace Backend
     };
 
 
-
+    /** \brief  Helper class, which is responsible for the generation of the vectorized kernel sub-function code. */
     class VASTExportInstructionSet final : public Vectorization::Vectorizer::VASTExporterBase
     {
     private:
 
       typedef Vectorization::Vectorizer::VASTExporterBase     BaseType;
 
-      typedef std::set< Vectorization::VectorElementTypes >   VectorElementTypesSetType;
-
-
+      /** \brief  Helper class, which encapsulates a vector element index. */
       class VectorIndex final
       {
       public:
@@ -378,6 +383,8 @@ namespace Backend
           _eIndexType       = crRVal._eIndexType;
           _uiIndex          = crRVal._uiIndex;
           _uiElementCount   = crRVal._uiElementCount;
+
+          return *this;
         }
 
 
@@ -387,65 +394,123 @@ namespace Backend
       };
 
 
-      const Vectorization::InstructionSetBasePtr      _spInstructionSet;
-      const size_t                                    _cVectorWidth;
+      const size_t                                    _cVectorWidth;        //!< The current virtual vector width for the code generation.
+      const Vectorization::InstructionSetBasePtr      _spInstructionSet;    //!< A shared pointer to the selected instruction set.
 
-      ClangASTHelper::FunctionDeclarationVectorType   _vecHelperFunctions;
+      ClangASTHelper::FunctionDeclarationVectorType   _vecHelperFunctions;  //!< A container for vectorized helper functions, which might get created during the code generation.
 
 
     private:
 
+      /** \brief  Returns the element type used for vector masks with the currently set vector width. */
       Vectorization::VectorElementTypes _GetMaskElementType();
 
+      /** \brief  Returns the number of native vectors of a specified type, which must be used for one variable due to the currently set virtual vector width.
+       *  \param  eElementType  The requested element type stored in the vector. */
       size_t _GetVectorArraySize(Vectorization::VectorElementTypes eElementType);
 
 
     private:
 
+      /** \brief  Converts a VAST scope node into a Clang compound statement object.
+       *  \param  spScope   A shared pointer to the scope node, which shall be converted. */
       ::clang::CompoundStmt*  _BuildCompoundStatement(Vectorization::AST::ScopePtr spScope);
 
+      /** \brief  Converts a scalar VAST expression node into a Clang expression object.
+       *  \param  spExpression  A shared pointer to the expression node, which shall be converted. */
       ::clang::Expr*          _BuildScalarExpression(Vectorization::AST::BaseClasses::ExpressionPtr spExpression);
 
+      /** \brief  Creates a scalar Clang function call expression object.
+       *  \param  strFunctionName   The fully qualified name of the function, which shall be called.
+       *  \param  crVecArguments    A vector of scalar Clang expression objects, which shall be used as the call parameters. */
       ::clang::CallExpr*      _BuildScalarFunctionCall(std::string strFunctionName, const ClangASTHelper::ExpressionVectorType &crVecArguments);
 
+      /** \brief  Converts a VAST vector conversion node into a Clang expression object tree.
+       *  \param  eTargetElementType  The requested target element type of the vector conversion.
+       *  \param  spSubExpression     A shared pointer to the expression node, whose result shall be converted.
+       *  \param  crVectorIndex       The vector index object, which describes what part of the virtual vector shall be converted. */
       ::clang::Expr*          _BuildVectorConversion(Vectorization::VectorElementTypes eTargetElementType, Vectorization::AST::BaseClasses::ExpressionPtr spSubExpression, const VectorIndex &crVectorIndex);
 
+      /** \brief  Creates a scalar Clang expression object, which processed only a single element of a vectorized VAST expression node.
+       *  \param  spExpression      A shared pointer to the expression node, whose element is processed.
+       *  \param  cuiElementIndex   The index of the element, which shall be processed. */
       ::clang::Expr*          _BuildUnrolledVectorExpression(Vectorization::AST::BaseClasses::ExpressionPtr spExpression, const uint32_t cuiElementIndex);
 
+      /** \brief  Converts a vectorized VAST expression node into a Clang expression object with the help of the instruction set abstraction layer.
+       *  \param  spExpression    A shared pointer to the expression node, which shall be converted.
+       *  \param  crVectorIndex   The vector index object, which describes what part of the virtual vector shall be processed. */
       ::clang::Expr*          _BuildVectorExpression(Vectorization::AST::BaseClasses::ExpressionPtr spExpression, const VectorIndex &crVectorIndex);
 
+      /** \brief  Converts a VAST expression node, appearing at scope level, into a Clang expression object.
+       *  \param  spExpression    A shared pointer to the expression node, which shall be converted. */
       ::clang::Stmt*          _BuildExpressionStatement(Vectorization::AST::BaseClasses::ExpressionPtr spExpression);
 
 
+      /** \brief    Converts and packs a set of vector masks to the internal vector mask type throughout the generated program.
+       *  \param    eSourceElementType    The element type stored in the input vector masks.
+       *  \param    crvecSubExpressions   A vector of Clang expression objects, which return the vector masks that shall be converted.
+       *  \remarks  This function will generate a vectorized helper function for each different conversion path. */
       ::clang::Expr*          _ConvertMaskDown(Vectorization::VectorElementTypes eSourceElementType, const ClangASTHelper::ExpressionVectorType &crvecSubExpressions);
+
+      /** \brief    Converts a vector mask from the internally used element type into the one required by another expression.
+       *  \param    eTargetElementType  The element type desired in the converted vector mask.
+       *  \param    pMaskExpr           A pointer to a Clang expression object, which returns the input vector mask for the conversion.
+       *  \param    crVectorIndex       The vector index object, which describes what part of the virtual vector mask shall be converted.
+       *  \remarks  This function will generate a vectorized helper function for each different conversion path. */
       ::clang::Expr*          _ConvertMaskUp(Vectorization::VectorElementTypes eTargetElementType, ::clang::Expr *pMaskExpr, const VectorIndex &crVectorIndex);
 
+ 
+      /** \brief  Helper function for the easy creation of vector index objects.
+       *  \param  eElementType  The requested vector element type for the correct matching of the group index.
+       *  \param  szGroupIndex  The index of the element group in the virtual vector. */
       VectorIndex _CreateVectorIndex(Vectorization::VectorElementTypes eElementType, size_t szGroupIndex);
 
+      /** \brief    Checks, whether a specified function call refers to a special built-in vector function.
+       *  \param    strFunctionName   The fully qualified name of the function, which shall be checked.
+       *  \remarks  If the specified function is not a built-in function, <b>BuiltinFunctionsEnum::UnknownFunction</b> will be returned. */
       static Vectorization::BuiltinFunctionsEnum _GetBuiltinVectorFunctionType(std::string strFunctionName);
 
+      /** \brief    Returns the correct element type of the return value of a VAST expression node.
+       *  \param    spExpression  A shared pointer to the expression node, whose returned element type shall be retrived.
+       *  \remarks  If the specified expression node returns a vector mask, the element type is translated correspondingly. */
       Vectorization::VectorElementTypes _GetExpressionElementType(Vectorization::AST::BaseClasses::ExpressionPtr spExpression);
 
 
-      static VectorElementTypesSetType _GetUsedVectorElementTypes(Vectorization::AST::BaseClasses::ExpressionPtr spExpression);
-
+      /** \brief  Checks, whether a vectorized VAST expression needs to be unwrapped into scalar expressions.
+       *  \param  spExpression  A shared pointer to the expression node, which shall be checked.
+       *  \sa     _BuildUnrolledVectorExpression() */
       bool _NeedsUnwrap(Vectorization::AST::BaseClasses::ExpressionPtr spExpression);
 
+      /** \brief  Checks, whether a vectorized VAST function call node can be translated into a special built-in vector function.
+       *  \param  spFunctionCall  A shared pointer to the function call node, which shall be checked. */
       bool _SupportsVectorFunctionCall(Vectorization::AST::Expressions::FunctionCallPtr spFunctionCall);
 
-      ::clang::Expr*          _TranslateMemoryAccessToPointerRef(Vectorization::AST::Expressions::MemoryAccessPtr spMemoryAccess, const VectorIndex &crVectorIndex);
+      /** \brief  Translates a vectorized VAST memory access node into a Clang expression object, which returns a pointer.
+       *  \param  spMemoryAccess  A shared pointer to the VAST memory access node, which shall be translated.
+       *  \param  crVectorIndex   The vector index object, which describes what part of the virtual vector shall be accessed. */
+      ::clang::Expr*  _TranslateMemoryAccessToPointerRef(Vectorization::AST::Expressions::MemoryAccessPtr spMemoryAccess, const VectorIndex &crVectorIndex);
 
 
+      /** \brief  Returns the qualified Clang-specific return type for a virtual vector.
+       *  \param  crOriginalTypeInfo  The VAST type info object, which shall be translated into a Clang vector type. */
       virtual ::clang::QualType _GetVectorizedType(Vectorization::AST::BaseClasses::TypeInfo &crOriginalTypeInfo) final override;
 
 
     public:
 
+      /** \brief  Constructs an object of the instruction set based VAST exporter.
+       *  \param  VectorWidth       The virtual vector width, which shall be used for the code generation.
+       *  \param  rAstContext       A reference to the current Clang AST context.
+       *  \param  spInstructionSet  A shared pointer to the instruction set, which shall be used for the generation of vectorized instructions. */
       VASTExportInstructionSet(size_t VectorWidth, ::clang::ASTContext &rAstContext, Vectorization::InstructionSetBasePtr spInstructionSet);
 
-      ::clang::FunctionDecl* ExportVASTFunction(Vectorization::AST::FunctionDeclarationPtr spVASTFunction, bool bUnrollVectorLoops);
+
+      /** \brief  Exports a VAST function declaration node into a Clang function declaration object. 
+       *  \param  spVASTFunction  A shared pointer to VAST function declaration node, which shall be exported. */
+      ::clang::FunctionDecl* ExportVASTFunction(Vectorization::AST::FunctionDeclarationPtr spVASTFunction);
 
 
+      /** \brief  Returns all vectorized helper functions, which have been generated by the last call to ExportVASTFunction(). */
       inline const ClangASTHelper::FunctionDeclarationVectorType& GetGeneratedHelperFunctions() const   { return _vecHelperFunctions; }
     };
 
@@ -462,7 +527,7 @@ namespace Backend
       typedef BaseType::CompilerSwitchInfoType                  CompilerSwitchInfoType;   //!< The type of the switch information class for this code generator.
 
       /** \brief    The specific descriptor class for this code generator.
-       *  \extends  CodeGeneratorBaseImplT::CodeGeneratorDescriptorBase. */
+       *  \extends  CodeGeneratorBaseImplT::CodeGeneratorDescriptorBase */
       class Descriptor final : public BaseType::CodeGeneratorDescriptorBase
       {
       public:
@@ -619,7 +684,7 @@ namespace Backend
       Vectorization::InstructionSetBasePtr  _CreateInstructionSet(::clang::ASTContext &rAstContext);
 
       /** \brief    Formats a function declaration for a specific kernel into a string.
-       *  \param    pKernelFunction         A pointer to the AST object declaring the kernel function.
+       *  \param    pFunctionDecl           A pointer to the AST object for the function declaration.
        *  \param    rHipaccHelper           A reference to the HIPAcc helper object which encapsulates the kernel.
        *  \param    bCheckUsage             Specifies, whether the function parameters shall be checked for being used.
        *  \param    bPrintActualImageType   Specifies, whether the actual clang types of the HIPAcc images shall be printed into the declaration.

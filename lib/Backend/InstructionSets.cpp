@@ -268,6 +268,40 @@ void InstructionSetBase::_CreateMissingIntrinsicsSSE4_1()
   _CreateIntrinsicDeclaration( "_mm_insert_epi64", qtIntegerVector, qtIntegerVector, "a", qtInt64,       "i", qtConstInt, "imm");
 }
 
+void InstructionSetBase::_CreateMissingIntrinsicsAVX()
+{
+  // Get required types
+  QualType  qtDoubleVectorAVX   = _GetFunctionReturnType( "_mm256_setzero_pd"      );
+  QualType  qtDoubleVectorSSE   = _GetFunctionReturnType( "_mm256_castpd256_pd128" );
+  QualType  qtFloatVectorAVX    = _GetFunctionReturnType( "_mm256_setzero_ps"      );
+  QualType  qtFloatVectorSSE    = _GetFunctionReturnType( "_mm256_castps256_ps128" );
+  QualType  qtIntegerVectorAVX  = _GetFunctionReturnType( "_mm256_setzero_si256"   );
+  QualType  qtIntegerVectorSSE  = _GetFunctionReturnType( "_mm256_castsi256_si128" );
+  QualType  qtInt               = _GetClangType( VectorElementTypes::Int32 );
+  QualType  qtConstInt          = qtInt;
+  qtConstInt.addConst();
+
+  // Create missing AVX intrinsic functions
+  _CreateIntrinsicDeclaration( "_mm256_ceil_pd",           qtDoubleVectorAVX,  qtDoubleVectorAVX,  "a" );
+  _CreateIntrinsicDeclaration( "_mm256_ceil_ps",           qtFloatVectorAVX,   qtFloatVectorAVX,   "a" );
+  _CreateIntrinsicDeclaration( "_mm256_cmp_pd",            qtDoubleVectorAVX,  qtDoubleVectorAVX,  "a",  qtDoubleVectorAVX,  "b",  qtConstInt, "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_cmp_ps",            qtFloatVectorAVX,   qtFloatVectorAVX,   "a",  qtFloatVectorAVX,   "b",  qtConstInt, "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_extractf128_pd",    qtDoubleVectorSSE,  qtDoubleVectorAVX,  "a",  qtConstInt,         "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_extractf128_ps",    qtFloatVectorSSE,   qtFloatVectorAVX,   "a",  qtConstInt,         "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_extractf128_si256", qtIntegerVectorSSE, qtIntegerVectorAVX, "a",  qtConstInt,         "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_floor_pd",          qtDoubleVectorAVX,  qtDoubleVectorAVX,  "a" );
+  _CreateIntrinsicDeclaration( "_mm256_floor_ps",          qtFloatVectorAVX,   qtFloatVectorAVX,   "a" );
+  _CreateIntrinsicDeclaration( "_mm256_insertf128_pd",     qtDoubleVectorAVX,  qtDoubleVectorAVX,  "a",  qtDoubleVectorSSE,  "b",  qtInt,      "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_insertf128_ps",     qtFloatVectorAVX,   qtFloatVectorAVX,   "a",  qtFloatVectorSSE,   "b",  qtInt,      "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_insertf128_si256",  qtIntegerVectorAVX, qtIntegerVectorAVX, "a",  qtIntegerVectorSSE, "b",  qtInt,      "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_permute2f128_ps",   qtFloatVectorAVX,   qtFloatVectorAVX,   "a",  qtFloatVectorAVX,   "b",  qtInt,      "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_shuffle_pd",        qtDoubleVectorAVX,  qtDoubleVectorAVX,  "a",  qtDoubleVectorAVX,  "b",  qtConstInt, "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_shuffle_ps",        qtFloatVectorAVX,   qtFloatVectorAVX,   "a",  qtFloatVectorAVX,   "b",  qtConstInt, "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_set_m128d",         qtDoubleVectorAVX,  qtDoubleVectorSSE,  "hi", qtDoubleVectorSSE,  "lo"  );
+  _CreateIntrinsicDeclaration( "_mm256_set_m128",          qtFloatVectorAVX,   qtFloatVectorSSE,   "hi", qtFloatVectorSSE,   "lo"  );
+  _CreateIntrinsicDeclaration( "_mm256_set_m128i",         qtIntegerVectorAVX, qtIntegerVectorSSE, "hi", qtIntegerVectorSSE, "lo"  );
+}
+
 CastExpr* InstructionSetBase::_CreatePointerCast(Expr *pPointerRef, const QualType &crNewPointerType)
 {
   return _GetASTHelper().CreateReinterpretCast(pPointerRef, crNewPointerType, CK_ArrayToPointerDecay);//CK_ReinterpretMemberPointer);
@@ -346,7 +380,7 @@ InstructionSetSSE::InstructionSetSSE(ASTContext &rAstContext) : InstructionSetBa
 
   _CreateMissingIntrinsicsSSE();  // Only required due to Clang's incomplete intrinsic headers
 
-  _LookupIntrinsics();
+  InstructionSetBase::_LookupIntrinsics( _mapIntrinsicsSSE, "SSE" );
 }
 
 void InstructionSetSSE::_CheckElementType(VectorElementTypes eElementType) const
@@ -512,6 +546,21 @@ Expr* InstructionSetSSE::CheckActiveElements(VectorElementTypes eMaskElementType
   return _GetASTHelper().CreateBinaryOperator( pMoveMask, pTestConstant, eCompareOpType, _GetClangType(VectorElementTypes::Bool) );
 }
 
+Expr* InstructionSetSSE::CheckSingleMaskElement(VectorElementTypes eMaskElementType, Expr *pMaskExpr, uint32_t uiIndex)
+{
+  _CheckElementType(eMaskElementType);
+
+  if ( uiIndex >= static_cast<uint32_t>(GetVectorElementCount(eMaskElementType)) )
+  {
+    throw InternalErrorException("The index cannot exceed the vector element count!");
+  }
+
+  CallExpr        *pMoveMask      = _CreateFunctionCall(IntrinsicsSSEEnum::MoveMaskFloat, pMaskExpr);
+  IntegerLiteral  *pTestConstant  = _GetASTHelper().CreateIntegerLiteral( static_cast< int32_t >( 1 << uiIndex ) );
+
+  return _GetASTHelper().CreateBinaryOperator( pMoveMask, pTestConstant, BO_And, pMoveMask->getType() );
+}
+
 Expr* InstructionSetSSE::CreateOnesVector(VectorElementTypes eElementType, bool bNegative)
 {
   _CheckElementType(eElementType);
@@ -639,6 +688,7 @@ bool InstructionSetSSE::IsBuiltinFunctionSupported(VectorElementTypes eElementTy
   case BuiltinFunctionsEnum::Max:     return (uiParamCount == 2);
   case BuiltinFunctionsEnum::Min:     return (uiParamCount == 2);
   case BuiltinFunctionsEnum::Sqrt:    return (uiParamCount == 1);
+  default:                            break;    // Useless default branch avoiding GCC compiler warnings
   }
 
   return false;
@@ -740,7 +790,7 @@ InstructionSetSSE2::InstructionSetSSE2(ASTContext &rAstContext) : BaseType(rAstC
 
   _CreateMissingIntrinsicsSSE2();  // Only required due to Clang's incomplete intrinsic headers
 
-  _LookupIntrinsics();
+  InstructionSetBase::_LookupIntrinsics( _mapIntrinsicsSSE2, "SSE2" );
 }
 
 Expr* InstructionSetSSE2::_ArithmeticOpInteger(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
@@ -850,6 +900,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
 
           return ConvertMaskDown( VectorElementTypes::UInt64, eTargetType, vecCastedVectors );
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
@@ -879,6 +930,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
 
           return _ConvertVector( VectorElementTypes::UInt32, eTargetType, vecCastedVectors, uiGroupIndex, bMaskConversion );
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
@@ -978,7 +1030,10 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
             }
           }
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
+
+    default:  break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
   else
@@ -1036,6 +1091,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
 
           return ConvertVectorDown( VectorElementTypes::Int32, eTargetType, vecConvertedVectors );
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
@@ -1074,6 +1130,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
 
           return ConvertVectorDown(VectorElementTypes::Int32, eTargetType, vecConvertedVectors);
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
@@ -1139,6 +1196,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
 
           return _ConvertVector( eIntermediateType, eTargetType, vecConvertedVectors, uiGroupIndex, bMaskConversion );
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
@@ -1199,6 +1257,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
 
           return _ConvertVector( eIntermediateType, eTargetType, vecConvertedVectors, uiGroupIndex, bMaskConversion );
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
@@ -1308,6 +1367,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
 
           return _CreateFunctionCall( (uiGroupIndex == 0) ? IntrinsicsSSE2Enum::UnpackLowInt32 : IntrinsicsSSE2Enum::UnpackHighInt32, crvecVectorRefs.front(), pInterleaveVector );
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
@@ -1378,9 +1438,12 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
 
           return ConvertVectorDown( ceIntermediateType, eTargetType, vecConvertedVectors );
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
+
+    default:  break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
 
@@ -1636,10 +1699,10 @@ Expr* InstructionSetSSE2::_RelationalOpInteger(VectorElementTypes eElementType, 
 
     switch (eElementType)
     {
-    case VectorElementTypes::UInt8:    pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x80                );  break;
-    case VectorElementTypes::UInt16:   pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x8000              );  break;
-    case VectorElementTypes::UInt32:   pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x80000000          );  break;
-    case VectorElementTypes::UInt64:   pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x8000000000000000L );  break;
+    case VectorElementTypes::UInt8:    pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x80U                );  break;
+    case VectorElementTypes::UInt16:   pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x8000U              );  break;
+    case VectorElementTypes::UInt32:   pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x80000000U          );  break;
+    case VectorElementTypes::UInt64:   pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x8000000000000000UL );  break;
     default:                          throw InternalErrorException("Unexpected vector element type detected!");
     }
 
@@ -1833,6 +1896,7 @@ Expr* InstructionSetSSE2::BuiltinFunction(VectorElementTypes eElementType, Built
     case BuiltinFunctionsEnum::Max:     return _CreateFunctionCall( IntrinsicsSSE2Enum::MaxDouble,   crvecArguments[0], crvecArguments[1] );
     case BuiltinFunctionsEnum::Min:     return _CreateFunctionCall( IntrinsicsSSE2Enum::MinDouble,   crvecArguments[0], crvecArguments[1] );
     case BuiltinFunctionsEnum::Sqrt:    return _CreateFunctionCall( IntrinsicsSSE2Enum::SqrtDouble,  crvecArguments[0] );
+    default:                            break;    // Useless default branch avoiding GCC compiler warnings
     }
 
     break;
@@ -1846,6 +1910,7 @@ Expr* InstructionSetSSE2::BuiltinFunction(VectorElementTypes eElementType, Built
     case BuiltinFunctionsEnum::Floor:   return crvecArguments.front();  // Nothing to do for this functions
     case BuiltinFunctionsEnum::Max:     return _CreateFunctionCall( IntrinsicsSSE2Enum::MaxUInt8, crvecArguments[0], crvecArguments[1] );
     case BuiltinFunctionsEnum::Min:     return _CreateFunctionCall( IntrinsicsSSE2Enum::MinUInt8, crvecArguments[0], crvecArguments[1] );
+    default:                            break;    // Useless default branch avoiding GCC compiler warnings
     }
 
     break;
@@ -1858,6 +1923,7 @@ Expr* InstructionSetSSE2::BuiltinFunction(VectorElementTypes eElementType, Built
     case BuiltinFunctionsEnum::Floor:   return crvecArguments.front();  // Nothing to do for this functions
     case BuiltinFunctionsEnum::Max:     return _CreateFunctionCall( IntrinsicsSSE2Enum::MaxInt16, crvecArguments[0], crvecArguments[1] );
     case BuiltinFunctionsEnum::Min:     return _CreateFunctionCall( IntrinsicsSSE2Enum::MinInt16, crvecArguments[0], crvecArguments[1] );
+    default:                            break;    // Useless default branch avoiding GCC compiler warnings
     }
 
     break;
@@ -1875,6 +1941,7 @@ Expr* InstructionSetSSE2::BuiltinFunction(VectorElementTypes eElementType, Built
       }
     case BuiltinFunctionsEnum::Ceil:
     case BuiltinFunctionsEnum::Floor:   return crvecArguments.front();  // Nothing to do for this functions
+    default:                            break;    // Useless default branch avoiding GCC compiler warnings
     }
 
     break;
@@ -1915,6 +1982,47 @@ Expr* InstructionSetSSE2::CheckActiveElements(VectorElementTypes eMaskElementTyp
   BinaryOperatorKind  eCompareOpType = (eCheckType == ActiveElementsCheckType::Any) ? BO_NE : BO_EQ;
 
   return _GetASTHelper().CreateBinaryOperator( pMoveMask, pTestConstant, eCompareOpType, _GetClangType(VectorElementTypes::Bool) );
+}
+
+Expr* InstructionSetSSE2::CheckSingleMaskElement(VectorElementTypes eMaskElementType, Expr *pMaskExpr, uint32_t uiIndex)
+{
+  if ( uiIndex >= static_cast<uint32_t>(GetVectorElementCount(eMaskElementType)) )
+  {
+    throw InternalErrorException("The index cannot exceed the vector element count!");
+  }
+
+  IntrinsicsSSE2Enum  eMoveMaskType = IntrinsicsSSE2Enum::MoveMaskInt8;
+  int32_t             iTestValue    = 1;
+  int32_t             iShiftValue   = 0;
+
+  switch (eMaskElementType)
+  {
+  case VectorElementTypes::Double:
+    {
+      eMoveMaskType = IntrinsicsSSE2Enum::MoveMaskDouble;
+      iTestValue    = 1;
+      iShiftValue   = static_cast< int32_t >( uiIndex );
+      break;
+    }
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+    {
+      const uint32_t cuiTypeSize = static_cast< uint32_t >( AST::BaseClasses::TypeInfo::GetTypeSize( eMaskElementType ) );
+
+      eMoveMaskType = IntrinsicsSSE2Enum::MoveMaskInt8;
+      iTestValue    = static_cast< int32_t >( 0xFF % (1 << cuiTypeSize) );
+      iShiftValue   = static_cast< int32_t >( uiIndex * cuiTypeSize );
+      break;
+    }
+  default:                                                          return BaseType::CheckSingleMaskElement( eMaskElementType, pMaskExpr, uiIndex );
+  }
+
+  CallExpr        *pMoveMask      = _CreateFunctionCall(eMoveMaskType, pMaskExpr);
+  IntegerLiteral  *pTestConstant  = _GetASTHelper().CreateIntegerLiteral( iTestValue << iShiftValue );
+
+  return _GetASTHelper().CreateBinaryOperator( pMoveMask, pTestConstant, BO_And, pMoveMask->getType() );
 }
 
 Expr* InstructionSetSSE2::CreateOnesVector(VectorElementTypes eElementType, bool bNegative)
@@ -2596,7 +2704,7 @@ InstructionSetSSE3::InstructionSetSSE3(ASTContext &rAstContext) : BaseType(rAstC
 {
   _InitIntrinsicsMap();
 
-  _LookupIntrinsics();
+  InstructionSetBase::_LookupIntrinsics( _mapIntrinsicsSSE3, "SSE3" );
 }
 
 Expr* InstructionSetSSE3::_ConvertVector(VectorElementTypes eSourceType, VectorElementTypes eTargetType, const ClangASTHelper::ExpressionVectorType &crvecVectorRefs, uint32_t uiGroupIndex, bool bMaskConversion)
@@ -2684,7 +2792,7 @@ InstructionSetSSSE3::InstructionSetSSSE3(ASTContext &rAstContext) : BaseType(rAs
 {
   _InitIntrinsicsMap();
 
-  _LookupIntrinsics();
+  InstructionSetBase::_LookupIntrinsics( _mapIntrinsicsSSSE3, "SSSE3" );
 }
 
 Expr* InstructionSetSSSE3::_ConvertVector(VectorElementTypes eSourceType, VectorElementTypes eTargetType, const ClangASTHelper::ExpressionVectorType &crvecVectorRefs, uint32_t uiGroupIndex, bool bMaskConversion)
@@ -2720,6 +2828,7 @@ Expr* InstructionSetSSSE3::_ConvertVector(VectorElementTypes eSourceType, Vector
           // Merge two remaining 8-element vectors into a 16-element vector
           return _UnpackVectors( VectorElementTypes::Int64, vecShuffledVectors[0], vecShuffledVectors[1], true );
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
@@ -2776,9 +2885,12 @@ Expr* InstructionSetSSSE3::_ConvertVector(VectorElementTypes eSourceType, Vector
           // Merge two remaining 4-element vectors into a 8-element vector
           return _UnpackVectors( VectorElementTypes::Int64, vecShuffledVectors[0], vecShuffledVectors[1], true );
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
 
       break;
+
+    default:  break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
 
@@ -2829,6 +2941,7 @@ Expr* InstructionSetSSSE3::BuiltinFunction(VectorElementTypes eElementType, Buil
     case VectorElementTypes::Int8:    return _CreateFunctionCall( IntrinsicsSSSE3Enum::AbsoluteInt8,  crvecArguments[0] );
     case VectorElementTypes::Int16:   return _CreateFunctionCall( IntrinsicsSSSE3Enum::AbsoluteInt16, crvecArguments[0] );
     case VectorElementTypes::Int32:   return _CreateFunctionCall( IntrinsicsSSSE3Enum::AbsoluteInt32, crvecArguments[0] );
+    default:                          break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
 
@@ -2855,6 +2968,7 @@ bool InstructionSetSSSE3::IsBuiltinFunctionSupported(VectorElementTypes eElement
     case VectorElementTypes::Int8:
     case VectorElementTypes::Int16:
     case VectorElementTypes::Int32:   return (uiParamCount == 1);
+    default:                          break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
 
@@ -2881,6 +2995,7 @@ Expr* InstructionSetSSSE3::UnaryOperator(VectorElementTypes eElementType, UnaryO
     case VectorElementTypes::UInt16:  return _CreateFunctionCall( IntrinsicsSSSE3Enum::SignInt16, pSubExpr, BroadCast( eElementType, _GetASTHelper().CreateIntegerLiteral(-1) ) );
     case VectorElementTypes::Int32:
     case VectorElementTypes::UInt32:  return _CreateFunctionCall( IntrinsicsSSSE3Enum::SignInt32, pSubExpr, BroadCast( eElementType, _GetASTHelper().CreateIntegerLiteral(-1) ) );
+    default:                          break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
 
@@ -2897,7 +3012,7 @@ InstructionSetSSE4_1::InstructionSetSSE4_1(ASTContext &rAstContext) : BaseType(r
 
   _CreateMissingIntrinsicsSSE4_1();
 
-  _LookupIntrinsics();
+  InstructionSetBase::_LookupIntrinsics( _mapIntrinsicsSSE4_1, "SSE4.1" );
 }
 
 Expr* InstructionSetSSE4_1::_ConvertVector(VectorElementTypes eSourceType, VectorElementTypes eTargetType, const ClangASTHelper::ExpressionVectorType &crvecVectorRefs, uint32_t uiGroupIndex, bool bMaskConversion)
@@ -2927,7 +3042,10 @@ Expr* InstructionSetSSE4_1::_ConvertVector(VectorElementTypes eSourceType, Vecto
             return ConvertVectorUp(ceNewSourceType, ceNewTargetType, crvecVectorRefs.front(), uiGroupIndex);
           }
         }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
       }
+
+    default:  break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
   else
@@ -3002,21 +3120,6 @@ Expr* InstructionSetSSE4_1::_ConvertVector(VectorElementTypes eSourceType, Vecto
   return BaseType::_ConvertVector(eSourceType, eTargetType, crvecVectorRefs, uiGroupIndex, bMaskConversion);
 }
 
-Expr* InstructionSetSSE4_1::_ExtractElement(VectorElementTypes eElementType, IntrinsicsSSE4_1Enum eIntrinType, Expr *pVectorRef, uint32_t uiIndex)
-{
-  _CheckExtractIndex(eElementType, uiIndex);
-
-  Expr *pExtractExpr = _CreateFunctionCall( eIntrinType, pVectorRef, _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(uiIndex)) );
-
-  QualType qtReturnType = _GetClangType(eElementType);
-  if (qtReturnType != pExtractExpr->getType())
-  {
-    pExtractExpr = _CreateValueCast( pExtractExpr, qtReturnType, CK_IntegralCast );
-  }
-
-  return pExtractExpr;
-}
-
 void InstructionSetSSE4_1::_InitIntrinsicsMap()
 {
   // Blending functions
@@ -3076,19 +3179,6 @@ void InstructionSetSSE4_1::_InitIntrinsicsMap()
   _InitIntrinsic( IntrinsicsSSE4_1Enum::TestControl, "testc_si128" );
 }
 
-Expr* InstructionSetSSE4_1::_InsertElement(VectorElementTypes eElementType, IntrinsicsSSE4_1Enum eIntrinType, Expr *pVectorRef, Expr *pElementValue, uint32_t uiIndex)
-{
-  _CheckInsertIndex(eElementType, uiIndex);
-
-  if (eElementType == VectorElementTypes::Float)
-  {
-    pElementValue   = BroadCast(eElementType, pElementValue);
-    uiIndex       <<= 4;
-  }
-
-  return _CreateFunctionCall( eIntrinType, pVectorRef, pElementValue, _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(uiIndex)) );
-}
-
 Expr* InstructionSetSSE4_1::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
 {
   if (eOpType == ArithmeticOperatorType::Multiply)
@@ -3143,6 +3233,7 @@ Expr* InstructionSetSSE4_1::BuiltinFunction(VectorElementTypes eElementType, Bui
 
         return BlendVectors( eElementType, pMask, crvecArguments[0], crvecArguments[1] );
       }
+    default:  break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
   else if (eFunctionType == BuiltinFunctionsEnum::Min)
@@ -3159,6 +3250,7 @@ Expr* InstructionSetSSE4_1::BuiltinFunction(VectorElementTypes eElementType, Bui
 
         return BlendVectors( eElementType, pMask, crvecArguments[1], crvecArguments[0] );
       }
+    default:  break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
 
@@ -3168,25 +3260,56 @@ Expr* InstructionSetSSE4_1::BuiltinFunction(VectorElementTypes eElementType, Bui
 
 Expr* InstructionSetSSE4_1::ExtractElement(VectorElementTypes eElementType, Expr *pVectorRef, uint32_t uiIndex)
 {
+  _CheckExtractIndex( eElementType, uiIndex );
+
+  // Select the correct extraction intrinsic
+  IntrinsicsSSE4_1Enum eIntrinID = IntrinsicsSSE4_1Enum::ExtractInt8;
+
   switch (eElementType)
   {
-  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:   return _ExtractElement( eElementType, IntrinsicsSSE4_1Enum::ExtractInt8,  pVectorRef, uiIndex );
-  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  return _ExtractElement( eElementType, IntrinsicsSSE4_1Enum::ExtractInt32, pVectorRef, uiIndex );
-  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  return _ExtractElement( eElementType, IntrinsicsSSE4_1Enum::ExtractInt64, pVectorRef, uiIndex );
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:   eIntrinID = IntrinsicsSSE4_1Enum::ExtractInt8;    break;
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  eIntrinID = IntrinsicsSSE4_1Enum::ExtractInt32;   break;
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eIntrinID = IntrinsicsSSE4_1Enum::ExtractInt64;   break;
   default:                                                          return BaseType::ExtractElement( eElementType, pVectorRef, uiIndex );
   }
+
+  // Perform the actual extraction
+  Expr *pExtractExpr = _CreateFunctionCall( eIntrinID, pVectorRef, _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(uiIndex)) );
+
+  QualType qtReturnType = _GetClangType(eElementType);
+  if (qtReturnType != pExtractExpr->getType())
+  {
+    pExtractExpr = _CreateValueCast( pExtractExpr, qtReturnType, CK_IntegralCast );
+  }
+
+  return pExtractExpr;
 }
 
 Expr* InstructionSetSSE4_1::InsertElement(VectorElementTypes eElementType, Expr *pVectorRef, Expr *pElementValue, uint32_t uiIndex)
 {
+  _CheckInsertIndex( eElementType, uiIndex );
+
+  // Select the correct insertion intrinsic
+  IntrinsicsSSE4_1Enum eIntrinID = IntrinsicsSSE4_1Enum::InsertFloat;
+
   switch (eElementType)
   {
-  case VectorElementTypes::Float:                                   return _InsertElement( eElementType, IntrinsicsSSE4_1Enum::InsertFloat, pVectorRef, pElementValue, uiIndex );
-  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:   return _InsertElement( eElementType, IntrinsicsSSE4_1Enum::InsertInt8,  pVectorRef, pElementValue, uiIndex );
-  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  return _InsertElement( eElementType, IntrinsicsSSE4_1Enum::InsertInt32, pVectorRef, pElementValue, uiIndex );
-  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  return _InsertElement( eElementType, IntrinsicsSSE4_1Enum::InsertInt64, pVectorRef, pElementValue, uiIndex );
+  case VectorElementTypes::Float:
+    {
+      // The insertion intrinsic for the element type "float" has a different syntax
+      eIntrinID       = IntrinsicsSSE4_1Enum::InsertFloat;
+      pElementValue   = BroadCast(eElementType, pElementValue);
+      uiIndex       <<= 4;
+      break;
+    }
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:   eIntrinID = IntrinsicsSSE4_1Enum::InsertInt8;   break;
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  eIntrinID = IntrinsicsSSE4_1Enum::InsertInt32;  break;
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eIntrinID = IntrinsicsSSE4_1Enum::InsertInt64;  break;
   default:                                                          return BaseType::InsertElement( eElementType, pVectorRef, pElementValue, uiIndex );
   }
+
+  // Perform the actual insertion
+  return _CreateFunctionCall( eIntrinID, pVectorRef, pElementValue, _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(uiIndex)) );
 }
 
 bool InstructionSetSSE4_1::IsBuiltinFunctionSupported(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, uint32_t uiParamCount) const
@@ -3198,6 +3321,7 @@ bool InstructionSetSSE4_1::IsBuiltinFunctionSupported(VectorElementTypes eElemen
     case VectorElementTypes::Int8:  case VectorElementTypes::UInt16:
     case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
     case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  return (uiParamCount == 2);
+    default:  break;    // Useless default branch avoiding GCC compiler warnings
     }
   }
 
@@ -3228,7 +3352,7 @@ InstructionSetSSE4_2::InstructionSetSSE4_2(::clang::ASTContext &rAstContext) : B
 {
   _InitIntrinsicsMap();
 
-  _LookupIntrinsics();
+  InstructionSetBase::_LookupIntrinsics( _mapIntrinsicsSSE4_2, "SSE4.2" );
 }
 
 void InstructionSetSSE4_2::_InitIntrinsicsMap()
@@ -3257,6 +3381,1312 @@ Expr* InstructionSetSSE4_2::RelationalOperator(VectorElementTypes eElementType, 
     }
   default:  return BaseType::RelationalOperator(eElementType, eOpType, pExprLHS, pExprRHS);
   }
+}
+
+
+
+
+// Implementation of class InstructionSetAVX
+InstructionSetAVX::InstructionSetAVX(ASTContext &rAstContext) : InstructionSetBase(rAstContext, _GetIntrinsicPrefix())
+{
+  _spFallbackInstructionSet = InstructionSetBase::Create< InstructionSetSSE4_2 >( rAstContext );
+
+  _InitIntrinsicsMap();
+
+  _CreateMissingIntrinsicsAVX();
+
+  InstructionSetBase::_LookupIntrinsics( _mapIntrinsicsAVX, "AVX" );
+}
+
+Expr* InstructionSetAVX::_ConvertVector(VectorElementTypes eSourceType, VectorElementTypes eTargetType, const ClangASTHelper::ExpressionVectorType &crvecVectorRefs, uint32_t uiGroupIndex, bool bMaskConversion)
+{
+  if (bMaskConversion)
+  {
+    switch (eSourceType)
+    {
+    case VectorElementTypes::Double:
+      {
+        switch (eTargetType)
+        {
+        case VectorElementTypes::Double:  return crvecVectorRefs.front();   // Same type => nothing to do
+        case VectorElementTypes::Float:
+          {
+            ClangASTHelper::ExpressionVectorType vecMergedLanes;
+
+            for (auto itSourceVec : crvecVectorRefs)
+            {
+              Expr *pLaneSwapConstant = _GetASTHelper().CreateLiteral( static_cast< int32_t >( 0x01 ) );
+              Expr *pShuffleContant   = _GetASTHelper().CreateLiteral( static_cast< int32_t >( 0x88 ) );
+
+              Expr *pCastedVec   = _CreateFunctionCall( IntrinsicsAVXEnum::CastDoubleToFloat, itSourceVec );
+              Expr *pSwappedLane = _CreateFunctionCall( IntrinsicsAVXEnum::PermuteLanesFloat, pCastedVec, CreateZeroVector(eTargetType), pLaneSwapConstant );
+
+              vecMergedLanes.push_back( _CreateFunctionCall( IntrinsicsAVXEnum::ShuffleFloat, pCastedVec, pSwappedLane, pShuffleContant ) );
+            }
+
+            return _CreateFunctionCall( IntrinsicsAVXEnum::PermuteLanesFloat, vecMergedLanes[0], vecMergedLanes[1], _GetASTHelper().CreateLiteral( static_cast<int32_t>(0x20) ) );
+          }
+        case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+          {
+            Expr *pFloatMask = ConvertMaskDown( eSourceType, VectorElementTypes::Float, crvecVectorRefs );
+
+            return ConvertMaskSameSize( VectorElementTypes::Float, eTargetType, pFloatMask );
+          }
+        default:  break;    // Useless default branch avoiding GCC compiler warnings
+        }
+
+        break;
+      }
+    case VectorElementTypes::Float:
+      {
+        switch (eTargetType)
+        {
+        case VectorElementTypes::Double:
+          {
+            Expr *pLaneSelectConstant = _GetASTHelper().CreateLiteral( static_cast< int32_t >( (uiGroupIndex == 0) ? 0x00 : 0x11 ) );
+            Expr *pSelectedLane       = _CreateFunctionCall( IntrinsicsAVXEnum::PermuteLanesFloat, crvecVectorRefs.front(), CreateZeroVector(eSourceType), pLaneSelectConstant );
+
+            Expr *pElementsEven = _CreateFunctionCall( IntrinsicsAVXEnum::CastFloatToDouble, _CreateFunctionCall(IntrinsicsAVXEnum::DuplicateEvenFloat, pSelectedLane) );
+            Expr *pElementsOdd  = _CreateFunctionCall( IntrinsicsAVXEnum::CastFloatToDouble, _CreateFunctionCall(IntrinsicsAVXEnum::DuplicateOddFloat,  pSelectedLane) );
+
+            return _CreateFunctionCall( IntrinsicsAVXEnum::ShuffleDouble, pElementsEven, pElementsOdd, _GetASTHelper().CreateLiteral(static_cast<int32_t>(0x0C)) );
+        }
+        case VectorElementTypes::Float:                                   return crvecVectorRefs.front();   // Same type => nothing to do
+        case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  return _CreateFunctionCall( IntrinsicsAVXEnum::CastFloatToInteger, crvecVectorRefs.front() );
+        default:  break;    // Useless default branch avoiding GCC compiler warnings
+        }
+
+        break;
+      }
+    case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+      {
+        switch (eTargetType)
+        {
+        case VectorElementTypes::Double:
+          {
+            Expr *pFloatMask = ConvertMaskSameSize( eSourceType, VectorElementTypes::Float, crvecVectorRefs.front() );
+
+            return ConvertMaskUp( VectorElementTypes::Float, eTargetType, pFloatMask, uiGroupIndex );
+          }
+        case VectorElementTypes::Float:                                   return _CreateFunctionCall( IntrinsicsAVXEnum::CastIntegerToFloat, crvecVectorRefs.front() );
+        case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  return crvecVectorRefs.front();   // Same type => nothing to do
+        default:  break;    // Useless default branch avoiding GCC compiler warnings
+        }
+
+        break;
+      }
+    case VectorElementTypes::Int8:   case VectorElementTypes::UInt8: case VectorElementTypes::Int16:
+    case VectorElementTypes::UInt16: case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+      {
+        switch (eTargetType)
+        {
+          case VectorElementTypes::Int8:   case VectorElementTypes::UInt8: case VectorElementTypes::Int16:
+          case VectorElementTypes::UInt16: case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+            if ( AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType) == AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) )
+            {
+              return crvecVectorRefs.front();   // There is no difference between signed and unsigned integer vector types
+            }
+          default:  break;    // Useless default branch avoiding GCC compiler warnings
+        }
+
+        break;
+       }
+    default:  break;    // Useless default branch avoiding GCC compiler warnings
+    }
+  }
+  else
+  {
+    switch (eSourceType)
+    {
+    case VectorElementTypes::Double:
+      {
+        switch (eTargetType)
+        {
+        case VectorElementTypes::Double:    return crvecVectorRefs.front();   // Same type => nothing to do
+        case VectorElementTypes::Float:
+          {
+            Expr *pLowHalf  = _CreateFunctionCall( IntrinsicsAVXEnum::ConvertDoubleFloat, crvecVectorRefs[0] );
+            Expr *pHighHalf = _CreateFunctionCall( IntrinsicsAVXEnum::ConvertDoubleFloat, crvecVectorRefs[1] );
+
+            return _MergeSSEVectors( eTargetType, pLowHalf, pHighHalf );
+          }
+        case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+          {
+            Expr *pLowHalf  = _CreateFunctionCall( IntrinsicsAVXEnum::ConvertDoubleInt32, crvecVectorRefs[0] );
+            Expr *pHighHalf = _CreateFunctionCall( IntrinsicsAVXEnum::ConvertDoubleInt32, crvecVectorRefs[1] );
+
+            return _MergeSSEVectors( eTargetType, pLowHalf, pHighHalf );
+          }
+        default:  break;    // Useless default branch avoiding GCC compiler warnings
+        }
+
+        break;
+      }
+    case VectorElementTypes::Float:
+      {
+        switch (eTargetType)
+        {
+        case VectorElementTypes::Double:
+          {
+            Expr *pSelectedGroup = _ExtractSSEVector( eSourceType, crvecVectorRefs.front(), (uiGroupIndex == 0) );
+
+            return _CreateFunctionCall( IntrinsicsAVXEnum::ConvertFloatDouble, pSelectedGroup );
+          }
+        case VectorElementTypes::Float:                                   return crvecVectorRefs.front();   // Same type => nothing to do
+        case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  return _CreateFunctionCall( IntrinsicsAVXEnum::ConvertFloatInt32, crvecVectorRefs.front() );
+        default:  break;    // Useless default branch avoiding GCC compiler warnings
+        }
+
+        break;
+      }
+    case VectorElementTypes::Int32:
+      {
+        switch (eTargetType)
+        {
+        case VectorElementTypes::Double:
+          {
+            Expr *pSelectedGroup = _ExtractSSEVector( eSourceType, crvecVectorRefs.front(), (uiGroupIndex == 0) );
+
+            return _CreateFunctionCall( IntrinsicsAVXEnum::ConvertInt32Double, pSelectedGroup );
+          }
+        case VectorElementTypes::Float:                                   return _CreateFunctionCall( IntrinsicsAVXEnum::ConvertInt32Float, crvecVectorRefs.front() );
+        case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  return crvecVectorRefs.front();   // Same type => nothing to do
+        default:  break;    // Useless default branch avoiding GCC compiler warnings
+        }
+
+        break;
+      }
+    case VectorElementTypes::Int8:   case VectorElementTypes::UInt8: case VectorElementTypes::Int16:  case VectorElementTypes::UInt16:
+    case VectorElementTypes::UInt32: case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+      {
+        switch (eTargetType)
+        {
+        case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+        case VectorElementTypes::Int32: case VectorElementTypes::UInt32: case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+          if ( AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType) == AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) )
+          {
+            return crvecVectorRefs.front();   // There is no difference between signed and unsigned integer vector types
+          }
+        default:  break;    // Useless default branch avoiding GCC compiler warnings
+        }
+
+        break;
+       }
+    default:  break;    // Useless default branch avoiding GCC compiler warnings
+    }
+  }
+
+  // Use SSE fallback for unsupported conversions
+  return _ConvertVectorWithSSE( eSourceType, eTargetType, crvecVectorRefs, uiGroupIndex, bMaskConversion );
+}
+
+Expr* InstructionSetAVX::_ConvertVectorWithSSE(VectorElementTypes eSourceType, VectorElementTypes eTargetType, const ClangASTHelper::ExpressionVectorType &crvecVectorRefs, uint32_t uiGroupIndex, bool bMaskConversion)
+{
+  const size_t cszElementCountSource = GetVectorElementCount( eSourceType );
+  const size_t cszElementCountTarget = GetVectorElementCount( eTargetType );
+
+  Expr *pResultLow  = nullptr;
+  Expr *pResultHigh = nullptr;
+
+  if (cszElementCountSource == cszElementCountTarget)
+  {
+    // Same size conversion
+    Expr *pVectorAVX = crvecVectorRefs.front();
+
+    // Both SSE vector lane can be converted separately
+    if (bMaskConversion)
+    {
+      pResultLow  = _GetFallback()->ConvertMaskSameSize( eSourceType, eTargetType, _ExtractSSEVector( eSourceType, pVectorAVX, true  ) );
+      pResultHigh = _GetFallback()->ConvertMaskSameSize( eSourceType, eTargetType, _ExtractSSEVector( eSourceType, pVectorAVX, false ) );
+    }
+    else
+    {
+      pResultLow  = _GetFallback()->ConvertVectorSameSize( eSourceType, eTargetType, _ExtractSSEVector( eSourceType, pVectorAVX, true  ) );
+      pResultHigh = _GetFallback()->ConvertVectorSameSize( eSourceType, eTargetType, _ExtractSSEVector( eSourceType, pVectorAVX, false ) );
+    }
+  }
+  else if (cszElementCountSource < cszElementCountTarget)
+  {
+    // Downward conversion
+    ClangASTHelper::ExpressionVectorType vecVectorRefsLow, vecVectorRefsHigh;
+    {
+      // Extract all SSE vectors from the source AVX vectors
+      ClangASTHelper::ExpressionVectorType vecVectorsSSE;
+      for (auto itVectorAVX : crvecVectorRefs)
+      {
+        vecVectorsSSE.push_back( _ExtractSSEVector( eSourceType, itVectorAVX, true  ) );
+        vecVectorsSSE.push_back( _ExtractSSEVector( eSourceType, itVectorAVX, false ) );
+      }
+
+      // Split the SSE vectors into the low and high element-halfs
+      const size_t cszSourceVectorCount = crvecVectorRefs.size();
+      vecVectorRefsLow.insert ( vecVectorRefsLow.end(),  vecVectorsSSE.begin(),                        vecVectorsSSE.begin() + cszSourceVectorCount );
+      vecVectorRefsHigh.insert( vecVectorRefsHigh.end(), vecVectorsSSE.begin() + cszSourceVectorCount, vecVectorsSSE.end()                          );
+    }
+
+    // Perform the downward conversions for both element-halfs
+    if (bMaskConversion)
+    {
+      pResultLow  = _GetFallback()->ConvertMaskDown( eSourceType, eTargetType, vecVectorRefsLow  );
+      pResultHigh = _GetFallback()->ConvertMaskDown( eSourceType, eTargetType, vecVectorRefsHigh );
+    }
+    else
+    {
+      pResultLow  = _GetFallback()->ConvertVectorDown( eSourceType, eTargetType, vecVectorRefsLow  );
+      pResultHigh = _GetFallback()->ConvertVectorDown( eSourceType, eTargetType, vecVectorRefsHigh );
+    }
+  }
+  else
+  {
+    // Upward conversion
+    const uint32_t cuiSwapIndex     = static_cast< uint32_t >( (cszElementCountSource / cszElementCountTarget) >> 1 );
+    const uint32_t cuiGroupIndexSSE = (uiGroupIndex % cuiSwapIndex) << 1;
+
+    // Select the SSE vector lane which contains the requested group
+    Expr *pVectorSSE = _ExtractSSEVector( eSourceType, crvecVectorRefs.front(), (uiGroupIndex < cuiSwapIndex) );
+
+    // Convert two adjacent groups of the requested SSE lane
+    if (bMaskConversion)
+    {
+      pResultLow  = _GetFallback()->ConvertMaskUp( eSourceType, eTargetType, pVectorSSE, cuiGroupIndexSSE );
+      pResultHigh = _GetFallback()->ConvertMaskUp( eSourceType, eTargetType, pVectorSSE, cuiGroupIndexSSE + 1 );
+    }
+    else
+    {
+      pResultLow  = _GetFallback()->ConvertVectorUp( eSourceType, eTargetType, pVectorSSE, cuiGroupIndexSSE );
+      pResultHigh = _GetFallback()->ConvertVectorUp( eSourceType, eTargetType, pVectorSSE, cuiGroupIndexSSE + 1 );
+    }
+  }
+
+  // Merge both converted SSE vectors back into the final AVX vector
+  return _MergeSSEVectors( eTargetType, pResultLow, pResultHigh );
+}
+
+void InstructionSetAVX::_InitIntrinsicsMap()
+{
+  // Addition functions
+  _InitIntrinsic( IntrinsicsAVXEnum::AddDouble, "add_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::AddFloat,  "add_ps" );
+
+  // Bitwise "and" functions
+  _InitIntrinsic( IntrinsicsAVXEnum::AndDouble, "and_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::AndFloat,  "and_ps" );
+
+  // Blending functions
+  _InitIntrinsic( IntrinsicsAVXEnum::BlendDouble, "blendv_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::BlendFloat,  "blendv_ps" );
+
+  // Broadcast functions
+  _InitIntrinsic( IntrinsicsAVXEnum::BroadCastDouble, "set1_pd"     );
+  _InitIntrinsic( IntrinsicsAVXEnum::BroadCastFloat,  "set1_ps"     );
+  _InitIntrinsic( IntrinsicsAVXEnum::BroadCastInt8,   "set1_epi8"   );
+  _InitIntrinsic( IntrinsicsAVXEnum::BroadCastInt16,  "set1_epi16"  );
+  _InitIntrinsic( IntrinsicsAVXEnum::BroadCastInt32,  "set1_epi32"  );
+  _InitIntrinsic( IntrinsicsAVXEnum::BroadCastInt64,  "set1_epi64x" );
+
+  // Vector cast functions (change bit-representation, no conversion)
+  _InitIntrinsic( IntrinsicsAVXEnum::CastDoubleToFloat,   "castpd_ps"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::CastDoubleToInteger, "castpd_si256" );
+  _InitIntrinsic( IntrinsicsAVXEnum::CastFloatToDouble,   "castps_pd"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::CastFloatToInteger,  "castps_si256" );
+  _InitIntrinsic( IntrinsicsAVXEnum::CastIntegerToDouble, "castsi256_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::CastIntegerToFloat,  "castsi256_ps" );
+
+  // Rounding functions
+  _InitIntrinsic( IntrinsicsAVXEnum::CeilDouble,  "ceil_pd"  );
+  _InitIntrinsic( IntrinsicsAVXEnum::CeilFloat,   "ceil_ps"  );
+  _InitIntrinsic( IntrinsicsAVXEnum::FloorDouble, "floor_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::FloorFloat,  "floor_ps" );
+
+  // Comparison functions
+  _InitIntrinsic( IntrinsicsAVXEnum::CompareDouble, "cmp_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::CompareFloat,  "cmp_ps" );
+
+  // Convert functions
+  _InitIntrinsic( IntrinsicsAVXEnum::ConvertDoubleFloat, "cvtpd_ps"     );
+  _InitIntrinsic( IntrinsicsAVXEnum::ConvertDoubleInt32, "cvttpd_epi32" );    // Use truncation
+  _InitIntrinsic( IntrinsicsAVXEnum::ConvertFloatDouble, "cvtps_pd"     );
+  _InitIntrinsic( IntrinsicsAVXEnum::ConvertFloatInt32,  "cvttps_epi32" );    // Use truncation
+  _InitIntrinsic( IntrinsicsAVXEnum::ConvertInt32Double, "cvtepi32_pd"  );
+  _InitIntrinsic( IntrinsicsAVXEnum::ConvertInt32Float,  "cvtepi32_ps"  );
+
+  // Division functions
+  _InitIntrinsic( IntrinsicsAVXEnum::DivideDouble, "div_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::DivideFloat,  "div_ps" );
+
+  // Duplication functions
+  _InitIntrinsic( IntrinsicsAVXEnum::DuplicateEvenFloat, "moveldup_ps" );
+  _InitIntrinsic( IntrinsicsAVXEnum::DuplicateOddFloat,  "movehdup_ps" );
+
+  // Extract SSE vectors functions
+  _InitIntrinsic( IntrinsicsAVXEnum::ExtractSSEDouble,  "extractf128_pd"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::ExtractSSEFloat,   "extractf128_ps"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::ExtractSSEInteger, "extractf128_si256" );
+
+  // Insert SSE vectors functions
+  _InitIntrinsic( IntrinsicsAVXEnum::InsertSSEDouble,  "insertf128_pd"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::InsertSSEFloat,   "insertf128_ps"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::InsertSSEInteger, "insertf128_si256" );
+
+  // Load functions
+  _InitIntrinsic( IntrinsicsAVXEnum::LoadDouble,  "loadu_pd"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::LoadFloat,   "loadu_ps"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::LoadInteger, "lddqu_si256" );
+
+  // Maximum / Minimum functions
+  _InitIntrinsic( IntrinsicsAVXEnum::MaxDouble, "max_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::MaxFloat,  "max_ps" );
+  _InitIntrinsic( IntrinsicsAVXEnum::MinDouble, "min_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::MinFloat,  "min_ps" );
+
+  // Merge SSE vectors functions
+  _InitIntrinsic( IntrinsicsAVXEnum::MergeDouble,  "set_m128d" );
+  _InitIntrinsic( IntrinsicsAVXEnum::MergeFloat,   "set_m128"  );
+  _InitIntrinsic( IntrinsicsAVXEnum::MergeInteger, "set_m128i" );
+
+  // Mask conversion functions
+  _InitIntrinsic( IntrinsicsAVXEnum::MoveMaskDouble, "movemask_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::MoveMaskFloat,  "movemask_ps" );
+
+  // Multiplication functions
+  _InitIntrinsic( IntrinsicsAVXEnum::MultiplyDouble, "mul_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::MultiplyFloat,  "mul_ps" );
+
+  // Bitwise "or" functions
+  _InitIntrinsic( IntrinsicsAVXEnum::OrDouble, "or_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::OrFloat,  "or_ps" );
+
+  // Permute functions
+  _InitIntrinsic( IntrinsicsAVXEnum::PermuteLanesFloat, "permute2f128_ps" );
+
+  // Set methods
+  _InitIntrinsic( IntrinsicsAVXEnum::SetDouble, "set_pd"     );
+  _InitIntrinsic( IntrinsicsAVXEnum::SetFloat,  "set_ps"     );
+  _InitIntrinsic( IntrinsicsAVXEnum::SetInt8,   "set_epi8"   );
+  _InitIntrinsic( IntrinsicsAVXEnum::SetInt16,  "set_epi16"  );
+  _InitIntrinsic( IntrinsicsAVXEnum::SetInt32,  "set_epi32"  );
+  _InitIntrinsic( IntrinsicsAVXEnum::SetInt64,  "set_epi64x" );
+
+  // Zero vector creation functions
+  _InitIntrinsic( IntrinsicsAVXEnum::SetZeroDouble,  "setzero_pd"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::SetZeroFloat,   "setzero_ps"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::SetZeroInteger, "setzero_si256" );
+
+  // Shuffle functions
+  _InitIntrinsic( IntrinsicsAVXEnum::ShuffleDouble, "shuffle_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::ShuffleFloat,  "shuffle_ps" );
+
+  // Store functions
+  _InitIntrinsic( IntrinsicsAVXEnum::StoreDouble,  "storeu_pd"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::StoreFloat,   "storeu_ps"    );
+  _InitIntrinsic( IntrinsicsAVXEnum::StoreInteger, "storeu_si256" );
+
+  // Square root functions
+  _InitIntrinsic( IntrinsicsAVXEnum::SqrtDouble, "sqrt_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::SqrtFloat,  "sqrt_ps" );
+
+  // Subtraction functions
+  _InitIntrinsic( IntrinsicsAVXEnum::SubtractDouble, "sub_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::SubtractFloat,  "sub_ps" );
+  
+  // Bitwise "xor" functions
+  _InitIntrinsic( IntrinsicsAVXEnum::XorDouble, "xor_pd" );
+  _InitIntrinsic( IntrinsicsAVXEnum::XorFloat,  "xor_ps" );
+}
+
+Expr* InstructionSetAVX::_CastVector(VectorElementTypes eSourceType, VectorElementTypes eTargetType, Expr *pVectorRef)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::CastDoubleToFloat;
+
+  switch (eSourceType)
+  {
+  case VectorElementTypes::Double:
+    {
+      switch (eTargetType)
+      {
+      case VectorElementTypes::Double:                                  return pVectorRef;
+      case VectorElementTypes::Float:                                   eFunctionID = IntrinsicsAVXEnum::CastDoubleToFloat;     break;
+      case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+      case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+      case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+      case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::CastDoubleToInteger;   break;
+      default:                                                          _ThrowUnsupportedType(eSourceType);
+      }
+
+      break;
+    }
+  case VectorElementTypes::Float:
+    {
+      switch (eTargetType)
+      {
+      case VectorElementTypes::Double:                                  eFunctionID = IntrinsicsAVXEnum::CastFloatToDouble;   break;
+      case VectorElementTypes::Float:                                   return pVectorRef;
+      case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+      case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+      case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+      case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::CastFloatToInteger;  break;
+      default:                                                          _ThrowUnsupportedType(eSourceType);
+      }
+
+      break;
+    }
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+    {
+      switch (eTargetType)
+      {
+      case VectorElementTypes::Double:                                  eFunctionID = IntrinsicsAVXEnum::CastIntegerToDouble;   break;
+      case VectorElementTypes::Float:                                   eFunctionID = IntrinsicsAVXEnum::CastIntegerToFloat;    break;
+      case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+      case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+      case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+      case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  return pVectorRef;
+      default:                                                          _ThrowUnsupportedType(eSourceType);
+      }
+
+      break;
+    }
+  default:  _ThrowUnsupportedType( eSourceType );
+  }
+
+  return _CreateFunctionCall( eFunctionID, pVectorRef );
+}
+
+Expr* InstructionSetAVX::_CreateFullBitMask(VectorElementTypes eElementType)
+{
+  return _CastVector( VectorElementTypes::Int32, eElementType, CreateOnesVector( VectorElementTypes::Int32, true ) );
+}
+
+Expr* InstructionSetAVX::_CreatePrePostFixedUnaryOp(VectorElementTypes eElementType, Expr *pVectorRef, bool bPrefixed, bool bIncrement)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::AddDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:  eFunctionID = bIncrement ? IntrinsicsAVXEnum::AddDouble : IntrinsicsAVXEnum::SubtractDouble;  break;
+  case VectorElementTypes::Float:   eFunctionID = bIncrement ? IntrinsicsAVXEnum::AddFloat  : IntrinsicsAVXEnum::SubtractFloat;   break;
+  default:
+    {
+      const ArithmeticOperatorType ceOpCode = bIncrement ? ArithmeticOperatorType::Add : ArithmeticOperatorType::Subtract;
+
+      Expr *pReturnExpr = ArithmeticOperator( eElementType, ceOpCode, pVectorRef, CreateOnesVector( eElementType, false ) );
+      pReturnExpr       = _GetASTHelper().CreateBinaryOperator( pVectorRef, pReturnExpr, BO_Assign, pVectorRef->getType() );
+
+      if (! bPrefixed)
+      {
+        Expr *pRevertExpr = ArithmeticOperator( eElementType, ceOpCode, pVectorRef, CreateOnesVector( eElementType, true ) );
+        pReturnExpr       = _GetASTHelper().CreateBinaryOperatorComma( _GetASTHelper().CreateParenthesisExpression( pReturnExpr ), pRevertExpr );
+      }
+
+      return _GetASTHelper().CreateParenthesisExpression( pReturnExpr );
+    }
+  }
+
+  if (bPrefixed)
+  {
+    return _CreatePrefixedUnaryOp( _mapIntrinsicsAVX, eFunctionID, eElementType, pVectorRef );
+  }
+  else
+  {
+    return _CreatePostfixedUnaryOp( _mapIntrinsicsAVX, eFunctionID, eElementType, pVectorRef );
+  }
+}
+
+Expr* InstructionSetAVX::_ExtractSSEVector(VectorElementTypes eElementType, Expr *pAVXVector, bool bLowHalf)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::ExtractSSEDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:                                  eFunctionID = IntrinsicsAVXEnum::ExtractSSEDouble;   break;
+  case VectorElementTypes::Float:                                   eFunctionID = IntrinsicsAVXEnum::ExtractSSEFloat;    break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::ExtractSSEInteger;  break;
+  default:                                                          _ThrowUnsupportedType( eElementType );
+  }
+
+  return _CreateFunctionCall( eFunctionID, pAVXVector, _GetASTHelper().CreateIntegerLiteral( bLowHalf ? 0 : 1 ) );
+}
+
+Expr* InstructionSetAVX::_InsertSSEVector(VectorElementTypes eElementType, Expr *pAVXVector, Expr *pSSEVector, bool bLowHalf)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::InsertSSEDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:                                  eFunctionID = IntrinsicsAVXEnum::InsertSSEDouble;   break;
+  case VectorElementTypes::Float:                                   eFunctionID = IntrinsicsAVXEnum::InsertSSEFloat;    break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::InsertSSEInteger;  break;
+  default:                                                          _ThrowUnsupportedType( eElementType );
+  }
+
+  return _CreateFunctionCall( eFunctionID, pAVXVector, pSSEVector, _GetASTHelper().CreateIntegerLiteral( bLowHalf ? 0 : 1 ) );
+}
+
+Expr* InstructionSetAVX::_MergeSSEVectors(VectorElementTypes eElementType, Expr *pSSEVectorLow, Expr *pSSEVectorHigh)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::MergeDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:                                  eFunctionID = IntrinsicsAVXEnum::MergeDouble;   break;
+  case VectorElementTypes::Float:                                   eFunctionID = IntrinsicsAVXEnum::MergeFloat;    break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::MergeInteger;  break;
+  default:                                                          _ThrowUnsupportedType( eElementType );
+  }
+
+  return _CreateFunctionCall( eFunctionID, pSSEVectorHigh, pSSEVectorLow );
+}
+
+Expr* InstructionSetAVX::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::AddDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:
+    {
+      switch (eOpType)
+      {
+      case ArithmeticOperatorType::Add:           eFunctionID = IntrinsicsAVXEnum::AddDouble;       break;
+      case ArithmeticOperatorType::BitwiseAnd:    eFunctionID = IntrinsicsAVXEnum::AndDouble;       break;
+      case ArithmeticOperatorType::BitwiseOr:     eFunctionID = IntrinsicsAVXEnum::OrDouble;        break;
+      case ArithmeticOperatorType::BitwiseXOr:    eFunctionID = IntrinsicsAVXEnum::XorDouble;       break;
+      case ArithmeticOperatorType::Divide:        eFunctionID = IntrinsicsAVXEnum::DivideDouble;    break;
+      case ArithmeticOperatorType::Multiply:      eFunctionID = IntrinsicsAVXEnum::MultiplyDouble;  break;
+      case ArithmeticOperatorType::Subtract:      eFunctionID = IntrinsicsAVXEnum::SubtractDouble;  break;
+      case ArithmeticOperatorType::Modulo:        throw RuntimeErrorException("Modulo operation is undefined for floating point data types!");
+      case ArithmeticOperatorType::ShiftLeft:
+      case ArithmeticOperatorType::ShiftRight:    throw RuntimeErrorException("Shift operations are undefined for floating point data types!");
+      default:                                    throw InternalErrorException("Unsupported arithmetic operation detected!");
+      }
+
+      break;
+    }
+  case VectorElementTypes::Float:
+    {
+      switch (eOpType)
+      {
+      case ArithmeticOperatorType::Add:           eFunctionID = IntrinsicsAVXEnum::AddFloat;        break;
+      case ArithmeticOperatorType::BitwiseAnd:    eFunctionID = IntrinsicsAVXEnum::AndFloat;        break;
+      case ArithmeticOperatorType::BitwiseOr:     eFunctionID = IntrinsicsAVXEnum::OrFloat;         break;
+      case ArithmeticOperatorType::BitwiseXOr:    eFunctionID = IntrinsicsAVXEnum::XorFloat;        break;
+      case ArithmeticOperatorType::Divide:        eFunctionID = IntrinsicsAVXEnum::DivideFloat;     break;
+      case ArithmeticOperatorType::Multiply:      eFunctionID = IntrinsicsAVXEnum::MultiplyFloat;   break;
+      case ArithmeticOperatorType::Subtract:      eFunctionID = IntrinsicsAVXEnum::SubtractFloat;   break;
+      case ArithmeticOperatorType::Modulo:        throw RuntimeErrorException("Modulo operation is undefined for floating point data types!");
+      case ArithmeticOperatorType::ShiftLeft:
+      case ArithmeticOperatorType::ShiftRight:    throw RuntimeErrorException("Shift operations are undefined for floating point data types!");
+      default:                                    throw InternalErrorException("Unsupported arithmetic operation detected!");
+      }
+
+      break;
+    }
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+    {
+      // Only bit-wise operation can be sped up => All other operations fall through to the default case
+      switch (eOpType)
+      {
+      case ArithmeticOperatorType::BitwiseAnd:
+      case ArithmeticOperatorType::BitwiseOr:
+      case ArithmeticOperatorType::BitwiseXOr:
+        {
+          Expr *pCastedLHS = _CastVector( eElementType, VectorElementTypes::Float, pExprLHS );
+          Expr *pCastedRHS = _CastVector( eElementType, VectorElementTypes::Float, pExprRHS );
+
+          return _CastVector( VectorElementTypes::Float, eElementType, ArithmeticOperator( VectorElementTypes::Float, eOpType, pCastedLHS, pCastedRHS ) );
+        }
+      default:  break;    // Useless default branch avoiding GCC compiler warnings
+      }
+    }
+  default:
+    {
+      ClangASTHelper::ExpressionVectorType  vecSSEArithOps;
+
+      for (uint32_t uiIdx = 0; uiIdx < 2; ++uiIdx)
+      {
+        const bool cbLowHalf = (uiIdx == 0);
+
+        Expr *pExprLHS_SSE = _ExtractSSEVector( eElementType, pExprLHS, cbLowHalf );
+        Expr *pExprRHS_SSE = _ExtractSSEVector( eElementType, pExprRHS, cbLowHalf );
+
+        vecSSEArithOps.push_back( _GetFallback()->ArithmeticOperator( eElementType, eOpType, pExprLHS_SSE, pExprRHS_SSE ) );
+      }
+
+      return _MergeSSEVectors( eElementType, vecSSEArithOps[0], vecSSEArithOps[1] );
+    }
+  }
+
+  return _CreateFunctionCall( eFunctionID, pExprLHS, pExprRHS );
+}
+
+Expr* InstructionSetAVX::BlendVectors(VectorElementTypes eElementType, Expr *pMaskRef, Expr *pVectorTrue, Expr *pVectorFalse)
+{
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:    return _CreateFunctionCall( IntrinsicsAVXEnum::BlendDouble, pVectorFalse, pVectorTrue, pMaskRef );
+  case VectorElementTypes::Float:     return _CreateFunctionCall( IntrinsicsAVXEnum::BlendFloat,  pVectorFalse, pVectorTrue, pMaskRef );
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+    {
+      // Exploit blending routine for "float" element type
+      const VectorElementTypes ceIntermediateType = VectorElementTypes::Float;
+
+      Expr *pMaskRefCasted      = _CastVector( eElementType, ceIntermediateType, pMaskRef     );
+      Expr *pVectorTrueCasted   = _CastVector( eElementType, ceIntermediateType, pVectorTrue  );
+      Expr *pVectorFalseCasted  = _CastVector( eElementType, ceIntermediateType, pVectorFalse );
+
+      return _CastVector( ceIntermediateType, eElementType, BlendVectors( ceIntermediateType, pMaskRefCasted, pVectorTrueCasted, pVectorFalseCasted ) );
+    }
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+    {
+      // Exploit blending routine for "double" element type
+      const VectorElementTypes ceIntermediateType = VectorElementTypes::Double;
+
+      Expr *pMaskRefCasted      = _CastVector( eElementType, ceIntermediateType, pMaskRef     );
+      Expr *pVectorTrueCasted   = _CastVector( eElementType, ceIntermediateType, pVectorTrue  );
+      Expr *pVectorFalseCasted  = _CastVector( eElementType, ceIntermediateType, pVectorFalse );
+
+      return _CastVector( ceIntermediateType, eElementType, BlendVectors( ceIntermediateType, pMaskRefCasted, pVectorTrueCasted, pVectorFalseCasted ) );
+    }
+  default:
+    {
+      ClangASTHelper::ExpressionVectorType  vecSSEBlends;
+
+      for (uint32_t uiIdx = 0; uiIdx < 2; ++uiIdx)
+      {
+        const bool cbLowHalf = (uiIdx == 0);
+
+        Expr *pMaskRefSSE     = _ExtractSSEVector( eElementType, pMaskRef,     cbLowHalf );
+        Expr *pVectorTrueSSE  = _ExtractSSEVector( eElementType, pVectorTrue,  cbLowHalf );
+        Expr *pVectorFalseSSE = _ExtractSSEVector( eElementType, pVectorFalse, cbLowHalf );
+
+        vecSSEBlends.push_back( _GetFallback()->BlendVectors( eElementType, pMaskRefSSE, pVectorTrueSSE, pVectorFalseSSE ) );
+      }
+
+      return _MergeSSEVectors( eElementType, vecSSEBlends[0], vecSSEBlends[1] );
+    }
+  }
+}
+
+Expr* InstructionSetAVX::BroadCast(VectorElementTypes eElementType, Expr *pBroadCastValue)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::BroadCastDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:                                  eFunctionID = IntrinsicsAVXEnum::BroadCastDouble;   break;
+  case VectorElementTypes::Float:                                   eFunctionID = IntrinsicsAVXEnum::BroadCastFloat;    break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:   eFunctionID = IntrinsicsAVXEnum::BroadCastInt8;     break;
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:  eFunctionID = IntrinsicsAVXEnum::BroadCastInt16;    break;
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  eFunctionID = IntrinsicsAVXEnum::BroadCastInt32;    break;
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::BroadCastInt64;    break;
+  default:                                                          _ThrowUnsupportedType( eElementType );
+  }
+
+  return _CreateFunctionCall( eFunctionID, pBroadCastValue );
+}
+
+Expr* InstructionSetAVX::BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments)
+{
+  const uint32_t cuiParamCount = static_cast< uint32_t >( crvecArguments.size() );
+
+  if (! IsBuiltinFunctionSupported(eElementType, eFunctionType, cuiParamCount))
+  {
+    throw InstructionSetExceptions::UnsupportedBuiltinFunctionType(eElementType, eFunctionType, cuiParamCount, "AVX");
+  }
+
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double: case VectorElementTypes::Float:
+    {
+      const bool cbIsDouble = (eElementType == VectorElementTypes::Double);
+
+      if (cuiParamCount == 2)
+      {
+        switch (eFunctionType)
+        {
+        case BuiltinFunctionsEnum::Max:   return _CreateFunctionCall( cbIsDouble ? IntrinsicsAVXEnum::MaxDouble : IntrinsicsAVXEnum::MaxFloat, crvecArguments[0], crvecArguments[1] );
+        case BuiltinFunctionsEnum::Min:   return _CreateFunctionCall( cbIsDouble ? IntrinsicsAVXEnum::MinDouble : IntrinsicsAVXEnum::MinFloat, crvecArguments[0], crvecArguments[1] );
+        default:                          break;    // Useless default branch avoiding GCC compiler warnings
+        }
+      }
+      else if (cuiParamCount == 1)
+      {
+        switch (eFunctionType)
+        {
+        case BuiltinFunctionsEnum::Abs:
+          {
+            Expr *pSubZeroMask  = RelationalOperator( eElementType, RelationalOperatorType::Less, crvecArguments.front(), CreateZeroVector(eElementType) );
+            Expr *pMultiplier   = BlendVectors( eElementType, pSubZeroMask, CreateOnesVector(eElementType, true), CreateOnesVector(eElementType, false) );
+
+            return ArithmeticOperator( eElementType, ArithmeticOperatorType::Multiply, crvecArguments.front(), pMultiplier );
+          }
+        case BuiltinFunctionsEnum::Ceil:    return _CreateFunctionCall( cbIsDouble ? IntrinsicsAVXEnum::CeilDouble  : IntrinsicsAVXEnum::CeilFloat,  crvecArguments.front() );
+        case BuiltinFunctionsEnum::Floor:   return _CreateFunctionCall( cbIsDouble ? IntrinsicsAVXEnum::FloorDouble : IntrinsicsAVXEnum::FloorFloat, crvecArguments.front() );
+        case BuiltinFunctionsEnum::Sqrt:    return _CreateFunctionCall( cbIsDouble ? IntrinsicsAVXEnum::SqrtDouble  : IntrinsicsAVXEnum::SqrtFloat,  crvecArguments.front() );
+        default:                            break;    // Useless default branch avoiding GCC compiler warnings
+        }
+      }
+
+      break;
+    }
+  case VectorElementTypes::Int8:   case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16:  case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32:  case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64:  case VectorElementTypes::UInt64:
+    {
+      switch (eFunctionType)
+      {
+      case BuiltinFunctionsEnum::Abs:
+        {
+          if (! AST::BaseClasses::TypeInfo::IsSigned( eElementType ))
+          {
+            return crvecArguments.front();
+          }
+
+          break;
+        }
+      case BuiltinFunctionsEnum::Ceil:    return crvecArguments.front();
+      case BuiltinFunctionsEnum::Floor:   return crvecArguments.front();
+      default:                            break;    // Useless default branch avoiding GCC compiler warnings
+      }
+      
+      break;
+    }
+  default:  break;    // Useless default branch avoiding GCC compiler warnings
+  }
+
+
+  // If the function has not returned earlier, use the SSE fallback
+  ClangASTHelper::ExpressionVectorType  vecSSEBuiltinFuncs;
+
+  for (uint32_t uiIdx = 0; uiIdx < 2; ++uiIdx)
+  {
+    ClangASTHelper::ExpressionVectorType vecSSEArgs;
+
+    for (auto itArg : crvecArguments)
+    {
+      vecSSEArgs.push_back( _ExtractSSEVector( eElementType, itArg, (uiIdx == 0) ) );
+    }
+
+    vecSSEBuiltinFuncs.push_back( _GetFallback()->BuiltinFunction( eElementType, eFunctionType, vecSSEArgs ) );
+  }
+
+  return _MergeSSEVectors( eElementType, vecSSEBuiltinFuncs[0], vecSSEBuiltinFuncs[1] );
+}
+
+Expr* InstructionSetAVX::CheckActiveElements(VectorElementTypes eMaskElementType, ActiveElementsCheckType eCheckType, Expr *pMaskExpr)
+{
+  const QualType cqtBool = _GetClangType( VectorElementTypes::Bool );
+
+  switch (eMaskElementType)
+  {
+  case VectorElementTypes::Double: case VectorElementTypes::Float:
+    {
+      int32_t iTestConstant = (eMaskElementType == VectorElementTypes::Double)    ? 0x0F          : 0xFF;
+      iTestConstant         = (eCheckType       == ActiveElementsCheckType::All)  ? iTestConstant :    0;
+
+      const IntrinsicsAVXEnum   ceFunctionID  = (eMaskElementType == VectorElementTypes::Double)    ? IntrinsicsAVXEnum::MoveMaskDouble : IntrinsicsAVXEnum::MoveMaskFloat;
+      const BinaryOperatorKind  ceCompareOp   = (eCheckType       == ActiveElementsCheckType::Any)  ? BO_NE : BO_EQ;
+
+      return _GetASTHelper().CreateBinaryOperator( _CreateFunctionCall( ceFunctionID, pMaskExpr ), _GetASTHelper().CreateLiteral( iTestConstant ), ceCompareOp, cqtBool );
+    }
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+    {
+      // Exploit check routine for "float" element type
+      const VectorElementTypes ceIntermediateType = VectorElementTypes::Float;
+
+      return CheckActiveElements( ceIntermediateType, eCheckType, _CastVector( eMaskElementType, ceIntermediateType, pMaskExpr ) );
+    }
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+    {
+      // Exploit check routine for "double" element type
+      const VectorElementTypes ceIntermediateType = VectorElementTypes::Double;
+
+      return CheckActiveElements( ceIntermediateType, eCheckType, _CastVector( eMaskElementType, ceIntermediateType, pMaskExpr ) );
+    }
+  default:
+    {
+      ClangASTHelper::ExpressionVectorType  vecSSEChecks;
+
+      for (uint32_t uiIdx = 0; uiIdx < 2; ++uiIdx)
+      {
+        Expr *pMaskRefSSE = _ExtractSSEVector( eMaskElementType, pMaskExpr, (uiIdx == 0) );
+
+        vecSSEChecks.push_back( _GetASTHelper().CreateParenthesisExpression( _GetFallback()->CheckActiveElements(eMaskElementType, eCheckType, pMaskRefSSE) ) );
+      }
+
+      return _GetASTHelper().CreateBinaryOperator( vecSSEChecks[0], vecSSEChecks[1], ((eCheckType == ActiveElementsCheckType::Any) ? BO_LOr : BO_LAnd), cqtBool );
+    }
+  }
+}
+
+Expr* InstructionSetAVX::CheckSingleMaskElement(VectorElementTypes eMaskElementType, Expr *pMaskExpr, uint32_t uiIndex)
+{
+  if ( uiIndex >= static_cast<uint32_t>(GetVectorElementCount(eMaskElementType)) )
+  {
+    throw InternalErrorException("The index cannot exceed the vector element count!");
+  }
+
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::MoveMaskDouble;
+
+  switch (eMaskElementType)
+  {
+  case VectorElementTypes::Double:  eFunctionID = IntrinsicsAVXEnum::MoveMaskDouble;  break;
+  case VectorElementTypes::Float:   eFunctionID = IntrinsicsAVXEnum::MoveMaskFloat;   break;
+  default:
+    {
+      const uint32_t cuiElementCountSSE = _GetFallback()->GetVectorElementCount( eMaskElementType );
+
+      Expr *pMaskSSE = _ExtractSSEVector( eMaskElementType, pMaskExpr, (uiIndex < cuiElementCountSSE) );
+
+      return _GetFallback()->CheckSingleMaskElement( eMaskElementType, pMaskSSE, uiIndex % cuiElementCountSSE );
+    }
+  }
+
+  Expr *pMoveMask = _CreateFunctionCall( eFunctionID, pMaskExpr );
+
+  return _GetASTHelper().CreateBinaryOperator( pMoveMask, _GetASTHelper().CreateLiteral( static_cast<int32_t>(1 << uiIndex) ), BO_And, pMoveMask->getType() );
+}
+
+Expr* InstructionSetAVX::CreateOnesVector(VectorElementTypes eElementType, bool bNegative)
+{
+  Expr *pBroadCastValue = nullptr;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:                                  pBroadCastValue = _GetASTHelper().CreateLiteral( bNegative ? -1.0  : 1.0  );  break;
+  case VectorElementTypes::Float:                                   pBroadCastValue = _GetASTHelper().CreateLiteral( bNegative ? -1.0f : 1.0f );  break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  pBroadCastValue = _GetASTHelper().CreateLiteral( bNegative ? -1    : 1    );  break;
+  default:                                                          _ThrowUnsupportedType( eElementType );
+  }
+
+  return BroadCast( eElementType, pBroadCastValue );
+}
+
+Expr* InstructionSetAVX::CreateVector(VectorElementTypes eElementType, const ClangASTHelper::ExpressionVectorType &crvecElements, bool bReversedOrder)
+{
+  if (crvecElements.size() != GetVectorElementCount(eElementType))
+  {
+    throw RuntimeErrorException("The number of init expressions must be equal to the vector element count!");
+  }
+
+  if (! bReversedOrder)
+  {
+    // AVX vector creation methods expect the arguments in reversed order
+    return CreateVector( eElementType, _SwapExpressionOrder( crvecElements ), true );
+  }
+
+
+  IntrinsicsAVXEnum eIntrinID = IntrinsicsAVXEnum::SetDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:                                  eIntrinID = IntrinsicsAVXEnum::SetDouble;   break;
+  case VectorElementTypes::Float:                                   eIntrinID = IntrinsicsAVXEnum::SetFloat;    break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:   eIntrinID = IntrinsicsAVXEnum::SetInt8;     break;
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:  eIntrinID = IntrinsicsAVXEnum::SetInt16;    break;
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  eIntrinID = IntrinsicsAVXEnum::SetInt32;    break;
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eIntrinID = IntrinsicsAVXEnum::SetInt64;    break;
+  default:                                                          _ThrowUnsupportedType( eElementType );
+  }
+
+  return _CreateFunctionCall( eIntrinID, crvecElements );
+}
+
+Expr* InstructionSetAVX::CreateZeroVector(VectorElementTypes eElementType)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::SetZeroDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:                                  eFunctionID = IntrinsicsAVXEnum::SetZeroDouble;   break;
+  case VectorElementTypes::Float:                                   eFunctionID = IntrinsicsAVXEnum::SetZeroFloat;    break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::SetZeroInteger;  break;
+  default:                                                          _ThrowUnsupportedType( eElementType );
+  }
+
+  return _CreateFunctionCall( eFunctionID );
+}
+
+Expr* InstructionSetAVX::ExtractElement(VectorElementTypes eElementType, Expr *pVectorRef, uint32_t uiIndex)
+{
+  const uint32_t cuiElementCountAVX = static_cast< uint32_t >( GetVectorElementCount(eElementType) );
+  const uint32_t cuiElementCountSSE = static_cast< uint32_t >( _GetFallback()->GetVectorElementCount(eElementType) );
+
+  if (uiIndex >= cuiElementCountAVX)
+  {
+    throw InstructionSetExceptions::ExtractIndexOutOfRange( eElementType, cuiElementCountAVX );
+  }
+
+  Expr *pVectorSSE = _ExtractSSEVector( eElementType, pVectorRef, (uiIndex < cuiElementCountSSE) );
+
+  return _GetFallback()->ExtractElement( eElementType, pVectorSSE, uiIndex % cuiElementCountSSE );
+}
+
+QualType InstructionSetAVX::GetVectorType(VectorElementTypes eElementType)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::SetZeroDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:                                  eFunctionID = IntrinsicsAVXEnum::SetZeroDouble;   break;
+  case VectorElementTypes::Float:                                   eFunctionID = IntrinsicsAVXEnum::SetZeroFloat;    break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::SetZeroInteger;  break;
+  default:                                                          _ThrowUnsupportedType( eElementType );
+  }
+
+  return _GetFunctionReturnType( eFunctionID );
+}
+
+Expr* InstructionSetAVX::InsertElement(VectorElementTypes eElementType, Expr *pVectorRef, Expr *pElementValue, uint32_t uiIndex)
+{
+  const uint32_t cuiElementCountAVX = static_cast< uint32_t >( GetVectorElementCount(eElementType) );
+  const uint32_t cuiElementCountSSE = static_cast< uint32_t >( _GetFallback()->GetVectorElementCount(eElementType) );
+
+  if (uiIndex >= cuiElementCountAVX)
+  {
+    throw InstructionSetExceptions::InsertIndexOutOfRange( eElementType, cuiElementCountAVX );
+  }
+
+  const bool cbLowHalf = (uiIndex < cuiElementCountSSE);
+
+  Expr *pVectorSSE  = _ExtractSSEVector( eElementType, pVectorRef, cbLowHalf );
+  pVectorSSE        = _GetFallback()->InsertElement( eElementType, pVectorSSE, pElementValue, uiIndex % cuiElementCountSSE );
+
+  return _InsertSSEVector( eElementType, pVectorRef, pVectorSSE, cbLowHalf );
+}
+
+bool InstructionSetAVX::IsBuiltinFunctionSupported(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, uint32_t uiParamCount) const
+{
+  bool bSupported = false;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double: case VectorElementTypes::Float:
+    {
+      switch (eFunctionType)
+      {
+      case BuiltinFunctionsEnum::Abs:     bSupported = (uiParamCount == 1);   break;
+      case BuiltinFunctionsEnum::Ceil:    bSupported = (uiParamCount == 1);   break;
+      case BuiltinFunctionsEnum::Floor:   bSupported = (uiParamCount == 1);   break;
+      case BuiltinFunctionsEnum::Max:     bSupported = (uiParamCount == 2);   break;
+      case BuiltinFunctionsEnum::Min:     bSupported = (uiParamCount == 2);   break;
+      case BuiltinFunctionsEnum::Sqrt:    bSupported = (uiParamCount == 1);   break;
+      default:                            break;    // Useless default branch avoiding GCC compiler warnings
+      }
+
+      break;
+    }
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+    {
+    const bool cbIsUnsigned = ( ! AST::BaseClasses::TypeInfo::IsSigned( eElementType ) );
+
+      switch (eFunctionType)
+      {
+      case BuiltinFunctionsEnum::Abs:     bSupported = ( (uiParamCount == 1) && cbIsUnsigned );   break;
+      case BuiltinFunctionsEnum::Ceil:    bSupported =   (uiParamCount == 1);                     break;
+      case BuiltinFunctionsEnum::Floor:   bSupported =   (uiParamCount == 1);                     break;
+      default:                            break;    // Useless default branch avoiding GCC compiler warnings
+      }
+
+      break;
+    }
+  default:  break;    // Useless default branch avoiding GCC compiler warnings
+  }
+
+  if (bSupported)
+  {
+    return true;
+  }
+  else
+  {
+    return _spFallbackInstructionSet->IsBuiltinFunctionSupported( eElementType, eFunctionType, uiParamCount );
+  }
+}
+
+bool InstructionSetAVX::IsElementTypeSupported(VectorElementTypes eElementType) const
+{
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:
+  case VectorElementTypes::Float:   return true;
+  default:                          return _spFallbackInstructionSet->IsElementTypeSupported( eElementType );
+  }
+}
+
+Expr* InstructionSetAVX::LoadVector(VectorElementTypes eElementType, Expr *pPointerRef, bool isConst)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::LoadDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:    eFunctionID = IntrinsicsAVXEnum::LoadDouble;   break;
+  case VectorElementTypes::Float:     eFunctionID = IntrinsicsAVXEnum::LoadFloat;    break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+    {
+      eFunctionID = IntrinsicsAVXEnum::LoadInteger;
+
+      QualType qtReturnType = GetVectorType( eElementType );
+      if (isConst) {
+        qtReturnType.addConst();
+      }
+
+      pPointerRef = _CreatePointerCast( pPointerRef, _GetASTHelper().GetPointerType(qtReturnType) );
+      break;
+    }
+  default:    _ThrowUnsupportedType( eElementType );
+  }
+
+  return _CreateFunctionCall( eFunctionID, pPointerRef );
+}
+
+Expr* InstructionSetAVX::LoadVectorConst(VectorElementTypes eElementType, Expr *pPointerRef)
+{
+  return LoadVector(eElementType, pPointerRef, true);
+}
+
+Expr* InstructionSetAVX::LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex)
+{
+  // TODO: Implement
+  throw RuntimeErrorException("Not implemented!");
+}
+
+Expr* InstructionSetAVX::RelationalOperator(VectorElementTypes eElementType, RelationalOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
+{
+  if (eOpType == RelationalOperatorType::LogicalAnd)
+  {
+    return ArithmeticOperator( eElementType, ArithmeticOperatorType::BitwiseAnd, pExprLHS, pExprRHS );
+  }
+  else if (eOpType == RelationalOperatorType::LogicalOr)
+  {
+    return ArithmeticOperator( eElementType, ArithmeticOperatorType::BitwiseOr, pExprLHS, pExprRHS );
+  }
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double: case VectorElementTypes::Float:
+    {
+      const IntrinsicsAVXEnum ceFunctionID  = (eElementType == VectorElementTypes::Double) ? IntrinsicsAVXEnum::CompareDouble : IntrinsicsAVXEnum::CompareFloat;
+      int32_t                 iOpCode       = 0;
+
+      switch (eOpType)
+      {
+      case RelationalOperatorType::Equal:         iOpCode = 0x00;   break;  // _CMP_EQ_OQ
+      case RelationalOperatorType::Greater:       iOpCode = 0x1E;   break;  // _CMP_GT_OQ
+      case RelationalOperatorType::GreaterEqual:  iOpCode = 0x1D;   break;  // _CMP_GE_OQ
+      case RelationalOperatorType::Less:          iOpCode = 0x11;   break;  // _CMP_LT_OQ
+      case RelationalOperatorType::LessEqual:     iOpCode = 0x12;   break;  // _CMP_LE_OQ
+      case RelationalOperatorType::NotEqual:      iOpCode = 0x0C;   break;  // _CMP_NEQ_OQ
+      default:                                    throw InternalErrorException("Unsupported relational operation detected!");
+      }
+
+      return _CreateFunctionCall( ceFunctionID, pExprLHS, pExprRHS, _GetASTHelper().CreateIntegerLiteral( iOpCode ) );
+    }
+  default:
+    {
+      ClangASTHelper::ExpressionVectorType  vecSSERelOps;
+
+      for (uint32_t uiIdx = 0; uiIdx < 2; ++uiIdx)
+      {
+        const bool cbLowHalf = (uiIdx == 0);
+
+        Expr *pExprLHS_SSE = _ExtractSSEVector( eElementType, pExprLHS, cbLowHalf );
+        Expr *pExprRHS_SSE = _ExtractSSEVector( eElementType, pExprRHS, cbLowHalf );
+
+        vecSSERelOps.push_back( _GetFallback()->RelationalOperator( eElementType, eOpType, pExprLHS_SSE, pExprRHS_SSE ) );
+      }
+
+      return _MergeSSEVectors( eElementType, vecSSERelOps[0], vecSSERelOps[1] );
+    }
+  }
+}
+
+Expr* InstructionSetAVX::ShiftElements(VectorElementTypes eElementType, Expr *pVectorRef, bool bShiftLeft, uint32_t uiCount)
+{
+  if (uiCount == 0)
+  {
+    return pVectorRef;  // Nothing to do
+  }
+
+  ClangASTHelper::ExpressionVectorType  vecSSEShifts;
+
+  for (uint32_t uiIdx = 0; uiIdx < 2; ++uiIdx)
+  {
+    Expr *pVectorSSE = _ExtractSSEVector( eElementType, pVectorRef, (uiIdx == 0) );
+
+    vecSSEShifts.push_back( _GetFallback()->ShiftElements( eElementType, pVectorSSE, bShiftLeft, uiCount ) );
+  }
+
+  return _MergeSSEVectors( eElementType, vecSSEShifts[0], vecSSEShifts[1] );
+}
+
+Expr* InstructionSetAVX::StoreVector(VectorElementTypes eElementType, Expr *pPointerRef, Expr *pVectorValue)
+{
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::StoreDouble;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double:    eFunctionID = IntrinsicsAVXEnum::StoreDouble;   break;
+  case VectorElementTypes::Float:     eFunctionID = IntrinsicsAVXEnum::StoreFloat;    break;
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
+    {
+      eFunctionID = IntrinsicsAVXEnum::StoreInteger;
+      pPointerRef = _CreatePointerCast( pPointerRef, _GetASTHelper().GetPointerType( GetVectorType( eElementType ) ) );
+      break;
+    }
+  default:    _ThrowUnsupportedType( eElementType );
+  }
+
+  return _CreateFunctionCall( eFunctionID, pPointerRef, pVectorValue );
+}
+
+Expr* InstructionSetAVX::StoreVectorMasked(VectorElementTypes eElementType, Expr *pPointerRef, Expr *pVectorValue, Expr *pMaskRef)
+{
+  Expr *pReturnExpr = nullptr;
+
+  switch (eElementType)
+  {
+  case VectorElementTypes::Double: case VectorElementTypes::Float:
+    {
+      Expr *pBlendedValue = BlendVectors( eElementType, pMaskRef, pVectorValue, LoadVector( eElementType, pPointerRef ) );
+      pReturnExpr         = StoreVector( eElementType, pPointerRef, pBlendedValue );
+      break;
+    }
+  default:
+    {
+      ClangASTHelper::ExpressionVectorType  vecSSEStores;
+
+      for (uint32_t uiIdx = 0; uiIdx < 2; ++uiIdx)
+      {
+        const bool cbLowHalf = (uiIdx == 0);
+
+        Expr *pVectorValueSSE = _ExtractSSEVector( eElementType, pVectorValue, cbLowHalf );
+        Expr *pMaskRefSSE     = _ExtractSSEVector( eElementType, pMaskRef,     cbLowHalf );
+
+        if (! cbLowHalf)
+        {
+          Expr *pOffset = _GetASTHelper().CreateIntegerLiteral( static_cast<int32_t>( _GetFallback()->GetVectorElementCount(eElementType) ) );
+          pPointerRef   = _GetASTHelper().CreateBinaryOperator( pPointerRef, pOffset, BO_Add, pPointerRef->getType() );
+        }
+
+        vecSSEStores.push_back( _GetFallback()->StoreVectorMasked( eElementType, pPointerRef, pVectorValueSSE, pMaskRefSSE ) );
+      }
+
+      vecSSEStores[0] = _GetASTHelper().CreateBinaryOperatorComma( vecSSEStores[0], vecSSEStores[1] );
+      pReturnExpr     = _GetASTHelper().CreateParenthesisExpression( vecSSEStores[0] );
+      break;
+    }
+  }
+
+  return pReturnExpr;
+}
+
+Expr* InstructionSetAVX::UnaryOperator(VectorElementTypes eElementType, UnaryOperatorType eOpType, Expr *pSubExpr)
+{
+  Expr *pReturnExpr = nullptr;
+
+  switch (eOpType)
+  {
+  case UnaryOperatorType::AddressOf:
+    {
+      pReturnExpr = _GetASTHelper().CreateUnaryOperator( pSubExpr, UO_AddrOf, _GetASTHelper().GetASTContext().getPointerType(pSubExpr->getType()) );
+      break;
+    }
+  case UnaryOperatorType::BitwiseNot: case UnaryOperatorType::LogicalNot:
+    {
+      pReturnExpr = ArithmeticOperator( eElementType, ArithmeticOperatorType::BitwiseXOr, pSubExpr, _CreateFullBitMask(eElementType) );
+      break;
+    }
+  case UnaryOperatorType::Minus:
+    {
+      switch (eElementType)
+      {
+      case VectorElementTypes::Double: case VectorElementTypes::Float:
+        {
+          pReturnExpr = ArithmeticOperator( eElementType, ArithmeticOperatorType::Multiply, pSubExpr, CreateOnesVector(eElementType, true) );
+          break;
+        }
+      case VectorElementTypes::Int8:   case VectorElementTypes::UInt8:
+      case VectorElementTypes::Int16:  case VectorElementTypes::UInt16:
+      case VectorElementTypes::Int32:  case VectorElementTypes::UInt32:
+      case VectorElementTypes::Int64:  case VectorElementTypes::UInt64:
+        {
+          pReturnExpr = ArithmeticOperator( eElementType, ArithmeticOperatorType::Subtract, CreateZeroVector(eElementType), pSubExpr );
+          break;
+        }
+      default:  _ThrowUnsupportedType( eElementType );
+      }
+
+      break;
+    }
+  case UnaryOperatorType::Plus:
+    {
+      // Nothing to do
+      pReturnExpr = pSubExpr;
+      break;
+    }
+  case UnaryOperatorType::PostDecrement: case UnaryOperatorType::PostIncrement:
+  case UnaryOperatorType::PreDecrement:  case UnaryOperatorType::PreIncrement:
+    {
+      const bool cbPrefixed   = ( (eOpType == UnaryOperatorType::PreDecrement)  || (eOpType == UnaryOperatorType::PreIncrement) );
+      const bool cbIncrement  = ( (eOpType == UnaryOperatorType::PostIncrement) || (eOpType == UnaryOperatorType::PreIncrement) );
+
+      pReturnExpr = _CreatePrePostFixedUnaryOp( eElementType, pSubExpr, cbPrefixed, cbIncrement );
+      break;
+    }
+  default:  throw InternalErrorException("Unsupported unary operation detected!");
+  }
+
+  return pReturnExpr;
+}
+
+
+
+
+// Implementation of class InstructionSetAVX2
+InstructionSetAVX2::InstructionSetAVX2(ASTContext &rAstContext) : BaseType(rAstContext)
+{
+  _InitIntrinsicsMap();
+
+  InstructionSetBase::_LookupIntrinsics( _mapIntrinsicsAVX2, "AVX2" );
+}
+
+void InstructionSetAVX2::_InitIntrinsicsMap()
+{
+  // TODO: Add all required AVX2 intrinsics here
 }
 
 

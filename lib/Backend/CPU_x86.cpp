@@ -720,6 +720,30 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
     vecBody.push_back( _ASTHelper.CreateStringLiteral("") );
   }
 
+  // Dump check of single mask element
+  if (_uiDumpFlags & DF_CheckMaskElement)
+  {
+    vecBody.push_back( _ASTHelper.CreateStringLiteral("CheckSingleMaskElement") );
+
+    ClangASTHelper::StatementVectorType vecCheckMaskElement;
+
+    for (auto itElementType : lstSupportedElementTypes)
+    {
+      vecCheckMaskElement.push_back( _CreateElementTypeString(itElementType) );
+
+      Expr *pVectorRef = _CreateArraySubscript( mapVectorArrayDecls[ itElementType ], 0 );
+
+      for (uint32_t uiIndex = 0; uiIndex < spInstructionSet->GetVectorElementCount(itElementType); ++uiIndex)
+      {
+        DUMP_INSTR( vecCheckMaskElement, spInstructionSet->CheckSingleMaskElement( itElementType, pVectorRef, uiIndex ) );
+      }
+    }
+
+    vecBody.push_back( _ASTHelper.CreateCompoundStatement(vecCheckMaskElement) );
+    vecBody.push_back( _ASTHelper.CreateStringLiteral("") );
+  }
+
+
   pFunctionDecl->setBody( _ASTHelper.CreateCompoundStatement(vecBody) );
   return pFunctionDecl;
 
@@ -734,12 +758,15 @@ CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, string 
 
   switch (eIntrSet)
   {
+  case InstructionSetEnum::AVX_2:     lstInstructionSets.push_front( InstructionSetInfoPair("DumpAVX_2",    Vectorization::InstructionSetBase::Create<Vectorization::InstructionSetAVX2  >(rASTContext)) );
+  case InstructionSetEnum::AVX:       lstInstructionSets.push_front( InstructionSetInfoPair("DumpAVX",      Vectorization::InstructionSetBase::Create<Vectorization::InstructionSetAVX   >(rASTContext)) );
   case InstructionSetEnum::SSE_4_2:   lstInstructionSets.push_front( InstructionSetInfoPair("DumpSSE_4_2",  Vectorization::InstructionSetBase::Create<Vectorization::InstructionSetSSE4_2>(rASTContext)) );
   case InstructionSetEnum::SSE_4_1:   lstInstructionSets.push_front( InstructionSetInfoPair("DumpSSE_4_1",  Vectorization::InstructionSetBase::Create<Vectorization::InstructionSetSSE4_1>(rASTContext)) );
   case InstructionSetEnum::SSSE_3:    lstInstructionSets.push_front( InstructionSetInfoPair("DumpSSSE_3",   Vectorization::InstructionSetBase::Create<Vectorization::InstructionSetSSSE3 >(rASTContext)) );
   case InstructionSetEnum::SSE_3:     lstInstructionSets.push_front( InstructionSetInfoPair("DumpSSE_3",    Vectorization::InstructionSetBase::Create<Vectorization::InstructionSetSSE3  >(rASTContext)) );
   case InstructionSetEnum::SSE_2:     lstInstructionSets.push_front( InstructionSetInfoPair("DumpSSE_2",    Vectorization::InstructionSetBase::Create<Vectorization::InstructionSetSSE2  >(rASTContext)) );
   case InstructionSetEnum::SSE:       lstInstructionSets.push_front( InstructionSetInfoPair("DumpSSE",      Vectorization::InstructionSetBase::Create<Vectorization::InstructionSetSSE   >(rASTContext)) );
+  default:                            break;    // Useless default branch avoiding GCC compiler warnings
   }
 
   // Select the requested instruction set parts
@@ -757,6 +784,7 @@ CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, string 
   _uiDumpFlags |= DF_Unary;
   _uiDumpFlags |= DF_VecMemTransfers;
   _uiDumpFlags |= DF_BuiltinFunctions;
+  _uiDumpFlags |= DF_CheckMaskElement;
 
 
   ClangASTHelper::FunctionDeclarationVectorType vecFunctionDecls;
@@ -1714,7 +1742,6 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
         }
 
         pAssignmentMask = _BuildVectorExpression( spMask, _CreateVectorIndex( _GetMaskElementType(), 0 ) );
-        pAssignmentMask = _ConvertMaskUp( eElementType, pAssignmentMask, crVectorIndex );
       }
 
       Expr *pExprRHS      = _BuildVectorExpression( spRHS, crVectorIndex );
@@ -1726,17 +1753,66 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
 
         if (! spMemoryAccess->GetMemoryReference()->GetResultType().IsArray())
         {
-          Expr *pPointerRef = _TranslateMemoryAccessToPointerRef( spMemoryAccess, crVectorIndex );
-          bHandled          = true;
-
-          if (pAssignmentMask)
+          if (spMemoryAccess->GetIndexExpression()->IsVectorized())
           {
-            pReturnExpr = _spInstructionSet->StoreVectorMasked( eElementType, pPointerRef, pExprRHS, pAssignmentMask );
+            // Scatter write => must be unrolled
+            AST::BaseClasses::ExpressionPtr spMemoryReference = spMemoryAccess->GetMemoryReference();
+            AST::BaseClasses::ExpressionPtr spIndexExpression = spMemoryAccess->GetIndexExpression();
+
+            // Build the pointer reference expression
+            Expr *pPointerRef = nullptr;
+            if (spMemoryReference->IsVectorized())
+            {
+              pPointerRef = _BuildUnrolledVectorExpression( spMemoryReference, crVectorIndex.GetElementIndex() );
+            }
+            else
+            {
+              pPointerRef = _BuildScalarExpression( spMemoryReference );
+            }
+
+            // Build a store expression for each vector element
+            ClangASTHelper::ExpressionVectorType vecElementStores;
+            for (uint32_t uiElemIdx = 0; uiElemIdx < crVectorIndex.GetElementCount(); ++uiElemIdx)
+            {
+              Expr *pAssignmentVal  = _spInstructionSet->ExtractElement( eElementType, pExprRHS, uiElemIdx );
+              Expr *pIndexExpr      = _BuildUnrolledVectorExpression( spIndexExpression, uiElemIdx + crVectorIndex.GetElementIndex() );
+              Expr *pMemAccess      = _GetASTHelper().CreateArraySubscriptExpression(pPointerRef, pIndexExpr, pPointerRef->getType()->getPointeeType(), true );
+
+              if (pAssignmentMask)
+              {
+                Expr *pMaskCheck  = _spInstructionSet->CheckSingleMaskElement( _GetMaskElementType(), pAssignmentMask, uiElemIdx + crVectorIndex.GetElementIndex() );
+                pAssignmentVal    = _GetASTHelper().CreateConditionalOperator( _CreateParenthesis(pMaskCheck), pAssignmentVal, pMemAccess, pMemAccess->getType() );
+              }
+
+              vecElementStores.push_back( _GetASTHelper().CreateBinaryOperator(pMemAccess, pAssignmentVal, BO_Assign, pMemAccess->getType() ) );
+              vecElementStores.back() = _CreateParenthesis( vecElementStores.back() );
+            }
+
+            // Wrap all single-value stores into a comma operator chain
+            for (size_t szIdx = static_cast<size_t>(1); szIdx < vecElementStores.size(); ++szIdx)
+            {
+              vecElementStores[0] = _GetASTHelper().CreateBinaryOperatorComma( vecElementStores[0], vecElementStores[szIdx] );
+            }
+
+            pReturnExpr = _CreateParenthesis( vecElementStores.front() );
           }
           else
           {
-            pReturnExpr = _spInstructionSet->StoreVector( eElementType, pPointerRef, pExprRHS );
+            // Normal vector store
+            Expr *pPointerRef = _TranslateMemoryAccessToPointerRef( spMemoryAccess, crVectorIndex );
+
+            if (pAssignmentMask)
+            {
+              pAssignmentMask = _ConvertMaskUp( eElementType, pAssignmentMask, crVectorIndex );
+              pReturnExpr     = _spInstructionSet->StoreVectorMasked( eElementType, pPointerRef, pExprRHS, pAssignmentMask );
+            }
+            else
+            {
+              pReturnExpr = _spInstructionSet->StoreVector( eElementType, pPointerRef, pExprRHS );
+            }
           }
+
+          bHandled = true;
         }
       }
 
@@ -1745,7 +1821,8 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
         Expr *pAssigneeExpr = _BuildVectorExpression( spAssignee, crVectorIndex );
         if (pAssignmentMask)
         {
-          pExprRHS = _spInstructionSet->BlendVectors( eElementType, pAssignmentMask, pExprRHS, pAssigneeExpr );
+          pAssignmentMask = _ConvertMaskUp( eElementType, pAssignmentMask, crVectorIndex );
+          pExprRHS        = _spInstructionSet->BlendVectors( eElementType, pAssignmentMask, pExprRHS, pAssigneeExpr );
         }
 
         pReturnExpr = _GetASTHelper().CreateBinaryOperator( pAssigneeExpr, pExprRHS, BO_Assign, pAssigneeExpr->getType() );
@@ -1919,7 +1996,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
       VectorElementTypes  eElementType  = _GetExpressionElementType( spMemoryAccess );
 
 
-      if (spMemoryAccess->GetResultType().IsArray())  // Array access
+      if (spMemoryReference->GetResultType().IsArray())  // Array access
       {
         if (spIndexExpression->IsVectorized())
         {
@@ -2054,7 +2131,53 @@ Expr* CPU_x86::VASTExportInstructionSet::_ConvertMaskDown(VectorElementTypes eSo
   {
   case 0:   throw InternalErrorException("The source expression vector for a mask conversion cannot be empty!");
   case 1:   return _spInstructionSet->ConvertMaskSameSize( eSourceElementType, _GetMaskElementType(), crvecSubExpressions.front() );
-  default:  return _spInstructionSet->ConvertMaskDown( eSourceElementType, _GetMaskElementType(), crvecSubExpressions );
+  default:
+    {
+      // Generate a conversion helper function if required (just for cleaning up the source code a bit)
+      const string cstrConversionHelperName = string("_PackMask") + AST::BaseClasses::TypeInfo::GetTypeString(eSourceElementType);
+      {
+        ClangASTHelper::QualTypeVectorType vecArgumentTypes;
+        for (auto itSubExpr : crvecSubExpressions)
+        {
+          vecArgumentTypes.push_back( itSubExpr->getType() );
+        }
+
+        FunctionDecl *pConversionHelper = _GetFirstMatchingFunctionDeclaration( cstrConversionHelperName, vecArgumentTypes );
+        if (! pConversionHelper)
+        {
+          // Create the argument names
+          ClangASTHelper::StringVectorType vecArgumentNames;
+          for (size_t szParamIdx = static_cast<size_t>(0); szParamIdx < vecArgumentTypes.size(); ++szParamIdx)
+          {
+            stringstream ssParamName;
+            ssParamName << "mask" << szParamIdx;
+            vecArgumentNames.push_back( ssParamName.str() );
+          }
+
+          // Create the function declaration
+          pConversionHelper = _GetASTHelper().CreateFunctionDeclaration( cstrConversionHelperName, _spInstructionSet->GetVectorType( _GetMaskElementType() ), vecArgumentNames, vecArgumentTypes );
+
+          // Create the function body (i.e. the actual downward conversion)
+          {
+            ClangASTHelper::ExpressionVectorType vecHelperFuncParams;
+            for (unsigned int uiParamIdx = 0; uiParamIdx < pConversionHelper->getNumParams(); ++uiParamIdx)
+            {
+              vecHelperFuncParams.push_back( _GetASTHelper().CreateDeclarationReferenceExpression( pConversionHelper->getParamDecl( uiParamIdx ) ) );
+            }
+
+            Stmt *pBody = _GetASTHelper().CreateReturnStatement( _spInstructionSet->ConvertMaskDown( eSourceElementType, _GetMaskElementType(), vecHelperFuncParams ) );
+
+            pConversionHelper->setBody( _GetASTHelper().CreateCompoundStatement( pBody ) );
+          }
+
+          // Add the generated helper function to the known functions
+          _AddKnownFunctionDeclaration( pConversionHelper );
+          _vecHelperFunctions.push_back( pConversionHelper );
+        }
+      }
+
+      return _BuildScalarFunctionCall( cstrConversionHelperName, crvecSubExpressions );
+    }
   }
 }
 
@@ -2133,30 +2256,6 @@ VectorElementTypes CPU_x86::VASTExportInstructionSet::_GetMaskElementType()
 
   // If no mask type has been determined earlier, return the largest possible type
   return VectorElementTypes::UInt64;
-}
-
-CPU_x86::VASTExportInstructionSet::VectorElementTypesSetType CPU_x86::VASTExportInstructionSet::_GetUsedVectorElementTypes(AST::BaseClasses::ExpressionPtr spExpression)
-{
-  VectorElementTypesSetType setElementTypes;
-
-  // Add the result type of the current expression if it is a vectorized expression
-  if (spExpression->IsVectorized())
-  {
-    setElementTypes.insert( spExpression->GetResultType().GetType() );
-  }
-
-  // Parse all children
-  for (AST::IndexType iSubExprIdx = static_cast<AST::IndexType>(0); iSubExprIdx < spExpression->GetSubExpressionCount(); ++iSubExprIdx)
-  {
-    VectorElementTypesSetType setSubElementTypes = _GetUsedVectorElementTypes( spExpression->GetSubExpression(iSubExprIdx) );
-
-    for (auto itSubType : setSubElementTypes)
-    {
-      setElementTypes.insert( itSubType );
-    }
-  }
-
-  return std::move( setElementTypes );
 }
 
 size_t CPU_x86::VASTExportInstructionSet::_GetVectorArraySize(Vectorization::VectorElementTypes eElementType)
@@ -2313,7 +2412,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_TranslateMemoryAccessToPointerRef(AST:
 }
 
 
-FunctionDecl* CPU_x86::VASTExportInstructionSet::ExportVASTFunction(AST::FunctionDeclarationPtr spVASTFunction, bool bUnrollVectorLoops)
+FunctionDecl* CPU_x86::VASTExportInstructionSet::ExportVASTFunction(AST::FunctionDeclarationPtr spVASTFunction)
 {
   if (! spVASTFunction)
   {
@@ -2413,34 +2512,34 @@ list< ::clang::ArraySubscriptExpr* > CPU_x86::CodeGenerator::ImageAccessTranslat
   {
     return lstImageAccesses;
   }
-  else if (isa<::clang::ArraySubscriptExpr>(pStatement))
+  else if (isa< ::clang::ArraySubscriptExpr >(pStatement))
   {
     // Found an array subscript expression => Check if the structure corresponds to an image access
-    ::clang::ArraySubscriptExpr *pRootArraySubscript = dyn_cast<::clang::ArraySubscriptExpr>(pStatement);
+    ::clang::ArraySubscriptExpr *pRootArraySubscript = dyn_cast< ::clang::ArraySubscriptExpr >(pStatement);
 
     // Look through implicit cast expressions
     ::clang::Expr *pLhs = pRootArraySubscript->getLHS();
-    while (isa<::clang::ImplicitCastExpr>(pLhs))
+    while (isa< ::clang::ImplicitCastExpr >(pLhs))
     {
-      pLhs = dyn_cast<::clang::ImplicitCastExpr>(pLhs)->getSubExpr();
+      pLhs = dyn_cast< ::clang::ImplicitCastExpr >(pLhs)->getSubExpr();
     }
 
-    if (isa<::clang::ArraySubscriptExpr>(pLhs))
+    if (isa< ::clang::ArraySubscriptExpr >(pLhs))
     {
       // At least 2-dimensional array found => Look for the declaration reference to the image
-      ::clang::ArraySubscriptExpr *pChildArraySubscript = dyn_cast<::clang::ArraySubscriptExpr>(pLhs);
+      ::clang::ArraySubscriptExpr *pChildArraySubscript = dyn_cast< ::clang::ArraySubscriptExpr >(pLhs);
 
       // Look through implicit cast expressions
       pLhs = pChildArraySubscript->getLHS();
-      while (isa<::clang::ImplicitCastExpr>(pLhs))
+      while (isa< ::clang::ImplicitCastExpr >(pLhs))
       {
-        pLhs = dyn_cast<::clang::ImplicitCastExpr>(pLhs)->getSubExpr();
+        pLhs = dyn_cast< ::clang::ImplicitCastExpr >(pLhs)->getSubExpr();
       }
 
-      if (isa<::clang::DeclRefExpr>(pLhs))
+      if (isa< ::clang::DeclRefExpr >(pLhs))
       {
         // Found a 2-dimensional array access => check if the array if the specified image
-        ::clang::DeclRefExpr* pArrayDeclRef = dyn_cast<::clang::DeclRefExpr>(pLhs);
+        ::clang::DeclRefExpr* pArrayDeclRef = dyn_cast< ::clang::DeclRefExpr >(pLhs);
 
         if (pArrayDeclRef->getNameInfo().getAsString() == crstrImageName)
         {
@@ -2470,12 +2569,12 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::_LinearizeImageAccess(const 
   ::clang::Expr *pIndexExprX = pImageAccessRoot->getRHS();
   ::clang::Expr *pIndexExprY = pImageAccessRoot->getLHS();
   {
-    while (!isa<::clang::ArraySubscriptExpr>(pIndexExprY))
+    while (! isa< ::clang::ArraySubscriptExpr >(pIndexExprY))
     {
-      pIndexExprY = dyn_cast<::clang::Expr>(*pIndexExprY->child_begin());
+      pIndexExprY = dyn_cast< ::clang::Expr >(*pIndexExprY->child_begin());
     }
 
-    pIndexExprY = dyn_cast<::clang::ArraySubscriptExpr>(pIndexExprY)->getRHS();
+    pIndexExprY = dyn_cast< ::clang::ArraySubscriptExpr >(pIndexExprY)->getRHS();
   }
 
   // The image pointer have been re-routed to the current pixel => strip the reference to the global pixel ID
@@ -2558,17 +2657,17 @@ bool CPU_x86::CodeGenerator::ImageAccessTranslator::_TryRemoveReference(::clang:
 
   while (true)
   {
-    if (isa<::clang::CastExpr>(pCurrentExpression))             // Current node is a cast expression => Step to the subexpression
+    if (isa< ::clang::CastExpr >(pCurrentExpression))             // Current node is a cast expression => Step to the subexpression
     {
-      pCurrentExpression = dyn_cast<::clang::CastExpr>(pCurrentExpression)->getSubExpr();
+      pCurrentExpression = dyn_cast< ::clang::CastExpr >(pCurrentExpression)->getSubExpr();
     }
-    else if (isa<::clang::ParenExpr>(pCurrentExpression))       // Current node is a parenthesis expression => Step to the subexpression
+    else if (isa< ::clang::ParenExpr >(pCurrentExpression))       // Current node is a parenthesis expression => Step to the subexpression
     {
-      pCurrentExpression = dyn_cast<::clang::ParenExpr>(pCurrentExpression)->getSubExpr();
+      pCurrentExpression = dyn_cast< ::clang::ParenExpr >(pCurrentExpression)->getSubExpr();
     }
-    else if (isa<::clang::DeclRefExpr>(pCurrentExpression))     // Current node is a declaration reference => Check for the stripping variable
+    else if (isa< ::clang::DeclRefExpr >(pCurrentExpression))     // Current node is a declaration reference => Check for the stripping variable
     {
-      if (dyn_cast<::clang::DeclRefExpr>(pCurrentExpression)->getNameInfo().getAsString() == strStripVarName)
+      if (dyn_cast< ::clang::DeclRefExpr >(pCurrentExpression)->getNameInfo().getAsString() == strStripVarName)
       {
         // Found the reference to the stripping variable => Break here and remove it
         break;
@@ -2578,9 +2677,9 @@ bool CPU_x86::CodeGenerator::ImageAccessTranslator::_TryRemoveReference(::clang:
         return false;
       }
     }
-    else if (isa<::clang::BinaryOperator>(pCurrentExpression))  // Found a binary operator => Step into its correct branch
+    else if (isa< ::clang::BinaryOperator >(pCurrentExpression))  // Found a binary operator => Step into its correct branch
     {
-      ::clang::BinaryOperator *pCurrentOperator = dyn_cast<::clang::BinaryOperator>(pCurrentExpression);
+      ::clang::BinaryOperator *pCurrentOperator = dyn_cast< ::clang::BinaryOperator >(pCurrentExpression);
 
       if (pCurrentOperator->getOpcode() == ::clang::BO_Add)       // Found an addition => Both branches are supported
       {
@@ -2828,7 +2927,7 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
 ::clang::ForStmt* CPU_x86::CodeGenerator::_CreateIterationSpaceLoop(ClangASTHelper &rAstHelper, ::clang::DeclRefExpr *pLoopCounter, ::clang::Expr *pUpperLimit, ::clang::Stmt *pLoopBody, const size_t szIncrement)
 {
   ::clang::Stmt* pFinalLoopBody = pLoopBody;
-  if (! isa<::clang::CompoundStmt>(pFinalLoopBody))
+  if (! isa< ::clang::CompoundStmt >(pFinalLoopBody))
   {
     pFinalLoopBody = rAstHelper.CreateCompoundStatement(pLoopBody);
   }
@@ -2874,6 +2973,8 @@ InstructionSetBasePtr CPU_x86::CodeGenerator::_CreateInstructionSet(::clang::AST
   case InstructionSetEnum::SSSE_3:    return InstructionSetBase::Create< InstructionSetSSSE3  >( rAstContext );
   case InstructionSetEnum::SSE_4_1:   return InstructionSetBase::Create< InstructionSetSSE4_1 >( rAstContext );
   case InstructionSetEnum::SSE_4_2:   return InstructionSetBase::Create< InstructionSetSSE4_2 >( rAstContext );
+  case InstructionSetEnum::AVX:       return InstructionSetBase::Create< InstructionSetAVX    >( rAstContext );
+  case InstructionSetEnum::AVX_2:     return InstructionSetBase::Create< InstructionSetAVX2   >( rAstContext );
   default:                            throw InternalErrorException( "Unexpected instruction set selected!" );
   }
 }
@@ -2970,6 +3071,8 @@ string CPU_x86::CodeGenerator::_GetInstructionSetIncludeFile()
   case InstructionSetEnum::SSSE_3:    return "tmmintrin.h";
   case InstructionSetEnum::SSE_4_1:   return "smmintrin.h";
   case InstructionSetEnum::SSE_4_2:   return "nmmintrin.h";
+  case InstructionSetEnum::AVX:       return "immintrin.h";
+  case InstructionSetEnum::AVX_2:     return "immintrin.h";
   default:  return "";
   }
 }
@@ -2986,11 +3089,23 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
   }
   else
   {
-    const size_t cszMaxVecWidth = static_cast< size_t >( 16 );
+    size_t cszMaxVecWidth = static_cast< size_t >( 0 );
+    switch (_eInstructionSet)
+    {
+    case InstructionSetEnum::SSE:
+    case InstructionSetEnum::SSE_2:
+    case InstructionSetEnum::SSE_3:
+    case InstructionSetEnum::SSSE_3:
+    case InstructionSetEnum::SSE_4_1:
+    case InstructionSetEnum::SSE_4_2:   cszMaxVecWidth = static_cast< size_t >(16);   break;
+    case InstructionSetEnum::AVX:
+    case InstructionSetEnum::AVX_2:     cszMaxVecWidth = static_cast< size_t >(32);   break;
+    default:                            throw InternalErrorException("Unexpected instruction set ID!");
+    }
 
     if (_szVectorWidth > cszMaxVecWidth)
     {
-      llvm::errs() << "\nWARNING: Selected vector width exceeds the maximum width for the SSE instruction set => Clipping vector width to \"" << cszMaxVecWidth << "\"\n\n";
+      llvm::errs() << "\nWARNING: Selected vector width exceeds the maximum width for the instruction set => Clipping vector width to \"" << cszMaxVecWidth << "\"\n\n";
       _szVectorWidth = cszMaxVecWidth;
     }
     else
@@ -3000,13 +3115,16 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
       {
         size_t szMinTypeSize = cszMaxVecWidth;
 
-        for (Vectorization::AST::IndexType iParamIdx = static_cast<Vectorization::AST::IndexType>(0); iParamIdx < spVecFunction->GetParameterCount(); ++iParamIdx)
-        {
-          Vectorization::AST::BaseClasses::VariableInfoPtr spParamInfo = spVecFunction->GetParameter(iParamIdx)->LookupVariableInfo();
+        vector< string > vecVariableNames = spVecFunction->GetKnownVariableNames();
 
-          if (spParamInfo->GetVectorize() && spParamInfo->GetTypeInfo().IsDereferencable())
+        for (auto itVarName : vecVariableNames)
+        {
+          Vectorization::AST::BaseClasses::VariableInfoPtr  spParamInfo   = spVecFunction->GetVariableInfo( itVarName );
+          AST::BaseClasses::TypeInfo::KnownTypes            eElementType  = spParamInfo->GetTypeInfo().GetType();
+
+          if ( spParamInfo->GetVectorize() && (eElementType != AST::BaseClasses::TypeInfo::KnownTypes::Bool) )
           {
-            size_t szCurrentTypeSize  = Vectorization::AST::BaseClasses::TypeInfo::GetTypeSize( spParamInfo->GetTypeInfo().GetType() );
+            size_t szCurrentTypeSize  = Vectorization::AST::BaseClasses::TypeInfo::GetTypeSize( eElementType );
             szMinTypeSize             = std::min( szMinTypeSize, szCurrentTypeSize );
           }
         }
@@ -3016,12 +3134,12 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
 
       if (_szVectorWidth == static_cast<size_t>(0))
       {
-        llvm::errs() << "\nNOTE: No vector width for SSE instruction set selected => Set kernel-based minimum value \"" << szMinVecWidth << "\"\n\n";
+        llvm::errs() << "\nNOTE: No vector width for the instruction set selected => Set kernel-based minimum value \"" << szMinVecWidth << "\"\n\n";
         _szVectorWidth = szMinVecWidth;
       }
       else if (_szVectorWidth < szMinVecWidth)
       {
-        llvm::errs() << "\nWARNING: Selected vector width is below the minimum width for the SSE instruction set => Set kernel-based minimum value \"" << szMinVecWidth << "\"\n\n";
+        llvm::errs() << "\nWARNING: Selected vector width is below the minimum width for the instruction set => Set kernel-based minimum value \"" << szMinVecWidth << "\"\n\n";
         _szVectorWidth = szMinVecWidth;
       }
       else
@@ -3034,7 +3152,7 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
           }
           else if (_szVectorWidth < szCurWidth)
           {
-            llvm::errs() << "\nWARNING: The selected vector width for the SSE instruction set must be a power of 2 => Promote width \"" << _szVectorWidth << "\" to \"" << szCurWidth << "\"\n\n";
+            llvm::errs() << "\nWARNING: The selected vector width for the instruction set must be a power of 2 => Promote width \"" << _szVectorWidth << "\" to \"" << szCurWidth << "\"\n\n";
             _szVectorWidth = szCurWidth;
             break;
           }
@@ -3189,7 +3307,7 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
 
       VASTExportInstructionSet Exporter( cszVectorWidth, rAstContext, _CreateInstructionSet(rAstContext) );
 
-      ::clang::FunctionDecl *pExportedKernelFunction = Exporter.ExportVASTFunction( spVecFunction, _bUnrollVectorLoops );
+      ::clang::FunctionDecl *pExportedKernelFunction = Exporter.ExportVASTFunction( spVecFunction );
 
 
       // Print all generated helper functions
@@ -3227,6 +3345,8 @@ CommonDefines::ArgumentVectorType CPU_x86::CodeGenerator::GetAdditionalClangArgu
   // Add required macro definition which toggle the correct include files
   switch (_eInstructionSet)   // The case-fall-through is intenden here
   {
+  case InstructionSetEnum::AVX_2:     vecArguments.push_back("-D __AVX2__");
+  case InstructionSetEnum::AVX:       vecArguments.push_back("-D __AVX__");
   case InstructionSetEnum::SSE_4_2:   vecArguments.push_back("-D __SSE4_2__");
   case InstructionSetEnum::SSE_4_1:   vecArguments.push_back("-D __SSE4_1__");
   case InstructionSetEnum::SSSE_3:    vecArguments.push_back("-D __SSSE3__");
@@ -3245,6 +3365,7 @@ CommonDefines::ArgumentVectorType CPU_x86::CodeGenerator::GetAdditionalClangArgu
 
       break;
     }
+  default:                            break;    // Useless default branch avoiding GCC compiler warnings
   }
 
   return std::move( vecArguments );
@@ -3354,7 +3475,9 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
 
 
           // Replace all references to the HIPAcc image by the "current pixel" pointer
-          ASTHelper.ReplaceDeclarationReferences(pKernelFunction->getBody(), strParamName, LinePosDeclPair.second);
+          ASTHelper.ReplaceDeclarationReferences( pKernelFunction->getBody(), strParamName, LinePosDeclPair.second );
+          ASTHelper.ReplaceDeclarationReferences( pSubFuncCallScalar,         strParamName, LinePosDeclPair.second );
+          ASTHelper.ReplaceDeclarationReferences( pSubFuncCallVectorized,     strParamName, LinePosDeclPair.second );
           ASTHelper.ReplaceDeclarationReferences((Stmt*)pSubFuncCallScalar, strParamName, LinePosDeclPair.second);
           ASTHelper.ReplaceDeclarationReferences((Stmt*)pSubFuncCallVectorized, strParamName, LinePosDeclPair.second);
         }
@@ -3362,7 +3485,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
         // Compute the iteration space range, which must be handled by the scalar sub-function
         ::clang::DeclRefExpr  *pScalarRangeRef = nullptr;
         {
-          ::clang::VarDecl *pGidXDecl = dyn_cast<::clang::VarDecl>(gid_x_ref->getDecl());
+          ::clang::VarDecl *pGidXDecl = dyn_cast< ::clang::VarDecl >(gid_x_ref->getDecl());
 
           ::clang::DeclRefExpr  *pIterationSpaceWidth = hipaccHelper.GetImageParameterDecl(pKernelFunction->getParamDecl(0)->getNameAsString(), HipaccHelper::ImageParamType::Width);
           ::clang::QualType     qtReturnType          = pIterationSpaceWidth->getType();
