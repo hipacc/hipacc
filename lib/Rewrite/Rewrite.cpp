@@ -1033,32 +1033,10 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         if (Pyr) {
           // add call expression to pyramid argument
-          IntegerLiteral *IL = nullptr;
-          UnaryOperator *UO = nullptr;
-
-          if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
-                  CCE->getArg(0))->getArg(1))) {
-            IL = dyn_cast<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
-                     CCE->getArg(0))->getArg(1));
-          } else if (isa<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
-                         CCE->getArg(0))->getArg(1))) {
-            UO = dyn_cast<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
-                     CCE->getArg(0))->getArg(1));
-            // only support unary operators '+' and '-'
-            if (UO && (UO->getOpcode() == UO_Plus ||
-                       UO->getOpcode() == UO_Minus)) {
-              IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
-            }
-          }
-
-          assert(IL && "Missing integer literal in pyramid call expression.");
-
-          std::stringstream LSS;
-          if (UO && UO->getOpcode() == UO_Minus) {
-            LSS << "-";
-          }
-          LSS << *(IL->getValue().getRawData());
-          Parms += "(" + LSS.str() + ")";
+          std::string Str;
+          llvm::raw_string_ostream SS(Str);
+          CCE->getArg(0)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+          Parms = SS.str();
         } else {
           if (BC->isPyramid()) {
             // add call expression to pyramid argument (from boundary condition)
@@ -1142,32 +1120,10 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         if (Pyr) {
           // add call expression to pyramid argument
-          IntegerLiteral *IL = nullptr;
-          UnaryOperator *UO = nullptr;
-
-          if (isa<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
-                  CCE->getArg(0))->getArg(1))) {
-            IL = dyn_cast<IntegerLiteral>(dyn_cast<CXXOperatorCallExpr>(
-                     CCE->getArg(0))->getArg(1));
-          } else if (isa<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
-                         CCE->getArg(0))->getArg(1))) {
-            UO = dyn_cast<UnaryOperator>(dyn_cast<CXXOperatorCallExpr>(
-                     CCE->getArg(0))->getArg(1));
-            // only support unary operators '+' and '-'
-            if (UO && (UO->getOpcode() == UO_Plus ||
-                       UO->getOpcode() == UO_Minus)) {
-              IL = dyn_cast<IntegerLiteral>(UO->getSubExpr());
-            }
-          }
-
-          assert(IL && "Missing integer literal in pyramid call expression.");
-
-          std::stringstream LSS;
-          if (UO && UO->getOpcode() == UO_Minus) {
-            LSS << "-";
-          }
-          LSS << *(IL->getValue().getRawData());
-          Parms += "(" + LSS.str() + ")";
+          std::string Str;
+          llvm::raw_string_ostream SS(Str);
+          CCE->getArg(0)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+          Parms = SS.str();
         }
 
         // img[, is_width, is_height[, offset_x, offset_y]]
