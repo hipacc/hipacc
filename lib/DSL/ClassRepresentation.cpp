@@ -483,8 +483,7 @@ void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3,
 void HipaccKernel::createArgInfo() {
   if (argTypesCUDA.size()) return;
 
-  SmallVector<HipaccKernelClass::argumentInfo, 16> arguments =
-    KC->arguments;
+  SmallVector<HipaccKernelClass::argumentInfo, 16> arguments = KC->arguments;
 
   // normal parameters
   for (size_t i=0; i<KC->getNumArgs(); ++i) {
@@ -657,7 +656,8 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
           LSS << "_tmpLiteral" << literalCount;
           literalCount++;
 
-          hostLiterals += hostArgs[i]->IgnoreParenCasts()->getType().getAsString();
+          // use type of kernel class
+          hostLiterals += KC->arguments.data()[i].type.getAsString();
           hostLiterals += " ";
           hostLiterals += LSS.str();
           hostLiterals += " = ";

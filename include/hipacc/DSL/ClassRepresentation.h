@@ -772,6 +772,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     }
     void setHostArgNames(ArrayRef<Expr *>hostArgs, std::string
         &hostLiterals, unsigned int &literalCount) {
+      createArgInfo();
       createHostArgInfo(hostArgs, hostLiterals, literalCount);
     }
     std::string *getHostArgNames() {
@@ -793,7 +794,7 @@ class HipaccKernel : public HipaccKernelFeatures {
         num_smem = smem;
       }
       num_cmem = cmem;
-      // calcuclate new configuration
+      // calculate new configuration
       calcConfig();
       // reset parameter information since the tiling and corresponding
       // variables may have been changed
