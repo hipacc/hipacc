@@ -565,6 +565,10 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
     checkErr(err, "clCreateKernel()");
     if (print_progress) std::cerr << ". done" << std::endl;
 
+    // release program
+    err = clReleaseProgram(program);
+    checkErr(err, "clReleaseProgram()");
+
     return kernel;
 }
 
@@ -1181,6 +1185,12 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
                   << timing << " ms" << std::endl;
+
+        // release kernels
+        err = clReleaseKernel(exploreReduction2D);
+        checkErr(err, "clReleaseKernel()");
+        err = clReleaseKernel(exploreReduction1D);
+        checkErr(err, "clReleaseKernel()");
     }
     std::cerr << "<HIPACC:> Best unroll factor for reduction kernel '"
               << kernel2D << "/" << kernel1D << "': "
@@ -1329,6 +1339,10 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                       << std::right << "(" << tile_size_x*tile_size_y << "): "
                       << std::setw(8) << std::fixed << std::setprecision(4)
                       << timing << " ms" << std::endl;
+
+            // release kernel
+            cl_int err = clReleaseKernel(exploreKernel);
+            checkErr(err, "clReleaseKernel()");
         }
     }
     std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
