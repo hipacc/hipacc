@@ -553,10 +553,13 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
         err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
         if (print_progress) {
             if (err != CL_SUCCESS) std::cerr << ". failed!" << std::endl;
-            else std::cerr << "." << std::endl;
+            else std::cerr << ".";
         }
-        std::cerr << "<HIPACC:> OpenCL build options : " << std::endl << program_build_options << std::endl;
-        std::cerr << "<HIPACC:> OpenCL build log : " << std::endl << program_build_log << std::endl;
+        std::cerr << std::endl
+                  << "<HIPACC:> OpenCL build options : " << std::endl
+                  << program_build_options << std::endl
+                  << "<HIPACC:> OpenCL build log : " << std::endl
+                  << program_build_log << std::endl;
 
         // free memory for options and log
         free(program_build_options);
