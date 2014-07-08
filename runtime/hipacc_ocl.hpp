@@ -287,9 +287,6 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024];
     int platform_number = -1, device_number = -1;
     cl_uint num_platforms, num_devices, num_devices_type;
-    cl_platform_id *platforms;
-    cl_platform_name *platform_names;
-    cl_device_id *devices;
     cl_int err = CL_SUCCESS;
 
     // Set environment variable to tell AMD/ATI platform to dump kernel
@@ -311,14 +308,14 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
     if (num_platforms == 0) {
         exit(EXIT_FAILURE);
     } else {
-        platforms = (cl_platform_id *)malloc(num_platforms * sizeof(cl_platform_id));
-        platform_names = (cl_platform_name *)malloc(num_platforms * sizeof(cl_platform_name));
+        std::vector<cl_platform_id> platforms(num_platforms);
+        std::vector<cl_platform_name> platform_names(num_platforms);
 
-        err = clGetPlatformIDs(num_platforms, platforms, NULL);
+        err = clGetPlatformIDs(platforms.size(), platforms.data(), NULL);
         checkErr(err, "clGetPlatformIDs()");
 
         // Get platform info for each platform
-        for (size_t i=0; i<num_platforms; ++i) {
+        for (size_t i=0; i<platforms.size(); ++i) {
             err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, 1024, &pnBuffer, NULL);
             err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, 1024, &pvBuffer, NULL);
             err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, 1024, &pv2Buffer, NULL);
@@ -348,12 +345,12 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
             std::cerr << "      Platform Vendor: " << pvBuffer << std::endl;
             std::cerr << "      Platform Version: " << pv2Buffer << std::endl;
 
-            devices = (cl_device_id *)malloc(sizeof(cl_device_id) * num_devices);
-            err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, num_devices, devices, &num_devices);
+            std::vector<cl_device_id> devices(num_devices);
+            err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, devices.size(), devices.data(), &num_devices);
             checkErr(err, "clGetDeviceIDs()");
 
             // Get device info for each device
-            for (size_t j=0; j<num_devices; ++j) {
+            for (size_t j=0; j<devices.size(); ++j) {
                 cl_device_type this_dev_type;
                 cl_uint device_vendor_id;
 
@@ -391,7 +388,6 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
                     Ctx.add_device_all(devices[j]);
                 }
             }
-            free(devices);
         }
 
         if (platform_number == -1) {
@@ -400,7 +396,6 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
         }
 
         Ctx.add_platform(platforms[platform_number], platform_names[platform_number]);
-        free(platforms);
     }
 }
 
@@ -449,38 +444,35 @@ void hipaccDumpBinary(cl_program program, cl_device_id device) {
     err = clGetProgramInfo(program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL);
 
     // Get the associated device ids
-    cl_device_id *devices = (cl_device_id *)malloc(num_devices * sizeof(cl_device_id));
-    err |= clGetProgramInfo(program, CL_PROGRAM_DEVICES, num_devices * sizeof(cl_device_id), devices, 0);
+    std::vector<cl_device_id> devices(num_devices);
+    err |= clGetProgramInfo(program, CL_PROGRAM_DEVICES, devices.size() * sizeof(cl_device_id), devices.data(), 0);
 
     // Get the sizes of the binaries
-    size_t *binary_sizes = (size_t *)malloc(num_devices * sizeof(size_t));
-    err |= clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, num_devices * sizeof(size_t), binary_sizes, NULL);
+    std::vector<size_t> binary_sizes(num_devices);
+    err |= clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, binary_sizes.size() * sizeof(size_t), binary_sizes.data(), NULL);
 
     // Get the binaries
-    unsigned char **binary = (unsigned char **)malloc(num_devices * sizeof(unsigned char *));
-    for (size_t i=0; i<num_devices; ++i) {
-        binary[i] = (unsigned char *)malloc(binary_sizes[i]);
+    std::vector<unsigned char *> binaries(num_devices);
+    for (size_t i=0; i<binaries.size(); ++i) {
+        binaries[i] = new unsigned char[binary_sizes[i]];
     }
-    err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES,  sizeof(unsigned char *)*num_devices, binary, NULL);
+    err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES,  sizeof(unsigned char *)*binaries.size(), binaries.data(), NULL);
     checkErr(err, "clGetProgramInfo()");
 
-    for (size_t i=0; i<num_devices; ++i) {
+    for (size_t i=0; i<devices.size(); ++i) {
         if (devices[i] == device) {
             std::cerr << "OpenCL binary : " << std::endl;
             // binary can contain any character, emit char by char
             for (size_t n=0; n<binary_sizes[i]; ++n) {
-                std::cerr << binary[i][n];
+                std::cerr << binaries[i][n];
             }
             std::cerr << std::endl;
         }
     }
 
-    for (size_t i=0; i<num_devices; ++i) {
-        free(binary[i]);
+    for (size_t i=0; i<num_devices; i++) {
+        delete[] binaries[i];
     }
-    free(binary);
-    free(binary_sizes);
-    free(devices);
 }
 
 
@@ -545,8 +537,8 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
         err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
 
         // allocate memory for the options and log
-        char *program_build_options = (char *)malloc(options_size);
-        char *program_build_log = (char *)malloc(log_size);
+        char *program_build_options = new char[options_size];
+        char *program_build_log = new char[log_size];
 
         // get the options and log
         err |= clGetProgramBuildInfo(program, Ctx.get_devices()[0], CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
@@ -562,8 +554,8 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
                   << program_build_log << std::endl;
 
         // free memory for options and log
-        free(program_build_options);
-        free(program_build_log);
+        delete[] program_build_options;
+        delete[] program_build_log;
     }
     checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
 
