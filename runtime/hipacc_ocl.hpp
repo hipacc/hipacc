@@ -904,7 +904,7 @@ double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_dev
         err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         end = getMicroTime();
-        checkErr(err, "clEnqueueNDRangeKernel()");
+        checkErr(err, "clEnqueueCopyBuffer()");
         #endif
 
         if (print_timing) {
