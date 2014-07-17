@@ -703,38 +703,10 @@ void hipaccCompileCUDAToPTX(std::string file_name, int cc, const char *build_opt
     char line[FILENAME_MAX];
     FILE *fpipe;
 
-    std::string command = "nvcc -ptx ";
+    std::stringstream ss;
+    ss << cc;
 
-    switch (cc) {
-        default:
-            std::cerr << "ERROR: Specified compute capability '" << cc << "' is not supported!" << std::endl;
-            exit(EXIT_FAILURE);
-            break;
-        case 10:
-            command += "-gencode=arch=compute_10,code=\\\"sm_10,compute_10\\\" ";
-            break;
-        case 11:
-            command += "-gencode=arch=compute_11,code=\\\"sm_11,compute_11\\\" ";
-            break;
-        case 12:
-            command += "-gencode=arch=compute_12,code=\\\"sm_12,compute_12\\\" ";
-            break;
-        case 13:
-            command += "-gencode=arch=compute_13,code=\\\"sm_13,compute_13\\\" ";
-            break;
-        case 20:
-            command += "-gencode=arch=compute_20,code=\\\"sm_20,compute_20\\\" ";
-            break;
-        case 21:
-            command += "-gencode=arch=compute_21,code=\\\"sm_21,compute_21\\\" ";
-            break;
-        case 30:
-            command += "-gencode=arch=compute_30,code=\\\"sm_30,compute_30\\\" ";
-            break;
-        case 35:
-            command += "-gencode=arch=compute_35,code=\\\"sm_35,compute_35\\\" ";
-            break;
-    }
+    std::string command = "nvcc -ptx -arch=compute_" + ss.str() + " ";
     command += "-ftz=true -prec-sqrt=false -prec-div=false ";
     command += build_options;
     command += " " + file_name;
@@ -758,8 +730,11 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
     HipaccContext &Ctx = HipaccContext::getInstance();
     CUmodule module;
     CUfunction function;
-    CUjit_target_enum target_cc;
+    CUjit_target target_cc;
 
+    #if CUDA_VERSION >= 6000
+    target_cc = (CUjit_target) cc;
+    #else
     switch (cc) {
         default:
             std::cerr << "ERROR: Specified compute capability '" << cc << "' is not supported!" << std::endl;
@@ -792,6 +767,7 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
             break;
         #endif
     }
+    #endif
 
 
     std::ifstream srcFile(file_name.c_str());
