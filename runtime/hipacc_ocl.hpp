@@ -131,7 +131,7 @@ void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *gr
 }
 
 
-const char *getOpenCLErrorCodeStr(int errorCode) {
+std::string getOpenCLErrorCodeStr(int errorCode) {
     switch (errorCode) {
         case CL_SUCCESS:
             return "CL_SUCCESS";
@@ -272,7 +272,7 @@ const char *getOpenCLErrorCodeStr(int errorCode) {
         exit(EXIT_FAILURE); \
     }
 #else
-inline void checkErr(cl_int err, const char *name) {
+inline void checkErr(cl_int err, std::string name) {
     if (err != CL_SUCCESS) {
         std::cerr << "ERROR: " << name << " (" << err << ")" << std::endl;
         exit(EXIT_FAILURE);
@@ -477,15 +477,15 @@ void hipaccDumpBinary(cl_program program, cl_device_id device) {
 
 
 // Load OpenCL source file, build program, and create kernel
-cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_name, bool print_progress=true, bool dump_binary=false, bool print_log=false, const char *build_options=(const char *)"", const char *build_includes=(const char *)"") {
+cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_name, bool print_progress=true, bool dump_binary=false, bool print_log=false, std::string build_options=std::string(), std::string build_includes=std::string()) {
     cl_int err = CL_SUCCESS;
     cl_program program;
     cl_kernel kernel;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    std::ifstream srcFile(file_name.c_str());
+    std::ifstream srcFile(file_name);
     if (!srcFile.is_open()) {
-        std::cerr << "ERROR: Can't open OpenCL source file '" << file_name.c_str() << "'!" << std::endl;
+        std::cerr << "ERROR: Can't open OpenCL source file '" << file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -499,32 +499,30 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
     program = clCreateProgramWithSource(Ctx.get_contexts()[0], 1, (const char **)&c_str, &length, &err);
     checkErr(err, "clCreateProgramWithSource()");
 
-    std::string options = build_options;
-    std::string includes = build_includes;
     cl_platform_name platform_name = Ctx.get_platform_names()[0];
-    if (options == "") {
+    if (build_options.empty()) {
         switch (platform_name) {
             case AMD:
-                options += "-cl-single-precision-constant -cl-denorms-are-zero";
+                build_options = "-cl-single-precision-constant -cl-denorms-are-zero";
                 #ifdef CL_VERSION_1_2
-                options += " -save-temps";
+                build_options += " -save-temps";
                 #endif
                 break;
             case NVIDIA:
-                options += "-cl-single-precision-constant -cl-denorms-are-zero -cl-nv-verbose";
+                build_options = "-cl-single-precision-constant -cl-denorms-are-zero -cl-nv-verbose";
                 break;
             case APPLE:
             case ARM:
             case INTEL:
             case ALL:
-                options += "-cl-single-precision-constant -cl-denorms-are-zero";
+                build_options = "-cl-single-precision-constant -cl-denorms-are-zero";
                 break;
         }
     }
-    if (includes != "") {
-        options += " " + includes;
+    if (!build_includes.empty()) {
+        build_options += " " + build_includes;
     }
-    err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
+    err = clBuildProgram(program, 0, NULL, build_options.c_str(), NULL, NULL);
     if (print_progress) std::cerr << ".";
 
     cl_build_status build_status;
@@ -1072,8 +1070,8 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccImage &img,
 
 // Perform exploration of global reduction and return result
 template<typename T>
-T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, HipaccAccessor &acc, unsigned int max_threads,
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
+        std::string kernel1D, HipaccAccessor &acc, unsigned int max_threads,
         unsigned int pixels_per_thread) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_mem_flags flags = CL_MEM_READ_WRITE;
@@ -1097,8 +1095,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 
         std::string compile_options = "-D PPT=" + num_ppt_ss.str() + " -D BS=" + num_bs_ss.str() + " -I./include ";
         compile_options += "-D BSX_EXPLORE=64 -D BSY_EXPLORE=1 ";
-        cl_kernel exploreReduction2D = hipaccBuildProgramAndKernel(filename, kernel2D, false, false, false, compile_options.c_str());
-        cl_kernel exploreReduction1D = hipaccBuildProgramAndKernel(filename, kernel1D, false, false, false, compile_options.c_str());
+        cl_kernel exploreReduction2D = hipaccBuildProgramAndKernel(filename, kernel2D, false, false, false, compile_options);
+        cl_kernel exploreReduction1D = hipaccBuildProgramAndKernel(filename, kernel1D, false, false, false, compile_options);
 
         float timing=FLT_MAX;
         #ifndef EVENT_TIMING
@@ -1171,8 +1169,6 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
             times.push_back(total_time);
             #endif
         }
-
-        // print timing
         #ifndef EVENT_TIMING
         std::sort(times.begin(), times.end());
         timing = times.at(HIPACC_NUM_ITERATIONS/2);
@@ -1182,6 +1178,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
             opt_ppt = ppt;
         }
 
+        // print timing
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
                   << timing << " ms" << std::endl;
@@ -1207,8 +1204,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
     return result;
 }
 template<typename T>
-T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, HipaccImage &img, unsigned int max_threads,
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
+        std::string kernel1D, HipaccImage &img, unsigned int max_threads,
         unsigned int pixels_per_thread) {
     HipaccAccessor acc(img);
     return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc,
@@ -1254,7 +1251,7 @@ void hipaccEnqueueKernelBenchmark(cl_kernel kernel, std::vector<std::pair<size_t
 
 
 // Perform configuration exploration for a kernel call
-void hipaccKernelExploration(const char *filename, const char *kernel,
+void hipaccKernelExploration(std::string filename, std::string kernel,
         std::vector<std::pair<size_t, void *> > args,
         std::vector<hipacc_smem_info> smems, hipacc_launch_info &info, int
         warp_size, int max_threads_per_block, int max_threads_for_kernel, int
@@ -1288,7 +1285,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                 " -D BSX_EXPLORE=" + num_threads_x_ss.str() +
                 " -D BSY_EXPLORE=" + num_threads_y_ss.str() +
                 " -I./include ";
-            cl_kernel exploreKernel = hipaccBuildProgramAndKernel(filename, kernel, false, false, false, compile_options.c_str());
+            cl_kernel exploreKernel = hipaccBuildProgramAndKernel(filename, kernel, false, false, false, compile_options);
 
 
             size_t local_work_size[2];

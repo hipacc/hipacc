@@ -108,8 +108,8 @@ using namespace android;
 const sp<Allocation> *hipaccGetAllocation(HipaccImage &img);
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);
 long getMicroTime();
-const char *getRSErrorCodeStr(int errorNum);
-EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText);
+std::string getRSErrorCodeStr(int errorNum);
+EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, std::string errorText);
 void hipaccInitRenderScript(int targetAPI);
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
 void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst);
@@ -336,7 +336,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 }
 
 
-const char *getRSErrorCodeStr(int errorNum) {
+std::string getRSErrorCodeStr(int errorNum) {
     switch (errorNum) {
         case RS_ERROR_NONE:
             return "RS_ERROR_NONE";
@@ -362,7 +362,7 @@ const char *getRSErrorCodeStr(int errorNum) {
 }
 
 
-EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText) {
+EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, std::string errorText) {
     std::cerr << "ERROR: " << getRSErrorCodeStr(errorNum)
               << " (" << errorNum << ")" << std::endl
               << "    " << errorText << std::endl;
