@@ -544,27 +544,27 @@ void ASTTranslate::updateTileVars() {
       tileVars.local_id_y = addCastToInt(tileVars.local_id_y);
       tileVars.block_id_x = addCastToInt(tileVars.block_id_x);
       tileVars.block_id_y = addCastToInt(tileVars.block_id_y);
-      if (compilerOptions.exploreConfig() && !emitEstimation) {
-        tileVars.local_size_x = createDeclRefExpr(Ctx, createVarDecl(Ctx,
-              kernelDecl, "BSX_EXPLORE", Ctx.IntTy, nullptr));
-        tileVars.local_size_y = createDeclRefExpr(Ctx, createVarDecl(Ctx,
-              kernelDecl, "BSY_EXPLORE", Ctx.IntTy, nullptr));
-      } else {
-        // select fastest method for accessing blockDim.[x|y]
-        // TODO: define this in HipaccDeviceOptions
-        if (compilerOptions.getTargetDevice()>=FERMI_20 &&
-            compilerOptions.getTargetDevice()<=KEPLER_30 &&
-            compilerOptions.getTargetCode()==TARGET_CUDA) {
+      // select fastest method for accessing blockDim.[x|y]
+      // TODO: define this in HipaccDeviceOptions
+      if (compilerOptions.getTargetDevice()>=FERMI_20 &&
+          compilerOptions.getTargetDevice()<=KEPLER_30 &&
+          compilerOptions.getTargetCode()==TARGET_CUDA) {
+        if (compilerOptions.exploreConfig() && !emitEstimation) {
+          tileVars.local_size_x = createDeclRefExpr(Ctx, createVarDecl(Ctx,
+                kernelDecl, "BSX_EXPLORE", Ctx.IntTy, nullptr));
+          tileVars.local_size_y = createDeclRefExpr(Ctx, createVarDecl(Ctx,
+                kernelDecl, "BSY_EXPLORE", Ctx.IntTy, nullptr));
+        } else {
           // use constant for final kernel configuration
           tileVars.local_size_x = createIntegerLiteral(Ctx,
               (int)Kernel->getNumThreadsX());
           tileVars.local_size_y = createIntegerLiteral(Ctx,
               (int)Kernel->getNumThreadsY());
-        } else {
-          // cast blockDim.[x|y] to signed integer
-          tileVars.local_size_x = addCastToInt(tileVars.local_size_x);
-          tileVars.local_size_y = addCastToInt(tileVars.local_size_y);
         }
+      } else {
+        // cast blockDim.[x|y] to signed integer
+        tileVars.local_size_x = addCastToInt(tileVars.local_size_x);
+        tileVars.local_size_y = addCastToInt(tileVars.local_size_y);
       }
       break;
   }
@@ -818,8 +818,11 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       // __shared__ T _smemIn[SY-1 + BSY*PPT][3 * BSX];
       // for left and right halo, add 2*BSX
       if (!emitEstimation && compilerOptions.exploreConfig()) {
-        Expr *SX = tileVars.local_size_x;
-        Expr *SY = tileVars.local_size_y;
+        Expr *SX = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
+              "BSX_EXPLORE", Ctx.IntTy, nullptr));
+        Expr *BSY = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
+              "BSY_EXPLORE", Ctx.IntTy, nullptr));
+        Expr *SY = BSY;
 
         if (Acc->getSizeX() > 1) {
           // 3*BSX
@@ -841,10 +844,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           SY = createBinaryOperator(Ctx, SY, createBinaryOperator(Ctx,
                 createParenExpr(Ctx, createBinaryOperator(Ctx,
                     createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                        (int)Acc->getSizeY()-2), tileVars.local_size_y, BO_Div,
-                      Ctx.IntTy), createIntegerLiteral(Ctx, 1), BO_Add,
-                    Ctx.IntTy)), tileVars.local_size_y, BO_Mul, Ctx.IntTy),
-              BO_Add, Ctx.IntTy);
+                        (int)Acc->getSizeY()-2), BSY, BO_Div, Ctx.IntTy),
+                    createIntegerLiteral(Ctx, 1), BO_Add, Ctx.IntTy)), BSY,
+                BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
         }
 
         QT = Acc->getImage()->getType();
