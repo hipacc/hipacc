@@ -597,10 +597,10 @@ void hipaccReadSymbol(T *host_mem, const void *symbol, std::string symbol_name, 
 template<typename T>
 void hipaccWriteDomainFromMask(const void *symbol, std::string symbol_name,
                                T *host_mem, int width, int height) {
-    int size = width * height;
+    size_t size = width * height;
     uchar *dom_mem = new uchar[size];
 
-    for (int i = 0; i < size; ++i) {
+    for (size_t i=0; i<size; ++i) {
         dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
     }
 

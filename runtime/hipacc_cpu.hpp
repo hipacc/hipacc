@@ -151,16 +151,16 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
 // Infer non-const Domain from non-const Mask
 template<typename T>
 void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
-  int size = dom.width * dom.height;
-  uchar *dom_mem = new uchar[size];
+    size_t size = width * height;
+    uchar *dom_mem = new uchar[size];
 
-  for (int i = 0; i < size; ++i) {
-    dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
-  }
+    for (size_t i=0; i<size; ++i) {
+        dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
+    }
 
-  hipaccWriteMemory(dom, dom_mem);
+    hipaccWriteMemory(dom, dom_mem);
 
-  delete[] dom_mem;
+    delete[] dom_mem;
 }
 
 
