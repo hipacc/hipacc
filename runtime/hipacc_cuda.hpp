@@ -1283,6 +1283,10 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
                   << min_dt << " ms" << std::endl;
+
+        // cleanup
+        CUresult err = cuModuleUnload(modReduction);
+        checkErrDrv(err, "cuModuleUnload()");
     }
     std::cerr << "<HIPACC:> Best unroll factor for reduction kernel '"
               << kernel2D << "/" << kernel1D << "': "
@@ -1404,6 +1408,10 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
                       << std::setw(8) << std::fixed << std::setprecision(4)
                       << min_dt << " ms";
             hipaccPrintKernelOccupancy(exploreKernel, tile_size_x, tile_size_y);
+
+            // cleanup
+            err = cuModuleUnload(modKernel);
+            checkErrDrv(err, "cuModuleUnload()");
         }
     }
     std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
