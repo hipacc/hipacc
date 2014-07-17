@@ -725,11 +725,9 @@ void hipaccCompileCUDAToPTX(std::string file_name, int cc, const char *build_opt
 
 
 // Load ptx assembly, create a module and kernel
-void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_module, std::string file_name, std::string kernel_name, int cc) {
+void hipaccCreateModuleKernel(CUfunction &function, CUmodule &module, std::string file_name, std::string kernel_name, int cc) {
     CUresult err = CUDA_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    CUmodule module;
-    CUfunction function;
     CUjit_target target_cc;
 
     #if CUDA_VERSION >= 6000
@@ -795,9 +793,6 @@ void hipaccCreateModuleKernel(CUfunction *result_function, CUmodule *result_modu
     // Get function entry point
     err = cuModuleGetFunction(&function, module, kernel_name.c_str());
     checkErrDrv(err, "cuModuleGetFunction()");
-
-    *result_function = function;
-    *result_module = module;
 }
 
 
@@ -904,42 +899,33 @@ void hipaccLaunchKernelBenchmark(CUfunction &kernel, const char *kernel_name, di
 
 
 // Get global reference from module
-void hipaccGetGlobal(CUdeviceptr *result_global, CUmodule &module, std::string global_name) {
+void hipaccGetGlobal(CUdeviceptr &global, CUmodule &module, std::string global_name) {
     CUresult err = CUDA_SUCCESS;
-    CUdeviceptr global;
     HipaccContext &Ctx = HipaccContext::getInstance();
     size_t size;
 
     err = cuModuleGetGlobal(&global, &size, module, global_name.c_str());
     checkErrDrv(err, "cuModuleGetGlobal()");
-
-    *result_global = global;
 }
 
 
 // Get texture reference from module
-void hipaccGetTexRef(CUtexref *result_texture, CUmodule &module, std::string texture_name) {
+void hipaccGetTexRef(CUtexref &tex, CUmodule &module, std::string texture_name) {
     CUresult err = CUDA_SUCCESS;
-    CUtexref tex;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
     err = cuModuleGetTexRef(&tex, module, texture_name.c_str());
     checkErrDrv(err, "cuModuleGetTexRef()");
-
-    *result_texture = tex;
 }
 
 
 // Get surface reference from module
-void hipaccGetSurfRef(CUsurfref *result_surface, CUmodule &module, std::string surface_name) {
+void hipaccGetSurfRef(CUsurfref &surf, CUmodule &module, std::string surface_name) {
     CUresult err = CUDA_SUCCESS;
-    CUsurfref surf;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
     err = cuModuleGetSurfRef(&surf, module, surface_name.c_str());
     checkErrDrv(err, "cuModuleGetSurfRef()");
-
-    *result_surface = surf;
 }
 
 
@@ -1229,8 +1215,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
         CUmodule modReduction;
         CUfunction exploreReduction2D;
         CUfunction exploreReduction1D;
-        hipaccCreateModuleKernel(&exploreReduction2D, &modReduction, ptx_filename, kernel2D, cc);
-        hipaccCreateModuleKernel(&exploreReduction1D, &modReduction, ptx_filename, kernel1D, cc);
+        hipaccCreateModuleKernel(exploreReduction2D, modReduction, ptx_filename, kernel2D, cc);
+        hipaccCreateModuleKernel(exploreReduction1D, modReduction, ptx_filename, kernel1D, cc);
 
         float min_dt=FLT_MAX;
         for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
@@ -1259,7 +1245,7 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
             // bind texture to CUDA array
             CUtexref texImage;
             if (tex_info.tex_type==Array2D) {
-                hipaccGetTexRef(&texImage, modReduction, tex_info.name);
+                hipaccGetTexRef(texImage, modReduction, tex_info.name);
                 hipaccBindTextureDrv(texImage, tex_info.image, tex_info.format, tex_info.tex_type);
                 hipaccLaunchKernel(exploreReduction2D, kernel2D, grid, block, argsReduction2DArray, false);
             } else {
@@ -1363,12 +1349,12 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
 
             CUmodule modKernel;
             CUfunction exploreKernel;
-            hipaccCreateModuleKernel(&exploreKernel, &modKernel, ptx_filename, kernel, cc);
+            hipaccCreateModuleKernel(exploreKernel, modKernel, ptx_filename, kernel, cc);
 
             // load constant memory
             CUdeviceptr constMem;
             for (size_t i=0; i<consts.size(); ++i) {
-                hipaccGetGlobal(&constMem, modKernel, consts.data()[i].name);
+                hipaccGetGlobal(constMem, modKernel, consts.data()[i].name);
                 err = cuMemcpyHtoD(constMem, consts.data()[i].memory, consts.data()[i].size);
                 checkErrDrv(err, "cuMemcpyHtoD()");
             }
@@ -1378,11 +1364,11 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             for (size_t i=0; i<texs.size(); ++i) {
                 if (texs.data()[i]->tex_type==Surface) {
                     // bind surface memory
-                    hipaccGetSurfRef(&surfImage, modKernel, texs.data()[i]->name);
+                    hipaccGetSurfRef(surfImage, modKernel, texs.data()[i]->name);
                     hipaccBindSurfaceDrv(surfImage, texs.data()[i]->image);
                 } else {
                     // bind texture memory
-                    hipaccGetTexRef(&texImage, modKernel, texs.data()[i]->name);
+                    hipaccGetTexRef(texImage, modKernel, texs.data()[i]->name);
                     hipaccBindTextureDrv(texImage, texs.data()[i]->image,
                             texs.data()[i]->format, texs.data()[i]->tex_type);
                 }
