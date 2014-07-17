@@ -419,7 +419,7 @@ void hipaccCreateContextsAndCommandQueues(bool all_devies=false) {
     std::vector<cl_device_id> devices = all_devies?Ctx.get_devices_all():Ctx.get_devices();
 
     // Create context
-    cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platforms.data()[0], 0 };
+    cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platforms[0], 0 };
     context = clCreateContext(cprops, devices.size(), devices.data(), NULL, NULL, &err);
     checkErr(err, "clCreateContext()");
 
@@ -427,7 +427,7 @@ void hipaccCreateContextsAndCommandQueues(bool all_devies=false) {
 
     // Create command queues
     for (size_t i=0; i<devices.size(); ++i) {
-        command_queue = clCreateCommandQueue(context, devices.data()[i], CL_QUEUE_PROFILING_ENABLE, &err);
+        command_queue = clCreateCommandQueue(context, devices[i], CL_QUEUE_PROFILING_ENABLE, &err);
         checkErr(err, "clCreateCommandQueue()");
 
         Ctx.add_command_queue(command_queue);
@@ -1224,7 +1224,7 @@ void hipaccEnqueueKernelBenchmark(cl_kernel kernel, std::vector<std::pair<size_t
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
         // set kernel arguments
         for (size_t j=0; j<args.size(); ++j) {
-            hipaccSetKernelArg(kernel, j, args.data()[j].first, args.data()[j].second);
+            hipaccSetKernelArg(kernel, j, args[j].first, args[j].second);
         }
 
         // launch kernel
@@ -1271,7 +1271,7 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
             // check if we exceed size of shared memory
             int used_smem = 0;
             for (size_t i=0; i<smems.size(); ++i) {
-                used_smem += (tile_size_x + smems.data()[i].size_x)*(tile_size_y + smems.data()[i].size_y - 1) * smems.data()[i].pixel_size;
+                used_smem += (tile_size_x + smems[i].size_x)*(tile_size_y + smems[i].size_y - 1) * smems[i].pixel_size;
             }
             if (used_smem >= max_smem_per_block) continue;
             if (used_smem && tile_size_x > warp_size) continue;
@@ -1303,7 +1303,7 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
             for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
                 // set kernel arguments
                 for (size_t j=0; j<args.size(); ++j) {
-                    hipaccSetKernelArg(exploreKernel, j, args.data()[j].first, args.data()[j].second);
+                    hipaccSetKernelArg(exploreKernel, j, args[j].first, args[j].second);
                 }
 
                 // start timing
