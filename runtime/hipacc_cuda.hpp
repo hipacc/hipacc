@@ -127,7 +127,7 @@ std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
     return std::string(errorName) + ": " + std::string(errorString);
 }
 #else
-const char *getCUDAErrorCodeStrDrv(CUresult errorCode) {
+std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
     switch (errorCode) {
         case CUDA_SUCCESS:
             return "CUDA_SUCCESS";
@@ -247,7 +247,7 @@ const char *getCUDAErrorCodeStrDrv(CUresult errorCode) {
         exit(EXIT_FAILURE); \
     }
 #else
-inline void checkErrDrv(CUresult err, const char *name) {
+inline void checkErrDrv(CUresult err, std::string name) {
     if (err != CUDA_SUCCESS) {
         std::cerr << "ERROR: " << name << " (" << (err) << "): ";
         std::cerr << getCUDAErrorCodeStrDrv(err) << std::endl;
@@ -264,7 +264,7 @@ inline void checkErrDrv(CUresult err, const char *name) {
         exit(EXIT_FAILURE); \
     }
 #else
-inline void checkErr(cudaError_t err, const char *name) {
+inline void checkErr(cudaError_t err, std::string name) {
     if (err != cudaSuccess) {
         std::cerr << "ERROR: " << name << " (" << err << "): ";
         std::cerr << cudaGetErrorString(err) << std::endl;
@@ -565,7 +565,7 @@ void hipaccUnbindTexture(const struct texture<T, ND, cudaReadModeElementType>tex
 
 // Write to symbol
 template<typename T>
-void hipaccWriteSymbol(const void *symbol, const char *symbol_name, T *host_mem, int width, int height) {
+void hipaccWriteSymbol(const void *symbol, std::string symbol_name, T *host_mem, int width, int height) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
@@ -580,7 +580,7 @@ void hipaccWriteSymbol(const void *symbol, const char *symbol_name, T *host_mem,
 
 // Read from symbol
 template<typename T>
-void hipaccReadSymbol(T *host_mem, const void *symbol, const char *symbol_name, int width, int height) {
+void hipaccReadSymbol(T *host_mem, const void *symbol, std::string symbol_name, int width, int height) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
@@ -595,7 +595,7 @@ void hipaccReadSymbol(T *host_mem, const void *symbol, const char *symbol_name, 
 
 // Infer non-const Domain from non-const Mask
 template<typename T>
-void hipaccWriteDomainFromMask(const void *symbol, const char *symbol_name,
+void hipaccWriteDomainFromMask(const void *symbol, std::string symbol_name,
                                T *host_mem, int width, int height) {
     int size = width * height;
     uchar *dom_mem = new uchar[size];
@@ -634,14 +634,12 @@ void hipaccSetupArgument(const void *arg, size_t size, size_t &offset) {
 
 
 // Launch kernel
-void hipaccLaunchKernel(const void *kernel, const char *kernel_name, dim3 grid, dim3 block, bool print_timing=true) {
+void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 grid, dim3 block, bool print_timing=true) {
     cudaError_t err = cudaSuccess;
     cudaEvent_t start, end;
     HipaccContext &Ctx = HipaccContext::getInstance();
     float time;
-    std::string error_string = "cudaLaunch(";
-    error_string += kernel_name;
-    error_string += ")";
+    std::string error_string = "cudaLaunch(" + kernel_name + ")";
 
     cudaEventCreate(&start);
     cudaEventCreate(&end);
@@ -669,7 +667,7 @@ void hipaccLaunchKernel(const void *kernel, const char *kernel_name, dim3 grid, 
 
 
 // Benchmark timing for a kernel call
-void hipaccLaunchKernelBenchmark(const void *kernel, const char *kernel_name, std::vector<std::pair<size_t, void *> > args, dim3 grid, dim3 block, bool print_timing=true) {
+void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, std::vector<std::pair<size_t, void *> > args, dim3 grid, dim3 block, bool print_timing=true) {
     float min_dt=FLT_MAX;
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
@@ -699,7 +697,7 @@ void hipaccLaunchKernelBenchmark(const void *kernel, const char *kernel_name, st
 //
 
 // Compile CUDA source file to ptx assembly using nvcc compiler
-void hipaccCompileCUDAToPTX(std::string file_name, int cc, const char *build_options=(const char *)"") {
+void hipaccCompileCUDAToPTX(std::string file_name, int cc, std::string build_options = std::string()) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
@@ -708,8 +706,7 @@ void hipaccCompileCUDAToPTX(std::string file_name, int cc, const char *build_opt
 
     std::string command = "nvcc -ptx -arch=compute_" + ss.str() + " ";
     command += "-ftz=true -prec-sqrt=false -prec-div=false ";
-    command += build_options;
-    command += " " + file_name;
+    command += build_options + " " + file_name;
     command += " -o " + file_name + ".ptx 2>&1";
 
     if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
@@ -849,14 +846,12 @@ void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y
 
 
 // Launch kernel
-void hipaccLaunchKernel(CUfunction &kernel, const char *kernel_name, dim3 grid, dim3 block, void **args, bool print_timing=true) {
+void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 grid, dim3 block, void **args, bool print_timing=true) {
     CUresult err = CUDA_SUCCESS;
     cudaEvent_t start, end;
     HipaccContext &Ctx = HipaccContext::getInstance();
     float time;
-    std::string error_string = "cuLaunchKernel(";
-    error_string += kernel_name;
-    error_string += ")";
+    std::string error_string = "cuLaunchKernel(" + kernel_name + ")";
 
     cudaEventCreate(&start);
     cudaEventCreate(&end);
@@ -881,7 +876,7 @@ void hipaccLaunchKernel(CUfunction &kernel, const char *kernel_name, dim3 grid, 
         std::cerr << "<HIPACC:> Kernel timing (" << block.x*block.y << ": " << block.x << "x" << block.y << "): " << time << "(ms)" << std::endl;
     }
 }
-void hipaccLaunchKernelBenchmark(CUfunction &kernel, const char *kernel_name, dim3 grid, dim3 block, void **args, bool print_timing=true) {
+void hipaccLaunchKernelBenchmark(CUfunction &kernel, std::string kernel_name, dim3 grid, dim3 block, void **args, bool print_timing=true) {
     float min_dt=FLT_MAX;
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; i++) {
@@ -971,8 +966,8 @@ void hipaccBindSurfaceDrv(CUsurfref &surface, HipaccImage &img) {
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
-        void *kernel1D, const char *kernel1D_name, HipaccAccessor &acc, unsigned
+T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
+        void *kernel1D, std::string kernel1D_name, HipaccAccessor &acc, unsigned
         int max_threads, unsigned int pixels_per_thread, const struct texture<T,
         cudaTextureType2D, cudaReadModeElementType> &tex) {
     cudaError_t err = cudaSuccess;
@@ -1064,8 +1059,8 @@ T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
 }
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
-        void *kernel1D, const char *kernel1D_name, HipaccImage &img, unsigned
+T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
+        void *kernel1D, std::string kernel1D_name, HipaccImage &img, unsigned
         int max_threads, unsigned int pixels_per_thread, const struct texture<T,
         cudaTextureType2D, cudaReadModeElementType> &tex) {
     HipaccAccessor acc(img);
@@ -1076,8 +1071,8 @@ T hipaccApplyReduction(const void *kernel2D, const char *kernel2D_name, const
 
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReductionThreadFence(const void *kernel2D, const char
-        *kernel2D_name, HipaccAccessor &acc, unsigned int max_threads, unsigned
+T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
+        kernel2D_name, HipaccAccessor &acc, unsigned int max_threads, unsigned
         int pixels_per_thread, const struct texture<T, cudaTextureType2D,
         cudaReadModeElementType> &tex) {
     cudaError_t err = cudaSuccess;
@@ -1147,8 +1142,8 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, const char
 }
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReductionThreadFence(const void *kernel2D, const char
-        *kernel2D_name, HipaccImage &img, unsigned int max_threads, unsigned int
+T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
+        kernel2D_name, HipaccImage &img, unsigned int max_threads, unsigned int
         pixels_per_thread, const struct texture<T, cudaTextureType2D,
         cudaReadModeElementType> &tex) {
     HipaccAccessor acc(img);
@@ -1159,8 +1154,8 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, const char
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, HipaccAccessor &acc, unsigned int max_threads,
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
+        std::string kernel1D, HipaccAccessor &acc, unsigned int max_threads,
         unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     cudaError_t err = cudaSuccess;
     T *output;  // GPU memory for reduction
@@ -1208,10 +1203,9 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 
         std::string compile_options = "-D PPT=" + num_ppt_ss.str() + " -D BS=" + num_bs_ss.str() + " -I./include ";
         compile_options += "-D BSX_EXPLORE=64 -D BSY_EXPLORE=1 ";
-        hipaccCompileCUDAToPTX(filename, cc, compile_options.c_str());
+        hipaccCompileCUDAToPTX(filename, cc, compile_options);
 
-        std::string ptx_filename = filename;
-        ptx_filename += ".ptx";
+        std::string ptx_filename = filename + ".ptx";
         CUmodule modReduction;
         CUfunction exploreReduction2D;
         CUfunction exploreReduction1D;
@@ -1302,8 +1296,8 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
     return result;
 }
 template<typename T>
-T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
-        const char *kernel1D, HipaccImage &img, unsigned int max_threads,
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
+        std::string kernel1D, HipaccImage &img, unsigned int max_threads,
         unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     HipaccAccessor acc(img);
     return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc,
@@ -1312,15 +1306,14 @@ T hipaccApplyReductionExploration(const char *filename, const char *kernel2D,
 
 
 // Perform configuration exploration for a kernel call
-void hipaccKernelExploration(const char *filename, const char *kernel,
+void hipaccKernelExploration(std::string filename, std::string kernel,
         std::vector<void *> args, std::vector<hipacc_smem_info> smems,
         std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info*>
         texs, hipacc_launch_info &info, int warp_size, int
         max_threads_per_block, int max_threads_for_kernel, int
         max_smem_per_block, int heu_tx, int heu_ty, int cc) {
     CUresult err = CUDA_SUCCESS;
-    std::string ptx_filename = filename;
-    ptx_filename += ".ptx";
+    std::string ptx_filename = filename + ".ptx";
     int opt_tx=warp_size, opt_ty=1;
     float opt_time = FLT_MAX;
 
@@ -1349,7 +1342,7 @@ void hipaccKernelExploration(const char *filename, const char *kernel,
             std::string compile_options = "-D BSX_EXPLORE=" +
                 num_threads_x_ss.str() + " -D BSY_EXPLORE=" +
                 num_threads_y_ss.str() + " -I./include ";
-            hipaccCompileCUDAToPTX(filename, cc, compile_options.c_str());
+            hipaccCompileCUDAToPTX(filename, cc, compile_options);
 
             CUmodule modKernel;
             CUfunction exploreKernel;
