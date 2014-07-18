@@ -360,7 +360,7 @@ int main(int argc, const char **argv) {
     #else
     Domain dom(WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2);
     // do not process the center pixel
-    dom(WINDOW_SIZE_X/4, WINDOW_SIZE_Y/4) = 0;
+    dom(0, 0) = 0;
     #endif
 
     VectorKernel vector_kernel(iter_vec, acc_img_sig, acc_prev_sig, dom);

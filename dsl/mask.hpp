@@ -42,8 +42,8 @@ class MaskBase {
         MaskBase(int size_x, int size_y) :
             size_x(size_x),
             size_y(size_y),
-            offset_x(-size_x/2),
-            offset_y(-size_y/2),
+            offset_x(size_x/2),
+            offset_y(size_y/2),
             domain_space(new uchar[size_x*size_y]),
             iteration_space(size_x, size_y)
         {
@@ -57,8 +57,8 @@ class MaskBase {
         MaskBase(const MaskBase &mask) :
             size_x(mask.size_x),
             size_y(mask.size_y),
-            offset_x(-mask.size_x/2),
-            offset_y(-mask.size_y/2),
+            offset_x(mask.size_x/2),
+            offset_y(mask.size_y/2),
             domain_space(new uchar[mask.size_x*mask.size_y]),
             iteration_space(mask.size_x, mask.size_y)
         {
@@ -185,14 +185,10 @@ class Domain : public MaskBase {
             return DI->getY();
         }
 
-        DomainSetter operator()(unsigned int x, unsigned int y) {
-            x += size_x >> 1;
-            y += size_y >> 1;
-            if ((int)x < size_x && (int)y < size_y) {
-                return DomainSetter(domain_space, y * size_x + x);
-            } else {
-                return DomainSetter(domain_space, 0);
-            }
+        DomainSetter operator()(const int xf, const int yf) {
+            assert(xf+offset_x < size_x && yf+offset_y < size_y &&
+                    "out of bounds Domain access.");
+            return DomainSetter(domain_space, (yf+offset_y)*size_x + xf+offset_x);
         }
 
         Domain &operator=(const uchar *other) {
@@ -291,15 +287,17 @@ class Mask : public MaskBase {
 
         data_t &operator()(void) {
             assert(EI && "ElementIterator for Mask not set!");
-            return array[(EI->getY()-offset_y)*size_x + EI->getX()-offset_x];
+            return array[(EI->getY()+offset_y)*size_x + EI->getX()+offset_x];
         }
         data_t &operator()(const int xf, const int yf) {
-            return array[(yf-offset_y)*size_x + xf-offset_x];
+            assert(xf+offset_x < size_x && yf+offset_y < size_y &&
+                    "out of bounds Mask access.");
+            return array[(yf+offset_y)*size_x + xf+offset_x];
         }
         data_t &operator()(Domain &D) {
             assert(D.getSizeX()==size_x && D.getSizeY()==size_y &&
                     "Domain and Mask size must be equal.");
-            return array[(D.getY()-offset_y)*size_x + D.getX()-offset_x];
+            return array[(D.getY()+offset_y)*size_x + D.getX()+offset_x];
         }
 
         void setEI(ElementIterator *ei) { EI = ei; }
