@@ -36,7 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "hipacc_ocl.hpp"
+#include "hipacc_cl.hpp"
 
 
 void usage(char **argv) {

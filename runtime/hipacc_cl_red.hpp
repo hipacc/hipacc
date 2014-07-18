@@ -24,8 +24,8 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-//#ifndef __HIPACC_OCL_RED_HPP__
-//#define __HIPACC_OCL_RED_HPP__
+//#ifndef __HIPACC_CL_RED_HPP__
+//#define __HIPACC_CL_RED_HPP__
 
 #ifndef PPT
 #define PPT 1
@@ -62,7 +62,7 @@
 // step 1:
 // reduce a 2D block stored to linear memory or an Image object and store the reduced value to linear memory
 __constant sampler_t img_sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
-#define REDUCTION_OCL_2D(NAME, DATA_TYPE, REDUCE, IMG_ACC) \
+#define REDUCTION_CL_2D(NAME, DATA_TYPE, REDUCE, IMG_ACC) \
 __kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME( \
         INPUT_PARM(DATA_TYPE, input), __global DATA_TYPE *output, \
         const unsigned int width, const unsigned int height, \
@@ -123,7 +123,7 @@ __kernel __attribute__((reqd_work_group_size(BS, 1, 1))) void NAME( \
 // step 2:
 // reduce a 1D block and store the reduced value to the first element of linear
 // memory
-#define REDUCTION_OCL_1D(NAME, DATA_TYPE, REDUCE) \
+#define REDUCTION_CL_1D(NAME, DATA_TYPE, REDUCE) \
 __kernel void NAME(__global const DATA_TYPE *input, __global DATA_TYPE *output, \
         const unsigned int num_elements, const unsigned int iterations) { \
     const unsigned int tid = get_local_id(0); \
@@ -152,5 +152,5 @@ __kernel void NAME(__global const DATA_TYPE *input, __global DATA_TYPE *output, 
     if (tid == 0) output[get_group_id(0)] = sdata[0]; \
 }
 
-//#endif  // __HIPACC_OCL_RED_HPP__
+//#endif  // __HIPACC_CL_RED_HPP__
 

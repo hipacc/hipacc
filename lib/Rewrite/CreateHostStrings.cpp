@@ -44,12 +44,12 @@ void CreateHostStrings::writeHeaders(std::string &resultStr) {
       resultStr += "#include \"hipacc_cpu.hpp\"\n\n";
       break;
     case TARGET_CUDA:
-      resultStr += "#include \"hipacc_cuda.hpp\"\n\n";
+      resultStr += "#include \"hipacc_cu.hpp\"\n\n";
       break;
     case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
     case TARGET_OpenCLGPU:
-      resultStr += "#include \"hipacc_ocl.hpp\"\n\n";
+      resultStr += "#include \"hipacc_cl.hpp\"\n\n";
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
@@ -124,14 +124,14 @@ void CreateHostStrings::writeKernelCompilation(HipaccKernel *K,
     case TARGET_OpenCLCPU:
     case TARGET_OpenCLGPU:
       writeCLCompilation(K->getFileName(), K->getKernelName(),
-          HipaccDevice(options).getOCLIncludes(), resultStr);
+          HipaccDevice(options).getCLIncludes(), resultStr);
       if (K->getKernelClass()->getReduceFunction()) {
         resultStr += indent;
         writeCLCompilation(K->getFileName(), K->getReduceName(),
-            HipaccDevice(options).getOCLIncludes(), resultStr, "2D");
+            HipaccDevice(options).getCLIncludes(), resultStr, "2D");
         resultStr += indent;
         writeCLCompilation(K->getFileName(), K->getReduceName(),
-            HipaccDevice(options).getOCLIncludes(), resultStr, "1D");
+            HipaccDevice(options).getCLIncludes(), resultStr, "1D");
       }
       break;
   }

@@ -240,7 +240,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
   // add interpolation include and define interpolation functions for CUDA
   if (compilerOptions.emitCUDA() && InterpolationDefinitionsGlobal.size()) {
-    newStr += "#include \"hipacc_cuda_interpolate.hpp\"\n";
+    newStr += "#include \"hipacc_cu_interpolate.hpp\"\n";
 
     // sort definitions and remove duplicate definitions
     std::sort(InterpolationDefinitionsGlobal.begin(),
@@ -2123,14 +2123,14 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
           compilerOptions.getTextureType()==Array2D) {
         *OS << "#define USE_ARRAY_2D\n";
       }
-      *OS << "#include \"hipacc_ocl_red.hpp\"\n\n";
+      *OS << "#include \"hipacc_cl_red.hpp\"\n\n";
       break;
     case TARGET_CUDA:
       if (compilerOptions.useTextureMemory() &&
           compilerOptions.getTextureType()==Array2D) {
         *OS << "#define USE_ARRAY_2D\n";
       }
-      *OS << "#include \"hipacc_cuda_red.hpp\"\n\n";
+      *OS << "#include \"hipacc_cu_red.hpp\"\n\n";
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
@@ -2203,13 +2203,13 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case TARGET_OpenCLCPU:
     case TARGET_OpenCLGPU:
       // 2D reduction
-      *OS << "REDUCTION_OCL_2D(" << K->getReduceName() << "2D, "
+      *OS << "REDUCTION_CL_2D(" << K->getReduceName() << "2D, "
           << fun->getResultType().getAsString() << ", "
           << K->getReduceName() << ", "
           << K->getIterationSpace()->getImage()->getImageReadFunction()
           << ")\n";
       // 1D reduction
-      *OS << "REDUCTION_OCL_1D(" << K->getReduceName() << "1D, "
+      *OS << "REDUCTION_CL_1D(" << K->getReduceName() << "1D, "
           << fun->getResultType().getAsString() << ", "
           << K->getReduceName() << ")\n";
       break;
@@ -2365,12 +2365,12 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case TARGET_C:
             break;
           case TARGET_CUDA:
-            *OS << "#include \"hipacc_cuda_interpolate.hpp\"\n\n";
+            *OS << "#include \"hipacc_cu_interpolate.hpp\"\n\n";
             break;
           case TARGET_OpenCLACC:
           case TARGET_OpenCLCPU:
           case TARGET_OpenCLGPU:
-            *OS << "#include \"hipacc_ocl_interpolate.hpp\"\n\n";
+            *OS << "#include \"hipacc_cl_interpolate.hpp\"\n\n";
             break;
           case TARGET_Renderscript:
           case TARGET_Filterscript:

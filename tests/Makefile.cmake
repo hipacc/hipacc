@@ -17,13 +17,13 @@ OFLAGS        = -O3
 
 # OpenCL specific configuration
 ifeq ($(HIPACC_TARGET),Midgard)
-    OCL_CC    = @NDK_CXX_COMPILER@ @NDK_CXX_FLAGS@ @NDK_INCLUDE_DIRS_STR@ -std=c++0x -Wall -Wunused
-    OCL_LINK  = -lm -ldl -lstdc++ @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@
-    OCL_INC   = @EMBEDDED_OPENCL_CFLAGS@
+    CL_CC    = @NDK_CXX_COMPILER@ @NDK_CXX_FLAGS@ @NDK_INCLUDE_DIRS_STR@ -std=c++0x -Wall -Wunused
+    CL_LINK  = -lm -ldl -lstdc++ @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@
+    CL_INC   = @EMBEDDED_OPENCL_CFLAGS@
 else
-    OCL_CC    = @CMAKE_CXX_COMPILER@ -std=c++11 -Wall -Wunused
-    OCL_LINK  = -lm -ldl -lstdc++ -lpthread @TIME_LINK@ @OPENCL_LFLAGS@
-    OCL_INC   = @OPENCL_CFLAGS@
+    CL_CC    = @CMAKE_CXX_COMPILER@ -std=c++11 -Wall -Wunused
+    CL_LINK  = -lm -ldl -lstdc++ -lpthread @TIME_LINK@ @OPENCL_LFLAGS@
+    CL_INC   = @OPENCL_CFLAGS@
 endif
 
 # Renderscript specific configuration
@@ -88,7 +88,7 @@ cpu:
 	@echo 'Executing HIPAcc Compiler for C++:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cpu $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling C++ file using g++:'
-	$(OCL_CC) -I$(HIPACC_DIR)/include -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc -lm -ldl -lstdc++ -lpthread @TIME_LINK@
+	$(CL_CC) -I$(HIPACC_DIR)/include -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc -lm -ldl -lstdc++ -lpthread @TIME_LINK@
 	@echo 'Executing C++ binary'
 	./main_cpu
 
@@ -104,7 +104,7 @@ opencl-acc opencl-cpu opencl-gpu:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-$@ $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
-	$(OCL_CC) $(OCL_INC) -I$(HIPACC_DIR)/include -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(OCL_LINK)
+	$(CL_CC) $(CL_INC) -I$(HIPACC_DIR)/include -I$(TEST_CASE) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(CL_LINK)
 ifneq ($(HIPACC_TARGET),Midgard)
 	@echo 'Executing OpenCL binary'
 	./main_opencl

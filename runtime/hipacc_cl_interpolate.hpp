@@ -24,8 +24,8 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef __HIPACC_OCL_INTERPOLATE_HPP__
-#define __HIPACC_OCL_INTERPOLATE_HPP__
+#ifndef __HIPACC_CL_INTERPOLATE_HPP__
+#define __HIPACC_CL_INTERPOLATE_HPP__
 
 __constant sampler_t interpolationSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
 
@@ -255,5 +255,5 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
         y5*lanczos(y_frac - 2 + 5); \
 }
 
-#endif  // __HIPACC_OCL_INTERPOLATE_HPP__
+#endif  // __HIPACC_CL_INTERPOLATE_HPP__
 

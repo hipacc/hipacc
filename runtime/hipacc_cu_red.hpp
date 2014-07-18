@@ -24,8 +24,8 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-//#ifndef __HIPACC_CUDA_RED_HPP__
-//#define __HIPACC_CUDA_RED_HPP__
+//#ifndef __HIPACC_CU_RED_HPP__
+//#define __HIPACC_CU_RED_HPP__
 
 #ifndef PPT
 #define PPT 1
@@ -264,5 +264,5 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
     if (tid == 0) output[blockIdx.x] = sdata[0]; \
 }
 
-//#endif  // __HIPACC_CUDA_RED_HPP__
+//#endif  // __HIPACC_CU_RED_HPP__
 

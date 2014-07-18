@@ -24,8 +24,8 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef __HIPACC_OCL_HPP__
-#define __HIPACC_OCL_HPP__
+#ifndef __HIPACC_CL_HPP__
+#define __HIPACC_CL_HPP__
 
 #ifdef __APPLE__
 #include <OpenCL/cl.h>
@@ -1367,5 +1367,5 @@ HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height) {
   }
 }
 
-#endif  // __HIPACC_OCL_HPP__
+#endif  // __HIPACC_CL_HPP__
 

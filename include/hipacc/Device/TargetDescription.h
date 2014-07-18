@@ -423,11 +423,11 @@ class HipaccDevice : public HipaccDeviceOptions {
       if (emitCUDA) {
         return CUDA_COMPILER;
       } else {
-        return OCL_COMPILER;
+        return CL_COMPILER;
       }
     }
 
-    std::string getOCLIncludes() {
+    std::string getCLIncludes() {
       if (isARMGPU()) {
         return EMBEDDED_RUNTIME_INCLUDES;
       } else {

@@ -24,8 +24,8 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef __HIPACC_CUDA_HPP__
-#define __HIPACC_CUDA_HPP__
+#ifndef __HIPACC_CU_HPP__
+#define __HIPACC_CU_HPP__
 
 #include <cuda.h>
 #if CUDA_VERSION >= 6000
@@ -1411,5 +1411,5 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
               << opt_time << " ms" << std::endl;
 }
 
-#endif  // __HIPACC_CUDA_HPP__
+#endif  // __HIPACC_CU_HPP__
 

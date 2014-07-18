@@ -3,17 +3,17 @@ IF(OPENCL_FOUND)
         ${OPENCL_INCLUDE_DIR}
         ${HIPACC_SOURCE_DIR}/runtime)
 
-    SET(ocl_compile_SOURCES ocl_compile.cc)
+    SET(cl_compile_SOURCES cl_compile.cc)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    ADD_EXECUTABLE(ocl_compile ${ocl_compile_SOURCES})
-    TARGET_LINK_LIBRARIES(ocl_compile ${OPENCL_LFLAGS} ${TIME_LINK})
+    ADD_EXECUTABLE(cl_compile ${cl_compile_SOURCES})
+    TARGET_LINK_LIBRARIES(cl_compile ${OPENCL_LFLAGS} ${TIME_LINK})
 
-    INSTALL(TARGETS ocl_compile RUNTIME DESTINATION bin)
+    INSTALL(TARGETS cl_compile RUNTIME DESTINATION bin)
 
-    SET(ocl_bandwidth_test_SOURCES ocl_bandwidth_test.cc)
-    ADD_EXECUTABLE(ocl_bandwidth_test ${ocl_bandwidth_test_SOURCES})
-    TARGET_LINK_LIBRARIES(ocl_bandwidth_test ${OPENCL_LFLAGS} ${TIME_LINK})
+    SET(cl_bandwidth_test_SOURCES cl_bandwidth_test.cc)
+    ADD_EXECUTABLE(cl_bandwidth_test ${cl_bandwidth_test_SOURCES})
+    TARGET_LINK_LIBRARIES(cl_bandwidth_test ${OPENCL_LFLAGS} ${TIME_LINK})
 
-    INSTALL(TARGETS ocl_bandwidth_test RUNTIME DESTINATION bin)
+    INSTALL(TARGETS cl_bandwidth_test RUNTIME DESTINATION bin)
 ENDIF(OPENCL_FOUND)
 

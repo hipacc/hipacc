@@ -24,8 +24,8 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef __HIPACC_CUDA_INTERPOLATE_HPP__
-#define __HIPACC_CUDA_INTERPOLATE_HPP__
+#ifndef __HIPACC_CU_INTERPOLATE_HPP__
+#define __HIPACC_CU_INTERPOLATE_HPP__
 
 #define IMG_PARM(TYPE) const TYPE *img
 #define TEX_PARM(TYPE) const struct texture<TYPE, cudaTextureType1D, cudaReadModeElementType> texRef1D
@@ -259,5 +259,5 @@ __device__ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped
         y5*lanczos(y_frac - 2 + 5); \
 }
 
-#endif  // __HIPACC_CUDA_INTERPOLATE_HPP__
+#endif  // __HIPACC_CU_INTERPOLATE_HPP__
 
