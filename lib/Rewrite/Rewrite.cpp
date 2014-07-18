@@ -2681,7 +2681,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
     // check if we have a Mask or Domain
     HipaccMask *Mask = K->getMaskFromMapping(FD);
-    if (Mask && !Mask->isConstant()) {
+    if (Mask) {
+      if (Mask->isConstant()) continue;
       switch (compilerOptions.getTargetCode()) {
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
