@@ -32,6 +32,11 @@
 #include <cuda_occupancy.h>
 #endif
 
+#define USE_NVML
+#ifdef USE_NVML
+#include <nvml.h>
+#endif
+
 #include <float.h>
 #include <math.h>
 #include <stddef.h>
@@ -271,6 +276,26 @@ inline void checkErr(cudaError_t err, std::string name) {
         exit(EXIT_FAILURE);
     }
 }
+#endif
+
+#ifdef USE_NVML
+// Macro for error checking NVML
+#if 1
+#define checkErrNVML(err, name) \
+    if (err != NVML_SUCCESS) { \
+        std::cerr << "ERROR: " << name << " (" << (err) << ")" << " [file " << __FILE__ << ", line " << __LINE__ << "]: "; \
+        std::cerr << nvmlErrorString(err) << std::endl; \
+        exit(EXIT_FAILURE); \
+    }
+#else
+inline void checkErrNVML(nvmlReturn_t err, std::string name) {
+    if (err != NVML_SUCCESS) {
+        std::cerr << "ERROR: " << name << " (" << (err) << "): ";
+        std::cerr << nvmlErrorString(err) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+#endif
 #endif
 
 
@@ -1321,6 +1346,32 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
               << "': configuration provided by heuristic " << heu_tx*heu_ty
               << " (" << heu_tx << "x" << heu_ty << "). " << std::endl;
 
+
+    #ifdef USE_NVML
+    nvmlReturn_t nvml_err = NVML_SUCCESS;
+    nvmlDevice_t nvml_device;
+    nvmlEnableState_t nvml_mode;
+    unsigned int nvml_device_count, nvml_temperature, nvml_power;
+
+    nvml_err = nvmlInit();
+    checkErrNVML(nvml_err, "nvmlInit()");
+
+    nvml_err = nvmlDeviceGetCount(&nvml_device_count);
+    checkErrNVML(nvml_err, "nvmlDeviceGetCount()");
+    assert(nvml_device_count>0 && "no device detected by NVML");
+
+    nvml_err = nvmlDeviceGetHandleByIndex(0, &nvml_device);
+    checkErrNVML(nvml_err, "nvmlDeviceGetHandleByIndex()");
+
+    nvml_err = nvmlDeviceGetPowerManagementMode(nvml_device, &nvml_mode);
+    if (nvml_mode == NVML_FEATURE_DISABLED || nvml_err == NVML_ERROR_NOT_SUPPORTED) {
+        std::cerr << "NVML Warning: device does not support querying power usage!" << std::endl;
+    } else {
+        checkErrNVML(nvml_err, "nvmlDeviceGetPowerManagementMode()");
+    }
+    #endif
+
+
     for (size_t tile_size_x=warp_size; tile_size_x<=max_threads_per_block; tile_size_x+=warp_size) {
         for (size_t tile_size_y=1; tile_size_y<=max_threads_per_block; ++tile_size_y) {
             // check if we exceed maximum number of threads
@@ -1391,6 +1442,13 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
                 opt_ty = tile_size_y;
             }
 
+            #ifdef USE_NVML
+            nvml_err = nvmlDeviceGetTemperature(nvml_device, NVML_TEMPERATURE_GPU, &nvml_temperature);
+            checkErrNVML(nvml_err, "nvmlDeviceGetTemperature()");
+            nvml_err = nvmlDeviceGetPowerUsage(nvml_device, &nvml_power);
+            checkErrNVML(nvml_err, "nvmlDeviceGetPowerUsage()");
+            #endif
+
             // print timing
             std::cerr << "<HIPACC:> Kernel config: "
                       << std::setw(4) << std::right << tile_size_x << "x"
@@ -1399,6 +1457,10 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
                       << std::right << "(" << tile_size_x*tile_size_y << "): "
                       << std::setw(8) << std::fixed << std::setprecision(4)
                       << min_dt << " ms";
+            #ifdef USE_NVML
+            std::cerr << ";  temperature: " << nvml_temperature << " °C"
+                      << ";  power usage: " << nvml_power/1000.f << " W";
+            #endif
             hipaccPrintKernelOccupancy(exploreKernel, tile_size_x, tile_size_y);
 
             // cleanup
@@ -1409,6 +1471,11 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
     std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
               << opt_tx*opt_ty << " (" << opt_tx << "x" << opt_ty << "): "
               << opt_time << " ms" << std::endl;
+
+    #ifdef USE_NVML
+    nvml_err = nvmlShutdown();
+    checkErrNVML(nvml_err, "nvmlShutdown()");
+    #endif
 }
 
 #endif  // __HIPACC_CU_HPP__
