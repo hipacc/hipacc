@@ -32,7 +32,7 @@
 #include <cuda_occupancy.h>
 #endif
 
-#define USE_NVML
+//#define USE_NVML
 #ifdef USE_NVML
 #include <nvml.h>
 #endif
