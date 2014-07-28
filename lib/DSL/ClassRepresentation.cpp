@@ -354,11 +354,12 @@ void HipaccKernel::calcConfig() {
   // 1) - minimize #threads for border handling (e.g. prefer y over x)
   //    - prefer x over y when no border handling is necessary
   llvm::errs() << "\nCalculating kernel configuration for " << kernelName << "\n";
-  llvm::errs() << "\toptimal configuration: " << num_threads_x_opt << "x" <<
-    num_threads_y_opt << "(x" << getPixelsPerThread() << ")\n";
+  llvm::errs() << "  optimal configuration: " << num_threads_x_opt << "x"
+               << num_threads_y_opt << "(x" << getPixelsPerThread() << ")\n";
   for (auto iter=occVec.begin(); iter<occVec.end(); ++iter) {
     std::pair<unsigned int, float> occMap = *iter;
-    llvm::errs() << "\t" << occMap.first << " threads:\t" << occMap.second << "\t";
+    llvm::errs() << "    " << llvm::format("%5d", occMap.first) << " threads:"
+                 << " occupancy = " << llvm::format("%*.2f", 6, occMap.second*100) << "%";
 
     if (use_shared) {
       // start with warp_size or num_threads_x_opt if possible
@@ -449,12 +450,12 @@ void HipaccKernel::calcConfig() {
         }
       }
     }
-    llvm::errs() << "Using configuration " << num_threads_x << "x"
-                 << num_threads_y << "(occupancy: " << occMap.second
+    llvm::errs() << "Using configuration " << num_threads_x << "x" << num_threads_y
+                 << "(occupancy = " << llvm::format("%*.2f", 6, occMap.second*100)
                  << ") for kernel '" << kernelName << "'\n";
   }
 
-  llvm::errs() << "\t Blocks required for border handling: "
+  llvm::errs() << "  Blocks required for border handling: "
                << num_blocks_bh_x << "x" << num_blocks_bh_y << "\n\n";
   #else
   setDefaultConfig();

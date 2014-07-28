@@ -37,6 +37,7 @@
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <llvm/ADT/StringRef.h>
+#include <llvm/Support/Format.h>
 
 #include <map>
 #include <sstream>
