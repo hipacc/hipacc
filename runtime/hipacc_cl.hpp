@@ -483,7 +483,7 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
     cl_kernel kernel;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    std::ifstream srcFile(file_name);
+    std::ifstream srcFile(file_name.c_str());
     if (!srcFile.is_open()) {
         std::cerr << "ERROR: Can't open OpenCL source file '" << file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
