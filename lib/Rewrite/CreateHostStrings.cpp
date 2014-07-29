@@ -720,7 +720,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       continue;
     }
     std::string img_mem;
-    if (Acc || i==0) img_mem = ".mem";
+    if (Acc || i==0 || Mask) img_mem = ".mem";
 
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument

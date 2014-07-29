@@ -696,7 +696,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
         break;
         }
       case HipaccKernelClass::Mask:
-        hostArgNames.push_back(getMaskFromMapping(FD)->getName() + ".mem");
+        hostArgNames.push_back(getMaskFromMapping(FD)->getName());
 
         break;
     }
