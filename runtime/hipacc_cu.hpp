@@ -377,14 +377,15 @@ HipaccImage hipaccCreateMemory(T *host_mem, int width, int height) {
 
 // Allocate 2D array
 template<typename T>
-HipaccImage hipaccCreateArray2D(T *host_mem, int width, int height,
-        cudaChannelFormatDesc format) {
+HipaccImage hipaccCreateArray2D(T *host_mem, int width, int height) {
     cudaError_t err = cudaSuccess;
     cudaArray *array;
     int flags = cudaArraySurfaceLoadStore;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    err = cudaMallocArray(&array, &format, width, height, flags);
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
+
+    err = cudaMallocArray(&array, &channelDesc, width, height, flags);
     checkErr(err, "cudaMallocArray()");
 
     HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), (void *)array, Array2D);
@@ -392,29 +393,6 @@ HipaccImage hipaccCreateArray2D(T *host_mem, int width, int height,
 
     return img;
 }
-template<typename T>
-HipaccImage hipaccCreateArray2D(T *host_mem, int width, int height);
-#define CREATE_ARRAY2D(DATA_TYPE, DATA_SIZE_X, DATA_SIZE_Y, DATA_SIZE_Z, DATA_SIZE_W, CHANNEL_TYPE) \
-template <> \
-HipaccImage hipaccCreateArray2D<DATA_TYPE>(DATA_TYPE *host_mem, int width, int height) { \
-    return hipaccCreateArray2D(host_mem, width, height, cudaCreateChannelDesc(DATA_SIZE_X, DATA_SIZE_Y, DATA_SIZE_Z, DATA_SIZE_W, CHANNEL_TYPE)); \
-}
-CREATE_ARRAY2D(char,                8,  0,  0,  0,  cudaChannelFormatKindSigned)
-CREATE_ARRAY2D(short int,           16, 0,  0,  0,  cudaChannelFormatKindSigned)
-CREATE_ARRAY2D(int,                 32, 0,  0,  0,  cudaChannelFormatKindSigned)
-CREATE_ARRAY2D(unsigned char,       8,  0,  0,  0,  cudaChannelFormatKindUnsigned)
-CREATE_ARRAY2D(unsigned short int,  16, 0,  0,  0,  cudaChannelFormatKindUnsigned)
-CREATE_ARRAY2D(unsigned int,        32, 0,  0,  0,  cudaChannelFormatKindUnsigned)
-CREATE_ARRAY2D(float,               32, 0,  0,  0,  cudaChannelFormatKindFloat)
-CREATE_ARRAY2D(double,              64, 0,  0,  0,  cudaChannelFormatKindFloat)
-CREATE_ARRAY2D(char4,               8,  8,  8,  8,  cudaChannelFormatKindSigned)
-CREATE_ARRAY2D(short4,              16, 16, 16, 16, cudaChannelFormatKindSigned)
-CREATE_ARRAY2D(int4,                32, 32, 32, 32, cudaChannelFormatKindSigned)
-CREATE_ARRAY2D(uchar4,              8,  8,  8,  8,  cudaChannelFormatKindUnsigned)
-CREATE_ARRAY2D(ushort4,             16, 16, 16, 16, cudaChannelFormatKindUnsigned)
-CREATE_ARRAY2D(uint4,               32, 32, 32, 32, cudaChannelFormatKindUnsigned)
-CREATE_ARRAY2D(float4,              32, 32, 32, 32, cudaChannelFormatKindFloat)
-CREATE_ARRAY2D(double4,             64, 64, 64, 64, cudaChannelFormatKindFloat)
 
 
 // Release memory
