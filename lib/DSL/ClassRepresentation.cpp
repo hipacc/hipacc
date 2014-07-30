@@ -361,27 +361,28 @@ void HipaccKernel::calcConfig() {
     llvm::errs() << "    " << llvm::format("%5d", occMap.first) << " threads:"
                  << " occupancy = " << llvm::format("%*.2f", 6, occMap.second*100) << "%";
 
+    unsigned int num_threads_x = max_threads_per_warp;
+    unsigned int num_threads_y = 1;
+
     if (use_shared) {
-      // start with warp_size or num_threads_x_opt if possible
-      unsigned int num_threads_x = 32;
-      unsigned int num_threads_y = occMap.first / num_threads_x;
-      llvm::errs() << " -> " << num_threads_x << "x" << num_threads_y;
+      // use warp_size x N
+      num_threads_y = occMap.first / num_threads_x;
     } else {
-      // make difference if we create border handling or not
+      // do we need border handling?
       if (max_size_y > 1) {
-        // start with warp_size or num_threads_x_opt if possible
-        unsigned int num_threads_x = max_threads_per_warp;
+        // use N x M
         if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0) {
           num_threads_x = num_threads_x_opt;
         }
-        unsigned int num_threads_y = occMap.first / num_threads_x;
-        llvm::errs() << " -> " << num_threads_x << "x" << num_threads_y;
+        num_threads_y = occMap.first / num_threads_x;
       } else {
-        // use all threads for x direction
-        llvm::errs() << " -> " << occMap.first << "x1";
+        // use num_threads x 1
+        num_threads_x = occMap.first;
       }
     }
-    llvm::errs() << "(x" << getPixelsPerThread() << ")\n";
+    llvm::errs() << " -> " << llvm::format("%4d", num_threads_x)
+                 << "x" << llvm::format("%-2d", num_threads_y)
+                 << "(x" << getPixelsPerThread() << ")\n";
   }
 
 
@@ -398,22 +399,23 @@ void HipaccKernel::calcConfig() {
     auto iter = occVec.begin();
     std::pair<unsigned int, float> occMap = *iter;
 
+    num_threads_x = max_threads_per_warp;
+    num_threads_y = 1;
+
     if (use_shared) {
-      num_threads_x = 32;
+      // use warp_size x N
       num_threads_y = occMap.first / num_threads_x;
     } else {
-      // make difference if we create border handling or not
+      // do we need border handling?
       if (max_size_y > 1) {
-        // start with warp_size or num_threads_x_opt if possible
-        num_threads_x = max_threads_per_warp;
+        // use N x M
         if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0) {
           num_threads_x = num_threads_x_opt;
         }
         num_threads_y = occMap.first / num_threads_x;
       } else {
-        // use all threads for x direction
+        // use num_threads x 1
         num_threads_x = occMap.first;
-        num_threads_y = 1;
       }
     }
 
