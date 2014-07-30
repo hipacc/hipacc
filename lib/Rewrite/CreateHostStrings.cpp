@@ -474,11 +474,11 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_CUDA:
         if (options.exploreConfig()) {
           resultStr += indent + "std::vector<void *> _args" + kernelName + ";\n";
+          resultStr += indent + "std::vector<hipacc_const_info> _consts" + kernelName + ";\n";
+          resultStr += indent + "std::vector<hipacc_tex_info*> _texs" + kernelName + ";\n";
         } else {
           resultStr += indent + "std::vector<std::pair<size_t, void *> > _args" + kernelName + ";\n";
         }
-        resultStr += indent + "std::vector<hipacc_const_info> _consts" + kernelName + ";\n";
-        resultStr += indent + "std::vector<hipacc_tex_info*> _texs" + kernelName + ";\n";
         break;
       case TARGET_OpenCLACC:
       case TARGET_OpenCLCPU:
