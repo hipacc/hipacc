@@ -508,33 +508,31 @@ void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst) {
 }
 
 
-// Bind linear memory to texture
+// Bind memory to texture
 template<typename T>
-void hipaccBindTexture(const struct texture<T, cudaTextureType1D, cudaReadModeElementType> &tex, HipaccImage &img) {
-    cudaError_t err = cudaSuccess;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    err = cudaBindTexture(NULL, tex, img.mem, sizeof(T)*img.stride*img.height);
-    checkErr(err, "cudaBindTexture()");
-}
-
-
-// Bind linear memory or 2D array to 2D texture
-template<typename T>
-void hipaccBindTexture(const struct texture<T, cudaTextureType2D, cudaReadModeElementType> &tex, HipaccImage &img) {
+void hipaccBindTexture(hipaccMemoryType mem_type, const struct textureReference
+        *tex, HipaccImage &img) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
 
-    switch (img.mem_type) {
+    switch (mem_type) {
+        case Linear1D:
+            assert(img.mem_type<=Linear2D && "expected linear memory");
+            err = cudaBindTexture(NULL, tex, img.mem, &channelDesc,
+                    sizeof(T)*img.stride*img.height);
+            checkErr(err, "cudaBindTexture()");
+            break;
         case Linear2D:
-            err = cudaBindTexture2D(NULL, tex, img.mem, channelDesc, img.width,
+            assert(img.mem_type<=Linear2D && "expected linear memory");
+            err = cudaBindTexture2D(NULL, tex, img.mem, &channelDesc, img.width,
                     img.height, img.stride*sizeof(T));
             checkErr(err, "cudaBindTexture2D()");
             break;
         case Array2D:
-            err = cudaBindTextureToArray(tex, (cudaArray *)img.mem, channelDesc);
+            assert(img.mem_type==Array2D && "expected Array2D memory");
+            err = cudaBindTextureToArray(tex, (cudaArray *)img.mem, &channelDesc);
             checkErr(err, "cudaBindTextureToArray()");
             break;
         default:
@@ -545,23 +543,20 @@ void hipaccBindTexture(const struct texture<T, cudaTextureType2D, cudaReadModeEl
 
 // Bind 2D array to surface
 template<typename T>
-void hipaccBindSurface(const struct surface<void, cudaSurfaceType2D> &surf, HipaccImage &img) {
+void hipaccBindSurface(const struct surfaceReference *surf, HipaccImage &img) {
     cudaError_t err = cudaSuccess;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
 
-    err = cudaBindSurfaceToArray(surf, (cudaArray *)img.mem, channelDesc);
+    err = cudaBindSurfaceToArray(surf, (cudaArray *)img.mem, &channelDesc);
     checkErr(err, "cudaBindSurfaceToArray()");
 }
 
 
 // Unbind texture
-template<typename T, int ND>
-void hipaccUnbindTexture(const struct texture<T, ND, cudaReadModeElementType>texture) {
-    cudaError_t err = cudaSuccess;
-
-    err = cudaUnbindTexture(texture);
+void hipaccUnbindTexture(const struct textureReference *tex) {
+    cudaError_t err = cudaUnbindTexture(tex);
     checkErr(err, "cudaUnbindTexture()");
 }
 
@@ -971,8 +966,8 @@ void hipaccBindSurfaceDrv(CUsurfref &surface, HipaccImage &img) {
 template<typename T>
 T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
         void *kernel1D, std::string kernel1D_name, HipaccAccessor &acc, unsigned
-        int max_threads, unsigned int pixels_per_thread, const struct texture<T,
-        cudaTextureType2D, cudaReadModeElementType> &tex) {
+        int max_threads, unsigned int pixels_per_thread, const struct
+        textureReference *tex) {
     cudaError_t err = cudaSuccess;
     T *output;  // GPU memory for reduction
     T result;   // host result
@@ -1009,7 +1004,7 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
             hipaccSetupArgument(&acc.img.mem, sizeof(T *), offset);
             break;
         case Array2D:
-            hipaccBindTexture(tex, acc.img);
+            hipaccBindTexture<T>(Array2D, tex, acc.img);
             break;
     }
 
@@ -1064,8 +1059,8 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
 template<typename T>
 T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
         void *kernel1D, std::string kernel1D_name, HipaccImage &img, unsigned
-        int max_threads, unsigned int pixels_per_thread, const struct texture<T,
-        cudaTextureType2D, cudaReadModeElementType> &tex) {
+        int max_threads, unsigned int pixels_per_thread, const struct
+        textureReference *tex) {
     HipaccAccessor acc(img);
     return hipaccApplyReduction<T>(kernel2D, kernel2D_name, kernel1D,
             kernel1D_name, acc, max_threads, pixels_per_thread, tex);
@@ -1076,8 +1071,7 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
 template<typename T>
 T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
         kernel2D_name, HipaccAccessor &acc, unsigned int max_threads, unsigned
-        int pixels_per_thread, const struct texture<T, cudaTextureType2D,
-        cudaReadModeElementType> &tex) {
+        int pixels_per_thread, const struct textureReference *tex) {
     cudaError_t err = cudaSuccess;
     T *output;  // GPU memory for reduction
     T result;   // host result
@@ -1115,7 +1109,7 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
             hipaccSetupArgument(&acc.img.mem, sizeof(T *), offset);
             break;
         case Array2D:
-            hipaccBindTexture(tex, acc.img);
+            hipaccBindTexture<T>(Array2D, tex, acc.img);
             break;
     }
 
@@ -1147,8 +1141,7 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
 template<typename T>
 T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
         kernel2D_name, HipaccImage &img, unsigned int max_threads, unsigned int
-        pixels_per_thread, const struct texture<T, cudaTextureType2D,
-        cudaReadModeElementType> &tex) {
+        pixels_per_thread, const struct textureReference *tex) {
     HipaccAccessor acc(img);
     return hipaccApplyReductionThreadFence<T>(kernel2D, kernel2D_name, acc,
             max_threads, pixels_per_thread, tex);

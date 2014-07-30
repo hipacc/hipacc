@@ -621,8 +621,18 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += "_texs" + kernelName + ".push_back(";
             resultStr += "&tex_info" + LSS.str() + ");\n";
           } else {
-            resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(_tex";
-            resultStr += deviceArgNames[i] + K->getName() + ", ";
+            resultStr += "cudaGetTextureReference(&_tex";
+            resultStr += deviceArgNames[i] + K->getName() + "Ref, &_tex";
+            resultStr += deviceArgNames[i] + K->getName() + ");\n";
+            resultStr += indent;
+            resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(";
+            switch (K->useTextureMemory(Acc)) {
+              case Linear1D: resultStr += "Linear1D"; break;
+              case Linear2D: resultStr += "Linear2D"; break;
+              case Array2D:  resultStr += "Array2D";  break;
+              default: assert(0 && "unsupported texture type!");
+            }
+            resultStr += ", _tex" + deviceArgNames[i] + K->getName() + "Ref, ";
             resultStr += hostArgNames[i] + ");\n";
           }
           resultStr += indent;
@@ -669,9 +679,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       resultStr += "_texs" + kernelName + ".push_back(";
       resultStr += "&tex_info" + LSS.str() + ");\n";
     } else {
+      resultStr += "cudaGetSurfaceReference(&_surfOutput" + K->getName() + "Ref, ";
+      resultStr += "&_surfOutput" + K->getName() + ");\n";
+      resultStr += indent;
       resultStr += "hipaccBindSurface<";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTypeStr();
-      resultStr += ">(_surfOutput" + K->getName() + ", ";
+      resultStr += ">(_surfOutput" + K->getName() + "Ref, ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ");\n";
     }
     resultStr += indent;
@@ -963,11 +976,13 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
     case TARGET_C:
       break;
     case TARGET_CUDA:
-      resultStr += "hipacc_tex_info tex_info" + K->getReduceStr();
-      resultStr += "(std::string(\"_tex";
-      resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
-      resultStr += "\");\n";
-      resultStr += indent;
+      if (!options.exploreConfig()) {
+        // first get texture reference
+        resultStr += "cudaGetTextureReference(";
+        resultStr += "&_tex" + K->getIterationSpace()->getImage()->getName() + K->getName() + "Ref, ";
+        resultStr += "&_tex" + K->getIterationSpace()->getImage()->getName() + K->getName() + ");\n";
+        resultStr += indent;
+      }
       resultStr += red_decl;
       if (options.getTargetDevice() >= FERMI_20 && !options.exploreConfig()) {
         resultStr += "hipaccApplyReductionThreadFence<" + typeStr + ">(";
@@ -1032,8 +1047,9 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
     // print 2D CUDA array texture information - this parameter is only used if
     // the texture type is Array2D
     if (options.exploreConfig()) {
-      resultStr += ", &tex_info" + K->getReduceStr() + ", ";
-      resultStr += K->getIterationSpace()->getImage()->getTextureType() + ", ";
+      resultStr += ", hipacc_tex_info(std::string(\"_tex";
+      resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
+      resultStr += "\"), " + K->getIterationSpace()->getImage()->getTextureType() + ", ";
       resultStr += K->getIterationSpace()->getImage()->getName() + ", ";
       if (options.useTextureMemory() && options.getTextureType()==Array2D) {
         resultStr += "Array2D";
@@ -1044,6 +1060,7 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
     } else {
       resultStr += ", _tex";
       resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
+      resultStr += "Ref";
     }
 
     if (options.exploreConfig()) {

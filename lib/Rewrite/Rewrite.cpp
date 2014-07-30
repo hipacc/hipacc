@@ -2218,7 +2218,10 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       // Array2D is selected, but doesn't harm otherwise
       *OS << "texture<" << fun->getResultType().getAsString()
           << ", cudaTextureType2D, cudaReadModeElementType> _tex"
-          << K->getIterationSpace()->getImage()->getName() + K->getName() << ";\n\n";
+          << K->getIterationSpace()->getImage()->getName() + K->getName()
+          << ";\nconst textureReference *_tex"
+          << K->getIterationSpace()->getImage()->getName() + K->getName()
+          << "Ref;\n\n";
       // 2D reduction
       if (compilerOptions.getTargetDevice()>=FERMI_20 &&
           !compilerOptions.exploreConfig()) {
@@ -2470,7 +2473,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           if (compilerOptions.useTextureMemory() &&
               compilerOptions.getTextureType()==Array2D) {
             *OS << "surface<void, cudaSurfaceType2D> _surfOutput"
-                << K->getName() << ";\n\n";
+                << K->getName() << ";\n"
+                << "const struct surfaceReference *_surfOutput"
+                << K->getName() << "Ref;\n\n";
           }
           break;
         case TARGET_Renderscript:
@@ -2509,7 +2514,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                 *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
                 break;
             }
-            *OS << FD->getNameAsString() << K->getName() << ";\n";
+            *OS << FD->getNameAsString() << K->getName() << ";\n"
+                << "const textureReference *_tex"
+                << FD->getNameAsString() << K->getName() << "Ref;\n";
           }
           break;
         case TARGET_Renderscript:
