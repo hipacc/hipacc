@@ -28,6 +28,11 @@
 #define __HIPACC_CU_HPP__
 
 #include <cuda.h>
+
+#if CUDA_VERSION < 5000
+    #error "CUDA 5.0 or higher required!"
+#endif
+
 #if CUDA_VERSION >= 6000
 #include <cuda_occupancy.h>
 #endif
@@ -186,10 +191,8 @@ std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
             return "CUDA_ERROR_UNSUPPORTED_LIMIT";
         case CUDA_ERROR_CONTEXT_ALREADY_IN_USE:
             return "CUDA_ERROR_CONTEXT_ALREADY_IN_USE";
-        #if CUDA_VERSION >= 5000
         case CUDA_ERROR_PEER_ACCESS_UNSUPPORTED:
             return "CUDA_ERROR_PEER_ACCESS_UNSUPPORTED";
-        #endif
         case CUDA_ERROR_INVALID_SOURCE:
             return "CUDA_ERROR_INVALID_SOURCE";
         case CUDA_ERROR_FILE_NOT_FOUND:
@@ -230,12 +233,10 @@ std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
             return "CUDA_ERROR_HOST_MEMORY_ALREADY_REGISTERED";
         case CUDA_ERROR_HOST_MEMORY_NOT_REGISTERED:
             return "CUDA_ERROR_HOST_MEMORY_NOT_REGISTERED";
-        #if CUDA_VERSION >= 5000
         case CUDA_ERROR_NOT_PERMITTED:
             return "CUDA_ERROR_NOT_PERMITTED";
         case CUDA_ERROR_NOT_SUPPORTED:
             return "CUDA_ERROR_NOT_SUPPORTED";
-        #endif
         case CUDA_ERROR_UNKNOWN:
             return "CUDA_ERROR_UNKNOWN";
         default:
@@ -548,13 +549,9 @@ void hipaccUnbindTexture(const struct textureReference *tex) {
 
 // Write to symbol
 template<typename T>
-void hipaccWriteSymbol(const void *symbol, std::string symbol_name, T *host_mem, int width, int height) {
+void hipaccWriteSymbol(const void *symbol, T *host_mem, int width, int height) {
     cudaError_t err = cudaSuccess;
-    #if CUDA_VERSION >= 5000
     err = cudaMemcpyToSymbol(symbol, host_mem, sizeof(T)*width*height);
-    #else
-    err = cudaMemcpyToSymbol(symbol_name, host_mem, sizeof(T)*width*height);
-    #endif
     checkErr(err, "cudaMemcpyToSymbol()");
 }
 
@@ -563,19 +560,14 @@ void hipaccWriteSymbol(const void *symbol, std::string symbol_name, T *host_mem,
 template<typename T>
 void hipaccReadSymbol(T *host_mem, const void *symbol, std::string symbol_name, int width, int height) {
     cudaError_t err = cudaSuccess;
-    #if CUDA_VERSION >= 5000
     err = cudaMemcpyFromSymbol(host_mem, symbol, sizeof(T)*width*height);
-    #else
-    err = cudaMemcpyFromSymbol(host_mem, symbol_name, sizeof(T)*width*height);
-    #endif
     checkErr(err, "cudaMemcpyFromSymbol()");
 }
 
 
 // Infer non-const Domain from non-const Mask
 template<typename T>
-void hipaccWriteDomainFromMask(const void *symbol, std::string symbol_name,
-                               T *host_mem, int width, int height) {
+void hipaccWriteDomainFromMask(const void *symbol, T *host_mem, int width, int height) {
     size_t size = width * height;
     uchar *dom_mem = new uchar[size];
 
@@ -583,7 +575,7 @@ void hipaccWriteDomainFromMask(const void *symbol, std::string symbol_name,
         dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
     }
 
-    hipaccWriteSymbol<uchar>(symbol, symbol_name, dom_mem, width, height);
+    hipaccWriteSymbol<uchar>(symbol, dom_mem, width, height);
 
     delete[] dom_mem;
 }
@@ -729,11 +721,9 @@ void hipaccCreateModuleKernel(CUfunction &function, CUmodule &module, std::strin
         case 30:
             target_cc = CU_TARGET_COMPUTE_30;
             break;
-        #if CUDA_VERSION >= 5000
         case 35:
             target_cc = CU_TARGET_COMPUTE_35;
             break;
-        #endif
     }
     #endif
 

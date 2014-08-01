@@ -339,8 +339,6 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
               resultStr += "hipaccWriteSymbol<" + Mask->getTypeStr() + ">(";
               resultStr += "(const void *)&";
               resultStr += Mask->getName() + K->getName() + ", ";
-              resultStr += "\"";
-              resultStr += Mask->getName() + K->getName() + "\", ";
               resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
               resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
               break;
@@ -349,8 +347,6 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
               resultStr += "(" + Mask->getTypeStr() + " *)" + mem;
               resultStr += "(const void *)&";
               resultStr += Mask->getName() + K->getName() + ", ";
-              resultStr += "\"";
-              resultStr += Mask->getName() + K->getName() + "\", ";
               resultStr += ", " + Mask->getSizeXStr() + ", " + Mask->getSizeYStr() + ");";
               break;
             case DEVICE_TO_DEVICE:
@@ -388,8 +384,6 @@ void CreateHostStrings::writeMemoryTransferDomainFromMask(
           resultStr += Mask->getTypeStr() + ">(";
           resultStr += "(const void *)&";
           resultStr += Domain->getName() + K->getName() + ", ";
-          resultStr += "\"";
-          resultStr += Domain->getName() + K->getName() + "\", ";
           resultStr += "(" + Mask->getTypeStr() + " *)";
           resultStr += Mask->getHostMemName();
           resultStr += ", " + Mask->getSizeXStr();
