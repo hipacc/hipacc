@@ -50,6 +50,10 @@ EMBEDDED_OPENCL_LIB_PATH    - OpenCL library path within the target system
                               e.g. -DEMBEDDED_OPENCL_LIB_PATH=vendor/lib/egl
 EMBEDDED_OPENCL_LIB         - Name of the embedded OpenCL library
                               e.g. -DEMBEDDED_OPENCL_LIB=libGLES_mali.so
+OPENCV_INC_PATH             - OpenCV include path
+                              e.g. -DOPENCV_INC_PATH=/opt/local/include
+OPENCV_LIB_PATH             - OpenCV library path
+                              e.g. -DOPENCV_LIB_PATH=/opt/local/lib
 
 The following options can be enabled or disabled:
 USE_POLLY               - Use Polly for kernel analysis (e.g. -DUSE_POLLY=ON)
