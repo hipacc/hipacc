@@ -61,9 +61,9 @@ class MandelbrotKernel : public Kernel<uchar4> {
                 ++iteration;
             }
             
-            uchar4 result = 0;
+            uchar4 result = { 0, 0, 0, 0 };
             if (iteration < max_iteration) {
-                float mu = (float)iteration + 1.0f - log(log(sqrt(x*x + y*y))) / log(2.0f);
+                float mu = (float)iteration + 1.0f - logf(logf(sqrtf(x*x + y*y))) / logf(2.0f);
                 int c = (int)(mu / max_iteration * 768);
                 if (c >= 512) {
                     result.z = c - 512;
