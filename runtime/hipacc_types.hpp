@@ -84,24 +84,8 @@ typedef unsigned long       ulong;
 _Pragma("pack(1)") \
 struct NEW_TYPE { \
     BASIC_TYPE x, y, z, w; \
-    NEW_TYPE() { \
-        x = 0; y = 0; z = 0; w = 0; \
-    } \
-    NEW_TYPE(const BASIC_TYPE &a) { \
-        x = a; y = a; z = a; w = a; \
-    } \
-    NEW_TYPE(const NEW_TYPE &a) { \
-        x = a.x; y = a.y; z = a.z; w = a.w; \
-    } \
-    NEW_TYPE &operator=(const BASIC_TYPE &a) { \
-        x = a; y = a; z = a; w = a; \
-        return *this; \
-    } \
-    NEW_TYPE &operator=(const NEW_TYPE &a) { \
-        if (this != &a) { \
-            x = a.x; y = a.y; z = a.z; w = a.w; \
-        } \
-        return *this; \
+    void operator=(BASIC_TYPE b) { \
+        x = b; y = b; z = b; w = b; \
     } \
 }; \
 typedef struct NEW_TYPE NEW_TYPE;
