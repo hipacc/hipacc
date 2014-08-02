@@ -63,10 +63,12 @@ ENDIF(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "5.0")
 
 IF(CUDA_FOUND)
     SET(NVCC_COMPILER "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
-    IF(CUDA_VERSION VERSION_LESS "6.0")
+    IF(CUDA_VERSION VERSION_LESS "6.5")
         SET(USE_JIT_ESTIMATE OFF)
+        SET(NVCC_CPP_STD "")
     ELSE()
         INCLUDE_DIRECTORIES(${CUDA_TOOLKIT_INCLUDE})
+        SET(NVCC_CPP_STD "-std=c++11")
     ENDIF()
 ELSE(CUDA_FOUND)
     SET(USE_JIT_ESTIMATE OFF)
@@ -126,6 +128,9 @@ CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/include/hipacc/Config/config.h.cmake"
     "${HIPACC_BINARY_DIR}/include/hipacc/Config/config.h")
 CONFIGURE_FILE(
+    "${HIPACC_SOURCE_DIR}/runtime/hipacc_cu.hpp.cmake"
+    "${HIPACC_BINARY_DIR}/runtime/hipacc_cu.hpp")
+CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/Makefile.cmake"
     "${HIPACC_BINARY_DIR}/tests/Makefile")
 CONFIGURE_FILE(
@@ -142,7 +147,7 @@ CONFIGURE_FILE(
 
 # install dsl and runtime header files
 FILE(GLOB dsl_headers "${CMAKE_CURRENT_SOURCE_DIR}/dsl/*.hpp")
-FILE(GLOB runtime_headers "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp")
+FILE(GLOB runtime_headers "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp" "${HIPACC_BINARY_DIR}/runtime/*.hpp")
 INSTALL(FILES ${runtime_headers} DESTINATION include)
 INSTALL(FILES ${dsl_headers} DESTINATION include/dsl)
 # install tests

@@ -314,21 +314,34 @@ void HipaccKernel::calcConfig() {
       minor = 0;
     }
 
-    cudaOccDeviceState dev_state = { CACHE_PREFER_NONE };
+    cudaOccDeviceState dev_state;
     cudaOccDeviceProp dev_props;
     cudaOccFuncAttributes fun_attrs;
 
-    cudaOccSetDeviceProp(&dev_props, major, minor, max_total_shared_memory, max_total_shared_memory, max_total_registers, max_total_registers, max_threads_per_warp, max_threads_per_block, max_threads_per_multiprocessor);
-    cudaOccSetFuncAttributes(&fun_attrs, max_threads_per_block, num_reg, smem_used);
+    dev_props.computeMajor = major;
+    dev_props.computeMinor = minor;
+    dev_props.maxThreadsPerBlock = max_threads_per_block;
+    dev_props.maxThreadsPerMultiprocessor = max_threads_per_multiprocessor;
+    dev_props.regsPerBlock = max_total_registers;
+    dev_props.regsPerMultiprocessor = max_total_registers;
+    dev_props.warpSize = max_threads_per_warp;
+    dev_props.sharedMemPerBlock = max_total_shared_memory;
+    dev_props.sharedMemPerMultiprocessor = max_total_shared_memory;
+    dev_props.numSms = 23;
+    fun_attrs.maxThreadsPerBlock = max_threads_per_block;
+    fun_attrs.numRegs = num_reg;
+    fun_attrs.sharedSizeBytes = smem_used;
 
     size_t dynamic_smem_bytes = 0;
     cudaOccResult fun_occ;
-    int active_blocks = cudaOccMaxActiveBlocksPerMultiprocessor(&dev_props, &fun_attrs, num_threads, dynamic_smem_bytes, &dev_state, &fun_occ);
-    int opt_block_size = cudaOccMaxPotentialOccupancyBlockSize(&dev_props, &fun_attrs, &dev_state, dynamic_smem_bytes);
+    cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
+    int active_blocks = fun_occ.activeBlocksPerMultiprocessor;
+    int min_grid_size, opt_block_size;
+    cudaOccMaxPotentialOccupancyBlockSize(&min_grid_size, &opt_block_size, &dev_props, &fun_attrs, &dev_state, 0, dynamic_smem_bytes);
     int active_warps = active_blocks * (num_threads/max_threads_per_warp);
 
     // re-compute with optimal block size
-    cudaOccMaxActiveBlocksPerMultiprocessor(&dev_props, &fun_attrs, opt_block_size, dynamic_smem_bytes, &dev_state, &fun_occ);
+    cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, opt_block_size, dynamic_smem_bytes);
     int max_blocks = std::min(fun_occ.blockLimitRegs, std::min(fun_occ.blockLimitSharedMem, std::min(fun_occ.blockLimitWarps, fun_occ.blockLimitBlocks)));
     int max_warps = max_blocks * (opt_block_size/max_threads_per_warp);
     float occupancy = (float)active_warps/(float)max_warps;

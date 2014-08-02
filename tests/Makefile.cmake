@@ -14,7 +14,7 @@ COMPILER_INC ?= -std=c++11 \
 TEST_CASE    ?= ./tests/opencv_blur_8uc1
 MYFLAGS      ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
 NVCC_FLAGS    = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
-                -Xptxas -v #-keep
+                @NVCC_CPP_STD@ -Xptxas -v #-keep
 OFLAGS        = -O3
 
 # OpenCL specific configuration
