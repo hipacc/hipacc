@@ -441,15 +441,8 @@ class HipaccDevice : public HipaccDeviceOptions {
       td_string << target_device;
 
       if (emitCUDA) {
-        if (target_device >= FERMI_20) {
-          return " -I " + std::string(RUNTIME_INCLUDES) + " -arch=sm_" +
-            td_string.str() +
-            " -ftz=true -prec-sqrt=false -prec-div=false -cubin -Xptxas -v " +
-            file + ".cu 2>&1";
-        } else {
-          return " -I " + std::string(RUNTIME_INCLUDES) + " -arch=sm_" +
-            td_string.str() + " -cubin -Xptxas -v " + file + ".cu 2>&1";
-        }
+        return " -I " + std::string(RUNTIME_INCLUDES) + " -arch=sm_" +
+          td_string.str() + " -cubin -Xptxas -v " + file + ".cu 2>&1";
       } else {
         if (isAMDGPU()) {
           return " -i " + std::string(RUNTIME_INCLUDES) + " -k " + kernel +
