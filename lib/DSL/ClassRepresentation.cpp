@@ -305,6 +305,7 @@ void HipaccKernel::calcConfig() {
       num_threads += max_threads_per_warp;
       continue;
     }
+    max_threads_for_kernel = num_threads;
 
     int major = target_device/10;
     int minor = target_device%10;
