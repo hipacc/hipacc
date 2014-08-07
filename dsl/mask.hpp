@@ -291,7 +291,7 @@ class Mask : public MaskBase {
         data_t &operator()(Domain &D) {
             assert(D.getSizeX()==size_x && D.getSizeY()==size_y &&
                     "Domain and Mask size must be equal.");
-            return array[D.getY()*size_x + D.getX()];
+            return array[(D.getY()+D.getSizeY()/2)*size_x + D.getX()+D.getSizeX()/2];
         }
 
         void setEI(ElementIterator *ei) { EI = ei; }
