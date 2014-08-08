@@ -48,7 +48,6 @@ class Kernel {
     private:
         const IterationSpace<data_t> &iteration_space;
         Accessor<data_t> out_acc;
-        ElementIterator iter;
         std::vector<AccessorBase *> images;
         data_t reduction_result;
 
@@ -57,8 +56,7 @@ class Kernel {
             iteration_space(iteration_space),
             out_acc(iteration_space.img,
                     iteration_space.getWidth(), iteration_space.getHeight(),
-                    iteration_space.getOffsetX(), iteration_space.getOffsetY()),
-            iter()
+                    iteration_space.getOffsetX(), iteration_space.getOffsetY())
         {}
 
         virtual ~Kernel() {}
@@ -69,14 +67,13 @@ class Kernel {
 
         void execute() {
             double time0, time1;
-            ElementIterator end = iteration_space.end();
-            iter = iteration_space.begin();
+            auto end  = iteration_space.end();
+            auto iter = iteration_space.begin();
 
             // register input accessors
-            for (std::vector<AccessorBase *>::iterator ei=images.begin(), ie=images.end();
-                    ei!=ie; ++ei) {
-                AccessorBase *Acc = *ei;
-                Acc->setEI(&iter);
+            for (auto ei=images.begin(), ie=images.end(); ei!=ie; ++ei) {
+                AccessorBase *acc = *ei;
+                acc->setEI(&iter);
             }
             // register output accessors
             out_acc.setEI(&iter);
@@ -91,24 +88,20 @@ class Kernel {
             hipacc_last_timing = time1 - time0;
 
             // de-register input accessors
-            for (std::vector<AccessorBase*>::iterator ei=images.begin(), ie=images.end();
-                    ei!=ie; ++ei) {
-                AccessorBase *Acc = *ei;
-                Acc->setEI(nullptr);
+            for (auto ei=images.begin(), ie=images.end(); ei!=ie; ++ei) {
+                AccessorBase *acc = *ei;
+                acc->setEI(nullptr);
             }
-            // de-register output accessors
+            // de-register output accessor
             out_acc.setEI(nullptr);
-
-            // reset kernel iterator
-            iter = ElementIterator();
 
             // apply reduction
             reduce();
         }
 
         void reduce(void) {
-            ElementIterator end = iteration_space.end();
-            ElementIterator iter = iteration_space.begin();
+            auto end  = iteration_space.end();
+            auto iter = iteration_space.begin();
 
             // register output accessors
             out_acc.setEI(&iter);
@@ -123,7 +116,7 @@ class Kernel {
                 ++iter;
             }
 
-            // de-register output accessors
+            // de-register output accessor
             out_acc.setEI(nullptr);
 
             reduction_result = result;
@@ -146,13 +139,13 @@ class Kernel {
         }
 
         int getX(void) {
-            assert(iter!=ElementIterator() && "ElementIterator not set!");
-            return iter.getX() - iter.getOffsetX();
+            assert(out_acc.EI!=ElementIterator() && "ElementIterator not set!");
+            return out_acc.getX();
         }
 
         int getY(void) {
-            assert(iter!=ElementIterator() && "ElementIterator not set!");
-            return iter.getY() - iter.getOffsetY();
+            assert(out_acc.EI!=ElementIterator() && "ElementIterator not set!");
+            return out_acc.getY();
         }
 
         // built-in functions: convolve, iterate, and reduce
@@ -167,8 +160,8 @@ class Kernel {
 
 template <typename data_t> template <typename data_m, typename Function>
 auto Kernel<data_t>::convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, const Function& fun) -> decltype(fun()) {
-    ElementIterator end = mask.end();
-    ElementIterator iter = mask.begin();
+    auto end  = mask.end();
+    auto iter = mask.begin();
 
     // register mask
     mask.setEI(&iter);
@@ -215,8 +208,8 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, co
 template <typename data_t> template <typename Function>
 auto Kernel<data_t>::reduce(Domain &domain, HipaccConvolutionMode mode,
             const Function &fun) -> decltype(fun()) {
-    Domain::DomainIterator end = domain.end();
-    Domain::DomainIterator iter = domain.begin();
+    auto end  = domain.end();
+    auto iter = domain.begin();
 
     // register domain
     domain.setDI(&iter);
@@ -260,8 +253,8 @@ auto Kernel<data_t>::reduce(Domain &domain, HipaccConvolutionMode mode,
 
 template <typename data_t> template <typename Function>
 void Kernel<data_t>::iterate(Domain &domain, const Function &fun) {
-    Domain::DomainIterator end = domain.end();
-    Domain::DomainIterator iter = domain.begin();
+    auto end  = domain.end();
+    auto iter = domain.begin();
 
     // register domain
     domain.setDI(&iter);
