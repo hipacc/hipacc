@@ -47,7 +47,7 @@ template<typename data_t>
 class Kernel {
     private:
         const IterationSpace<data_t> &iteration_space;
-        Accessor<data_t> outImgAcc;
+        Accessor<data_t> out_acc;
         ElementIterator iter;
         std::vector<AccessorBase *> images;
         data_t reduction_result;
@@ -55,10 +55,9 @@ class Kernel {
     public:
         Kernel(IterationSpace<data_t> &iteration_space) :
             iteration_space(iteration_space),
-            outImgAcc(iteration_space.OutImg,
-                        iteration_space.getWidth(), iteration_space.getHeight(),
-                        iteration_space.getOffsetX(),
-                        iteration_space.getOffsetY()),
+            out_acc(iteration_space.img,
+                    iteration_space.getWidth(), iteration_space.getHeight(),
+                    iteration_space.getOffsetX(), iteration_space.getOffsetY()),
             iter()
         {}
 
@@ -66,7 +65,7 @@ class Kernel {
         virtual void kernel() = 0;
         virtual data_t reduce(data_t left, data_t right) { return left; }
 
-        void addAccessor(AccessorBase *Acc) { images.push_back(Acc); }
+        void addAccessor(AccessorBase *acc) { images.push_back(acc); }
 
         void execute() {
             double time0, time1;
@@ -80,7 +79,7 @@ class Kernel {
                 Acc->setEI(&iter);
             }
             // register output accessors
-            outImgAcc.setEI(&iter);
+            out_acc.setEI(&iter);
 
             // advance iterator and apply kernel to whole iteration space
             time0 = hipacc_time_ms();
@@ -98,7 +97,7 @@ class Kernel {
                 Acc->setEI(nullptr);
             }
             // de-register output accessors
-            outImgAcc.setEI(nullptr);
+            out_acc.setEI(nullptr);
 
             // reset kernel iterator
             iter = ElementIterator();
@@ -112,20 +111,20 @@ class Kernel {
             ElementIterator iter = iteration_space.begin();
 
             // register output accessors
-            outImgAcc.setEI(&iter);
+            out_acc.setEI(&iter);
 
             // first element
-            data_t result = outImgAcc();
+            data_t result = out_acc();
             ++iter;
 
             // advance iterator and apply kernel to whole iteration space
             while (iter != end) {
-                result = reduce(result, outImgAcc());
+                result = reduce(result, out_acc());
                 ++iter;
             }
 
             // de-register output accessors
-            outImgAcc.setEI(nullptr);
+            out_acc.setEI(nullptr);
 
             reduction_result = result;
         }
@@ -137,13 +136,13 @@ class Kernel {
 
         // access output image
         data_t &output(void) {
-            return outImgAcc();
+            return out_acc();
         }
 
 
         // low-level access functions
         data_t &outputAtPixel(const int xf, const int yf) {
-            return outImgAcc.getPixelFromImg(xf, yf);
+            return out_acc.getPixelFromImg(xf, yf);
         }
 
         int getX(void) {

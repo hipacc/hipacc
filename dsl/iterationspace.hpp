@@ -116,23 +116,23 @@ class IterationSpaceBase {
 template<typename data_t>
 class IterationSpace : public IterationSpaceBase {
     private:
-        Image<data_t> &OutImg;
+        Image<data_t> &img;
 
     public:
         IterationSpace(Image<data_t> &img) :
             IterationSpaceBase(img.getWidth(), img.getHeight()),
-            OutImg(img)
+            img(img)
         {}
 
         IterationSpace(Image<data_t> &img, int width, int height) :
             IterationSpaceBase(width, height),
-            OutImg(img)
+            img(img)
         {}
 
         IterationSpace(Image<data_t> &img, int width, int height, int offset_x,
                 int offset_y) :
             IterationSpaceBase(width, height, offset_x, offset_y),
-            OutImg(img)
+            img(img)
         {}
 
         ~IterationSpace() {}
