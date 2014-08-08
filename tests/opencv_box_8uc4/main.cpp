@@ -314,7 +314,7 @@ int main(int argc, const char **argv) {
                         output[y*width + x].x,
                         output[y*width + x].y,
                         output[y*width + x].z,
-                        output[y*width + x].z);
+                        output[y*width + x].w);
                 exit(EXIT_FAILURE);
             }
         }
