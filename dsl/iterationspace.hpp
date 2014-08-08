@@ -37,16 +37,8 @@ template<typename data_t> class Image;
 class Coordinate {
     public:
         int x, y;
-
-    Coordinate() {
-        this->x = 0;
-        this->y = 0;
-    }
-
-    Coordinate(int x, int y) {
-        this->x = x;
-        this->y = y;
-    }
+    Coordinate() : x(0), y(0) {}
+    Coordinate(int x, int y) : x(x), y(y) {}
 };
 
 class IterationSpaceBase {
