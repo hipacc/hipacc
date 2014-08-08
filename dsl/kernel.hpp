@@ -108,12 +108,10 @@ class Kernel {
 
             // first element
             data_t result = out_acc();
-            ++iter;
 
             // advance iterator and apply kernel to whole iteration space
-            while (iter != end) {
+            while (++iter != end) {
                 result = reduce(result, out_acc());
-                ++iter;
             }
 
             // de-register output accessor
@@ -168,10 +166,9 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, co
 
     // initialize result - calculate first iteration
     auto result = fun();
-    ++iter;
 
     // advance iterator and apply kernel to remaining iteration space
-    while (iter != end) {
+    while (++iter != end) {
         switch (mode) {
             case HipaccSUM:
                 result += fun();
@@ -195,7 +192,6 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, co
                 assert(0 && "HipaccMEDIAN not implemented yet!");
                 break;
         }
-        ++iter;
     }
 
     // de-register mask
@@ -216,10 +212,9 @@ auto Kernel<data_t>::reduce(Domain &domain, HipaccConvolutionMode mode,
 
     // initialize result - calculate first iteration
     auto result = fun();
-    ++iter;
 
     // advance iterator and apply kernel to remaining iteration space
-    while (iter != end) {
+    while (++iter != end) {
         switch (mode) {
             case HipaccSUM:
                 result += fun();
@@ -241,7 +236,6 @@ auto Kernel<data_t>::reduce(Domain &domain, HipaccConvolutionMode mode,
                 assert(0 && "HipaccMEDIAN not implemented yet!");
                 break;
         }
-        ++iter;
     }
 
     // de-register domain
