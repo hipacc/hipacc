@@ -686,7 +686,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
 
   #if 0
   for (size_t i=0; i<KC->getNumImages(); ++i) {
-    HipaccAccessor *Acc = K->getImgFromMapping(KC->getImgFields().data()[i]);
+    HipaccAccessor *Acc = K->getImgFromMapping(KC->getImgFields()[i]);
     // emit assertion
     resultStr += "assert(" + Acc->getName() + ".width==" + K->getIterationSpace()->getName() + ".width && \"Acc width != IS width\");\n" + indent;
     resultStr += "assert(" + Acc->getName() + ".height==" + K->getIterationSpace()->getName() + ".height && \"Acc height != IS height\");\n" + indent;

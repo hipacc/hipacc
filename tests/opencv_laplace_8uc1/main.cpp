@@ -373,8 +373,9 @@ int main(int argc, const char **argv) {
     #endif
 
     // print statistics
-    for (unsigned int i=0; i<timings.size(); i++) {
-        fprintf(stderr, "\t%.3f", timings.data()[i]);
+    for (std::vector<float>::const_iterator it = timings.begin();
+         it != timings.end(); ++it) {
+        fprintf(stderr, "\t%.3f", *it);
     }
     fprintf(stderr, "\n\n");
 

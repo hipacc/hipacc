@@ -75,8 +75,8 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
   // add Decl objects for each parameter to the FunctionDecl
   DeclContext *DCF = FunctionDecl::castToDeclContext(FD);
   for (size_t i=0; i<ArgTypes.size(); ++i) {
-    Params.data()[i]->setDeclContext(FD);
-    DCF->addDecl(Params.data()[i]);
+    Params[i]->setDeclContext(FD);
+    DCF->addDecl(Params[i]);
   }
   FD->setParams(Params);
 
@@ -107,7 +107,7 @@ CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD, SmallVector<Expr
   E->setRParenLoc(SourceLocation());
   E->setCallee(ICE);
   for (size_t I=0, N=Expr.size(); I!=N; ++I) {
-    E->setArg(I, Expr.data()[I]);
+    E->setArg(I, Expr[I]);
   }
   E->setType(FT->getCallResultType(Ctx));
 

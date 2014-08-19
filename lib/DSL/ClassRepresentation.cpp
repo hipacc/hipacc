@@ -277,7 +277,7 @@ void HipaccKernel::calcConfig() {
     bool skip_config = false;
     // calculate shared memory usage for pixels staged to shared memory
     for (size_t i=0; i<KC->getNumImages(); ++i) {
-      HipaccAccessor *Acc = getImgFromMapping(KC->getImgFields().data()[i]);
+      HipaccAccessor *Acc = getImgFromMapping(KC->getImgFields()[i]);
       if (useLocalMemory(Acc)) {
         // check if the configuration suits our assumptions about shared memory
         if (num_threads % 32 == 0) {
@@ -504,12 +504,12 @@ void HipaccKernel::createArgInfo() {
 
   // normal parameters
   for (size_t i=0; i<KC->getNumArgs(); ++i) {
-    FieldDecl *FD = arguments.data()[i].field;
-    QualType QT = arguments.data()[i].type;
-    std::string name = arguments.data()[i].name;
+    FieldDecl *FD = arguments[i].field;
+    QualType QT = arguments[i].type;
+    std::string name = arguments[i].name;
     QualType QTtmp;
 
-    switch (arguments.data()[i].kind) {
+    switch (arguments[i].kind) {
       case HipaccKernelClass::Normal:
         addParam(QT, QT, QT, QT.getAsString(), QT.getAsString(), name, FD);
 
@@ -656,12 +656,12 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
   if (hostArgNames.size()) hostArgNames.clear();
 
   for (size_t i=0; i<KC->getNumArgs(); ++i) {
-    FieldDecl *FD = KC->arguments.data()[i].field;
+    FieldDecl *FD = KC->arguments[i].field;
 
     std::string Str;
     llvm::raw_string_ostream SS(Str);
 
-    switch (KC->arguments.data()[i].kind) {
+    switch (KC->arguments[i].kind) {
       case HipaccKernelClass::Normal:
         hostArgs[i]->printPretty(SS, 0, PrintingPolicy(Ctx.getLangOpts()));
 
@@ -674,7 +674,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
           literalCount++;
 
           // use type of kernel class
-          hostLiterals += KC->arguments.data()[i].type.getAsString();
+          hostLiterals += KC->arguments[i].type.getAsString();
           hostLiterals += " ";
           hostLiterals += LSS.str();
           hostLiterals += " = ";

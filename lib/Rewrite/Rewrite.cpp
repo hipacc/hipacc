@@ -252,7 +252,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
     // add interpolation definitions
     for (size_t i=0, e=InterpolationDefinitionsGlobal.size(); i!=e; ++i) {
-      newStr += InterpolationDefinitionsGlobal.data()[i];
+      newStr += InterpolationDefinitionsGlobal[i];
     }
     newStr += "\n";
   }
@@ -1401,7 +1401,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
               // check if we have an Accessor
               if (AccDeclMap.count(DRE->getDecl())) {
-                K->insertMapping(imgFields.data()[num_img],
+                K->insertMapping(imgFields[num_img],
                     AccDeclMap[DRE->getDecl()]);
                 num_img++;
                 continue;
@@ -1409,7 +1409,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
               // check if we have a Mask or Domain
               if (MaskDeclMap.count(DRE->getDecl())) {
-                K->insertMapping(maskFields.data()[num_mask],
+                K->insertMapping(maskFields[num_mask],
                     MaskDeclMap[DRE->getDecl()]);
                 num_mask++;
                 continue;
@@ -2076,7 +2076,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
       << K->getFileName() << (const char*)(compilerOptions.emitCUDA()?"cu":"cl")
       << command.c_str();
     for (size_t i=0, e=lines.size(); i!=e; ++i) {
-      llvm::errs() << lines.data()[i];
+      llvm::errs() << lines[i];
     }
   } else {
     if (targetDevice.isAMDGPU()) {

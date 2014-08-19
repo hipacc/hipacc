@@ -753,7 +753,7 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
 
     // add border handling statements to stageBody
     for (size_t i=0, e=bhStmts.size(); i!=e; ++i) {
-      stageBody.push_back(bhStmts.data()[i]);
+      stageBody.push_back(bhStmts[i]);
     }
   } else {
     RHS = accessMem(paramDRE, Acc, READ_ONLY, global_offset_x, global_offset_y);
