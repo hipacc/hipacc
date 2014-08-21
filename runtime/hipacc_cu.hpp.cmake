@@ -710,31 +710,14 @@ void hipaccCreateModuleKernel(CUfunction &function, CUmodule &module, std::strin
         default:
             std::cerr << "ERROR: Specified compute capability '" << cc << "' is not supported!" << std::endl;
             exit(EXIT_FAILURE);
-            break;
-        case 10:
-            target_cc = CU_TARGET_COMPUTE_10;
-            break;
-        case 11:
-            target_cc = CU_TARGET_COMPUTE_11;
-            break;
-        case 12:
-            target_cc = CU_TARGET_COMPUTE_12;
-            break;
-        case 13:
-            target_cc = CU_TARGET_COMPUTE_13;
-            break;
-        case 20:
-            target_cc = CU_TARGET_COMPUTE_20;
-            break;
-        case 21:
-            target_cc = CU_TARGET_COMPUTE_21;
-            break;
-        case 30:
-            target_cc = CU_TARGET_COMPUTE_30;
-            break;
-        case 35:
-            target_cc = CU_TARGET_COMPUTE_35;
-            break;
+        case 10: target_cc = CU_TARGET_COMPUTE_10; break;
+        case 11: target_cc = CU_TARGET_COMPUTE_11; break;
+        case 12: target_cc = CU_TARGET_COMPUTE_12; break;
+        case 13: target_cc = CU_TARGET_COMPUTE_13; break;
+        case 20: target_cc = CU_TARGET_COMPUTE_20; break;
+        case 21: target_cc = CU_TARGET_COMPUTE_21; break;
+        case 30: target_cc = CU_TARGET_COMPUTE_30; break;
+        case 35: target_cc = CU_TARGET_COMPUTE_35; break;
     }
     #endif
 
