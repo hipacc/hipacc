@@ -743,7 +743,7 @@ void hipaccLaunchScriptKernelExploration(
         std::cerr << "<HIPACC:> Kernel config: "
                   << std::setw(4) << std::right << work_size[0] << "x"
                   << std::setw(2) << std::left << work_size[1]
-                  << std::setw(5-floor(log10((float)(work_size[0]*work_size[1]))))
+                  << std::setw(5-floor(log10f((float)(work_size[0]*work_size[1]))))
                   << std::right << "(" << work_size[0]*work_size[1] << "): "
                   << std::setw(8) << std::fixed << std::setprecision(4)
                   << med_dt << " ms" << std::endl;

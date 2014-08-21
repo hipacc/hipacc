@@ -1332,7 +1332,7 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
             std::cerr << "<HIPACC:> Kernel config: "
                       << std::setw(4) << std::right << tile_size_x << "x"
                       << std::setw(2) << std::left << tile_size_y
-                      << std::setw(5-floor(log10(tile_size_x*tile_size_y)))
+                      << std::setw(5-floor(log10f((float)(tile_size_x*tile_size_y))))
                       << std::right << "(" << tile_size_x*tile_size_y << "): "
                       << std::setw(8) << std::fixed << std::setprecision(4)
                       << timing << " ms" << std::endl;
