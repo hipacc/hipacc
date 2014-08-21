@@ -260,7 +260,7 @@ ATTRIBUTES RET_TYPE pow##SUFFIX(NEW_TYPE a, NEW_TYPE b) { \
  /* pown */ \
  \
 ATTRIBUTES RET_TYPE pown##SUFFIX(NEW_TYPE a, int4 b) { \
-    return make_##RET_TYPE(pow(a.x, b.x), pow(a.y, b.y), pow(a.z, b.z), pow(a.w, b.w)); \
+    return make_##RET_TYPE(pow(a.x, (BASIC_TYPE)b.x), pow(a.y, (BASIC_TYPE)b.y), pow(a.z, (BASIC_TYPE)b.z), pow(a.w, (BASIC_TYPE)b.w)); \
 } \
  /* powr */ \
  \
@@ -338,6 +338,7 @@ ATTRIBUTES RET_TYPE trunc##SUFFIX(NEW_TYPE a) { \
 MAKE_MATH_BI(float4,    float,  float4, f)
 #if defined __ANDROID__ and not defined CL_VERSION_1_1
 // double functions not supported on Android (Renderscript)
+#else
 MAKE_MATH_BI(double4,   double, double4, )
 #endif
 
