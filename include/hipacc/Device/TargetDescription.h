@@ -162,10 +162,10 @@ class HipaccDeviceOptions {
         case KNIGHTSCORNER:
           alignment = 64;
           local_memory_threshold = 9999;
-          default_num_threads_x = 1024;
-          pixels_per_thread[PointOperator] = 1;
-          pixels_per_thread[LocalOperator] = 1;
-          pixels_per_thread[GlobalOperator] = 1;
+          default_num_threads_x = 512;
+          pixels_per_thread[PointOperator] = 2;
+          pixels_per_thread[LocalOperator] = 2;
+          pixels_per_thread[GlobalOperator] = 2;
           require_textures[PointOperator] = NoTexture;
           require_textures[LocalOperator] = NoTexture;
           require_textures[GlobalOperator] = NoTexture;
