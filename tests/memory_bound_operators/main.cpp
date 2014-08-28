@@ -488,7 +488,7 @@ int main(int argc, const char **argv) {
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
     size_t memory_size = sizeof(int)*width*height;
-    float bandwidth_MBs = 2.0f * ((double)memory_size)/(timing/1000 * (double)(1 << 20));
+    float bandwidth_MBs = (2.0f * (double)memory_size)/(timing/1000 * (double)(1 << 20));
 
 
     fprintf(stderr, "Calculating 2 image kernel ...\n");
