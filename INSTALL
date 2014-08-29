@@ -5,6 +5,7 @@ HIPAcc Prerequisites:
 - LLVM (see dependencies.sh)
 - compiler-rt (see dependencies.sh)
 - libcxx (see dependencies.sh)
+- libcxxabi (when using clang for GNU/Linux)
 - Polly (optional, see dependencies.sh)
 - CMake (2.8 or later)
 
