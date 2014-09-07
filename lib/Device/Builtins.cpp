@@ -265,10 +265,10 @@ QualType hipacc::Builtin::Context::getBuiltinType(const char *TypeStr) const {
     ArgTypes.push_back(Ty);
   }
 
+  FunctionType::ExtInfo EI;
   bool Variadic = (TypeStr[0] == '.');
 
   // We really shouldn't be making a no-proto type here, especially in C++.
-  FunctionType::ExtInfo EI;
   if (ArgTypes.empty() && Variadic)
     return Ctx.getFunctionNoProtoType(ResType, EI);
 
@@ -394,9 +394,9 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
   // create Decl objects for each parameter, adding them to the FunctionDecl.
   if (const FunctionProtoType *FT = dyn_cast<FunctionProtoType>(R)) {
     SmallVector<ParmVarDecl *, 16> Params;
-    for (size_t i=0, e=FT->getNumArgs(); i!=e; ++i) {
+    for (size_t i=0, e=FT->getNumParams(); i!=e; ++i) {
       ParmVarDecl *parm = ParmVarDecl::Create(Ctx, New, SourceLocation(),
-          SourceLocation(), 0, FT->getArgType(i), /*TInfo=*/0, SC_None, 0);
+          SourceLocation(), 0, FT->getParamType(i), /*TInfo=*/0, SC_None, 0);
       parm->setScopeInfo(0, i);
       Params.push_back(parm);
     }
@@ -414,7 +414,7 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
   QT = QT.getDesugaredType(Ctx);
 
   for (size_t i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
-    if (BuiltinInfo[i].Name == Name && BuiltinInfo[i].FD->getResultType() == QT) {
+    if (BuiltinInfo[i].Name == Name && BuiltinInfo[i].FD->getReturnType() == QT) {
       switch (BuiltinInfo[i].builtin_target) {
         case TARGET_C:
           switch (target) {

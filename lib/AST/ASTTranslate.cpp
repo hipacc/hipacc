@@ -67,7 +67,7 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
                  << "for execution on device.\n";
 
     // check return type
-    QualType retType = FD->getResultType();
+    QualType retType = FD->getReturnType();
     if (!retType->isStandardLayoutType() && !retType->isVoidType()) {
       unsigned int DiagIDRetType =
         Diags.getCustomDiagID(DiagnosticsEngine::Error,
@@ -143,7 +143,7 @@ T *ASTTranslate::lookup(std::string name, QualType QT, NamespaceDecl *NS) {
     if (result) {
       if (isa<FunctionDecl>(result)) {
         FunctionDecl *decl = dyn_cast<FunctionDecl>(result);
-        if (decl->getResultType().getDesugaredType(Ctx) ==
+        if (decl->getReturnType().getDesugaredType(Ctx) ==
             QT.getDesugaredType(Ctx)) return result;
         continue;
       }
@@ -882,7 +882,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           break;
         case TARGET_CUDA:
           VD = createVarDecl(Ctx, DC, sharedName, QT, nullptr);
-          VD->addAttr(new (Ctx) CUDASharedAttr(SourceLocation(), Ctx));
+          VD->addAttr(CUDASharedAttr::CreateImplicit(Ctx));
           break;
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
@@ -1671,10 +1671,8 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
                 argNames.push_back((*P)->getName());
               }
 
-              targetFD = createFunctionDecl(Ctx,
-                  Ctx.getTranslationUnitDecl(), name,
-                  targetFD->getResultType(), makeArrayRef(argTypes),
-                  makeArrayRef(argNames));
+              targetFD = createFunctionDecl(Ctx, Ctx.getTranslationUnitDecl(),
+                  name, targetFD->getReturnType(), argTypes, argNames);
             }
           }
         }
@@ -2462,7 +2460,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     return result;
   }
 
-  HIPACC_NOT_SUPPORTED(CXXMemberCallExpr);
+  assert(0 && "Hipacc: Stumbled upon unsupported expression: CXXMemberCallExpr");
   return nullptr;
 }
 

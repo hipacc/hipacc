@@ -37,7 +37,9 @@
 #include <clang/Frontend/FrontendDiagnostic.h>
 #include <clang/Frontend/TextDiagnosticBuffer.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/Signals.h>
+#include <llvm/Support/Timer.h>
 
 #include "hipacc/Config/config.h"
 #include "hipacc/Config/CompilerOptions.h"

@@ -2175,7 +2175,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       *OS << "static ";
       break;
   }
-  *OS << "inline " << fun->getResultType().getAsString() << " "
+  *OS << "inline " << fun->getReturnType().getAsString() << " "
       << K->getReduceName() << "(";
   // write kernel parameters
   size_t comma = 0;
@@ -2204,19 +2204,19 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case TARGET_OpenCLGPU:
       // 2D reduction
       *OS << "REDUCTION_CL_2D(" << K->getReduceName() << "2D, "
-          << fun->getResultType().getAsString() << ", "
+          << fun->getReturnType().getAsString() << ", "
           << K->getReduceName() << ", "
           << K->getIterationSpace()->getImage()->getImageReadFunction()
           << ")\n";
       // 1D reduction
       *OS << "REDUCTION_CL_1D(" << K->getReduceName() << "1D, "
-          << fun->getResultType().getAsString() << ", "
+          << fun->getReturnType().getAsString() << ", "
           << K->getReduceName() << ")\n";
       break;
     case TARGET_CUDA:
       // print 2D CUDA array definition - this is only required on FERMI and if
       // Array2D is selected, but doesn't harm otherwise
-      *OS << "texture<" << fun->getResultType().getAsString()
+      *OS << "texture<" << fun->getReturnType().getAsString()
           << ", cudaTextureType2D, cudaReadModeElementType> _tex"
           << K->getIterationSpace()->getImage()->getName() + K->getName()
           << ";\nconst textureReference *_tex"
@@ -2232,7 +2232,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
         *OS << "REDUCTION_CUDA_2D(";
       }
       *OS << K->getReduceName() << "2D, "
-          << fun->getResultType().getAsString() << ", "
+          << fun->getReturnType().getAsString() << ", "
           << K->getReduceName() << ", _tex"
           << K->getIterationSpace()->getImage()->getName() + K->getName() << ")\n";
       // 1D reduction
@@ -2241,18 +2241,18 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
         // no second step required
       } else {
         *OS << "REDUCTION_CUDA_1D(" << K->getReduceName() << "1D, "
-            << fun->getResultType().getAsString() << ", "
+            << fun->getReturnType().getAsString() << ", "
             << K->getReduceName() << ")\n";
       }
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
       *OS << "REDUCTION_RS_2D(" << K->getReduceName() << "2D, "
-          << fun->getResultType().getAsString() << ", ALL, "
+          << fun->getReturnType().getAsString() << ", ALL, "
           << K->getReduceName() << ")\n";
       // 1D reduction
       *OS << "REDUCTION_RS_1D(" << K->getReduceName() << "1D, "
-          << fun->getResultType().getAsString() << ", ALL, "
+          << fun->getReturnType().getAsString() << ", ALL, "
           << K->getReduceName() << ")\n";
       break;
   }

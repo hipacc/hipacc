@@ -44,6 +44,10 @@ static void LLVMErrorHandler(void *userData, const std::string &message, bool
 
   Diags.Report(diag::err_fe_error_backend) << message;
 
+  // Run the interrupt handlers to make sure any special cleanups get done, in
+  // particular that we remove files registered with RemoveFileOnSignal.
+  llvm::sys::RunInterruptHandlers();
+
   // We cannot recover from llvm errors.  When reporting a fatal error, exit
   // with status 70 to generate crash diagnostics.  For BSD systems this is
   // defined as an internal software error.  Otherwise, exit with status 1.
@@ -417,7 +421,7 @@ int main(int argc, char *argv[]) {
   void *mainAddr = (void *) (intptr_t) getExecutablePath;
   std::string Path = getExecutablePath(argv[0]);
 
-  OwningPtr<CompilerInstance> Clang(new CompilerInstance());
+  std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
 
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
@@ -454,9 +458,22 @@ int main(int argc, char *argv[]) {
   if (!success) return EXIT_FAILURE;
 
   // create and execute the frontend action
-  OwningPtr<ASTFrontendAction> Act(new HipaccRewriteAction(compilerOptions));
+  std::unique_ptr<ASTFrontendAction> Act(new HipaccRewriteAction(compilerOptions));
 
   if (!Clang->ExecuteAction(*Act)) return EXIT_FAILURE;
+
+  // if any timers were active but haven't been destroyed yet, print their
+  // results now.  This happens in -disable-free mode.
+  llvm::TimerGroup::printAll(llvm::errs());
+
+  // our error handler depends on the Diagnostics object, which we're
+  // potentially about to delete. Uninstall the handler now so that any
+  // later errors use the default handling behavior instead.
+  llvm::remove_fatal_error_handler();
+
+  // managed static deconstruction. Useful for making things like
+  // -time-passes usable.
+  llvm::llvm_shutdown();
 
   return EXIT_SUCCESS;
 }

@@ -8,12 +8,12 @@ SET(CLANG_USED_LIBS
     clangParse
     clangSema
     clangRewriteFrontend
-    clangRewriteCore
+    clangRewrite
     clangAnalysis
     clangEdit
     clangAST
-    clangBasic
-    clangLex)
+    clangLex
+    clangBasic)
 
 SET(HIPACC_USED_LIBS
     Rewrite

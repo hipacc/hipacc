@@ -365,7 +365,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   }
   // check capture kind of variables
   for (auto II=LE->capture_begin(), EE=LE->capture_end(); II!=EE; ++II) {
-    LambdaExpr::Capture cap = *II;
+    LambdaCapture cap = *II;
 
     if (cap.capturesVariable() && cap.getCaptureKind()!=LCK_ByRef) {
       unsigned int DiagIDCapture =
@@ -388,10 +388,10 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   if (method==Reduce) {
     // init temporary variable depending on aggregation mode
     init = getInitExpr(redModes.back(),
-        LE->getCallOperator()->getResultType());
+        LE->getCallOperator()->getReturnType());
   }
   VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(),
-      LE->getCallOperator()->getResultType(), init);
+      LE->getCallOperator()->getReturnType(), init);
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
   DC->addDecl(tmp_decl);
   DeclRefExpr *tmp_dre = createDeclRefExpr(Ctx, tmp_decl);
@@ -482,7 +482,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
     case Convolve:
     case Reduce:
       // add ICE for CodeGen
-      return createImplicitCastExpr(Ctx, LE->getCallOperator()->getResultType(),
+      return createImplicitCastExpr(Ctx, LE->getCallOperator()->getReturnType(),
           CK_LValueToRValue, tmp_dre, nullptr, VK_RValue);
     case Iterate:
       return nullptr;
