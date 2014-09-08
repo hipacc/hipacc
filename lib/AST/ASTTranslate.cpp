@@ -45,7 +45,7 @@ using namespace hipacc::Builtin;
 
 
 
-// add cast to unsigned int variables if needed
+// add cast to unsigned variables if needed
 Expr *ASTTranslate::addCastToInt(Expr *E) {
   return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_IntegralCast, E, nullptr,
       Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
@@ -69,8 +69,7 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
     // check return type
     QualType retType = FD->getReturnType();
     if (!retType->isStandardLayoutType() && !retType->isVoidType()) {
-      unsigned int DiagIDRetType =
-        Diags.getCustomDiagID(DiagnosticsEngine::Error,
+      unsigned DiagIDRetType = Diags.getCustomDiagID(DiagnosticsEngine::Error,
             "Cannot convert function '%0' for execution on device. "
             "Return type is no not supported: ");
       Diags.Report(FD->getLocStart(), DiagIDRetType) << FD->getNameAsString();
@@ -81,9 +80,8 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
     SmallVector<QualType, 16> argTypes;
     SmallVector<std::string, 16> argNames;
 
-    for (size_t i=0, e=FD->getNumParams(); i!=e; ++i) {
-      const ParmVarDecl *PVD = FD->getParamDecl(i);
-      QualType QT = PVD->getType();
+    for (auto param : FD->params()) {
+      QualType QT = param->getType();
 
       // allow reference types for CUDA only
       if (compilerOptions.emitCUDA()) {
@@ -91,23 +89,21 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
       }
 
       if (!QT->isStandardLayoutType()) {
-        unsigned int DiagIDParmType =
+        unsigned DiagIDParmType =
           Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Cannot convert function '%0' for execution on device. "
               "Argument type is no not supported: ");
-        Diags.Report(PVD->getLocation(), DiagIDParmType) << FD->getNameAsString();
+        Diags.Report(param->getLocation(), DiagIDParmType) << FD->getNameAsString();
         exit(EXIT_FAILURE);
       }
 
-      argTypes.push_back(PVD->getType());
-      argNames.push_back(PVD->getNameAsString());
+      argTypes.push_back(param->getType());
+      argNames.push_back(param->getNameAsString());
     }
 
     // create signature
     result = createFunctionDecl(Ctx, Ctx.getTranslationUnitDecl(),
-        FD->getNameAsString() + Kernel->getName(), retType,
-        ArrayRef<QualType>(argTypes.data(), argTypes.size()),
-        ArrayRef<std::string>(argNames.data(), argNames.size()));
+        FD->getNameAsString() + Kernel->getName(), retType, argTypes, argNames);
 
     // first store function declaration
     KernelFunctionMap[FD] = result;
@@ -120,7 +116,7 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
     cloneFuns.pop_back();
   } else {
     if (std::find(cloneFuns.begin(), cloneFuns.end(), FD)!=cloneFuns.end()) {
-      unsigned int DiagIDRecursion =
+      unsigned DiagIDRecursion =
         Diags.getCustomDiagID(DiagnosticsEngine::Warning,
             "recursive call to function '%0' detected: this is only supported on some devices and may cause segmentation faults!");
       Diags.Report(FD->getLocation(), DiagIDRecursion) << FD->getNameAsString();
@@ -136,8 +132,8 @@ T *ASTTranslate::lookup(std::string name, QualType QT, NamespaceDecl *NS) {
   DeclContext *DC = Ctx.getTranslationUnitDecl();
   if (NS) DC = Decl::castToDeclContext(NS);
 
-  for (DeclContext::lookup_result Lookup = DC->lookup(&Ctx.Idents.get(name));
-      !Lookup.empty(); Lookup=Lookup.slice(1)) {
+  for (auto Lookup = DC->lookup(&Ctx.Idents.get(name)); !Lookup.empty();
+      Lookup=Lookup.slice(1)) {
     T *result = cast_or_null<T>(Lookup.front());
 
     if (result) {
@@ -205,9 +201,8 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   tileVars.local_size_y = createIntegerLiteral(Ctx, 0);
 
   // check if we need border handling
-  for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
-    FieldDecl *FD = KernelClass->getImgFields()[i];
-    HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
+  for (auto img : KernelClass->getImgFields()) {
+    HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
 
     // bail out for user defined kernels
     if (KernelClass->getKernelType()==UserOperator) break;
@@ -277,11 +272,10 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
   /*DEVICE_BUILTIN*/
   //struct uint3
   //{
-  //  unsigned int x, y, z;
+  //  unsigned x, y, z;
   //};
   RecordDecl *uint3RD = createRecordDecl(Ctx, Ctx.getTranslationUnitDecl(),
-      "uint3", TTK_Struct, uintDeclTypes.size(), uintDeclTypes.data(),
-      uintDeclNames.data());
+      "uint3", TTK_Struct, uintDeclTypes, uintDeclNames);
 
   /*DEVICE_BUILTIN*/
   //typedef struct uint3 uint3;
@@ -289,7 +283,7 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
   /*DEVICE_BUILTIN*/
   //struct dim3
   //{
-  //    unsigned int x, y, z;
+  //    unsigned x, y, z;
   //};
 
   /*DEVICE_BUILTIN*/
@@ -575,70 +569,68 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   if (S==nullptr) return nullptr;
 
   // search for image width and height parameters
-  for (auto I=kernelDecl->param_begin(), E=kernelDecl->param_end(); I!=E; ++I) {
-    ParmVarDecl *PVD = *I;
-
+  for (auto param : kernelDecl->params()) {
     // the first parameter is the output image; create association between them.
-    if (I==kernelDecl->param_begin()) {
-      outputImage = createDeclRefExpr(Ctx, PVD);
+    if (param==*kernelDecl->param_begin()) {
+      outputImage = createDeclRefExpr(Ctx, param);
       continue;
     }
 
     // search for iteration space parameters
-    if (PVD->getName().equals("is_width")) {
+    if (param->getName().equals("is_width")) {
       Kernel->getIterationSpace()->getAccessor()->setWidthDecl(createDeclRefExpr(Ctx,
-            PVD));
+            param));
       continue;
     }
-    if (PVD->getName().equals("is_height")) {
+    if (param->getName().equals("is_height")) {
       Kernel->getIterationSpace()->getAccessor()->setHeightDecl(createDeclRefExpr(Ctx,
-            PVD));
+            param));
       continue;
     }
-    if (PVD->getName().equals("is_stride")) {
+    if (param->getName().equals("is_stride")) {
       Kernel->getIterationSpace()->getAccessor()->setStrideDecl(createDeclRefExpr(Ctx,
-            PVD));
+            param));
       continue;
     }
-    if (PVD->getName().equals("is_offset_x")) {
+    if (param->getName().equals("is_offset_x")) {
       Kernel->getIterationSpace()->getAccessor()->setOffsetXDecl(createDeclRefExpr(Ctx,
-            PVD));
+            param));
       continue;
     }
-    if (PVD->getName().equals("is_offset_y")) {
+    if (param->getName().equals("is_offset_y")) {
       Kernel->getIterationSpace()->getAccessor()->setOffsetYDecl(createDeclRefExpr(Ctx,
-            PVD));
+            param));
       continue;
     }
-    if (PVD->getName().equals("bh_start_left")) {
-      bh_start_left = createDeclRefExpr(Ctx, PVD);
+    if (param->getName().equals("bh_start_left")) {
+      bh_start_left = createDeclRefExpr(Ctx, param);
       continue;
     }
-    if (PVD->getName().equals("bh_start_right")) {
-      bh_start_right = createDeclRefExpr(Ctx, PVD);
+    if (param->getName().equals("bh_start_right")) {
+      bh_start_right = createDeclRefExpr(Ctx, param);
       continue;
     }
-    if (PVD->getName().equals("bh_start_top")) {
-      bh_start_top = createDeclRefExpr(Ctx, PVD);
+    if (param->getName().equals("bh_start_top")) {
+      bh_start_top = createDeclRefExpr(Ctx, param);
       continue;
     }
-    if (PVD->getName().equals("bh_start_bottom")) {
-      bh_start_bottom = createDeclRefExpr(Ctx, PVD);
+    if (param->getName().equals("bh_start_bottom")) {
+      bh_start_bottom = createDeclRefExpr(Ctx, param);
       continue;
     }
-    if (PVD->getName().equals("bh_fall_back")) {
-      bh_fall_back = createDeclRefExpr(Ctx, PVD);
+    if (param->getName().equals("bh_fall_back")) {
+      bh_fall_back = createDeclRefExpr(Ctx, param);
       continue;
     }
 
     if (compilerOptions.emitRenderscript() ||
         compilerOptions.emitFilterscript()) {
       // search for uint32_t x, uint32_t y parameters
-      if (PVD->getName().equals("x")) {
+      if (param->getName().equals("x")) {
         // TODO: scan for uint32_t x
         continue;
       }
-      if (PVD->getName().equals("y")) {
+      if (param->getName().equals("y")) {
         // TODO: scan for uint32_t y
         continue;
       }
@@ -646,37 +638,35 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
 
     // search for image width, height and stride parameters
-    for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
-      FieldDecl *FD = KernelClass->getImgFields()[i];
-      HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
+    for (auto img : KernelClass->getImgFields()) {
+      HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
 
-      if (PVD->getName().equals(FD->getNameAsString() + "_width")) {
-        Acc->setWidthDecl(createDeclRefExpr(Ctx, PVD));
+      if (param->getName().equals(img->getNameAsString() + "_width")) {
+        Acc->setWidthDecl(createDeclRefExpr(Ctx, param));
         continue;
       }
-      if (PVD->getName().equals(FD->getNameAsString() + "_height")) {
-        Acc->setHeightDecl(createDeclRefExpr(Ctx, PVD));
+      if (param->getName().equals(img->getNameAsString() + "_height")) {
+        Acc->setHeightDecl(createDeclRefExpr(Ctx, param));
         continue;
       }
-      if (PVD->getName().equals(FD->getNameAsString() + "_stride")) {
-        Acc->setStrideDecl(createDeclRefExpr(Ctx, PVD));
+      if (param->getName().equals(img->getNameAsString() + "_stride")) {
+        Acc->setStrideDecl(createDeclRefExpr(Ctx, param));
         continue;
       }
-      if (PVD->getName().equals(FD->getNameAsString() + "_offset_x")) {
-        Acc->setOffsetXDecl(createDeclRefExpr(Ctx, PVD));
+      if (param->getName().equals(img->getNameAsString() + "_offset_x")) {
+        Acc->setOffsetXDecl(createDeclRefExpr(Ctx, param));
         continue;
       }
-      if (PVD->getName().equals(FD->getNameAsString() + "_offset_y")) {
-        Acc->setOffsetYDecl(createDeclRefExpr(Ctx, PVD));
+      if (param->getName().equals(img->getNameAsString() + "_offset_y")) {
+        Acc->setOffsetYDecl(createDeclRefExpr(Ctx, param));
         continue;
       }
     }
   }
 
   // in case no stride was found, use image width as fallback
-  for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
-    FieldDecl *FD = KernelClass->getImgFields()[i];
-    HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
+  for (auto img : KernelClass->getImgFields()) {
+    HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
 
     if (Acc->getStrideDecl() == nullptr) {
       Acc->setStrideDecl(Acc->getWidthDecl());
@@ -714,9 +704,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   lidYRef = tileVars.local_id_y;
   gidYRef = tileVars.global_id_y;
 
-  for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
-    FieldDecl *FD = KernelClass->getImgFields()[i];
-    HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
+  for (auto img : KernelClass->getImgFields()) {
+    HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
 
     // add scale factor calculations for interpolation:
     // float acc_scale_x = (float)acc_width/is_width;
@@ -755,30 +744,36 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
   // add vector pointer declarations for images
   if (Kernel->vectorize() && !compilerOptions.emitC()) {
-    for (size_t i=0; i<=KernelClass->getNumImages(); ++i) {
-      FieldDecl *FD = KernelClass->getImgFields()[i];
+    // search for member name in kernel parameter list
+    for (auto param : kernelDecl->params()) {
       // output image - iteration space
-      StringRef name = "Output";
-      if (i<KernelClass->getNumImages()) {
-        // normal parameter
-        name = FD->getName();
+      if (param->getName().equals("Output")) {
+        // <type>4 *Input4 = (<type>4 *) Input;
+        VarDecl *VD = CloneParmVarDecl(param);
+
+        VD->setInit(createCStyleCastExpr(Ctx, VD->getType(), CK_BitCast,
+              createDeclRefExpr(Ctx, param), nullptr,
+              Ctx.getTrivialTypeSourceInfo(VD->getType())));
+
+        kernelBody.push_back(createDeclStmt(Ctx, VD));
+
+        // update output Image reference
+        outputImage = createDeclRefExpr(Ctx, VD);
       }
+    }
+
+    for (auto img : KernelClass->getImgFields()) {
+      StringRef name = img->getName();
 
       // search for member name in kernel parameter list
-      for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N;
-              ++I) {
-        ParmVarDecl *PVD = *I;
-
+      for (auto param : kernelDecl->params()) {
         // parameter name matches
-        if (PVD->getName().equals(name)) {
+        if (param->getName().equals(name)) {
           // <type>4 *Input4 = (<type>4 *) Input;
-          VarDecl *VD = CloneParmVarDecl(PVD);
-
-          // update output Image reference
-          if (name.equals("Output")) outputImage = createDeclRefExpr(Ctx, VD);
+          VarDecl *VD = CloneParmVarDecl(param);
 
           VD->setInit(createCStyleCastExpr(Ctx, VD->getType(), CK_BitCast,
-                createDeclRefExpr(Ctx, PVD), nullptr,
+                createDeclRefExpr(Ctx, param), nullptr,
                 Ctx.getTrivialTypeSourceInfo(VD->getType())));
 
           kernelBody.push_back(createDeclStmt(Ctx, VD));
@@ -792,10 +787,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   bool border_handling = false;
   bool kernel_x = false;
   bool kernel_y = false;
-  for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
-    FieldDecl *FD = KernelClass->getImgFields()[i];
-    HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
-    MemoryAccess memAcc = KernelClass->getImgAccess(FD);
+  for (auto img : KernelClass->getImgFields()) {
+    HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
+    MemoryAccess memAcc = KernelClass->getImgAccess(img);
 
     // bail out for user defined kernels
     if (KernelClass->getKernelType()==UserOperator) break;
@@ -810,7 +804,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     // check if we need shared memory
     if (memAcc == READ_ONLY && Kernel->useLocalMemory(Acc)) {
       std::string sharedName = "_smem";
-      sharedName += FD->getNameAsString();
+      sharedName += img->getNameAsString();
       use_shared = true;
 
       VarDecl *VD;
@@ -893,15 +887,12 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       }
 
       // search for member name in kernel parameter list
-      for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N;
-              ++I) {
-        ParmVarDecl *PVD = *I;
-
+      for (auto param : kernelDecl->params()) {
         // parameter name matches
-        if (PVD->getName().equals(FD->getName())) {
+        if (param->getName().equals(img->getName())) {
           // store mapping between ParmVarDecl and shared memory VarDecl
-          KernelDeclMapShared[PVD] = VD;
-          KernelDeclMapAcc[PVD] = Acc;
+          KernelDeclMapShared[param] = VD;
+          KernelDeclMapAcc[param] = Acc;
 
           break;
         }
@@ -1374,9 +1365,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
             createCompoundStmt(Ctx, pptBody));
         labelBody.push_back(ispace_check);
       } else {
-        for (size_t i=0, e=pptBody.size(); i!=e; ++i) {
-          labelBody.push_back(pptBody[i]);
-        }
+        for (auto stmt : pptBody)
+          labelBody.push_back(stmt);
       }
     }
 
@@ -1471,11 +1461,9 @@ VarDecl *ASTTranslate::CloneParmVarDecl(ParmVarDecl *PVD) {
 
     // only vectorize image PVDs
     if (Kernel->vectorize() && !compilerOptions.emitC()) {
-      for (size_t i=0; i<KernelClass->getNumImages(); ++i) {
-        FieldDecl *FD = KernelClass->getImgFields()[i];
-
+      for (auto img : KernelClass->getImgFields()) {
         // parameter name matches
-        if (PVD->getName().equals(FD->getName()) ||
+        if (PVD->getName().equals(img->getName()) ||
             PVD->getName().equals("Output")) {
           // mark original variable as being used
           Kernel->setUsed(name);
@@ -1546,9 +1534,9 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
       S->getLBracLoc(), S->getLBracLoc());
 
   SmallVector<Stmt *, 16> body;
-  for (auto I=S->body_begin(), E=S->body_end(); I!=E; ++I) {
+  for (auto stmt : S->body()) {
     curCStmt = S;
-    Stmt *newS = Clone(*I);
+    Stmt *newS = Clone(stmt);
     curCStmt = S;
 
     if (preStmts.size()) {
@@ -1665,10 +1653,9 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
               SmallVector<QualType, 16> argTypes;
               SmallVector<std::string, 16> argNames;
 
-              for (auto P=targetFD->param_begin(), PE=targetFD->param_end();
-                      P!=PE; ++P) {
-                argTypes.push_back((*P)->getType());
-                argNames.push_back((*P)->getName());
+              for (auto param : targetFD->params()) {
+                argTypes.push_back(param->getType());
+                argNames.push_back(param->getName());
               }
 
               targetFD = createFunctionDecl(Ctx, Ctx.getTranslationUnitDecl(),
@@ -1697,17 +1684,16 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
     }
 
     if (!targetFD) {
-      unsigned int DiagIDCallExpr =
-        Diags.getCustomDiagID(DiagnosticsEngine::Error,
-            "Found unsupported function call '%0' in kernel.");
+      unsigned DiagIDCallExpr = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+          "Found unsupported function call '%0' in kernel.");
       SmallVector<const char *, 16> builtinNames;
       builtins.getBuiltinNames(compilerOptions.getTargetCode(), builtinNames);
       Diags.Report(E->getExprLoc(), DiagIDCallExpr) << E->getDirectCallee()->getName();
 
       llvm::errs() << "Supported functions are: ";
-      for (size_t i=0, e=builtinNames.size(); i!=e; ++i) {
-        llvm::errs() << builtinNames[i];
-        llvm::errs() << ((i==e-1)?".\n":", ");
+      for (auto name : builtinNames) {
+        llvm::errs() << name;
+        llvm::errs() << ((name==builtinNames.back())?".\n":", ");
       }
       exit(EXIT_FAILURE);
     }
@@ -1722,10 +1708,9 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
         E->getType(), E->getValueKind(), E->getRParenLoc());
 
     result->setNumArgs(Ctx, E->getNumArgs());
-
-    for (size_t I=0, N=E->getNumArgs(); I<N; ++I) {
-      result->setArg(I, Clone(E->getArg(I)));
-    }
+    size_t num_arg = 0;
+    for (auto arg : E->arguments())
+      result->setArg(num_arg++, Clone(arg));
 
     setExprProps(E, result);
 
@@ -1769,17 +1754,15 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   ValueDecl *paramDecl = nullptr;
 
   // search for member name in kernel parameter list
-  for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N; ++I) {
-    ParmVarDecl *PVD = *I;
-
+  for (auto param : kernelDecl->params()) {
     // parameter name matches
-    if (PVD->getName().equals(VD->getName())) {
-      paramDecl = PVD;
+    if (param->getName().equals(VD->getName())) {
+      paramDecl = param;
 
       // get vector declaration
       if (Kernel->vectorize() && !compilerOptions.emitC()) {
-        if (KernelDeclMapVector.count(PVD)) {
-          paramDecl = KernelDeclMapVector[PVD];
+        if (KernelDeclMapVector.count(param)) {
+          paramDecl = KernelDeclMapVector[param];
           llvm::errs() << "Vectorize: \n";
           paramDecl->dump();
           llvm::errs() << "\n";
@@ -1791,20 +1774,17 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   }
 
   if (!paramDecl) {
-    unsigned int DiagIDParameter =
-      Diags.getCustomDiagID(DiagnosticsEngine::Error,
-          "Couldn't find initialization of kernel member variable '%0' in class constructor.");
+    unsigned DiagIDParameter = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+        "Couldn't find initialization of kernel member variable '%0' in class constructor.");
     Diags.Report(E->getExprLoc(), DiagIDParameter) << VD->getName();
     exit(EXIT_FAILURE);
   }
 
   // check if the parameter is a Mask and replace it by a global VarDecl
   bool isMask = false;
-  for (size_t i=0; i<KernelClass->getNumMasks(); ++i) {
-    FieldDecl *FD = KernelClass->getMaskFields()[i];
-
-    if (paramDecl->getName().equals(FD->getName())) {
-      HipaccMask *Mask = Kernel->getMaskFromMapping(FD);
+  for (auto mask : KernelClass->getMaskFields()) {
+    if (paramDecl->getName().equals(mask->getName())) {
+      HipaccMask *Mask = Kernel->getMaskFromMapping(mask);
 
       if (Mask) {
         isMask = true;

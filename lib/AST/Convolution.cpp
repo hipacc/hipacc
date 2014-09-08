@@ -176,8 +176,7 @@ Expr *ASTTranslate::getInitExpr(ConvolutionMode mode, QualType QT) {
       initExprs.push_back(initExpr);
     }
 
-    result = new (Ctx) InitListExpr(Ctx, SourceLocation(),
-        llvm::makeArrayRef(initExprs.data(), initExprs.size()),
+    result = new (Ctx) InitListExpr(Ctx, SourceLocation(), initExprs,
         SourceLocation());
     result->setType(QT);
   } else {
@@ -322,7 +321,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
           if (method==Convolve) convMode = HipaccMEDIAN;
           else redModes.push_back(HipaccMEDIAN);
         default:
-          unsigned int DiagIDConvMode =
+          unsigned DiagIDConvMode =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
                 "%0 mode not supported, allowed modes are: "
                 "HipaccSUM, HipaccMIN, HipaccMAX, and HipaccPROD.");
@@ -331,9 +330,8 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
           exit(EXIT_FAILURE);
       }
     } else {
-      unsigned int DiagIDConvMode =
-        Diags.getCustomDiagID(DiagnosticsEngine::Error,
-            "Unknown %0 mode detected.");
+      unsigned DiagIDConvMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+          "Unknown %0 mode detected.");
       Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode)
         << (const char *)(Mask->isDomain()?"reduction":"convolution");
       exit(EXIT_FAILURE);
@@ -354,26 +352,22 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
 
   // check default capture kind
   if (LE->getCaptureDefault()==LCD_ByCopy) {
-    unsigned int DiagIDCapture =
-      Diags.getCustomDiagID(DiagnosticsEngine::Error,
-          "Capture by copy [=] is not supported for '%0' lambda-function. "
-          "Use capture by reference [&] instead.");
+    unsigned DiagIDCapture = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+        "Capture by copy [=] is not supported for '%0' lambda-function. "
+        "Use capture by reference [&] instead.");
     Diags.Report(LE->getCaptureDefaultLoc(), DiagIDCapture)
       << (const char *)(method==Convolve ? "convolve" : method==Reduce ?
           "reduce" : "iterate");
     exit(EXIT_FAILURE);
   }
   // check capture kind of variables
-  for (auto II=LE->capture_begin(), EE=LE->capture_end(); II!=EE; ++II) {
-    LambdaCapture cap = *II;
-
-    if (cap.capturesVariable() && cap.getCaptureKind()!=LCK_ByRef) {
-      unsigned int DiagIDCapture =
-        Diags.getCustomDiagID(DiagnosticsEngine::Error,
-            "Unsupported capture kind for variable '%0' in '%1' "
-            "lambda-function. Use capture by reference instead: [&%0].");
-      Diags.Report(cap.getLocation(), DiagIDCapture)
-        << cap.getCapturedVar()->getNameAsString()
+  for (auto capture : LE->captures()) {
+    if (capture.capturesVariable() && capture.getCaptureKind()!=LCK_ByRef) {
+      unsigned DiagIDCapture = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+          "Unsupported capture kind for variable '%0' in '%1' "
+          "lambda-function. Use capture by reference instead: [&%0].");
+      Diags.Report(capture.getLocation(), DiagIDCapture)
+        << capture.getCapturedVar()->getNameAsString()
         << (const char *)(method==Convolve ? "convolve" : method==Reduce ?
             "reduce" : "iterate");
       exit(EXIT_FAILURE);

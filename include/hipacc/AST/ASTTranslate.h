@@ -57,12 +57,12 @@ namespace clang {
 namespace hipacc {
 typedef union border_variant {
   struct {
-    unsigned int left   : 1;
-    unsigned int right  : 1;
-    unsigned int top    : 1;
-    unsigned int bottom : 1;
+    unsigned left   : 1;
+    unsigned right  : 1;
+    unsigned top    : 1;
+    unsigned bottom : 1;
   } borders;
-  unsigned int borderVal;
+  unsigned borderVal;
   border_variant() : borderVal(0) {}
 } border_variant;
 
@@ -85,7 +85,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     bool emitEstimation;
 
     // "global variables"
-    unsigned int literalCount;
+    unsigned literalCount;
     SmallVector<FunctionDecl *, 16> cloneFuns;
     SmallVector<Stmt *, 16> preStmts, postStmts;
     SmallVector<CompoundStmt *, 16> preCStmt, postCStmt;
@@ -343,7 +343,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       lidYRef(nullptr),
       gidYRef(nullptr) {
         // get 'hipacc' namespace context for lookups
-        for (DeclContext::lookup_result Lookup =
+        for (auto Lookup =
             Ctx.getTranslationUnitDecl()->lookup(&Ctx.Idents.get("hipacc"));
             !Lookup.empty(); Lookup=Lookup.slice(1)) {
           hipaccNS = cast_or_null<NamespaceDecl>(Lookup.front());
@@ -352,15 +352,14 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         assert(hipaccNS && "could not lookup 'hipacc' namespace");
 
         // get 'hipacc::' namespace context for lookups
-        for (DeclContext::lookup_result Lookup =
-            hipaccNS->lookup(&Ctx.Idents.get("math"));
+        for (auto Lookup = hipaccNS->lookup(&Ctx.Idents.get("math"));
             !Lookup.empty(); Lookup=Lookup.slice(1)) {
           hipaccMathNS = cast_or_null<NamespaceDecl>(Lookup.front());
           if (hipaccMathNS) break;
         }
         assert(hipaccMathNS && "could not lookup 'hipacc::math' namespace");
 
-        // typedef unsigned int sampler_t;
+        // typedef unsigned sampler_t;
         TypeSourceInfo *TInfosampler =
           Ctx.getTrivialTypeSourceInfo(Ctx.UnsignedIntTy);
         samplerTy = TypedefDecl::Create(Ctx, Ctx.getTranslationUnitDecl(),

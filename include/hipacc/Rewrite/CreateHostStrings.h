@@ -45,7 +45,7 @@ namespace hipacc {
 class CreateHostStrings {
   private:
     CompilerOptions &options;
-    unsigned int literal_count;
+    unsigned literal_count;
     int num_indent, cur_indent;
     std::string indent;
 

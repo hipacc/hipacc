@@ -246,18 +246,13 @@ class CompilerOptions {
 
     std::string getTargetPrefix() {
       switch (target_code) {
-        case TARGET_C:
-          return "cc";
-        case TARGET_CUDA:
-          return "cu";
+        case TARGET_C:            return "cc";
+        case TARGET_CUDA:         return "cu";
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
-        case TARGET_OpenCLGPU:
-          return "cl";
-        case TARGET_Renderscript:
-          return "rs";
-        case TARGET_Filterscript:
-          return "fs";
+        case TARGET_OpenCLGPU:    return "cl";
+        case TARGET_Renderscript: return "rs";
+        case TARGET_Filterscript: return "fs";
       }
     }
 
@@ -265,27 +260,13 @@ class CompilerOptions {
       llvm::errs() << "HIPACC compiler configuration summary: \n";
       llvm::errs() << "  Generating target code for '";
       switch (target_code) {
-        case TARGET_CUDA:
-          llvm::errs() << "CUDA";
-          break;
-        case TARGET_OpenCLACC:
-          llvm::errs() << "OpenCL (ACC)";
-          break;
-        case TARGET_OpenCLCPU:
-          llvm::errs() << "OpenCL (CPU)";
-          break;
-        case TARGET_OpenCLGPU:
-          llvm::errs() << "OpenCL (GPU)";
-          break;
-        case TARGET_Renderscript:
-          llvm::errs() << "Renderscript";
-          break;
-        case TARGET_Filterscript:
-          llvm::errs() << "Filterscript";
-          break;
-        case TARGET_C:
-          llvm::errs() << "C/C++";
-          break;
+        case TARGET_C:            llvm::errs() << "C/C++";        break;
+        case TARGET_CUDA:         llvm::errs() << "CUDA";         break;
+        case TARGET_OpenCLACC:    llvm::errs() << "OpenCL (ACC)"; break;
+        case TARGET_OpenCLCPU:    llvm::errs() << "OpenCL (CPU)"; break;
+        case TARGET_OpenCLGPU:    llvm::errs() << "OpenCL (GPU)"; break;
+        case TARGET_Renderscript: llvm::errs() << "Renderscript"; break;
+        case TARGET_Filterscript: llvm::errs() << "Filterscript"; break;
       }
       llvm::errs() << "' language.\n";
       llvm::errs() << "  Target device is '" << target_device << "'";
@@ -306,10 +287,10 @@ class CompilerOptions {
       getOptionAsString(texture_memory);
       switch (texture_memory_type) {
         case NoTexture: break;
-        case Linear1D: llvm::errs() << ": Linear1D"; break;
-        case Linear2D: llvm::errs() << ": Linear2D"; break;
-        case Array2D: llvm::errs() << ": Array2D"; break;
-        case Ldg: llvm::errs() << ": Ldg"; break;
+        case Linear1D:  llvm::errs() << ": Linear1D"; break;
+        case Linear2D:  llvm::errs() << ": Linear2D"; break;
+        case Array2D:   llvm::errs() << ": Array2D";  break;
+        case Ldg:       llvm::errs() << ": Ldg";      break;
       }
       llvm::errs() << "\n  Usage of local memory reading from images: ";
       getOptionAsString(local_memory);

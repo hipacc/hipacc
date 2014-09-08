@@ -71,7 +71,7 @@ class Context {
   private:
     ASTContext &Ctx;
     bool initialized;
-    const Info &getRecord(unsigned int ID) const;
+    const Info &getRecord(unsigned ID) const;
 
   public:
     Context(ASTContext &Ctx) :
@@ -79,31 +79,26 @@ class Context {
       initialized(false)
     {}
 
-    QualType getBuiltinType(unsigned int Id) const;
+    QualType getBuiltinType(unsigned Id) const;
     QualType getBuiltinType(const char *TypeStr) const;
     std::string EncodeTypeIntoStr(QualType QT, const ASTContext &Ctx);
 
     void InitializeBuiltins();
-    FunctionDecl *CreateBuiltin(unsigned int bid);
+    FunctionDecl *CreateBuiltin(unsigned bid);
     FunctionDecl *CreateBuiltin(QualType R, const char *Name);
 
     void getBuiltinNames(TargetCode target, SmallVectorImpl<const char *>
         &Names);
 
-    FunctionDecl *getBuiltinFunction(unsigned int ID) const {
+    FunctionDecl *getBuiltinFunction(unsigned ID) const {
       return getRecord(ID-FirstBuiltin).FD;
     }
 
     FunctionDecl *getBuiltinFunction(StringRef Name, QualType QT, TargetCode
         target) const;
 
-    const char *getName(unsigned int ID) const {
-      return getRecord(ID).Name;
-    }
-
-    const char *getTypeString(unsigned int ID) const {
-      return getRecord(ID).Type;
-    }
+    const char *getName(unsigned ID) const { return getRecord(ID).Name; }
+    const char *getTypeString(unsigned ID) const { return getRecord(ID).Type; }
 };
 }
 } // end namespace hipacc

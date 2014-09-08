@@ -168,8 +168,7 @@ void HipaccBoundaryCondition::setConstVal(APValue &val, ASTContext &Ctx) {
                 CharacterLiteral::Ascii, QT, SourceLocation()));
         }
 
-        constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(),
-            llvm::makeArrayRef(initExprs.data(), initExprs.size()),
+        constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(), initExprs,
             SourceLocation());
         constExpr->setType(getImage()->getType());
       } else {
@@ -194,8 +193,7 @@ void HipaccBoundaryCondition::setConstVal(APValue &val, ASTContext &Ctx) {
                 SourceLocation()));
         }
 
-        constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(),
-            llvm::makeArrayRef(initExprs.data(), initExprs.size()),
+        constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(), initExprs,
             SourceLocation());
         constExpr->setType(getImage()->getType());
       } else {
@@ -214,8 +212,7 @@ void HipaccBoundaryCondition::setConstVal(APValue &val, ASTContext &Ctx) {
                 llvm::APFloat(lane.getFloat()), false, QT, SourceLocation()));
         }
 
-        constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(),
-            llvm::makeArrayRef(initExprs.data(), initExprs.size()),
+        constExpr = new (Ctx) InitListExpr(Ctx, SourceLocation(), initExprs,
             SourceLocation());
         constExpr->setType(getImage()->getType());
       } else {
@@ -240,25 +237,25 @@ void HipaccIterationSpace::createOutputAccessor() {
 
 
 void HipaccKernel::calcSizes() {
-  for (auto iter = imgMap.begin(), eiter=imgMap.end(); iter!=eiter; ++iter) {
+  for (auto map : imgMap) {
     // only Accessors with proper border handling mode
-    if (iter->second->getSizeX() > max_size_x &&
-        iter->second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
-      max_size_x = iter->second->getSizeX();
-    if (iter->second->getSizeY() > max_size_y &&
-        iter->second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
-      max_size_y = iter->second->getSizeY();
+    if (map.second->getSizeX() > max_size_x &&
+        map.second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
+      max_size_x = map.second->getSizeX();
+    if (map.second->getSizeY() > max_size_y &&
+        map.second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
+      max_size_y = map.second->getSizeY();
     // including Accessors with UNDEFINED border handling mode
-    if (iter->second->getSizeX() > max_size_x_undef)
-      max_size_x_undef = iter->second->getSizeX();
-    if (iter->second->getSizeY() > max_size_y_undef)
-      max_size_y_undef = iter->second->getSizeY();
+    if (map.second->getSizeX() > max_size_x_undef) max_size_x_undef =
+      map.second->getSizeX();
+    if (map.second->getSizeY() > max_size_y_undef)
+      max_size_y_undef = map.second->getSizeY();
   }
 }
 
 
 struct sortOccMap {
-  bool operator()(const std::pair<unsigned int, float> &left, const std::pair<unsigned int, float> &right) {
+  bool operator()(const std::pair<unsigned, float> &left, const std::pair<unsigned, float> &right) {
     if (left.second < right.second) return false;
     if (right.second < left.second) return true;
     return left.first < right.first;
@@ -268,16 +265,16 @@ struct sortOccMap {
 
 void HipaccKernel::calcConfig() {
   #ifdef USE_JIT_ESTIMATE
-  std::vector<std::pair<unsigned int, float> > occVec;
-  unsigned int num_threads = max_threads_per_warp;
+  std::vector<std::pair<unsigned, float>> occVec;
+  unsigned num_threads = max_threads_per_warp;
   bool use_shared = false;
 
   while (num_threads <= max_threads_per_block) {
-    unsigned int smem_used = 0;
+    unsigned smem_used = 0;
     bool skip_config = false;
     // calculate shared memory usage for pixels staged to shared memory
-    for (size_t i=0; i<KC->getNumImages(); ++i) {
-      HipaccAccessor *Acc = getImgFromMapping(KC->getImgFields()[i]);
+    for (auto img : KC->getImgFields()) {
+      HipaccAccessor *Acc = getImgFromMapping(img);
       if (useLocalMemory(Acc)) {
         // check if the configuration suits our assumptions about shared memory
         if (num_threads % 32 == 0) {
@@ -347,7 +344,7 @@ void HipaccKernel::calcConfig() {
     int max_warps = max_blocks * (opt_block_size/max_threads_per_warp);
     float occupancy = (float)active_warps/(float)max_warps;
 
-    occVec.push_back(std::pair<int, float>(num_threads, occupancy));
+    occVec.emplace_back(num_threads, occupancy);
     num_threads += max_threads_per_warp;
   }
 
@@ -356,8 +353,8 @@ void HipaccKernel::calcConfig() {
 
   // calculate (optimal) kernel configuration from the kernel window sizes and
   // ignore the limitation of maximal threads per block
-  unsigned int num_threads_x_opt = max_threads_per_warp;
-  unsigned int num_threads_y_opt = 1;
+  unsigned num_threads_x_opt = max_threads_per_warp;
+  unsigned num_threads_y_opt = 1;
   while (num_threads_x_opt < max_size_x>>1)
     num_threads_x_opt += max_threads_per_warp;
   while (num_threads_y_opt*getPixelsPerThread() < max_size_y>>1)
@@ -370,28 +367,27 @@ void HipaccKernel::calcConfig() {
   llvm::errs() << "\nCalculating kernel configuration for " << kernelName << "\n";
   llvm::errs() << "  optimal configuration: " << num_threads_x_opt << "x"
                << num_threads_y_opt << "(x" << getPixelsPerThread() << ")\n";
-  for (auto iter=occVec.begin(); iter<occVec.end(); ++iter) {
-    std::pair<unsigned int, float> occMap = *iter;
-    llvm::errs() << "    " << llvm::format("%5d", occMap.first) << " threads:"
-                 << " occupancy = " << llvm::format("%*.2f", 6, occMap.second*100) << "%";
+  for (auto map : occVec) {
+    llvm::errs() << "    " << llvm::format("%5d", map.first) << " threads:"
+                 << " occupancy = " << llvm::format("%*.2f", 6, map.second*100) << "%";
 
-    unsigned int num_threads_x = max_threads_per_warp;
-    unsigned int num_threads_y = 1;
+    unsigned num_threads_x = max_threads_per_warp;
+    unsigned num_threads_y = 1;
 
     if (use_shared) {
       // use warp_size x N
-      num_threads_y = occMap.first / num_threads_x;
+      num_threads_y = map.first / num_threads_x;
     } else {
       // do we need border handling?
       if (max_size_y > 1) {
         // use N x M
-        if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0) {
+        if (map.first >= num_threads_x_opt && map.first % num_threads_x_opt == 0) {
           num_threads_x = num_threads_x_opt;
         }
-        num_threads_y = occMap.first / num_threads_x;
+        num_threads_y = map.first / num_threads_x;
       } else {
         // use num_threads x 1
-        num_threads_x = occMap.first;
+        num_threads_x = map.first;
       }
     }
     llvm::errs() << " -> " << llvm::format("%4d", num_threads_x)
@@ -401,61 +397,58 @@ void HipaccKernel::calcConfig() {
 
 
   // fall back to default or user specified configuration
-  unsigned int num_blocks_bh_x, num_blocks_bh_y;
+  unsigned num_blocks_bh_x, num_blocks_bh_y;
   if (occVec.empty() || options.useKernelConfig()) {
     setDefaultConfig();
-    num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-    num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
+    num_blocks_bh_x = max_size_x<=1?0:(unsigned)ceil((float)(max_size_x>>1) / (float)num_threads_x);
+    num_blocks_bh_y = max_size_y<=1?0:(unsigned)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
     llvm::errs() << "Using default configuration " << num_threads_x << "x"
                  << num_threads_y << " for kernel '" << kernelName << "'\n";
   } else {
     // start with first configuration
-    auto iter = occVec.begin();
-    std::pair<unsigned int, float> occMap = *iter;
+    auto map = occVec.begin();
 
     num_threads_x = max_threads_per_warp;
     num_threads_y = 1;
 
     if (use_shared) {
       // use warp_size x N
-      num_threads_y = occMap.first / num_threads_x;
+      num_threads_y = map->first / num_threads_x;
     } else {
       // do we need border handling?
       if (max_size_y > 1) {
         // use N x M
-        if (occMap.first >= num_threads_x_opt && occMap.first % num_threads_x_opt == 0) {
+        if (map->first >= num_threads_x_opt && map->first % num_threads_x_opt == 0) {
           num_threads_x = num_threads_x_opt;
         }
-        num_threads_y = occMap.first / num_threads_x;
+        num_threads_y = map->first / num_threads_x;
       } else {
         // use num_threads x 1
-        num_threads_x = occMap.first;
+        num_threads_x = map->first;
       }
     }
 
     // estimate block required for border handling - the exact number depends on
     // offsets and is not known at compile time
-    num_blocks_bh_x = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x);
-    num_blocks_bh_y = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
+    num_blocks_bh_x = max_size_x<=1?0:(unsigned)ceil((float)(max_size_x>>1) / (float)num_threads_x);
+    num_blocks_bh_y = max_size_y<=1?0:(unsigned)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
 
     if ((max_size_y > 1) || num_threads_x != num_threads_x_opt || num_threads_y != num_threads_y_opt) {
-      //auto iter_n = occVec.begin()
-
       // look-ahead if other configurations match better
-      while (++iter<occVec.end()) {
-        std::pair<unsigned int, float> occMapNext = *iter;
+      auto map_next = occVec.begin();
+      while (++map_next<occVec.end()) {
         // bail out on lower occupancy
-        if (occMapNext.second < occMap.second) break;
+        if (map_next->second < map->second) break;
 
         // start with warp_size or num_threads_x_opt if possible
-        unsigned int num_threads_x_tmp = max_threads_per_warp;
-        if (occMapNext.first >= num_threads_x_opt && occMapNext.first % num_threads_x_opt == 0)
+        unsigned num_threads_x_tmp = max_threads_per_warp;
+        if (map_next->first >= num_threads_x_opt && map_next->first % num_threads_x_opt == 0)
           num_threads_x_tmp = num_threads_x_opt;
-        unsigned int num_threads_y_tmp = occMapNext.first / num_threads_x_tmp;
+        unsigned num_threads_y_tmp = map_next->first / num_threads_x_tmp;
 
         // block required for border handling
-        unsigned int num_blocks_bh_x_tmp = max_size_x<=1?0:(unsigned int)ceil((float)(max_size_x>>1) / (float)num_threads_x_tmp);
-        unsigned int num_blocks_bh_y_tmp = max_size_y<=1?0:(unsigned int)ceil((float)(max_size_y>>1) / (float)(num_threads_y_tmp*getPixelsPerThread()));
+        unsigned num_blocks_bh_x_tmp = max_size_x<=1?0:(unsigned)ceil((float)(max_size_x>>1) / (float)num_threads_x_tmp);
+        unsigned num_blocks_bh_y_tmp = max_size_y<=1?0:(unsigned)ceil((float)(max_size_y>>1) / (float)(num_threads_y_tmp*getPixelsPerThread()));
 
         // use new configuration if we save blocks for border handling
         if (num_blocks_bh_x_tmp+num_blocks_bh_y_tmp < num_blocks_bh_x+num_blocks_bh_y) {
@@ -467,7 +460,7 @@ void HipaccKernel::calcConfig() {
       }
     }
     llvm::errs() << "Using configuration " << num_threads_x << "x" << num_threads_y
-                 << "(occupancy = " << llvm::format("%*.2f", 6, occMap.second*100)
+                 << "(occupancy = " << llvm::format("%*.2f", 6, map->second*100)
                  << ") for kernel '" << kernelName << "'\n";
   }
 
@@ -500,18 +493,15 @@ void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3,
 void HipaccKernel::createArgInfo() {
   if (argTypesCUDA.size()) return;
 
-  SmallVector<HipaccKernelClass::argumentInfo, 16> arguments = KC->arguments;
-
   // normal parameters
-  for (size_t i=0; i<KC->getNumArgs(); ++i) {
-    FieldDecl *FD = arguments[i].field;
-    QualType QT = arguments[i].type;
-    std::string name = arguments[i].name;
+  for (auto arg : KC->getArguments()) {
+    QualType QT = arg.type;
     QualType QTtmp;
 
-    switch (arguments[i].kind) {
+    switch (arg.kind) {
       case HipaccKernelClass::Normal:
-        addParam(QT, QT, QT, QT.getAsString(), QT.getAsString(), name, FD);
+        addParam(QT, QT, QT, QT.getAsString(), QT.getAsString(), arg.name,
+            arg.field);
 
         break;
       case HipaccKernelClass::IterationSpace:
@@ -519,75 +509,77 @@ void HipaccKernel::createArgInfo() {
         addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
             Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
                   iterationSpace->getImage()->getSizeX()), ArrayType::Normal,
-                false)), Ctx.getPointerType(QT).getAsString(), "cl_mem", name,
-            nullptr);
+                false)), Ctx.getPointerType(QT).getAsString(), "cl_mem",
+            arg.name, nullptr);
 
         break;
       case HipaccKernelClass::Image:
         // for textures use no pointer type
-        if (useTextureMemory(getImgFromMapping(FD)) &&
-            KC->getImgAccess(FD) == READ_ONLY &&
+        if (useTextureMemory(getImgFromMapping(arg.field)) &&
+            KC->getImgAccess(arg.field) == READ_ONLY &&
             // no texture required for __ldg() intrinsic
-            !(useTextureMemory(getImgFromMapping(FD)) == Ldg)) {
+            !(useTextureMemory(getImgFromMapping(arg.field)) == Ldg)) {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
               Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                    getImgFromMapping(FD)->getImage()->getSizeX()),
-                  ArrayType::Normal, false)), QT.getAsString(), "cl_mem", name,
-              FD);
+                    getImgFromMapping(arg.field)->getImage()->getSizeX()),
+                  ArrayType::Normal, false)), QT.getAsString(), "cl_mem",
+              arg.name, arg.field);
         } else {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
               Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                    getImgFromMapping(FD)->getImage()->getSizeX()),
+                    getImgFromMapping(arg.field)->getImage()->getSizeX()),
                   ArrayType::Normal, false)),
-              Ctx.getPointerType(QT).getAsString(), "cl_mem", name, FD);
+              Ctx.getPointerType(QT).getAsString(), "cl_mem", arg.name,
+              arg.field);
         }
 
         // add types for image width/height plus stride
         addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy).getAsString(),
-            Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_width",
+            Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_width",
             nullptr);
         addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy),
             Ctx.getConstType(Ctx.IntTy).getAsString(),
-            Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_height",
+            Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_height",
             nullptr);
 
         // stride
-        if (options.emitPadding() || getImgFromMapping(FD)->isCrop()) {
+        if (options.emitPadding() || getImgFromMapping(arg.field)->isCrop()) {
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_stride",
+              Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_stride",
               nullptr);
         }
 
         // offset_x, offset_y
-        if (getImgFromMapping(FD)->isCrop()) {
+        if (getImgFromMapping(arg.field)->isCrop()) {
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_x",
+              Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_offset_x",
               nullptr);
           addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy),
               Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(), name + "_offset_y",
+              Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_offset_y",
               nullptr);
         }
 
         break;
       case HipaccKernelClass::Mask:
         QTtmp = Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                getMaskFromMapping(FD)->getSizeX()), ArrayType::Normal, false));
+                getMaskFromMapping(arg.field)->getSizeX()), ArrayType::Normal,
+              false));
         // OpenCL non-constant mask
-        if (!getMaskFromMapping(FD)->isConstant()) {
+        if (!getMaskFromMapping(arg.field)->isConstant()) {
           addParam(QTtmp, Ctx.getPointerType(QT), QTtmp, QTtmp.getAsString(),
-              Ctx.getPointerType(QT).getAsString(), name, FD);
+              Ctx.getPointerType(QT).getAsString(), arg.name, arg.field);
         } else {
           addParam(QTtmp, QTtmp, QTtmp, QTtmp.getAsString(),
-              QTtmp.getAsString(), name, FD);
+              QTtmp.getAsString(), arg.name, arg.field);
         }
 
         break;
@@ -652,17 +644,15 @@ void HipaccKernel::createArgInfo() {
 
 
 void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
-    &hostLiterals, unsigned int &literalCount) {
+    &hostLiterals, unsigned &literalCount) {
   if (hostArgNames.size()) hostArgNames.clear();
 
-  for (size_t i=0; i<KC->getNumArgs(); ++i) {
-    FieldDecl *FD = KC->arguments[i].field;
-
-    std::string Str;
-    llvm::raw_string_ostream SS(Str);
-
-    switch (KC->arguments[i].kind) {
-      case HipaccKernelClass::Normal:
+  size_t i = 0;
+  for (auto arg : KC->getArguments()) {
+    switch (arg.kind) {
+      case HipaccKernelClass::Normal: {
+        std::string Str;
+        llvm::raw_string_ostream SS(Str);
         hostArgs[i]->printPretty(SS, 0, PrintingPolicy(Ctx.getLangOpts()));
 
         if (isa<DeclRefExpr>(hostArgs[i]->IgnoreParenCasts())) {
@@ -674,7 +664,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
           literalCount++;
 
           // use type of kernel class
-          hostLiterals += KC->arguments[i].type.getAsString();
+          hostLiterals += arg.type.getAsString();
           hostLiterals += " ";
           hostLiterals += LSS.str();
           hostLiterals += " = ";
@@ -684,6 +674,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
         }
 
         break;
+        }
       case HipaccKernelClass::IterationSpace:
         // output image
         hostArgNames.push_back(iterationSpace->getName() + ".img");
@@ -691,7 +682,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
         break;
       case HipaccKernelClass::Image: {
         // image
-        HipaccAccessor *Acc = getImgFromMapping(FD);
+        HipaccAccessor *Acc = getImgFromMapping(arg.field);
         hostArgNames.push_back(Acc->getName() + ".img");
 
         // width, height
@@ -712,10 +703,11 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
         break;
         }
       case HipaccKernelClass::Mask:
-        hostArgNames.push_back(getMaskFromMapping(FD)->getName());
+        hostArgNames.push_back(getMaskFromMapping(arg.field)->getName());
 
         break;
     }
+    i++;
   }
   // is_stride
   hostArgNames.push_back(iterationSpace->getName() + ".img.stride");

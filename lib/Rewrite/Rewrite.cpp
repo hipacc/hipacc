@@ -76,8 +76,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     // pointer to main function
     FunctionDecl *mainFD;
     FileID mainFileID;
-    unsigned int literalCount;
-    unsigned int isLiteralCount;
+    unsigned literalCount;
+    unsigned isLiteralCount;
     bool skipTransfer;
 
   public:
@@ -251,44 +251,34 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
         InterpolationDefinitionsGlobal.end());
 
     // add interpolation definitions
-    for (size_t i=0, e=InterpolationDefinitionsGlobal.size(); i!=e; ++i) {
-      newStr += InterpolationDefinitionsGlobal[i];
-    }
+    for (auto str : InterpolationDefinitionsGlobal)
+      newStr += str;
     newStr += "\n";
   }
 
   // include .cu or .h files for normal kernels
   switch (compilerOptions.getTargetCode()) {
     case TARGET_C:
-      for (auto it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it)
-      {
-        HipaccKernel *Kernel = it->second;
-
+      for (auto map : KernelDeclMap) {
         newStr += "#include \"";
-        newStr += Kernel->getFileName();
+        newStr += map.second->getFileName();
         newStr += ".cc\"\n";
       }
       break;
     case TARGET_CUDA:
       if (!compilerOptions.exploreConfig()) {
-        for (auto it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei;
-                ++it) {
-          HipaccKernel *Kernel = it->second;
-
+        for (auto map : KernelDeclMap) {
           newStr += "#include \"";
-          newStr += Kernel->getFileName();
+          newStr += map.second->getFileName();
           newStr += ".cu\"\n";
         }
       }
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
-      for (auto it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it)
-      {
-        HipaccKernel *Kernel = it->second;
-
+      for (auto map : KernelDeclMap) {
         newStr += "#include \"ScriptC_";
-        newStr += Kernel->getFileName();
+        newStr += map.second->getFileName();
         newStr += ".h\"\n";
       }
       break;
@@ -299,20 +289,18 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
   // write constant memory declarations
   if (compilerOptions.emitCUDA()) {
-    for (auto it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
-      HipaccMask *Mask = it->second;
-      if (Mask->isPrinted()) continue;
+    for (auto map : MaskDeclMap) {
+      auto mask = map.second;
+      if (mask->isPrinted()) continue;
 
-      SmallVector<HipaccKernel *, 16> kernels = Mask->getKernels();
-      for (size_t i=0; i<kernels.size(); ++i) {
-        HipaccKernel *K = kernels[i];
-
-        if (i) newStr += "\n" + stringCreator.getIndent();
+      size_t i = 0;
+      for (auto kernel : mask->getKernels()) {
+        if (i++) newStr += "\n" + stringCreator.getIndent();
 
         newStr += "__device__ __constant__ ";
-        newStr += Mask->getTypeStr();
-        newStr += " " + Mask->getName() + K->getName();
-        newStr += "[" + Mask->getSizeYStr() + "][" + Mask->getSizeXStr() +
+        newStr += mask->getTypeStr();
+        newStr += " " + mask->getName() + kernel->getName();
+        newStr += "[" + mask->getSizeYStr() + "][" + mask->getSizeXStr() +
           "];\n";
       }
     }
@@ -334,30 +322,27 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
   // load OpenCL kernel files and compile the OpenCL kernels
   if (!compilerOptions.exploreConfig()) {
-    for (auto it=KernelDeclMap.begin(), ei=KernelDeclMap.end(); it!=ei; ++it) {
-      HipaccKernel *Kernel = it->second;
-
-      stringCreator.writeKernelCompilation(Kernel, initStr);
-    }
+    for (auto map : KernelDeclMap)
+      stringCreator.writeKernelCompilation(map.second, initStr);
     initStr += "\n" + stringCreator.getIndent();
   }
 
   // write Mask transfers to Symbol in CUDA
   if (compilerOptions.emitCUDA()) {
-    for (auto it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
-      HipaccMask *Mask = it->second;
+    for (auto map : MaskDeclMap) {
+      auto mask = map.second;
 
       if (!compilerOptions.exploreConfig()) {
         std::string newStr;
-        if (Mask->hasCopyMask()) {
-          stringCreator.writeMemoryTransferDomainFromMask(Mask,
-              Mask->getCopyMask(), newStr);
+        if (mask->hasCopyMask()) {
+          stringCreator.writeMemoryTransferDomainFromMask(mask,
+              mask->getCopyMask(), newStr);
         } else {
-          stringCreator.writeMemoryTransferSymbol(Mask, Mask->getHostMemName(),
+          stringCreator.writeMemoryTransferSymbol(mask, mask->getHostMemName(),
               HOST_TO_DEVICE, newStr);
         }
 
-        TextRewriter.InsertTextBefore(Mask->getDecl()->getLocStart(), newStr);
+        TextRewriter.InsertTextBefore(mask->getDecl()->getLocStart(), newStr);
       }
     }
   }
@@ -371,35 +356,34 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   auto RBI = CS->body_rbegin();
   S = *RBI;
   // release all images
-  for (auto it=ImgDeclMap.begin(), ei=ImgDeclMap.end(); it!=ei; ++it) {
-    HipaccImage *Img = it->second;
+  for (auto map : ImgDeclMap) {
+    auto img = map.second;
     std::string releaseStr;
 
-    stringCreator.writeMemoryRelease(Img, releaseStr);
+    stringCreator.writeMemoryRelease(img, releaseStr);
     TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
   }
   // release all non-const masks
-  for (auto it=MaskDeclMap.begin(), ei=MaskDeclMap.end(); it!=ei; ++it) {
-    HipaccMask *Mask = it->second;
+  for (auto map : MaskDeclMap) {
+    auto mask = map.second;
     std::string releaseStr;
 
-    if (!compilerOptions.emitCUDA() && !Mask->isConstant()) {
-      stringCreator.writeMemoryRelease(Mask, releaseStr);
+    if (!compilerOptions.emitCUDA() && !mask->isConstant()) {
+      stringCreator.writeMemoryRelease(mask, releaseStr);
       TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
     }
   }
   // release all pyramids
-  for (auto it=PyrDeclMap.begin(), ei=PyrDeclMap.end(); it!=ei; ++it) {
-    HipaccPyramid *Pyramid = it->second;
+  for (auto map : PyrDeclMap) {
+    auto pyramid = map.second;
     std::string releaseStr;
 
-    stringCreator.writeMemoryRelease(Pyramid, releaseStr, true);
+    stringCreator.writeMemoryRelease(pyramid, releaseStr, true);
     TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
   }
 
   // get buffer of main file id. If we haven't changed it, then we are done.
-  if (const RewriteBuffer *RewriteBuf =
-      TextRewriter.getRewriteBufferFor(mainFileID)) {
+  if (auto RewriteBuf = TextRewriter.getRewriteBufferFor(mainFileID)) {
     Out << std::string(RewriteBuf->begin(), RewriteBuf->end());
   } else {
     llvm::errs() << "No changes to input file, something went wrong!\n";
@@ -409,17 +393,15 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
 
 bool Rewrite::HandleTopLevelDecl(DeclGroupRef DGR) {
-  for (auto I = DGR.begin(), E = DGR.end(); I != E; ++I) {
-    Decl *D = *I;
-
+  for (auto decl : DGR) {
     if (compilerClasses.HipaccEoP) {
       // skip late template class instantiations when templated class instances
       // are created. this is the case if the expansion location is not within
       // the main file
-      if (SM.getFileID(SM.getExpansionLoc(D->getLocation()))!=mainFileID)
+      if (SM.getFileID(SM.getExpansionLoc(decl->getLocation()))!=mainFileID)
         continue;
     }
-    TraverseDecl(D);
+    TraverseDecl(decl);
   }
 
   return true;
@@ -476,9 +458,9 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
     HipaccKernelClass *KC = nullptr;
 
-    for (auto I=D->bases_begin(), E=D->bases_end(); I!=E; ++I) {
+    for (auto base : D->bases()) {
       // found user kernel class
-      if (compilerClasses.isTypeOfTemplateClass(I->getType(),
+      if (compilerClasses.isTypeOfTemplateClass(base.getType(),
             compilerClasses.Kernel)) {
         KC = new HipaccKernelClass(D->getNameAsString());
         KernelClassDeclMap[D] = KC;
@@ -498,35 +480,29 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
     // find constructor
     CXXConstructorDecl *CCD = nullptr;
-    for (auto I=D->ctor_begin(), E=D->ctor_end(); I!=E; ++I) {
-      CXXConstructorDecl *CCDI = *I;
-
-      if (CCDI->isCopyOrMoveConstructor()) continue;
-
-      CCD = CCDI;
+    for (auto ctor : D->ctors()) {
+      if (ctor->isCopyOrMoveConstructor()) continue;
+      CCD = ctor;
     }
     assert(CCD && "Couldn't find user kernel class constructor!");
 
 
     // iterate over constructor initializers
-    for (auto I=CCD->param_begin(), E=CCD->param_end(); I!=E; ++I) {
-      ParmVarDecl *PVD = *I;
-
+    for (auto param : CCD->params()) {
       // constructor initializer represent the parameters for the kernel. Match
       // constructor parameter with constructor initializer since the order may
       // differ, e.g.
       // kernel(int a, int b) : b(a), a(b) {}
-      for (auto II=CCD->init_begin(), EE=CCD->init_end(); II!=EE; ++II) {
-        CXXCtorInitializer *CBOMI =*II;
+      for (auto init : CCD->inits()) {
         QualType QT;
 
-        // CBOMI->isMemberInitializer()
-        if (isa<DeclRefExpr>(CBOMI->getInit()->IgnoreParenCasts())) {
+        // init->isMemberInitializer()
+        if (isa<DeclRefExpr>(init->getInit()->IgnoreParenCasts())) {
           DeclRefExpr *DRE =
-            dyn_cast<DeclRefExpr>(CBOMI->getInit()->IgnoreParenCasts());
+            dyn_cast<DeclRefExpr>(init->getInit()->IgnoreParenCasts());
 
-          if (DRE->getDecl() == PVD) {
-            FieldDecl *FD = CBOMI->getMember();
+          if (DRE->getDecl() == param) {
+            FieldDecl *FD = init->getMember();
 
             // reference to Image variable ?
             if (compilerClasses.isTypeOfTemplateClass(FD->getType(),
@@ -577,16 +553,16 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
           }
         }
 
-        // CBOMI->isBaseInitializer()
-        if (isa<CXXConstructExpr>(CBOMI->getInit())) {
-          CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(CBOMI->getInit());
+        // init->isBaseInitializer()
+        if (isa<CXXConstructExpr>(init->getInit())) {
+          CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(init->getInit());
           assert(CCE->getNumArgs() == 1 &&
               "Kernel base class constructor requires exactly one argument!");
 
           if (isa<DeclRefExpr>(CCE->getArg(0))) {
             DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
-            if (DRE->getDecl() == PVD) {
-              QT = compilerClasses.getFirstTemplateType(PVD->getType());
+            if (DRE->getDecl() == param) {
+              QT = compilerClasses.getFirstTemplateType(param->getType());
               KC->addISArg(nullptr, QT, "Output");
               //KC->addArg(nullptr, Context.IntTy, "is_width");
               //KC->addArg(nullptr, Context.IntTy, "is_height");
@@ -600,16 +576,14 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
     }
 
     // search for kernel and reduce functions
-    for (auto I=D->method_begin(), E=D->method_end(); I!=E; ++I) {
-      CXXMethodDecl *FD = *I;
-
+    for (auto method : D->methods()) {
       // kernel function
-      if (FD->getNameAsString() == "kernel") {
+      if (method->getNameAsString() == "kernel") {
         // set kernel method
-        KC->setKernelFunction(FD);
+        KC->setKernelFunction(method);
 
         // define analysis context used for different checkers
-        AnalysisDeclContext AC(/* AnalysisDeclContextManager */ 0, FD);
+        AnalysisDeclContext AC(/* AnalysisDeclContextManager */ 0, method);
         KernelStatistics::setAnalysisOptions(AC);
 
         // create kernel analysis pass, execute it and store it to kernel class
@@ -621,9 +595,9 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
       }
 
       // reduce function
-      if (FD->getNameAsString() == "reduce") {
+      if (method->getNameAsString() == "reduce") {
         // set reduce method
-        KC->setReduceFunction(FD);
+        KC->setReduceFunction(method);
 
         continue;
       }
@@ -664,11 +638,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   //    - print the CUDA/OpenCL kernel to a file.
   // h) save IterationSpace declarations, e.g.
   //    IterationSpace<int> VIS(OUT, width, height);
-  for (auto DI=D->decl_begin(), DE=D->decl_end(); DI!=DE; ++DI) {
-    Decl *SD = *DI;
-
-    if (SD->getKind() == Decl::Var) {
-      VarDecl *VD = dyn_cast<VarDecl>(SD);
+  for (auto decl : D->decls()) {
+    if (decl->getKind() == Decl::Var) {
+      VarDecl *VD = dyn_cast<VarDecl>(decl);
 
       // found Image decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
@@ -688,7 +660,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         if (compilerOptions.emitC()) {
           // check if the parameter can be resolved to a constant
-          unsigned int DiagIDConstant =
+          unsigned DiagIDConstant =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
                 "Constant expression for %0 parameter of Image %1 required (C/C++ only).");
           if (!CCE->getArg(0)->isEvaluatable(Context)) {
@@ -803,7 +775,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             BC = new HipaccBoundaryCondition(Pyr, VD);
 
             // add call expression to pyramid argument
-            unsigned int DiagIDConstant =
+            unsigned DiagIDConstant =
               Diags.getCustomDiagID(DiagnosticsEngine::Error,
                   "Missing integer literal in Pyramid %0 call expression.");
             if (!COCE->getArg(1)->isEvaluatable(Context)) {
@@ -825,29 +797,27 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         // img|pyramid-call, size_x, size_y, mode, const_val
         // img|pyramid-call, size, mode, const_val
         // img|pyramid-call, mask, mode, const_val
-        unsigned int DiagIDConstant =
+        unsigned DiagIDConstant =
           Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Constant expression or Mask object for %ordinal0 parameter to BoundaryCondition %1 required.");
-        unsigned int DiagIDNoMode =
-          Diags.getCustomDiagID(DiagnosticsEngine::Error,
+        unsigned DiagIDNoMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Boundary handling mode for BoundaryCondition %0 required.");
-        unsigned int DiagIDWrongMode =
+        unsigned DiagIDWrongMode =
           Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Wrong boundary handling mode for BoundaryCondition %0 specified.");
-        unsigned int DiagIDMode =
-          Diags.getCustomDiagID(DiagnosticsEngine::Error,
+        unsigned DiagIDMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Boundary handling constant for BoundaryCondition %0 required.");
 
 
-        unsigned int found_size = 0;
+        unsigned found_size = 0;
         bool found_mode = false;
         // get kernel window size
         for (size_t i=1, e=CCE->getNumArgs(); i!=e; ++i) {
+          auto arg = CCE->getArg(i);
           if (found_size == 0) {
             // check if the parameter is a Mask reference
-            if (isa<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts())) {
-              DeclRefExpr *DRE =
-                dyn_cast<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts());
+            if (isa<DeclRefExpr>(arg->IgnoreParenCasts())) {
+              DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts());
 
               // get the Mask from the DRE if we have one
               if (MaskDeclMap.count(DRE->getDecl())) {
@@ -862,23 +832,22 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             }
 
             // check if the parameter can be resolved to a constant
-            if (!CCE->getArg(i)->isEvaluatable(Context)) {
-              Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDConstant)
+            if (!arg->isEvaluatable(Context)) {
+              Diags.Report(arg->getExprLoc(), DiagIDConstant)
                 << (int)i+1 << VD->getName();
             }
-            BC->setSizeX(CCE->getArg(i)->EvaluateKnownConstInt(Context).getSExtValue());
+            BC->setSizeX(arg->EvaluateKnownConstInt(Context).getSExtValue());
             found_size++;
           } else {
             // check if the parameter specifies the boundary mode
-            if (isa<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts())) {
-              DeclRefExpr *DRE =
-                dyn_cast<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts());
+            if (isa<DeclRefExpr>(arg->IgnoreParenCasts())) {
+              DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts());
               // boundary mode found
               if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
                   DRE->getDecl()->getType().getAsString() ==
                   "enum hipacc::hipaccBoundaryMode") {
                 int64_t mode =
-                  CCE->getArg(i)->EvaluateKnownConstInt(Context).getSExtValue();
+                  arg->EvaluateKnownConstInt(Context).getSExtValue();
                 switch (mode) {
                   case BOUNDARY_UNDEFINED:
                   case BOUNDARY_CLAMP:
@@ -889,12 +858,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                   case BOUNDARY_CONSTANT:
                     BC->setBoundaryHandling((BoundaryMode)mode);
                     if (CCE->getNumArgs() != i+2) {
-                      Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDMode) <<
+                      Diags.Report(arg->getExprLoc(), DiagIDMode) <<
                         VD->getName();
                     }
                     // check if the parameter can be resolved to a constant
                     if (!CCE->getArg(i+1)->isEvaluatable(Context)) {
-                      Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDConstant)
+                      Diags.Report(arg->getExprLoc(), DiagIDConstant)
                         << (int)i+2 << VD->getName();
                     } else {
                       Expr::EvalResult val;
@@ -921,20 +890,19 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
             if (found_size >= 2) {
               if (found_mode) {
-                Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDWrongMode) <<
+                Diags.Report(arg->getExprLoc(), DiagIDWrongMode) <<
                   VD->getName();
               } else {
-                Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDNoMode) <<
-                  VD->getName();
+                Diags.Report(arg->getExprLoc(), DiagIDNoMode) << VD->getName();
               }
             }
 
             // check if the parameter can be resolved to a constant
-            if (!CCE->getArg(i)->isEvaluatable(Context)) {
-              Diags.Report(CCE->getArg(i)->getExprLoc(), DiagIDConstant)
+            if (!arg->isEvaluatable(Context)) {
+              Diags.Report(arg->getExprLoc(), DiagIDConstant)
                 << (int)i+1 << VD->getName();
             }
-            BC->setSizeY(CCE->getArg(i)->EvaluateKnownConstInt(Context).getSExtValue());
+            BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
             found_size++;
           }
         }
@@ -1188,12 +1156,13 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         // loop over initializers and check if each initializer is a constant
         if (isMaskConstant && isa<InitListExpr>(V->getInit())) {
-          InitListExpr *ILEY = dyn_cast<InitListExpr>(V->getInit());
+          auto ILEY = dyn_cast<InitListExpr>(V->getInit());
           Mask->setInitList(ILEY);
-          for (size_t y=0; y<ILEY->getNumInits(); ++y) {
-            InitListExpr *ILEX = dyn_cast<InitListExpr>(ILEY->getInit(y));
-            for (size_t x=0; x<ILEX->getNumInits(); ++x) {
-              if (!ILEX->getInit(x)->isConstantInitializer(Context, false)) {
+          for (auto yinit : *ILEY) {
+            auto ILEX = dyn_cast<InitListExpr>(yinit);
+            for (auto xinit : *ILEX) {
+              auto xexpr = dyn_cast<Expr>(xinit);
+              if (!xexpr->isConstantInitializer(Context, false)) {
                 isMaskConstant = false;
                 break;
               }
@@ -1233,8 +1202,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             HipaccMask *Mask = MaskDeclMap[DRE->getDecl()];
             assert(Mask && "Mask to copy from was not declared");
 
-            int size_x = Mask->getSizeX();
-            int size_y = Mask->getSizeY();
+            size_t size_x = Mask->getSizeX();
+            size_t size_y = Mask->getSizeY();
 
             Domain->setSizeX(size_x);
             Domain->setSizeY(size_y);
@@ -1242,8 +1211,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             Domain->setIsConstant(Mask->isConstant());
 
             if (Mask->isConstant()) {
-              for (int x = 0; x < size_x; ++x) {
-                for (int y = 0; y < size_y; ++y) {
+              for (size_t x=0; x<size_x; ++x) {
+                for (size_t y=0; y<size_y; ++y) {
                   // copy values to compiler internal data structure
                   Expr::EvalResult val;
                   Mask->getInitExpr(x, y)->EvaluateAsRValue(val, Context);
@@ -1276,20 +1245,20 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             // loop over initializers and check if each initializer is a
             // constant
             if (isDomainConstant && isa<InitListExpr>(V->getInit())) {
-              InitListExpr *ILEY = dyn_cast<InitListExpr>(V->getInit());
+              auto ILEY = dyn_cast<InitListExpr>(V->getInit());
               Domain->setInitList(ILEY);
               for (size_t y=0; y<ILEY->getNumInits(); ++y) {
-                InitListExpr *ILEX = dyn_cast<InitListExpr>(ILEY->getInit(y));
+                auto ILEX = dyn_cast<InitListExpr>(ILEY->getInit(y));
                 for (size_t x=0; x<ILEX->getNumInits(); ++x) {
-                  if (!ILEX->getInit(x)->isConstantInitializer(Context, false)){
+                  auto xexpr = ILEX->IgnoreParenCasts();
+                  if (!xexpr->isConstantInitializer(Context, false)) {
                     isDomainConstant = false;
                     break;
                   }
                   // copy values to compiler internal data structure
-                  Expr *E = ILEX->getInit(x)->IgnoreParenCasts();
-                  if (isa<IntegerLiteral>(E)) {
+                  if (isa<IntegerLiteral>(xexpr)) {
                     Domain->setDomainDefined(x, y,
-                        dyn_cast<IntegerLiteral>(E)->getValue() != 0);
+                        dyn_cast<IntegerLiteral>(xexpr)->getValue() != 0);
                   } else {
                     assert(false &&
                            "Expected integer literal in domain initializer");
@@ -1301,7 +1270,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             Domain->setHostMemName(V->getName());
           }
         } else if (CCE->getNumArgs() == 2) {
-          unsigned int DiagIDConstant =
+          unsigned DiagIDConstant =
               Diags.getCustomDiagID(DiagnosticsEngine::Error,
                   "Constant expression for %ordinal0 parameter to %1 %2 "
                   "required.");
@@ -1383,17 +1352,17 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               "Currently only Image definitions are supported, no declarations!");
           CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
-          unsigned int num_img = 0, num_mask = 0;
-          SmallVector<FieldDecl *, 16> imgFields = KC->getImgFields();
-          SmallVector<FieldDecl *, 16> maskFields = KC->getMaskFields();
+          size_t num_img = 0, num_mask = 0;
+          auto imgFields = KC->getImgFields();
+          auto maskFields = KC->getMaskFields();
           for (size_t i=0; i<CCE->getNumArgs(); ++i) {
-            if (isa<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts())) {
-              DeclRefExpr *DRE =
-                dyn_cast<DeclRefExpr>(CCE->getArg(i)->IgnoreParenCasts());
+            auto arg = CCE->getArg(i);
+            if (isa<DeclRefExpr>(arg->IgnoreParenCasts())) {
+              DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts());
 
               // check if we have an Image
               if (ImgDeclMap.count(DRE->getDecl())) {
-                unsigned int DiagIDImage =
+                unsigned DiagIDImage =
                   Diags.getCustomDiagID(DiagnosticsEngine::Error,
                       "Images are not supported within kernels, use Accessors instead:");
                 Diags.Report(DRE->getLocation(), DiagIDImage);
@@ -1500,7 +1469,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
     HipaccPyramid *PyrLHS = nullptr, *PyrRHS = nullptr;
     HipaccMask *DomLHS = nullptr;
     std::string PyrIdxLHS, PyrIdxRHS;
-    unsigned int DomIdxX, DomIdxY;
+    unsigned DomIdxX, DomIdxY;
 
     // check first parameter
     if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
@@ -1527,7 +1496,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           PyrLHS = PyrDeclMap[DRE->getDecl()];
 
           // add call expression to pyramid argument
-          unsigned int DiagIDConstant =
+          unsigned DiagIDConstant =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
                 "Missing integer literal in Pyramid %0 call expression.");
           if (!CE->getArg(1)->isEvaluatable(Context)) {
@@ -1542,7 +1511,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           assert(DomLHS->isConstant() &&
                  "Setting domain values only supported for constant Domains");
 
-          unsigned int DiagIDConstant =
+          unsigned DiagIDConstant =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
                 "Integer expression in Domain %0 is non-const.");
           if (!CE->getArg(1)->isEvaluatable(Context)) {
@@ -1586,7 +1555,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           PyrRHS = PyrDeclMap[DRE->getDecl()];
 
           // add call expression to pyramid argument
-          unsigned int DiagIDConstant =
+          unsigned DiagIDConstant =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
                 "Missing integer literal in Pyramid %0 call expression.");
           if (!CE->getArg(1)->isEvaluatable(Context)) {
@@ -1704,7 +1673,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                   HipaccPyramid *Pyr = PyrDeclMap[DRE->getDecl()];
 
                   // add call expression to pyramid argument
-                  unsigned int DiagIDConstant =
+                  unsigned DiagIDConstant =
                     Diags.getCustomDiagID(DiagnosticsEngine::Error,
                         "Missing integer literal in Pyramid %0 call expression.");
                   if (!CE->getArg(1)->isEvaluatable(Context)) {
@@ -1794,7 +1763,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
         // this was checked before, when the user class was parsed
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert(CCE->getNumArgs()==K->getKernelClass()->getNumArgs() &&
+        assert(CCE->getNumArgs()==K->getKernelClass()->getArguments().size() &&
             "number of arguments doesn't match!");
 
         // set host argument names and retrieve literals stored to temporaries
@@ -2069,15 +2038,13 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   pclose(fpipe);
 
   if (reg == 0) {
-    unsigned int DiagIDCompile =
-      Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-          "Compiling kernel in file '%0.%1' failed, using default kernel configuration:\n%2");
+    unsigned DiagIDCompile = Diags.getCustomDiagID(DiagnosticsEngine::Warning,
+        "Compiling kernel in file '%0.%1' failed, using default kernel configuration:\n%2");
     Diags.Report(DiagIDCompile)
       << K->getFileName() << (const char*)(compilerOptions.emitCUDA()?"cu":"cl")
       << command.c_str();
-    for (size_t i=0, e=lines.size(); i!=e; ++i) {
-      llvm::errs() << lines[i];
-    }
+    for (auto line : lines)
+      llvm::errs() << line;
   } else {
     if (targetDevice.isAMDGPU()) {
       llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
@@ -2097,8 +2064,6 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   K->setDefaultConfig();
   #endif
 }
-
-
 
 
 void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
@@ -2179,12 +2144,11 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       << K->getReduceName() << "(";
   // write kernel parameters
   size_t comma = 0;
-  for (size_t i=0, e=fun->getNumParams(); i!=e; ++i) {
-    std::string Name(fun->getParamDecl(i)->getNameAsString());
-
+  for (auto param : fun->params()) {
+    std::string Name(param->getNameAsString());
+    QualType T = param->getType();
     // normal arguments
     if (comma++) *OS << ", ";
-    QualType T = fun->getParamDecl(i)->getType();
     if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(fun))
       T = Parm->getOriginalType();
     T.getAsStringInternal(Name, Policy);
@@ -2225,7 +2189,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       // 2D reduction
       if (compilerOptions.getTargetDevice()>=FERMI_20 &&
           !compilerOptions.exploreConfig()) {
-        *OS << "__device__ unsigned int finished_blocks_" << K->getReduceName()
+        *OS << "__device__ unsigned finished_blocks_" << K->getReduceName()
             << "2D = 0;\n\n";
         *OS << "REDUCTION_CUDA_2D_THREAD_FENCE(";
       } else {
@@ -2355,9 +2319,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // interpolation includes & definitions
   bool inc=false;
   SmallVector<std::string, 16> InterpolationDefinitionsLocal;
-  for (size_t i=0; i<K->getNumArgs(); i++) {
-    FieldDecl *FD = K->getDeviceArgFields()[i];
-    HipaccAccessor *Acc = K->getImgFromMapping(FD);
+  size_t num_arg = 0;
+  for (auto arg : K->getDeviceArgFields()) {
+    HipaccAccessor *Acc = K->getImgFromMapping(arg);
+    size_t i = num_arg++;
 
     if (!Acc || !K->getUsed(K->getDeviceArgNames()[i])) continue;
 
@@ -2455,13 +2420,12 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
   // declarations of textures, surfaces, variables, etc.
-  for (size_t i=0; i<K->getNumArgs(); ++i) {
-    if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
-
-    FieldDecl *FD = K->getDeviceArgFields()[i];
+  num_arg = 0;
+  for (auto arg : K->getDeviceArgFields()) {
+    if (!K->getUsed(K->getDeviceArgNames()[num_arg++])) continue;
 
     // output image declaration
-    if (i==0) {
+    if (num_arg==0) {
       switch (compilerOptions.getTargetCode()) {
         case TARGET_C:
         case TARGET_OpenCLACC:
@@ -2487,7 +2451,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
 
     // global image declarations
-    HipaccAccessor *Acc = K->getImgFromMapping(FD);
+    HipaccAccessor *Acc = K->getImgFromMapping(arg);
     if (Acc) {
       QualType T = Acc->getImage()->getType();
 
@@ -2499,7 +2463,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           break;
         case TARGET_CUDA:
           // texture declaration
-          if (KC->getImgAccess(FD) == READ_ONLY && K->useTextureMemory(Acc)) {
+          if (KC->getImgAccess(arg) == READ_ONLY && K->useTextureMemory(Acc)) {
             // no texture declaration for __ldg() intrinsic
             if (K->useTextureMemory(Acc) == Ldg) break;
             *OS << "texture<";
@@ -2514,21 +2478,21 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                 *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
                 break;
             }
-            *OS << FD->getNameAsString() << K->getName() << ";\n"
+            *OS << arg->getNameAsString() << K->getName() << ";\n"
                 << "const textureReference *_tex"
-                << FD->getNameAsString() << K->getName() << "Ref;\n";
+                << arg->getNameAsString() << K->getName() << "Ref;\n";
           }
           break;
         case TARGET_Renderscript:
         case TARGET_Filterscript:
-          *OS << "rs_allocation " << FD->getNameAsString() << ";\n";
+          *OS << "rs_allocation " << arg->getNameAsString() << ";\n";
           break;
       }
       continue;
     }
 
     // constant memory declarations
-    HipaccMask *Mask = K->getMaskFromMapping(FD);
+    HipaccMask *Mask = K->getMaskFromMapping(arg);
     if (Mask) {
       if (Mask->isConstant()) {
         switch (compilerOptions.getTargetCode()) {
@@ -2583,7 +2547,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             break;
           case TARGET_Renderscript:
           case TARGET_Filterscript:
-            *OS << "rs_allocation " << K->getDeviceArgNames()[i] << ";\n\n";
+            *OS << "rs_allocation " << K->getDeviceArgNames()[num_arg]
+                << ";\n\n";
             Mask->setIsPrinted(true);
             break;
         }
@@ -2594,9 +2559,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     // normal variables - Renderscript only
     if (0 != (compilerOptions.getTargetCode() & (TARGET_Renderscript |
                                                  TARGET_Filterscript))) {
-      QualType QT = K->getArgTypes(Context, compilerOptions.getTargetCode())[i];
+      QualType QT = K->getArgTypes(Context,
+          compilerOptions.getTargetCode())[num_arg];
       QT.removeLocalConst();
-      *OS << QT.getAsString() << " " << K->getDeviceArgNames()[i] << ";\n";
+      *OS << QT.getAsString() << " " << K->getDeviceArgNames()[num_arg]
+          << ";\n";
       continue;
     }
   }
@@ -2608,9 +2575,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   }
 
   // function definitions
-  for (size_t i=0, e=K->getFunctionCalls().size(); i<e; ++i) {
-    FunctionDecl *FD = K->getFunctionCalls()[i];
-
+  for (auto fun : K->getFunctionCalls()) {
     switch (compilerOptions.getTargetCode()) {
       case TARGET_C:
       case TARGET_OpenCLACC:
@@ -2623,7 +2588,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       case TARGET_CUDA:
         *OS << "__inline__ __device__ "; break;
     }
-    FD->print(*OS, Policy);
+    fun->print(*OS, Policy);
   }
 
   // write kernel name and qualifiers
@@ -2670,9 +2635,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   *OS << "(";
 
   // write kernel parameters
-  size_t comma = 0;
-  for (size_t i=0, e=D->getNumParams(); i!=e; ++i) {
-    std::string Name(D->getParamDecl(i)->getNameAsString());
+  size_t comma = 0; num_arg = 0;
+  for (auto param : D->params()) {
+    size_t i = num_arg++;
+    std::string Name(param->getNameAsString());
     FieldDecl *FD = K->getDeviceArgFields()[i];
 
     if (!K->getUsed(Name) &&

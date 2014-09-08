@@ -138,14 +138,14 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
       break;
     case 'V': { // Vector
       char *End;
-      unsigned int NumElements = strtoul(Str, &End, 10);
+      unsigned NumElements = strtoul(Str, &End, 10);
       assert(End != Str && "Missing vector size");
       Str = End;
 
       QualType ElementType = DecodeTypeFromStr(Str, Ctx, true);
 
       Type = Ctx.getVectorType(ElementType, NumElements,
-          VectorType::GenericVector);
+                               VectorType::GenericVector);
       break;
     }
     case 'E': { // Extended Vector
@@ -171,7 +171,7 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
         // Both pointers and references can have their pointee types
         // qualified with an address space.
         char *End;
-        unsigned int AddrSpace = strtoul(Str, &End, 10);
+        unsigned AddrSpace = strtoul(Str, &End, 10);
         if (End != Str && AddrSpace != 0) {
           Type = Ctx.getAddrSpaceQualType(Type, AddrSpace);
           Str = End;
@@ -246,7 +246,7 @@ std::string hipacc::Builtin::Context::EncodeTypeIntoStr(QualType QT, const
 
 
 // getBuiltinType - Return the type for the specified builtin.
-QualType hipacc::Builtin::Context::getBuiltinType(unsigned int Id) const {
+QualType hipacc::Builtin::Context::getBuiltinType(unsigned Id) const {
   return getBuiltinType(getTypeString(Id));
 }
 
@@ -276,13 +276,12 @@ QualType hipacc::Builtin::Context::getBuiltinType(const char *TypeStr) const {
   EPI.ExtInfo = EI;
   EPI.Variadic = Variadic;
 
-  return Ctx.getFunctionType(ResType, ArrayRef<QualType>(ArgTypes.data(),
-        ArgTypes.size()), EPI);
+  return Ctx.getFunctionType(ResType, ArgTypes, EPI);
 }
 
 
-const hipacc::Builtin::Info &hipacc::Builtin::Context::getRecord(unsigned int
-    ID) const {
+const hipacc::Builtin::Info &hipacc::Builtin::Context::getRecord(unsigned ID)
+  const {
   assert(ID < (LastBuiltin-FirstBuiltin));
 
   return BuiltinInfo[ID];
@@ -305,7 +304,7 @@ void hipacc::Builtin::Context::InitializeBuiltins() {
   }
 
   const clang::Builtin::Info *lTSRecords = 0;
-  unsigned int lNumTSRecords = 0;
+  unsigned lNumTSRecords = 0;
   Ctx.getTargetInfo().getTargetBuiltins(lTSRecords, lNumTSRecords);
   llvm::errs() << "================\n"
                << "Target Builtins:\n"
@@ -377,7 +376,7 @@ void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
 
 // LazilyCreateBuiltin - The specified Builtin-ID was first used at file scope.
 // lazily create a decl for it.
-FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(unsigned int bid) {
+FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(unsigned bid) {
   return CreateBuiltin(getBuiltinType(bid), BuiltinInfo[bid].Name);
 }
 FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
@@ -394,10 +393,11 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
   // create Decl objects for each parameter, adding them to the FunctionDecl.
   if (const FunctionProtoType *FT = dyn_cast<FunctionProtoType>(R)) {
     SmallVector<ParmVarDecl *, 16> Params;
-    for (size_t i=0, e=FT->getNumParams(); i!=e; ++i) {
-      ParmVarDecl *parm = ParmVarDecl::Create(Ctx, New, SourceLocation(),
-          SourceLocation(), 0, FT->getParamType(i), /*TInfo=*/0, SC_None, 0);
-      parm->setScopeInfo(0, i);
+    size_t num_parm = 0;
+    for (auto ptype : FT->param_types()) {
+      auto parm = ParmVarDecl::Create(Ctx, New, SourceLocation(),
+          SourceLocation(), 0, ptype, /*TInfo=*/0, SC_None, 0);
+      parm->setScopeInfo(0, num_parm++);
       Params.push_back(parm);
     }
     New->setParams(Params);

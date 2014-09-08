@@ -52,11 +52,11 @@ enum KernelType {
 
 class HipaccDeviceOptions {
   public:
-    unsigned int alignment;
-    unsigned int local_memory_threshold;
-    unsigned int default_num_threads_x;
-    unsigned int default_num_threads_y;
-    unsigned int pixels_per_thread[NumOperatorTypes];
+    unsigned alignment;
+    unsigned local_memory_threshold;
+    unsigned default_num_threads_x;
+    unsigned default_num_threads_y;
+    unsigned pixels_per_thread[NumOperatorTypes];
     TextureType require_textures[NumOperatorTypes];
     bool vectorization;
 
@@ -221,18 +221,18 @@ class HipaccDeviceOptions {
 class HipaccDevice : public HipaccDeviceOptions {
   public:
     TargetDevice target_device;
-    unsigned int max_threads_per_warp;
-    unsigned int max_threads_per_block;
-    unsigned int max_blocks_per_multiprocessor;
-    unsigned int max_warps_per_multiprocessor;
-    unsigned int max_threads_per_multiprocessor;
-    unsigned int max_total_registers;
-    unsigned int max_total_shared_memory;
-    unsigned int max_register_per_thread;
+    unsigned max_threads_per_warp;
+    unsigned max_threads_per_block;
+    unsigned max_blocks_per_multiprocessor;
+    unsigned max_warps_per_multiprocessor;
+    unsigned max_threads_per_multiprocessor;
+    unsigned max_total_registers;
+    unsigned max_total_shared_memory;
+    unsigned max_register_per_thread;
 
     // NVIDIA only device properties
-    unsigned int num_alus;
-    unsigned int num_sfus;
+    unsigned num_alus;
+    unsigned num_sfus;
 
   public:
     HipaccDevice(CompilerOptions &options) :
@@ -343,36 +343,29 @@ class HipaccDevice : public HipaccDeviceOptions {
 
     bool isAMDGPU() {
       switch (target_device) {
-        default:
-          return false;
+        default:              return false;
         case EVERGREEN:
-        case NORTHERN_ISLAND:
-          return true;
+        case NORTHERN_ISLAND: return true;
       }
     }
 
     bool isARMGPU() {
       switch (target_device) {
-        default:
-          return false;
-        case MIDGARD:
-          return true;
+        default:      return false;
+        case MIDGARD: return true;
       }
     }
 
     bool isINTELACC() {
       switch (target_device) {
-        default:
-          return false;
-        case KNIGHTSCORNER:
-          return true;
+        default:            return false;
+        case KNIGHTSCORNER: return true;
       }
     }
 
     bool isNVIDIAGPU() {
       switch (target_device) {
-        default:
-          return false;
+        default:        return false;
         case TESLA_10:
         case TESLA_11:
         case TESLA_12:
@@ -380,58 +373,39 @@ class HipaccDevice : public HipaccDeviceOptions {
         case FERMI_20:
         case FERMI_21:
         case KEPLER_30:
-        case KEPLER_35:
-          return true;
+        case KEPLER_35: return true;
       }
     }
 
     std::string getTargetDeviceName() {
       switch (target_device) {
-        //case 00:
-        //  return "x86_64 CPU";
-        case TESLA_10:
-          return "NVIDIA Tesla (10)";
-        case TESLA_11:
-          return "NVIDIA Tesla (11)";
-        case TESLA_12:
-          return "NVIDIA Tesla (12)";
-        case TESLA_13:
-          return "NVIDIA Tesla (13)";
-        case FERMI_20:
-          return "NVIDIA Fermi (20)";
-        case FERMI_21:
-          return "NVIDIA Fermi (21)";
-        case KEPLER_30:
-          return "NVIDIA Kepler (30)";
-        case KEPLER_35:
-          return "NVIDIA Kepler (35)";
-        case EVERGREEN:
-          return "AMD Evergreen";
-        case NORTHERN_ISLAND:
-          return "AMD Northern Island";
-        //case SOUTHERN_ISLAND:
-        //  return "AMD Southern Island";
-        case MIDGARD:
-          return "ARM Midgard: Mali-T6xx";
-        case KNIGHTSCORNER:
-          return "Intel MIC: Knights Corner";
+        //case 00:              return "x86_64 CPU";
+        case TESLA_10:        return "NVIDIA Tesla (10)";
+        case TESLA_11:        return "NVIDIA Tesla (11)";
+        case TESLA_12:        return "NVIDIA Tesla (12)";
+        case TESLA_13:        return "NVIDIA Tesla (13)";
+        case FERMI_20:        return "NVIDIA Fermi (20)";
+        case FERMI_21:        return "NVIDIA Fermi (21)";
+        case KEPLER_30:       return "NVIDIA Kepler (30)";
+        case KEPLER_35:       return "NVIDIA Kepler (35)";
+        case EVERGREEN:       return "AMD Evergreen";
+        case NORTHERN_ISLAND: return "AMD Northern Island";
+        //case SOUTHERN_ISLAND: return "AMD Southern Island";
+        case MIDGARD:         return "ARM Midgard: Mali-T6xx";
+        case KNIGHTSCORNER:   return "Intel MIC: Knights Corner";
       }
     }
 
     std::string getCompileCommand(bool emitCUDA) {
-      if (emitCUDA) {
+      if (emitCUDA)
         return CUDA_COMPILER;
-      } else {
-        return CL_COMPILER;
-      }
+      return CL_COMPILER;
     }
 
     std::string getCLIncludes() {
-      if (isARMGPU()) {
+      if (isARMGPU())
         return EMBEDDED_RUNTIME_INCLUDES;
-      } else {
-        return RUNTIME_INCLUDES;
-      }
+      return RUNTIME_INCLUDES;
     }
 
     std::string getCompileOptions(std::string kernel, std::string file, bool

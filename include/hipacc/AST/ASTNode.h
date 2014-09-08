@@ -48,7 +48,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
 
 // creates a function call AST node
 CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD,
-    SmallVector<Expr *, 16> Expr);
+    ArrayRef<Expr *> Expr);
 DeclRefExpr *createDeclRefExpr(ASTContext &Ctx, ValueDecl *decl);
 
 
@@ -57,16 +57,15 @@ DeclStmt *createDeclStmt(ASTContext &Ctx, Decl *VD);
 VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
     QualType T, Expr *init=nullptr);
 RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
-    TagDecl::TagKind TK, unsigned int numDecls, QualType *declTypes, StringRef
-    *declNames);
+    TagDecl::TagKind TK, ArrayRef<QualType> declTypes, ArrayRef<StringRef>
+    declNames);
 
 // create a member expression AST node
 MemberExpr *createMemberExpr(ASTContext &Ctx, Expr *base, bool isArrow,
     ValueDecl *memberdecl, QualType T);
 
 // creates a compound statement AST node representing multiple statements
-CompoundStmt *createCompoundStmt(ASTContext &Ctx, SmallVector<Stmt *, 16>
-    Stmts);
+CompoundStmt *createCompoundStmt(ASTContext &Ctx, ArrayRef<Stmt *> Stmts);
 
 // creates a return statement AST node
 ReturnStmt *createReturnStmt(ASTContext &Ctx, Expr *E);

@@ -62,7 +62,7 @@ class SIMDTypes {
     llvm::DenseMap<const VarDecl *, QualType> declsToVectorType[SIMDEND];
     llvm::DenseMap<const ParmVarDecl *, QualType> imgsToVectorType[SIMDEND];
     llvm::DenseMap<const BuiltinType *, QualType> typeToVectorType[SIMDEND];
-    unsigned int DiagIDType;
+    unsigned DiagIDType;
 
     QualType getSIMDTypeFromBT(const BuiltinType *BT, VarDecl *VD, SIMDWidth
         simd_width);

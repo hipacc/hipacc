@@ -59,12 +59,12 @@ class KernelStatsImpl {
     StringRef name;
     CompilerKnownClasses &compilerClasses;
     DiagnosticsEngine &Diags;
-    unsigned int DiagIDUnsupportedBO, DiagIDUnsupportedUO,
-                 DiagIDUnsupportedCSCE, DiagIDUnsupportedTerm,
-                 DiagIDImageAccess, DiagIDMemIncons;
-    unsigned int num_ops, num_sops;
-    unsigned int num_img_loads, num_img_stores;
-    unsigned int num_mask_loads, num_mask_stores;
+    unsigned DiagIDUnsupportedBO, DiagIDUnsupportedUO,
+             DiagIDUnsupportedCSCE, DiagIDUnsupportedTerm,
+             DiagIDImageAccess, DiagIDMemIncons;
+    unsigned num_ops, num_sops;
+    unsigned num_img_loads, num_img_stores;
+    unsigned num_mask_loads, num_mask_stores;
     VectorInfo curStmtVectorize;
     bool inLambdaFunction;
 
@@ -173,8 +173,9 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
   #endif
 
   // apply the transfer function for all Stmts in the block.
-  for (auto it = block->begin(), ei = block->end(); it != ei; ++it) {
-    const CFGElement &elem = *it;
+  for (auto elem : *block) {
+    //it = block->begin(), ei = block->end(); it != ei; ++it) {
+    //const CFGElement &elem = *it;
     if (!elem.getAs<CFGStmt>()) continue;
 
     const Stmt *S = elem.castAs<CFGStmt>().getStmt();
@@ -186,8 +187,7 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
   if (const Stmt *term = block->getTerminator()) {
     llvm::errs() << "Successors: \n";
 
-    for (auto it = block->succ_begin(), ei = block->succ_end(); it != ei; ++it)
-    {
+    for (auto it=block->succ_begin(), ei=block->succ_end(); it!=ei; ++it) {
       const CFGBlock *block = *it;
       llvm::errs() << block->getBlockID() << "\n";
     }
@@ -228,10 +228,9 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
 
 
 void KernelStatsImpl::runOnAllBlocks() {
-  PostOrderCFGView *POV = analysisContext.getAnalysis<PostOrderCFGView>();
-  for (auto it=POV->begin(), ei=POV->end(); it!=ei; ++it) {
-    runOnBlock(*it);
-  }
+  auto POV = analysisContext.getAnalysis<PostOrderCFGView>();
+  for (auto block : *POV)
+    runOnBlock(block);
   llvm::errs() << "Kernel statistics for '" << name << "':\n"
                << "  type: ";
   switch (kernelType) {
@@ -249,16 +248,14 @@ void KernelStatsImpl::runOnAllBlocks() {
                << "  mask stores: "         << num_mask_stores << "\n";
 
   llvm::errs() << "  images:\n";
-  for (auto it=imagesToAccessDetail.begin(), ei=imagesToAccessDetail.end();
-          it!=ei; ++it) {
-    const FieldDecl *FD = it->first;
-    llvm::errs() << "    " << FD->getNameAsString() << ": ";
-    if (it->second == 0)        llvm::errs() << "UNDEFINED ";
-    if (it->second & NO_STRIDE) llvm::errs() << "NO_STRIDE ";
-    if (it->second & USER_XY)   llvm::errs() << "USER_XY ";
-    if (it->second & STRIDE_X)  llvm::errs() << "STRIDE_X ";
-    if (it->second & STRIDE_Y)  llvm::errs() << "STRIDE_Y ";
-    if (it->second & STRIDE_XY) llvm::errs() << "STRIDE_XY ";
+  for (auto map : imagesToAccessDetail) {
+    llvm::errs() << "    " << map.first->getNameAsString() << ": ";
+    if (map.second == 0)        llvm::errs() << "UNDEFINED ";
+    if (map.second & NO_STRIDE) llvm::errs() << "NO_STRIDE ";
+    if (map.second & USER_XY)   llvm::errs() << "USER_XY ";
+    if (map.second & STRIDE_X)  llvm::errs() << "STRIDE_X ";
+    if (map.second & STRIDE_Y)  llvm::errs() << "STRIDE_Y ";
+    if (map.second & STRIDE_XY) llvm::errs() << "STRIDE_XY ";
     llvm::errs() << "\n";
   }
   llvm::errs() << "    output: ";
@@ -271,11 +268,10 @@ void KernelStatsImpl::runOnAllBlocks() {
   llvm::errs() << "\n";
 
   llvm::errs() << "  VarDecls:\n";
-  for (auto it=declsToVector.begin(), ei=declsToVector.end(); it!=ei; ++it) {
-    const VarDecl *VD = it->first;
-    llvm::errs() << "    " << VD->getName() << " -> ";
+  for (auto map : declsToVector) {
+    llvm::errs() << "    " << map.first->getName() << " -> ";
 
-    switch (it->second) {
+    switch (map.second) {
       case SCALAR:    llvm::errs() << "SCALAR\n"; break;
       case VECTORIZE: llvm::errs() << "VECTORIZE\n"; break;
       case PROPAGATE: llvm::errs() << "PROPAGATE\n"; break;
@@ -696,9 +692,8 @@ void TransferFunctions::VisitUnaryOperator(UnaryOperator *E) {
 }
 
 void TransferFunctions::VisitCallExpr(CallExpr *E) {
-  for (size_t I=0, N=E->getNumArgs(); I!=N; ++I) {
-    checkImageAccess(E->getArg(I), READ_ONLY);
-  }
+  for (auto arg : E->arguments())
+    checkImageAccess(arg, READ_ONLY);
   KS.num_sops++;
 }
 
@@ -724,9 +719,9 @@ void TransferFunctions::VisitCStyleCastExpr(CStyleCastExpr *E) {
 
 void TransferFunctions::VisitDeclStmt(DeclStmt *S) {
   // iterate over all declarations of this DeclStmt
-  for (auto it=S->decl_begin(), ei=S->decl_end(); it!=ei; ++it) {
-    if (isa<VarDecl>(*it)) {
-      VarDecl *VD = dyn_cast<VarDecl>(*it);
+  for (auto decl : S->decls()) {
+    if (isa<VarDecl>(decl)) {
+      VarDecl *VD = dyn_cast<VarDecl>(decl);
       if (VD->hasInit()) {
         if (checkImageAccess(VD->getInit(), READ_ONLY)) {
           KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
@@ -762,11 +757,10 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
   AC.getCFG()->viewCFG(KS.Ctx.getLangOpts());
   #endif
 
-  PostOrderCFGView *POV = AC.getAnalysis<PostOrderCFGView>();
   KS.inLambdaFunction = true;
-  for (auto it=POV->begin(), ei=POV->end(); it!=ei; ++it) {
-    KS.runOnBlock(*it);
-  }
+  auto POV = AC.getAnalysis<PostOrderCFGView>();
+  for (auto block : *POV)
+    KS.runOnBlock(block);
   KS.inLambdaFunction = false;
 }
 

@@ -74,9 +74,9 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
 
   // add Decl objects for each parameter to the FunctionDecl
   DeclContext *DCF = FunctionDecl::castToDeclContext(FD);
-  for (size_t i=0; i<ArgTypes.size(); ++i) {
-    Params[i]->setDeclContext(FD);
-    DCF->addDecl(Params[i]);
+  for (auto param : Params) {
+    param->setDeclContext(FD);
+    DCF->addDecl(param);
   }
   FD->setParams(Params);
 
@@ -88,8 +88,8 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
 }
 
 
-CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD, SmallVector<Expr
-    *, 16> Expr) {
+CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD, ArrayRef<Expr *>
+    Expr) {
   // get reference to FD
   DeclRefExpr *FDRef = createDeclRefExpr(Ctx, FD);
   // now, we cast the reference to a pointer to the function type.
@@ -117,45 +117,32 @@ CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD, SmallVector<Expr
 
 CStyleCastExpr *createCStyleCastExpr(ASTContext &Ctx, QualType T, CastKind Kind,
     Expr *Operand, CXXCastPath *BasePath, TypeSourceInfo *WrittenTy) {
-  CStyleCastExpr *E = CStyleCastExpr::Create(Ctx, T, VK_RValue, Kind, Operand,
-      BasePath, WrittenTy, SourceLocation(), SourceLocation());
-
-  return E;
+  return CStyleCastExpr::Create(Ctx, T, VK_RValue, Kind, Operand, BasePath,
+      WrittenTy, SourceLocation(), SourceLocation());
 }
 
 
 ImplicitCastExpr *createImplicitCastExpr( ASTContext &Ctx, QualType T, CastKind
     Kind, Expr *Operand, CXXCastPath *BasePath, ExprValueKind Cat) {
-  ImplicitCastExpr *E = ImplicitCastExpr::Create(Ctx, T, Kind, Operand,
-      BasePath, Cat);
-
-  return E;
+  return ImplicitCastExpr::Create(Ctx, T, Kind, Operand, BasePath, Cat);
 }
 
 
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, int32_t val) {
-  IntegerLiteral *E = IntegerLiteral::Create(Ctx, llvm::APInt(32, val),
-      Ctx.IntTy, SourceLocation());
-
-  return E;
+  return IntegerLiteral::Create(Ctx, llvm::APInt(32, val), Ctx.IntTy,
+      SourceLocation());
 }
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint32_t val) {
-  IntegerLiteral *E = IntegerLiteral::Create(Ctx, llvm::APInt(32, val),
-      Ctx.UnsignedIntTy, SourceLocation());
-
-  return E;
+  return IntegerLiteral::Create(Ctx, llvm::APInt(32, val), Ctx.UnsignedIntTy,
+      SourceLocation());
 }
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, int64_t val) {
-  IntegerLiteral *E = IntegerLiteral::Create(Ctx, llvm::APInt(64, val),
-      Ctx.LongTy, SourceLocation());
-
-  return E;
+  return IntegerLiteral::Create(Ctx, llvm::APInt(64, val), Ctx.LongTy,
+      SourceLocation());
 }
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint64_t val) {
-  IntegerLiteral *E = IntegerLiteral::Create(Ctx, llvm::APInt(64, val),
-      Ctx.UnsignedLongTy, SourceLocation());
-
-  return E;
+  return IntegerLiteral::Create(Ctx, llvm::APInt(64, val), Ctx.UnsignedLongTy,
+      SourceLocation());
 }
 
 
@@ -187,15 +174,15 @@ VarDecl *createVarDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
 
 
 RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
-    TagDecl::TagKind TK, unsigned int numDecls, QualType *declTypes, StringRef
-    *declNames) {
+    TagDecl::TagKind TK, ArrayRef<QualType> declTypes, ArrayRef<StringRef>
+    declNames) {
   RecordDecl *RD = RecordDecl::Create(Ctx, TK, DC, SourceLocation(),
       SourceLocation(), &Ctx.Idents.get(Name));
 
-  for (size_t i=0; i<numDecls; ++i) {
+  for (size_t i=0; i<declTypes.size(); ++i) {
     RD->addDecl(createVarDecl(Ctx, RD, declNames[i], declTypes[i], nullptr));
   }
-  if (numDecls) {
+  if (declTypes.size()) {
     RD->setCompleteDefinition(true);
   }
 
@@ -205,22 +192,13 @@ RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
 
 MemberExpr *createMemberExpr(ASTContext &Ctx, Expr *base, bool isArrow,
     ValueDecl *memberdecl, QualType T) {
-  MemberExpr *ME = new (Ctx) MemberExpr(base, isArrow, memberdecl,
-      SourceLocation(), T, VK_LValue, OK_Ordinary);
-
-  return ME;
+  return new (Ctx) MemberExpr(base, isArrow, memberdecl, SourceLocation(), T,
+      VK_LValue, OK_Ordinary);
 }
 
 
-CompoundStmt *createCompoundStmt(ASTContext &Ctx, SmallVector<Stmt *, 16> Stmts)
-{
-  CompoundStmt *S = new (Ctx) CompoundStmt(Stmt::EmptyShell());
-
-  S->setStmts(Ctx, Stmts.data(), Stmts.size());
-  S->setLBracLoc(SourceLocation());
-  S->setRBracLoc(SourceLocation());
-
-  return S;
+CompoundStmt *createCompoundStmt(ASTContext &Ctx, ArrayRef<Stmt *> Stmts) {
+  return new (Ctx) CompoundStmt(Ctx, Stmts, SourceLocation(), SourceLocation());
 }
 
 
@@ -336,19 +314,13 @@ ExtVectorElementExpr *createExtVectorElementExpr(ASTContext &Ctx, QualType ty,
 
 
 DeclRefExpr *createDeclRefExpr(ASTContext &Ctx, ValueDecl *VD) {
-  DeclRefExpr *E = DeclRefExpr::Create(Ctx, NestedNameSpecifierLoc(),
-      SourceLocation(), VD, false, VD->getLocation(), VD->getType(), VK_LValue,
-      0, 0);
-
-  return E;
+  return DeclRefExpr::Create(Ctx, NestedNameSpecifierLoc(), SourceLocation(),
+      VD, false, VD->getLocation(), VD->getType(), VK_LValue, 0, 0);
 }
 
 
 LabelDecl *createLabelDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name) {
-  LabelDecl *LD = LabelDecl::Create(Ctx, DC, SourceLocation(),
-      &Ctx.Idents.get(Name));
-
-  return LD;
+  return LabelDecl::Create(Ctx, DC, SourceLocation(), &Ctx.Idents.get(Name));
 }
 
 LabelStmt *createLabelStmt(ASTContext &Ctx, LabelDecl *LD, Stmt *Stmt) {

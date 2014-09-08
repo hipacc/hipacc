@@ -150,12 +150,10 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
         default: break;
         case TARGET_Renderscript: {
             bool isGlobalAllocation = false;
-            for (size_t i=0; i<Kernel->getKernelClass()->getNumArgs(); ++i) {
-              if (Kernel->getKernelClass()->getArguments()[0].name.compare(
-                    LHS->getNameInfo().getAsString()) == 0) {
-                isGlobalAllocation = true;
-                break;
-              }
+            if (Kernel->getKernelClass()->getArguments()[0].name.compare(
+                  LHS->getNameInfo().getAsString()) == 0) {
+              isGlobalAllocation = true;
+              break;
             }
             if (!isGlobalAllocation) {
               // access allocation by using local pointer type kernel argument
@@ -187,14 +185,14 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
       }
     case READ_WRITE: {
-      unsigned int DiagIDRW = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+      unsigned DiagIDRW = Diags.getCustomDiagID(DiagnosticsEngine::Error,
           "Reading and writing to Image '%0' in kernel '%1' is not supported.");
       Diags.Report(DiagIDRW) << LHS->getNameInfo().getAsString()
                              << KernelClass->getName();
       exit(EXIT_FAILURE); }
     default:
     case UNDEFINED: {
-      unsigned int DiagIDU = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+      unsigned DiagIDU = Diags.getCustomDiagID(DiagnosticsEngine::Error,
           "Memory access pattern for Image '%0' in kernel '%1' could not be analyzed.");
       Diags.Report(DiagIDU) << LHS->getNameInfo().getAsString()
                             << KernelClass->getName();
@@ -752,9 +750,8 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
         bhStmts, bhCStmt);
 
     // add border handling statements to stageBody
-    for (size_t i=0, e=bhStmts.size(); i!=e; ++i) {
-      stageBody.push_back(bhStmts[i]);
-    }
+    for (auto stmt : bhStmts)
+      stageBody.push_back(stmt);
   } else {
     RHS = accessMem(paramDRE, Acc, READ_ONLY, global_offset_x, global_offset_y);
   }
@@ -767,11 +764,9 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
 // stage iteration p to shared memory
 void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
     &stageBody, int p) {
-  for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N; ++I) {
-    ParmVarDecl *PVD = *I;
-
-    if (KernelDeclMapShared[PVD]) {
-      HipaccAccessor *Acc = KernelDeclMapAcc[PVD];
+  for (auto param : kernelDecl->params()) {
+    if (KernelDeclMapShared[param]) {
+      HipaccAccessor *Acc = KernelDeclMapAcc[param];
 
       // check if the bottom apron has to be fetched
       if (p>=(int)Kernel->getPixelsPerThread()) {
@@ -819,7 +814,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
               BO_Sub, Ctx.IntTy);
         }
 
-        stageLineToSharedMemory(PVD, stageBody, local_offset_x, nullptr,
+        stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
             global_offset_x, global_offset_y);
       }
     }
@@ -830,11 +825,9 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
 // stage data to shared memory for exploration
 void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
     16> &stageBody) {
-  for (auto I=kernelDecl->param_begin(), N=kernelDecl->param_end(); I!=N; ++I) {
-    ParmVarDecl *PVD = *I;
-
-    if (KernelDeclMapShared[PVD]) {
-      HipaccAccessor *Acc = KernelDeclMapAcc[PVD];
+  for (auto param : kernelDecl->params()) {
+    if (KernelDeclMapShared[param]) {
+      HipaccAccessor *Acc = KernelDeclMapAcc[param];
 
       Expr *global_offset_x = nullptr, *global_offset_y = nullptr;
       Expr *SX2;
@@ -882,7 +875,7 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
               BO_Sub, Ctx.IntTy);
         }
 
-        stageLineToSharedMemory(PVD, stageIter, local_offset_x,
+        stageLineToSharedMemory(param, stageIter, local_offset_x,
             createBinaryOperator(Ctx, iter_ref, tileVars.local_size_y, BO_Mul,
               Ctx.IntTy), global_offset_x, global_offset_y);
       }

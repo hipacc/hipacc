@@ -46,29 +46,12 @@ QualType SIMDTypes::createSIMDType(QualType QT, StringRef base, SIMDWidth
 
   switch (simd_width) {
     default:
-    case SIMD1:
-      lanes = 1;
-      break;
-    case SIMD2:
-      lanes = 2;
-      ss << "2";
-      break;
-    case SIMD3:
-      lanes = 3;
-      ss << "3";
-      break;
-    case SIMD4:
-      lanes = 4;
-      ss << "4";
-      break;
-    case SIMD8:
-      lanes = 8;
-      ss << "8";
-      break;
-    case SIMD16:
-      lanes = 16;
-      ss << "16";
-      break;
+    case SIMD1:  lanes = 1;              break;
+    case SIMD2:  lanes = 2;  ss << "2";  break;
+    case SIMD3:  lanes = 3;  ss << "3";  break;
+    case SIMD4:  lanes = 4;  ss << "4";  break;
+    case SIMD8:  lanes = 8;  ss << "8";  break;
+    case SIMD16: lanes = 16; ss << "16"; break;
   }
 
   // use ext_vector_type for SIMD types

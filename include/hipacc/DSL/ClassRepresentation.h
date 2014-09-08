@@ -91,7 +91,7 @@ enum InterpolationMode {
 // common base class for images, masks and pyramids
 class HipaccSize {
   protected:
-    unsigned int size_x, size_y;
+    unsigned size_x, size_y;
     std::string size_x_str, size_y_str;
 
   public:
@@ -100,22 +100,22 @@ class HipaccSize {
       size_x_str(), size_y_str()
     {}
 
-    void setSizeX(unsigned int x) {
+    void setSizeX(unsigned x) {
       std::string Str;
       llvm::raw_string_ostream SS(Str);
       SS << x;
       size_x_str = SS.str();
       size_x = x;
     }
-    void setSizeY(unsigned int y) {
+    void setSizeY(unsigned y) {
       std::string Str;
       llvm::raw_string_ostream SS(Str);
       SS << y;
       size_y_str = SS.str();
       size_y = y;
     }
-    unsigned int getSizeX() { return size_x; }
-    unsigned int getSizeY() { return size_y; }
+    unsigned getSizeX() { return size_x; }
+    unsigned getSizeY() { return size_y; }
     std::string getSizeXStr() {
       assert(!size_x_str.empty());
       return size_x_str;
@@ -158,7 +158,7 @@ class HipaccImage : public HipaccMemory {
       Ctx(Ctx)
     {}
 
-    unsigned int getPixelSize() { return Ctx.getTypeSize(type)/8; }
+    unsigned getPixelSize() { return Ctx.getTypeSize(type)/8; }
     std::string getTextureType();
     std::string getImageReadFunction();
 };
@@ -244,8 +244,8 @@ class HipaccAccessor {
     HipaccBoundaryCondition *getBC() { return bc; }
     InterpolationMode getInterpolation() { return interpolation; }
     HipaccImage *getImage() { return bc->getImage(); }
-    unsigned int getSizeX() { return bc->getSizeX(); }
-    unsigned int getSizeY() { return bc->getSizeY(); }
+    unsigned getSizeX() { return bc->getSizeX(); }
+    unsigned getSizeY() { return bc->getSizeY(); }
     std::string getSizeXStr() { return bc->getSizeXStr(); }
     std::string getSizeYStr() { return bc->getSizeYStr(); }
     DeclRefExpr *getWidthDecl() { return widthDecl; }
@@ -346,38 +346,38 @@ class HipaccMask : public HipaccMemory {
       return dyn_cast<InitListExpr>(init_list->getInit(y))->getInit(x);
     }
     void addKernel(HipaccKernel *K) { kernels.push_back(K); }
-    SmallVector<HipaccKernel *, 16> &getKernels() { return kernels; }
+    ArrayRef<HipaccKernel *> getKernels() { return kernels; }
     void setHostMemName(std::string name) { hostMemName = name; }
     std::string getHostMemName() { return hostMemName; }
-    void setSizeX(unsigned int x) {
+    void setSizeX(unsigned x) {
       HipaccMemory::setSizeX(x);
       if (isDomain()) { setDomainSize(size_x*size_y); }
     }
-    void setSizeY(unsigned int y) {
+    void setSizeY(unsigned y) {
       HipaccMemory::setSizeY(y);
       if (isDomain()) { setDomainSize(size_x*size_y); }
     }
-    void setDomainSize(unsigned int size) {
+    void setDomainSize(unsigned size) {
       if (domain_space) {
         delete[] domain_space;
         domain_space = nullptr;
       }
       if (size > 0) {
         domain_space = new bool[size];
-        for (unsigned int i = 0; i < size; ++i) {
+        for (size_t i = 0; i < size; ++i) {
           domain_space[i] = true;
         }
       }
     }
-    void setDomainDefined(unsigned int pos, bool def) {
+    void setDomainDefined(unsigned pos, bool def) {
       if (domain_space) { domain_space[pos] = def; }
     }
-    void setDomainDefined(unsigned int x, unsigned int y, bool def) {
-      unsigned int pos = (y * size_x) + x;
+    void setDomainDefined(unsigned x, unsigned y, bool def) {
+      unsigned pos = (y * size_x) + x;
       setDomainDefined(pos, def);
     }
-    bool isDomainDefined(unsigned int x, unsigned int y) {
-      unsigned int pos = (y * size_x) + x;
+    bool isDomainDefined(unsigned x, unsigned y) {
+      unsigned pos = (y * size_x) + x;
       return domain_space && domain_space[pos];
     }
     void setCopyMask(HipaccMask *mask) {
@@ -476,13 +476,9 @@ class HipaccKernelClass {
       arguments.push_back(a);
     }
 
-    unsigned int getNumArgs() { return arguments.size(); }
-    unsigned int getNumImages() { return imgFields.size(); }
-    unsigned int getNumMasks() { return maskFields.size(); }
-
-    SmallVector<argumentInfo, 16> &getArguments() { return arguments; }
-    SmallVector<FieldDecl *, 16> &getImgFields() { return imgFields; }
-    SmallVector<FieldDecl *, 16> &getMaskFields() { return maskFields; }
+    ArrayRef<argumentInfo> getArguments() { return arguments; }
+    ArrayRef<FieldDecl *>  getImgFields() { return imgFields; }
+    ArrayRef<FieldDecl *>  getMaskFields() { return maskFields; }
 
     friend class HipaccKernel;
 };
@@ -587,7 +583,7 @@ class HipaccKernelFeatures : public HipaccDevice {
       return vectorization;
     }
 
-    unsigned int getPixelsPerThread() {
+    unsigned getPixelsPerThread() {
       return pixels_per_thread[KC->getKernelType()];
     }
 };
@@ -601,7 +597,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     std::string kernelName, reduceName;
     std::string fileName;
     std::string reduceStr, infoStr;
-    unsigned int infoStrCnt;
+    unsigned infoStrCnt;
     HipaccIterationSpace *iterationSpace;
     std::map<FieldDecl *, HipaccAccessor *> imgMap;
     std::map<FieldDecl *, HipaccMask *> maskMap;
@@ -615,11 +611,11 @@ class HipaccKernel : public HipaccKernelFeatures {
     SmallVector<FieldDecl *, 16> deviceArgFields;
     SmallVector<FunctionDecl *, 16> deviceFuncs;
     std::set<std::string> usedVars;
-    unsigned int max_threads_for_kernel;
-    unsigned int max_size_x, max_size_y;
-    unsigned int max_size_x_undef, max_size_y_undef;
-    unsigned int num_threads_x, num_threads_y;
-    unsigned int num_reg, num_lmem, num_smem, num_cmem;
+    unsigned max_threads_for_kernel;
+    unsigned max_size_x, max_size_y;
+    unsigned max_size_x_undef, max_size_y_undef;
+    unsigned num_threads_x, num_threads_y;
+    unsigned num_reg, num_lmem, num_smem, num_cmem;
 
     void calcSizes();
     void calcConfig();
@@ -627,7 +623,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     void addParam(QualType QT1, QualType QT2, QualType QT3, std::string typeC,
         std::string typeO, std::string name, FieldDecl *fd);
     void createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string &hostLiterals,
-        unsigned int &literalCount);
+        unsigned &literalCount);
 
   public:
     HipaccKernel(ASTContext &Ctx, VarDecl *VD, HipaccKernelClass *KC,
@@ -695,10 +691,8 @@ class HipaccKernel : public HipaccKernelFeatures {
     void resetUsed() {
       usedVars.clear();
       deviceFuncs.clear();
-      for (auto iter = imgMap.begin(), eiter=imgMap.end(); iter!=eiter; ++iter)
-      {
-        iter->second->resetDecls();
-      }
+      for (auto map : imgMap)
+        map.second->resetDecls();
     }
     bool getUsed(std::string name) {
       if (usedVars.find(name) != usedVars.end()) return true;
@@ -706,12 +700,8 @@ class HipaccKernel : public HipaccKernelFeatures {
     }
 
     // keep track of functions called within kernel
-    void addFunctionCall(FunctionDecl *FD) {
-      deviceFuncs.push_back(FD);
-    }
-    ArrayRef<FunctionDecl *> getFunctionCalls() {
-      return ArrayRef<FunctionDecl*>(deviceFuncs.data(), deviceFuncs.size());
-    }
+    void addFunctionCall(FunctionDecl *FD) { deviceFuncs.push_back(FD); }
+    ArrayRef<FunctionDecl *> getFunctionCalls() { return deviceFuncs; }
 
     void setIterationSpace(HipaccIterationSpace *IS) {
       iterationSpace = IS;
@@ -741,48 +731,43 @@ class HipaccKernel : public HipaccKernelFeatures {
       else return iter->second;
     }
 
-    unsigned int getNumArgs() {
-      createArgInfo();
-      return deviceArgNames.size();
-    }
     ArrayRef<QualType> getArgTypes(ASTContext &Ctx, TargetCode target_code) {
       createArgInfo();
 
       switch (target_code) {
         case TARGET_C:
-          return ArrayRef<QualType>(argTypesC.data(), argTypesC.size());
+          return argTypesC;
         case TARGET_CUDA:
-          return ArrayRef<QualType>(argTypesCUDA.data(), argTypesCUDA.size());
+          return argTypesCUDA;
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
         case TARGET_OpenCLGPU:
         case TARGET_Renderscript:
         case TARGET_Filterscript:
-          return ArrayRef<QualType>(argTypesOpenCL.data(),
-              argTypesOpenCL.size());
+          return argTypesOpenCL;
       }
     }
-    std::string *getArgTypeNames() {
+    ArrayRef<std::string>getArgTypeNames() {
       createArgInfo();
-      if (options.emitOpenCL()) return argTypeNamesOpenCL.data();
-      else return argTypeNames.data();
+      if (options.emitOpenCL()) return argTypeNamesOpenCL;
+      else return argTypeNames;
     }
     ArrayRef<std::string> getDeviceArgNames() {
       createArgInfo();
-      return makeArrayRef(deviceArgNames);
+      return deviceArgNames;
     }
     void setHostArgNames(ArrayRef<Expr *>hostArgs, std::string
-        &hostLiterals, unsigned int &literalCount) {
+        &hostLiterals, unsigned &literalCount) {
       createArgInfo();
       createHostArgInfo(hostArgs, hostLiterals, literalCount);
     }
-    std::string *getHostArgNames() {
+    ArrayRef<std::string>getHostArgNames() {
       assert(hostArgNames.size() && "host argument names not set");
-      return hostArgNames.data();
+      return hostArgNames;
     }
     ArrayRef<FieldDecl *>getDeviceArgFields() {
       createArgInfo();
-      return makeArrayRef(deviceArgFields);
+      return deviceArgFields;
     }
 
     void setResourceUsage(int reg, int lmem, int smem, int cmem) {
@@ -818,35 +803,34 @@ class HipaccKernel : public HipaccKernelFeatures {
       llvm::errs() << "  Vectorization: " << vectorize() << "\n";
       llvm::errs() << "  Pixels per thread: " << getPixelsPerThread() << "\n";
 
-      for (auto iter = memMap.begin(), eiter=memMap.end(); iter!=eiter; ++iter)
-      {
-        llvm::errs() << "  Image '" << iter->first->getName() << "': ";
-        if (iter->second & Global) llvm::errs() << "global ";
-        if (iter->second & Constant) llvm::errs() << "constant ";
-        if (iter->second & Texture) llvm::errs() << "texture ";
-        if (iter->second & Local) llvm::errs() << "local ";
+      for (auto map : memMap) {
+        llvm::errs() << "  Image '" << map.first->getName() << "': ";
+        if (map.second & Global) llvm::errs() << "global ";
+        if (map.second & Constant) llvm::errs() << "constant ";
+        if (map.second & Texture) llvm::errs() << "texture ";
+        if (map.second & Local) llvm::errs() << "local ";
         llvm::errs() << "\n";
       }
     }
 
-    unsigned int getMaxThreadsForKernel() { return max_threads_for_kernel; }
-    unsigned int getMaxThreadsPerBlock() { return max_threads_per_block; }
-    unsigned int getMaxTotalSharedMemory() { return max_total_shared_memory; }
-    unsigned int getWarpSize() { return max_threads_per_warp; }
-    unsigned int getMaxSizeX() { return max_size_x<=1?0:max_size_x>>1; }
-    unsigned int getMaxSizeY() { return max_size_y<=1?0:max_size_y>>1; }
-    unsigned int getMaxSizeXUndef() {
+    unsigned getMaxThreadsForKernel() { return max_threads_for_kernel; }
+    unsigned getMaxThreadsPerBlock() { return max_threads_per_block; }
+    unsigned getMaxTotalSharedMemory() { return max_total_shared_memory; }
+    unsigned getWarpSize() { return max_threads_per_warp; }
+    unsigned getMaxSizeX() { return max_size_x<=1?0:max_size_x>>1; }
+    unsigned getMaxSizeY() { return max_size_y<=1?0:max_size_y>>1; }
+    unsigned getMaxSizeXUndef() {
       return max_size_x_undef<=1?0:max_size_x_undef>>1;
     }
-    unsigned int getMaxSizeYUndef() {
+    unsigned getMaxSizeYUndef() {
       return max_size_y_undef<=1?0:max_size_y_undef>>1;
     }
-    unsigned int getNumThreadsX() { return num_threads_x; }
-    unsigned int getNumThreadsY() { return num_threads_y; }
-    unsigned int getNumThreadsReduce() {
+    unsigned getNumThreadsX() { return num_threads_x; }
+    unsigned getNumThreadsY() { return num_threads_y; }
+    unsigned getNumThreadsReduce() {
       return default_num_threads_x*default_num_threads_y;
     }
-    unsigned int getPixelsPerThreadReduce() {
+    unsigned getPixelsPerThreadReduce() {
       return pixels_per_thread[GlobalOperator];
     }
 };
