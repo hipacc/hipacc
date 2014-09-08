@@ -16,28 +16,21 @@ SET(CLANG_USED_LIBS
     clangBasic)
 
 SET(HIPACC_USED_LIBS
-    Rewrite
-    CreateHostStrings
-    ClassRepresentation
-    ASTTranslate
-    SIMDTypes)
+    hipaccRewrite
+    hipaccCreateHostStrings
+    hipaccClassRepresentation
+    hipaccASTTranslate
+    hipaccSIMDTypes)
 
 IF(USE_POLLY)
-    LIST(APPEND HIPACC_USED_LIBS Polly)
-    ADD_LIBRARY(LLVMPolly SHARED IMPORTED)
-    SET_TARGET_PROPERTIES(LLVMPolly
-        PROPERTIES
-        IMPORTED_LOCATION ${LLVM_LIBRARY_DIR}/LLVMPolly${CMAKE_SHARED_LIBRARY_SUFFIX})
+    LIST(APPEND HIPACC_USED_LIBS hipaccPolly)
+    LIST(APPEND LLVM_MODULE_LIBS Polly)
 ENDIF(USE_POLLY)
 
 LIST(APPEND HIPACC_USED_LIBS
-    KernelStatistics
-    Builtins
-    ASTNode)
-
-IF(USE_POLLY)
-    LIST(APPEND LLVM_MODULE_LIBS LLVMPollyAnalysis LLVMPollyCodeGen LLVMPollyExchange LLVMPolly)
-ENDIF(USE_POLLY)
+    hipaccKernelStatistics
+    hipaccBuiltins
+    hipaccASTNode)
 
 SET(hipacc_SOURCES hipacc.cpp)
 ADD_EXECUTABLE(hipacc ${hipacc_SOURCES})

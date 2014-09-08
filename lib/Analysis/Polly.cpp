@@ -47,6 +47,10 @@
 
 #include "hipacc/Analysis/Polly.h"
 
+namespace polly {
+void initializePollyPasses(llvm::PassRegistry &Registry);
+}
+
 using namespace clang;
 using namespace hipacc;
 
@@ -74,7 +78,9 @@ void Polly::analyzeKernel() {
   // initialize passes
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initializeCore(Registry);
+  initializeDebugIRPass(Registry);
   initializeScalarOpts(Registry);
+  initializeVectorization(Registry);
   initializeIPO(Registry);
   initializeAnalysis(Registry);
   initializeIPA(Registry);
@@ -83,24 +89,20 @@ void Polly::analyzeKernel() {
   initializeInstrumentation(Registry);
   initializeTarget(Registry);
 
+  polly::initializePollyPasses(Registry);
+
   // create a PassManager to hold and optimize the collection of passes we are
   // about to build
   llvm::PassManager Passes;
 
   // add an appropriate TargetLibraryInfo pass for the module's triple
-  llvm::Triple targetTriple(irModule->getTargetTriple());
-  llvm::TargetLibraryInfo *TLI = new llvm::TargetLibraryInfo(targetTriple);
+  auto TLI = new llvm::TargetLibraryInfo(Triple(irModule->getTargetTriple()));
   Passes.add(TLI);
 
   // add an appropriate DataLayout instance for this module.
-  llvm::DataLayout *DL = 0;
-  const std::string &ModuleDataLayout = irModule->getDataLayout();
-  if (!ModuleDataLayout.empty()) {
-    DL = new llvm::DataLayout(ModuleDataLayout);
-  } else {
-    DL = new llvm::DataLayout("default-data-layout");
-  }
-  if (DL) Passes.add(DL);
+  auto DL = irModule->getDataLayout();
+  if (DL)
+    Passes.add(new DataLayoutPass(irModule));
 
   Passes.add(llvm::createPromoteMemoryToRegisterPass());
   Passes.add(llvm::createFunctionInliningPass());
