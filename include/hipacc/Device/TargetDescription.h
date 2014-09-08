@@ -395,7 +395,6 @@ class HipaccDevice : public HipaccDeviceOptions {
           return "NVIDIA Tesla (11)";
         case TESLA_12:
           return "NVIDIA Tesla (12)";
-        default:
         case TESLA_13:
           return "NVIDIA Tesla (13)";
         case FERMI_20:
@@ -413,7 +412,7 @@ class HipaccDevice : public HipaccDeviceOptions {
         //case SOUTHERN_ISLAND:
         //  return "AMD Southern Island";
         case MIDGARD:
-          return "ARM Midgard: Mali-6xx";
+          return "ARM Midgard: Mali-T6xx";
         case KNIGHTSCORNER:
           return "Intel MIC: Knights Corner";
       }
