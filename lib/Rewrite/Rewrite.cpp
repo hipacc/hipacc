@@ -1250,7 +1250,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               for (size_t y=0; y<ILEY->getNumInits(); ++y) {
                 auto ILEX = dyn_cast<InitListExpr>(ILEY->getInit(y));
                 for (size_t x=0; x<ILEX->getNumInits(); ++x) {
-                  auto xexpr = ILEX->IgnoreParenCasts();
+                  auto xexpr = ILEX->getInit(x)->IgnoreParenCasts();
                   if (!xexpr->isConstantInitializer(Context, false)) {
                     isDomainConstant = false;
                     break;
