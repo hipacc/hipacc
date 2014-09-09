@@ -53,21 +53,21 @@ enum CompilerOption {
 };
 
 // target language specification
-enum TargetCode {
-  TARGET_CUDA            = 0x1,
-  TARGET_OpenCLACC       = 0x2,
-  TARGET_OpenCLCPU       = 0x4,
-  TARGET_OpenCLGPU       = 0x8,
-  TARGET_Renderscript    = 0x10,
-  TARGET_Filterscript    = 0x20,
-  TARGET_C               = 0x40
+enum class Language : uint8_t {
+  C99,
+  CUDA,
+  OpenCLACC,
+  OpenCLCPU,
+  OpenCLGPU,
+  Renderscript,
+  Filterscript
 };
 
 class CompilerOptions {
   private:
     // target code and device specification
-    TargetCode target_code;
-    TargetDevice target_device;
+    Language target_lang;
+    Device target_device;
     // target code features
     CompilerOption explore_config;
     CompilerOption time_kernels;
@@ -82,7 +82,7 @@ class CompilerOptions {
     int kernel_config_x, kernel_config_y;
     int align_bytes;
     int pixels_per_thread;
-    TextureType texture_memory_type;
+    Texture texture_type;
     std::string rs_package_name;
 
     void getOptionAsString(CompilerOption option, int val=-1) {
@@ -108,8 +108,8 @@ class CompilerOptions {
 
   public:
     CompilerOptions() :
-      target_code(TARGET_OpenCLGPU),
-      target_device(TESLA_13),
+      target_lang(Language::OpenCLGPU),
+      target_device(Device::Fermi_20),
       explore_config(OFF),
       time_kernels(OFF),
       kernel_config(AUTO),
@@ -122,47 +122,25 @@ class CompilerOptions {
       kernel_config_y(1),
       align_bytes(0),
       pixels_per_thread(1),
-      texture_memory_type(NoTexture),
+      texture_type(Texture::None),
       rs_package_name("org.hipacc.rs")
     {}
 
-    bool emitCUDA() {
-      if (target_code & TARGET_CUDA) return true;
-      return false;
-    }
+    bool emitC99() { return target_lang == Language::C99; }
+    bool emitCUDA() { return target_lang == Language::CUDA; }
     bool emitOpenCL() {
-      if (target_code & TARGET_OpenCLACC ||
-          target_code & TARGET_OpenCLCPU ||
-          target_code & TARGET_OpenCLGPU) return true;
-      return false;
+      return target_lang == Language::OpenCLACC ||
+             target_lang == Language::OpenCLCPU ||
+             target_lang == Language::OpenCLGPU;
     }
-    bool emitOpenCLACC() {
-      if (target_code & TARGET_OpenCLACC) return true;
-      return false;
-    }
-    bool emitOpenCLCPU() {
-      if (target_code & TARGET_OpenCLCPU) return true;
-      return false;
-    }
-    bool emitOpenCLGPU() {
-      if (target_code & TARGET_OpenCLGPU) return true;
-      return false;
-    }
-    bool emitRenderscript() {
-      if (target_code & TARGET_Renderscript) return true;
-      return false;
-    }
-    bool emitFilterscript() {
-      if (target_code & TARGET_Filterscript) return true;
-      return false;
-    }
-    bool emitC() {
-      if (target_code & TARGET_C) return true;
-      return false;
-    }
+    bool emitOpenCLACC() { return target_lang == Language::OpenCLACC; }
+    bool emitOpenCLCPU() { return target_lang == Language::OpenCLCPU; }
+    bool emitOpenCLGPU() { return target_lang == Language::OpenCLGPU; }
+    bool emitRenderscript() { return target_lang == Language::Renderscript; }
+    bool emitFilterscript() { return target_lang == Language::Filterscript; }
 
-    TargetCode getTargetCode() { return target_code; }
-    TargetDevice getTargetDevice() { return target_device; }
+    Language getTargetLang() { return target_lang; }
+    Device getTargetDevice() { return target_device; }
 
     bool exploreConfig(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
       if (explore_config & option) return true;
@@ -190,7 +168,7 @@ class CompilerOptions {
       if (texture_memory & option) return true;
       return false;
     }
-    TextureType getTextureType() { return texture_memory_type; }
+    Texture getTextureType() { return texture_type; }
 
     bool useLocalMemory(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
       if (local_memory & option) return true;
@@ -209,16 +187,16 @@ class CompilerOptions {
     int getPixelsPerThread() { return pixels_per_thread; }
     std::string getRSPackageName() { return rs_package_name; }
 
-    void setTargetCode(TargetCode tc) { target_code = tc; }
-    void setTargetDevice(TargetDevice td) { target_device = td; }
+    void setTargetLang(Language lang) { target_lang = lang; }
+    void setTargetDevice(Device td) { target_device = td; }
     void setExploreConfig(CompilerOption o) { explore_config = o; }
     void setTimeKernels(CompilerOption o) { time_kernels = o; }
     void setLocalMemory(CompilerOption o) { local_memory = o; }
     void setVectorizeKernels(CompilerOption o) { vectorize_kernels = o; }
 
-    void setTextureMemory(TextureType type) {
-      texture_memory_type = type;
-      if (type == NoTexture) texture_memory = USER_OFF;
+    void setTextureMemory(Texture type) {
+      texture_type = type;
+      if (type == Texture::None) texture_memory = USER_OFF;
       else texture_memory = USER_ON;
     }
 
@@ -245,28 +223,28 @@ class CompilerOptions {
     }
 
     std::string getTargetPrefix() {
-      switch (target_code) {
-        case TARGET_C:            return "cc";
-        case TARGET_CUDA:         return "cu";
-        case TARGET_OpenCLACC:
-        case TARGET_OpenCLCPU:
-        case TARGET_OpenCLGPU:    return "cl";
-        case TARGET_Renderscript: return "rs";
-        case TARGET_Filterscript: return "fs";
+      switch (target_lang) {
+        case Language::C99:          return "cc";
+        case Language::CUDA:         return "cu";
+        case Language::OpenCLACC:
+        case Language::OpenCLCPU:
+        case Language::OpenCLGPU:    return "cl";
+        case Language::Renderscript: return "rs";
+        case Language::Filterscript: return "fs";
       }
     }
 
     void printSummary(std::string target_device) {
       llvm::errs() << "HIPACC compiler configuration summary: \n";
       llvm::errs() << "  Generating target code for '";
-      switch (target_code) {
-        case TARGET_C:            llvm::errs() << "C/C++";        break;
-        case TARGET_CUDA:         llvm::errs() << "CUDA";         break;
-        case TARGET_OpenCLACC:    llvm::errs() << "OpenCL (ACC)"; break;
-        case TARGET_OpenCLCPU:    llvm::errs() << "OpenCL (CPU)"; break;
-        case TARGET_OpenCLGPU:    llvm::errs() << "OpenCL (GPU)"; break;
-        case TARGET_Renderscript: llvm::errs() << "Renderscript"; break;
-        case TARGET_Filterscript: llvm::errs() << "Filterscript"; break;
+      switch (target_lang) {
+        case Language::C99:          llvm::errs() << "C/C++";        break;
+        case Language::CUDA:         llvm::errs() << "CUDA";         break;
+        case Language::OpenCLACC:    llvm::errs() << "OpenCL (ACC)"; break;
+        case Language::OpenCLCPU:    llvm::errs() << "OpenCL (CPU)"; break;
+        case Language::OpenCLGPU:    llvm::errs() << "OpenCL (GPU)"; break;
+        case Language::Renderscript: llvm::errs() << "Renderscript"; break;
+        case Language::Filterscript: llvm::errs() << "Filterscript"; break;
       }
       llvm::errs() << "' language.\n";
       llvm::errs() << "  Target device is '" << target_device << "'";
@@ -285,12 +263,12 @@ class CompilerOptions {
       getOptionAsString(align_memory, align_bytes);
       llvm::errs() << "\n  Usage of texture memory for images: ";
       getOptionAsString(texture_memory);
-      switch (texture_memory_type) {
-        case NoTexture: break;
-        case Linear1D:  llvm::errs() << ": Linear1D"; break;
-        case Linear2D:  llvm::errs() << ": Linear2D"; break;
-        case Array2D:   llvm::errs() << ": Array2D";  break;
-        case Ldg:       llvm::errs() << ": Ldg";      break;
+      switch (texture_type) {
+        case Texture::None:                                    break;
+        case Texture::Linear1D:  llvm::errs() << ": Linear1D"; break;
+        case Texture::Linear2D:  llvm::errs() << ": Linear2D"; break;
+        case Texture::Array2D:   llvm::errs() << ": Array2D";  break;
+        case Texture::Ldg:       llvm::errs() << ": Ldg";      break;
       }
       llvm::errs() << "\n  Usage of local memory reading from images: ";
       getOptionAsString(local_memory);

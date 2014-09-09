@@ -144,31 +144,31 @@ int main(int argc, char *argv[]) {
   // parse command line options
   for (int i=1; i<argc; ++i) {
     if (StringRef(argv[i]) == "-emit-cpu") {
-      compilerOptions.setTargetCode(TARGET_C);
+      compilerOptions.setTargetLang(Language::C99);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-cuda") {
-      compilerOptions.setTargetCode(TARGET_CUDA);
+      compilerOptions.setTargetLang(Language::CUDA);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-opencl-acc") {
-      compilerOptions.setTargetCode(TARGET_OpenCLACC);
+      compilerOptions.setTargetLang(Language::OpenCLACC);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-opencl-cpu") {
-      compilerOptions.setTargetCode(TARGET_OpenCLCPU);
+      compilerOptions.setTargetLang(Language::OpenCLCPU);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-opencl-gpu") {
-      compilerOptions.setTargetCode(TARGET_OpenCLGPU);
+      compilerOptions.setTargetLang(Language::OpenCLGPU);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-renderscript") {
-      compilerOptions.setTargetCode(TARGET_Renderscript);
+      compilerOptions.setTargetLang(Language::Renderscript);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-filterscript") {
-      compilerOptions.setTargetCode(TARGET_Filterscript);
+      compilerOptions.setTargetLang(Language::Filterscript);
       compilerOptions.setPixelsPerThread(1);
       continue;
     }
@@ -189,29 +189,29 @@ int main(int argc, char *argv[]) {
     if (StringRef(argv[i]) == "-target") {
       assert(i<(argc-1) && "Mandatory code name parameter for -target switch missing.");
       if (StringRef(argv[i+1]) == "Tesla-10") {
-        compilerOptions.setTargetDevice(TESLA_10);
+        compilerOptions.setTargetDevice(Device::Tesla_10);
       } else if (StringRef(argv[i+1]) == "Tesla-11") {
-        compilerOptions.setTargetDevice(TESLA_11);
+        compilerOptions.setTargetDevice(Device::Tesla_11);
       } else if (StringRef(argv[i+1]) == "Tesla-12") {
-        compilerOptions.setTargetDevice(TESLA_12);
+        compilerOptions.setTargetDevice(Device::Tesla_12);
       } else if (StringRef(argv[i+1]) == "Tesla-13") {
-        compilerOptions.setTargetDevice(TESLA_13);
+        compilerOptions.setTargetDevice(Device::Tesla_13);
       } else if (StringRef(argv[i+1]) == "Fermi-20") {
-        compilerOptions.setTargetDevice(FERMI_20);
+        compilerOptions.setTargetDevice(Device::Fermi_20);
       } else if (StringRef(argv[i+1]) == "Fermi-21") {
-        compilerOptions.setTargetDevice(FERMI_21);
+        compilerOptions.setTargetDevice(Device::Fermi_21);
       } else if (StringRef(argv[i+1]) == "Kepler-30") {
-        compilerOptions.setTargetDevice(KEPLER_30);
+        compilerOptions.setTargetDevice(Device::Kepler_30);
       } else if (StringRef(argv[i+1]) == "Kepler-35") {
-        compilerOptions.setTargetDevice(KEPLER_35);
+        compilerOptions.setTargetDevice(Device::Kepler_35);
       } else if (StringRef(argv[i+1]) == "Evergreen") {
-        compilerOptions.setTargetDevice(EVERGREEN);
+        compilerOptions.setTargetDevice(Device::Evergreen);
       } else if (StringRef(argv[i+1]) == "NorthernIsland") {
-        compilerOptions.setTargetDevice(NORTHERN_ISLAND);
+        compilerOptions.setTargetDevice(Device::NorthernIsland);
       } else if (StringRef(argv[i+1]) == "Midgard") {
-        compilerOptions.setTargetDevice(MIDGARD);
+        compilerOptions.setTargetDevice(Device::Midgard);
       } else if (StringRef(argv[i+1]) == "KnightsCorner") {
-        compilerOptions.setTargetDevice(KNIGHTSCORNER);
+        compilerOptions.setTargetDevice(Device::KnightsCorner);
       } else {
         llvm::errs() << "ERROR: Expected valid code name specification for -target switch.\n\n";
         printUsage();
@@ -244,15 +244,15 @@ int main(int argc, char *argv[]) {
     if (StringRef(argv[i]) == "-use-textures") {
       assert(i<(argc-1) && "Mandatory texture memory specification for -use-textures switch missing.");
       if (StringRef(argv[i+1]) == "off") {
-        compilerOptions.setTextureMemory(NoTexture);
+        compilerOptions.setTextureMemory(Texture::None);
       } else if (StringRef(argv[i+1]) == "Linear1D") {
-        compilerOptions.setTextureMemory(Linear1D);
+        compilerOptions.setTextureMemory(Texture::Linear1D);
       } else if (StringRef(argv[i+1]) == "Linear2D") {
-        compilerOptions.setTextureMemory(Linear2D);
+        compilerOptions.setTextureMemory(Texture::Linear2D);
       } else if (StringRef(argv[i+1]) == "Array2D") {
-        compilerOptions.setTextureMemory(Array2D);
+        compilerOptions.setTextureMemory(Texture::Array2D);
       } else if (StringRef(argv[i+1]) == "Ldg") {
-        compilerOptions.setTextureMemory(Ldg);
+        compilerOptions.setTextureMemory(Texture::Ldg);
       } else {
         llvm::errs() << "ERROR: Expected valid texture memory specification for -use-textures switch.\n\n";
         printUsage();
@@ -353,20 +353,20 @@ int main(int argc, char *argv[]) {
   }
   // Textures in CUDA - writing to Array2D textures introduced with Fermi
   if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory(USER_ON)) {
-    if (compilerOptions.getTextureType()==Array2D &&
-        compilerOptions.getTargetDevice() < FERMI_20) {
+    if (compilerOptions.getTextureType()==Texture::Array2D &&
+        compilerOptions.getTargetDevice() < Device::Fermi_20) {
       llvm::errs() << "Warning: 'Array2D' texture memory only supported for Fermi and later on (CC >= 2.0)!"
                    << "  Using 'Linear2D' instead!\n";
-      compilerOptions.setTextureMemory(Linear2D);
+      compilerOptions.setTextureMemory(Texture::Linear2D);
     }
   }
   // Textures in CUDA - Ldg (load via texture cache) was introduced with Kepler
   if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory(USER_ON)) {
-    if (compilerOptions.getTextureType()==Ldg &&
-        compilerOptions.getTargetDevice() < KEPLER_35) {
+    if (compilerOptions.getTextureType()==Texture::Ldg &&
+        compilerOptions.getTargetDevice() < Device::Kepler_35) {
       llvm::errs() << "Warning: 'Ldg' texture memory only supported for Kepler and later on (CC >= 3.5)!"
                    << "  Using 'Linear1D' instead!\n";
-      compilerOptions.setTextureMemory(Linear1D);
+      compilerOptions.setTextureMemory(Texture::Linear1D);
     }
   }
   // Textures in OpenCL - only supported on some CPU platforms
@@ -381,10 +381,10 @@ int main(int argc, char *argv[]) {
   }
   // Textures in OpenCL - only Array2D textures supported
   if (compilerOptions.emitOpenCLGPU() && compilerOptions.useTextureMemory(USER_ON)) {
-    if (compilerOptions.getTextureType()!=Array2D) {
+    if (compilerOptions.getTextureType()!=Texture::Array2D) {
       llvm::errs() << "Warning: 'Linear1D', 'Linear2D', and 'Ldg' texture memory not supported by OpenCL!\n"
                    << "  Using 'Array2D' instead!\n";
-      compilerOptions.setTextureMemory(Array2D);
+      compilerOptions.setTextureMemory(Texture::Array2D);
     }
   }
   // Invalid specification for kernel configuration

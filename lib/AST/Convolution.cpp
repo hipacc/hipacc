@@ -193,23 +193,23 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
   assert(domain_var && "Domain.");
 
   Expr *dom_acc = nullptr;
-  switch (compilerOptions.getTargetCode()) {
-    case TARGET_C:
-    case TARGET_CUDA:
+  switch (compilerOptions.getTargetLang()) {
+    case Language::C99:
+    case Language::CUDA:
       // array subscript: Domain[y][x]
       dom_acc = accessMem2DAt(domain_var, createIntegerLiteral(Ctx,
             redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
       break;
-    case TARGET_OpenCLACC:
-    case TARGET_OpenCLCPU:
-    case TARGET_OpenCLGPU:
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
       // array subscript: Domain[y*width + x]
       dom_acc = accessMemArrAt(domain_var, createIntegerLiteral(Ctx,
             (int)Domain->getSizeX()), createIntegerLiteral(Ctx, redIdxX.back()),
           createIntegerLiteral(Ctx, redIdxY.back()));
       break;
-    case TARGET_Renderscript:
-    case TARGET_Filterscript:
+    case Language::Renderscript:
+    case Language::Filterscript:
       // allocation access: rsGetElementAt(Domain, x, y)
       dom_acc = accessMemAllocAt(domain_var, READ_ONLY, createIntegerLiteral(Ctx,
             redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));

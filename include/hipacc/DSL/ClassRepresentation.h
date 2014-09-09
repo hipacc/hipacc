@@ -490,22 +490,23 @@ class HipaccKernelFeatures : public HipaccDevice {
     enum MemoryType {
       Global    = 0x1,
       Constant  = 0x2,
-      Texture   = 0x4,
+      Texture_  = 0x4,
       Local     = 0x8
     };
 
     CompilerOptions &options;
     HipaccKernelClass *KC;
     std::map<HipaccAccessor *, MemoryType> memMap;
-    std::map<HipaccAccessor *, TextureType> texMap;
+    std::map<HipaccAccessor *, Texture> texMap;
 
     void calcISFeature(HipaccAccessor *acc) {
       MemoryType mem_type = Global;
-      TextureType tex_type = NoTexture;
+      Texture tex_type = Texture::None;
 
-      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-        mem_type = Texture;
-        tex_type = Array2D;
+      if (options.useTextureMemory() &&
+          options.getTextureType()==Texture::Array2D) {
+        mem_type = Texture_;
+        tex_type = Texture::Array2D;
       }
 
       memMap[acc] = mem_type;
@@ -514,20 +515,21 @@ class HipaccKernelFeatures : public HipaccDevice {
 
     void calcImgFeature(FieldDecl *decl, HipaccAccessor *acc) {
       MemoryType mem_type = Global;
-      TextureType tex_type = NoTexture;
+      Texture tex_type = Texture::None;
       MemoryAccessDetail memAccessDetail = KC->getImgAccessDetail(decl);
 
-      if (options.useTextureMemory() && options.getTextureType()==Array2D) {
-        mem_type = Texture;
-        tex_type = Array2D;
+      if (options.useTextureMemory() &&
+          options.getTextureType()==Texture::Array2D) {
+        mem_type = Texture_;
+        tex_type = Texture::Array2D;
       } else {
         // for OpenCL image-objects and CUDA arrays we have to enable or disable
         // textures all the time otherwise, use texture memory only in case the
         // image is accessed with an offset to the x-coordinate
         if (options.emitCUDA()) {
           if (memAccessDetail & NO_STRIDE) {
-            if (require_textures[PointOperator]) {
-              mem_type = Texture;
+            if (require_textures[PointOperator]!=Texture::None) {
+              mem_type = Texture_;
               tex_type = require_textures[PointOperator];
             }
           }
@@ -535,13 +537,13 @@ class HipaccKernelFeatures : public HipaccDevice {
               (memAccessDetail & STRIDE_Y) ||
               (memAccessDetail & STRIDE_XY)) {
             // possibly use textures only for stride_x ?
-            if (require_textures[LocalOperator]) {
-              mem_type = Texture;
+            if (require_textures[LocalOperator]!=Texture::None) {
+              mem_type = Texture_;
               tex_type = require_textures[LocalOperator];
             }
           } else if (memAccessDetail & USER_XY) {
-            if (require_textures[UserOperator]) {
-              mem_type = Texture;
+            if (require_textures[UserOperator]!=Texture::None) {
+              mem_type = Texture_;
               tex_type = require_textures[LocalOperator];
             }
           }
@@ -571,12 +573,12 @@ class HipaccKernelFeatures : public HipaccDevice {
       return false;
     }
 
-    TextureType useTextureMemory(HipaccAccessor *acc) {
+    Texture useTextureMemory(HipaccAccessor *acc) {
       if (memMap.count(acc)) {
-        if (memMap[acc] & Texture) return texMap[acc];
+        if (memMap[acc] & Texture_) return texMap[acc];
       }
 
-      return NoTexture;
+      return Texture::None;
     }
 
     bool vectorize() {
@@ -659,14 +661,13 @@ class HipaccKernel : public HipaccKernelFeatures {
       num_smem(0),
       num_cmem(0)
     {
-      switch (options.getTargetCode()) {
-        case TARGET_Renderscript:
-        case TARGET_Filterscript:
+      switch (options.getTargetLang()) {
+        default: break;
+        case Language::Renderscript:
+        case Language::Filterscript:
           // Renderscript and Filterscript compiler expects lowercase file names
           std::transform(fileName.begin(), fileName.end(), fileName.begin(),
               std::bind2nd(std::ptr_fun(&std::tolower<char>), std::locale()));
-          break;
-        default:
           break;
       }
     }
@@ -730,20 +731,17 @@ class HipaccKernel : public HipaccKernelFeatures {
       else return iter->second;
     }
 
-    ArrayRef<QualType> getArgTypes(ASTContext &Ctx, TargetCode target_code) {
+    ArrayRef<QualType> getArgTypes(ASTContext &Ctx, Language lang) {
       createArgInfo();
 
-      switch (target_code) {
-        case TARGET_C:
-          return argTypesC;
-        case TARGET_CUDA:
-          return argTypesCUDA;
-        case TARGET_OpenCLACC:
-        case TARGET_OpenCLCPU:
-        case TARGET_OpenCLGPU:
-        case TARGET_Renderscript:
-        case TARGET_Filterscript:
-          return argTypesOpenCL;
+      switch (lang) {
+        case Language::C99:          return argTypesC;
+        case Language::CUDA:         return argTypesCUDA;
+        case Language::OpenCLACC:
+        case Language::OpenCLCPU:
+        case Language::OpenCLGPU:
+        case Language::Renderscript:
+        case Language::Filterscript: return argTypesOpenCL;
       }
     }
     ArrayRef<std::string>getArgTypeNames() {
@@ -806,7 +804,7 @@ class HipaccKernel : public HipaccKernelFeatures {
         llvm::errs() << "  Image '" << map.first->getName() << "': ";
         if (map.second & Global) llvm::errs() << "global ";
         if (map.second & Constant) llvm::errs() << "constant ";
-        if (map.second & Texture) llvm::errs() << "texture ";
+        if (map.second & Texture_) llvm::errs() << "texture ";
         if (map.second & Local) llvm::errs() << "local ";
         llvm::errs() << "\n";
       }

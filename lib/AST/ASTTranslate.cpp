@@ -499,15 +499,16 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
   tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace()->getAccessor());
   tileVars.local_size_y = createIntegerLiteral(Ctx, 1);
 
-  switch (compilerOptions.getTargetCode()) {
-    case TARGET_Renderscript: {
+  switch (compilerOptions.getTargetLang()) {
+    default: break;
+    case Language::Renderscript: {
         // retValRef: Kernel parameter pointing to current output pixel
         VarDecl *output = createVarDecl(Ctx, kernelDecl, "_IS",
             Kernel->getIterationSpace()->getImage()->getType());
         retValRef = createDeclRefExpr(Ctx, output);
       }
       break;
-    case TARGET_Filterscript: {
+    case Language::Filterscript: {
         // retValRef: Variable storing output value to return from kernel
         VarDecl *output = createVarDecl(Ctx, kernelDecl, "OutputVal",
             Kernel->getIterationSpace()->getImage()->getType());
@@ -516,33 +517,27 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
         retValRef = createDeclRefExpr(Ctx, output);
       }
       break;
-    default:
-      break;
   }
 }
 
 
 // update tileVars to constants if required
 void ASTTranslate::updateTileVars() {
-  switch (compilerOptions.getTargetCode()) {
-    default:
-    case TARGET_C:
-    case TARGET_Renderscript:
-    case TARGET_Filterscript:
-      break;
-    case TARGET_CUDA:
-    case TARGET_OpenCLACC:
-    case TARGET_OpenCLCPU:
-    case TARGET_OpenCLGPU:
+  switch (compilerOptions.getTargetLang()) {
+    default: break;
+    case Language::CUDA:
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
       tileVars.local_id_x = addCastToInt(tileVars.local_id_x);
       tileVars.local_id_y = addCastToInt(tileVars.local_id_y);
       tileVars.block_id_x = addCastToInt(tileVars.block_id_x);
       tileVars.block_id_y = addCastToInt(tileVars.block_id_y);
       // select fastest method for accessing blockDim.[x|y]
       // TODO: define this in HipaccDeviceOptions
-      if (compilerOptions.getTargetDevice()>=FERMI_20 &&
-          compilerOptions.getTargetDevice()<=KEPLER_30 &&
-          compilerOptions.getTargetCode()==TARGET_CUDA) {
+      if (compilerOptions.getTargetDevice()>=Device::Fermi_20 &&
+          compilerOptions.getTargetDevice()<=Device::Kepler_30 &&
+          compilerOptions.getTargetLang()==Language::CUDA) {
         if (compilerOptions.exploreConfig() && !emitEstimation) {
           tileVars.local_size_x = createDeclRefExpr(Ctx, createVarDecl(Ctx,
                 kernelDecl, "BSX_EXPLORE", Ctx.IntTy, nullptr));
@@ -678,26 +673,25 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
   SmallVector<Stmt *, 16> kernelBody;
   FunctionDecl *barrier;
-  switch (compilerOptions.getTargetCode()) {
-    default:
-    case TARGET_C:
+  switch (compilerOptions.getTargetLang()) {
+    case Language::C99:
       initCPU(kernelBody, S);
       return createCompoundStmt(Ctx, kernelBody);
       break;
-    case TARGET_CUDA:
+    case Language::CUDA:
       initCUDA(kernelBody);
       // void __syncthreads();
       barrier = builtins.getBuiltinFunction(CUDABI__syncthreads);
       break;
-    case TARGET_OpenCLACC:
-    case TARGET_OpenCLCPU:
-    case TARGET_OpenCLGPU:
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
       initOpenCL(kernelBody);
       // void barrier(cl_mem_fence_flags);
       barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
       break;
-    case TARGET_Renderscript:
-    case TARGET_Filterscript:
+    case Language::Renderscript:
+    case Language::Filterscript:
       initRenderscript(kernelBody);
       break;
   }
@@ -743,7 +737,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   KernelFunctionMap.clear();
 
   // add vector pointer declarations for images
-  if (Kernel->vectorize() && !compilerOptions.emitC()) {
+  if (Kernel->vectorize() && !compilerOptions.emitC99()) {
     // search for member name in kernel parameter list
     for (auto param : kernelDecl->params()) {
       // output image - iteration space
@@ -869,18 +863,15 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         QT = Ctx.getConstantArrayType(QT, SY, ArrayType::Normal, 0);
       }
 
-      switch (compilerOptions.getTargetCode()) {
-        case TARGET_C:
-        case TARGET_Renderscript:
-        case TARGET_Filterscript:
-          break;
-        case TARGET_CUDA:
+      switch (compilerOptions.getTargetLang()) {
+        default: break;
+        case Language::CUDA:
           VD = createVarDecl(Ctx, DC, sharedName, QT, nullptr);
           VD->addAttr(CUDASharedAttr::CreateImplicit(Ctx));
           break;
-        case TARGET_OpenCLACC:
-        case TARGET_OpenCLCPU:
-        case TARGET_OpenCLGPU:
+        case Language::OpenCLACC:
+        case Language::OpenCLCPU:
+        case Language::OpenCLGPU:
           VD = createVarDecl(Ctx, DC, sharedName, Ctx.getAddrSpaceQualType(QT,
                 LangAS::opencl_local), nullptr);
           break;
@@ -1278,17 +1269,14 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     if (use_shared) {
       // add memory barrier synchronization
       SmallVector<Expr *, 16> args;
-      switch (compilerOptions.getTargetCode()) {
-        case TARGET_C:
-        case TARGET_Renderscript:
-        case TARGET_Filterscript:
-          break;
-        case TARGET_CUDA:
+      switch (compilerOptions.getTargetLang()) {
+        default: break;
+        case Language::CUDA:
           labelBody.push_back(createFunctionCall(Ctx, barrier, args));
           break;
-        case TARGET_OpenCLACC:
-        case TARGET_OpenCLCPU:
-        case TARGET_OpenCLGPU:
+        case Language::OpenCLACC:
+        case Language::OpenCLCPU:
+        case Language::OpenCLGPU:
           // CLK_LOCAL_MEM_FENCE -> 1
           // CLK_GLOBAL_MEM_FENCE -> 2
           args.push_back(createIntegerLiteral(Ctx, 1));
@@ -1416,7 +1404,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *VD) {
     std::string name = VD->getName();
 
     if (Kernel->vectorize() && KernelClass->getVectorizeInfo(VD) == VECTORIZE &&
-        !compilerOptions.emitC()) {
+        !compilerOptions.emitC99()) {
       QT = simdTypes.getSIMDType(VD, SIMD4);
       TInfo = Ctx.getTrivialTypeSourceInfo(QT);
     }
@@ -1426,7 +1414,7 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *VD) {
         &Ctx.Idents.get(name), QT, TInfo, VD->getStorageClass());
     result->setIsUsed(); // set VarDecl as being used - required for CodeGen
     if (Kernel->vectorize() && KernelClass->getVectorizeInfo(VD) == VECTORIZE &&
-        !compilerOptions.emitC() ) {
+        !compilerOptions.emitC99() ) {
       result->setInit(simdTypes.propagate(VD, Clone(VD->getInit())));
     } else {
       result->setInit(Clone(VD->getInit()));
@@ -1460,7 +1448,7 @@ VarDecl *ASTTranslate::CloneParmVarDecl(ParmVarDecl *PVD) {
     TypeSourceInfo *TInfo = PVD->getTypeSourceInfo();
 
     // only vectorize image PVDs
-    if (Kernel->vectorize() && !compilerOptions.emitC()) {
+    if (Kernel->vectorize() && !compilerOptions.emitC99()) {
       for (auto img : KernelClass->getImgFields()) {
         // parameter name matches
         if (PVD->getName().equals(img->getName()) ||
@@ -1608,7 +1596,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
     // function, e.g. exp() instead of expf() in case of OpenCL
     FunctionDecl *targetFD = nullptr;
     FunctionDecl *convert = nullptr;
-    if (compilerOptions.emitC()) {
+    if (compilerOptions.emitC99()) {
       targetFD = E->getDirectCallee();
     } else {
       DeclContext *DC = E->getDirectCallee()->getEnclosingNamespaceContext();
@@ -1668,13 +1656,13 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
       // check if we have an intrinsic (math) function
       if (!targetFD) {
         QualType QT = E->getCallReturnType();
-        if (Kernel->vectorize() && !compilerOptions.emitC()) {
+        if (Kernel->vectorize() && !compilerOptions.emitC99()) {
           QT = simdTypes.getSIMDType(QT, QT.getAsString(), SIMD4);
           assert(false && "widening of intrinsic functions not supported currently");
         }
 
         targetFD = builtins.getBuiltinFunction(E->getDirectCallee()->getName(),
-            QT, compilerOptions.getTargetCode());
+            QT, compilerOptions.getTargetLang());
       }
 
       // check if this function is allowed for device execution
@@ -1687,7 +1675,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
       unsigned DiagIDCallExpr = Diags.getCustomDiagID(DiagnosticsEngine::Error,
           "Found unsupported function call '%0' in kernel.");
       SmallVector<const char *, 16> builtinNames;
-      builtins.getBuiltinNames(compilerOptions.getTargetCode(), builtinNames);
+      builtins.getBuiltinNames(compilerOptions.getTargetLang(), builtinNames);
       Diags.Report(E->getExprLoc(), DiagIDCallExpr) << E->getDirectCallee()->getName();
 
       llvm::errs() << "Supported functions are: ";
@@ -1760,7 +1748,7 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
       paramDecl = param;
 
       // get vector declaration
-      if (Kernel->vectorize() && !compilerOptions.emitC()) {
+      if (Kernel->vectorize() && !compilerOptions.emitC99()) {
         if (KernelDeclMapVector.count(param)) {
           paramDecl = KernelDeclMapVector[param];
           llvm::errs() << "Vectorize: \n";
@@ -1788,7 +1776,7 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
 
       if (Mask) {
         isMask = true;
-        if (Mask->isConstant() || compilerOptions.emitC() ||
+        if (Mask->isConstant() || compilerOptions.emitC99() ||
             compilerOptions.emitCUDA()) {
           // get Mask/Domain reference
           VarDecl *maskVar = lookup<VarDecl>(Mask->getName() +
@@ -1987,21 +1975,21 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
           // set Mask as being used within Kernel
           Kernel->setUsed(FD->getNameAsString());
-          switch (compilerOptions.getTargetCode()) {
-            case TARGET_C:
-            case TARGET_CUDA:
+          switch (compilerOptions.getTargetLang()) {
+            case Language::C99:
+            case Language::CUDA:
               // array subscript: Mask[conv_y][conv_x]
               result = accessMem2DAt(LHS, midx_x, midx_y);
               break;
-            case TARGET_OpenCLACC:
-            case TARGET_OpenCLCPU:
-            case TARGET_OpenCLGPU:
+            case Language::OpenCLACC:
+            case Language::OpenCLCPU:
+            case Language::OpenCLGPU:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                     (int)Mask->getSizeX()), midx_x, midx_y);
               break;
-            case TARGET_Renderscript:
-            case TARGET_Filterscript:
+            case Language::Renderscript:
+            case Language::Filterscript:
               // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
               result = accessMemAllocAt(LHS, memAcc, midx_x, midx_y);
               break;
@@ -2038,21 +2026,21 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
           // set Mask as being used within Kernel
           Kernel->setUsed(FD->getNameAsString());
-          switch (compilerOptions.getTargetCode()) {
-            case TARGET_C:
-            case TARGET_CUDA:
+          switch (compilerOptions.getTargetLang()) {
+            case Language::C99:
+            case Language::CUDA:
               // array subscript: Mask[conv_y][conv_x]
               result = accessMem2DAt(LHS, midx_x, midx_y);
               break;
-            case TARGET_OpenCLACC:
-            case TARGET_OpenCLCPU:
-            case TARGET_OpenCLGPU:
+            case Language::OpenCLACC:
+            case Language::OpenCLCPU:
+            case Language::OpenCLGPU:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                     (int)Mask->getSizeX()), midx_x, midx_y);
               break;
-            case TARGET_Renderscript:
-            case TARGET_Filterscript:
+            case Language::Renderscript:
+            case Language::Filterscript:
               // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
               result = accessMemAllocAt(LHS, memAcc, midx_x, midx_y);
               break;
@@ -2067,9 +2055,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
         // set Mask as being used within Kernel
         Kernel->setUsed(FD->getNameAsString());
-        switch (compilerOptions.getTargetCode()) {
-          case TARGET_C:
-          case TARGET_CUDA:
+        switch (compilerOptions.getTargetLang()) {
+          case Language::C99:
+          case Language::CUDA:
             // array subscript: Mask[y+size_y/2][x+size_x/2]
             result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                   Clone(E->getArg(1)), createIntegerLiteral(Ctx,
@@ -2078,9 +2066,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
                   createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
                   Ctx.IntTy));
             break;
-          case TARGET_OpenCLACC:
-          case TARGET_OpenCLCPU:
-          case TARGET_OpenCLGPU:
+          case Language::OpenCLACC:
+          case Language::OpenCLCPU:
+          case Language::OpenCLGPU:
             if (Mask->isConstant()) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
               result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
@@ -2100,8 +2088,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
                     Ctx.IntTy));
             }
             break;
-          case TARGET_Renderscript:
-          case TARGET_Filterscript:
+          case Language::Renderscript:
+          case Language::Filterscript:
             if (Mask->isConstant()) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
               result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
@@ -2274,7 +2262,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
     // getY() method -> gid_y
     if (ME->getMemberNameInfo().getAsString() == "getY") {
-      if (compilerOptions.emitC() ||
+      if (compilerOptions.emitC99() ||
           compilerOptions.emitRenderscript() ||
           compilerOptions.emitFilterscript()) {
         return createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
@@ -2287,21 +2275,21 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     if (ME->getMemberNameInfo().getAsString() == "output") {
       assert(E->getNumArgs()==0 && "no arguments for output() method supported!");
 
-      switch (compilerOptions.getTargetCode()) {
-        case TARGET_Renderscript:
+      switch (compilerOptions.getTargetLang()) {
+        case Language::Renderscript:
           if (Kernel->getPixelsPerThread() <= 1) {
             // write to output pixel pointed to by kernel parameter
             LHS = retValRef;
           }
           // fall through
-        case TARGET_C:
-        case TARGET_CUDA:
-        case TARGET_OpenCLACC:
-        case TARGET_OpenCLCPU:
-        case TARGET_OpenCLGPU:
+        case Language::C99:
+        case Language::CUDA:
+        case Language::OpenCLACC:
+        case Language::OpenCLCPU:
+        case Language::OpenCLGPU:
           result = accessMem(LHS, Acc, memAcc);
           break;
-        case TARGET_Filterscript:
+        case Language::Filterscript:
           postStmts.push_back(createReturnStmt(Ctx, retValRef));
           postCStmt.push_back(curCStmt);
           result = retValRef;
@@ -2405,28 +2393,28 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), Acc);
     Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), Acc);
 
-    switch (compilerOptions.getTargetCode()) {
-      case TARGET_C:
+    switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
         result = accessMem2DAt(LHS, idx_x, idx_y);
         break;
-      case TARGET_CUDA:
-        if (Kernel->useTextureMemory(Acc)) {
+      case Language::CUDA:
+        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
           result = accessMemTexAt(LHS, Acc, memAcc, idx_x, idx_y);
         } else {
           result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         }
         break;
-      case TARGET_OpenCLACC:
-      case TARGET_OpenCLCPU:
-      case TARGET_OpenCLGPU:
-        if (Kernel->useTextureMemory(Acc)) {
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
           result = accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
         } else {
           result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         }
         break;
-      case TARGET_Renderscript:
-      case TARGET_Filterscript:
+      case Language::Renderscript:
+      case Language::Filterscript:
         if (ME->getMemberNameInfo().getAsString() == "outputAtPixel" &&
             compilerOptions.emitFilterscript()) {
             assert(0 && "Filterscript does not support outputAtPixel().");

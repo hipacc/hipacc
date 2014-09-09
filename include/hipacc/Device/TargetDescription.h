@@ -57,7 +57,7 @@ class HipaccDeviceOptions {
     unsigned default_num_threads_x;
     unsigned default_num_threads_y;
     unsigned pixels_per_thread[NumOperatorTypes];
-    TextureType require_textures[NumOperatorTypes];
+    Texture require_textures[NumOperatorTypes];
     bool vectorization;
 
   public:
@@ -66,8 +66,8 @@ class HipaccDeviceOptions {
       default_num_threads_y(1)
     {
       switch (options.getTargetDevice()) {
-        case TESLA_10:
-        case TESLA_11:
+        case Device::Tesla_10:
+        case Device::Tesla_11:
           alignment = 512;  // Quadro FX 1800
           alignment = 1024; // GeForce GTS 8800
           local_memory_threshold = 9999,
@@ -78,14 +78,14 @@ class HipaccDeviceOptions {
             pixels_per_thread[LocalOperator] = 1;
           }
           pixels_per_thread[GlobalOperator] = 31;
-          require_textures[PointOperator] = NoTexture;
-          require_textures[LocalOperator] = Linear2D;
-          require_textures[GlobalOperator] = NoTexture;
-          require_textures[UserOperator] = Linear2D;
+          require_textures[PointOperator] = Texture::None;
+          require_textures[LocalOperator] = Texture::Linear2D;
+          require_textures[GlobalOperator] = Texture::None;
+          require_textures[UserOperator] = Texture::Linear2D;
           vectorization = false;
           break;
-        case TESLA_12:
-        case TESLA_13:
+        case Device::Tesla_12:
+        case Device::Tesla_13:
           alignment = 512;
           local_memory_threshold = 9999;
           pixels_per_thread[PointOperator] = 8;
@@ -95,16 +95,16 @@ class HipaccDeviceOptions {
             pixels_per_thread[LocalOperator] = 1;
           }
           pixels_per_thread[GlobalOperator] = 31;
-          require_textures[PointOperator] = NoTexture;
-          require_textures[LocalOperator] = Linear2D;
-          require_textures[GlobalOperator] = NoTexture;
-          require_textures[UserOperator] = Linear2D;
+          require_textures[PointOperator] = Texture::None;
+          require_textures[LocalOperator] = Texture::Linear2D;
+          require_textures[GlobalOperator] = Texture::None;
+          require_textures[UserOperator] = Texture::Linear2D;
           vectorization = false;
           break;
-        case FERMI_20:
-        case FERMI_21:
-        case KEPLER_30:
-        case KEPLER_35:
+        case Device::Fermi_20:
+        case Device::Fermi_21:
+        case Device::Kepler_30:
+        case Device::Kepler_35:
           alignment = 256;
           if (options.emitCUDA()) local_memory_threshold = 6;
           else local_memory_threshold = 11;
@@ -116,60 +116,60 @@ class HipaccDeviceOptions {
             pixels_per_thread[LocalOperator] = 16;
           }
           pixels_per_thread[GlobalOperator] = 15;
-          require_textures[PointOperator] = NoTexture;
-          require_textures[LocalOperator] = Linear1D;
-          require_textures[GlobalOperator] = NoTexture;
-          require_textures[UserOperator] = Linear1D;
+          require_textures[PointOperator] = Texture::None;
+          require_textures[LocalOperator] = Texture::Linear1D;
+          require_textures[GlobalOperator] = Texture::None;
+          require_textures[UserOperator] = Texture::Linear1D;
           vectorization = false;
           break;
-        case EVERGREEN:
+        case Device::Evergreen:
           alignment = 1024;
           local_memory_threshold = 17;
           pixels_per_thread[PointOperator] = 4;
           pixels_per_thread[LocalOperator] = 8;
           pixels_per_thread[GlobalOperator] = 32;
-          require_textures[PointOperator] = NoTexture;
-          require_textures[LocalOperator] = NoTexture;
-          require_textures[GlobalOperator] = NoTexture;
-          require_textures[UserOperator] = NoTexture;
+          require_textures[PointOperator] = Texture::None;
+          require_textures[LocalOperator] = Texture::None;
+          require_textures[GlobalOperator] = Texture::None;
+          require_textures[UserOperator] = Texture::None;
           vectorization = true;
           break;
-        case NORTHERN_ISLAND:
+        case Device::NorthernIsland:
           alignment = 512;
           local_memory_threshold = 21;
           pixels_per_thread[PointOperator] = 4;
           pixels_per_thread[LocalOperator] = 4;
           pixels_per_thread[GlobalOperator] = 32;
-          require_textures[PointOperator] = NoTexture;
-          require_textures[LocalOperator] = NoTexture;
-          require_textures[GlobalOperator] = NoTexture;
-          require_textures[UserOperator] = NoTexture;
+          require_textures[PointOperator] = Texture::None;
+          require_textures[LocalOperator] = Texture::None;
+          require_textures[GlobalOperator] = Texture::None;
+          require_textures[UserOperator] = Texture::None;
           vectorization = true;
           break;
-        case MIDGARD:
+        case Device::Midgard:
           alignment = 512;
           local_memory_threshold = 9999;
           default_num_threads_x = 4;
           pixels_per_thread[PointOperator] = 1;
           pixels_per_thread[LocalOperator] = 1;
           pixels_per_thread[GlobalOperator] = 32;
-          require_textures[PointOperator] = NoTexture;
-          require_textures[LocalOperator] = NoTexture;
-          require_textures[GlobalOperator] = NoTexture;
-          require_textures[UserOperator] = NoTexture;
+          require_textures[PointOperator] = Texture::None;
+          require_textures[LocalOperator] = Texture::None;
+          require_textures[GlobalOperator] = Texture::None;
+          require_textures[UserOperator] = Texture::None;
           vectorization = true;
           break;
-        case KNIGHTSCORNER:
+        case Device::KnightsCorner:
           alignment = 64;
           local_memory_threshold = 9999;
           default_num_threads_x = 512;
           pixels_per_thread[PointOperator] = 2;
           pixels_per_thread[LocalOperator] = 2;
           pixels_per_thread[GlobalOperator] = 2;
-          require_textures[PointOperator] = NoTexture;
-          require_textures[LocalOperator] = NoTexture;
-          require_textures[GlobalOperator] = NoTexture;
-          require_textures[UserOperator] = NoTexture;
+          require_textures[PointOperator] = Texture::None;
+          require_textures[LocalOperator] = Texture::None;
+          require_textures[GlobalOperator] = Texture::None;
+          require_textures[UserOperator] = Texture::None;
           vectorization = true;
           break;
       }
@@ -220,7 +220,7 @@ class HipaccDeviceOptions {
 
 class HipaccDevice : public HipaccDeviceOptions {
   public:
-    TargetDevice target_device;
+    Device target_device;
     unsigned max_threads_per_warp;
     unsigned max_threads_per_block;
     unsigned max_blocks_per_multiprocessor;
@@ -244,8 +244,8 @@ class HipaccDevice : public HipaccDeviceOptions {
       num_sfus(0)
     {
       switch (target_device) {
-        case TESLA_10:
-        case TESLA_11:
+        case Device::Tesla_10:
+        case Device::Tesla_11:
           max_threads_per_block = 512;
           max_warps_per_multiprocessor = 24;
           max_threads_per_multiprocessor = 768;
@@ -255,8 +255,8 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_alus = 8;
           num_sfus = 2;
           break;
-        case TESLA_12:
-        case TESLA_13:
+        case Device::Tesla_12:
+        case Device::Tesla_13:
           max_threads_per_block = 512;
           max_warps_per_multiprocessor = 32;
           max_threads_per_multiprocessor = 1024;
@@ -266,7 +266,7 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_alus = 8;
           num_sfus = 2;
           break;
-        case FERMI_20:
+        case Device::Fermi_20:
           max_threads_per_block = 1024;
           max_warps_per_multiprocessor = 48;
           max_threads_per_multiprocessor = 1536;
@@ -276,7 +276,7 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_alus = 32;
           num_sfus = 4;
           break;
-        case FERMI_21:
+        case Device::Fermi_21:
           max_threads_per_block = 1024;
           max_warps_per_multiprocessor = 48;
           max_threads_per_multiprocessor = 1536;
@@ -286,22 +286,22 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_alus = 48;
           num_sfus = 8;
           break;
-        case KEPLER_30:
-        case KEPLER_35:
+        case Device::Kepler_30:
+        case Device::Kepler_35:
           max_blocks_per_multiprocessor = 16;
           max_threads_per_block = 1024;
           max_warps_per_multiprocessor = 64;
           max_threads_per_multiprocessor = 2048;
           max_total_registers = 65536;
           max_total_shared_memory = 49152;
-          if (target_device==KEPLER_30) max_register_per_thread = 63;
+          if (target_device==Device::Kepler_30) max_register_per_thread = 63;
           else max_register_per_thread = 255;
           num_alus = 192;
           num_sfus = 32;
           // plus 8 CUDA FP64 cores according to andatech
           break;
-        case EVERGREEN:
-        case NORTHERN_ISLAND:
+        case Device::Evergreen:
+        case Device::NorthernIsland:
           max_threads_per_warp = 64;
           max_blocks_per_multiprocessor = 8;
           max_threads_per_block = 256;
@@ -316,7 +316,7 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_alus = 4; // 5 on 58; 4 on 69
           num_sfus = 1; // 1 sfu -> 1 alu
           break;
-        case MIDGARD:
+        case Device::Midgard:
           max_threads_per_warp = 4,
           // max_blocks_per_multiprocessor - unknown
           max_threads_per_block = 256;
@@ -327,7 +327,7 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_alus = 4; // vector 4
           num_sfus = 1; // just a guess
           break;
-        case KNIGHTSCORNER:
+        case Device::KnightsCorner:
           max_threads_per_warp = 4,
           // max_blocks_per_multiprocessor - unknown
           max_threads_per_block = 8192;
@@ -343,56 +343,56 @@ class HipaccDevice : public HipaccDeviceOptions {
 
     bool isAMDGPU() {
       switch (target_device) {
-        default:              return false;
-        case EVERGREEN:
-        case NORTHERN_ISLAND: return true;
+        default:                     return false;
+        case Device::Evergreen:
+        case Device::NorthernIsland: return true;
       }
     }
 
     bool isARMGPU() {
       switch (target_device) {
-        default:      return false;
-        case MIDGARD: return true;
+        default:              return false;
+        case Device::Midgard: return true;
       }
     }
 
     bool isINTELACC() {
       switch (target_device) {
-        default:            return false;
-        case KNIGHTSCORNER: return true;
+        default:                    return false;
+        case Device::KnightsCorner: return true;
       }
     }
 
     bool isNVIDIAGPU() {
       switch (target_device) {
-        default:        return false;
-        case TESLA_10:
-        case TESLA_11:
-        case TESLA_12:
-        case TESLA_13:
-        case FERMI_20:
-        case FERMI_21:
-        case KEPLER_30:
-        case KEPLER_35: return true;
+        default:                return false;
+        case Device::Tesla_10:
+        case Device::Tesla_11:
+        case Device::Tesla_12:
+        case Device::Tesla_13:
+        case Device::Fermi_20:
+        case Device::Fermi_21:
+        case Device::Kepler_30:
+        case Device::Kepler_35: return true;
       }
     }
 
     std::string getTargetDeviceName() {
       switch (target_device) {
-        //case 00:              return "x86_64 CPU";
-        case TESLA_10:        return "NVIDIA Tesla (10)";
-        case TESLA_11:        return "NVIDIA Tesla (11)";
-        case TESLA_12:        return "NVIDIA Tesla (12)";
-        case TESLA_13:        return "NVIDIA Tesla (13)";
-        case FERMI_20:        return "NVIDIA Fermi (20)";
-        case FERMI_21:        return "NVIDIA Fermi (21)";
-        case KEPLER_30:       return "NVIDIA Kepler (30)";
-        case KEPLER_35:       return "NVIDIA Kepler (35)";
-        case EVERGREEN:       return "AMD Evergreen";
-        case NORTHERN_ISLAND: return "AMD Northern Island";
-        //case SOUTHERN_ISLAND: return "AMD Southern Island";
-        case MIDGARD:         return "ARM Midgard: Mali-T6xx";
-        case KNIGHTSCORNER:   return "Intel MIC: Knights Corner";
+        //case Device::CPU:             return "x86_64 CPU";
+        case Device::Tesla_10:        return "NVIDIA Tesla (10)";
+        case Device::Tesla_11:        return "NVIDIA Tesla (11)";
+        case Device::Tesla_12:        return "NVIDIA Tesla (12)";
+        case Device::Tesla_13:        return "NVIDIA Tesla (13)";
+        case Device::Fermi_20:        return "NVIDIA Fermi (20)";
+        case Device::Fermi_21:        return "NVIDIA Fermi (21)";
+        case Device::Kepler_30:       return "NVIDIA Kepler (30)";
+        case Device::Kepler_35:       return "NVIDIA Kepler (35)";
+        case Device::Evergreen:       return "AMD Evergreen";
+        case Device::NorthernIsland:  return "AMD Northern Island";
+        //case Device::SouthernIsland:  return "AMD Southern Island";
+        case Device::Midgard:         return "ARM Midgard: Mali-T6xx";
+        case Device::KnightsCorner:   return "Intel MIC: Knights Corner";
       }
     }
 
@@ -408,14 +408,17 @@ class HipaccDevice : public HipaccDeviceOptions {
       return RUNTIME_INCLUDES;
     }
 
+    unsigned getTargetCC() {
+      assert(isNVIDIAGPU() && "compute capability only valid for NVIDIA");
+      return static_cast<std::underlying_type<Device>::type>(target_device);
+    }
+
     std::string getCompileOptions(std::string kernel, std::string file, bool
         emitCUDA) {
-      std::stringstream td_string;
-      td_string << target_device;
-
       if (emitCUDA) {
         return " -I " + std::string(RUNTIME_INCLUDES) + " -arch=sm_" +
-          td_string.str() + " -cubin -Xptxas -v " + file + ".cu 2>&1";
+          std::to_string(getTargetCC()) + " -cubin -Xptxas -v " + file +
+          ".cu 2>&1";
       } else {
         if (isAMDGPU()) {
           return " -i " + std::string(RUNTIME_INCLUDES) + " -k " + kernel +

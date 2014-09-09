@@ -110,7 +110,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_x = removeISOffsetX(idx_x, Acc);
       }
-      if ((compilerOptions.emitC() ||
+      if ((compilerOptions.emitC99() ||
            compilerOptions.emitRenderscript() ||
            compilerOptions.emitFilterscript()) &&
           Acc!=Kernel->getIterationSpace()->getAccessor()) {
@@ -136,7 +136,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     idx_x = addGlobalOffsetX(idx_x, Acc);
     idx_y = addGlobalOffsetY(idx_y, Acc);
   } else {
-    if (!(compilerOptions.emitC() ||
+    if (!(compilerOptions.emitC99() ||
           compilerOptions.emitRenderscript() ||
           compilerOptions.emitFilterscript())) {
       idx_y = addGlobalOffsetY(idx_y, Acc);
@@ -146,9 +146,9 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // step 3: access the appropriate memory
   switch (memAcc) {
     case WRITE_ONLY:
-      switch (compilerOptions.getTargetCode()) {
+      switch (compilerOptions.getTargetLang()) {
         default: break;
-        case TARGET_Renderscript: {
+        case Language::Renderscript: {
             bool isGlobalAllocation = false;
             if (Kernel->getKernelClass()->getArguments()[0].name.compare(
                   LHS->getNameInfo().getAsString()) == 0) {
@@ -161,27 +161,27 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
             }
           }
           break;
-        case TARGET_Filterscript:
+        case Language::Filterscript:
           assert(0 && "Filterscript does not support write access for allocations.");
       }
     case READ_ONLY:
-      switch (compilerOptions.getTargetCode()) {
-        case TARGET_CUDA:
-          if (Kernel->useTextureMemory(Acc)) {
+      switch (compilerOptions.getTargetLang()) {
+        case Language::C99:
+          return accessMem2DAt(LHS, idx_x, idx_y);
+        case Language::CUDA:
+          if (Kernel->useTextureMemory(Acc)!=Texture::None) {
             return accessMemTexAt(LHS, Acc, memAcc, idx_x, idx_y);
           }
           // fall through
-        case TARGET_OpenCLACC:
-        case TARGET_OpenCLCPU:
-        case TARGET_OpenCLGPU:
-          if (Kernel->useTextureMemory(Acc)) {
+        case Language::OpenCLACC:
+        case Language::OpenCLCPU:
+        case Language::OpenCLGPU:
+          if (Kernel->useTextureMemory(Acc)!=Texture::None) {
             return accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
           }
           return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
-        case TARGET_C:
-          return accessMem2DAt(LHS, idx_x, idx_y);
-        case TARGET_Renderscript:
-        case TARGET_Filterscript:
+        case Language::Renderscript:
+        case Language::Filterscript:
           return accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
       }
     case READ_WRITE: {
@@ -258,14 +258,9 @@ FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
 
   bool isOneDim = false, isLdg = false;
   switch (Kernel->useTextureMemory(Acc)) {
-    default:
-      break;
-    case Linear1D:
-      isOneDim = true;
-      break;
-    case Ldg:
-      isLdg = true;
-      break;
+    default:                                 break;
+    case Texture::Linear1D: isOneDim = true; break;
+    case Texture::Ldg:      isLdg = true;    break;
   }
 
   switch (BT->getKind()) {
@@ -535,20 +530,21 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
 
   if (memAcc == READ_ONLY) {
     switch (Kernel->useTextureMemory(Acc)) {
-      default:
-      case Linear1D:
+      case Texture::None:
+          assert(0 && "texture expected.");
+      case Texture::Linear1D:
         args.push_back(LHStex);
         args.push_back(createBinaryOperator(Ctx, createBinaryOperator(Ctx,
                 createParenExpr(Ctx, idx_y), getStrideDecl(Acc), BO_Mul,
                 Ctx.IntTy), idx_x, BO_Add, Ctx.IntTy));
         break;
-      case Linear2D:
-      case Array2D:
+      case Texture::Linear2D:
+      case Texture::Array2D:
         args.push_back(LHStex);
         args.push_back(idx_x);
         args.push_back(idx_y);
         break;
-      case Ldg:
+      case Texture::Ldg:
         // __ldg(&arr[idx])
         args.push_back(createUnaryOperator(Ctx, accessMemArrAt(LHS,
                 getStrideDecl(Acc), idx_x, idx_y), UO_AddrOf, Ctx.IntTy));

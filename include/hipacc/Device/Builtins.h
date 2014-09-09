@@ -57,7 +57,7 @@ enum ID {
 
 struct Info {
   const char *Name, *Type;
-  TargetCode builtin_target;
+  Language builtin_lang;
   ID CUDA, OpenCL, Renderscript;
   FunctionDecl *FD;
 
@@ -87,15 +87,14 @@ class Context {
     FunctionDecl *CreateBuiltin(unsigned bid);
     FunctionDecl *CreateBuiltin(QualType R, const char *Name);
 
-    void getBuiltinNames(TargetCode target, SmallVectorImpl<const char *>
-        &Names);
+    void getBuiltinNames(Language lang, SmallVectorImpl<const char *> &Names);
 
     FunctionDecl *getBuiltinFunction(unsigned ID) const {
       return getRecord(ID-FirstBuiltin).FD;
     }
 
-    FunctionDecl *getBuiltinFunction(StringRef Name, QualType QT, TargetCode
-        target) const;
+    FunctionDecl *getBuiltinFunction(StringRef Name, QualType QT, Language lang)
+      const;
 
     const char *getName(unsigned ID) const { return getRecord(ID).Name; }
     const char *getTypeString(unsigned ID) const { return getRecord(ID).Type; }

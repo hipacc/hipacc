@@ -37,11 +37,11 @@ using namespace hipacc;
 using namespace hipacc::Builtin;
 
 static hipacc::Builtin::Info BuiltinInfo[] = {
-  { "not a builtin function", 0, TARGET_C, (ID)0, (ID)0, (ID)0, 0 },
-  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID, RSID) { #NAME, TYPE, TARGET_C, CUDAID, OPENCLID, RSID, 0 },
-  #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, TARGET_CUDA, (ID)0, (ID)0, (ID)0, 0 },
-  #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, TARGET_OpenCLCPU, (ID)0, (ID)0, (ID)0, 0 },
-  #define RSBUILTIN(NAME, TYPE, RSNAME) { #NAME, TYPE, TARGET_Renderscript, (ID)0, (ID)0, (ID)0, 0 },
+  { "not a builtin function", 0, Language::C99, (ID)0, (ID)0, (ID)0, 0 },
+  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID, RSID) { #NAME, TYPE, Language::C99, CUDAID, OPENCLID, RSID, 0 },
+  #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, Language::CUDA, (ID)0, (ID)0, (ID)0, 0 },
+  #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, Language::OpenCLCPU, (ID)0, (ID)0, (ID)0, 0 },
+  #define RSBUILTIN(NAME, TYPE, RSNAME) { #NAME, TYPE, Language::Renderscript, (ID)0, (ID)0, (ID)0, 0 },
   #include "hipacc/Device/Builtins.def"
 };
 
@@ -331,42 +331,41 @@ void hipacc::Builtin::Context::InitializeBuiltins() {
 }
 
 
-void hipacc::Builtin::Context::getBuiltinNames(TargetCode target,
+void hipacc::Builtin::Context::getBuiltinNames(Language lang,
     SmallVectorImpl<const char *> &Names) {
   for (size_t i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
-    switch (BuiltinInfo[i].builtin_target) {
-      case TARGET_C:
-        switch (target) {
-          case TARGET_C:
-            break;
-          case TARGET_CUDA:
+    switch (BuiltinInfo[i].builtin_lang) {
+      case Language::C99:
+        switch (lang) {
+          case Language::C99: break;
+          case Language::CUDA:
             if (!getBuiltinFunction(BuiltinInfo[i].CUDA)) continue;
             break;
-          case TARGET_OpenCLACC:
-          case TARGET_OpenCLCPU:
-          case TARGET_OpenCLGPU:
+          case Language::OpenCLACC:
+          case Language::OpenCLCPU:
+          case Language::OpenCLGPU:
             if (!getBuiltinFunction(BuiltinInfo[i].OpenCL)) continue;
             break;
-          case TARGET_Renderscript:
-          case TARGET_Filterscript:
+          case Language::Renderscript:
+          case Language::Filterscript:
             if (!getBuiltinFunction(BuiltinInfo[i].Renderscript)) continue;
             break;
         }
         break;
-      case TARGET_CUDA:
-        if (target == TARGET_CUDA) break;
+      case Language::CUDA:
+        if (lang == Language::CUDA) break;
         continue;
-      case TARGET_OpenCLACC:
-      case TARGET_OpenCLCPU:
-      case TARGET_OpenCLGPU:
-        if (target == TARGET_OpenCLACC ||
-            target == TARGET_OpenCLCPU ||
-            target == TARGET_OpenCLGPU) break;
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        if (lang == Language::OpenCLACC ||
+            lang == Language::OpenCLCPU ||
+            lang == Language::OpenCLGPU) break;
         continue;
-      case TARGET_Renderscript:
-      case TARGET_Filterscript:
-        if (target == TARGET_Renderscript ||
-            target == TARGET_Filterscript) break;
+      case Language::Renderscript:
+      case Language::Filterscript:
+        if (lang == Language::Renderscript ||
+            lang == Language::Filterscript) break;
         continue;
     }
     Names.push_back(BuiltinInfo[i].Name);
@@ -410,39 +409,38 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
 
 
 FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
-    QualType QT, TargetCode target) const {
+    QualType QT, Language lang) const {
   QT = QT.getDesugaredType(Ctx);
 
   for (size_t i=1, e=LastBuiltin-FirstBuiltin; i!=e; ++i) {
     if (BuiltinInfo[i].Name == Name && BuiltinInfo[i].FD->getReturnType() == QT) {
-      switch (BuiltinInfo[i].builtin_target) {
-        case TARGET_C:
-          switch (target) {
-            case TARGET_C:
-              return nullptr;
-            case TARGET_CUDA:
+      switch (BuiltinInfo[i].builtin_lang) {
+        case Language::C99:
+          switch (lang) {
+            case Language::C99: return nullptr;
+            case Language::CUDA:
               return getBuiltinFunction(BuiltinInfo[i].CUDA);
-            case TARGET_OpenCLACC:
-            case TARGET_OpenCLCPU:
-            case TARGET_OpenCLGPU:
+            case Language::OpenCLACC:
+            case Language::OpenCLCPU:
+            case Language::OpenCLGPU:
               return getBuiltinFunction(BuiltinInfo[i].OpenCL);
-            case TARGET_Renderscript:
-            case TARGET_Filterscript:
+            case Language::Renderscript:
+            case Language::Filterscript:
               return getBuiltinFunction(BuiltinInfo[i].Renderscript);
           }
           break;
-        case TARGET_CUDA:
-          if (target == TARGET_CUDA) return BuiltinInfo[i].FD;
-        case TARGET_OpenCLACC:
-        case TARGET_OpenCLCPU:
-        case TARGET_OpenCLGPU:
-          if (target == TARGET_OpenCLACC ||
-              target == TARGET_OpenCLCPU ||
-              target == TARGET_OpenCLGPU) return BuiltinInfo[i].FD;
-        case TARGET_Renderscript:
-        case TARGET_Filterscript:
-          if (target == TARGET_Renderscript ||
-              target == TARGET_Filterscript) return BuiltinInfo[i].FD;
+        case Language::CUDA:
+          if (lang == Language::CUDA) return BuiltinInfo[i].FD;
+        case Language::OpenCLACC:
+        case Language::OpenCLCPU:
+        case Language::OpenCLGPU:
+          if (lang == Language::OpenCLACC ||
+              lang == Language::OpenCLCPU ||
+              lang == Language::OpenCLGPU) return BuiltinInfo[i].FD;
+        case Language::Renderscript:
+        case Language::Filterscript:
+          if (lang == Language::Renderscript ||
+              lang == Language::Filterscript) return BuiltinInfo[i].FD;
       }
     }
   }

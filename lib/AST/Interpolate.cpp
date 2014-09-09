@@ -60,38 +60,38 @@ std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
       break;
   }
 
-  switch (compilerOptions.getTargetCode()) {
-    case TARGET_C:
-    case TARGET_Renderscript:
-    case TARGET_Filterscript:
+  switch (compilerOptions.getTargetLang()) {
+    case Language::C99:
+    case Language::Renderscript:
+    case Language::Filterscript:
       name += "gmem";
       break;
-    case TARGET_CUDA:
+    case Language::CUDA:
       switch (Kernel->useTextureMemory(Acc)) {
-        case NoTexture:
-        case Ldg:
+        case Texture::None:
+        case Texture::Ldg:
           name += "gmem";
           break;
-        case Linear1D:
+        case Texture::Linear1D:
           name+= "tex1D";
           break;
-        case Linear2D:
-        case Array2D:
+        case Texture::Linear2D:
+        case Texture::Array2D:
           name+= "tex2D";
           break;
       }
       break;
-    case TARGET_OpenCLACC:
-    case TARGET_OpenCLCPU:
-    case TARGET_OpenCLGPU:
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
       switch (Kernel->useTextureMemory(Acc)) {
-        case NoTexture:
-        case Linear1D:
-        case Linear2D:
-        case Ldg:
+        case Texture::None:
+        case Texture::Linear1D:
+        case Texture::Linear2D:
+        case Texture::Ldg:
           name += "gmem";
           break;
-        case Array2D:
+        case Texture::Array2D:
           name+= "img";
           break;
       }
@@ -164,15 +164,11 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
     }
   }
 
-  switch (compilerOptions.getTargetCode()) {
-    case TARGET_C:
-    case TARGET_Renderscript:
-    case TARGET_Filterscript:
-    case TARGET_CUDA:
-      break;
-    case TARGET_OpenCLACC:
-    case TARGET_OpenCLCPU:
-    case TARGET_OpenCLGPU:
+  switch (compilerOptions.getTargetLang()) {
+    default: break;
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
       // no function overloading supported in OpenCL -> add type specifier to function name
       name += "_" + builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Ctx);
       break;
@@ -211,9 +207,9 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
 
   // parameters for interpolate function call
   SmallVector<Expr *, 16> args;
-  if (compilerOptions.emitCUDA() && Kernel->useTextureMemory(Acc) &&
+  if (compilerOptions.emitCUDA() && Kernel->useTextureMemory(Acc)!=Texture::None
       // no texture declaration for __ldg() intrinsic
-      !(Kernel->useTextureMemory(Acc) == Ldg)) {
+      && !(Kernel->useTextureMemory(Acc) == Texture::Ldg)) {
     assert(isa<ParmVarDecl>(LHS->getDecl()) && "texture variable must be a ParmVarDecl!");
     ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());
     args.push_back(createDeclRefExpr(Ctx, CloneDeclTex(PVD, "_tex")));

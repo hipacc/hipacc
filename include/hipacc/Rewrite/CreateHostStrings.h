@@ -45,6 +45,7 @@ namespace hipacc {
 class CreateHostStrings {
   private:
     CompilerOptions &options;
+    HipaccDevice &device;
     unsigned literal_count;
     int num_indent, cur_indent;
     std::string indent;
@@ -60,8 +61,9 @@ class CreateHostStrings {
     }
 
   public:
-    CreateHostStrings(CompilerOptions &options) :
+    CreateHostStrings(CompilerOptions &options, HipaccDevice &device) :
       options(options),
+      device(device),
       literal_count(0),
       num_indent(4),
       cur_indent(num_indent),
@@ -76,8 +78,7 @@ class CreateHostStrings {
         std::string host_name, std::string &resultStr);
     void writeReductionDeclaration(HipaccKernel *K, std::string &resultStr);
     void writeMemoryAllocation(std::string memName, std::string type,
-        std::string width, std::string height, std::string &resultStr,
-        HipaccDevice &targetDevice);
+        std::string width, std::string height, std::string &resultStr);
     void writeMemoryAllocationConstant(std::string memName, std::string type,
         std::string width, std::string height, std::string &resultStr);
     void writeMemoryTransfer(HipaccImage *Img, std::string mem,

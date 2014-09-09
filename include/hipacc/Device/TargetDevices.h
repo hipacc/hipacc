@@ -36,29 +36,29 @@
 namespace clang {
 namespace hipacc {
 // supported target devices
-enum TargetDevice {
-  TESLA_10          = 10,
-  TESLA_11          = 11,
-  TESLA_12          = 12,
-  TESLA_13          = 13,
-  FERMI_20          = 20,
-  FERMI_21          = 21,
-  KEPLER_30         = 30,
-  KEPLER_35         = 35,
-  EVERGREEN         = 58,
-  NORTHERN_ISLAND   = 69,
-  //SOUTHERN_ISLAND   = 79
-  MIDGARD           = 600,
-  KNIGHTSCORNER     = 7120
+enum class Device {
+  Tesla_10          = 10,
+  Tesla_11          = 11,
+  Tesla_12          = 12,
+  Tesla_13          = 13,
+  Fermi_20          = 20,
+  Fermi_21          = 21,
+  Kepler_30         = 30,
+  Kepler_35         = 35,
+  Evergreen         = 58,
+  NorthernIsland    = 69,
+  //SouthernIsland    = 79
+  Midgard           = 600,
+  KnightsCorner     = 7120
 };
 
 // texture memory specification
-enum TextureType {
-  NoTexture         = 0x0,
-  Linear1D          = 0x1,
-  Linear2D          = 0x2,
-  Array2D           = 0x4,
-  Ldg               = 0x8
+enum class Texture : uint8_t {
+  None,
+  Linear1D,
+  Linear2D,
+  Array2D,
+  Ldg
 };
 } // end namespace hipacc
 } // end namespace clang

@@ -179,7 +179,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_x = removeISOffsetX(idx_x, Acc);
       }
-      if ((compilerOptions.emitC() ||
+      if ((compilerOptions.emitC99() ||
            compilerOptions.emitRenderscript() ||
            compilerOptions.emitFilterscript()) &&
           Acc!=Kernel->getIterationSpace()->getAccessor()) {
@@ -205,7 +205,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     idx_x = addGlobalOffsetX(idx_x, Acc);
     idx_y = addGlobalOffsetY(idx_y, Acc);
   } else {
-    if (!(compilerOptions.emitC() ||
+    if (!(compilerOptions.emitC99() ||
           compilerOptions.emitRenderscript() ||
           compilerOptions.emitFilterscript())) {
       idx_y = addGlobalOffsetY(idx_y, Acc);
@@ -259,27 +259,27 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       bo_constant = addConstantLower(Acc, idx_y, lowerY, bo_constant);
     }
 
-    switch (compilerOptions.getTargetCode()) {
-      case TARGET_C:
+    switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
           RHS = accessMem2DAt(LHS, idx_x, idx_y);
           break;
-      case TARGET_CUDA:
-        if (Kernel->useTextureMemory(Acc)) {
+      case Language::CUDA:
+        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
           RHS = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
         // fall through
-      case TARGET_OpenCLACC:
-      case TARGET_OpenCLCPU:
-      case TARGET_OpenCLGPU:
-        if (Kernel->useTextureMemory(Acc)) {
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
           RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
         RHS = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         break;
-      case TARGET_Renderscript:
-      case TARGET_Filterscript:
+      case Language::Renderscript:
+      case Language::Filterscript:
         RHS = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
         break;
     }
@@ -348,27 +348,27 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     }
 
     // get data
-    switch (compilerOptions.getTargetCode()) {
-      case TARGET_C:
+    switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
           result = accessMem2DAt(LHS, idx_x, idx_y);
           break;
-      case TARGET_CUDA:
-        if (Kernel->useTextureMemory(Acc)) {
+      case Language::CUDA:
+        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
           result = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
         // fall through
-      case TARGET_OpenCLACC:
-      case TARGET_OpenCLCPU:
-      case TARGET_OpenCLGPU:
-        if (Kernel->useTextureMemory(Acc)) {
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
           result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
         result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         break;
-      case TARGET_Renderscript:
-      case TARGET_Filterscript:
+      case Language::Renderscript:
+      case Language::Filterscript:
         result = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
         break;
     }
