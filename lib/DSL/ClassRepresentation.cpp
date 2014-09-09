@@ -659,18 +659,16 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
           hostArgNames.push_back(SS.str());
         } else {
           // get the text string for the argument and create a temporary
-          std::stringstream LSS;
-          LSS << "_tmpLiteral" << literalCount;
-          literalCount++;
+          std::string tmp_lit("_tmpLiteral" + std::to_string(literalCount++));
 
           // use type of kernel class
           hostLiterals += arg.type.getAsString();
           hostLiterals += " ";
-          hostLiterals += LSS.str();
+          hostLiterals += tmp_lit;
           hostLiterals += " = ";
           hostLiterals += SS.str();
           hostLiterals += ";\n    ";
-          hostArgNames.push_back(LSS.str());
+          hostArgNames.push_back(tmp_lit);
         }
 
         break;

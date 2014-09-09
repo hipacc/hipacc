@@ -678,10 +678,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     const std::string &getReduceName() const { return reduceName; }
     const std::string &getFileName() const { return fileName; }
     void setInfoStr() {
-      std::stringstream LSS;
-      LSS << infoStrCnt++;
-      infoStr = name + "_info" + LSS.str();
-      reduceStr = name + "_red" + LSS.str();
+      std::string cnt(std::to_string(infoStrCnt++));
+      infoStr = name + "_info" + cnt;
+      reduceStr = name + "_red" + cnt;
     }
     const std::string &getInfoStr() const { return infoStr; }
     const std::string &getReduceStr() const { return reduceStr; }

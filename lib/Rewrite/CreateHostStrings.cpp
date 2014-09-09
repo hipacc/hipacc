@@ -168,11 +168,10 @@ void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
       resultStr += indent;
 
       // store reduction arguments
-      std::stringstream LSS;
-      LSS << literal_count++;
-      resultStr += "sp<Allocation> alloc_" + LSS.str() + " = (Allocation  *)";
+      std::string lit(std::to_string(literal_count++));
+      resultStr += "sp<Allocation> alloc_" + lit + " = (Allocation  *)";
       resultStr += Img->getName() + ".mem;\n" + indent;
-      addReductionArgument(K, "_red_Input", "alloc_" + LSS.str(), resultStr);
+      addReductionArgument(K, "_red_Input", "alloc_" + lit, resultStr);
       addReductionArgument(K, "_red_stride", Img->getName() + ".stride",
           resultStr);
 
@@ -423,36 +422,29 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   auto deviceArgNames = K->getDeviceArgNames();
   auto hostArgNames = K->getHostArgNames();
 
-  std::stringstream LSS;
-  std::stringstream PPTSS;
-  std::stringstream cX, cY;
-  LSS << literal_count++;
-  PPTSS << K->getPixelsPerThread();
-  cX << K->getNumThreadsX();
-  cY << K->getNumThreadsY();
+  std::string lit(std::to_string(literal_count++));
+  std::string threads_x(std::to_string(K->getNumThreadsX()));
+  std::string threads_y(std::to_string(K->getNumThreadsY()));
   std::string blockStr, gridStr, offsetStr, infoStr;
-  std::stringstream maxSizeXStr, maxSizeYStr;
-  maxSizeXStr << K->getMaxSizeX();
-  maxSizeYStr << K->getMaxSizeY();
 
   switch (options.getTargetCode()) {
     case TARGET_C:
         break;
     case TARGET_CUDA:
-      blockStr = "block" + LSS.str();
-      gridStr = "grid" + LSS.str();
-      offsetStr = "offset" + LSS.str();
+      blockStr = "block" + lit;
+      gridStr = "grid" + lit;
+      offsetStr = "offset" + lit;
       break;
     case TARGET_Renderscript:
     case TARGET_Filterscript:
-      blockStr = "work_size" + LSS.str();
+      blockStr = "work_size" + lit;
       gridStr = K->getIterationSpace()->getAccessor()->getImage()->getName();
       break;
     case TARGET_OpenCLACC:
     case TARGET_OpenCLCPU:
     case TARGET_OpenCLGPU:
-      blockStr = "local_work_size" + LSS.str();
-      gridStr = "global_work_size" + LSS.str();
+      blockStr = "local_work_size" + lit;
+      gridStr = "global_work_size" + lit;
       break;
   }
   infoStr = K->getInfoStr();
@@ -489,10 +481,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
   if (options.getTargetCode() != TARGET_C) {
     // hipacc_launch_info
     resultStr += "hipacc_launch_info " + infoStr + "(";
-    resultStr += maxSizeXStr.str() + ", ";
-    resultStr += maxSizeYStr.str() + ", ";
+    resultStr += std::to_string(K->getMaxSizeX()) + ", ";
+    resultStr += std::to_string(K->getMaxSizeY()) + ", ";
     resultStr += K->getIterationSpace()->getName() + ", ";
-    resultStr += PPTSS.str() + ", ";
+    resultStr += std::to_string(K->getPixelsPerThread()) + ", ";
     if (K->vectorize()) {
       // TODO set and calculate per kernel simd width ...
       resultStr += "4);\n";
@@ -508,7 +500,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           break;
       case TARGET_CUDA:
         // dim3 block
-        resultStr += "dim3 " + blockStr + "(" + cX.str() + ", " + cY.str() + ");\n";
+        resultStr += "dim3 " + blockStr + "(" + threads_x + ", " + threads_y + ");\n";
         resultStr += indent;
 
         // dim3 grid & hipaccCalcGridFromBlock
@@ -540,8 +532,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_Filterscript:
         // size_t work_size
         resultStr += "size_t " + blockStr + "[2];\n";
-        resultStr += indent + blockStr + "[0] = " + cX.str() + ";\n";
-        resultStr += indent + blockStr + "[1] = " + cY.str() + ";\n";
+        resultStr += indent + blockStr + "[0] = " + threads_x + ";\n";
+        resultStr += indent + blockStr + "[1] = " + threads_y + ";\n";
         resultStr += indent;
 
         // hipaccPrepareKernelLaunch
@@ -555,8 +547,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       case TARGET_OpenCLGPU:
         // size_t block
         resultStr += "size_t " + blockStr + "[2];\n";
-        resultStr += indent + blockStr + "[0] = " + cX.str() + ";\n";
-        resultStr += indent + blockStr + "[1] = " + cY.str() + ";\n";
+        resultStr += indent + blockStr + "[0] = " + threads_x + ";\n";
+        resultStr += indent + blockStr + "[1] = " + threads_y + ";\n";
         resultStr += indent;
 
         // size_t grid
@@ -596,10 +588,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             !(K->useTextureMemory(Acc) == Ldg)) {
           // bind texture
           if (options.exploreConfig()) {
-            LSS.str(std::string());
-            LSS.clear();
-            LSS << literal_count++;
-            resultStr += "hipacc_tex_info tex_info" + LSS.str();
+            std::string lit(std::to_string(literal_count++));
+            resultStr += "hipacc_tex_info tex_info" + lit;
             resultStr += "(std::string(\"_tex" + deviceArgNames[i] + K->getName() + "\"), ";
             resultStr += K->getImgFromMapping(arg)->getImage()->getTextureType() + ", ";
             resultStr += hostArgNames[i] + ", ";
@@ -612,7 +602,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += ");\n";
             resultStr += indent;
             resultStr += "_texs" + kernelName + ".push_back(";
-            resultStr += "&tex_info" + LSS.str() + ");\n";
+            resultStr += "&tex_info" + lit + ");\n";
           } else {
             resultStr += "cudaGetTextureReference(&_tex";
             resultStr += deviceArgNames[i] + K->getName() + "Ref, &_tex";
@@ -661,16 +651,14 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       options.getTextureType()==Array2D) {
     // bind surface
     if (options.exploreConfig()) {
-      LSS.str(std::string());
-      LSS.clear();
-      LSS << literal_count++;
-      resultStr += "hipacc_tex_info tex_info" + LSS.str();
+      std::string lit(std::to_string(literal_count++));
+      resultStr += "hipacc_tex_info tex_info" + lit;
       resultStr += "(std::string(\"_surfOutput" + K->getName() + "\"), ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTextureType() + ", ";
       resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface);\n";
       resultStr += indent;
       resultStr += "_texs" + kernelName + ".push_back(";
-      resultStr += "&tex_info" + LSS.str() + ");\n";
+      resultStr += "&tex_info" + lit + ");\n";
     } else {
       resultStr += "cudaGetSurfaceReference(&_surfOutput" + K->getName() + "Ref, ";
       resultStr += "&_surfOutput" + K->getName() + ");\n";
@@ -755,10 +743,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         case TARGET_Renderscript:
         case TARGET_Filterscript:
           if (Acc || Mask || i==0) {
-            LSS.str(std::string());
-            LSS.clear();
-            LSS << literal_count++;
-            resultStr += "sp<Allocation> alloc_" + LSS.str() + " = (Allocation  *)";
+            std::string lit(std::to_string(literal_count++));
+            resultStr += "sp<Allocation> alloc_" + lit + " = (Allocation  *)";
             resultStr += hostArgNames[i] + img_mem + ";\n" + indent;
           }
           resultStr += "_args" + kernelName + ".push_back(";
@@ -766,7 +752,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += "&ScriptC_" + K->getFileName();
           resultStr += "::set_" + deviceArgNames[i] + ", ";
           if (Acc || Mask || i==0) {
-            resultStr += "&alloc_" + LSS.str() + "));\n";
+            resultStr += "&alloc_" + lit + "));\n";
           } else {
             resultStr += "(" + argTypeNames[i] + "*)&" + hostArgNames[i] + "));\n";
           }
@@ -810,14 +796,10 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         case TARGET_OpenCLACC:
         case TARGET_OpenCLCPU:
         case TARGET_OpenCLGPU:
-          LSS.str(std::string());
-          LSS.clear();
-          LSS << cur_arg++;
-
           resultStr += "hipaccSetKernelArg(";
           resultStr += kernelName;
           resultStr += ", ";
-          resultStr += LSS.str();
+          resultStr += std::to_string(cur_arg++);
           resultStr += ", sizeof(" + argTypeNames[i] + "), ";
           resultStr += "&" + hostArgNames[i] + img_mem;
           resultStr += ");\n";
@@ -850,12 +832,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
 
   // launch kernel
   if (options.exploreConfig() || options.timeKernels()) {
-    std::stringstream max_threads_per_block, max_threads_for_kernel, warp_size, max_shared_memory_per_block;
-    max_threads_per_block << K->getMaxThreadsPerBlock();
-    max_threads_for_kernel << K->getMaxThreadsForKernel();
-    warp_size << K->getWarpSize();
-    max_shared_memory_per_block << K->getMaxTotalSharedMemory();
-
     switch (options.getTargetCode()) {
       case TARGET_C:
         break;
@@ -904,12 +880,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += ", _texs" + kernelName;
       }
       resultStr += ", " + infoStr;
-      resultStr += ", " + warp_size.str();
-      resultStr += ", " + max_threads_per_block.str();
-      resultStr += ", " + max_threads_for_kernel.str();
-      resultStr += ", " + max_shared_memory_per_block.str();
-      resultStr += ", " + cX.str();
-      resultStr += ", " + cY.str();
+      resultStr += ", " + std::to_string(K->getWarpSize());
+      resultStr += ", " + std::to_string(K->getMaxThreadsPerBlock());
+      resultStr += ", " + std::to_string(K->getMaxThreadsForKernel());
+      resultStr += ", " + std::to_string(K->getMaxTotalSharedMemory());
+      resultStr += ", " + std::to_string(K->getNumThreadsX());
+      resultStr += ", " + std::to_string(K->getNumThreadsY());
       if (options.emitCUDA()) {
         std::stringstream cc_string;
         cc_string << options.getTargetDevice();
@@ -1033,9 +1009,8 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
   resultStr += K->getIterationSpace()->getName() + ", ";
 
   // print pixels per thread
-  std::stringstream KSS;
-  KSS << K->getNumThreadsReduce() << ", " << K->getPixelsPerThreadReduce();
-  resultStr += KSS.str();
+  resultStr += std::to_string(K->getNumThreadsReduce()) + ", ";
+  resultStr += std::to_string(K->getPixelsPerThreadReduce());
 
   if (options.emitCUDA()) {
     // print 2D CUDA array texture information - this parameter is only used if

@@ -619,9 +619,8 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     // writeImageRHS is set by VisitBinaryOperator - side effect
     if (!writeImageRHS->getType()->isVectorType()) {
       // introduce temporary for propagating the RHS to a vector
-      std::stringstream LSST;
-      LSST << "_tmp" << literalCount++;
-      VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(), QT,
+      std::string tmp_lit("_tmp" + std::to_string(literalCount++));
+      VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, tmp_lit, QT,
           writeImageRHS);
       DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
       DC->addDecl(tmp_decl);

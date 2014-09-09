@@ -41,17 +41,16 @@ using namespace hipacc::Builtin;
 QualType SIMDTypes::createSIMDType(QualType QT, StringRef base, SIMDWidth
     simd_width) {
   int lanes;
-  std::stringstream ss;
-  ss << base.str();
+  std::string tname(base);
 
   switch (simd_width) {
     default:
-    case SIMD1:  lanes = 1;              break;
-    case SIMD2:  lanes = 2;  ss << "2";  break;
-    case SIMD3:  lanes = 3;  ss << "3";  break;
-    case SIMD4:  lanes = 4;  ss << "4";  break;
-    case SIMD8:  lanes = 8;  ss << "8";  break;
-    case SIMD16: lanes = 16; ss << "16"; break;
+    case SIMD1:  lanes = 1;                 break;
+    case SIMD2:  lanes = 2;  tname += "2";  break;
+    case SIMD3:  lanes = 3;  tname += "3";  break;
+    case SIMD4:  lanes = 4;  tname += "4";  break;
+    case SIMD8:  lanes = 8;  tname += "8";  break;
+    case SIMD16: lanes = 16; tname += "16"; break;
   }
 
   // use ext_vector_type for SIMD types
@@ -60,7 +59,7 @@ QualType SIMDTypes::createSIMDType(QualType QT, StringRef base, SIMDWidth
   // create typedef and return this as result
   TypeSourceInfo *TInfo = Ctx.getTrivialTypeSourceInfo(SIMDType);
   TypedefDecl *TD = TypedefDecl::Create(Ctx, Ctx.getTranslationUnitDecl(),
-      SourceLocation(), SourceLocation(), &Ctx.Idents.get(ss.str()), TInfo);
+      SourceLocation(), SourceLocation(), &Ctx.Idents.get(tname), TInfo);
 
   return Ctx.getTypeDeclType(TD);
 }

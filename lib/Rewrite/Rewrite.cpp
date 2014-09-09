@@ -77,7 +77,6 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     FunctionDecl *mainFD;
     FileID mainFileID;
     unsigned literalCount;
-    unsigned isLiteralCount;
     bool skipTransfer;
 
   public:
@@ -96,7 +95,6 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       compilerClasses(CompilerKnownClasses()),
       mainFD(nullptr),
       literalCount(0),
-      isLiteralCount(0),
       skipTransfer(false)
     {}
 
@@ -651,8 +649,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccImage *Img = new HipaccImage(Context, VD,
             compilerClasses.getFirstTemplateType(VD->getType()));
 
-        std::string newStr;
-
         // get the text string for the image width
         std::string widthStr;
         llvm::raw_string_ostream WS(widthStr);
@@ -682,6 +678,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         CCE->getArg(1)->printPretty(HS, 0, PrintingPolicy(CI.getLangOpts()));
 
         // create memory allocation string
+        std::string newStr;
         stringCreator.writeMemoryAllocation(VD->getName(),
             compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
             WS.str(), HS.str(), newStr, targetDevice);
@@ -709,8 +706,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccPyramid *Pyr = new HipaccPyramid(Context, VD,
             compilerClasses.getFirstTemplateType(VD->getType()));
 
-        std::string newStr;
-
         // get the text string for the pyramid image
         std::string imageStr;
         llvm::raw_string_ostream IS(imageStr);
@@ -722,6 +717,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         CCE->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
 
         // create memory allocation string
+        std::string newStr;
         stringCreator.writePyramidAllocation(VD->getName(),
             compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
             IS.str(), DS.str(), newStr);
@@ -932,7 +928,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             "Currently only Accessor definitions are supported, no declarations!");
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
-        std::string newStr;
         HipaccAccessor *Acc = nullptr;
         HipaccBoundaryCondition *BC = nullptr;
         HipaccPyramid *Pyr = nullptr;
@@ -1025,7 +1020,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           Parms += ", " + SS.str();
         }
 
-        newStr += "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";
+        std::string newStr;
+        newStr = "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";
 
         // replace Accessor decl by variables for width/height and offsets
         // get the start location and compute the semi location.
@@ -1046,10 +1042,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         assert(isa<CXXConstructExpr>(VD->getInit()) &&
             "Expected IterationSpace definition (CXXConstructExpr).");
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-
-        std::string newStr;
-        std::stringstream LSS;
-        LSS << isLiteralCount++;
 
         HipaccIterationSpace *IS = nullptr;
         HipaccImage *Img = nullptr;
@@ -1106,7 +1098,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           Parms += ", " + SS.str();
         }
 
-        newStr += "HipaccAccessor " + IS->getName() + "(" + Parms + ");";
+        std::string newStr;
+        newStr = "HipaccAccessor " + IS->getName() + "(" + Parms + ");";
 
         // store IterationSpace
         ISDeclMap[VD] = IS;

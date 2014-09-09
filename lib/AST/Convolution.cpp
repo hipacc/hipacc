@@ -376,15 +376,14 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
 
   // introduce temporary for holding the convolution/reduction result
   CompoundStmt *outerCompountStmt = curCStmt;
-  std::stringstream LSST;
-  LSST << "_tmp" << literalCount++;
   Expr *init = nullptr;
   if (method==Reduce) {
     // init temporary variable depending on aggregation mode
     init = getInitExpr(redModes.back(),
         LE->getCallOperator()->getReturnType());
   }
-  VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, LSST.str(),
+  std::string tmp_lit("_tmp" + std::to_string(literalCount++));
+  VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, tmp_lit,
       LE->getCallOperator()->getReturnType(), init);
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
   DC->addDecl(tmp_decl);
