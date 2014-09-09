@@ -99,7 +99,7 @@ IF(APPLE)
 ELSE(APPLE)
     SET(CUDA_LINK "-lcuda -lcudart")
     SET(CUDA_COMP "")
-    SET(TIME_LINK "-lrt -lm -lstdc++")
+    SET(TIME_LINK "-lrt -lm -lstdc++ -lpthread -lz -lncurses -ldl")
 ENDIF(APPLE)
 
 
