@@ -2369,10 +2369,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // declarations of textures, surfaces, variables, etc.
   num_arg = 0;
   for (auto arg : K->getDeviceArgFields()) {
-    if (!K->getUsed(K->getDeviceArgNames()[num_arg++])) continue;
+    auto cur_arg = num_arg++;
+    if (!K->getUsed(K->getDeviceArgNames()[cur_arg])) continue;
 
     // output image declaration
-    if (num_arg==0) {
+    if (cur_arg==0) {
       switch (compilerOptions.getTargetLang()) {
         default: break;
         case Language::CUDA:
@@ -2483,7 +2484,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             break;
           case Language::Renderscript:
           case Language::Filterscript:
-            *OS << "rs_allocation " << K->getDeviceArgNames()[num_arg]
+            *OS << "rs_allocation " << K->getDeviceArgNames()[cur_arg]
                 << ";\n\n";
             Mask->setIsPrinted(true);
             break;
@@ -2496,9 +2497,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (compilerOptions.emitRenderscript() ||
         compilerOptions.emitFilterscript()) {
       QualType QT = K->getArgTypes(Context,
-          compilerOptions.getTargetLang())[num_arg];
+          compilerOptions.getTargetLang())[cur_arg];
       QT.removeLocalConst();
-      *OS << QT.getAsString() << " " << K->getDeviceArgNames()[num_arg]
+      *OS << QT.getAsString() << " " << K->getDeviceArgNames()[cur_arg]
           << ";\n";
       continue;
     }
