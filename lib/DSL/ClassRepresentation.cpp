@@ -304,8 +304,8 @@ void HipaccKernel::calcConfig() {
     }
     max_threads_for_kernel = num_threads;
 
-    int major = target_device/10;
-    int minor = target_device%10;
+    int major = getTargetCC()/10;
+    int minor = getTargetCC()%10;
     if (isAMDGPU()) {
       // set architecture to "Fermi"
       major = 2;
