@@ -682,7 +682,7 @@ void hipaccCompileCUDAToPTX(std::string file_name, int cc, std::string build_opt
     std::stringstream ss;
     ss << cc;
 
-    std::string command = "${NVCC_COMPILER} -ptx -arch=compute_" + ss.str() + " ";
+    std::string command = "${NVCC} -ptx -arch=compute_" + ss.str() + " ";
     command += build_options + " " + file_name;
     command += " -o " + file_name + ".ptx 2>&1";
 

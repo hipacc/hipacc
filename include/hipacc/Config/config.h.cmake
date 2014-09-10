@@ -38,7 +38,7 @@
 #cmakedefine USE_POLLY
 #cmakedefine USE_JIT_ESTIMATE
 
-#define CUDA_COMPILER "${NVCC_COMPILER}"
+#define CUDA_COMPILER "${NVCC}"
 #define CL_COMPILER "${CL_COMPILER}"
 #define RUNTIME_INCLUDES "${CMAKE_INSTALL_PREFIX}/include"
 #define EMBEDDED_RUNTIME_INCLUDES "/sdcard/hipacc"

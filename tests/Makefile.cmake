@@ -1,31 +1,35 @@
 # Configuration
-HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
-COMPILER     ?= $(HIPACC_DIR)/bin/hipacc
-COMMON_INC   ?= -I@OPENCV_INCLUDE_DIR@ \
-                -I$(TEST_CASE) \
-                -I/usr/include
-COMPILER_INC ?= -std=c++11 \
-                -resource-dir `@CLANG_EXECUTABLE@ -print-file-name=` \
-                -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
-                -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
-                -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
-                -I$(HIPACC_DIR)/include/dsl \
-                $(COMMON_INC)
-TEST_CASE    ?= ./tests/opencv_blur_8uc1
-MYFLAGS      ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
-NVCC_FLAGS    = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
-                @NVCC_CPP_STD@ -Xptxas -v #-keep
-OFLAGS        = -O3
+HIPACC_DIR     ?= @CMAKE_INSTALL_PREFIX@
+COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
+COMMON_INC     ?= -I@OPENCV_INCLUDE_DIR@ \
+                  -I$(TEST_CASE) \
+                  -I/usr/include
+COMPILER_INC   ?= -std=c++11 \
+                  -resource-dir `@CLANG_EXECUTABLE@ -print-file-name=` \
+                  -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
+                  -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
+                  -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
+                  -I$(HIPACC_DIR)/include/dsl \
+                  $(COMMON_INC)
+TEST_CASE      ?= ./tests/opencv_blur_8uc1
+MYFLAGS        ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
+NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
+                  -Xptxas -v @NVCC_COMP@ #-keep
+OFLAGS          = -O3
 
+CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 -Xcompiler -Wall -Xcompiler -Wunused
+CU_CC           = @NVCC@ $(NVCC_FLAGS) -Wall -Wunused
+CC_LINK         = -lm -ldl -lstdc++ @TIME_LINK@
+CU_LINK         = $(CC_LINK) @CUDA_LINK@
 # OpenCL specific configuration
 ifeq ($(HIPACC_TARGET),Midgard)
-    CL_CC    = @NDK_CXX_COMPILER@ @NDK_CXX_FLAGS@ @NDK_INCLUDE_DIRS_STR@ -std=c++0x -Wall -Wunused
-    CL_LINK  = -lm -ldl -lstdc++ @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@
-    CL_INC   = @EMBEDDED_OPENCL_CFLAGS@
+    CL_CC       = @NDK_CXX_COMPILER@ @NDK_CXX_FLAGS@ @NDK_INCLUDE_DIRS_STR@ -std=c++0x -Wall -Wunused
+    CL_LINK     = $(CC_LINK) @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@
+    COMMON_INC += @EMBEDDED_OPENCL_CFLAGS@
 else
-    CL_CC    = @CMAKE_CXX_COMPILER@ -std=c++11 -Wall -Wunused
-    CL_LINK  = -lm -ldl -lstdc++ -lpthread @TIME_LINK@ @OPENCL_LFLAGS@
-    CL_INC   = @OPENCL_CFLAGS@
+    CL_CC       = $(CC_CC)
+    CL_LINK     = $(CC_LINK) @OPENCL_LFLAGS@
+    COMMON_INC += @OPENCL_CFLAGS@
 endif
 
 # Renderscript specific configuration
@@ -90,7 +94,7 @@ cpu:
 	@echo 'Executing HIPAcc Compiler for C++:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cpu $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling C++ file using g++:'
-	$(CL_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc -lm -ldl -lstdc++ -lpthread @TIME_LINK@
+	$(CC_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc $(CC_LINK)
 	@echo 'Executing C++ binary'
 	./main_cpu
 
@@ -98,7 +102,7 @@ cuda:
 	@echo 'Executing HIPAcc Compiler for CUDA:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cuda $(HIPACC_OPTS) -o main.cu
 	@echo 'Compiling CUDA file using nvcc:'
-	@NVCC_COMPILER@ $(NVCC_FLAGS) @CUDA_COMP@ -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_cuda main.cu @CUDA_LINK@ @TIME_LINK@
+	$(CU_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_cuda main.cu $(CU_LINK)
 	@echo 'Executing CUDA binary'
 	./main_cuda
 
@@ -106,7 +110,7 @@ opencl-acc opencl-cpu opencl-gpu:
 	@echo 'Executing HIPAcc Compiler for OpenCL:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-$@ $(HIPACC_OPTS) -o main.cc
 	@echo 'Compiling OpenCL file using g++:'
-	$(CL_CC) $(CL_INC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(CL_LINK)
+	$(CL_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(CL_LINK)
 ifneq ($(HIPACC_TARGET),Midgard)
 	@echo 'Executing OpenCL binary'
 	./main_opencl
