@@ -1389,9 +1389,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           // kernel declaration
           FunctionDecl *kernelDecl = createFunctionDecl(Context,
-              Context.getTranslationUnitDecl(), K->getKernelName(), Context.VoidTy,
-              K->getArgTypes(Context, compilerOptions.getTargetLang()),
-              K->getDeviceArgNames());
+              Context.getTranslationUnitDecl(), K->getKernelName(),
+              Context.VoidTy, K->getArgTypes(), K->getDeviceArgNames());
 
           // write CUDA/OpenCL kernel function to file clone old body,
           // replacing member variables
@@ -1901,8 +1900,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   // kernel declaration for CUDA
   FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
       Context.getTranslationUnitDecl(), K->getKernelName(), Context.VoidTy,
-      K->getArgTypes(Context, compilerOptions.getTargetLang()),
-      K->getDeviceArgNames());
+      K->getArgTypes(), K->getDeviceArgNames());
 
   // create kernel body
   ASTTranslate *HipaccEst = new ASTTranslate(Context, kernelDeclEst, K, KC,
@@ -2496,8 +2494,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     // normal variables - Renderscript|Filterscript only
     if (compilerOptions.emitRenderscript() ||
         compilerOptions.emitFilterscript()) {
-      QualType QT = K->getArgTypes(Context,
-          compilerOptions.getTargetLang())[cur_arg];
+      QualType QT = K->getArgTypes()[cur_arg];
       QT.removeLocalConst();
       *OS << QT.getAsString() << " " << K->getDeviceArgNames()[cur_arg]
           << ";\n";
@@ -2585,7 +2582,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         continue;
     }
 
-    QualType T = D->getParamDecl(i)->getType();
+    QualType T = param->getType();
     T.removeLocalConst();
     T.removeLocalRestrict();
 
@@ -2715,7 +2712,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     *OS << Name;
 
     // default arguments ...
-    if (Expr *Init = D->getParamDecl(i)->getInit()) {
+    if (Expr *Init = param->getInit()) {
       CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(Init);
       if (!CCE || CCE->getConstructor()->isCopyConstructor()) {
         *OS << " = ";

@@ -603,11 +603,8 @@ class HipaccKernel : public HipaccKernelFeatures {
     HipaccIterationSpace *iterationSpace;
     std::map<FieldDecl *, HipaccAccessor *> imgMap;
     std::map<FieldDecl *, HipaccMask *> maskMap;
-    SmallVector<QualType, 16> argTypesC;
-    SmallVector<QualType, 16> argTypesCUDA;
-    SmallVector<QualType, 16> argTypesOpenCL;
+    SmallVector<QualType, 16> argTypes;
     SmallVector<std::string, 16> argTypeNames;
-    SmallVector<std::string, 16> argTypeNamesOpenCL;
     SmallVector<std::string, 16> hostArgNames;
     SmallVector<std::string, 16> deviceArgNames;
     SmallVector<FieldDecl *, 16> deviceArgFields;
@@ -624,6 +621,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     void createArgInfo();
     void addParam(QualType QT1, QualType QT2, QualType QT3, std::string typeC,
         std::string typeO, std::string name, FieldDecl *fd);
+    void addParam(QualType QT, std::string name, FieldDecl *fd) {
+      addParam(QT, QT, QT, QT.getAsString(), QT.getAsString(), name, fd);
+    }
     void createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string &hostLiterals,
         unsigned &literalCount);
 
@@ -642,11 +642,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       iterationSpace(nullptr),
       imgMap(),
       maskMap(),
-      argTypesC(),
-      argTypesCUDA(),
-      argTypesOpenCL(),
+      argTypes(),
       argTypeNames(),
-      argTypeNamesOpenCL(),
       hostArgNames(),
       deviceArgNames(),
       deviceArgFields(),
@@ -731,38 +728,28 @@ class HipaccKernel : public HipaccKernelFeatures {
       else return iter->second;
     }
 
-    ArrayRef<QualType> getArgTypes(ASTContext &Ctx, Language lang) {
+    ArrayRef<QualType> getArgTypes() {
       createArgInfo();
-
-      switch (lang) {
-        case Language::C99:          return argTypesC;
-        case Language::CUDA:         return argTypesCUDA;
-        case Language::OpenCLACC:
-        case Language::OpenCLCPU:
-        case Language::OpenCLGPU:
-        case Language::Renderscript:
-        case Language::Filterscript: return argTypesOpenCL;
-      }
+      return argTypes;
     }
-    ArrayRef<std::string>getArgTypeNames() {
+    ArrayRef<std::string> getArgTypeNames() {
       createArgInfo();
-      if (options.emitOpenCL()) return argTypeNamesOpenCL;
-      else return argTypeNames;
+      return argTypeNames;
     }
     ArrayRef<std::string> getDeviceArgNames() {
       createArgInfo();
       return deviceArgNames;
     }
-    void setHostArgNames(ArrayRef<Expr *>hostArgs, std::string
-        &hostLiterals, unsigned &literalCount) {
+    void setHostArgNames(ArrayRef<Expr *> hostArgs, std::string &hostLiterals,
+        unsigned &literalCount) {
       createArgInfo();
       createHostArgInfo(hostArgs, hostLiterals, literalCount);
     }
-    ArrayRef<std::string>getHostArgNames() {
+    ArrayRef<std::string> getHostArgNames() {
       assert(hostArgNames.size() && "host argument names not set");
       return hostArgNames;
     }
-    ArrayRef<FieldDecl *>getDeviceArgFields() {
+    ArrayRef<FieldDecl *> getDeviceArgFields() {
       createArgInfo();
       return deviceArgFields;
     }
@@ -781,11 +768,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       calcConfig();
       // reset parameter information since the tiling and corresponding
       // variables may have been changed
-      argTypesC.clear();
-      argTypesCUDA.clear();
-      argTypesOpenCL.clear();
+      argTypes.clear();
       argTypeNames.clear();
-      argTypeNamesOpenCL.clear();
       // hostArgNames are set later on
       deviceArgNames.clear();
       deviceArgFields.clear();

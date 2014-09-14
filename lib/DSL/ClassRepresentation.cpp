@@ -479,19 +479,26 @@ void HipaccKernel::setDefaultConfig() {
 
 void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3,
     std::string typeC, std::string typeO, std::string name, FieldDecl *fd) {
-  argTypesCUDA.push_back(QT1);
-  argTypesOpenCL.push_back(QT2);
-  argTypesC.push_back(QT3);
-
-  argTypeNames.push_back(typeC);
-  argTypeNamesOpenCL.push_back(typeO);
+  switch (options.getTargetLang()) {
+    case Language::C99:          argTypes.push_back(QT3);
+                                 argTypeNames.push_back(typeC); break;
+    case Language::CUDA:         argTypes.push_back(QT1);
+                                 argTypeNames.push_back(typeC); break;
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:    argTypes.push_back(QT2);
+                                 argTypeNames.push_back(typeO); break;
+    case Language::Renderscript:
+    case Language::Filterscript: argTypes.push_back(QT2);
+                                 argTypeNames.push_back(typeC); break;
+  }
 
   deviceArgNames.push_back(name);
   deviceArgFields.push_back(fd);
 }
 
 void HipaccKernel::createArgInfo() {
-  if (argTypesCUDA.size()) return;
+  if (argTypes.size()) return;
 
   // normal parameters
   for (auto arg : KC->getArguments()) {
@@ -500,8 +507,7 @@ void HipaccKernel::createArgInfo() {
 
     switch (arg.kind) {
       case HipaccKernelClass::Normal:
-        addParam(QT, QT, QT, QT.getAsString(), QT.getAsString(), arg.name,
-            arg.field);
+        addParam(QT, arg.name, arg.field);
 
         break;
       case HipaccKernelClass::IterationSpace:
@@ -534,37 +540,19 @@ void HipaccKernel::createArgInfo() {
         }
 
         // add types for image width/height plus stride
-        addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-            Ctx.getConstType(Ctx.IntTy),
-            Ctx.getConstType(Ctx.IntTy).getAsString(),
-            Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_width",
-            nullptr);
-        addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-            Ctx.getConstType(Ctx.IntTy),
-            Ctx.getConstType(Ctx.IntTy).getAsString(),
-            Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_height",
-            nullptr);
+        addParam(Ctx.getConstType(Ctx.IntTy), arg.name + "_width", nullptr);
+        addParam(Ctx.getConstType(Ctx.IntTy), arg.name + "_height", nullptr);
 
         // stride
         if (options.emitPadding() || getImgFromMapping(arg.field)->isCrop()) {
-          addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-              Ctx.getConstType(Ctx.IntTy),
-              Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_stride",
-              nullptr);
+          addParam(Ctx.getConstType(Ctx.IntTy), arg.name + "_stride", nullptr);
         }
 
         // offset_x, offset_y
         if (getImgFromMapping(arg.field)->isCrop()) {
-          addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-              Ctx.getConstType(Ctx.IntTy),
-              Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_offset_x",
+          addParam(Ctx.getConstType(Ctx.IntTy), arg.name + "_offset_x",
               nullptr);
-          addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-              Ctx.getConstType(Ctx.IntTy),
-              Ctx.getConstType(Ctx.IntTy).getAsString(),
-              Ctx.getConstType(Ctx.IntTy).getAsString(), arg.name + "_offset_y",
+          addParam(Ctx.getConstType(Ctx.IntTy), arg.name + "_offset_y",
               nullptr);
         }
 
@@ -578,8 +566,7 @@ void HipaccKernel::createArgInfo() {
           addParam(QTtmp, Ctx.getPointerType(QT), QTtmp, QTtmp.getAsString(),
               Ctx.getPointerType(QT).getAsString(), arg.name, arg.field);
         } else {
-          addParam(QTtmp, QTtmp, QTtmp, QTtmp.getAsString(),
-              QTtmp.getAsString(), arg.name, arg.field);
+          addParam(QTtmp, arg.name, arg.field);
         }
 
         break;
@@ -587,58 +574,38 @@ void HipaccKernel::createArgInfo() {
   }
 
   // is_stride
-  addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-      Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-      Ctx.getConstType(Ctx.IntTy).getAsString(), "is_stride", nullptr);
+  addParam(Ctx.getConstType(Ctx.IntTy), "is_stride", nullptr);
 
   // is_width, is_height
-  addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-      Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-      Ctx.getConstType(Ctx.IntTy).getAsString(), "is_width", nullptr);
-  addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-      Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-      Ctx.getConstType(Ctx.IntTy).getAsString(), "is_height", nullptr);
+  addParam(Ctx.getConstType(Ctx.IntTy), "is_width", nullptr);
+  addParam(Ctx.getConstType(Ctx.IntTy), "is_height", nullptr);
 
   // is_offset_x, is_offset_y
   if (iterationSpace->isCrop()) {
-    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "is_offset_x", nullptr);
-    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "is_offset_y", nullptr);
+    addParam(Ctx.getConstType(Ctx.IntTy), "is_offset_x", nullptr);
+    addParam(Ctx.getConstType(Ctx.IntTy), "is_offset_y", nullptr);
   }
 
   // bh_start_left
   if (getMaxSizeX() || options.exploreConfig()) {
-    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_left", nullptr);
+    addParam(Ctx.getConstType(Ctx.IntTy), "bh_start_left", nullptr);
   }
   // bh_start_right: always emit bh_start_right for iteration spaces not being a
   // multiple of the block size
-  addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-      Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-      Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_right", nullptr);
+  addParam(Ctx.getConstType(Ctx.IntTy), "bh_start_right", nullptr);
   // bh_start_top
   if (getMaxSizeY() || options.exploreConfig()) {
-    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_top", nullptr);
+    addParam(Ctx.getConstType(Ctx.IntTy), "bh_start_top", nullptr);
   }
   // bh_start_bottom: emit bh_start_bottom in case iteration space is not a
   // multiple of the block size
   if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY() ||
       options.exploreConfig()) {
-    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_start_bottom", nullptr);
+    addParam(Ctx.getConstType(Ctx.IntTy), "bh_start_bottom", nullptr);
   }
   // bh_fall_back
   if (getMaxSizeX() || getMaxSizeY() || options.exploreConfig()) {
-    addParam(Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy),
-        Ctx.getConstType(Ctx.IntTy), Ctx.getConstType(Ctx.IntTy).getAsString(),
-        Ctx.getConstType(Ctx.IntTy).getAsString(), "bh_fall_back", nullptr);
+    addParam(Ctx.getConstType(Ctx.IntTy), "bh_fall_back", nullptr);
   }
 }
 
