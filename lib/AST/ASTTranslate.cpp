@@ -704,7 +704,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     // add scale factor calculations for interpolation:
     // float acc_scale_x = (float)acc_width/is_width;
     // float acc_scale_y = (float)acc_height/is_height;
-    if (Acc->getInterpolation()!=InterpolateNO) {
+    if (Acc->getInterpolationMode() != Interpolate::NO) {
       Expr *scaleExprX = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
             Ctx.FloatTy, CK_IntegralToFloating, getWidthDecl(Acc), nullptr,
             Ctx.getTrivialTypeSourceInfo(Ctx.FloatTy)),
@@ -2306,7 +2306,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       // Acc.getX() method -> acc_scale_x * (gid_x - is_offset_x)
       if (ME->getMemberNameInfo().getAsString() == "getX") {
         // remove is_offset_x and scale index to Accessor size
-        if (Acc->getInterpolation()!=InterpolateNO) {
+        if (Acc->getInterpolationMode() != Interpolate::NO) {
           return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
               createParenExpr(Ctx, addNNInterpolationX(Acc,
                   tileVars.global_id_x)), nullptr,
@@ -2320,7 +2320,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       if (ME->getMemberNameInfo().getAsString() == "getY") {
         Expr *idx_y = gidYRef;
         // scale index to Accessor size
-        if (Acc->getInterpolation()!=InterpolateNO) {
+        if (Acc->getInterpolationMode() != Interpolate::NO) {
           idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
               createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), nullptr,
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));

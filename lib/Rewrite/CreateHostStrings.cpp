@@ -1027,20 +1027,20 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
 
 void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
     HipaccAccessor *Acc, std::string function_name, std::string type_suffix,
-    InterpolationMode ip_mode, Boundary bh_mode, std::string &resultStr) {
+    Interpolate ip_mode, Boundary bh_mode, std::string &resultStr) {
   // interpolation macro
-  switch (Acc->getInterpolation()) {
-    case InterpolateNO:
-    case InterpolateNN:
+  switch (Acc->getInterpolationMode()) {
+    case Interpolate::NO:
+    case Interpolate::NN:
       resultStr += "DEFINE_BH_VARIANT_NO_BH(INTERPOLATE_LINEAR_FILTERING";
       break;
-    case InterpolateLF:
+    case Interpolate::LF:
       resultStr += "DEFINE_BH_VARIANT(INTERPOLATE_LINEAR_FILTERING";
       break;
-    case InterpolateCF:
+    case Interpolate::CF:
       resultStr += "DEFINE_BH_VARIANT(INTERPOLATE_CUBIC_FILTERING";
       break;
-    case InterpolateL3:
+    case Interpolate::L3:
       resultStr += "DEFINE_BH_VARIANT(INTERPOLATE_LANCZOS_FILTERING";
       break;
   }

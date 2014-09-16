@@ -79,12 +79,12 @@ enum class Reduce : uint8_t {
 };
 
 // interpolation modes for accessors
-enum InterpolationMode {
-  InterpolateNO,
-  InterpolateNN,
-  InterpolateLF,
-  InterpolateCF,
-  InterpolateL3
+enum class Interpolate : uint8_t {
+  NO = 0,
+  NN,
+  LF,
+  CF,
+  L3
 };
 
 
@@ -210,7 +210,7 @@ class HipaccBoundaryCondition : public HipaccSize {
 class HipaccAccessor {
   private:
     HipaccBoundaryCondition *bc;
-    InterpolationMode interpolation;
+    Interpolate mode;
     VarDecl *VD;
     std::string name;
     bool crop;
@@ -219,10 +219,10 @@ class HipaccAccessor {
     DeclRefExpr *offsetXDecl, *offsetYDecl;
 
   public:
-    HipaccAccessor(HipaccBoundaryCondition *bc, InterpolationMode mode, VarDecl
+    HipaccAccessor(HipaccBoundaryCondition *bc, Interpolate mode, VarDecl
         *VD) :
       bc(bc),
-      interpolation(mode),
+      mode(mode),
       VD(VD),
       name(VD->getNameAsString()),
       crop(true),
@@ -242,7 +242,7 @@ class HipaccAccessor {
     VarDecl *getDecl() { return VD; }
     const std::string &getName() const { return name; }
     HipaccBoundaryCondition *getBC() { return bc; }
-    InterpolationMode getInterpolation() { return interpolation; }
+    Interpolate getInterpolationMode() { return mode; }
     HipaccImage *getImage() { return bc->getImage(); }
     unsigned getSizeX() { return bc->getSizeX(); }
     unsigned getSizeY() { return bc->getSizeY(); }

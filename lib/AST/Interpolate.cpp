@@ -45,19 +45,12 @@ std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
     HipaccKernel *Kernel, HipaccAccessor *Acc, border_variant bh_variant) {
   std::string name = "interpolate_";
 
-  switch (Acc->getInterpolation()) {
-    case InterpolateNO:
-    case InterpolateNN:
-      break;
-    case InterpolateLF:
-      name += "lf_";
-      break;
-    case InterpolateCF:
-      name += "cf_";
-      break;
-    case InterpolateL3:
-      name += "l3_";
-      break;
+  switch (Acc->getInterpolationMode()) {
+    case Interpolate::NO:
+    case Interpolate::NN:                break;
+    case Interpolate::LF: name += "lf_"; break;
+    case Interpolate::CF: name += "cf_"; break;
+    case Interpolate::L3: name += "l3_"; break;
   }
 
   switch (compilerOptions.getTargetLang()) {

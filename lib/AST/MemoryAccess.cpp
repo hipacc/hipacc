@@ -105,8 +105,8 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   idx_y = addLocalOffset(idx_y, local_offset_y);
 
   // step 1: remove is_offset and add interpolation & boundary handling
-  switch (Acc->getInterpolation()) {
-    case InterpolateNO:
+  switch (Acc->getInterpolationMode()) {
+    case Interpolate::NO:
       if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
         idx_x = removeISOffsetX(idx_x, Acc);
       }
@@ -117,7 +117,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
         idx_y = removeISOffsetY(idx_y, Acc);
       }
       break;
-    case InterpolateNN:
+    case Interpolate::NN:
       idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
           createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), nullptr,
           Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
@@ -125,9 +125,9 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), nullptr,
           Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       break;
-    case InterpolateLF:
-    case InterpolateCF:
-    case InterpolateL3:
+    case Interpolate::LF:
+    case Interpolate::CF:
+    case Interpolate::L3:
       return addInterpolationCall(LHS, Acc, idx_x, idx_y);
   }
 

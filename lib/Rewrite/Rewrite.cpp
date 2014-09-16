@@ -976,16 +976,16 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         assert(BC && "Expected BoundaryCondition, Image or Pyramid call as "
                      "first argument to Accessor.");
 
-        InterpolationMode mode;
+        Interpolate mode;
         if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
-              compilerClasses.Accessor)) mode = InterpolateNO;
+              compilerClasses.Accessor)) mode = Interpolate::NO;
         else if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
-              compilerClasses.AccessorNN)) mode = InterpolateNN;
+              compilerClasses.AccessorNN)) mode = Interpolate::NN;
         else if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
-              compilerClasses.AccessorLF)) mode = InterpolateLF;
+              compilerClasses.AccessorLF)) mode = Interpolate::LF;
         else if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
-              compilerClasses.AccessorCF)) mode = InterpolateCF;
-        else mode = InterpolateL3;
+              compilerClasses.AccessorCF)) mode = Interpolate::CF;
+        else mode = Interpolate::L3;
 
         Acc = new HipaccAccessor(BC, mode, VD);
 
@@ -2287,7 +2287,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
     if (!Acc || !K->getUsed(K->getDeviceArgNames()[i])) continue;
 
-    if (Acc->getInterpolation()!=InterpolateNO) {
+    if (Acc->getInterpolationMode() != Interpolate::NO) {
       if (!inc) {
         inc = true;
         switch (compilerOptions.getTargetLang()) {
@@ -2308,7 +2308,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       }
 
       // define required interpolation mode
-      if (inc && Acc->getInterpolation()>InterpolateNN) {
+      if (inc && Acc->getInterpolationMode() > Interpolate::NN) {
         std::string function_name(ASTTranslate::getInterpolationName(Context,
               builtins, compilerOptions, K, Acc, border_variant()));
         std::string suffix("_" +
@@ -2316,7 +2316,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
         std::string resultStr;
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-            suffix, Acc->getInterpolation(), Acc->getBoundaryMode(), resultStr);
+            suffix, Acc->getInterpolationMode(), Acc->getBoundaryMode(),
+            resultStr);
 
         switch (compilerOptions.getTargetLang()) {
           default: InterpolationDefinitionsLocal.push_back(resultStr); break;
@@ -2325,7 +2326,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
         resultStr.erase();
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-            suffix, InterpolateNO, Boundary::UNDEFINED, resultStr);
+            suffix, Interpolate::NO, Boundary::UNDEFINED, resultStr);
 
         switch (compilerOptions.getTargetLang()) {
           default: InterpolationDefinitionsLocal.push_back(resultStr); break;

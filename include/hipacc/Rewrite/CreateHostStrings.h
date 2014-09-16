@@ -99,8 +99,8 @@ class CreateHostStrings {
     void writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K, std::string
         &resultStr);
     void writeInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,
-        std::string function_name, std::string type_suffix, InterpolationMode
-        ip_mode, Boundary bh_mode, std::string &resultStr);
+        std::string function_name, std::string type_suffix, Interpolate ip_mode,
+        Boundary bh_mode, std::string &resultStr);
     void writePyramidAllocation(std::string pyrName, std::string type,
         std::string img, std::string depth, std::string &resultStr);
 };
