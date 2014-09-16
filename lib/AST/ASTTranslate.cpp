@@ -1565,25 +1565,12 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
 
 
 Stmt *ASTTranslate::VisitReturnStmtTranslate(ReturnStmt *S) {
-  // within convolve lambda-functions, return statements are replaced by
-  // reductions
+  // replace return statements within convolve lambda-functions
   if (convMask && convTmp) {
-    Expr *retVal = Clone(S->getRetValue());
-
-    Stmt *convInitExpr = createBinaryOperator(Ctx, convTmp, retVal, BO_Assign,
-        convTmp->getType());
-    Stmt *convTmpExpr = getConvolutionStmt(convMode, convTmp, retVal);
-
-    if (convIdxX + convIdxY == 0) {
-      // conv_tmp = ...
-      return convInitExpr;
-    } else {
-      // conv_tmp += ...
-      return convTmpExpr;
-    }
+    return getConvolutionStmt(convMode, convTmp, Clone(S->getRetValue()));
   } else if (!redDomains.empty() && !redTmps.empty()) {
     return getConvolutionStmt(redModes.back(), redTmps.back(),
-        Clone(S->getRetValue()));
+                              Clone(S->getRetValue()));
   } else {
     return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
   }
@@ -2374,12 +2361,10 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
                                  "allowed within convolution lambda-function.");
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "getX") {
-          return createIntegerLiteral(Ctx,
-              convIdxX - (int)convMask->getSizeX()/2);
+          return createIntegerLiteral(Ctx, convIdxX - (int)Mask->getSizeX()/2);
         }
         if (ME->getMemberNameInfo().getAsString() == "getY") {
-          return createIntegerLiteral(Ctx,
-              convIdxY - (int)convMask->getSizeY()/2);
+          return createIntegerLiteral(Ctx, convIdxY - (int)Mask->getSizeY()/2);
         }
       }
     }

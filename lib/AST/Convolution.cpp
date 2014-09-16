@@ -353,12 +353,17 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
     }
   }
 
-  // introduce temporary for holding the convolution/reduction result
-  CompoundStmt *outerCompountStmt = curCStmt;
+  // init temporary variable depending on aggregation mode
   Expr *init = nullptr;
-  if (method==Method::Reduce) {
-    // init temporary variable depending on aggregation mode
-    init = getInitExpr(redModes.back(), LE->getCallOperator()->getReturnType());
+  switch (method) {
+    case Method::Convolve:
+      init = getInitExpr(convMode, LE->getCallOperator()->getReturnType());
+      break;
+    case Method::Reduce:
+      init = getInitExpr(redModes.back(),
+          LE->getCallOperator()->getReturnType());
+      break;
+    case Method::Iterate: break;
   }
   std::string tmp_lit("_tmp" + std::to_string(literalCount++));
   VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, tmp_lit,
@@ -366,6 +371,9 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
   DC->addDecl(tmp_decl);
   DeclRefExpr *tmp_dre = createDeclRefExpr(Ctx, tmp_decl);
+
+  // introduce temporary for holding the convolution/reduction result
+  CompoundStmt *outerCompountStmt = curCStmt;
 
   switch (method) {
     case Method::Convolve:
