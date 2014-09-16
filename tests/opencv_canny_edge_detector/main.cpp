@@ -56,7 +56,7 @@ class GaussianBlurFilter : public Kernel<uchar> {
         { addAccessor(&input); }
 
         void kernel() {
-            output() = (uchar)(convolve(mask, HipaccSUM, [&] () -> float {
+            output() = (uchar)(convolve(mask, Reduce::SUM, [&] () -> float {
                     return mask() * input(mask);
                     }) + 0.5f);
         }
@@ -81,10 +81,10 @@ class GradFilter : public Kernel<float> {
         { addAccessor(&input); }
 
         void kernel() {
-            int gx = reduce(dom_x, HipaccSUM, [&] () -> int {
+            int gx = reduce(dom_x, Reduce::SUM, [&] () -> int {
                     return mask_x(dom_x) * input(dom_x);
                     });
-            int gy = reduce(dom_y, HipaccSUM, [&] () -> int {
+            int gy = reduce(dom_y, Reduce::SUM, [&] () -> int {
                     return mask_y(dom_y) * input(dom_y);
                     });
 
@@ -218,21 +218,21 @@ int main(int argc, const char **argv) {
 
     // blur input image
     input_img = frame.data;
-    BoundaryCondition<uchar> bound_input_img(input_img, gauss_mask, BOUNDARY_CLAMP);
+    BoundaryCondition<uchar> bound_input_img(input_img, gauss_mask, Boundary::CLAMP);
     Accessor<uchar> acc_input_img(bound_input_img);
     IterationSpace<uchar> iter_gauss(gauss_img);
 
     GaussianBlurFilter gauss(iter_gauss, acc_input_img, gauss_mask);
 
     // compute edge gradient
-    BoundaryCondition<uchar> bound_gauss_img(gauss_img, gauss_mask, BOUNDARY_CLAMP);
+    BoundaryCondition<uchar> bound_gauss_img(gauss_img, gauss_mask, Boundary::CLAMP);
     Accessor<uchar> acc_gauss_img(bound_gauss_img);
     IterationSpace<float> iter_grad(grad_img);
 
     GradFilter grad(iter_grad, acc_gauss_img, sobel_mask_x, sobel_mask_y, sobel_dom_x, sobel_dom_y);
 
     // non-maximum suppression
-    BoundaryCondition<float> bound_grad_img(grad_img, gauss_mask, BOUNDARY_CLAMP);
+    BoundaryCondition<float> bound_grad_img(grad_img, gauss_mask, Boundary::CLAMP);
     Accessor<float> acc_grad_img(bound_grad_img);
     IterationSpace<int> iter_nsm(nms_img);
 

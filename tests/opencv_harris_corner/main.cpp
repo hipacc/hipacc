@@ -81,7 +81,7 @@ class Deriv1D : public Kernel<float> {
 
     void kernel() {
       float sum = 0.0f;
-      sum += convolve(mask, HipaccSUM, [&] () -> float {
+      sum += convolve(mask, Reduce::SUM, [&] () -> float {
           return input(mask) * mask();
       });
       output() = sum*sum;
@@ -106,7 +106,7 @@ class Deriv1DCol : public Kernel<float> {
 
     void kernel() {
       float sum = 0.0f;
-      sum += convolve(mask, HipaccSUM, [&] () -> float {
+      sum += convolve(mask, Reduce::SUM, [&] () -> float {
           return input(mask) * mask();
       });
       output() = sum;
@@ -130,7 +130,7 @@ class Deriv1DRow : public Kernel<float> {
 
     void kernel() {
       float sum = 0.0f;
-      sum += convolve(mask, HipaccSUM, [&] () -> float {
+      sum += convolve(mask, Reduce::SUM, [&] () -> float {
           return input(mask) * mask();
       });
       output() = sum*sum;
@@ -185,7 +185,7 @@ class GaussianBlurFilterMaskRow : public Kernel<float> {
 
     #ifdef USE_LAMBDA
     void kernel() {
-      output() = convolve(mask, HipaccSUM, [&] () -> float {
+      output() = convolve(mask, Reduce::SUM, [&] () -> float {
           return mask() * input(mask);
       });
     }
@@ -221,7 +221,7 @@ class GaussianBlurFilterMaskColumn : public Kernel<float> {
 
     #ifdef USE_LAMBDA
     void kernel() {
-      output() = convolve(mask, HipaccSUM, [&] () -> float {
+      output() = convolve(mask, Reduce::SUM, [&] () -> float {
           return mask() * input(mask);
       }) + 0.5f;
     }
@@ -407,7 +407,7 @@ int main(int argc, const char **argv) {
 
     fprintf(stderr, "Calculating HIPAcc Harris Corner filter ...\n");
 
-    BoundaryCondition<uchar> BcInClamp(IN, 3, 3, BOUNDARY_CLAMP);
+    BoundaryCondition<uchar> BcInClamp(IN, 3, 3, Boundary::CLAMP);
     Accessor<uchar> AccInClamp(BcInClamp);
 
     #ifdef NO_SEP
@@ -421,7 +421,7 @@ int main(int argc, const char **argv) {
     timing = hipaccGetLastKernelTiming();
     timings.push_back(timing);
     #else
-    BoundaryCondition<float> BcTmpDcClamp(TMP, 1, 3, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcTmpDcClamp(TMP, 1, 3, Boundary::CLAMP);
     Accessor<float> AccTmpDcClamp(BcTmpDcClamp);
 
     Deriv1DCol D1dxc(IsTmp, AccInClamp, MXX, 3);
@@ -451,10 +451,10 @@ int main(int argc, const char **argv) {
     timing = hipaccGetLastKernelTiming();
     timings.push_back(timing);
 
-    BoundaryCondition<float> BcTmpClamp(TMP, 1, size_y, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcTmpClamp(TMP, 1, size_y, Boundary::CLAMP);
     Accessor<float> AccTmpClamp(BcTmpClamp);
 
-    BoundaryCondition<float> BcInClampDx(DX, size_x, 1, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcInClampDx(DX, size_x, 1, Boundary::CLAMP);
     Accessor<float> AccInClampDx(BcInClampDx);
     GaussianBlurFilterMaskRow GRDx(IsTmp, AccInClampDx, GX, size_x);
     GaussianBlurFilterMaskColumn GCDx(IsDx, AccTmpClamp, GY, size_y);
@@ -464,7 +464,7 @@ int main(int argc, const char **argv) {
     timing += hipaccGetLastKernelTiming();
     timings.push_back(timing);
 
-    BoundaryCondition<float> BcInClampDy(DY, size_x, 1, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcInClampDy(DY, size_x, 1, Boundary::CLAMP);
     Accessor<float> AccInClampDy(BcInClampDy);
     GaussianBlurFilterMaskRow GRDy(IsTmp, AccInClampDy, GX, size_x);
     GaussianBlurFilterMaskColumn GCDy(IsDy, AccTmpClamp, GY, size_y);
@@ -474,7 +474,7 @@ int main(int argc, const char **argv) {
     timing += hipaccGetLastKernelTiming();
     timings.push_back(timing);
 
-    BoundaryCondition<float> BcInClampDxy(DXY, size_x, 1, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcInClampDxy(DXY, size_x, 1, Boundary::CLAMP);
     Accessor<float> AccInClampDxy(BcInClampDxy);
     GaussianBlurFilterMaskRow GRDxy(IsTmp, AccInClampDxy, GX, size_x);
     GaussianBlurFilterMaskColumn GCDxy(IsDxy, AccTmpClamp, GY, size_y);

@@ -520,8 +520,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Hipacc (NOBH): %.3f ms, %.3f Mpixel/s\n\n", timing, (width*height/timing)/1000);
 
 
-    // BOUNDARY_CLAMP
-    BoundaryCondition<float> BcInClamp(in, mask, BOUNDARY_CLAMP);
+    // CLAMP
+    BoundaryCondition<float> BcInClamp(in, mask, Boundary::CLAMP);
     Accessor<float> AccInClamp(BcInClamp);
     #ifdef CONVOLUTION_MASK
     BilateralFilterMask BF(iter, AccInClamp, mask, dom, sigma_d, sigma_r);

@@ -168,7 +168,7 @@ class SobelFilterMask : public Kernel<float> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = reduce(dom, HipaccSUM, [&] () -> float {
+            output() = reduce(dom, Reduce::SUM, [&] () -> float {
                     return mask(dom) * input(dom);
                     });
         }
@@ -205,7 +205,7 @@ class SobelFilterMaskRow : public Kernel<float> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = convolve(mask, HipaccSUM, [&] () -> float {
+            output() = convolve(mask, Reduce::SUM, [&] () -> float {
                     return mask() * input(mask);
                     });
         }
@@ -239,7 +239,7 @@ class SobelFilterMaskColumn : public Kernel<float> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = convolve(mask, HipaccSUM, [&] () -> float {
+            output() = convolve(mask, Reduce::SUM, [&] () -> float {
                     return mask() * input(mask);
                     });
         }
@@ -431,21 +431,21 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Calculating Sobel filter ...\n");
     float timing = 0.0f;
 
-    // BOUNDARY_UNDEFINED
+    // UNDEFINED
     #ifdef RUN_UNDEF
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInUndef2(IN, M, BOUNDARY_UNDEFINED);
+    BoundaryCondition<float> BcInUndef2(IN, M, Boundary::UNDEFINED);
     Accessor<float> AccInUndef2(BcInUndef2);
     SobelFilterMask SFU(IsOut, AccInUndef2, D, M, size_x);
 
     SFU.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInUndef(IN, MX, BOUNDARY_UNDEFINED);
+    BoundaryCondition<float> BcInUndef(IN, MX, Boundary::UNDEFINED);
     Accessor<float> AccInUndef(BcInUndef);
     SobelFilterMaskRow SFRU(IsTmp, AccInUndef, MX, size_x);
 
-    BoundaryCondition<float> BcTmpUndef(TMP, MY, BOUNDARY_UNDEFINED);
+    BoundaryCondition<float> BcTmpUndef(TMP, MY, Boundary::UNDEFINED);
     Accessor<float> AccTmpUndef(BcTmpUndef);
     SobelFilterMaskColumn SFCU(IsOut, AccTmpUndef, MY, size_y);
 
@@ -459,20 +459,20 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // BOUNDARY_CLAMP
+    // CLAMP
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInClamp2(IN, M, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcInClamp2(IN, M, Boundary::CLAMP);
     Accessor<float> AccInClamp2(BcInClamp2);
     SobelFilterMask SFC(IsOut, AccInClamp2, D, M, size_x);
 
     SFC.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInClamp(IN, MX, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcInClamp(IN, MX, Boundary::CLAMP);
     Accessor<float> AccInClamp(BcInClamp);
     SobelFilterMaskRow SFRC(IsTmp, AccInClamp, MX, size_x);
 
-    BoundaryCondition<float> BcTmpClamp(TMP, MY, BOUNDARY_CLAMP);
+    BoundaryCondition<float> BcTmpClamp(TMP, MY, Boundary::CLAMP);
     Accessor<float> AccTmpClamp(BcTmpClamp);
     SobelFilterMaskColumn SFCC(IsOut, AccTmpClamp, MY, size_y);
 
@@ -485,20 +485,20 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // BOUNDARY_REPEAT
+    // REPEAT
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInRepeat2(IN, M, BOUNDARY_REPEAT);
+    BoundaryCondition<float> BcInRepeat2(IN, M, Boundary::REPEAT);
     Accessor<float> AccInRepeat2(BcInRepeat2);
     SobelFilterMask SFR(IsOut, AccInRepeat2, D, M, size_x);
 
     SFR.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInRepeat(IN, MX, BOUNDARY_REPEAT);
+    BoundaryCondition<float> BcInRepeat(IN, MX, Boundary::REPEAT);
     Accessor<float> AccInRepeat(BcInRepeat);
     SobelFilterMaskRow SFRR(IsTmp, AccInRepeat, MX, size_x);
 
-    BoundaryCondition<float> BcTmpRepeat(TMP, MY, BOUNDARY_REPEAT);
+    BoundaryCondition<float> BcTmpRepeat(TMP, MY, Boundary::REPEAT);
     Accessor<float> AccTmpRepeat(BcTmpRepeat);
     SobelFilterMaskColumn SFCR(IsOut, AccTmpRepeat, MY, size_y);
 
@@ -511,20 +511,20 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // BOUNDARY_MIRROR
+    // MIRROR
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInMirror2(IN, M, BOUNDARY_MIRROR);
+    BoundaryCondition<float> BcInMirror2(IN, M, Boundary::MIRROR);
     Accessor<float> AccInMirror2(BcInMirror2);
     SobelFilterMask SFM(IsOut, AccInMirror2, D, M, size_x);
 
     SFM.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInMirror(IN, MX, BOUNDARY_MIRROR);
+    BoundaryCondition<float> BcInMirror(IN, MX, Boundary::MIRROR);
     Accessor<float> AccInMirror(BcInMirror);
     SobelFilterMaskRow SFRM(IsTmp, AccInMirror, MX, size_x);
 
-    BoundaryCondition<float> BcTmpMirror(TMP, MY, BOUNDARY_MIRROR);
+    BoundaryCondition<float> BcTmpMirror(TMP, MY, Boundary::MIRROR);
     Accessor<float> AccTmpMirror(BcTmpMirror);
     SobelFilterMaskColumn SFCM(IsOut, AccTmpMirror, MY, size_y);
 
@@ -537,20 +537,20 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // BOUNDARY_CONSTANT
+    // CONSTANT
     #ifdef NO_SEP
-    BoundaryCondition<float> BcInConst2(IN, M, BOUNDARY_CONSTANT, '1');
+    BoundaryCondition<float> BcInConst2(IN, M, Boundary::CONSTANT, '1');
     Accessor<float> AccInConst2(BcInConst2);
     SobelFilterMask SFConst(IsOut, AccInConst2, D, M, size_x);
 
     SFConst.execute();
     timing = hipaccGetLastKernelTiming();
     #else
-    BoundaryCondition<float> BcInConst(IN, MX, BOUNDARY_CONSTANT, '1');
+    BoundaryCondition<float> BcInConst(IN, MX, Boundary::CONSTANT, '1');
     Accessor<float> AccInConst(BcInConst);
     SobelFilterMaskRow SFRConst(IsTmp, AccInConst, MX, size_x);
 
-    BoundaryCondition<float> BcTmpConst(TMP, MY, BOUNDARY_CONSTANT, 1);
+    BoundaryCondition<float> BcTmpConst(TMP, MY, Boundary::CONSTANT, 1);
     Accessor<float> AccTmpConst(BcTmpConst);
     SobelFilterMaskColumn SFCConst(IsOut, AccTmpConst, MY, size_y);
 

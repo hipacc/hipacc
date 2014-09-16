@@ -65,7 +65,7 @@ class Gaussian : public Kernel<char> {
 
     void kernel() {
       #ifdef USE_LAMBDA
-      output() = convolve(mask, HipaccSUM, [&] () {
+      output() = convolve(mask, Reduce::SUM, [&] () {
         return input(mask) * mask();
       });
       #else
@@ -217,7 +217,7 @@ int main(int argc, const char **argv) {
     traverse(PGAUS, PTMP, PLAP, [&] () {
         if (!PGAUS.isTopLevel()) {
           // Construct gaussian pyramid
-          BoundaryCondition<char> BC(PGAUS(-1), M, BOUNDARY_CLAMP);
+          BoundaryCondition<char> BC(PGAUS(-1), M, Boundary::CLAMP);
           Accessor<char> Acc1(BC);
           IterationSpace<char> IS1(PTMP(-1));
           Gaussian Gaus(IS1, Acc1, M, size_x, size_y);

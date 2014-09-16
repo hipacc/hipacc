@@ -175,7 +175,7 @@ class BlurFilter : public Kernel<uchar> {
         void kernel() {
             #ifdef USE_LAMBDA
             output() = (uchar) ( (1/(float)(size_x*size_y)) *
-                    reduce(dom, HipaccSUM, [&] () -> int {
+                    reduce(dom, Reduce::SUM, [&] () -> int {
                         return in(dom);
                     }));
             #else
@@ -290,7 +290,7 @@ int main(int argc, const char **argv) {
 
     // use undefined boundary handling to access image pixels beyond region
     // defined by Accessor
-    BoundaryCondition<uchar> bound(in, size_x, size_y, BOUNDARY_UNDEFINED);
+    BoundaryCondition<uchar> bound(in, size_x, size_y, Boundary::UNDEFINED);
     Accessor<uchar> acc(bound, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
 
     #ifdef SIMPLE

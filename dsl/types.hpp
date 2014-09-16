@@ -28,12 +28,12 @@
 
 namespace hipacc {
 
-enum HipaccConvolutionMode {
-    HipaccSUM,
-    HipaccMIN,
-    HipaccMAX,
-    HipaccPROD,
-    HipaccMEDIAN
+enum class Reduce : uint8_t {
+    SUM = 0,
+    MIN,
+    MAX,
+    PROD,
+    MEDIAN
 };
 
 #if defined __clang__

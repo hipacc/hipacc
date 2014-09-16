@@ -62,7 +62,7 @@ class GaussianBlurFilter : public Kernel<uchar> {
         { addAccessor(&input); }
 
         void kernel() {
-            output() = (uchar)(convolve(mask, HipaccSUM, [&] () -> float {
+            output() = (uchar)(convolve(mask, Reduce::SUM, [&] () -> float {
                     return mask() * input(mask);
                     }) + 0.5f);
         }
@@ -368,7 +368,7 @@ int main(int argc, const char **argv) {
 
     // filter first image/frame
     img = frame.data;
-    BoundaryCondition<uchar> bound_img(img, mask, BOUNDARY_CLAMP);
+    BoundaryCondition<uchar> bound_img(img, mask, Boundary::CLAMP);
     Accessor<uchar> acc_img(bound_img);
     IterationSpace<uchar> iter_blur(filter_img);
 
@@ -380,7 +380,7 @@ int main(int argc, const char **argv) {
 
 
     // generate signature for first image/frame
-    BoundaryCondition<uchar> bound_fil(filter_img, 8, 8, BOUNDARY_CLAMP);
+    BoundaryCondition<uchar> bound_fil(filter_img, 8, 8, Boundary::CLAMP);
     Accessor<uchar> acc_fil(bound_fil);
     IterationSpace<uint> iter_sig(img_signature);
 

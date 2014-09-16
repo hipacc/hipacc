@@ -119,7 +119,7 @@ class LaplaceFilter : public Kernel<uchar> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            int sum = reduce(dom, HipaccSUM, [&] () -> int {
+            int sum = reduce(dom, Reduce::SUM, [&] () -> int {
                     return mask(dom) * input(dom);
                     });
             sum = min(sum, 255);
@@ -229,9 +229,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Calculating Laplace filter ...\n");
     float timing = 0.0f;
 
-    // BOUNDARY_UNDEFINED
+    // UNDEFINED
     #ifdef RUN_UNDEF
-    BoundaryCondition<uchar> BcInUndef(IN, M, BOUNDARY_UNDEFINED);
+    BoundaryCondition<uchar> BcInUndef(IN, M, Boundary::UNDEFINED);
     Accessor<uchar> AccInUndef(BcInUndef);
     LaplaceFilter LFU(IsOut, AccInUndef, D, M, size_x);
 
@@ -242,8 +242,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // BOUNDARY_CLAMP
-    BoundaryCondition<uchar> BcInClamp(IN, M, BOUNDARY_CLAMP);
+    // CLAMP
+    BoundaryCondition<uchar> BcInClamp(IN, M, Boundary::CLAMP);
     Accessor<uchar> AccInClamp(BcInClamp);
     LaplaceFilter LFC(IsOut, AccInClamp, D, M, size_x);
 
@@ -253,8 +253,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // BOUNDARY_REPEAT
-    BoundaryCondition<uchar> BcInRepeat(IN, M, BOUNDARY_REPEAT);
+    // REPEAT
+    BoundaryCondition<uchar> BcInRepeat(IN, M, Boundary::REPEAT);
     Accessor<uchar> AccInRepeat(BcInRepeat);
     LaplaceFilter LFR(IsOut, AccInRepeat, D, M, size_x);
 
@@ -264,8 +264,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // BOUNDARY_MIRROR
-    BoundaryCondition<uchar> BcInMirror(IN, M, BOUNDARY_MIRROR);
+    // MIRROR
+    BoundaryCondition<uchar> BcInMirror(IN, M, Boundary::MIRROR);
     Accessor<uchar> AccInMirror(BcInMirror);
     LaplaceFilter LFM(IsOut, AccInMirror, D, M, size_x);
 
@@ -275,8 +275,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
-    // BOUNDARY_CONSTANT
-    BoundaryCondition<uchar> BcInConst(IN, M, BOUNDARY_CONSTANT, '1');
+    // CONSTANT
+    BoundaryCondition<uchar> BcInConst(IN, M, Boundary::CONSTANT, '1');
     Accessor<uchar> AccInConst(BcInConst);
     LaplaceFilter LFConst(IsOut, AccInConst, D, M, size_x);
 

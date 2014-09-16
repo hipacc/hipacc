@@ -41,12 +41,12 @@ template<typename data_t> class AccessorLF;
 template<typename data_t> class AccessorCF;
 template<typename data_t> class AccessorL3;
 
-enum hipaccBoundaryMode {
-    BOUNDARY_UNDEFINED,
-    BOUNDARY_CLAMP,
-    BOUNDARY_REPEAT,
-    BOUNDARY_MIRROR,
-    BOUNDARY_CONSTANT
+enum class Boundary : uint8_t {
+    UNDEFINED = 0,
+    CLAMP,
+    REPEAT,
+    MIRROR,
+    CONSTANT
 };
 
 template<typename data_t>
@@ -135,13 +135,13 @@ class BoundaryCondition {
     protected:
         Image<data_t> &img;
         int size_x, size_y;
-        hipaccBoundaryMode mode;
+        Boundary mode;
         // dummy reference to return a reference for constants
         data_t const_val;
         data_t &dummy;
 
     public:
-        BoundaryCondition(Image<data_t> &Img, int size_x, int size_y, hipaccBoundaryMode mode) :
+        BoundaryCondition(Image<data_t> &Img, int size_x, int size_y, Boundary mode) :
             img(Img),
             size_x(size_x),
             size_y(size_y),
@@ -149,10 +149,10 @@ class BoundaryCondition {
             const_val(),
             dummy(const_val)
         {
-            assert(mode!=BOUNDARY_CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
+            assert(mode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, int size, hipaccBoundaryMode mode) :
+        BoundaryCondition(Image<data_t> &Img, int size, Boundary mode) :
             img(Img),
             size_x(size),
             size_y(size),
@@ -160,10 +160,10 @@ class BoundaryCondition {
             const_val(),
             dummy(const_val)
         {
-            assert(mode!=BOUNDARY_CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
+            assert(mode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, hipaccBoundaryMode mode) :
+        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, Boundary mode) :
             img(Img),
             size_x(Mask.getSizeX()),
             size_y(Mask.getSizeY()),
@@ -171,10 +171,10 @@ class BoundaryCondition {
             const_val(),
             dummy(const_val)
         {
-            assert(mode!=BOUNDARY_CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
+            assert(mode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, int size_x, int size_y, hipaccBoundaryMode mode, data_t val) :
+        BoundaryCondition(Image<data_t> &Img, int size_x, int size_y, Boundary mode, data_t val) :
             img(Img),
             size_x(size_x),
             size_y(size_y),
@@ -182,10 +182,10 @@ class BoundaryCondition {
             const_val(),
             dummy(const_val)
         {
-            assert(mode==BOUNDARY_CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
+            assert(mode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, int size, hipaccBoundaryMode mode, data_t val) :
+        BoundaryCondition(Image<data_t> &Img, int size, Boundary mode, data_t val) :
             img(Img),
             size_x(size),
             size_y(size),
@@ -193,10 +193,10 @@ class BoundaryCondition {
             const_val(),
             dummy(const_val)
         {
-            assert(mode==BOUNDARY_CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
+            assert(mode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, hipaccBoundaryMode mode, data_t val) :
+        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, Boundary mode, data_t val) :
             img(Img),
             size_x(Mask.getSizeX()),
             size_y(Mask.getSizeY()),
@@ -204,7 +204,7 @@ class BoundaryCondition {
             const_val(),
             dummy(const_val)
         {
-            assert(mode==BOUNDARY_CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
+            assert(mode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
         }
 
         int clamp(int coord, int lb, int ub) {
@@ -273,29 +273,29 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
             data_t *ret = &dummy;
 
             switch (mode) {
-                case BOUNDARY_UNDEFINED:
+                case Boundary::UNDEFINED:
                     ret = &img.getPixel(x, y);
                     break;
-                case BOUNDARY_CLAMP:
+                case Boundary::CLAMP:
                     x = clamp(x, offset_x, offset_x+width-1);
                     y = clamp(y, offset_y, offset_y+height-1);
                     ret = &img.getPixel(x, y);
                     break;
-                case BOUNDARY_REPEAT:
+                case Boundary::REPEAT:
                     while (x < offset_x) x += width;
                     while (y < offset_y) y += height;
                     while (x >= offset_x+width) x -= width;
                     while (y >= offset_y+height) y -= height;
                     ret = &img.getPixel(x, y);
                     break;
-                case BOUNDARY_MIRROR:
+                case Boundary::MIRROR:
                     if (x < offset_x) x = offset_x + (offset_x - x - 1);
                     if (y < offset_y) y = offset_y + (offset_y - y - 1);
                     if (x >= offset_x+width) x = offset_x+width - (x + 1 - (offset_x+width));
                     if (y >= offset_y+height) y = offset_y+height - (y + 1 - (offset_y+height));
                     ret = &img.getPixel(x, y);
                     break;
-                case BOUNDARY_CONSTANT:
+                case Boundary::CONSTANT:
                     if (x < offset_x || y < offset_y || x >=
                             offset_x+width || y >= offset_y+height) {
                         dummy = const_val;
@@ -313,12 +313,12 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t> {
     public:
         Accessor(Image<data_t> &Img) :
             AccessorBase(Img.getWidth(), Img.getHeight(), 0, 0),
-            BoundaryCondition<data_t>(BoundaryCondition<data_t>(Img, 0, 0, BOUNDARY_CLAMP))
+            BoundaryCondition<data_t>(BoundaryCondition<data_t>(Img, 0, 0, Boundary::CLAMP))
         {}
 
         Accessor(Image<data_t> &Img, int width, int height, int xf, int yf) :
             AccessorBase(width, height, xf, yf),
-            BoundaryCondition<data_t>(BoundaryCondition<data_t>(Img, 0, 0, BOUNDARY_CLAMP))
+            BoundaryCondition<data_t>(BoundaryCondition<data_t>(Img, 0, 0, Boundary::CLAMP))
         {}
 
         Accessor(BoundaryCondition<data_t> &BC) :

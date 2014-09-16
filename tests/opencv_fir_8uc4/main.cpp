@@ -98,7 +98,7 @@ class FIRFilterMask : public Kernel<uchar4> {
         #ifdef USE_LAMBDA
         void kernel() {
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
-            sum += convolve(mask, HipaccSUM, [&] () -> float4 {
+            sum += convolve(mask, Reduce::SUM, [&] () -> float4 {
                     return mask()*convert_float4(input(mask));
                     });
 
@@ -184,9 +184,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Calculating HIPAcc FIR filter ...\n");
     float timing = 0.0f;
 
-    // BOUNDARY_UNDEFINED
+    // UNDEFINED
     #ifdef RUN_UNDEF
-    BoundaryCondition<uchar4> BcInUndef2(IN, size_x, 1, BOUNDARY_UNDEFINED);
+    BoundaryCondition<uchar4> BcInUndef2(IN, size_x, 1, Boundary::UNDEFINED);
     Accessor<uchar4> AccInUndef2(BcInUndef2);
     FIRFilterMask FFU(IsOut, AccInUndef2, MX, size_x);
 
@@ -197,8 +197,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
 
 
-    // BOUNDARY_CLAMP
-    BoundaryCondition<uchar4> BcInClamp2(IN, size_x, 1, BOUNDARY_CLAMP);
+    // CLAMP
+    BoundaryCondition<uchar4> BcInClamp2(IN, size_x, 1, Boundary::CLAMP);
     Accessor<uchar4> AccInClamp2(BcInClamp2);
     FIRFilterMask FFC(IsOut, AccInClamp2, MX, size_x);
 
@@ -208,8 +208,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
 
 
-    // BOUNDARY_REPEAT
-    BoundaryCondition<uchar4> BcInRepeat2(IN, size_x, 1, BOUNDARY_REPEAT);
+    // REPEAT
+    BoundaryCondition<uchar4> BcInRepeat2(IN, size_x, 1, Boundary::REPEAT);
     Accessor<uchar4> AccInRepeat2(BcInRepeat2);
     FIRFilterMask FFR(IsOut, AccInRepeat2, MX, size_x);
 
@@ -219,8 +219,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
 
 
-    // BOUNDARY_MIRROR
-    BoundaryCondition<uchar4> BcInMirror2(IN, size_x, 1, BOUNDARY_MIRROR);
+    // MIRROR
+    BoundaryCondition<uchar4> BcInMirror2(IN, size_x, 1, Boundary::MIRROR);
     Accessor<uchar4> AccInMirror2(BcInMirror2);
     FIRFilterMask FFM(IsOut, AccInMirror2, MX, size_x);
 
@@ -230,8 +230,8 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
 
 
-    // BOUNDARY_CONSTANT
-    BoundaryCondition<uchar4> BcInConst2(IN, size_x, 1, BOUNDARY_CONSTANT, '1');
+    // CONSTANT
+    BoundaryCondition<uchar4> BcInConst2(IN, size_x, 1, Boundary::CONSTANT, '1');
     Accessor<uchar4> AccInConst2(BcInConst2);
     FIRFilterMask FFConst(IsOut, AccInConst2, MX, size_x);
 

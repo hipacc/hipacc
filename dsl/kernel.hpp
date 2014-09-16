@@ -148,16 +148,16 @@ class Kernel {
 
         // built-in functions: convolve, iterate, and reduce
         template <typename data_m, typename Function>
-        auto convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, const Function& fun) -> decltype(fun());
+        auto convolve(Mask<data_m> &mask, Reduce mode, const Function& fun) -> decltype(fun());
         template <typename Function>
-        auto reduce(Domain &domain, HipaccConvolutionMode mode, const Function &fun) -> decltype(fun());
+        auto reduce(Domain &domain, Reduce mode, const Function &fun) -> decltype(fun());
         template <typename Function>
         void iterate(Domain &domain, const Function &fun);
 };
 
 
 template <typename data_t> template <typename data_m, typename Function>
-auto Kernel<data_t>::convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, const Function& fun) -> decltype(fun()) {
+auto Kernel<data_t>::convolve(Mask<data_m> &mask, Reduce mode, const Function& fun) -> decltype(fun()) {
     auto end  = mask.end();
     auto iter = mask.begin();
 
@@ -170,25 +170,25 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, co
     // advance iterator and apply kernel to remaining iteration space
     while (++iter != end) {
         switch (mode) {
-            case HipaccSUM:
+            case Reduce::SUM:
                 result += fun();
                 break;
-            case HipaccMIN:
+            case Reduce::MIN:
                 {
                 auto tmp = fun();
                 result = hipacc::math::min(tmp, result);
                 }
                 break;
-            case HipaccMAX:
+            case Reduce::MAX:
                 {
                 auto tmp = fun();
                 result = hipacc::math::max(tmp, result);
                 }
                 break;
-            case HipaccPROD:
+            case Reduce::PROD:
                 result *= fun();
                 break;
-            case HipaccMEDIAN:
+            case Reduce::MEDIAN:
                 assert(0 && "HipaccMEDIAN not implemented yet!");
                 break;
         }
@@ -202,8 +202,7 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, HipaccConvolutionMode mode, co
 
 
 template <typename data_t> template <typename Function>
-auto Kernel<data_t>::reduce(Domain &domain, HipaccConvolutionMode mode,
-            const Function &fun) -> decltype(fun()) {
+auto Kernel<data_t>::reduce(Domain &domain, Reduce mode, const Function &fun) -> decltype(fun()) {
     auto end  = domain.end();
     auto iter = domain.begin();
 
@@ -216,23 +215,23 @@ auto Kernel<data_t>::reduce(Domain &domain, HipaccConvolutionMode mode,
     // advance iterator and apply kernel to remaining iteration space
     while (++iter != end) {
         switch (mode) {
-            case HipaccSUM:
+            case Reduce::SUM:
                 result += fun();
                 break;
-            case HipaccMIN: {
+            case Reduce::MIN: {
                 auto tmp = fun();
                 result = hipacc::math::min(tmp, result);
                 }
               break;
-            case HipaccMAX: {
+            case Reduce::MAX: {
                 auto tmp = fun();
                 result = hipacc::math::max(tmp, result);
                 }
                 break;
-            case HipaccPROD:
+            case Reduce::PROD:
                 result *= fun();
                 break;
-            case HipaccMEDIAN:
+            case Reduce::MEDIAN:
                 assert(0 && "HipaccMEDIAN not implemented yet!");
                 break;
         }
