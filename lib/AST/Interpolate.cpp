@@ -135,24 +135,15 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
   // for local operators only add support if the code variant requires this
   // for point, global, and user operators add boundary handling for all borders
   if (KernelClass->getKernelType()!=LocalOperator || bh_variant.borderVal) {
-    switch (Acc->getBoundaryHandling()) {
-      case BOUNDARY_UNDEFINED:
-        break;
-      case BOUNDARY_CLAMP:
-        name += "_clamp_";
-        break;
-      case BOUNDARY_REPEAT:
-        name += "_repeat_";
-        break;
-      case BOUNDARY_MIRROR:
-        name += "_mirror_";
-        break;
-      case BOUNDARY_CONSTANT:
-        name += "_constant_";
-        break;
+    switch (Acc->getBoundaryMode()) {
+      case Boundary::UNDEFINED:                      break;
+      case Boundary::CLAMP:    name += "_clamp_";    break;
+      case Boundary::REPEAT:   name += "_repeat_";   break;
+      case Boundary::MIRROR:   name += "_mirror_";   break;
+      case Boundary::CONSTANT: name += "_constant_"; break;
     }
 
-    if (Acc->getBoundaryHandling()!=BOUNDARY_UNDEFINED) {
+    if (Acc->getBoundaryMode() != Boundary::UNDEFINED) {
       if (KernelClass->getKernelType()!=LocalOperator) {
         name+= "tblr";
       } else {
@@ -182,7 +173,7 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
   if (!interpolateDecl) {
     std::string funcTypeSpecifier = typeSpecifier + typeSpecifier + "*C"
       + "iCfCfCiCiCiCiC";
-    if (bh_variant.borderVal && Acc->getBoundaryHandling()==BOUNDARY_CONSTANT) {
+    if (bh_variant.borderVal && Acc->getBoundaryMode() == Boundary::CONSTANT) {
       funcTypeSpecifier += typeSpecifier + "C";
     }
 
@@ -233,8 +224,7 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
     args.push_back(createIntegerLiteral(Ctx, 0));
   }
   // const val
-  if (Acc->getBoundaryHandling()==BOUNDARY_CONSTANT &&
-      bh_variant.borderVal!=0) {
+  if (Acc->getBoundaryMode() == Boundary::CONSTANT && bh_variant.borderVal!=0) {
     args.push_back(Acc->getConstExpr());
   }
 

@@ -230,7 +230,7 @@ void HipaccIterationSpace::createOutputAccessor() {
   HipaccBoundaryCondition *BC = new HipaccBoundaryCondition(img, VD);
   BC->setSizeX(0);
   BC->setSizeY(0);
-  BC->setBoundaryHandling(BOUNDARY_UNDEFINED);
+  BC->setBoundaryMode(Boundary::UNDEFINED);
 
   acc = new HipaccAccessor(BC, InterpolateNO, VD);
 }
@@ -240,10 +240,10 @@ void HipaccKernel::calcSizes() {
   for (auto map : imgMap) {
     // only Accessors with proper border handling mode
     if (map.second->getSizeX() > max_size_x &&
-        map.second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
+        map.second->getBoundaryMode()!=Boundary::UNDEFINED)
       max_size_x = map.second->getSizeX();
     if (map.second->getSizeY() > max_size_y &&
-        map.second->getBoundaryHandling()!=BOUNDARY_UNDEFINED)
+        map.second->getBoundaryMode()!=Boundary::UNDEFINED)
       max_size_y = map.second->getSizeY();
     // including Accessors with UNDEFINED border handling mode
     if (map.second->getSizeX() > max_size_x_undef) max_size_x_undef =
@@ -506,11 +506,11 @@ void HipaccKernel::createArgInfo() {
     QualType QTtmp;
 
     switch (arg.kind) {
-      case HipaccKernelClass::Normal:
+      case HipaccKernelClass::FieldKind::Normal:
         addParam(QT, arg.name, arg.field);
 
         break;
-      case HipaccKernelClass::IterationSpace:
+      case HipaccKernelClass::FieldKind::IterationSpace:
         // add output image
         addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
             Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
@@ -519,7 +519,7 @@ void HipaccKernel::createArgInfo() {
             arg.name, nullptr);
 
         break;
-      case HipaccKernelClass::Image:
+      case HipaccKernelClass::FieldKind::Image:
         // for textures use no pointer type
         if (useTextureMemory(getImgFromMapping(arg.field))!=Texture::None &&
             KC->getImgAccess(arg.field) == READ_ONLY &&
@@ -557,7 +557,7 @@ void HipaccKernel::createArgInfo() {
         }
 
         break;
-      case HipaccKernelClass::Mask:
+      case HipaccKernelClass::FieldKind::Mask:
         QTtmp = Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
                 getMaskFromMapping(arg.field)->getSizeX()), ArrayType::Normal,
               false));
@@ -617,7 +617,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
   size_t i = 0;
   for (auto arg : KC->getArguments()) {
     switch (arg.kind) {
-      case HipaccKernelClass::Normal: {
+      case HipaccKernelClass::FieldKind::Normal: {
         std::string Str;
         llvm::raw_string_ostream SS(Str);
         hostArgs[i]->printPretty(SS, 0, PrintingPolicy(Ctx.getLangOpts()));
@@ -640,12 +640,12 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
 
         break;
         }
-      case HipaccKernelClass::IterationSpace:
+      case HipaccKernelClass::FieldKind::IterationSpace:
         // output image
         hostArgNames.push_back(iterationSpace->getName() + ".img");
 
         break;
-      case HipaccKernelClass::Image: {
+      case HipaccKernelClass::FieldKind::Image: {
         // image
         HipaccAccessor *Acc = getImgFromMapping(arg.field);
         hostArgNames.push_back(Acc->getName() + ".img");
@@ -667,7 +667,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
 
         break;
         }
-      case HipaccKernelClass::Mask:
+      case HipaccKernelClass::FieldKind::Mask:
         hostArgNames.push_back(getMaskFromMapping(arg.field)->getName());
 
         break;

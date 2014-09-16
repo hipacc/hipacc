@@ -29,9 +29,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-// includes for FLT_MAX, INT_MAX, etc.
-#include <limits.h>
-#include <float.h>
+// includes for numeric_limits
+#include <limits>
 
 #include "hipacc/AST/ASTTranslate.h"
 
@@ -41,19 +40,19 @@ using namespace ASTNode;
 
 
 // create expression for convolutions
-Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
-    *tmp_var, Expr *ret_val) {
+Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
+    Expr *ret_val) {
   Stmt *result = nullptr;
   FunctionDecl *fun;
   SmallVector<Expr *, 16> funArgs;
 
   switch (mode) {
-    case HipaccSUM:
+    case Reduce::SUM:
       // red += val;
       result = createCompoundAssignOperator(Ctx, tmp_var, ret_val, BO_AddAssign,
           tmp_var->getType());
       break;
-    case HipaccMIN:
+    case Reduce::MIN:
       // red = min(red, val);
       fun = lookup<FunctionDecl>(std::string("min"), tmp_var->getType(),
           hipaccMathNS);
@@ -64,7 +63,7 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
       result = createBinaryOperator(Ctx, tmp_var, createFunctionCall(Ctx, fun,
             funArgs), BO_Assign, tmp_var->getType());
       break;
-    case HipaccMAX:
+    case Reduce::MAX:
       // red = max(red, val);
       fun = lookup<FunctionDecl>(std::string("max"), tmp_var->getType(),
           hipaccMathNS);
@@ -75,12 +74,12 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
       result = createBinaryOperator(Ctx, tmp_var, createFunctionCall(Ctx, fun,
             funArgs), BO_Assign, tmp_var->getType());
       break;
-    case HipaccPROD:
+    case Reduce::PROD:
       // red *= val;
       result = createCompoundAssignOperator(Ctx, tmp_var, ret_val, BO_MulAssign,
           tmp_var->getType());
       break;
-    case HipaccMEDIAN:
+    case Reduce::MEDIAN:
       assert(0 && "Unsupported convolution mode.");
   }
 
@@ -88,8 +87,18 @@ Stmt *ASTTranslate::getConvolutionStmt(ConvolutionMode mode, DeclRefExpr
 }
 
 
+template<typename T> T get_init(Reduce mode) {
+  switch (mode) {
+    case Reduce::SUM:    return 0;
+    case Reduce::MIN:    return std::numeric_limits<T>::min();
+    case Reduce::MAX:    return std::numeric_limits<T>::max();
+    case Reduce::PROD:   return 1;
+    case Reduce::MEDIAN: assert(false && "median not yet supported");
+  }
+}
+
 // create init expression for given aggregation mode and type
-Expr *ASTTranslate::getInitExpr(ConvolutionMode mode, QualType QT) {
+Expr *ASTTranslate::getInitExpr(Reduce mode, QualType QT) {
   Expr *result = nullptr, *initExpr = nullptr;
 
   QualType EQT = QT;
@@ -99,8 +108,6 @@ Expr *ASTTranslate::getInitExpr(ConvolutionMode mode, QualType QT) {
     EQT = QT->getAs<VectorType>()->getElementType();
   }
   const BuiltinType *BT = EQT->getAs<BuiltinType>();
-
-  assert(mode!=HipaccMEDIAN && "Median currently not supported.");
 
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
@@ -115,57 +122,50 @@ Expr *ASTTranslate::getInitExpr(ConvolutionMode mode, QualType QT) {
     default:
       assert(0 && "BuiltinType for reduce function not supported.");
 
-    #define GET_INIT_CONSTANT(MODE, SUM, MIN, MAX, PROD) \
-      (MODE == HipaccSUM ? (SUM) : \
-        (MODE == HipaccMIN ? (MIN) : \
-          (MODE == HipaccMAX ? (MAX) : (PROD) )))
-
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      initExpr = new (Ctx) CharacterLiteral(GET_INIT_CONSTANT(mode, 0,
-            SCHAR_MAX, SCHAR_MIN, 1), CharacterLiteral::Ascii, QT,
-          SourceLocation());
+      initExpr = new (Ctx) CharacterLiteral(get_init<signed char>(mode),
+          CharacterLiteral::Ascii, QT, SourceLocation());
       break;
     case BuiltinType::Char_U:
     case BuiltinType::UChar:
-      initExpr = new (Ctx) CharacterLiteral(GET_INIT_CONSTANT(mode, 0,
-            UCHAR_MAX, 0, 1), CharacterLiteral::Ascii, QT, SourceLocation());
+      initExpr = new (Ctx) CharacterLiteral(get_init<unsigned char>(mode),
+          CharacterLiteral::Ascii, QT, SourceLocation());
       break;
     case BuiltinType::Short: {
-      llvm::APInt init(16, GET_INIT_CONSTANT(mode, 0, SHRT_MAX, SHRT_MIN, 1));
+      llvm::APInt init(16, get_init<short>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
       break; }
     case BuiltinType::Char16:
     case BuiltinType::UShort: {
-      llvm::APInt init(16, GET_INIT_CONSTANT(mode, 0, USHRT_MAX, 0, 1));
+      llvm::APInt init(16, get_init<unsigned short>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
       break; }
     case BuiltinType::Int: {
-      llvm::APInt init(32, GET_INIT_CONSTANT(mode, 0, INT_MAX, INT_MIN, 1));
+      llvm::APInt init(32, get_init<int>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
       break; }
     case BuiltinType::Char32:
     case BuiltinType::UInt: {
-      llvm::APInt init(32, GET_INIT_CONSTANT(mode, 0, UINT_MAX, 0, 1));
+      llvm::APInt init(32, get_init<unsigned>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
       break; }
     case BuiltinType::Long: {
-      llvm::APInt init(64, GET_INIT_CONSTANT(mode, 0, LONG_MAX, LONG_MIN, 1));
+      llvm::APInt init(64, get_init<long long>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
       break; }
     case BuiltinType::ULong: {
-      llvm::APInt init(64, GET_INIT_CONSTANT(mode, 0, ULONG_MAX, 0, 1));
+      llvm::APInt init(64, get_init<unsigned long long>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
       break; }
     case BuiltinType::Float: {
-      llvm::APFloat init(GET_INIT_CONSTANT(mode, 0, FLT_MAX, FLT_MIN, 1));
+      llvm::APFloat init(get_init<float>(mode));
       initExpr = FloatingLiteral::Create(Ctx, init, false, EQT, SourceLocation());
       break; }
     case BuiltinType::Double: {
-      llvm::APFloat init(GET_INIT_CONSTANT(mode, 0, DBL_MAX, DBL_MIN, 1));
+      llvm::APFloat init(get_init<double>(mode));
       initExpr = FloatingLiteral::Create(Ctx, init, false, EQT, SourceLocation());
       break; }
-    #undef GET_INIT_CONSTANT
   }
 
   if (isVecType) {
@@ -226,30 +226,35 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
 
 // check if we have a convolve/reduce/iterate method and convert it
 Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
+  enum class Method : uint8_t {
+    Convolve,
+    Reduce,
+    Iterate
+  };
   // check if this is a convolve function call
-  ConvolveMethod method = Convolve;
+  Method method = Method::Convolve;
   if (E->getDirectCallee()->getName().equals("convolve")) {
-    method = Convolve;
+    method = Method::Convolve;
     assert(convMask == nullptr &&
             "Nested convolution calls are not supported.");
   } else if (E->getDirectCallee()->getName().equals("reduce")) {
-    method = Reduce;
+    method = Method::Reduce;
   } else if (E->getDirectCallee()->getName().equals("iterate")) {
-    method = Iterate;
+    method = Method::Iterate;
   } else {
     assert(false && "unsupported convolution method.");
   }
 
   switch (method) {
-    case Convolve:
+    case Method::Convolve:
       // convolve(mask, mode, [&] () { lambda-function; });
       assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'convolve' call.");
       break;
-    case Reduce:
+    case Method::Reduce:
       // reduce(domain, mode, [&] () { lambda-function; });
       assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'reduce' call.");
       break;
-    case Iterate:
+    case Method::Iterate:
       // iterate(domain, [&] () { lambda-function; });
       assert(E->getNumArgs() == 2 && "Expected 2 arguments to 'iterate' call.");
       break;
@@ -257,7 +262,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
 
   // first parameter: Mask<type> or Domain reference
   HipaccMask *Mask = nullptr;
-  if (method==Convolve)
+  if (method==Method::Convolve)
     assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
         isa<FieldDecl>(dyn_cast<MemberExpr>(
             E->getArg(0)->IgnoreImpCasts())->getMemberDecl()) &&
@@ -275,72 +280,46 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
     Mask = Kernel->getMaskFromMapping(FD);
   }
   switch (method) {
-    case Convolve:
-      assert(Mask && !Mask->isDomain() &&
-          "Could not find Mask Field Decl.");
+    case Method::Convolve:
+      assert(Mask && !Mask->isDomain() && "Could not find Mask Field Decl.");
       break;
-    case Reduce:
-    case Iterate:
-      assert(Mask && Mask->isDomain() &&
-          "Could not find Domain Field Decl.");
+    case Method::Reduce:
+    case Method::Iterate:
+      assert(Mask && Mask->isDomain() && "Could not find Domain Field Decl.");
       break;
   }
 
   // second parameter: convolution/reduction mode
-  if (method==Convolve || method==Reduce) {
-    if (method==Convolve)
+  if (method==Method::Convolve || method==Method::Reduce) {
+    if (method==Method::Convolve)
       assert(isa<DeclRefExpr>(E->getArg(1)) &&
           "Second parameter to 'convolve' call must be the convolution mode.");
-    if (method==Reduce)
+    if (method==Method::Reduce)
       assert(isa<DeclRefExpr>(E->getArg(1)) &&
           "Second parameter to 'reduce' call must be the reduction mode.");
     DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E->getArg(1));
 
     if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
         DRE->getDecl()->getType().getAsString() ==
-        "enum hipacc::HipaccConvolutionMode") {
-      int64_t mode = E->getArg(1)->EvaluateKnownConstInt(Ctx).getSExtValue();
-      switch (mode) {
-        case HipaccSUM:
-          if (method==Convolve) convMode = HipaccSUM;
-          else redModes.push_back(HipaccSUM);
-          break;
-        case HipaccMIN:
-          if (method==Convolve) convMode = HipaccMIN;
-          else redModes.push_back(HipaccMIN);
-          break;
-        case HipaccMAX:
-          if (method==Convolve) convMode = HipaccMAX;
-          else redModes.push_back(HipaccMAX);
-          break;
-        case HipaccPROD:
-          if (method==Convolve) convMode = HipaccPROD;
-          else redModes.push_back(HipaccPROD);
-          break;
-        case HipaccMEDIAN:
-          if (method==Convolve) convMode = HipaccMEDIAN;
-          else redModes.push_back(HipaccMEDIAN);
-        default:
-          unsigned DiagIDConvMode =
-            Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "%0 mode not supported, allowed modes are: "
-                "HipaccSUM, HipaccMIN, HipaccMAX, and HipaccPROD.");
-          Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode)
-            << (const char *)(Mask->isDomain()?"reduction":"convolution");
-          exit(EXIT_FAILURE);
-      }
+        "enum hipacc::Reduce") {
+      auto lval = E->getArg(1)->EvaluateKnownConstInt(Ctx);
+      auto mval = static_cast<std::underlying_type<Reduce>::type>(Reduce::MEDIAN);
+      auto mode = static_cast<Reduce>(lval.getZExtValue());
+      assert(lval.isNonNegative() && lval.getZExtValue() <= mval &&
+             "invalid Reduce mode");
+      if (method==Method::Convolve) convMode = mode;
+      else redModes.push_back(mode);
     } else {
       unsigned DiagIDConvMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-          "Unknown %0 mode detected.");
-      Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode)
-        << (const char *)(Mask->isDomain()?"reduction":"convolution");
+          "Unknown Reduce mode detected.");
+      Diags.Report(E->getArg(1)->getExprLoc(), DiagIDConvMode);
       exit(EXIT_FAILURE);
     }
   }
 
   // third parameter: lambda-function
   int li = 2;
-  if (method==Iterate) li = 1;
+  if (method==Method::Iterate) li = 1;
 
   assert(isa<MaterializeTemporaryExpr>(E->getArg(li)) &&
          isa<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(
@@ -356,7 +335,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
         "Capture by copy [=] is not supported for '%0' lambda-function. "
         "Use capture by reference [&] instead.");
     Diags.Report(LE->getCaptureDefaultLoc(), DiagIDCapture)
-      << (const char *)(method==Convolve ? "convolve" : method==Reduce ?
+      << (const char *)(method==Method::Convolve ? "convolve" : method==Method::Reduce ?
           "reduce" : "iterate");
     exit(EXIT_FAILURE);
   }
@@ -368,7 +347,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
           "lambda-function. Use capture by reference instead: [&%0].");
       Diags.Report(capture.getLocation(), DiagIDCapture)
         << capture.getCapturedVar()->getNameAsString()
-        << (const char *)(method==Convolve ? "convolve" : method==Reduce ?
+        << (const char *)(method==Method::Convolve ? "convolve" : method==Method::Reduce ?
             "reduce" : "iterate");
       exit(EXIT_FAILURE);
     }
@@ -377,10 +356,9 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   // introduce temporary for holding the convolution/reduction result
   CompoundStmt *outerCompountStmt = curCStmt;
   Expr *init = nullptr;
-  if (method==Reduce) {
+  if (method==Method::Reduce) {
     // init temporary variable depending on aggregation mode
-    init = getInitExpr(redModes.back(),
-        LE->getCallOperator()->getReturnType());
+    init = getInitExpr(redModes.back(), LE->getCallOperator()->getReturnType());
   }
   std::string tmp_lit("_tmp" + std::to_string(literalCount++));
   VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, tmp_lit,
@@ -390,19 +368,19 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   DeclRefExpr *tmp_dre = createDeclRefExpr(Ctx, tmp_decl);
 
   switch (method) {
-    case Convolve:
+    case Method::Convolve:
       convTmp = tmp_dre;
       convMask = Mask;
       preStmts.push_back(createDeclStmt(Ctx, tmp_decl));
       preCStmt.push_back(outerCompountStmt);
       break;
-    case Reduce:
+    case Method::Reduce:
       redTmps.push_back(tmp_dre);
       redDomains.push_back(Mask);
       preStmts.push_back(createDeclStmt(Ctx, tmp_decl));
       preCStmt.push_back(outerCompountStmt);
       break;
-    case Iterate:
+    case Method::Iterate:
       redDomains.push_back(Mask);
       break;
   }
@@ -420,13 +398,13 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
       if (doIterate) {
         Stmt *iteration = nullptr;
         switch (method) {
-          case Convolve:
+          case Method::Convolve:
             convIdxX = x;
             convIdxY = y;
             iteration = Clone(LE->getBody());
             break;
-          case Reduce:
-          case Iterate:
+          case Method::Reduce:
+          case Method::Iterate:
             redIdxX.push_back(x);
             redIdxY.push_back(y);
             iteration = Clone(LE->getBody());
@@ -454,17 +432,17 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
 
   // reset global variables
   switch (method) {
-    case Convolve:
+    case Method::Convolve:
       convMask = nullptr;
       convTmp = nullptr;
       convIdxX = convIdxY = 0;
       break;
-    case Reduce:
+    case Method::Reduce:
       redDomains.pop_back();
       redModes.pop_back();
       redTmps.pop_back();
       break;
-    case Iterate:
+    case Method::Iterate:
       redDomains.pop_back();
       redTmps.pop_back();
       break;
@@ -472,12 +450,12 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
 
   // result of convolution
   switch (method) {
-    case Convolve:
-    case Reduce:
+    case Method::Convolve:
+    case Method::Reduce:
       // add ICE for CodeGen
       return createImplicitCastExpr(Ctx, LE->getCallOperator()->getReturnType(),
           CK_LValueToRValue, tmp_dre, nullptr, VK_RValue);
-    case Iterate:
+    case Method::Iterate:
       return nullptr;
   }
 }

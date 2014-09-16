@@ -229,7 +229,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     bhCStmt.push_back(curCStmt);
   }
 
-  if (Acc->getBoundaryHandling() == BOUNDARY_CONSTANT) {
+  if (Acc->getBoundaryMode() == Boundary::CONSTANT) {
     // <type> _tmp<0> = const_val;
     Expr *RHS = nullptr;
     Expr *const_val = Acc->getConstExpr();
@@ -302,27 +302,27 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       (HipaccAccessor *Acc, Expr *idx, Expr *lower, bool) = nullptr;
     Stmt *(clang::hipacc::ASTTranslate::*upperFun)
       (HipaccAccessor *Acc, Expr *idx, Expr *upper, bool) = nullptr;
-    switch (Acc->getBoundaryHandling()) {
-      case BOUNDARY_CLAMP:
+    switch (Acc->getBoundaryMode()) {
+      case Boundary::CLAMP:
         lowerFun = &clang::hipacc::ASTTranslate::addClampLower;
         upperFun = &clang::hipacc::ASTTranslate::addClampUpper;
         break;
-      case BOUNDARY_REPEAT:
+      case Boundary::REPEAT:
         lowerFun = &clang::hipacc::ASTTranslate::addRepeatLower;
         upperFun = &clang::hipacc::ASTTranslate::addRepeatUpper;
         break;
-      case BOUNDARY_MIRROR:
+      case Boundary::MIRROR:
         lowerFun = &clang::hipacc::ASTTranslate::addMirrorLower;
         upperFun = &clang::hipacc::ASTTranslate::addMirrorUpper;
         break;
-      case BOUNDARY_UNDEFINED:
+      case Boundary::UNDEFINED:
         // in case of exploration boundary handling variants are required
         if (!compilerOptions.exploreConfig()) {
-          assert(0 && "addBorderHandling && BOUNDARY_UNDEFINED!");
+          assert(0 && "addBorderHandling && Boundary::UNDEFINED!");
         }
         break;
-      case BOUNDARY_CONSTANT:
-        assert(0 && "addBorderHandling && BOUNDARY_CONSTANT!");
+      case Boundary::CONSTANT:
+        assert(0 && "addBorderHandling && Boundary::CONSTANT!");
         break;
     }
 

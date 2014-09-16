@@ -617,7 +617,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   //    =>
   //    Pyramid P = hipaccCreatePyramid<int>(IN, 3);
   // c) save BoundaryCondition declarations, e.g.
-  //    BoundaryCondition<int> BcIN(IN, 5, 5, BOUNDARY_MIRROR);
+  //    BoundaryCondition<int> BcIN(IN, 5, 5, Boundary::MIRROR);
   // d) save Accessor declarations, e.g.
   //    Accessor<int> AccIN(BcIN);
   // e) save Mask declarations, e.g.
@@ -840,18 +840,20 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               // boundary mode found
               if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
                   DRE->getDecl()->getType().getAsString() ==
-                  "enum hipacc::hipaccBoundaryMode") {
-                int64_t mode =
-                  arg->EvaluateKnownConstInt(Context).getSExtValue();
+                  "enum hipacc::Boundary") {
+                auto lval = arg->EvaluateKnownConstInt(Context);
+                auto cval = static_cast<std::underlying_type<Boundary>::type>(Boundary::CONSTANT);
+                auto mode = static_cast<Boundary>(lval.getZExtValue());
+                assert(lval.isNonNegative() && lval.getZExtValue() <= cval &&
+                       "invalid Boundary mode");
                 switch (mode) {
-                  case BOUNDARY_UNDEFINED:
-                  case BOUNDARY_CLAMP:
-                  case BOUNDARY_REPEAT:
-                  case BOUNDARY_MIRROR:
-                    BC->setBoundaryHandling((BoundaryMode)mode);
-                    break;
-                  case BOUNDARY_CONSTANT:
-                    BC->setBoundaryHandling((BoundaryMode)mode);
+                  case Boundary::UNDEFINED:
+                  case Boundary::CLAMP:
+                  case Boundary::REPEAT:
+                  case Boundary::MIRROR:
+                    BC->setBoundaryMode(mode); break;
+                  case Boundary::CONSTANT:
+                    BC->setBoundaryMode(mode);
                     if (CCE->getNumArgs() != i+2) {
                       Diags.Report(arg->getExprLoc(), DiagIDMode) <<
                         VD->getName();
@@ -867,9 +869,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                       i++;
                     }
                     break;
-                  default:
-                    BC->setBoundaryHandling(BOUNDARY_UNDEFINED);
-                    llvm::errs() << "invalid boundary handling mode specified, using default mode!\n";
                 }
                 found_mode = true;
 
@@ -947,7 +946,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             BC = new HipaccBoundaryCondition(Img, VD);
             BC->setSizeX(1);
             BC->setSizeY(1);
-            BC->setBoundaryHandling(BOUNDARY_CLAMP);
+            BC->setBoundaryMode(Boundary::CLAMP);
 
             // Fixme: store BoundaryCondition???
             BCDeclMap[VD] = BC;
@@ -967,7 +966,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             BC = new HipaccBoundaryCondition(Pyr, VD);
             BC->setSizeX(1);
             BC->setSizeY(1);
-            BC->setBoundaryHandling(BOUNDARY_CLAMP);
+            BC->setBoundaryMode(Boundary::CLAMP);
 
             // Fixme: store BoundaryCondition???
             BCDeclMap[VD] = BC;
@@ -1130,7 +1129,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                "Mask definition requires exactly one argument!");
 
         QualType QT = compilerClasses.getFirstTemplateType(VD->getType());
-        Mask = new HipaccMask(VD, QT, HipaccMask::Mask);
+        Mask = new HipaccMask(VD, QT, HipaccMask::MaskType::Mask);
 
         // get initializer
         DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreImpCasts());
@@ -1177,7 +1176,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                "declarations!");
 
         Domain = new HipaccMask(VD, Context.UnsignedCharTy,
-                                            HipaccMask::Domain);
+                                            HipaccMask::MaskType::Domain);
 
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
         if (CCE->getNumArgs() == 1) {
@@ -2317,8 +2316,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
         std::string resultStr;
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-            suffix, Acc->getInterpolation(), Acc->getBoundaryHandling(),
-            resultStr);
+            suffix, Acc->getInterpolation(), Acc->getBoundaryMode(), resultStr);
 
         switch (compilerOptions.getTargetLang()) {
           default: InterpolationDefinitionsLocal.push_back(resultStr); break;
@@ -2327,7 +2325,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
         resultStr.erase();
         stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-            suffix, InterpolateNO, BOUNDARY_UNDEFINED, resultStr);
+            suffix, InterpolateNO, Boundary::UNDEFINED, resultStr);
 
         switch (compilerOptions.getTargetLang()) {
           default: InterpolationDefinitionsLocal.push_back(resultStr); break;

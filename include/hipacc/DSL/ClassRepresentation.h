@@ -61,21 +61,21 @@ enum MemoryTransferDirection {
 };
 
 // boundary handling modes for images
-enum BoundaryMode {
-  BOUNDARY_UNDEFINED,
-  BOUNDARY_CLAMP,
-  BOUNDARY_REPEAT,
-  BOUNDARY_MIRROR,
-  BOUNDARY_CONSTANT
+enum class Boundary : uint8_t {
+  UNDEFINED = 0,
+  CLAMP,
+  REPEAT,
+  MIRROR,
+  CONSTANT
 };
 
 // reduction modes for convolutions
-enum ConvolutionMode {
-  HipaccSUM,
-  HipaccMIN,
-  HipaccMAX,
-  HipaccPROD,
-  HipaccMEDIAN
+enum class Reduce : uint8_t {
+  SUM = 0,
+  MIN,
+  MAX,
+  PROD,
+  MEDIAN
 };
 
 // interpolation modes for accessors
@@ -176,7 +176,7 @@ class HipaccBoundaryCondition : public HipaccSize {
   private:
     HipaccImage *img;
     VarDecl *VD;
-    BoundaryMode boundaryHandling;
+    Boundary mode;
     std::string pyr_idx_str;
     bool is_pyramid;
     Expr *constExpr;
@@ -186,7 +186,7 @@ class HipaccBoundaryCondition : public HipaccSize {
       HipaccSize(),
       img(img),
       VD(VD),
-      boundaryHandling(BOUNDARY_UNDEFINED),
+      mode(Boundary::UNDEFINED),
       pyr_idx_str(),
       is_pyramid(false),
       constExpr(nullptr)
@@ -196,11 +196,11 @@ class HipaccBoundaryCondition : public HipaccSize {
       is_pyramid = true;
       pyr_idx_str = idx;
     }
-    void setBoundaryHandling(BoundaryMode m) { boundaryHandling = m; }
+    void setBoundaryMode(Boundary m) { mode = m; }
     void setConstVal(APValue &val, ASTContext &Ctx);
     VarDecl *getDecl() { return VD; }
     HipaccImage *getImage() { return img; }
-    BoundaryMode getBoundaryHandling() { return boundaryHandling; }
+    Boundary getBoundaryMode() { return mode; }
     std::string getPyramidIndex() { return pyr_idx_str; }
     bool isPyramid() { return is_pyramid; }
     Expr *getConstExpr() { return constExpr; }
@@ -260,8 +260,8 @@ class HipaccAccessor {
       scaleXDecl = scaleYDecl = offsetXDecl = offsetYDecl = nullptr;
     }
     bool isCrop() { return crop; }
-    BoundaryMode getBoundaryHandling() {
-      return bc->getBoundaryHandling();
+    Boundary getBoundaryMode() {
+      return bc->getBoundaryMode();
     }
     Expr *getConstExpr() { return bc->getConstExpr(); }
 };
@@ -300,7 +300,7 @@ class HipaccIterationSpace {
 
 class HipaccMask : public HipaccMemory {
   public:
-    enum MaskType {
+    enum class MaskType : uint8_t {
       Mask,
       Domain
     };
@@ -339,7 +339,7 @@ class HipaccMask : public HipaccMemory {
     void setIsConstant(bool c) { is_constant = c; }
     void setIsPrinted(bool p) { is_printed = p; }
     void setInitList(InitListExpr *il) { init_list = il; }
-    bool isDomain() { return (mask_type & Domain); }
+    bool isDomain() { return mask_type==MaskType::Domain; }
     bool isConstant() { return is_constant; }
     bool isPrinted() { return is_printed; }
     Expr *getInitExpr(size_t x, size_t y) {
@@ -395,15 +395,15 @@ class HipaccMask : public HipaccMemory {
 class HipaccKernelClass {
   private:
     // type of argument
-    enum ArgumentKind {
+    enum class FieldKind : uint8_t {
       Normal,
       IterationSpace,
       Image,
       Mask
     };
     // argument information
-    struct argumentInfo {
-      ArgumentKind kind;
+    struct ArgumentInfo {
+      FieldKind kind;
       FieldDecl *field;
       QualType type;
       std::string name;
@@ -413,7 +413,7 @@ class HipaccKernelClass {
     CXXMethodDecl *kernelFunction, *reduceFunction;
     KernelStatistics *kernelStatistics;
     // kernel parameter information
-    SmallVector<argumentInfo, 16> arguments;
+    SmallVector<ArgumentInfo, 16> arguments;
     SmallVector<FieldDecl *, 16> imgFields;
     SmallVector<FieldDecl *, 16> maskFields;
     SmallVector<FieldDecl *, 16> domainFields;
@@ -458,25 +458,25 @@ class HipaccKernelClass {
     }
 
     void addArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      argumentInfo a = {Normal, FD, QT, Name};
+      ArgumentInfo a = { FieldKind::Normal, FD, QT, Name };
       arguments.push_back(a);
     }
     void addImgArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      argumentInfo a = {Image, FD, QT, Name};
+      ArgumentInfo a = { FieldKind::Image, FD, QT, Name };
       arguments.push_back(a);
       imgFields.push_back(FD);
     }
     void addMaskArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      argumentInfo a = {Mask, FD, QT, Name};
+      ArgumentInfo a = { FieldKind::Mask, FD, QT, Name};
       arguments.push_back(a);
       maskFields.push_back(FD);
     }
     void addISArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      argumentInfo a = {IterationSpace, FD, QT, Name};
+      ArgumentInfo a = { FieldKind::IterationSpace, FD, QT, Name };
       arguments.push_back(a);
     }
 
-    ArrayRef<argumentInfo> getArguments() { return arguments; }
+    ArrayRef<ArgumentInfo> getArguments() { return arguments; }
     ArrayRef<FieldDecl *>  getImgFields() { return imgFields; }
     ArrayRef<FieldDecl *>  getMaskFields() { return maskFields; }
 

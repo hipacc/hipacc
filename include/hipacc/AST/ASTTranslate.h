@@ -92,17 +92,12 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     CompoundStmt *curCStmt;
     HipaccMask *convMask;
     DeclRefExpr *convTmp;
-    ConvolutionMode convMode;
+    Reduce convMode;
     int convIdxX, convIdxY;
-    enum ConvolveMethod {
-      Convolve,
-      Reduce,
-      Iterate
-    };
 
     SmallVector<HipaccMask *, 4> redDomains;
     SmallVector<DeclRefExpr *, 4> redTmps;
-    SmallVector<ConvolutionMode, 4> redModes;
+    SmallVector<Reduce, 4> redModes;
     SmallVector<int, 4> redIdxX, redIdxY;
 
     DeclRefExpr *bh_start_left, *bh_start_right, *bh_start_top,
@@ -244,9 +239,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         *cond);
 
     // Convolution.cpp
-    Stmt *getConvolutionStmt(ConvolutionMode mode, DeclRefExpr *tmp_var, Expr
-        *ret_val);
-    Expr *getInitExpr(ConvolutionMode mode, QualType QT);
+    Stmt *getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var, Expr *ret_val);
+    Expr *getInitExpr(Reduce mode, QualType QT);
     Stmt *addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var, Stmt
         *stmt);
     Expr *convertConvolution(CXXMemberCallExpr *E);

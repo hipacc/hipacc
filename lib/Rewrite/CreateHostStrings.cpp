@@ -1027,9 +1027,9 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
 
 void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
     HipaccAccessor *Acc, std::string function_name, std::string type_suffix,
-    InterpolationMode ip_mode, BoundaryMode bh_mode, std::string &resultStr) {
+    InterpolationMode ip_mode, Boundary bh_mode, std::string &resultStr) {
   // interpolation macro
-  switch (ip_mode) {
+  switch (Acc->getInterpolation()) {
     case InterpolateNO:
     case InterpolateNN:
       resultStr += "DEFINE_BH_VARIANT_NO_BH(INTERPOLATE_LINEAR_FILTERING";
@@ -1064,20 +1064,20 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
   // boundary handling name + function (upper & lower)
   std::string const_parameter("NO_PARM");
   std::string const_suffix;
-  switch (bh_mode) {
-    case BOUNDARY_CLAMP:
+  switch (Acc->getBoundaryMode()) {
+    case Boundary::UNDEFINED:
+      resultStr += ", NO_BH, NO_BH, "; break;
+    case Boundary::CLAMP:
       resultStr += "_clamp, BH_CLAMP_LOWER, BH_CLAMP_UPPER, "; break;
-    case BOUNDARY_REPEAT:
+    case Boundary::REPEAT:
       resultStr += "_repeat, BH_REPEAT_LOWER, BH_REPEAT_UPPER, "; break;
-    case BOUNDARY_MIRROR:
+    case Boundary::MIRROR:
       resultStr += "_mirror, BH_MIRROR_LOWER, BH_MIRROR_UPPER, "; break;
-    case BOUNDARY_CONSTANT:
+    case Boundary::CONSTANT:
       resultStr += "_constant, BH_CONSTANT_LOWER, BH_CONSTANT_UPPER, ";
       const_parameter = "CONST_PARM";
       const_suffix = "_CONST";
       break;
-    case BOUNDARY_UNDEFINED:
-      resultStr += ", NO_BH, NO_BH, "; break;
   }
   // image memory parameter, constant parameter, memory access function
   switch (K->useTextureMemory(Acc)) {

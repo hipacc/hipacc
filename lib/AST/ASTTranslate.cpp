@@ -208,7 +208,7 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
     if (KernelClass->getKernelType()==UserOperator) break;
 
     // check if we need border handling
-    if (Acc->getBoundaryHandling() != BOUNDARY_UNDEFINED) {
+    if (Acc->getBoundaryMode() != Boundary::UNDEFINED) {
       if (Acc->getSizeX() > 1) {
           bh_variant.borders.left = 1;
           bh_variant.borders.right = 1;
@@ -789,7 +789,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     if (KernelClass->getKernelType()==UserOperator) break;
 
     // check if we need border handling
-    if (Acc->getBoundaryHandling() != BOUNDARY_UNDEFINED) {
+    if (Acc->getBoundaryMode() != Boundary::UNDEFINED) {
       if (Acc->getSizeX() > 1 || Acc->getSizeY() > 1) border_handling = true;
       if (Acc->getSizeX() > 1) kernel_x = true;
       if (Acc->getSizeY() > 1) kernel_y = true;
