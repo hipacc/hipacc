@@ -26,6 +26,8 @@
 #ifndef __TYPES_HPP__
 #define __TYPES_HPP__
 
+#include <cstdint>
+
 namespace hipacc {
 
 enum class Reduce : uint8_t {
