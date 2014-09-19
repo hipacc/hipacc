@@ -313,15 +313,13 @@ KernelType KernelStatistics::getKernelType() {
 MemoryAccessDetail TransferFunctions::checkStride(Expr *EX, Expr *EY) {
   bool stride_x=true, stride_y=true;
 
-  if (isa<IntegerLiteral>(EX->IgnoreParenImpCasts())) {
-    IntegerLiteral *IL = dyn_cast<IntegerLiteral>(EX->IgnoreParenImpCasts());
+  if (auto IL = dyn_cast<IntegerLiteral>(EX->IgnoreParenImpCasts())) {
     if (IL->getValue().getSExtValue()==0) {
       stride_x = false;
     }
   }
 
-  if (isa<IntegerLiteral>(EY->IgnoreParenImpCasts())) {
-    IntegerLiteral *IL = dyn_cast<IntegerLiteral>(EY->IgnoreParenImpCasts());
+  if (auto IL = dyn_cast<IntegerLiteral>(EY->IgnoreParenImpCasts())) {
     if (IL->getValue().getSExtValue()==0) {
       stride_y = false;
     }
@@ -339,14 +337,9 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
   E = E->IgnoreParenImpCasts();
 
   // match Image(), Accessor(), Mask(), and Domain() calls
-  if (isa<CXXOperatorCallExpr>(E)) {
-    CXXOperatorCallExpr *COCE = dyn_cast<CXXOperatorCallExpr>(E);
-
-    if (isa<MemberExpr>(COCE->getArg(0))) {
-      MemberExpr *ME = dyn_cast<MemberExpr>(COCE->getArg(0));
-
-      if (isa<FieldDecl>(ME->getMemberDecl())) {
-        FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
+  if (auto call = dyn_cast<CXXOperatorCallExpr>(E)) {
+    if (auto ME = dyn_cast<MemberExpr>(call->getArg(0))) {
+      if (auto FD = dyn_cast<FieldDecl>(ME->getMemberDecl())) {
         MemoryAccess memAcc = KS.imagesToAccess[FD];
         MemoryAccessDetail memAccDetail = KS.imagesToAccessDetail[FD];
 
@@ -368,7 +361,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
           if (curMemAcc & READ_ONLY) KS.num_img_loads++;
           if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
 
-          switch (COCE->getNumArgs()) {
+          switch (call->getNumArgs()) {
             default:
               break;
             case 1:
@@ -383,7 +376,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
               break;
             case 3:
               memAccDetail = (MemoryAccessDetail)
-                (memAccDetail|checkStride(COCE->getArg(1), COCE->getArg(2)));
+                (memAccDetail|checkStride(call->getArg(1), call->getArg(2)));
               if (memAccDetail > NO_STRIDE && KS.kernelType < LocalOperator) {
                 KS.kernelType = LocalOperator;
               }
@@ -406,10 +399,10 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
             memAccDetail = (MemoryAccessDetail) (memAccDetail|STRIDE_XY);
             if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
           } else {
-            assert(COCE->getNumArgs()==3 &&
+            assert(call->getNumArgs()==3 &&
                 "Mask access requires x and y parameters!");
             memAccDetail = (MemoryAccessDetail)
-              (memAccDetail|checkStride(COCE->getArg(1), COCE->getArg(2)));
+              (memAccDetail|checkStride(call->getArg(1), call->getArg(2)));
             if (memAccDetail > NO_STRIDE && KS.kernelType < LocalOperator) {
               KS.kernelType = LocalOperator;
             }
@@ -431,10 +424,10 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
             memAccDetail = (MemoryAccessDetail) (memAccDetail|STRIDE_XY);
             if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
           } else {
-            assert(COCE->getNumArgs()==3 &&
+            assert(call->getNumArgs()==3 &&
                 "Domain access requires x and y parameters!");
             memAccDetail = (MemoryAccessDetail)
-              (memAccDetail|checkStride(COCE->getArg(1), COCE->getArg(2)));
+              (memAccDetail|checkStride(call->getArg(1), call->getArg(2)));
             if (memAccDetail > NO_STRIDE && KS.kernelType < LocalOperator) {
               KS.kernelType = LocalOperator;
             }
@@ -448,18 +441,10 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
   }
 
   // match Image->getPixel(), output(), and outputAtPixel() calls
-  if (isa<CXXMemberCallExpr>(E)) {
-    CXXMemberCallExpr *CMCE = dyn_cast<CXXMemberCallExpr>(E);
-
-    if (isa<MemberExpr>(CMCE->getCallee())) {
-      MemberExpr *ME = dyn_cast<MemberExpr>(CMCE->getCallee());
-
-      if (isa<MemberExpr>(ME->getBase())) {
-        MemberExpr *MEAcc = dyn_cast<MemberExpr>(ME->getBase());
-
-        if (isa<FieldDecl>(MEAcc->getMemberDecl())) {
-          FieldDecl *FD = dyn_cast<FieldDecl>(MEAcc->getMemberDecl());
-
+  if (auto call = dyn_cast<CXXMemberCallExpr>(E)) {
+    if (auto ME = dyn_cast<MemberExpr>(call->getCallee())) {
+      if (auto MEAcc = dyn_cast<MemberExpr>(ME->getBase())) {
+        if (auto FD = dyn_cast<FieldDecl>(MEAcc->getMemberDecl())) {
           // Image
           if (KS.compilerClasses.isTypeOfTemplateClass(FD->getType(),
                 KS.compilerClasses.Image)) {

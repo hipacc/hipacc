@@ -137,14 +137,12 @@ T *ASTTranslate::lookup(std::string name, QualType QT, NamespaceDecl *NS) {
     T *result = cast_or_null<T>(Lookup.front());
 
     if (result) {
-      if (isa<FunctionDecl>(result)) {
-        FunctionDecl *decl = dyn_cast<FunctionDecl>(result);
+      if (auto decl = dyn_cast<FunctionDecl>(result)) {
         if (decl->getReturnType().getDesugaredType(Ctx) ==
             QT.getDesugaredType(Ctx)) return result;
         continue;
       }
-      if (isa<VarDecl>(result)) {
-        VarDecl *decl = dyn_cast<VarDecl>(result);
+      if (auto decl = dyn_cast<VarDecl>(result)) {
         if (decl->getType().getDesugaredType(Ctx) == QT.getDesugaredType(Ctx))
           return result;
         continue;
@@ -1848,9 +1846,8 @@ Expr *ASTTranslate::VisitImplicitCastExprTranslate(ImplicitCastExpr *E) {
   setCastPath(E, castPath);
 
   Expr *litExpr = subExpr->IgnoreImpCasts();
-  if (isa<UnaryOperator>(litExpr)) {
-    litExpr = ((UnaryOperator *)litExpr)->getSubExpr();
-  }
+  if (auto uo = dyn_cast<UnaryOperator>(litExpr))
+    litExpr = uo->getSubExpr();
 
   if (E->getCastKind() == CK_LValueToRValue &&
       (isa<IntegerLiteral>(litExpr->IgnoreParenCasts()) ||

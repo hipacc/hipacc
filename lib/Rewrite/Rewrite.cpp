@@ -482,10 +482,8 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
         QualType QT;
 
         // init->isMemberInitializer()
-        if (isa<DeclRefExpr>(init->getInit()->IgnoreParenCasts())) {
-          DeclRefExpr *DRE =
-            dyn_cast<DeclRefExpr>(init->getInit()->IgnoreParenCasts());
-
+        if (auto DRE =
+            dyn_cast<DeclRefExpr>(init->getInit()->IgnoreParenCasts())) {
           if (DRE->getDecl() == param) {
             FieldDecl *FD = init->getMember();
 
@@ -539,13 +537,11 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
         }
 
         // init->isBaseInitializer()
-        if (isa<CXXConstructExpr>(init->getInit())) {
-          CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(init->getInit());
+        if (auto CCE = dyn_cast<CXXConstructExpr>(init->getInit())) {
           assert(CCE->getNumArgs() == 1 &&
               "Kernel base class constructor requires exactly one argument!");
 
-          if (isa<DeclRefExpr>(CCE->getArg(0))) {
-            DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
+          if (auto DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0))) {
             if (DRE->getDecl() == param) {
               QT = compilerClasses.getFirstTemplateType(param->getType());
               KC->addISArg(nullptr, QT, "Output");
@@ -734,9 +730,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccPyramid *Pyr = nullptr;
 
         // check if the first argument is an Image
-        if (isa<DeclRefExpr>(CCE->getArg(0))) {
-          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
-
+        if (auto DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0))) {
           // get the Image from the DRE if we have one
           if (ImgDeclMap.count(DRE->getDecl())) {
             Img = ImgDeclMap[DRE->getDecl()];
@@ -799,9 +793,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           auto arg = CCE->getArg(i);
           if (found_size == 0) {
             // check if the parameter is a Mask reference
-            if (isa<DeclRefExpr>(arg->IgnoreParenCasts())) {
-              DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts());
-
+            if (auto DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts())) {
               // get the Mask from the DRE if we have one
               if (MaskDeclMap.count(DRE->getDecl())) {
                 HipaccMask *Mask = MaskDeclMap[DRE->getDecl()];
@@ -823,25 +815,19 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             found_size++;
           } else {
             // check if the parameter specifies the boundary mode
-            if (isa<DeclRefExpr>(arg->IgnoreParenCasts())) {
-              DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts());
+            if (auto DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts())) {
               // boundary mode found
               if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
                   DRE->getDecl()->getType().getAsString() ==
                   "enum hipacc::Boundary") {
                 auto lval = arg->EvaluateKnownConstInt(Context);
                 auto cval = static_cast<std::underlying_type<Boundary>::type>(Boundary::CONSTANT);
-                auto mode = static_cast<Boundary>(lval.getZExtValue());
                 assert(lval.isNonNegative() && lval.getZExtValue() <= cval &&
                        "invalid Boundary mode");
-                switch (mode) {
-                  case Boundary::UNDEFINED:
-                  case Boundary::CLAMP:
-                  case Boundary::REPEAT:
-                  case Boundary::MIRROR:
-                    BC->setBoundaryMode(mode); break;
-                  case Boundary::CONSTANT:
-                    BC->setBoundaryMode(mode);
+                auto mode = static_cast<Boundary>(lval.getZExtValue());
+                BC->setBoundaryMode(mode);
+
+                if (mode == Boundary::CONSTANT) {
                     if (CCE->getNumArgs() != i+2) {
                       Diags.Report(arg->getExprLoc(), DiagIDMode) <<
                         VD->getName();
@@ -1022,9 +1008,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccPyramid *Pyr = nullptr;
 
         // check if the first argument is an Image
-        if (isa<DeclRefExpr>(CCE->getArg(0))) {
-          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
-
+        if (auto DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0))) {
           // get the Image from the DRE if we have one
           if (ImgDeclMap.count(DRE->getDecl())) {
             Img = ImgDeclMap[DRE->getDecl()];
@@ -1111,23 +1095,23 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         bool isMaskConstant = V->getType().isConstant(Context);
 
         // extract size_y and size_x from type
-        const ConstantArrayType *Array =
-          Context.getAsConstantArrayType(V->getType());
+        auto Array = Context.getAsConstantArrayType(V->getType());
         Mask->setSizeY(Array->getSize().getSExtValue());
         Array = Context.getAsConstantArrayType(Array->getElementType());
         Mask->setSizeX(Array->getSize().getSExtValue());
 
         // loop over initializers and check if each initializer is a constant
-        if (isMaskConstant && isa<InitListExpr>(V->getInit())) {
-          auto ILEY = dyn_cast<InitListExpr>(V->getInit());
-          Mask->setInitList(ILEY);
-          for (auto yinit : *ILEY) {
-            auto ILEX = dyn_cast<InitListExpr>(yinit);
-            for (auto xinit : *ILEX) {
-              auto xexpr = dyn_cast<Expr>(xinit);
-              if (!xexpr->isConstantInitializer(Context, false)) {
-                isMaskConstant = false;
-                break;
+        if (isMaskConstant) {
+          if (auto ILEY = dyn_cast<InitListExpr>(V->getInit())) {
+            Mask->setInitList(ILEY);
+            for (auto yinit : *ILEY) {
+              auto ILEX = dyn_cast<InitListExpr>(yinit);
+              for (auto xinit : *ILEX) {
+                auto xexpr = dyn_cast<Expr>(xinit);
+                if (!xexpr->isConstantInitializer(Context, false)) {
+                  isMaskConstant = false;
+                  break;
+                }
               }
             }
           }
@@ -1195,32 +1179,31 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             bool isDomainConstant = V->getType().isConstant(Context);
 
             // extract size_y and size_x from type
-            const ConstantArrayType *Array =
-                Context.getAsConstantArrayType(V->getType());
+            auto Array = Context.getAsConstantArrayType(V->getType());
             Domain->setSizeY(Array->getSize().getSExtValue());
             Array = Context.getAsConstantArrayType(Array->getElementType());
             Domain->setSizeX(Array->getSize().getSExtValue());
 
             // loop over initializers and check if each initializer is a
             // constant
-            if (isDomainConstant && isa<InitListExpr>(V->getInit())) {
-              auto ILEY = dyn_cast<InitListExpr>(V->getInit());
-              Domain->setInitList(ILEY);
-              for (size_t y=0; y<ILEY->getNumInits(); ++y) {
-                auto ILEX = dyn_cast<InitListExpr>(ILEY->getInit(y));
-                for (size_t x=0; x<ILEX->getNumInits(); ++x) {
-                  auto xexpr = ILEX->getInit(x)->IgnoreParenCasts();
-                  if (!xexpr->isConstantInitializer(Context, false)) {
-                    isDomainConstant = false;
-                    break;
-                  }
-                  // copy values to compiler internal data structure
-                  if (isa<IntegerLiteral>(xexpr)) {
-                    Domain->setDomainDefined(x, y,
-                        dyn_cast<IntegerLiteral>(xexpr)->getValue() != 0);
-                  } else {
-                    assert(false &&
-                           "Expected integer literal in domain initializer");
+            if (isDomainConstant) {
+              if (auto ILEY = dyn_cast<InitListExpr>(V->getInit())) {
+                Domain->setInitList(ILEY);
+                for (size_t y=0; y<ILEY->getNumInits(); ++y) {
+                  auto ILEX = dyn_cast<InitListExpr>(ILEY->getInit(y));
+                  for (size_t x=0; x<ILEX->getNumInits(); ++x) {
+                    auto xexpr = ILEX->getInit(x)->IgnoreParenCasts();
+                    if (!xexpr->isConstantInitializer(Context, false)) {
+                      isDomainConstant = false;
+                      break;
+                    }
+                    // copy values to compiler internal data structure
+                    if (auto val = dyn_cast<IntegerLiteral>(xexpr)) {
+                      Domain->setDomainDefined(x, y, val->getValue() != 0);
+                    } else {
+                      assert(false &&
+                             "Expected integer literal in domain initializer");
+                    }
                   }
                 }
               }
@@ -1315,9 +1298,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           auto maskFields = KC->getMaskFields();
           for (size_t i=0; i<CCE->getNumArgs(); ++i) {
             auto arg = CCE->getArg(i);
-            if (isa<DeclRefExpr>(arg->IgnoreParenCasts())) {
-              DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts());
-
+            if (auto DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts())) {
               // check if we have an Image
               if (ImgDeclMap.count(DRE->getDecl())) {
                 unsigned DiagIDImage =
@@ -1429,25 +1410,18 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
     unsigned DomIdxX, DomIdxY;
 
     // check first parameter
-    if (isa<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
-      DeclRefExpr *DRE_LHS =
-        dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts());
-
+    if (auto DRE = dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
       // check if we have an Image at the LHS
-      if (ImgDeclMap.count(DRE_LHS->getDecl())) {
-        ImgLHS = ImgDeclMap[DRE_LHS->getDecl()];
+      if (ImgDeclMap.count(DRE->getDecl())) {
+        ImgLHS = ImgDeclMap[DRE->getDecl()];
       }
       // check if we have an Accessor at the LHS
-      if (AccDeclMap.count(DRE_LHS->getDecl())) {
-        AccLHS = AccDeclMap[DRE_LHS->getDecl()];
+      if (AccDeclMap.count(DRE->getDecl())) {
+        AccLHS = AccDeclMap[DRE->getDecl()];
       }
-    } else if (isa<CXXOperatorCallExpr>(E->getArg(0))) {
-      CXXOperatorCallExpr *CE = dyn_cast<CXXOperatorCallExpr>(E->getArg(0));
-
+    } else if (auto call = dyn_cast<CXXOperatorCallExpr>(E->getArg(0))) {
       // check if we have an Pyramid or Domain call at the LHS
-      if (isa<DeclRefExpr>(CE->getArg(0))) {
-        DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CE->getArg(0));
-
+      if (auto DRE = dyn_cast<DeclRefExpr>(call->getArg(0))) {
         // get the Pyramid from the DRE if we have one
         if (PyrDeclMap.count(DRE->getDecl())) {
           PyrLHS = PyrDeclMap[DRE->getDecl()];
@@ -1456,12 +1430,12 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           unsigned DiagIDConstant =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
                 "Missing integer literal in Pyramid %0 call expression.");
-          if (!CE->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(CE->getArg(1)->getExprLoc(), DiagIDConstant)
+          if (!call->getArg(1)->isEvaluatable(Context)) {
+            Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
               << PyrLHS->getName();
           }
           PyrIdxLHS =
-            CE->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
+            call->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
         } else if (MaskDeclMap.count(DRE->getDecl())) {
           DomLHS = MaskDeclMap[DRE->getDecl()];
 
@@ -1471,42 +1445,35 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           unsigned DiagIDConstant =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
                 "Integer expression in Domain %0 is non-const.");
-          if (!CE->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(CE->getArg(1)->getExprLoc(), DiagIDConstant)
+          if (!call->getArg(1)->isEvaluatable(Context)) {
+            Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
               << DomLHS->getName();
           }
-          if (!CE->getArg(2)->isEvaluatable(Context)) {
-            Diags.Report(CE->getArg(2)->getExprLoc(), DiagIDConstant)
+          if (!call->getArg(2)->isEvaluatable(Context)) {
+            Diags.Report(call->getArg(2)->getExprLoc(), DiagIDConstant)
               << DomLHS->getName();
           }
           DomIdxX = DomLHS->getSizeX()/2 +
-            CE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue();
+            call->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue();
           DomIdxY = DomLHS->getSizeY()/2 +
-            CE->getArg(2)->EvaluateKnownConstInt(Context).getSExtValue();
+            call->getArg(2)->EvaluateKnownConstInt(Context).getSExtValue();
         }
       }
     }
 
     // check second parameter
-    if (isa<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts())) {
-      DeclRefExpr *DRE_RHS =
-        dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts());
-
+    if (auto DRE = dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts())) {
       // check if we have an Image at the RHS
-      if (ImgDeclMap.count(DRE_RHS->getDecl())) {
-        ImgRHS = ImgDeclMap[DRE_RHS->getDecl()];
+      if (ImgDeclMap.count(DRE->getDecl())) {
+        ImgRHS = ImgDeclMap[DRE->getDecl()];
       }
       // check if we have an Accessor at the RHS
-      if (AccDeclMap.count(DRE_RHS->getDecl())) {
-        AccRHS = AccDeclMap[DRE_RHS->getDecl()];
+      if (AccDeclMap.count(DRE->getDecl())) {
+        AccRHS = AccDeclMap[DRE->getDecl()];
       }
-    } else if (isa<CXXOperatorCallExpr>(E->getArg(1))) {
-      CXXOperatorCallExpr *CE = dyn_cast<CXXOperatorCallExpr>(E->getArg(1));
-
+    } else if (auto call = dyn_cast<CXXOperatorCallExpr>(E->getArg(1))) {
       // check if we have an Pyramid call at the RHS
-      if (isa<DeclRefExpr>(CE->getArg(0))) {
-        DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CE->getArg(0));
-
+      if (auto DRE = dyn_cast<DeclRefExpr>(call->getArg(0))) {
         // get the Pyramid from the DRE if we have one
         if (PyrDeclMap.count(DRE->getDecl())) {
           PyrRHS = PyrDeclMap[DRE->getDecl()];
@@ -1515,12 +1482,12 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           unsigned DiagIDConstant =
             Diags.getCustomDiagID(DiagnosticsEngine::Error,
                 "Missing integer literal in Pyramid %0 call expression.");
-          if (!CE->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(CE->getArg(1)->getExprLoc(), DiagIDConstant)
+          if (!call->getArg(1)->isEvaluatable(Context)) {
+            Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
               << PyrRHS->getName();
           }
           PyrIdxRHS =
-            CE->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
+            call->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
         }
       }
     } else if (DomLHS) {
@@ -1592,17 +1559,13 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // Img1 = Pyr2(x2).getData();
         // Pyr1(x1) = Img2.getData();
         // Pyr1(x1) = Pyr2(x2).getData();
-        if (isa<CXXMemberCallExpr>(E->getArg(1))) {
-          CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getArg(1));
-
+        if (auto mcall = dyn_cast<CXXMemberCallExpr>(E->getArg(1))) {
           // match only getData calls to Image instances
-          if (MCE->getDirectCallee()->getNameAsString() == "getData") {
+          if (mcall->getDirectCallee()->getNameAsString() == "getData") {
             // sideeffect ! do not handle the next call to getData
             skipTransfer = true;
-            if (isa<DeclRefExpr>(MCE->getImplicitObjectArgument())) {
-              DeclRefExpr *DRE =
-                dyn_cast<DeclRefExpr>(MCE->getImplicitObjectArgument());
-
+            if (auto DRE =
+                dyn_cast<DeclRefExpr>(mcall->getImplicitObjectArgument())) {
               // check if we have an Image
               if (ImgDeclMap.count(DRE->getDecl())) {
                 HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
@@ -1616,15 +1579,10 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                 }
                 write_pointer = false;
               }
-            } else if (isa<CXXOperatorCallExpr>(
-                           MCE->getImplicitObjectArgument())) {
-              CXXOperatorCallExpr *CE = dyn_cast<CXXOperatorCallExpr>(
-                                            MCE->getImplicitObjectArgument());
-
+            } else if (auto call = dyn_cast<CXXOperatorCallExpr>(
+                                   mcall->getImplicitObjectArgument())) {
               // check if we have an Pyramid call
-              if (isa<DeclRefExpr>(CE->getArg(0))) {
-                DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CE->getArg(0));
-
+              if (auto DRE = dyn_cast<DeclRefExpr>(call->getArg(0))) {
                 // get the Pyramid from the DRE if we have one
                 if (PyrDeclMap.count(DRE->getDecl())) {
                   HipaccPyramid *Pyr = PyrDeclMap[DRE->getDecl()];
@@ -1633,12 +1591,12 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                   unsigned DiagIDConstant =
                     Diags.getCustomDiagID(DiagnosticsEngine::Error,
                         "Missing integer literal in Pyramid %0 call expression.");
-                  if (!CE->getArg(1)->isEvaluatable(Context)) {
-                    Diags.Report(CE->getArg(1)->getExprLoc(), DiagIDConstant)
+                  if (!call->getArg(1)->isEvaluatable(Context)) {
+                    Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
                       << Pyr->getName();
                   }
                   std::string index =
-                    CE->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
+                    call->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
 
                   if (PyrLHS) {
                     stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS,
@@ -1704,11 +1662,8 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   //    float min = MinReduction.getReducedData();
   // d) convert getWidth/getHeight calls
 
-  if (E->getImplicitObjectArgument() &&
-      isa<DeclRefExpr>(E->getImplicitObjectArgument()->IgnoreParenCasts())) {
-
-    DeclRefExpr *DRE =
-      dyn_cast<DeclRefExpr>(E->getImplicitObjectArgument()->IgnoreParenCasts());
+  if (auto DRE =
+      dyn_cast<DeclRefExpr>(E->getImplicitObjectArgument()->IgnoreParenCasts())) {
     // match execute calls to user kernel instances
     if (!KernelDeclMap.empty() &&
         E->getDirectCallee()->getNameAsString() == "execute") {
@@ -1752,11 +1707,8 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   }
 
   // getData & getWidth/getHeight MemberExpr calls
-  if (isa<MemberExpr>(E->getCallee())) {
-    MemberExpr *ME = dyn_cast<MemberExpr>(E->getCallee());
-
-    if (isa<DeclRefExpr>(ME->getBase()->IgnoreImpCasts())) {
-      DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ME->getBase()->IgnoreImpCasts());
+  if (auto ME = dyn_cast<MemberExpr>(E->getCallee())) {
+    if (auto DRE = dyn_cast<DeclRefExpr>(ME->getBase())) {
       std::string newStr;
 
       // get the Kernel from the DRE if we have one
@@ -1765,11 +1717,9 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         if (ME->getMemberNameInfo().getAsString() == "getReducedData") {
           HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
 
-          std::string newStr(K->getReduceStr());
-
           // replace member function invocation
           SourceRange range(E->getLocStart(), E->getLocEnd());
-          TextRewriter.ReplaceText(range, newStr);
+          TextRewriter.ReplaceText(range, K->getReduceStr());
 
           return true;
         }
@@ -1826,14 +1776,14 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
 bool Rewrite::VisitCallExpr (CallExpr *E) {
   // rewrite function calls 'traverse' to 'hipaccTraverse'
-  if (isa<ImplicitCastExpr>(E->getCallee())) {
-    DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(dyn_cast<ImplicitCastExpr>(
-                           E->getCallee())->getSubExpr());
-    if (DRE && DRE->getDecl()->getNameAsString() == "traverse") {
-      SourceLocation startLoc = E->getLocStart();
-      const char *startBuf = SM.getCharacterData(startLoc);
-      const char *semiPtr = strchr(startBuf, '(');
-      TextRewriter.ReplaceText(startLoc, semiPtr-startBuf, "hipaccTraverse");
+  if (auto ICE = dyn_cast<ImplicitCastExpr>(E->getCallee())) {
+    if (auto DRE = dyn_cast<DeclRefExpr>(ICE->getSubExpr())) {
+      if (DRE->getDecl()->getNameAsString() == "traverse") {
+        SourceLocation startLoc = E->getLocStart();
+        const char *startBuf = SM.getCharacterData(startLoc);
+        const char *semiPtr = strchr(startBuf, '(');
+        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf, "hipaccTraverse");
+      }
     }
   }
   return true;
