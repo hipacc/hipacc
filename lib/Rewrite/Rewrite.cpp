@@ -740,7 +740,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get the Image from the DRE if we have one
           if (ImgDeclMap.count(DRE->getDecl())) {
             Img = ImgDeclMap[DRE->getDecl()];
-            BC = new HipaccBoundaryCondition(Img, VD);
+            BC = new HipaccBoundaryCondition(VD, Img);
           }
         }
 
@@ -755,7 +755,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get the Pyramid from the DRE if we have one
           if (PyrDeclMap.count(DRE->getDecl())) {
             Pyr = PyrDeclMap[DRE->getDecl()];
-            BC = new HipaccBoundaryCondition(Pyr, VD);
+            BC = new HipaccBoundaryCondition(VD, Pyr);
 
             // add call expression to pyramid argument
             unsigned DiagIDConstant =
@@ -943,7 +943,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             // check if the parameter specifies the image
             if (ImgDeclMap.count(DRE->getDecl())) {
               HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
-              BC = new HipaccBoundaryCondition(Img, VD);
+              BC = new HipaccBoundaryCondition(VD, Img);
               BC->setSizeX(1);
               BC->setSizeY(1);
               BC->setBoundaryMode(Boundary::CLAMP);
@@ -956,7 +956,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             // check if the parameter specifies is a Pyramid call
             if (PyrDeclMap.count(DRE->getDecl())) {
               Pyr = PyrDeclMap[DRE->getDecl()];
-              BC = new HipaccBoundaryCondition(Pyr, VD);
+              BC = new HipaccBoundaryCondition(VD, Pyr);
               BC->setSizeX(1);
               BC->setSizeY(1);
               BC->setBoundaryMode(Boundary::CLAMP);
@@ -1028,7 +1028,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get the Image from the DRE if we have one
           if (ImgDeclMap.count(DRE->getDecl())) {
             Img = ImgDeclMap[DRE->getDecl()];
-            IS = new HipaccIterationSpace(Img, VD);
+            IS = new HipaccIterationSpace(VD, Img);
           }
         }
 
@@ -1042,7 +1042,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get the Pyramid from the DRE if we have one
           if (PyrDeclMap.count(DRE->getDecl())) {
             Pyr = PyrDeclMap[DRE->getDecl()];
-            IS = new HipaccIterationSpace(Pyr, VD);
+            IS = new HipaccIterationSpace(VD, Pyr);
           }
         }
 

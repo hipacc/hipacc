@@ -174,18 +174,18 @@ class HipaccPyramid : public HipaccImage {
 
 class HipaccBoundaryCondition : public HipaccSize {
   private:
-    HipaccImage *img;
     VarDecl *VD;
+    HipaccImage *img;
     Boundary mode;
     std::string pyr_idx_str;
     bool is_pyramid;
     Expr *constExpr;
 
   public:
-    HipaccBoundaryCondition(HipaccImage *img, VarDecl *VD) :
+    HipaccBoundaryCondition(VarDecl *VD, HipaccImage *img) :
       HipaccSize(),
-      img(img),
       VD(VD),
+      img(img),
       mode(Boundary::UNDEFINED),
       pyr_idx_str(),
       is_pyramid(false),
@@ -267,8 +267,8 @@ class HipaccAccessor {
 
 class HipaccIterationSpace {
   private:
-    HipaccImage *img;
     VarDecl *VD;
+    HipaccImage *img;
     std::string name;
     bool crop;
     // Accessor used during ASTTranslate to access the Output image
@@ -277,9 +277,9 @@ class HipaccIterationSpace {
     void createOutputAccessor();
 
   public:
-    HipaccIterationSpace(HipaccImage *img, VarDecl *VD) :
-      img(img),
+    HipaccIterationSpace(VarDecl *VD, HipaccImage *img) :
       VD(VD),
+      img(img),
       name(VD->getNameAsString()),
       crop(true),
       acc(nullptr)

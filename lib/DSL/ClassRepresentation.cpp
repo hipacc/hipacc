@@ -227,7 +227,7 @@ void HipaccBoundaryCondition::setConstVal(APValue &val, ASTContext &Ctx) {
 void HipaccIterationSpace::createOutputAccessor() {
   // create Accessor for accessing the image associated with the IterationSpace
   // during ASTTranslate
-  HipaccBoundaryCondition *BC = new HipaccBoundaryCondition(img, VD);
+  HipaccBoundaryCondition *BC = new HipaccBoundaryCondition(VD, img);
   BC->setSizeX(0);
   BC->setSizeY(0);
   BC->setBoundaryMode(Boundary::UNDEFINED);
