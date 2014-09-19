@@ -232,7 +232,7 @@ void HipaccIterationSpace::createOutputAccessor() {
   BC->setSizeY(0);
   BC->setBoundaryMode(Boundary::UNDEFINED);
 
-  acc = new HipaccAccessor(BC, Interpolate::NO, VD);
+  acc = new HipaccAccessor(VD, BC, Interpolate::NO, false);
 }
 
 

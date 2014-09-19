@@ -209,9 +209,9 @@ class HipaccBoundaryCondition : public HipaccSize {
 
 class HipaccAccessor {
   private:
+    VarDecl *VD;
     HipaccBoundaryCondition *bc;
     Interpolate mode;
-    VarDecl *VD;
     std::string name;
     bool crop;
     // kernel parameter name for width, height, and stride
@@ -219,13 +219,12 @@ class HipaccAccessor {
     DeclRefExpr *offsetXDecl, *offsetYDecl;
 
   public:
-    HipaccAccessor(HipaccBoundaryCondition *bc, Interpolate mode, VarDecl
-        *VD) :
+    HipaccAccessor(VarDecl *VD, HipaccBoundaryCondition *bc, Interpolate mode, bool crop) :
+      VD(VD),
       bc(bc),
       mode(mode),
-      VD(VD),
       name(VD->getNameAsString()),
-      crop(true),
+      crop(crop),
       widthDecl(nullptr), heightDecl(nullptr), strideDecl(nullptr),
       scaleXDecl(nullptr), scaleYDecl(nullptr),
       offsetXDecl(nullptr), offsetYDecl(nullptr)
@@ -238,7 +237,6 @@ class HipaccAccessor {
     void setScaleYDecl(DeclRefExpr *scale) { scaleYDecl = scale; }
     void setOffsetXDecl(DeclRefExpr *ox) { offsetXDecl = ox; }
     void setOffsetYDecl(DeclRefExpr *oy) { offsetYDecl = oy; }
-    void setNoCrop() { crop = false; }
     VarDecl *getDecl() { return VD; }
     const std::string &getName() const { return name; }
     HipaccBoundaryCondition *getBC() { return bc; }

@@ -45,10 +45,6 @@ class CompilerKnownClasses {
     CXXRecordDecl *BoundaryCondition;
     CXXRecordDecl *AccessorBase;
     CXXRecordDecl *Accessor;
-    CXXRecordDecl *AccessorNN;
-    CXXRecordDecl *AccessorLF;
-    CXXRecordDecl *AccessorCF;
-    CXXRecordDecl *AccessorL3;
     CXXRecordDecl *IterationSpaceBase;
     CXXRecordDecl *IterationSpace;
     CXXRecordDecl *ElementIterator;
@@ -65,10 +61,6 @@ class CompilerKnownClasses {
       BoundaryCondition(nullptr),
       AccessorBase(nullptr),
       Accessor(nullptr),
-      AccessorNN(nullptr),
-      AccessorLF(nullptr),
-      AccessorCF(nullptr),
-      AccessorL3(nullptr),
       IterationSpaceBase(nullptr),
       IterationSpace(nullptr),
       ElementIterator(nullptr),

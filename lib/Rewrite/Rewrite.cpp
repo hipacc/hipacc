@@ -148,10 +148,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   assert(compilerClasses.BoundaryCondition && "BoundaryCondition class not found!");
   assert(compilerClasses.AccessorBase && "AccessorBase class not found!");
   assert(compilerClasses.Accessor && "Accessor class not found!");
-  assert(compilerClasses.AccessorNN && "AccessorNN class not found!");
-  assert(compilerClasses.AccessorLF && "AccessorLF class not found!");
-  assert(compilerClasses.AccessorCF && "AccessorCF class not found!");
-  assert(compilerClasses.AccessorL3 && "AccessorL3 class not found!");
   assert(compilerClasses.IterationSpaceBase && "IterationSpaceBase class not found!");
   assert(compilerClasses.IterationSpace && "IterationSpace class not found!");
   assert(compilerClasses.ElementIterator && "ElementIterator class not found!");
@@ -429,14 +425,6 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
         if (D->getNameAsString() == "AccessorBase")
           compilerClasses.AccessorBase = D;
         if (D->getNameAsString() == "Accessor") compilerClasses.Accessor = D;
-        if (D->getNameAsString() == "AccessorNN")
-          compilerClasses.AccessorNN = D;
-        if (D->getNameAsString() == "AccessorLF")
-          compilerClasses.AccessorLF = D;
-        if (D->getNameAsString() == "AccessorCF")
-          compilerClasses.AccessorCF = D;
-        if (D->getNameAsString() == "AccessorL3")
-          compilerClasses.AccessorL3 = D;
         if (D->getNameAsString() == "IterationSpaceBase")
           compilerClasses.IterationSpaceBase = D;
         if (D->getNameAsString() == "IterationSpace")
@@ -738,7 +726,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.BoundaryCondition)) {
         assert(isa<CXXConstructExpr>(VD->getInit()) &&
-            "Expected BoundaryCondition definition (CXXConstructExpr).");
+               "Expected BoundaryCondition definition (CXXConstructExpr).");
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
         HipaccBoundaryCondition *BC = nullptr;
@@ -912,111 +900,99 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
       // found Accessor decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
-            compilerClasses.Accessor) ||
-          compilerClasses.isTypeOfTemplateClass(VD->getType(),
-            compilerClasses.AccessorNN) ||
-          compilerClasses.isTypeOfTemplateClass(VD->getType(),
-            compilerClasses.AccessorLF) ||
-          compilerClasses.isTypeOfTemplateClass(VD->getType(),
-            compilerClasses.AccessorCF) ||
-          compilerClasses.isTypeOfTemplateClass(VD->getType(),
-            compilerClasses.AccessorL3)) {
-        assert(VD->hasInit() && "Currently only Accessor definitions are supported, no declarations!");
+            compilerClasses.Accessor)) {
         assert(isa<CXXConstructExpr>(VD->getInit()) &&
-            "Currently only Accessor definitions are supported, no declarations!");
+               "Expected Accessor definition (CXXConstructExpr).");
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
         HipaccAccessor *Acc = nullptr;
         HipaccBoundaryCondition *BC = nullptr;
         HipaccPyramid *Pyr = nullptr;
+        Interpolate mode = Interpolate::NO;
+        std::string Parms;
+        size_t roi_args = 0;
 
-        // check if the first argument is an Image
-        if (isa<DeclRefExpr>(CCE->getArg(0))) {
-          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
+        for (size_t i=0, e=CCE->getNumArgs(); i!=e; ++i) {
+          auto arg = CCE->getArg(i)->IgnoreParenCasts();
+          std::string Str;
+          llvm::raw_string_ostream SS(Str);
 
-          // get the BoundaryCondition from the DRE if we have one
-          if (BCDeclMap.count(DRE->getDecl())) {
-            BC = BCDeclMap[DRE->getDecl()];
+          if (isa<CXXDefaultArgExpr>(arg))
+            continue;
+
+          auto dsl_arg = arg;
+          if (auto call = dyn_cast<CXXOperatorCallExpr>(arg)) {
+            // for pyramid call use the first argument
+            dsl_arg = call->getArg(0);
           }
 
-          // in case we have no BoundaryCondition, check if an Image is
-          // specified and construct a BoundaryCondition
-          if (!BC && ImgDeclMap.count(DRE->getDecl())) {
-            HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
-            BC = new HipaccBoundaryCondition(Img, VD);
-            BC->setSizeX(1);
-            BC->setSizeY(1);
-            BC->setBoundaryMode(Boundary::CLAMP);
+          // match for DSL arguments
+          if (auto DRE = dyn_cast<DeclRefExpr>(dsl_arg)) {
+            // check if the parameter specifies the boundary condition
+            if (BCDeclMap.count(DRE->getDecl())) {
+              BC = BCDeclMap[DRE->getDecl()];
 
-            // Fixme: store BoundaryCondition???
-            BCDeclMap[VD] = BC;
+              Parms = BC->getImage()->getName();
+              if (BC->isPyramid()) {
+                // add call expression to pyramid argument
+                Parms += "(" + BC->getPyramidIndex() + ")";
+              }
+              continue;
+            }
+
+            // check if the parameter specifies the image
+            if (ImgDeclMap.count(DRE->getDecl())) {
+              HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
+              BC = new HipaccBoundaryCondition(Img, VD);
+              BC->setSizeX(1);
+              BC->setSizeY(1);
+              BC->setBoundaryMode(Boundary::CLAMP);
+              BCDeclMap[VD] = BC; // Fixme: store BoundaryCondition???
+
+              Parms = BC->getImage()->getName();
+              continue;
+            }
+
+            // check if the parameter specifies is a Pyramid call
+            if (PyrDeclMap.count(DRE->getDecl())) {
+              Pyr = PyrDeclMap[DRE->getDecl()];
+              BC = new HipaccBoundaryCondition(Pyr, VD);
+              BC->setSizeX(1);
+              BC->setSizeY(1);
+              BC->setBoundaryMode(Boundary::CLAMP);
+              BCDeclMap[VD] = BC; // Fixme: store BoundaryCondition???
+
+              // add call expression to pyramid argument
+              arg->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+              Parms = SS.str();
+              continue;
+            }
+
+            // check if the parameter specifies the interpolate mode
+            if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
+                DRE->getDecl()->getType().getAsString() ==
+                "enum hipacc::Interpolate") {
+              auto lval = DRE->EvaluateKnownConstInt(Context);
+              auto cval = static_cast<std::underlying_type<Interpolate>::type>(Interpolate::L3);
+              assert(lval.isNonNegative() && lval.getZExtValue() <= cval &&
+                     "invalid Interpolate mode");
+              mode = static_cast<Interpolate>(lval.getZExtValue());
+              continue;
+            }
           }
-        }
 
-        // check if the first argument is a Pyramid call
-        if (isa<CXXOperatorCallExpr>(CCE->getArg(0)) &&
-            isa<DeclRefExpr>(dyn_cast<CXXOperatorCallExpr>(
-                CCE->getArg(0))->getArg(0))) {
-          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
-              dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0))->getArg(0));
-
-          // get the Pyramid from the DRE if we have one
-          if (PyrDeclMap.count(DRE->getDecl())) {
-            Pyr = PyrDeclMap[DRE->getDecl()];
-            BC = new HipaccBoundaryCondition(Pyr, VD);
-            BC->setSizeX(1);
-            BC->setSizeY(1);
-            BC->setBoundaryMode(Boundary::CLAMP);
-
-            // Fixme: store BoundaryCondition???
-            BCDeclMap[VD] = BC;
-          }
+          // get text string for arguments, argument order is:
+          // img|bc|pyramid-call
+          // img|bc|pyramid-call, width, height, xf, yf
+          arg->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+          Parms += ", " + SS.str();
+          roi_args++;
         }
 
         assert(BC && "Expected BoundaryCondition, Image or Pyramid call as "
                      "first argument to Accessor.");
 
-        Interpolate mode;
-        if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
-              compilerClasses.Accessor)) mode = Interpolate::NO;
-        else if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
-              compilerClasses.AccessorNN)) mode = Interpolate::NN;
-        else if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
-              compilerClasses.AccessorLF)) mode = Interpolate::LF;
-        else if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
-              compilerClasses.AccessorCF)) mode = Interpolate::CF;
-        else mode = Interpolate::L3;
-
-        Acc = new HipaccAccessor(BC, mode, VD);
-
-        // get text string for arguments
-        std::string Parms(Acc->getImage()->getName());
-
-        if (Pyr) {
-          // add call expression to pyramid argument
-          std::string Str;
-          llvm::raw_string_ostream SS(Str);
-          CCE->getArg(0)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-          Parms = SS.str();
-        } else {
-          if (BC->isPyramid()) {
-            // add call expression to pyramid argument (from boundary condition)
-            Parms += "(" + BC->getPyramidIndex() + ")";
-          }
-        }
-
-        // img|bc|pyramid-call
-        // img|bc|pyramid-call, width, height, xf, yf
-        if (CCE->getNumArgs()<4) Acc->setNoCrop();
-
-        // get text string for arguments, argument order is:
-        for (size_t i=1; i<CCE->getNumArgs(); ++i) {
-          std::string Str;
-          llvm::raw_string_ostream SS(Str);
-
-          CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-          Parms += ", " + SS.str();
-        }
+        Acc = new HipaccAccessor(VD, BC, mode, roi_args == 4);
 
         std::string newStr;
         newStr = "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";
@@ -1038,7 +1014,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.IterationSpace)) {
         assert(isa<CXXConstructExpr>(VD->getInit()) &&
-            "Expected IterationSpace definition (CXXConstructExpr).");
+               "Expected IterationSpace definition (CXXConstructExpr).");
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
         HipaccIterationSpace *IS = nullptr;
@@ -1117,12 +1093,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       // found Mask decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Mask)) {
-        assert(VD->hasInit() &&
-               "Currently only Mask definitions are supported, no "
-               "declarations!");
         assert(isa<CXXConstructExpr>(VD->getInit()) &&
-               "Currently only Mask definitions are supported, no "
-               "declarations!");
+               "Expected Mask definition (CXXConstructExpr).");
 
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
         assert((CCE->getNumArgs() == 1) &&
@@ -1168,12 +1140,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       // found Domain decl
       if (compilerClasses.isTypeOfClass(VD->getType(),
                                         compilerClasses.Domain)) {
-        assert(VD->hasInit() &&
-               "Currently only Domain definitions are supported, no "
-               "declarations!");
         assert(isa<CXXConstructExpr>(VD->getInit()) &&
-               "Currently only Domain definitions are supported, no "
-               "declarations!");
+               "Expected Domain definition (CXXConstructExpr).");
 
         Domain = new HipaccMask(VD, Context.UnsignedCharTy,
                                             HipaccMask::MaskType::Domain);
@@ -1338,9 +1306,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // create map between Image or Accessor instances and kernel
           // variables; replace image instances by accessors with undefined
           // boundary handling
-          assert(VD->hasInit() && "Currently only Kernel definitions are supported, no declarations!");
           assert(isa<CXXConstructExpr>(VD->getInit()) &&
-              "Currently only Image definitions are supported, no declarations!");
+               "Expected Image definition (CXXConstructExpr).");
           CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
           size_t num_img = 0, num_mask = 0;
