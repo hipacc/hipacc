@@ -224,7 +224,7 @@ int main(int argc, const char **argv) {
           printf("Level %d: Gaussian\n", PGAUS.getLevel()-1);
           Gaus.execute();
 
-          AccessorNN<char> Acc2(PTMP(-1));
+          Accessor<char> Acc2(PTMP(-1), Interpolate::NN);
           IterationSpace<char> IS2(PGAUS(0));
           Subsample Sub(IS2, Acc2);
           printf("Level %d: Subsample\n", PGAUS.getLevel()-1);
@@ -232,7 +232,7 @@ int main(int argc, const char **argv) {
 
           // Construct lapacian pyramid
           Accessor<char> Acc3(PGAUS(-1));
-          AccessorLF<char> Acc4(PGAUS(0));
+          Accessor<char> Acc4(PGAUS(0), Interpolate::LF);
           IterationSpace<char> IS3(PLAP(-1));
           DifferenceOfGaussian DoG(IS3, Acc3, Acc4);
           printf("Level %d: DifferenceOfGaussian\n", PGAUS.getLevel()-1);
@@ -243,7 +243,7 @@ int main(int argc, const char **argv) {
 
         // Collapse laplacian pyramid
         if (!PGAUS.isBottomLevel()) {
-          AccessorLF<char> Acc1(PGAUS(1));
+          Accessor<char> Acc1(PGAUS(1), Interpolate::LF);
           Accessor<char> Acc2(PLAP(0));
           IterationSpace<char> IS(PGAUS(0));
           Collapse Col(IS, Acc1, Acc2);

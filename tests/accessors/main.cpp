@@ -114,9 +114,9 @@ int main(int argc, const char **argv) {
     Image<int> OUT(is_width, is_height);
 
     // use nearest neighbor interpolation
-    AccessorNN<int> AccInNN(IN);
+    Accessor<int> AccInNN(IN, Interpolate::NN);
     // use linear filtering interpolation
-    AccessorLF<int> AccInLF(IN);
+    Accessor<int> AccInLF(IN, Interpolate::LF);
 
     // initialize data
     for (int y=0; y<height; ++y) {

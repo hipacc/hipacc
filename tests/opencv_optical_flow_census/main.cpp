@@ -333,8 +333,8 @@ int main(int argc, const char **argv) {
     // vector image
     Image<int> img_vec((frame.cols-WINDOW_SIZE_X)/2, (frame.rows-WINDOW_SIZE_Y)/2);
     int *vecs = (int *) malloc(img_vec.getWidth() * img_vec.getHeight() * sizeof(int));
-    AccessorNN<uint> acc_img_sig(img_signature, frame.cols-WINDOW_SIZE_X, frame.rows-WINDOW_SIZE_Y, WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2);
-    AccessorNN<uint> acc_prev_sig(prev_signature, frame.cols-WINDOW_SIZE_X, frame.rows-WINDOW_SIZE_Y, WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2);
+    Accessor<uint> acc_img_sig(img_signature,   frame.cols-WINDOW_SIZE_X, frame.rows-WINDOW_SIZE_Y, WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2, Interpolate::NN);
+    Accessor<uint> acc_prev_sig(prev_signature, frame.cols-WINDOW_SIZE_X, frame.rows-WINDOW_SIZE_Y, WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2, Interpolate::NN);
     IterationSpace<int> iter_vec(img_vec);
 
     // domain for vector kernel
