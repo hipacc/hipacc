@@ -639,16 +639,15 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         if (compilerOptions.emitC99()) {
           // check if the parameter can be resolved to a constant
-          unsigned DiagIDConstant =
-            Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Constant expression for %0 parameter of Image %1 required (C/C++ only).");
+          unsigned IDConstant = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                "Constant expression for %0 argument of Image %1 required (C/C++ only).");
           if (!CCE->getArg(0)->isEvaluatable(Context)) {
-            Diags.Report(CCE->getArg(0)->getExprLoc(), DiagIDConstant)
-              << "width" << Img->getName();
+            Diags.Report(CCE->getArg(0)->getExprLoc(), IDConstant) << "width"
+              << Img->getName();
           }
           if (!CCE->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(CCE->getArg(1)->getExprLoc(), DiagIDConstant)
-              << "height" << Img->getName();
+            Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
+              << Img->getName();
           }
           Img->setSizeX(CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue());
           Img->setSizeY(CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue());
@@ -725,158 +724,115 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                "Expected BoundaryCondition definition (CXXConstructExpr).");
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
+        unsigned IDConstMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+              "Constant value for BoundaryCondition %0 required.");
+        unsigned IDConstSize = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+              "Constant expression for size argument of BoundaryCondition %1 required.");
+        unsigned IDConstPyrIdx = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+              "Missing integer literal in Pyramid %0 call expression.");
+        unsigned IDMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+              "Boundary handling constant for BoundaryCondition %0 required.");
         HipaccBoundaryCondition *BC = nullptr;
         HipaccImage *Img = nullptr;
         HipaccPyramid *Pyr = nullptr;
+        size_t size_args = 0;
 
-        // check if the first argument is an Image
-        if (auto DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0))) {
-          // get the Image from the DRE if we have one
-          if (ImgDeclMap.count(DRE->getDecl())) {
-            Img = ImgDeclMap[DRE->getDecl()];
-            BC = new HipaccBoundaryCondition(VD, Img);
+        for (size_t i=0, e=CCE->getNumArgs(); i!=e; ++i) {
+          // img|pyramid-call, size_x, size_y, mode
+          // img|pyramid-call, size, mode
+          // img|pyramid-call, mask, mode
+          // img|pyramid-call, size_x, size_y, mode, const_val
+          // img|pyramid-call, size, mode, const_val
+          // img|pyramid-call, mask, mode, const_val
+          auto arg = CCE->getArg(i)->IgnoreParenCasts();
+
+          auto dsl_arg = arg;
+          if (auto call = dyn_cast<CXXOperatorCallExpr>(arg)) {
+            // for pyramid call use the first argument
+            dsl_arg = call->getArg(0);
           }
-        }
 
-        // check if the first argument is a Pyramid call
-        if (isa<CXXOperatorCallExpr>(CCE->getArg(0)) &&
-            isa<DeclRefExpr>(dyn_cast<CXXOperatorCallExpr>(
-                CCE->getArg(0))->getArg(0))) {
-          CXXOperatorCallExpr *COCE =
-            dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0));
-          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(COCE->getArg(0));
-
-          // get the Pyramid from the DRE if we have one
-          if (PyrDeclMap.count(DRE->getDecl())) {
-            Pyr = PyrDeclMap[DRE->getDecl()];
-            BC = new HipaccBoundaryCondition(VD, Pyr);
-
-            // add call expression to pyramid argument
-            unsigned DiagIDConstant =
-              Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                  "Missing integer literal in Pyramid %0 call expression.");
-            if (!COCE->getArg(1)->isEvaluatable(Context)) {
-              Diags.Report(COCE->getArg(1)->getExprLoc(), DiagIDConstant)
-                << Pyr->getName();
+          // match for DSL arguments
+          if (auto DRE = dyn_cast<DeclRefExpr>(dsl_arg)) {
+            // check if the argument specifies the image
+            if (ImgDeclMap.count(DRE->getDecl())) {
+              Img = ImgDeclMap[DRE->getDecl()];
+              BC = new HipaccBoundaryCondition(VD, Img);
+              BCDeclMap[VD] = BC;
+              continue;
             }
-            BC->setPyramidIndex(
-                COCE->getArg(1)->EvaluateKnownConstInt(Context).toString(10));
+
+            // check if the argument is a pyramid call
+            if (PyrDeclMap.count(DRE->getDecl())) {
+              Pyr = PyrDeclMap[DRE->getDecl()];
+              BC = new HipaccBoundaryCondition(VD, Pyr);
+              BCDeclMap[VD] = BC;
+
+              // add call expression to pyramid argument
+              auto call = dyn_cast<CXXOperatorCallExpr>(arg);
+              auto index = call->getArg(1);
+              if (!index->isEvaluatable(Context)) {
+                Diags.Report(index->getExprLoc(), IDConstPyrIdx)
+                  << Pyr->getName();
+              }
+              BC->setPyramidIndex(
+                  index->EvaluateKnownConstInt(Context).toString(10));
+              continue;
+            }
+
+            // check if the argument is a Mask
+            if (MaskDeclMap.count(DRE->getDecl())) {
+              HipaccMask *Mask = MaskDeclMap[DRE->getDecl()];
+              BC->setSizeX(Mask->getSizeX());
+              BC->setSizeY(Mask->getSizeY());
+              continue;
+            }
+
+            // check if the argument specifies the boundary mode
+            if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
+                DRE->getDecl()->getType().getAsString() ==
+                "enum hipacc::Boundary") {
+              auto lval = arg->EvaluateKnownConstInt(Context);
+              auto cval = static_cast<std::underlying_type<Boundary>::type>(Boundary::CONSTANT);
+              assert(lval.isNonNegative() && lval.getZExtValue() <= cval &&
+                     "invalid Boundary mode");
+              auto mode = static_cast<Boundary>(lval.getZExtValue());
+              BC->setBoundaryMode(mode);
+
+              if (mode == Boundary::CONSTANT) {
+                  if (i+2 != e) {
+                    Diags.Report(arg->getExprLoc(), IDMode) << VD->getName();
+                  }
+                  // check if the parameter can be resolved to a constant
+                  auto const_arg = CCE->getArg(++i);
+                  if (!const_arg->isEvaluatable(Context)) {
+                    Diags.Report(arg->getExprLoc(), IDConstMode) <<
+                      VD->getName();
+                  } else {
+                    Expr::EvalResult val;
+                    const_arg->EvaluateAsRValue(val, Context);
+                    BC->setConstVal(val.Val, Context);
+                  }
+              }
+              continue;
+            }
+
+            // check if the argument can be resolved to a constant
+            if (!arg->isEvaluatable(Context)) {
+              Diags.Report(arg->getExprLoc(), IDConstSize) << VD->getName();
+            }
+            if (size_args++ == 0) {
+              BC->setSizeX(arg->EvaluateKnownConstInt(Context).getSExtValue());
+              BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
+            } else {
+              BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
+            }
           }
         }
 
         assert((Img || Pyr) && "Expected first argument of BoundaryCondition "
                                "to be Image or Pyramid call.");
 
-        // get text string for arguments, argument order is:
-        // img|pyramid-call, size_x, size_y, mode
-        // img|pyramid-call, size, mode
-        // img|pyramid-call, mask, mode
-        // img|pyramid-call, size_x, size_y, mode, const_val
-        // img|pyramid-call, size, mode, const_val
-        // img|pyramid-call, mask, mode, const_val
-        unsigned DiagIDConstant =
-          Diags.getCustomDiagID(DiagnosticsEngine::Error,
-              "Constant expression or Mask object for %ordinal0 parameter to BoundaryCondition %1 required.");
-        unsigned DiagIDNoMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-              "Boundary handling mode for BoundaryCondition %0 required.");
-        unsigned DiagIDWrongMode =
-          Diags.getCustomDiagID(DiagnosticsEngine::Error,
-              "Wrong boundary handling mode for BoundaryCondition %0 specified.");
-        unsigned DiagIDMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-              "Boundary handling constant for BoundaryCondition %0 required.");
-
-
-        unsigned found_size = 0;
-        bool found_mode = false;
-        // get kernel window size
-        for (size_t i=1, e=CCE->getNumArgs(); i!=e; ++i) {
-          auto arg = CCE->getArg(i);
-          if (found_size == 0) {
-            // check if the parameter is a Mask reference
-            if (auto DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts())) {
-              // get the Mask from the DRE if we have one
-              if (MaskDeclMap.count(DRE->getDecl())) {
-                HipaccMask *Mask = MaskDeclMap[DRE->getDecl()];
-                BC->setSizeX(Mask->getSizeX());
-                BC->setSizeY(Mask->getSizeY());
-                found_size++;
-                found_size++;
-
-                continue;
-              }
-            }
-
-            // check if the parameter can be resolved to a constant
-            if (!arg->isEvaluatable(Context)) {
-              Diags.Report(arg->getExprLoc(), DiagIDConstant)
-                << (int)i+1 << VD->getName();
-            }
-            BC->setSizeX(arg->EvaluateKnownConstInt(Context).getSExtValue());
-            found_size++;
-          } else {
-            // check if the parameter specifies the boundary mode
-            if (auto DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts())) {
-              // boundary mode found
-              if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
-                  DRE->getDecl()->getType().getAsString() ==
-                  "enum hipacc::Boundary") {
-                auto lval = arg->EvaluateKnownConstInt(Context);
-                auto cval = static_cast<std::underlying_type<Boundary>::type>(Boundary::CONSTANT);
-                assert(lval.isNonNegative() && lval.getZExtValue() <= cval &&
-                       "invalid Boundary mode");
-                auto mode = static_cast<Boundary>(lval.getZExtValue());
-                BC->setBoundaryMode(mode);
-
-                if (mode == Boundary::CONSTANT) {
-                    if (CCE->getNumArgs() != i+2) {
-                      Diags.Report(arg->getExprLoc(), DiagIDMode) <<
-                        VD->getName();
-                    }
-                    // check if the parameter can be resolved to a constant
-                    if (!CCE->getArg(i+1)->isEvaluatable(Context)) {
-                      Diags.Report(arg->getExprLoc(), DiagIDConstant)
-                        << (int)i+2 << VD->getName();
-                    } else {
-                      Expr::EvalResult val;
-                      CCE->getArg(i+1)->EvaluateAsRValue(val, Context);
-                      BC->setConstVal(val.Val, Context);
-                      i++;
-                    }
-                    break;
-                }
-                found_mode = true;
-
-                // if only size is specified, set size_x and size_y to size
-                if (found_size == 1) {
-                  BC->setSizeY(BC->getSizeX());
-                  found_size++;
-                }
-
-                continue;
-              }
-            }
-
-            if (found_size >= 2) {
-              if (found_mode) {
-                Diags.Report(arg->getExprLoc(), DiagIDWrongMode) <<
-                  VD->getName();
-              } else {
-                Diags.Report(arg->getExprLoc(), DiagIDNoMode) << VD->getName();
-              }
-            }
-
-            // check if the parameter can be resolved to a constant
-            if (!arg->isEvaluatable(Context)) {
-              Diags.Report(arg->getExprLoc(), DiagIDConstant)
-                << (int)i+1 << VD->getName();
-            }
-            BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
-            found_size++;
-          }
-        }
-
-        // store BoundaryCondition
-        BCDeclMap[VD] = BC;
 
         // remove BoundaryCondition definition
         TextRewriter.RemoveText(D->getSourceRange());
@@ -914,7 +870,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           // match for DSL arguments
           if (auto DRE = dyn_cast<DeclRefExpr>(dsl_arg)) {
-            // check if the parameter specifies the boundary condition
+            // check if the argument specifies the boundary condition
             if (BCDeclMap.count(DRE->getDecl())) {
               BC = BCDeclMap[DRE->getDecl()];
 
@@ -926,7 +882,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               continue;
             }
 
-            // check if the parameter specifies the image
+            // check if the argument specifies the image
             if (ImgDeclMap.count(DRE->getDecl())) {
               HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
               BC = new HipaccBoundaryCondition(VD, Img);
@@ -939,7 +895,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               continue;
             }
 
-            // check if the parameter specifies is a Pyramid call
+            // check if the argument specifies is a pyramid call
             if (PyrDeclMap.count(DRE->getDecl())) {
               Pyr = PyrDeclMap[DRE->getDecl()];
               BC = new HipaccBoundaryCondition(VD, Pyr);
@@ -954,7 +910,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               continue;
             }
 
-            // check if the parameter specifies the interpolate mode
+            // check if the argument specifies the interpolate mode
             if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
                 DRE->getDecl()->getType().getAsString() ==
                 "enum hipacc::Interpolate") {
