@@ -277,17 +277,16 @@ class HipaccIterationSpace {
     void createOutputAccessor();
 
   public:
-    HipaccIterationSpace(VarDecl *VD, HipaccImage *img) :
+    HipaccIterationSpace(VarDecl *VD, HipaccImage *img, bool crop) :
       VD(VD),
       img(img),
       name(VD->getNameAsString()),
-      crop(true),
+      crop(crop),
       acc(nullptr)
     {
       createOutputAccessor();
     }
 
-    void setNoCrop() { crop = false; }
     VarDecl *getDecl() { return VD; }
     const std::string &getName() const { return name; }
     HipaccImage *getImage() { return img; }

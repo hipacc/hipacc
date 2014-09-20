@@ -962,61 +962,54 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccIterationSpace *IS = nullptr;
         HipaccImage *Img = nullptr;
         HipaccPyramid *Pyr = nullptr;
+        std::string Parms;
+        size_t roi_args = 0;
 
-        // check if the first argument is an Image
-        if (auto DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0))) {
-          // get the Image from the DRE if we have one
-          if (ImgDeclMap.count(DRE->getDecl())) {
-            Img = ImgDeclMap[DRE->getDecl()];
-            IS = new HipaccIterationSpace(VD, Img);
+        for (size_t i=0, e=CCE->getNumArgs(); i!=e; ++i) {
+          auto arg = CCE->getArg(i)->IgnoreParenCasts();
+          std::string Str;
+          llvm::raw_string_ostream SS(Str);
+
+          auto dsl_arg = arg;
+          if (auto call = dyn_cast<CXXOperatorCallExpr>(arg)) {
+            // for pyramid call use the first argument
+            dsl_arg = call->getArg(0);
           }
-        }
 
-        // check if the first argument is a Pyramid call
-        if (isa<CXXOperatorCallExpr>(CCE->getArg(0)) &&
-            isa<DeclRefExpr>(dyn_cast<CXXOperatorCallExpr>(
-                CCE->getArg(0))->getArg(0))) {
-          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
-              dyn_cast<CXXOperatorCallExpr>(CCE->getArg(0))->getArg(0));
+          // match for DSL arguments
+          if (auto DRE = dyn_cast<DeclRefExpr>(dsl_arg)) {
+            // check if the argument is an image 
+            if (ImgDeclMap.count(DRE->getDecl())) {
+              Img = ImgDeclMap[DRE->getDecl()];
+              Parms = IS->getImage()->getName();
+              continue;
+            }
 
-          // get the Pyramid from the DRE if we have one
-          if (PyrDeclMap.count(DRE->getDecl())) {
-            Pyr = PyrDeclMap[DRE->getDecl()];
-            IS = new HipaccIterationSpace(VD, Pyr);
+            // check if the argument is a pyramid call
+            if (PyrDeclMap.count(DRE->getDecl())) {
+              Pyr = PyrDeclMap[DRE->getDecl()];
+              // add call expression to pyramid argument
+              arg->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+              Parms = SS.str();
+              continue;
+            }
           }
+
+          // get text string for arguments, argument order is:
+          // img[, is_width, is_height[, offset_x, offset_y]]
+          arg->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
+          Parms += ", " + SS.str();
+          roi_args++;
         }
 
         assert((Img || Pyr) && "Expected first argument of IterationSpace to "
                                "be Image or Pyramid call.");
 
-        // get text string for arguments
-        std::string Parms(IS->getImage()->getName());
-
-        if (Pyr) {
-          // add call expression to pyramid argument
-          std::string Str;
-          llvm::raw_string_ostream SS(Str);
-          CCE->getArg(0)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-          Parms = SS.str();
-        }
-
-        // img[, is_width, is_height[, offset_x, offset_y]]
-        if (CCE->getNumArgs()<4) IS->setNoCrop();
-
-        // get text string for arguments, argument order is:
-        for (size_t i=1; i<CCE->getNumArgs(); ++i) {
-          std::string Str;
-          llvm::raw_string_ostream SS(Str);
-
-          CCE->getArg(i)->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-          Parms += ", " + SS.str();
-        }
+        IS = new HipaccIterationSpace(VD, Img ? Img : Pyr, roi_args == 4);
+        ISDeclMap[VD] = IS; // store IterationSpace
 
         std::string newStr;
         newStr = "HipaccAccessor " + IS->getName() + "(" + Parms + ");";
-
-        // store IterationSpace
-        ISDeclMap[VD] = IS;
 
         // replace iteration space decl by variables for width/height, and
         // offset
