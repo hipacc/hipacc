@@ -731,21 +731,23 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += indent;
           break;
         case Language::Renderscript:
-        case Language::Filterscript:
-          if (Acc || Mask || i==0) {
-            resultStr += "sp<Allocation> alloc_" + lit + " = (Allocation  *)";
-            resultStr += hostArgNames[i] + img_mem + ";\n" + indent;
+        case Language::Filterscript: {
+            std::string lit(std::to_string(literal_count++));
+            if (Acc || Mask || i==0) {
+              resultStr += "sp<Allocation> alloc_" + lit + " = (Allocation  *)";
+              resultStr += hostArgNames[i] + img_mem + ";\n" + indent;
+            }
+            resultStr += "_args" + kernelName + ".push_back(";
+            resultStr += "hipacc_script_arg<ScriptC_" + K->getFileName() + ">(";
+            resultStr += "&ScriptC_" + K->getFileName();
+            resultStr += "::set_" + deviceArgNames[i] + ", ";
+            if (Acc || Mask || i==0) {
+              resultStr += "&alloc_" + lit + "));\n";
+            } else {
+              resultStr += "(" + argTypeNames[i] + "*)&" + hostArgNames[i] + "));\n";
+            }
+            resultStr += indent;
           }
-          resultStr += "_args" + kernelName + ".push_back(";
-          resultStr += "hipacc_script_arg<ScriptC_" + K->getFileName() + ">(";
-          resultStr += "&ScriptC_" + K->getFileName();
-          resultStr += "::set_" + deviceArgNames[i] + ", ";
-          if (Acc || Mask || i==0) {
-            resultStr += "&alloc_" + lit + "));\n";
-          } else {
-            resultStr += "(" + argTypeNames[i] + "*)&" + hostArgNames[i] + "));\n";
-          }
-          resultStr += indent;
           break;
       }
     } else {
