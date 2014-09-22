@@ -733,7 +733,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         case Language::Renderscript:
         case Language::Filterscript:
           if (Acc || Mask || i==0) {
-            std::string lit(std::to_string(literal_count++));
             resultStr += "sp<Allocation> alloc_" + lit + " = (Allocation  *)";
             resultStr += hostArgNames[i] + img_mem + ";\n" + indent;
           }
