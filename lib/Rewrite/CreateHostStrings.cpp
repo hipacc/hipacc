@@ -856,7 +856,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         break;
     }
     resultStr += ", _args" + kernelName;
-    if (!options.emitRenderscript() && !options.emitFilterscript()) {
+    if (options.emitRenderscript() || options.emitFilterscript()) {
         resultStr += ", &ScriptC_" + K->getFileName() + "::forEach_" + kernelName;
     }
     // additional parameters for exploration
