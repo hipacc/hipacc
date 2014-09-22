@@ -981,7 +981,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             // check if the argument is an image 
             if (ImgDeclMap.count(DRE->getDecl())) {
               Img = ImgDeclMap[DRE->getDecl()];
-              Parms = IS->getImage()->getName();
+              Parms = Img->getName();
               continue;
             }
 
