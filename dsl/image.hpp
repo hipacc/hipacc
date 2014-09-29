@@ -208,8 +208,18 @@ class BoundaryCondition {
             assert(mode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
         }
 
-        int clamp(int coord, int lb, int ub) {
-            return std::min(std::max(coord, lb), ub);
+        int clamp(int idx, int lower, int upper) {
+            return std::min(std::max(idx, lower), upper-1);
+        }
+        int repeat(int idx, int lower, int upper) {
+            if (idx  < lower) idx += lower + upper;
+            if (idx >= upper) idx -= lower + upper;
+            return idx;
+        }
+        int mirror(int idx, int lower, int upper) {
+            if (idx  < lower) idx = lower + (lower - idx-1);
+            if (idx >= upper) idx = upper - (idx+1 - upper);
+            return idx;
         }
 
     template<typename> friend class Accessor;
@@ -482,6 +492,8 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
         using BoundaryCondition<data_t>::const_val;
         using BoundaryCondition<data_t>::dummy;
         using BoundaryCondition<data_t>::clamp;
+        using BoundaryCondition<data_t>::repeat;
+        using BoundaryCondition<data_t>::mirror;
         using Interpolation<data_t>::interpolate;
 
         data_t &interpolate(int x, int y, int xf=0, int yf=0) {
@@ -499,33 +511,33 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
 
         data_t &getPixelBH(int x, int y) {
             data_t *ret = &dummy;
+            int lower_x = offset_x;
+            int lower_y = offset_y;
+            int upper_x = offset_x + width;
+            int upper_y = offset_y + height;
 
             switch (mode) {
                 case Boundary::UNDEFINED:
                     ret = &img.getPixel(x, y);
                     break;
                 case Boundary::CLAMP:
-                    x = clamp(x, offset_x, offset_x+width-1);
-                    y = clamp(y, offset_y, offset_y+height-1);
+                    x = clamp(x, lower_x, upper_x);
+                    y = clamp(y, lower_y, upper_y);
                     ret = &img.getPixel(x, y);
                     break;
                 case Boundary::REPEAT:
-                    while (x < offset_x) x += width;
-                    while (y < offset_y) y += height;
-                    while (x >= offset_x+width)  x -= width;
-                    while (y >= offset_y+height) y -= height;
+                    x = repeat(x, lower_x, upper_x);
+                    y = repeat(y, lower_y, upper_y);
                     ret = &img.getPixel(x, y);
                     break;
                 case Boundary::MIRROR:
-                    if (x < offset_x) x = offset_x + (offset_x - x - 1);
-                    if (y < offset_y) y = offset_y + (offset_y - y - 1);
-                    if (x >= offset_x+width)  x = offset_x+width - (x + 1 - (offset_x+width));
-                    if (y >= offset_y+height) y = offset_y+height - (y + 1 - (offset_y+height));
+                    x = mirror(x, lower_x, upper_x);
+                    y = mirror(y, lower_y, upper_y);
                     ret = &img.getPixel(x, y);
                     break;
                 case Boundary::CONSTANT:
-                    if (x < offset_x || y < offset_y ||
-                        x >= offset_x+width || y >= offset_y+height) {
+                    if (x < lower_x || x >= upper_x ||
+                        y < lower_y || y >= upper_y) {
                         dummy = const_val;
                         ret = &dummy;
                     } else {
