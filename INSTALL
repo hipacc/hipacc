@@ -7,7 +7,7 @@ HIPAcc Prerequisites:
 - libcxx (see dependencies.sh)
 - libcxxabi (when using clang for GNU/Linux)
 - Polly (optional, see dependencies.sh)
-- CMake (2.8 or later)
+- CMake (2.8.12 or later)
 
 The revision of the Clang/LLVM (and Polly) have to match in order to compile the
 HIPAcc sources successfully. The file 'dependencies.sh' lists the revisions and
