@@ -162,18 +162,18 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   VarDecl *gid_x = nullptr, *gid_y = nullptr;
 
   // C/C++: int gid_x = offset_x;
-  if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
+  if (Kernel->getIterationSpace()->getOffsetXDecl()) {
     gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.IntTy,
-        getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()));
+        getOffsetXDecl(Kernel->getIterationSpace()));
   } else {
     gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.IntTy,
         createIntegerLiteral(Ctx, 0));
   }
 
   // C/C++: int gid_y = offset_y;
-  if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
+  if (Kernel->getIterationSpace()->getOffsetYDecl()) {
     gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.IntTy,
-        getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()));
+        getOffsetYDecl(Kernel->getIterationSpace()));
   } else {
     gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.IntTy,
         createIntegerLiteral(Ctx, 0));
@@ -195,25 +195,24 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   tileVars.local_id_y = createDeclRefExpr(Ctx, gid_y);
   tileVars.block_id_x = createDeclRefExpr(Ctx, gid_x);
   tileVars.block_id_y = createDeclRefExpr(Ctx, gid_y);
-  tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace()->getAccessor());
+  tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace());
   tileVars.local_size_y = createIntegerLiteral(Ctx, 0);
 
   // check if we need border handling
-  for (auto img : KernelClass->getImgFields()) {
-    HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
+  if (KernelClass->getKernelType() != UserOperator) {
+    for (auto img : KernelClass->getImgFields()) {
+      HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
 
-    // bail out for user defined kernels
-    if (KernelClass->getKernelType()==UserOperator) break;
-
-    // check if we need border handling
-    if (Acc->getBoundaryMode() != Boundary::UNDEFINED) {
-      if (Acc->getSizeX() > 1) {
-          bh_variant.borders.left = 1;
-          bh_variant.borders.right = 1;
-      }
-      if (Acc->getSizeY() > 1) {
-          bh_variant.borders.top = 1;
-          bh_variant.borders.bottom = 1;
+      // check if we need border handling
+      if (Acc->getBoundaryMode() != Boundary::UNDEFINED) {
+        if (Acc->getSizeX() > 1) {
+            bh_variant.borders.left = 1;
+            bh_variant.borders.right = 1;
+        }
+        if (Acc->getSizeY() > 1) {
+            bh_variant.borders.top = 1;
+            bh_variant.borders.bottom = 1;
+        }
       }
     }
   }
@@ -229,17 +228,15 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   //     }
   // }
   //
-  Expr *upper_x = getWidthDecl(Kernel->getIterationSpace()->getAccessor());
-  Expr *upper_y = getHeightDecl(Kernel->getIterationSpace()->getAccessor());
-  if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
+  Expr *upper_x = getWidthDecl(Kernel->getIterationSpace());
+  Expr *upper_y = getHeightDecl(Kernel->getIterationSpace());
+  if (Kernel->getIterationSpace()->getOffsetXDecl()) {
     upper_x = createBinaryOperator(Ctx, upper_x,
-        getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_Add,
-        Ctx.IntTy);
+        getOffsetXDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy);
   }
-  if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
+  if (Kernel->getIterationSpace()->getOffsetYDecl()) {
     upper_y = createBinaryOperator(Ctx, upper_y,
-        getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()), BO_Add,
-        Ctx.IntTy);
+        getOffsetYDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy);
   }
   ForStmt *innerLoop = createForStmt(Ctx, gid_x_stmt, createBinaryOperator(Ctx,
         tileVars.global_id_x, upper_x, BO_LT, Ctx.BoolTy),
@@ -494,7 +491,7 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
   tileVars.local_id_y = createDeclRefExpr(Ctx, gid_y);
   tileVars.block_id_x = createDeclRefExpr(Ctx, gid_x);
   tileVars.block_id_y = createDeclRefExpr(Ctx, gid_y);
-  tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace()->getAccessor());
+  tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace());
   tileVars.local_size_y = createIntegerLiteral(Ctx, 1);
 
   switch (compilerOptions.getTargetLang()) {
@@ -570,27 +567,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       continue;
     }
 
-    // search for iteration space parameters
-    if (param->getName().equals("is_width")) {
-      Kernel->getIterationSpace()->getAccessor()->setWidthDecl(parm_ref);
-      continue;
-    }
-    if (param->getName().equals("is_height")) {
-      Kernel->getIterationSpace()->getAccessor()->setHeightDecl(parm_ref);
-      continue;
-    }
-    if (param->getName().equals("is_stride")) {
-      Kernel->getIterationSpace()->getAccessor()->setStrideDecl(parm_ref);
-      continue;
-    }
-    if (param->getName().equals("is_offset_x")) {
-      Kernel->getIterationSpace()->getAccessor()->setOffsetXDecl(parm_ref);
-      continue;
-    }
-    if (param->getName().equals("is_offset_y")) {
-      Kernel->getIterationSpace()->getAccessor()->setOffsetYDecl(parm_ref);
-      continue;
-    }
+    // search for boundary handling parameters
     if (param->getName().equals("bh_start_left")) {
       bh_start_left = parm_ref;
       continue;
@@ -702,13 +679,11 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       Expr *scaleExprX = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
             Ctx.FloatTy, CK_IntegralToFloating, getWidthDecl(Acc), nullptr,
             Ctx.getTrivialTypeSourceInfo(Ctx.FloatTy)),
-          getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_Div,
-          Ctx.FloatTy);
+          getWidthDecl(Kernel->getIterationSpace()), BO_Div, Ctx.FloatTy);
       Expr *scaleExprY = createBinaryOperator(Ctx, createCStyleCastExpr(Ctx,
             Ctx.FloatTy, CK_IntegralToFloating, getHeightDecl(Acc), nullptr,
             Ctx.getTrivialTypeSourceInfo(Ctx.FloatTy)),
-          getHeightDecl(Kernel->getIterationSpace()->getAccessor()), BO_Div,
-          Ctx.FloatTy);
+          getHeightDecl(Kernel->getIterationSpace()), BO_Div, Ctx.FloatTy);
       VarDecl *scaleDeclX = createVarDecl(Ctx, kernelDecl, Acc->getName() +
           "scale_x", Ctx.FloatTy, scaleExprX);
       VarDecl *scaleDeclY = createVarDecl(Ctx, kernelDecl, Acc->getName() +
@@ -1106,25 +1081,23 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     BinaryOperator *check_bop = nullptr;
     if (border_handling) {
       // if (gid_x >= is_offset_x)
-      if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl() &&
+      if (Kernel->getIterationSpace()->getOffsetXDecl() &&
           !(kernel_x && !bh_variant.borders.left) && bh_variant.borderVal) {
         check_bop = createBinaryOperator(Ctx, tileVars.global_id_x,
-            getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
-            Ctx.BoolTy);
+            getOffsetXDecl(Kernel->getIterationSpace()), BO_GE, Ctx.BoolTy);
       }
       // if (gid_x < is_width+is_offset_x)
       if (!(kernel_x && !bh_variant.borders.right) && bh_variant.borderVal) {
         BinaryOperator *check_tmp = nullptr;
-        if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
+        if (Kernel->getIterationSpace()->getOffsetXDecl()) {
           check_tmp = createBinaryOperator(Ctx, tileVars.global_id_x,
               createBinaryOperator(Ctx,
-                getWidthDecl(Kernel->getIterationSpace()->getAccessor()),
-                getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()),
-                BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
+                getWidthDecl(Kernel->getIterationSpace()),
+                getOffsetXDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy),
+              BO_LT, Ctx.BoolTy);
         } else {
           check_tmp = createBinaryOperator(Ctx, tileVars.global_id_x,
-              getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
-              Ctx.BoolTy);
+              getWidthDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
         }
         if (check_bop) {
           check_bop = createBinaryOperator(Ctx, check_bop, check_tmp, BO_LAnd,
@@ -1139,12 +1112,11 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       if (compilerOptions.emitRenderscript() ||
           compilerOptions.emitFilterscript()) {
         // if (gid_y >= is_offset_y)
-        if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl() &&
+        if (Kernel->getIterationSpace()->getOffsetYDecl() &&
             !(kernel_y && !bh_variant.borders.left) && bh_variant.borderVal) {
           BinaryOperator *check_tmp = nullptr;
           check_tmp = createBinaryOperator(Ctx, gidYRef,
-              getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
-              Ctx.BoolTy);
+              getOffsetYDecl(Kernel->getIterationSpace()), BO_GE, Ctx.BoolTy);
           if (check_bop) {
             check_bop = createBinaryOperator(Ctx, check_bop, check_tmp, BO_LAnd,
                 Ctx.BoolTy);
@@ -1155,16 +1127,15 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // if (gid_y < is_height+is_offset_y)
         if (!(kernel_y && !bh_variant.borders.right) && bh_variant.borderVal) {
           BinaryOperator *check_tmp = nullptr;
-          if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
+          if (Kernel->getIterationSpace()->getOffsetYDecl()) {
             check_tmp = createBinaryOperator(Ctx, gidYRef,
                 createBinaryOperator(Ctx,
-                  getHeightDecl(Kernel->getIterationSpace()->getAccessor()),
-                  getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()),
-                  BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy);
+                  getHeightDecl(Kernel->getIterationSpace()),
+                  getOffsetYDecl(Kernel->getIterationSpace()), BO_Add,
+                  Ctx.IntTy), BO_LT, Ctx.BoolTy);
           } else {
             check_tmp = createBinaryOperator(Ctx, gidYRef,
-                getHeightDecl(Kernel->getIterationSpace()->getAccessor()),
-                BO_LT, Ctx.BoolTy);
+                getHeightDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
           }
           if (check_bop) {
             check_bop = createBinaryOperator(Ctx, check_bop, check_tmp, BO_LAnd,
@@ -1176,20 +1147,18 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       }
     } else {
       // if (gid_x < is_width+is_offset_x)
-      if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
+      if (Kernel->getIterationSpace()->getOffsetXDecl()) {
         check_bop = createBinaryOperator(Ctx, tileVars.global_id_x,
-            getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
-            Ctx.BoolTy);
+            getOffsetXDecl(Kernel->getIterationSpace()), BO_GE, Ctx.BoolTy);
         check_bop = createBinaryOperator(Ctx, check_bop,
             createBinaryOperator(Ctx, tileVars.global_id_x,
               createBinaryOperator(Ctx,
-                getWidthDecl(Kernel->getIterationSpace()->getAccessor()),
-                getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()),
-                BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
+                getWidthDecl(Kernel->getIterationSpace()),
+                getOffsetXDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy),
+              BO_LT, Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
       } else {
         check_bop = createBinaryOperator(Ctx, tileVars.global_id_x,
-            getWidthDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
-            Ctx.BoolTy);
+            getWidthDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
       }
       // if (gid_y >= is_offset_y && gid_y < is_height+is_offset_y)
       // Renderscript iteration space is always the whole image, so we need to
@@ -1198,19 +1167,17 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           compilerOptions.emitFilterscript()) {
         // if (gid_y < is_height+is_offset_y)
         BinaryOperator *check_tmp = nullptr;
-        if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
+        if (Kernel->getIterationSpace()->getOffsetYDecl()) {
           check_tmp = createBinaryOperator(Ctx, gidYRef,
-              getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()), BO_GE,
-              Ctx.BoolTy);
+              getOffsetYDecl(Kernel->getIterationSpace()), BO_GE, Ctx.BoolTy);
           check_tmp = createBinaryOperator(Ctx, check_tmp,
               createBinaryOperator(Ctx, gidYRef, createBinaryOperator(Ctx,
-                  getHeightDecl(Kernel->getIterationSpace()->getAccessor()),
-                  getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()),
-                  BO_Add, Ctx.IntTy), BO_LT, Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
+                  getHeightDecl(Kernel->getIterationSpace()),
+                  getOffsetYDecl(Kernel->getIterationSpace()), BO_Add,
+                  Ctx.IntTy), BO_LT, Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
         } else {
           check_tmp = createBinaryOperator(Ctx, gidYRef,
-              getHeightDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
-              Ctx.BoolTy);
+              getHeightDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
         }
         if (check_bop) {
           check_bop = createBinaryOperator(Ctx, check_bop, check_tmp, BO_LAnd,
@@ -1330,8 +1297,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           !compilerOptions.emitFilterscript()) {
         // if (gid_y + p < is_height)
         BinaryOperator *inner_check_bop = createBinaryOperator(Ctx, gidYRef,
-            getHeightDecl(Kernel->getIterationSpace()->getAccessor()), BO_LT,
-            Ctx.BoolTy);
+            getHeightDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
         IfStmt *inner_ispace_check = createIfStmt(Ctx, inner_check_bop,
             clonedStmt);
         pptBody.push_back(inner_ispace_check);
@@ -1374,8 +1340,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   }
 
   if (compilerOptions.emitFilterscript()) {
-      Expr *result = accessMem(outputImage,
-          Kernel->getIterationSpace()->getAccessor(), READ_ONLY);
+      Expr *result = accessMem(outputImage, Kernel->getIterationSpace(),
+          WRITE_ONLY);
       setExprProps(outputImage, result);
       kernelBody.push_back(createReturnStmt(Ctx, result));
   }
@@ -2232,12 +2198,12 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
     // Kernel context -> use Iteration Space output Accessor
     LHS = outputImage;
-    Acc = Kernel->getIterationSpace()->getAccessor();
+    Acc = Kernel->getIterationSpace();
     memAcc = WRITE_ONLY;
 
     // getX() method -> gid_x - is_offset_x
     if (ME->getMemberNameInfo().getAsString() == "getX") {
-      return createParenExpr(Ctx, removeISOffsetX(tileVars.global_id_x, Acc));
+      return createParenExpr(Ctx, removeISOffsetX(tileVars.global_id_x));
     }
 
     // getY() method -> gid_y
@@ -2245,7 +2211,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       if (compilerOptions.emitC99() ||
           compilerOptions.emitRenderscript() ||
           compilerOptions.emitFilterscript()) {
-        return createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
+        return createParenExpr(Ctx, removeISOffsetY(gidYRef));
       } else {
         return gidYRef;
       }
@@ -2305,7 +2271,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
                   tileVars.global_id_x)), nullptr,
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
         } else {
-          return createParenExpr(Ctx, removeISOffsetX(tileVars.global_id_x, Acc));
+          return createParenExpr(Ctx, removeISOffsetX(tileVars.global_id_x));
         }
       }
 
@@ -2319,7 +2285,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
         } else if (compilerOptions.emitRenderscript() ||
             compilerOptions.emitFilterscript()) {
-          idx_y = createParenExpr(Ctx, removeISOffsetY(gidYRef, Acc));
+          idx_y = createParenExpr(Ctx, removeISOffsetY(gidYRef));
         }
 
         return idx_y;

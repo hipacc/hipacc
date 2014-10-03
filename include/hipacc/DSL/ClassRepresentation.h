@@ -265,33 +265,17 @@ class HipaccAccessor {
 };
 
 
-class HipaccIterationSpace {
+class HipaccIterationSpace : public HipaccAccessor {
   private:
-    VarDecl *VD;
     HipaccImage *img;
-    std::string name;
-    bool crop;
-    // Accessor used during ASTTranslate to access the Output image
-    HipaccAccessor *acc;
-
-    void createOutputAccessor();
 
   public:
     HipaccIterationSpace(VarDecl *VD, HipaccImage *img, bool crop) :
-      VD(VD),
-      img(img),
-      name(VD->getNameAsString()),
-      crop(crop),
-      acc(nullptr)
-    {
-      createOutputAccessor();
-    }
+      HipaccAccessor(VD, new HipaccBoundaryCondition(VD, img), Interpolate::NO, crop),
+      img(img)
+    {}
 
-    VarDecl *getDecl() { return VD; }
-    const std::string &getName() const { return name; }
     HipaccImage *getImage() { return img; }
-    HipaccAccessor *getAccessor() { return acc; }
-    bool isCrop() { return crop; }
 };
 
 
@@ -470,6 +454,7 @@ class HipaccKernelClass {
     void addISArg(FieldDecl *FD, QualType QT, StringRef Name) {
       KernelMemberInfo a = { FieldKind::IterationSpace, FD, QT, Name };
       members.push_back(a);
+      imgFields.push_back(FD);
     }
 
     ArrayRef<KernelMemberInfo> getMembers() { return members; }
@@ -494,20 +479,6 @@ class HipaccKernelFeatures : public HipaccDevice {
     HipaccKernelClass *KC;
     std::map<HipaccAccessor *, MemoryType> memMap;
     std::map<HipaccAccessor *, Texture> texMap;
-
-    void calcISFeature(HipaccAccessor *acc) {
-      MemoryType mem_type = Global;
-      Texture tex_type = Texture::None;
-
-      if (options.useTextureMemory() &&
-          options.getTextureType()==Texture::Array2D) {
-        mem_type = Texture_;
-        tex_type = Texture::Array2D;
-      }
-
-      memMap[acc] = mem_type;
-      texMap[acc] = tex_type;
-    }
 
     void calcImgFeature(FieldDecl *decl, HipaccAccessor *acc) {
       MemoryType mem_type = Global;
@@ -696,19 +667,20 @@ class HipaccKernel : public HipaccKernelFeatures {
     void addFunctionCall(FunctionDecl *FD) { deviceFuncs.push_back(FD); }
     ArrayRef<FunctionDecl *> getFunctionCalls() { return deviceFuncs; }
 
-    void setIterationSpace(HipaccIterationSpace *IS) {
-      iterationSpace = IS;
-      calcISFeature(iterationSpace->getAccessor());
-    }
     HipaccIterationSpace *getIterationSpace() { return iterationSpace; }
 
+    void insertMapping(FieldDecl *decl, HipaccIterationSpace *iter) {
+      imgMap.emplace(decl, iter);
+      calcImgFeature(decl, iter);
+      iterationSpace = iter;
+    }
     void insertMapping(FieldDecl *decl, HipaccAccessor *acc) {
-      imgMap.insert(std::pair<FieldDecl *, HipaccAccessor *>(decl, acc));
+      imgMap.emplace(decl, acc);
       calcImgFeature(decl, acc);
       calcSizes();
     }
     void insertMapping(FieldDecl *decl, HipaccMask *mask) {
-      maskMap.insert(std::pair<FieldDecl *, HipaccMask *>(decl, mask));
+      maskMap.emplace(decl, mask);
     }
 
     HipaccAccessor *getImgFromMapping(FieldDecl *decl) {

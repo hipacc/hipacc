@@ -543,8 +543,15 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
           if (auto DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0))) {
             if (DRE->getDecl() == param) {
+              // create FieldDecl for the IterationSpace so it can be handled
+              // like all other members
               QT = compilerClasses.getFirstTemplateType(param->getType());
-              KC->addISArg(nullptr, QT, "Output");
+              FieldDecl *FD = FieldDecl::Create(Context, D->getDeclContext(),
+                  SourceLocation(), SourceLocation(),
+                  &Context.Idents.get(param->getName()), QT,
+                  Context.getTrivialTypeSourceInfo(QT), nullptr, false,
+                  ICIS_NoInit);
+              KC->addISArg(FD, QT, FD->getName());;
               //KC->addArg(nullptr, Context.IntTy, "is_width");
               //KC->addArg(nullptr, Context.IntTy, "is_height");
               //KC->addArg(nullptr, Context.IntTy, "is_stride");
@@ -1256,25 +1263,24 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                 Diags.Report(DRE->getLocation(), DiagIDImage);
               }
 
+              // check if we have an IterationSpace
+              if (ISDeclMap.count(DRE->getDecl())) {
+                K->insertMapping(imgFields[num_img++],
+                    ISDeclMap[DRE->getDecl()]);
+                continue;
+              }
+
               // check if we have an Accessor
               if (AccDeclMap.count(DRE->getDecl())) {
-                K->insertMapping(imgFields[num_img],
+                K->insertMapping(imgFields[num_img++],
                     AccDeclMap[DRE->getDecl()]);
-                num_img++;
                 continue;
               }
 
               // check if we have a Mask or Domain
               if (MaskDeclMap.count(DRE->getDecl())) {
-                K->insertMapping(maskFields[num_mask],
+                K->insertMapping(maskFields[num_mask++],
                     MaskDeclMap[DRE->getDecl()]);
-                num_mask++;
-                continue;
-              }
-
-              // check if we have an IterationSpace
-              if (ISDeclMap.count(DRE->getDecl())) {
-                K->setIterationSpace(ISDeclMap[DRE->getDecl()]);
                 continue;
               }
             }
@@ -2423,7 +2429,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       }
       break;
     case Language::Filterscript:
-      *OS << K->getIterationSpace()->getAccessor()->getImage()->getTypeStr()
+      *OS << K->getIterationSpace()->getImage()->getTypeStr()
           << " __attribute__((kernel)) ";
       break;
   }
@@ -2485,7 +2491,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
     // check if we have an Accessor
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
-    MemoryAccess memAcc = UNDEFINED;
+    MemoryAccess memAcc = KC->getImgAccess(FD);
     if (i==0) { // first argument is always the output image
       bool doBreak = false;
       switch (compilerOptions.getTargetLang()) {
@@ -2503,7 +2509,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         case Language::Renderscript:
           // parameters are set separately for Renderscript
           // add parameters for dummy allocation and indices
-          *OS << K->getIterationSpace()->getAccessor()->getImage()->getTypeStr()
+          *OS << K->getIterationSpace()->getImage()->getTypeStr()
               << " *_IS, uint32_t x, uint32_t y";
           doBreak = true;
           break;
@@ -2513,10 +2519,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           break;
       }
       if (doBreak) break;
-      Acc = K->getIterationSpace()->getAccessor();
-      memAcc = WRITE_ONLY;
-    } else if (Acc) {
-      memAcc = KC->getImgAccess(FD);
     }
 
     if (Acc) {

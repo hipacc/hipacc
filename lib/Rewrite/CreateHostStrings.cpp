@@ -145,7 +145,7 @@ void CreateHostStrings::addReductionArgument(HipaccKernel *K, std::string
 
 void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
     &resultStr) {
-  HipaccAccessor *Acc = K->getIterationSpace()->getAccessor();
+  HipaccAccessor *Acc = K->getIterationSpace();
   HipaccImage *Img = Acc->getImage();
 
   switch (options.getTargetLang()) {
@@ -431,7 +431,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     case Language::Renderscript:
     case Language::Filterscript:
       blockStr = "work_size" + lit;
-      gridStr = K->getIterationSpace()->getAccessor()->getImage()->getName();
+      gridStr = K->getIterationSpace()->getImage()->getName();
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
@@ -645,8 +645,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       std::string lit(std::to_string(literal_count++));
       resultStr += "hipacc_tex_info tex_info" + lit;
       resultStr += "(std::string(\"_surfOutput" + K->getName() + "\"), ";
-      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTextureType() + ", ";
-      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ", Surface);\n";
+      resultStr += K->getIterationSpace()->getImage()->getTextureType() + ", ";
+      resultStr += K->getIterationSpace()->getImage()->getName() + ", Surface);\n";
       resultStr += indent;
       resultStr += "_texs" + kernelName + ".push_back(";
       resultStr += "&tex_info" + lit + ");\n";
@@ -655,9 +655,9 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       resultStr += "&_surfOutput" + K->getName() + ");\n";
       resultStr += indent;
       resultStr += "hipaccBindSurface<";
-      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getTypeStr();
+      resultStr += K->getIterationSpace()->getImage()->getTypeStr();
       resultStr += ">(_surfOutput" + K->getName() + "Ref, ";
-      resultStr += K->getIterationSpace()->getAccessor()->getImage()->getName() + ");\n";
+      resultStr += K->getIterationSpace()->getImage()->getName() + ");\n";
     }
     resultStr += indent;
   }
@@ -706,7 +706,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       continue;
     }
     std::string img_mem;
-    if (Acc || i==0 || Mask) img_mem = ".mem";
+    if (Acc || Mask) img_mem = ".mem";
 
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument
@@ -733,7 +733,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         case Language::Renderscript:
         case Language::Filterscript: {
             std::string lit(std::to_string(literal_count++));
-            if (Acc || Mask || i==0) {
+            if (Acc || Mask) {
               resultStr += "sp<Allocation> alloc_" + lit + " = (Allocation  *)";
               resultStr += hostArgNames[i] + img_mem + ";\n" + indent;
             }
@@ -741,7 +741,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += "hipacc_script_arg<ScriptC_" + K->getFileName() + ">(";
             resultStr += "&ScriptC_" + K->getFileName();
             resultStr += "::set_" + deviceArgNames[i] + ", ";
-            if (Acc || Mask || i==0) {
+            if (Acc || Mask) {
               resultStr += "&alloc_" + lit + "));\n";
             } else {
               resultStr += "(" + argTypeNames[i] + "*)&" + hostArgNames[i] + "));\n";
@@ -760,12 +760,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             resultStr += kernelName + "(";
           } else {
             resultStr += ", ";
-          }
-          if (i==0) {
-            HipaccImage *Img =
-              K->getIterationSpace()->getAccessor()->getImage();
-            resultStr += "(" + Img->getTypeStr();
-            resultStr += "(*)[" + Img->getSizeXStr() + "])";
           }
           if (Acc) {
             resultStr += "(" + Acc->getImage()->getTypeStr();
@@ -801,7 +795,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += "hipaccSetScriptArg(&" + kernelName + ", ";
           resultStr += "&ScriptC_" + K->getFileName();
           resultStr += "::set_" + deviceArgNames[i] + ", ";
-          if (Acc || Mask || i==0) {
+          if (Acc || Mask) {
             resultStr += "sp<Allocation>(((Allocation *)" + hostArgNames[i];
             resultStr += img_mem + ")));\n";
           } else {

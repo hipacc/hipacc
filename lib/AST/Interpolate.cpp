@@ -98,7 +98,7 @@ std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
 // calculate index using nearest neighbor interpolation
 Expr *ASTTranslate::addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x) {
   // acc_scale_x * (gid_x - is_offset_x)
-  idx_x = removeISOffsetX(idx_x, Acc);
+  idx_x = removeISOffsetX(idx_x);
 
   return createBinaryOperator(Ctx, Acc->getScaleXDecl(), createParenExpr(Ctx,
         idx_x), BO_Mul, Ctx.FloatTy);
@@ -106,7 +106,7 @@ Expr *ASTTranslate::addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x) {
 Expr *ASTTranslate::addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y) {
   // acc_scale_y * (gid_y)
   if (compilerOptions.emitFilterscript()) {
-    idx_y = removeISOffsetY(idx_y, Acc);
+    idx_y = removeISOffsetY(idx_y);
   }
   return createBinaryOperator(Ctx, Acc->getScaleYDecl(), createParenExpr(Ctx,
         idx_y), BO_Mul, Ctx.FloatTy);

@@ -71,11 +71,10 @@ Expr *ASTTranslate::addGlobalOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
 
 
 // remove iteration space offset from index
-Expr *ASTTranslate::removeISOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
-  if (Kernel->getIterationSpace()->getAccessor()->getOffsetXDecl()) {
+Expr *ASTTranslate::removeISOffsetX(Expr *idx_x) {
+  if (Kernel->getIterationSpace()->getOffsetXDecl()) {
       idx_x = createBinaryOperator(Ctx, idx_x,
-          getOffsetXDecl(Kernel->getIterationSpace()->getAccessor()), BO_Sub,
-          Ctx.IntTy);
+          getOffsetXDecl(Kernel->getIterationSpace()), BO_Sub, Ctx.IntTy);
   }
 
   return idx_x;
@@ -83,11 +82,10 @@ Expr *ASTTranslate::removeISOffsetX(Expr *idx_x, HipaccAccessor *Acc) {
 
 
 // remove iteration space offset from index
-Expr *ASTTranslate::removeISOffsetY(Expr *idx_y, HipaccAccessor *Acc) {
-  if (Kernel->getIterationSpace()->getAccessor()->getOffsetYDecl()) {
+Expr *ASTTranslate::removeISOffsetY(Expr *idx_y) {
+  if (Kernel->getIterationSpace()->getOffsetYDecl()) {
       idx_y = createBinaryOperator(Ctx, idx_y,
-          getOffsetYDecl(Kernel->getIterationSpace()->getAccessor()), BO_Sub,
-          Ctx.IntTy);
+          getOffsetYDecl(Kernel->getIterationSpace()), BO_Sub, Ctx.IntTy);
   }
 
   return idx_y;
@@ -107,14 +105,14 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // step 1: remove is_offset and add interpolation & boundary handling
   switch (Acc->getInterpolationMode()) {
     case Interpolate::NO:
-      if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
-        idx_x = removeISOffsetX(idx_x, Acc);
+      if (Acc!=Kernel->getIterationSpace()) {
+        idx_x = removeISOffsetX(idx_x);
       }
       if ((compilerOptions.emitC99() ||
            compilerOptions.emitRenderscript() ||
            compilerOptions.emitFilterscript()) &&
-          Acc!=Kernel->getIterationSpace()->getAccessor()) {
-        idx_y = removeISOffsetY(idx_y, Acc);
+          Acc!=Kernel->getIterationSpace()) {
+        idx_y = removeISOffsetY(idx_y);
       }
       break;
     case Interpolate::NN:
@@ -132,7 +130,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   }
 
   // step 2: add global Accessor/Iteration Space offset
-  if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
+  if (Acc!=Kernel->getIterationSpace()) {
     idx_x = addGlobalOffsetX(idx_x, Acc);
     idx_y = addGlobalOffsetY(idx_y, Acc);
   } else {

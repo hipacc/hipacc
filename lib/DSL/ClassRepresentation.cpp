@@ -224,18 +224,6 @@ void HipaccBoundaryCondition::setConstVal(APValue &val, ASTContext &Ctx) {
 }
 
 
-void HipaccIterationSpace::createOutputAccessor() {
-  // create Accessor for accessing the image associated with the IterationSpace
-  // during ASTTranslate
-  HipaccBoundaryCondition *BC = new HipaccBoundaryCondition(VD, img);
-  BC->setSizeX(0);
-  BC->setSizeY(0);
-  BC->setBoundaryMode(Boundary::UNDEFINED);
-
-  acc = new HipaccAccessor(VD, BC, Interpolate::NO, false);
-}
-
-
 void HipaccKernel::calcSizes() {
   for (auto map : imgMap) {
     // only Accessors with proper border handling mode
@@ -511,14 +499,6 @@ void HipaccKernel::createArgInfo() {
 
         break;
       case HipaccKernelClass::FieldKind::IterationSpace:
-        // add output image
-        addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
-            Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                  iterationSpace->getImage()->getSizeX()), ArrayType::Normal,
-                false)), Ctx.getPointerType(QT).getAsString(), "cl_mem",
-            arg.name, nullptr);
-
-        break;
       case HipaccKernelClass::FieldKind::Image:
         // for textures use no pointer type
         if (useTextureMemory(getImgFromMapping(arg.field))!=Texture::None &&
@@ -571,19 +551,6 @@ void HipaccKernel::createArgInfo() {
 
         break;
     }
-  }
-
-  // is_stride
-  addParam(Ctx.getConstType(Ctx.IntTy), "is_stride", nullptr);
-
-  // is_width, is_height
-  addParam(Ctx.getConstType(Ctx.IntTy), "is_width", nullptr);
-  addParam(Ctx.getConstType(Ctx.IntTy), "is_height", nullptr);
-
-  // is_offset_x, is_offset_y
-  if (iterationSpace->isCrop()) {
-    addParam(Ctx.getConstType(Ctx.IntTy), "is_offset_x", nullptr);
-    addParam(Ctx.getConstType(Ctx.IntTy), "is_offset_y", nullptr);
   }
 
   // bh_start_left
@@ -641,10 +608,6 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
         break;
         }
       case HipaccKernelClass::FieldKind::IterationSpace:
-        // output image
-        hostArgNames.push_back(iterationSpace->getName() + ".img");
-
-        break;
       case HipaccKernelClass::FieldKind::Image: {
         // image
         HipaccAccessor *Acc = getImgFromMapping(arg.field);
@@ -673,18 +636,6 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
         break;
     }
     i++;
-  }
-  // is_stride
-  hostArgNames.push_back(iterationSpace->getName() + ".img.stride");
-
-  // is_width, is_height
-  hostArgNames.push_back(iterationSpace->getName() + ".width");
-  hostArgNames.push_back(iterationSpace->getName() + ".height");
-
-  // is_offset_x, is_offset_y
-  if (iterationSpace->isCrop()) {
-    hostArgNames.push_back(iterationSpace->getName() + ".offset_x");
-    hostArgNames.push_back(iterationSpace->getName() + ".offset_y");
   }
 
   setInfoStr();

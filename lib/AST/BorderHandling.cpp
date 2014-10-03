@@ -176,14 +176,14 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
   // step 1: remove is_offset and add interpolation & boundary handling
   switch (Acc->getInterpolationMode()) {
     case Interpolate::NO:
-      if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
-        idx_x = removeISOffsetX(idx_x, Acc);
+      if (Acc!=Kernel->getIterationSpace()) {
+        idx_x = removeISOffsetX(idx_x);
       }
       if ((compilerOptions.emitC99() ||
            compilerOptions.emitRenderscript() ||
            compilerOptions.emitFilterscript()) &&
-          Acc!=Kernel->getIterationSpace()->getAccessor()) {
-        idx_y = removeISOffsetY(idx_y, Acc);
+          Acc!=Kernel->getIterationSpace()) {
+        idx_y = removeISOffsetY(idx_y);
       }
       break;
     case Interpolate::NN:
@@ -201,7 +201,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
   }
 
   // step 2: add global Accessor/Iteration Space offset
-  if (Acc!=Kernel->getIterationSpace()->getAccessor()) {
+  if (Acc!=Kernel->getIterationSpace()) {
     idx_x = addGlobalOffsetX(idx_x, Acc);
     idx_y = addGlobalOffsetY(idx_y, Acc);
   } else {
