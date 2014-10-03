@@ -563,56 +563,52 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
   // search for image width and height parameters
   for (auto param : kernelDecl->params()) {
+    auto parm_ref = createDeclRefExpr(Ctx, param);
     // the first parameter is the output image; create association between them.
     if (param==*kernelDecl->param_begin()) {
-      outputImage = createDeclRefExpr(Ctx, param);
+      outputImage = parm_ref;
       continue;
     }
 
     // search for iteration space parameters
     if (param->getName().equals("is_width")) {
-      Kernel->getIterationSpace()->getAccessor()->setWidthDecl(createDeclRefExpr(Ctx,
-            param));
+      Kernel->getIterationSpace()->getAccessor()->setWidthDecl(parm_ref);
       continue;
     }
     if (param->getName().equals("is_height")) {
-      Kernel->getIterationSpace()->getAccessor()->setHeightDecl(createDeclRefExpr(Ctx,
-            param));
+      Kernel->getIterationSpace()->getAccessor()->setHeightDecl(parm_ref);
       continue;
     }
     if (param->getName().equals("is_stride")) {
-      Kernel->getIterationSpace()->getAccessor()->setStrideDecl(createDeclRefExpr(Ctx,
-            param));
+      Kernel->getIterationSpace()->getAccessor()->setStrideDecl(parm_ref);
       continue;
     }
     if (param->getName().equals("is_offset_x")) {
-      Kernel->getIterationSpace()->getAccessor()->setOffsetXDecl(createDeclRefExpr(Ctx,
-            param));
+      Kernel->getIterationSpace()->getAccessor()->setOffsetXDecl(parm_ref);
       continue;
     }
     if (param->getName().equals("is_offset_y")) {
-      Kernel->getIterationSpace()->getAccessor()->setOffsetYDecl(createDeclRefExpr(Ctx,
-            param));
+      Kernel->getIterationSpace()->getAccessor()->setOffsetYDecl(parm_ref);
       continue;
     }
     if (param->getName().equals("bh_start_left")) {
-      bh_start_left = createDeclRefExpr(Ctx, param);
+      bh_start_left = parm_ref;
       continue;
     }
     if (param->getName().equals("bh_start_right")) {
-      bh_start_right = createDeclRefExpr(Ctx, param);
+      bh_start_right = parm_ref;
       continue;
     }
     if (param->getName().equals("bh_start_top")) {
-      bh_start_top = createDeclRefExpr(Ctx, param);
+      bh_start_top = parm_ref;
       continue;
     }
     if (param->getName().equals("bh_start_bottom")) {
-      bh_start_bottom = createDeclRefExpr(Ctx, param);
+      bh_start_bottom = parm_ref;
       continue;
     }
     if (param->getName().equals("bh_fall_back")) {
-      bh_fall_back = createDeclRefExpr(Ctx, param);
+      bh_fall_back = parm_ref;
       continue;
     }
 
@@ -635,23 +631,23 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
 
       if (param->getName().equals(img->getNameAsString() + "_width")) {
-        Acc->setWidthDecl(createDeclRefExpr(Ctx, param));
+        Acc->setWidthDecl(parm_ref);
         continue;
       }
       if (param->getName().equals(img->getNameAsString() + "_height")) {
-        Acc->setHeightDecl(createDeclRefExpr(Ctx, param));
+        Acc->setHeightDecl(parm_ref);
         continue;
       }
       if (param->getName().equals(img->getNameAsString() + "_stride")) {
-        Acc->setStrideDecl(createDeclRefExpr(Ctx, param));
+        Acc->setStrideDecl(parm_ref);
         continue;
       }
       if (param->getName().equals(img->getNameAsString() + "_offset_x")) {
-        Acc->setOffsetXDecl(createDeclRefExpr(Ctx, param));
+        Acc->setOffsetXDecl(parm_ref);
         continue;
       }
       if (param->getName().equals(img->getNameAsString() + "_offset_y")) {
-        Acc->setOffsetYDecl(createDeclRefExpr(Ctx, param));
+        Acc->setOffsetYDecl(parm_ref);
         continue;
       }
     }
