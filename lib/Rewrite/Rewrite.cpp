@@ -1624,7 +1624,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
         // this was checked before, when the user class was parsed
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert(CCE->getNumArgs()==K->getKernelClass()->getArguments().size() &&
+        assert(CCE->getNumArgs()==K->getKernelClass()->getMembers().size() &&
             "number of arguments doesn't match!");
 
         // set host argument names and retrieve literals stored to temporaries

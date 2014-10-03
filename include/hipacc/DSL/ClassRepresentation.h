@@ -391,15 +391,14 @@ class HipaccMask : public HipaccMemory {
 
 class HipaccKernelClass {
   private:
-    // type of argument
+    // type of kernel member
     enum class FieldKind : uint8_t {
       Normal,
       IterationSpace,
       Image,
       Mask
     };
-    // argument information
-    struct ArgumentInfo {
+    struct KernelMemberInfo {
       FieldKind kind;
       FieldDecl *field;
       QualType type;
@@ -409,8 +408,8 @@ class HipaccKernelClass {
     std::string name;
     CXXMethodDecl *kernelFunction, *reduceFunction;
     KernelStatistics *kernelStatistics;
-    // kernel parameter information
-    SmallVector<ArgumentInfo, 16> arguments;
+    // kernel member information
+    SmallVector<KernelMemberInfo, 16> members;
     SmallVector<FieldDecl *, 16> imgFields;
     SmallVector<FieldDecl *, 16> maskFields;
     SmallVector<FieldDecl *, 16> domainFields;
@@ -421,7 +420,7 @@ class HipaccKernelClass {
       kernelFunction(nullptr),
       reduceFunction(nullptr),
       kernelStatistics(nullptr),
-      arguments(0),
+      members(0),
       imgFields(0),
       maskFields(0),
       domainFields(0)
@@ -455,25 +454,25 @@ class HipaccKernelClass {
     }
 
     void addArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      ArgumentInfo a = { FieldKind::Normal, FD, QT, Name };
-      arguments.push_back(a);
+      KernelMemberInfo a = { FieldKind::Normal, FD, QT, Name };
+      members.push_back(a);
     }
     void addImgArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      ArgumentInfo a = { FieldKind::Image, FD, QT, Name };
-      arguments.push_back(a);
+      KernelMemberInfo a = { FieldKind::Image, FD, QT, Name };
+      members.push_back(a);
       imgFields.push_back(FD);
     }
     void addMaskArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      ArgumentInfo a = { FieldKind::Mask, FD, QT, Name};
-      arguments.push_back(a);
+      KernelMemberInfo a = { FieldKind::Mask, FD, QT, Name};
+      members.push_back(a);
       maskFields.push_back(FD);
     }
     void addISArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      ArgumentInfo a = { FieldKind::IterationSpace, FD, QT, Name };
-      arguments.push_back(a);
+      KernelMemberInfo a = { FieldKind::IterationSpace, FD, QT, Name };
+      members.push_back(a);
     }
 
-    ArrayRef<ArgumentInfo> getArguments() { return arguments; }
+    ArrayRef<KernelMemberInfo> getMembers() { return members; }
     ArrayRef<FieldDecl *>  getImgFields() { return imgFields; }
     ArrayRef<FieldDecl *>  getMaskFields() { return maskFields; }
 

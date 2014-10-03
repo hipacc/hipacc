@@ -501,7 +501,7 @@ void HipaccKernel::createArgInfo() {
   if (argTypes.size()) return;
 
   // normal parameters
-  for (auto arg : KC->getArguments()) {
+  for (auto arg : KC->getMembers()) {
     QualType QT = arg.type;
     QualType QTtmp;
 
@@ -615,7 +615,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
   if (hostArgNames.size()) hostArgNames.clear();
 
   size_t i = 0;
-  for (auto arg : KC->getArguments()) {
+  for (auto arg : KC->getMembers()) {
     switch (arg.kind) {
       case HipaccKernelClass::FieldKind::Normal: {
         std::string Str;

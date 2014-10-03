@@ -150,7 +150,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
         default: break;
         case Language::Renderscript: {
             bool isGlobalAllocation = false;
-            if (Kernel->getKernelClass()->getArguments()[0].name.compare(
+            if (Kernel->getKernelClass()->getMembers()[0].name.compare(
                   LHS->getNameInfo().getAsString()) == 0) {
               isGlobalAllocation = true;
               break;
