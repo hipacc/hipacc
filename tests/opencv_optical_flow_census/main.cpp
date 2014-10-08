@@ -30,9 +30,7 @@
 // transform." Pattern Recognition. Springer Berlin Heidelberg, 2004. 79-86.
 //
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <iostream>
 
 #include "opencv2/opencv.hpp"
 
@@ -286,7 +284,7 @@ int main(int argc, const char **argv) {
     // open default camera
     VideoCapture cap(0);
     if (!cap.isOpened()) {
-        fprintf(stderr, "Error opening VideoCapture device!\n");
+        std::cerr << "Error opening VideoCapture device!" << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -298,16 +296,18 @@ int main(int argc, const char **argv) {
     imshow("Optical Flow", frameRGB);
     #else
     // first frame
-    Mat frame = imread("0003.pgm", CV_LOAD_IMAGE_GRAYSCALE);
+    std::string frame_name = "q5_00164.jpg";
+    Mat frame = imread(frame_name.c_str(), CV_LOAD_IMAGE_GRAYSCALE);
     if (frame.empty()) {
-        fprintf(stderr, "Error reading image file '0003.pgm'!\n");
+        std::cerr << "Error reading image file '" << frame_name << "'!" << std::endl;
         return EXIT_FAILURE;
     }
 
     // second frame
-    Mat frame2 = imread("0004.pgm", CV_LOAD_IMAGE_GRAYSCALE);
+    std::string frame2_name = "q5_00165.jpg";
+    Mat frame2 = imread(frame2_name.c_str(), CV_LOAD_IMAGE_GRAYSCALE);
     if (frame2.empty()) {
-        fprintf(stderr, "Error reading image file '0004.pgm'!\n");
+        std::cerr << "Error reading image file '" << frame2_name << "'!" << std::endl;
         return EXIT_FAILURE;
     }
     #endif
@@ -376,7 +376,7 @@ int main(int argc, const char **argv) {
 
     blur_img.execute();
     timing = hipaccGetLastKernelTiming();
-    fprintf(stderr, "HIPAcc blur filter: %.3f ms\n", timing);
+    std::cerr << "HIPAcc blur filter: " << timing << " ms" << std::endl;
 
 
     // generate signature for first image/frame
@@ -388,7 +388,7 @@ int main(int argc, const char **argv) {
 
     sig_img.execute();
     timing = hipaccGetLastKernelTiming();
-    fprintf(stderr, "HIPAcc signature kernel: %.3f ms\n", timing);
+    std::cerr << "HIPAcc signature kernel: " << timing << " ms" << std::endl;
 
 
     prev_signature = img_signature;
@@ -407,23 +407,23 @@ int main(int argc, const char **argv) {
         blur_img.execute();
         timing = hipaccGetLastKernelTiming();
         fps_timing = timing;
-        fprintf(stderr, "HIPAcc blur filter: %.3f ms\n", timing);
+        std::cerr << "HIPAcc blur filter: " << timing << " ms" << std::endl;
 
         // generate signature for frame
         sig_img.execute();
         timing = hipaccGetLastKernelTiming();
         fps_timing += timing;
-        fprintf(stderr, "HIPAcc signature kernel: %.3f ms\n", timing);
+        std::cerr << "HIPAcc signature kernel: " << timing << " ms" << std::endl;
 
         // perform matching
         vector_kernel.execute();
         timing = hipaccGetLastKernelTiming();
         fps_timing += timing;
-        fprintf(stderr, "HIPAcc vector kernel: %.3f ms\n", timing);
+        std::cerr << "HIPAcc vector kernel: " << timing << " ms" << std::endl;
         vecs = img_vec.getData();
 
         // fps time
-        fprintf(stderr, "HIPAcc optical flow: %.3f ms, %f fps\n", fps_timing, 1000.0f/fps_timing);
+        std::cerr << "HIPAcc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
         vector<Point2i> v0, v1;
         for (int y=0; y<img_vec.getHeight(); y++) {
@@ -462,23 +462,23 @@ int main(int argc, const char **argv) {
     blur_img.execute();
     timing = hipaccGetLastKernelTiming();
     fps_timing = timing;
-    fprintf(stderr, "HIPAcc blur filter: %.3f ms\n", timing);
+    std::cerr << "HIPAcc blur filter: " << timing << " ms" << std::endl;
 
     // generate signature for frame
     sig_img.execute();
     timing = hipaccGetLastKernelTiming();
     fps_timing += timing;
-    fprintf(stderr, "HIPAcc signature kernel: %.3f ms\n", timing);
+    std::cerr << "HIPAcc signature kernel: " << timing << " ms" << std::endl;
 
     // perform matching
     vector_kernel.execute();
     timing = hipaccGetLastKernelTiming();
     fps_timing += timing;
-    fprintf(stderr, "HIPAcc vector kernel: %.3f ms\n", timing);
+    std::cerr << "HIPAcc vector kernel: " << timing << " ms" << std::endl;
     vecs = img_vec.getData();
 
     // fps time
-    fprintf(stderr, "HIPAcc optical flow: %.3f ms, %f fps\n", fps_timing, 1000.0f/fps_timing);
+    std::cerr << "HIPAcc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
     vector<Point2i> v0, v1;
     for (int y=0; y<img_vec.getHeight(); y++) {

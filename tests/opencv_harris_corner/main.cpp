@@ -23,13 +23,9 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <float.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <sys/time.h>
 
+#include <cfloat>
 #include <iostream>
 #include <numeric>
 #include <vector>
@@ -303,7 +299,7 @@ int main(int argc, const char **argv) {
           break;
         default:
           std::cerr << "Unknown image format" << std::endl;
-          exit(1);
+          return EXIT_FAILURE;
       }
     }
 
@@ -346,8 +342,8 @@ int main(int argc, const char **argv) {
     #ifndef OpenCV
     // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
     if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
-        fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3, 5x5, and 7x7!\n");
-        exit(EXIT_FAILURE);
+        std::cerr << "Wrong filter kernel size. Currently supported values: 3x3, 5x5, and 7x7!" << std::endl;
+        return EXIT_FAILURE;
     }
 
     // convolution filter mask
@@ -405,7 +401,7 @@ int main(int argc, const char **argv) {
 
     IN = input;
 
-    fprintf(stderr, "Calculating HIPAcc Harris Corner filter ...\n");
+    std::cerr << "Calculating HIPAcc Harris Corner filter ..." << std::endl;
 
     BoundaryCondition<uchar> BcInClamp(IN, 3, 3, Boundary::CLAMP);
     Accessor<uchar> AccInClamp(BcInClamp);
@@ -513,7 +509,7 @@ int main(int argc, const char **argv) {
     #endif
 
     #ifdef OpenCV
-    fprintf(stderr, "\nCalculating OpenCV Harris Corner filter on the CPU ...\n");
+    std::cerr << std::endl << "Calculating OpenCV Harris Corner filter on the CPU ..." << std::endl;
 
     cv::Mat cv_data_in(height, width, CV_8UC1, input);
     cv::Mat dst, dst_norm, dst_norm_scaled;
@@ -526,7 +522,7 @@ int main(int argc, const char **argv) {
 
     double min_dt = DBL_MAX;
     for (int nt=0; nt<10; nt++) {
-      timing = time_ms();
+      double time0 = time_ms();
 
       // Detecting corners
       cv::cornerHarris(cv_data_in, dst,
@@ -536,7 +532,8 @@ int main(int argc, const char **argv) {
       cv::normalize(dst, dst_norm, 0, 255, cv::NORM_MINMAX, CV_32FC1, cv::Mat());
       cv::convertScaleAbs(dst_norm, dst_norm_scaled);
 
-      double dt = time_ms() - timing;
+      double time1 = time_ms();
+      double dt = time1 - time0;
       if (dt < min_dt) min_dt = dt;
     }
     timings.push_back(min_dt);
@@ -559,7 +556,7 @@ int main(int argc, const char **argv) {
     #endif
 
     timing = std::accumulate(timings.begin(), timings.end(), 0.0f);
-    fprintf(stderr, "Harris Corner: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Harris Corner: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
     #ifdef USE_FREEIMAGE
     FIBITMAP* out = FreeImage_ConvertFromRawBits(input, width, height, width,
