@@ -1044,7 +1044,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         Mask = new HipaccMask(VD, QT, HipaccMask::MaskType::Mask);
 
         // get initializer
-        DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreImpCasts());
+        DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreParenCasts());
         assert(DRE && "Mask must be initialized using a variable");
         VarDecl *V = dyn_cast_or_null<VarDecl>(DRE->getDecl());
         assert(V && "Mask must be initialized using a variable");
@@ -1089,8 +1089,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
         if (CCE->getNumArgs() == 1) {
           // get initializer
-          DeclRefExpr *DRE =
-              dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreImpCasts());
+          auto DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreParenCasts());
           assert(DRE && "Domain must be initialized using a variable");
           VarDecl *V = dyn_cast_or_null<VarDecl>(DRE->getDecl());
           assert(V && "Domain must be initialized using a variable");
@@ -1447,7 +1446,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       }
     } else if (DomLHS) {
       // check for RHS literal to set domain value
-      Expr *arg = E->getArg(1)->IgnoreImpCasts();
+      Expr *arg = E->getArg(1)->IgnoreParenCasts();
 
       assert(isa<IntegerLiteral>(arg) &&
              "RHS argument for setting specific domain value must be integer "
@@ -1663,7 +1662,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
   // getData & getWidth/getHeight MemberExpr calls
   if (auto ME = dyn_cast<MemberExpr>(E->getCallee())) {
-    if (auto DRE = dyn_cast<DeclRefExpr>(ME->getBase())) {
+    if (auto DRE = dyn_cast<DeclRefExpr>(ME->getBase()->IgnoreParenCasts())) {
       std::string newStr;
 
       // get the Kernel from the DRE if we have one
