@@ -79,17 +79,25 @@ inline uint ctn_t32(uchar data, uchar central, uint prev_result) {
 class SignatureKernel : public Kernel<uint> {
     private:
         Accessor<uchar> &input;
+        Domain &dom;
 
     public:
-        SignatureKernel(IterationSpace<uint> &iter, Accessor<uchar> &input) :
+        SignatureKernel(IterationSpace<uint> &iter, Accessor<uchar> &input,
+                        Domain &dom) :
             Kernel(iter),
-            input(input)
+            input(input),
+            dom(dom)
         { addAccessor(&input); }
 
         void kernel() {
             // Census Transformation
             uchar z = input();
             uint c = 0u;
+            #ifdef USE_LAMBDA
+            iterate(dom, [&] () {
+                c = ctn_t32(input(dom), z, c);
+            });
+            #else
             // row-4
             c = ctn_t32(input(-4, -4), z, c);
             c = ctn_t32(input( 0, -4), z, c);
@@ -111,6 +119,7 @@ class SignatureKernel : public Kernel<uint> {
             c = ctn_t32(input(-4, +4), z, c);
             c = ctn_t32(input( 0, +4), z, c);
             c = ctn_t32(input(+4, +4), z, c);
+            #endif
 
             output() = c;
         }
@@ -329,6 +338,18 @@ int main(int argc, const char **argv) {
     };
     Mask<float> mask(filter_mask);
 
+    // domain for signature kernel
+    const uchar sig_coef[9][9] = {
+      { 1, 0, 0, 0, 1, 0, 0, 0, 1 },
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 0, 0, 1, 0, 1, 0, 1, 0, 0 },
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 1, 0, 0, 0, 1, 0, 0, 0, 1 },
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 0, 0, 1, 0, 1, 0, 1, 0, 0 },
+      { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+      { 1, 0, 0, 0, 1, 0, 0, 0, 1 }};
+    Domain sig_dom(sig_coef);
 
     // vector image
     Image<int> img_vec((frame.cols-WINDOW_SIZE_X)/2, (frame.rows-WINDOW_SIZE_Y)/2);
@@ -380,11 +401,11 @@ int main(int argc, const char **argv) {
 
 
     // generate signature for first image/frame
-    BoundaryCondition<uchar> bound_fil(filter_img, 8, 8, Boundary::CLAMP);
+    BoundaryCondition<uchar> bound_fil(filter_img, sig_dom, Boundary::CLAMP);
     Accessor<uchar> acc_fil(bound_fil);
     IterationSpace<uint> iter_sig(img_signature);
 
-    SignatureKernel sig_img(iter_sig, acc_fil);
+    SignatureKernel sig_img(iter_sig, acc_fil, sig_dom);
 
     sig_img.execute();
     timing = hipaccGetLastKernelTiming();
