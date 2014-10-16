@@ -95,10 +95,12 @@ IF(APPLE)
     SET(CUDA_LINK "-Xlinker -framework,CUDA")
     SET(NVCC_COMP "${NVCC_CPP_STD} -ccbin ${CLANG_EXECUTABLE} -Xcompiler -arch -Xcompiler x86_64 -Xcompiler -stdlib=libstdc++")
     SET(TIME_LINK "")
+    SET(PTHREAD   "")
 ELSE(APPLE)
     SET(CUDA_LINK "-lcuda -lcudart")
     SET(NVCC_COMP "${NVCC_CPP_STD}")
     SET(TIME_LINK "-lrt")
+    SET(PTHREAD   "-pthread")
 ENDIF(APPLE)
 
 

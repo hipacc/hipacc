@@ -4,7 +4,7 @@ CC = g++
 HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
 
 MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5 -D OpenCV
-CFLAGS        = $(MYFLAGS) -Wall -Wunused \
+CFLAGS        = $(MYFLAGS) -std=c++11 @PTHREAD@ -Wall -Wunused \
                 -I$(HIPACC_DIR)/include/dsl \
                 -I@OPENCV_INCLUDE_DIR@
 LDFLAGS       = -lm \
@@ -13,13 +13,12 @@ OFLAGS        = -O3
 
 ifeq ($(CC),clang++)
     # use libc++ for clang++
-    CFLAGS   += -std=c++11 -stdlib=libc++ \
+    CFLAGS   += -stdlib=libc++ \
                 -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                 -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                 -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1
     LDFLAGS  += -L`@LLVM_CONFIG_EXECUTABLE@ --libdir` -lc++ -lc++abi
 else
-    CFLAGS   += -std=c++11
     LDFLAGS  += -lstdc++
 endif
 

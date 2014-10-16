@@ -1,16 +1,16 @@
 # Configuration
 HIPACC_DIR     ?= @CMAKE_INSTALL_PREFIX@
 COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
-COMMON_INC     ?= -I@OPENCV_INCLUDE_DIR@ \
+COMMON_INC     ?= @PTHREAD@ \
+                  -I@OPENCV_INCLUDE_DIR@ \
                   -I$(TEST_CASE) \
                   -I/usr/include
-COMPILER_INC   ?= -std=c++11 \
+COMPILER_INC   ?= -std=c++11 $(COMMON_INC) \
                   -resource-dir `@CLANG_EXECUTABLE@ -print-file-name=` \
                   -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                   -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                   -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
-                  -I$(HIPACC_DIR)/include/dsl \
-                  $(COMMON_INC)
+                  -I$(HIPACC_DIR)/include/dsl
 TEST_CASE      ?= ./tests/opencv_blur_8uc1
 MYFLAGS        ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
 NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
