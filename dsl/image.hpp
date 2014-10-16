@@ -234,7 +234,7 @@ class Interpolation {
         data_t interpol_init;
         data_t &interpol_val;
 
-        virtual data_t &getPixelBH(int x, int y);
+        virtual data_t &getPixelBH(int x, int y) = 0;
 
         data_t bicubic(float t, data_t a, data_t b, data_t c, data_t d) {
             return 0.5 * (c - a + (2.0f * a - 5.0f * b + 4.0f * c - d + (3.0f * (b - c) + d -a) * t) * t) * t + b;
@@ -460,14 +460,7 @@ class AccessorBase {
         const int offset_x, offset_y;
         ElementIterator *EI;
 
-        virtual void setEI(ElementIterator *ei) {
-            // TODO: enable this again for debugging
-            //assert((!ei || ei->getWidth()==width) &&
-            //        "For Accessor, width of Images and Iterationspace must be equal!");
-            //assert((!ei || ei->getHeight()==height) &&
-            //        "For Accessor, height of Image and Iterationspace must be equal!");
-            EI = ei;
-        }
+        void setEI(ElementIterator *ei) { EI = ei; }
 
     public:
         AccessorBase(int width, int height, int offset_x, int offset_y) :
@@ -509,7 +502,7 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
                     y + offset_y);
         }
 
-        data_t &getPixelBH(int x, int y) {
+        virtual data_t &getPixelBH(int x, int y) override {
             data_t *ret = &dummy;
             int lower_x = offset_x;
             int lower_y = offset_y;

@@ -170,11 +170,11 @@ class Domain : public MaskBase {
 
         ~Domain() {}
 
-        int getX() {
+        virtual int getX() override {
             assert(DI && "DomainIterator for Domain not set!");
             return DI->getX() - size_x/2;
         }
-        int getY() {
+        virtual int getY() override {
             assert(DI && "DomainIterator for Domain not set!");
             return DI->getY() - size_y/2;
         }
