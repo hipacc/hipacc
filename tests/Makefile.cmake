@@ -1,8 +1,7 @@
 # Configuration
 HIPACC_DIR     ?= @CMAKE_INSTALL_PREFIX@
 COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
-COMMON_INC     ?= @PTHREAD@ \
-                  -I@OPENCV_INCLUDE_DIR@ \
+COMMON_INC     ?= -I@OPENCV_INCLUDE_DIR@ \
                   -I$(TEST_CASE) \
                   -I/usr/include
 COMPILER_INC   ?= -std=c++11 $(COMMON_INC) \
@@ -17,7 +16,7 @@ NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),comput
                   -Xptxas -v @NVCC_COMP@ #-keep
 OFLAGS          = -O3
 
-CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 -Wall -Wunused
+CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 @PTHREAD@ -Wall -Wunused
 CU_CC           = @NVCC@ $(NVCC_FLAGS) -Xcompiler -Wall -Xcompiler -Wunused
 CC_LINK         = -lm -ldl -lstdc++ @TIME_LINK@
 CU_LINK         = $(CC_LINK) @CUDA_LINK@
