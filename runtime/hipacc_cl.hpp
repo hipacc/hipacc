@@ -427,8 +427,14 @@ void hipaccCreateContextsAndCommandQueues(bool all_devies=false) {
 
     // Create command queues
     for (size_t i=0; i<devices.size(); ++i) {
+        #ifdef CL_VERSION_2_0
+        cl_queue_properties cprops[3] = { CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0 };
+        command_queue = clCreateCommandQueueWithProperties(context, devices[i], cprops, &err);
+        checkErr(err, "clCreateCommandQueueWithProperties()");
+        #else
         command_queue = clCreateCommandQueue(context, devices[i], CL_QUEUE_PROFILING_ENABLE, &err);
         checkErr(err, "clCreateCommandQueue()");
+        #endif
 
         Ctx.add_command_queue(command_queue);
     }
@@ -705,8 +711,19 @@ cl_sampler hipaccCreateSampler(cl_bool normalized_coords, cl_addressing_mode add
     cl_sampler sampler;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
+    #ifdef CL_VERSION_2_0
+    cl_sampler_properties sprops[7] = {
+        CL_SAMPLER_NORMALIZED_COORDS, normalized_coords,
+        CL_SAMPLER_ADDRESSING_MODE, addressing_mode,
+        CL_SAMPLER_FILTER_MODE, filter_mode,
+        0
+    };
+    sampler = clCreateSamplerWithProperties(Ctx.get_contexts()[0], sprops, &err);
+    checkErr(err, "clCreateSamplerWithProperties()");
+    #else
     sampler = clCreateSampler(Ctx.get_contexts()[0], normalized_coords, addressing_mode, filter_mode, &err);
     checkErr(err, "clCreateSampler()");
+    #endif
 
     return sampler;
 }
