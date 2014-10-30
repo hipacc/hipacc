@@ -46,14 +46,14 @@
 
 extern float total_time;
 extern float last_gpu_timing;
-float hipaccGetLastKernelTiming();
+float hipacc_last_kernel_timing();
 unsigned int nextPow2(unsigned int x);
 
 #ifndef EXCLUDE_IMPL
 float total_time = 0.0f;
 float last_gpu_timing = 0.0f;
 // get GPU timing of last executed Kernel in ms
-float hipaccGetLastKernelTiming() {
+float hipacc_last_kernel_timing() {
     return last_gpu_timing;
 }
 
@@ -255,19 +255,19 @@ class HipaccPyramid {
       return imgs_.at(level_+relative);
     }
 
-    int getDepth() {
+    int depth() {
       return depth_;
     }
 
-    int getLevel() {
+    int level() {
       return level_;
     }
 
-    bool isTopLevel() {
+    bool is_top_level() {
       return level_ == 0;
     }
 
-    bool isBottomLevel() {
+    bool is_bottom_level() {
       return level_ == depth_-1;
     }
 
@@ -502,7 +502,7 @@ void hipaccTraverse(unsigned int loop=1,
 
   std::vector<HipaccPyramid*> pyrs = hipaccPyramids.back();
 
-  if (!pyrs.at(0)->isBottomLevel()) {
+  if (!pyrs.at(0)->is_bottom_level()) {
     for (auto it = pyrs.begin(); it != pyrs.end(); ++it) {
       ++((*it)->level_);
     }
