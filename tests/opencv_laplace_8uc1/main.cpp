@@ -344,23 +344,12 @@ int main(int argc, const char **argv) {
 
         fprintf(stderr, "OpenCV(");
         switch (brd_type) {
-            case IPL_BORDER_CONSTANT:
-                fprintf(stderr, "CONSTANT");
-                break;
-            case IPL_BORDER_REPLICATE:
-                fprintf(stderr, "CLAMP");
-                break;
-            case IPL_BORDER_REFLECT:
-                fprintf(stderr, "MIRROR");
-                break;
-            case IPL_BORDER_WRAP:
-                fprintf(stderr, "REPEAT");
-                break;
-            case IPL_BORDER_REFLECT_101:
-                fprintf(stderr, "MIRROR_101");
-                break;
-            default:
-                break;
+            case IPL_BORDER_CONSTANT:    fprintf(stderr, "CONSTANT");   break;
+            case IPL_BORDER_REPLICATE:   fprintf(stderr, "CLAMP");      break;
+            case IPL_BORDER_REFLECT:     fprintf(stderr, "MIRROR");     break;
+            case IPL_BORDER_WRAP:        fprintf(stderr, "REPEAT");     break;
+            case IPL_BORDER_REFLECT_101: fprintf(stderr, "MIRROR_101"); break;
+            default: break;
         }
         timings.push_back(min_dt);
         fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
