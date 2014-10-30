@@ -64,6 +64,15 @@ class Image {
         data_t &pixel(const int x, const int y) { return array[y*width_ + x]; }
 
     public:
+        Image(const int width, const int height, data_t *init) :
+            width_(width),
+            height_(height),
+            array(new data_t[width*height]),
+            refcount(new size_t(1))
+        {
+            std::copy(init, init + width*height, array);
+        }
+
         Image(const int width, const int height) :
             width_(width),
             height_(height),
