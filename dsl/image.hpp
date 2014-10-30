@@ -240,7 +240,7 @@ class Interpolation {
             return 0.5 * (c - a + (2.0f * a - 5.0f * b + 4.0f * c - d + (3.0f * (b - c) + d -a) * t) * t) * t + b;
         }
 
-        data_t bicubic_spline(data_t diff) {
+        data_t bicubic_spline(float diff) {
             // Cubic Convolution Interpolation for Digital Image Processing
             // Robert G. Keys
             //
@@ -251,7 +251,7 @@ class Interpolation {
             //        (a + 2)|x|^3 - (a + 3)|x|^2 + 1   0 <= |x| < 1
             // w(x) = a|x|^3 - 5a|x|^2 + 8a|x| - 4a     1 <= |x| < 2
             //        0                                 2 <= |x|
-            diff = abs(diff);
+            diff = std::abs(diff);
             float a = -0.5f;
 
             if (diff < 1.0f) {
@@ -263,7 +263,7 @@ class Interpolation {
 
         constexpr double pi() const { return std::atan(1)*4; }
 
-        data_t lanczos(data_t diff) {
+        data_t lanczos(float diff) {
             // Digital image processing: an algorithmic introduction using Java
             // Wilhelm Burger, Mark Burge
             //
@@ -271,7 +271,7 @@ class Interpolation {
             //          1                                        |x| = 0
             // wL3(x) = 3 * sin(pi()*x/3)*sin(pi()*x)       0 <  |x| < 3
             //          0                                   3 <= |x|
-            diff = abs(diff);
+            diff = std::abs(diff);
             float l = 3.0f;
 
             if (diff==0.0f) {
