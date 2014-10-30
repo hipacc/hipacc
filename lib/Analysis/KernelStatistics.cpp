@@ -440,7 +440,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
     }
   }
 
-  // match Image->getPixel(), output(), and outputAtPixel() calls
+  // match output(), output_at(), and pixel_at() calls
   if (auto call = dyn_cast<CXXMemberCallExpr>(E)) {
     if (auto ME = dyn_cast<MemberExpr>(call->getCallee())) {
       if (auto MEAcc = dyn_cast<MemberExpr>(ME->getBase())) {
@@ -457,8 +457,8 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
           // Accessor
           if (KS.compilerClasses.isTypeOfTemplateClass(FD->getType(),
                 KS.compilerClasses.Accessor)) {
-            // Accessor->getPixel()
-            if (ME->getMemberNameInfo().getAsString()=="getPixel") {
+            // Accessor->pixel_at()
+            if (ME->getMemberNameInfo().getAsString()=="pixel_at") {
               MemoryAccess memAcc = KS.imagesToAccess[FD];
               MemoryAccessDetail memAccDetail = KS.imagesToAccessDetail[FD];
 
@@ -489,8 +489,8 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess curMemAcc) {
         return true;
       }
 
-      // outputAtPixel()
-      if (ME->getMemberNameInfo().getAsString()=="outputAtPixel") {
+      // output_at()
+      if (ME->getMemberNameInfo().getAsString()=="output_at") {
         if (curMemAcc & READ_ONLY) KS.num_img_loads++;
         if (curMemAcc & WRITE_ONLY) KS.num_img_stores++;
         MemoryAccessDetail cur = KS.outputAccessDetail;

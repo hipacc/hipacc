@@ -1509,14 +1509,14 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             DEVICE_TO_DEVICE, newStr);
       } else {
         bool write_pointer = true;
-        // Img1 = Img2.getData();
-        // Img1 = Pyr2(x2).getData();
-        // Pyr1(x1) = Img2.getData();
-        // Pyr1(x1) = Pyr2(x2).getData();
+        // Img1 = Img2.data();
+        // Img1 = Pyr2(x2).data();
+        // Pyr1(x1) = Img2.data();
+        // Pyr1(x1) = Pyr2(x2).data();
         if (auto mcall = dyn_cast<CXXMemberCallExpr>(E->getArg(1))) {
-          // match only getData calls to Image instances
-          if (mcall->getDirectCallee()->getNameAsString() == "getData") {
-            // sideeffect ! do not handle the next call to getData
+          // match only data() calls to Image instances
+          if (mcall->getDirectCallee()->getNameAsString() == "data") {
+            // side effect ! do not handle the next call to data()
             skipTransfer = true;
             if (auto DRE =
                 dyn_cast<DeclRefExpr>(mcall->getImplicitObjectArgument())) {
@@ -1610,11 +1610,11 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   //    IS -> kernel launch configuration
   //    IN, OUT, 23 -> kernel parameters
   //    Image width, height, and stride -> kernel parameters
-  // b) convert getData() calls
-  //    float *out = img.getData();
-  // c) convert getReducedData calls
-  //    float min = MinReduction.getReducedData();
-  // d) convert getWidth/getHeight calls
+  // b) convert data() calls
+  //    float *out = img.data();
+  // c) convert reduced_data() calls
+  //    float min = MinReduction.reduced_data();
+  // d) convert width()/height() calls
 
   if (auto DRE =
       dyn_cast<DeclRefExpr>(E->getImplicitObjectArgument()->IgnoreParenCasts())) {
@@ -1660,7 +1660,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
     }
   }
 
-  // getData & getWidth/getHeight MemberExpr calls
+  // data() & width()/height() MemberExpr calls
   if (auto ME = dyn_cast<MemberExpr>(E->getCallee())) {
     if (auto DRE = dyn_cast<DeclRefExpr>(ME->getBase()->IgnoreParenCasts())) {
       std::string newStr;
@@ -1668,7 +1668,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       // get the Kernel from the DRE if we have one
       if (KernelDeclMap.count(DRE->getDecl())) {
         // match for supported member calls
-        if (ME->getMemberNameInfo().getAsString() == "getReducedData") {
+        if (ME->getMemberNameInfo().getAsString() == "reduced_data") {
           HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
 
           // replace member function invocation
@@ -1682,7 +1682,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       // get the Image from the DRE if we have one
       if (ImgDeclMap.count(DRE->getDecl())) {
         // match for supported member calls
-        if (ME->getMemberNameInfo().getAsString() == "getData") {
+        if (ME->getMemberNameInfo().getAsString() == "data") {
           if (skipTransfer) {
             skipTransfer = false;
             return true;
@@ -1699,9 +1699,9 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
           return true;
-        } else if (ME->getMemberNameInfo().getAsString() == "getWidth") {
+        } else if (ME->getMemberNameInfo().getAsString() == "width") {
           newStr = "width";
-        } else if (ME->getMemberNameInfo().getAsString() == "getHeight") {
+        } else if (ME->getMemberNameInfo().getAsString() == "height") {
           newStr = "height";
         }
       }
@@ -1709,9 +1709,9 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       // get the Accessor from the DRE if we have one
       if (AccDeclMap.count(DRE->getDecl())) {
         // match for supported member calls
-        if (ME->getMemberNameInfo().getAsString() == "getWidth") {
+        if (ME->getMemberNameInfo().getAsString() == "width") {
           newStr = "img.width";
-        } else if (ME->getMemberNameInfo().getAsString() == "getHeight") {
+        } else if (ME->getMemberNameInfo().getAsString() == "height") {
           newStr = "img.height";
         }
       }

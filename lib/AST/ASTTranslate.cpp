@@ -2201,13 +2201,13 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     Acc = Kernel->getIterationSpace();
     memAcc = WRITE_ONLY;
 
-    // getX() method -> gid_x - is_offset_x
-    if (ME->getMemberNameInfo().getAsString() == "getX") {
+    // x() method -> gid_x - is_offset_x
+    if (ME->getMemberNameInfo().getAsString() == "x") {
       return createParenExpr(Ctx, removeISOffsetX(tileVars.global_id_x));
     }
 
-    // getY() method -> gid_y
-    if (ME->getMemberNameInfo().getAsString() == "getY") {
+    // y() method -> gid_y
+    if (ME->getMemberNameInfo().getAsString() == "y") {
       if (compilerOptions.emitC99() ||
           compilerOptions.emitRenderscript() ||
           compilerOptions.emitFilterscript()) {
@@ -2262,8 +2262,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
            "Could not find Image/Accessor/Mask/Domain Field Decl.");
 
     if (Acc != nullptr) {
-      // Acc.getX() method -> acc_scale_x * (gid_x - is_offset_x)
-      if (ME->getMemberNameInfo().getAsString() == "getX") {
+      // Acc.x() method -> acc_scale_x * (gid_x - is_offset_x)
+      if (ME->getMemberNameInfo().getAsString() == "x") {
         // remove is_offset_x and scale index to Accessor size
         if (Acc->getInterpolationMode() != Interpolate::NO) {
           return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
@@ -2275,8 +2275,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         }
       }
 
-      // Acc.getY() method -> acc_scale_y * gid_y
-      if (ME->getMemberNameInfo().getAsString() == "getY") {
+      // Acc.y() method -> acc_scale_y * gid_y
+      if (ME->getMemberNameInfo().getAsString() == "y") {
         Expr *idx_y = gidYRef;
         // scale index to Accessor size
         if (Acc->getInterpolationMode() != Interpolate::NO) {
@@ -2307,11 +2307,11 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
                                 "within reduction lambda-function.");
         // within convolute lambda-function
-        if (ME->getMemberNameInfo().getAsString() == "getX") {
+        if (ME->getMemberNameInfo().getAsString() == "x") {
           return createIntegerLiteral(Ctx,
               redIdxX[redDepth] - (int)redDomains[redDepth]->getSizeX()/2);
         }
-        if (ME->getMemberNameInfo().getAsString() == "getY") {
+        if (ME->getMemberNameInfo().getAsString() == "y") {
           return createIntegerLiteral(Ctx,
               redIdxY[redDepth] - (int)redDomains[redDepth]->getSizeY()/2);
         }
@@ -2319,21 +2319,22 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         assert(Mask==convMask && "Getting Mask convolution IDs is only allowed "
                                  "allowed within convolution lambda-function.");
         // within convolute lambda-function
-        if (ME->getMemberNameInfo().getAsString() == "getX") {
+        if (ME->getMemberNameInfo().getAsString() == "x") {
           return createIntegerLiteral(Ctx, convIdxX - (int)Mask->getSizeX()/2);
         }
-        if (ME->getMemberNameInfo().getAsString() == "getY") {
+        if (ME->getMemberNameInfo().getAsString() == "y") {
           return createIntegerLiteral(Ctx, convIdxY - (int)Mask->getSizeY()/2);
         }
       }
     }
   }
 
-  // Acc.getPixel(x, y) method -> img[y][x]
-  // outputAtPixel(x, y) method -> img[y][x]
-  if (ME->getMemberNameInfo().getAsString() == "getPixel" ||
-      ME->getMemberNameInfo().getAsString() == "outputAtPixel") {
-    assert(Acc && E->getNumArgs()==2 && "x and y argument for getPixel() or outputAtPixel() required!");
+  // Acc.pixel_at(x, y) method -> img[y][x]
+  //    output_at(x, y) method -> img[y][x]
+  if (ME->getMemberNameInfo().getAsString() == "pixel_at" ||
+      ME->getMemberNameInfo().getAsString() == "output_at") {
+    assert(Acc && E->getNumArgs()==2 &&
+           "x and y argument for pixel_at() or output_at() required!");
     Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), Acc);
     Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), Acc);
 
@@ -2359,9 +2360,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         break;
       case Language::Renderscript:
       case Language::Filterscript:
-        if (ME->getMemberNameInfo().getAsString() == "outputAtPixel" &&
+        if (ME->getMemberNameInfo().getAsString() == "output_at" &&
             compilerOptions.emitFilterscript()) {
-            assert(0 && "Filterscript does not support outputAtPixel().");
+            assert(0 && "Filterscript does not support output_at().");
         }
         result = accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
         break;
