@@ -164,7 +164,7 @@ class SobelFilterMask : public Kernel<float> {
             dom(dom),
             mask(mask),
             size(size)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -201,7 +201,7 @@ class SobelFilterMaskRow : public Kernel<float> {
             input(input),
             mask(mask),
             size(size)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -235,7 +235,7 @@ class SobelFilterMaskColumn : public Kernel<float> {
             input(input),
             mask(mask),
             size(size)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -439,7 +439,7 @@ int main(int argc, const char **argv) {
     SobelFilterMask SFU(IsOut, AccInUndef2, D, M, size_x);
 
     SFU.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<float> BcInUndef(IN, MX, Boundary::UNDEFINED);
     Accessor<float> AccInUndef(BcInUndef);
@@ -450,9 +450,9 @@ int main(int argc, const char **argv) {
     SobelFilterMaskColumn SFCU(IsOut, AccTmpUndef, MY, size_y);
 
     SFRU.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     SFCU.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     #endif
     timings.push_back(timing);
@@ -466,7 +466,7 @@ int main(int argc, const char **argv) {
     SobelFilterMask SFC(IsOut, AccInClamp2, D, M, size_x);
 
     SFC.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<float> BcInClamp(IN, MX, Boundary::CLAMP);
     Accessor<float> AccInClamp(BcInClamp);
@@ -477,9 +477,9 @@ int main(int argc, const char **argv) {
     SobelFilterMaskColumn SFCC(IsOut, AccTmpClamp, MY, size_y);
 
     SFRC.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     SFCC.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
@@ -492,7 +492,7 @@ int main(int argc, const char **argv) {
     SobelFilterMask SFR(IsOut, AccInRepeat2, D, M, size_x);
 
     SFR.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<float> BcInRepeat(IN, MX, Boundary::REPEAT);
     Accessor<float> AccInRepeat(BcInRepeat);
@@ -503,9 +503,9 @@ int main(int argc, const char **argv) {
     SobelFilterMaskColumn SFCR(IsOut, AccTmpRepeat, MY, size_y);
 
     SFRR.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     SFCR.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
@@ -518,7 +518,7 @@ int main(int argc, const char **argv) {
     SobelFilterMask SFM(IsOut, AccInMirror2, D, M, size_x);
 
     SFM.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<float> BcInMirror(IN, MX, Boundary::MIRROR);
     Accessor<float> AccInMirror(BcInMirror);
@@ -529,9 +529,9 @@ int main(int argc, const char **argv) {
     SobelFilterMaskColumn SFCM(IsOut, AccTmpMirror, MY, size_y);
 
     SFRM.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     SFCM.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
@@ -544,7 +544,7 @@ int main(int argc, const char **argv) {
     SobelFilterMask SFConst(IsOut, AccInConst2, D, M, size_x);
 
     SFConst.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<float> BcInConst(IN, MX, Boundary::CONSTANT, '1');
     Accessor<float> AccInConst(BcInConst);
@@ -555,16 +555,16 @@ int main(int argc, const char **argv) {
     SobelFilterMaskColumn SFCConst(IsOut, AccTmpConst, MY, size_y);
 
     SFRConst.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     SFCConst.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     // get pointer to result data
-    float *output = OUT.getData();
+    float *output = OUT.data();
     #endif
 
 

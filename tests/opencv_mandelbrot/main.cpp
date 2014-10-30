@@ -47,8 +47,8 @@ class MandelbrotKernel : public Kernel<uchar4> {
             Kernel(iter), width(w), height(h), scale(s), ox(ox), oy(oy) { }
 
         void kernel() {
-            float x0 = ((float)getX() / (float)width  * 3.5f) / scale - 2.5f + ox;
-            float y0 = ((float)getY() / (float)height * 2.0f) / scale - 1.0f + oy;
+            float x0 = ((float)x() / (float)width  * 3.5f) / scale - 2.5f + ox;
+            float y0 = ((float)y() / (float)height * 2.0f) / scale - 1.0f + oy;
             float x = 0;
             float y = 0;
             int iteration = 0;
@@ -91,17 +91,17 @@ int main(int argc, const char **argv) {
 
     MandelbrotKernel mandelbrot(iter_img, width, height, 1.00f, 0.00f, 0.00f);
     mandelbrot.execute();
-    fprintf(stderr, "HIPAcc Mandelbrot filter: %.3f ms\n", hipaccGetLastKernelTiming());
+    fprintf(stderr, "HIPAcc Mandelbrot filter: %.3f ms\n", hipacc_last_kernel_timing());
 
-    frame.data = (uchar *)img.getData();
+    frame.data = (uchar *)img.data();
     imshow("Mandelbrot", frame);
     waitKey(0);
 
     MandelbrotKernel mandelbrot_z(iter_img, width, height, 10.00f, 0.97f, 0.83f);
     mandelbrot_z.execute();
-    fprintf(stderr, "HIPAcc Mandelbrot filter (zoom): %.3f ms\n", hipaccGetLastKernelTiming());
+    fprintf(stderr, "HIPAcc Mandelbrot filter (zoom): %.3f ms\n", hipacc_last_kernel_timing());
 
-    frame.data = (uchar *)img.getData();
+    frame.data = (uchar *)img.data();
     imshow("Mandelbrot (zoom)", frame);
     waitKey(0);
 

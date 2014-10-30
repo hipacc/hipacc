@@ -57,7 +57,7 @@ class GaussianBlurFilter : public Kernel<uchar> {
             Kernel(iter),
             input(input),
             mask(mask)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             output() = (uchar)(convolve(mask, Reduce::SUM, [&] () -> float {
@@ -87,7 +87,7 @@ class SignatureKernel : public Kernel<uint> {
             Kernel(iter),
             input(input),
             dom(dom)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             // Census Transformation
@@ -138,8 +138,8 @@ class VectorKernel : public Kernel<int> {
             sig2(sig2),
             dom(dom)
         {
-            addAccessor(&sig1);
-            addAccessor(&sig2);
+            add_accessor(&sig1);
+            add_accessor(&sig2);
         }
 
         void kernel() {
@@ -154,7 +154,7 @@ class VectorKernel : public Kernel<int> {
                         vec_found++;
                         // encode ix and iy as upper and lower half-word of
                         // mem_loc
-                        mem_loc = (dom.getX() << 16) | (dom.getY() & 0xffff);
+                        mem_loc = (dom.x() << 16) | (dom.y() & 0xffff);
                     }
                     });
             #else
@@ -353,7 +353,7 @@ int main(int argc, const char **argv) {
 
     // vector image
     Image<int> img_vec((frame.cols-WINDOW_SIZE_X)/2, (frame.rows-WINDOW_SIZE_Y)/2);
-    int *vecs = (int *) malloc(img_vec.getWidth() * img_vec.getHeight() * sizeof(int));
+    int *vecs = (int *) malloc(img_vec.width() * img_vec.height() * sizeof(int));
     Accessor<uint> acc_img_sig(img_signature,   frame.cols-WINDOW_SIZE_X, frame.rows-WINDOW_SIZE_Y, WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2, Interpolate::NN);
     Accessor<uint> acc_prev_sig(prev_signature, frame.cols-WINDOW_SIZE_X, frame.rows-WINDOW_SIZE_Y, WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2, Interpolate::NN);
     IterationSpace<int> iter_vec(img_vec);
@@ -396,7 +396,7 @@ int main(int argc, const char **argv) {
     GaussianBlurFilter blur_img(iter_blur, acc_img, mask);
 
     blur_img.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     std::cerr << "HIPAcc blur filter: " << timing << " ms" << std::endl;
 
 
@@ -408,7 +408,7 @@ int main(int argc, const char **argv) {
     SignatureKernel sig_img(iter_sig, acc_fil, sig_dom);
 
     sig_img.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     std::cerr << "HIPAcc signature kernel: " << timing << " ms" << std::endl;
 
 
@@ -426,32 +426,32 @@ int main(int argc, const char **argv) {
 
         // filter frame
         blur_img.execute();
-        timing = hipaccGetLastKernelTiming();
+        timing = hipacc_last_kernel_timing();
         fps_timing = timing;
         std::cerr << "HIPAcc blur filter: " << timing << " ms" << std::endl;
 
         // generate signature for frame
         sig_img.execute();
-        timing = hipaccGetLastKernelTiming();
+        timing = hipacc_last_kernel_timing();
         fps_timing += timing;
         std::cerr << "HIPAcc signature kernel: " << timing << " ms" << std::endl;
 
         // perform matching
         vector_kernel.execute();
-        timing = hipaccGetLastKernelTiming();
+        timing = hipacc_last_kernel_timing();
         fps_timing += timing;
         std::cerr << "HIPAcc vector kernel: " << timing << " ms" << std::endl;
-        vecs = img_vec.getData();
+        vecs = img_vec.data();
 
         // fps time
         std::cerr << "HIPAcc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
         vector<Point2i> v0, v1;
-        for (int y=0; y<img_vec.getHeight(); y++) {
-            for (int x=0; x<img_vec.getWidth(); x++) {
-                if (vecs[x + y*img_vec.getWidth()]!=0) {
+        for (int y=0; y<img_vec.height(); y++) {
+            for (int x=0; x<img_vec.width(); x++) {
+                if (vecs[x + y*img_vec.width()]!=0) {
                     v0.push_back(Point(x*2 + WINDOW_SIZE_X/2, y*2 + WINDOW_SIZE_Y/2));
-                    int loc = vecs[x + y*img_vec.getWidth()];
+                    int loc = vecs[x + y*img_vec.width()];
                     int high = loc >> 16;
                     int low = (loc & 0xffff);
                     if (low >> 15) low |= 0xffff0000;
@@ -481,32 +481,32 @@ int main(int argc, const char **argv) {
 
     // filter frame
     blur_img.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     fps_timing = timing;
     std::cerr << "HIPAcc blur filter: " << timing << " ms" << std::endl;
 
     // generate signature for frame
     sig_img.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     fps_timing += timing;
     std::cerr << "HIPAcc signature kernel: " << timing << " ms" << std::endl;
 
     // perform matching
     vector_kernel.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     fps_timing += timing;
     std::cerr << "HIPAcc vector kernel: " << timing << " ms" << std::endl;
-    vecs = img_vec.getData();
+    vecs = img_vec.data();
 
     // fps time
     std::cerr << "HIPAcc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
     vector<Point2i> v0, v1;
-    for (int y=0; y<img_vec.getHeight(); y++) {
-        for (int x=0; x<img_vec.getWidth(); x++) {
-            if (vecs[x + y*img_vec.getWidth()]!=0) {
+    for (int y=0; y<img_vec.height(); y++) {
+        for (int x=0; x<img_vec.width(); x++) {
+            if (vecs[x + y*img_vec.width()]!=0) {
                 v0.push_back(Point(x*2 + WINDOW_SIZE_X/2, y*2 + WINDOW_SIZE_Y/2));
-                int loc = vecs[x + y*img_vec.getWidth()];
+                int loc = vecs[x + y*img_vec.width()];
                 int high = loc >> 16;
                 int low = (loc & 0xffff);
                 if (low >> 15) low |= 0xffff0000;

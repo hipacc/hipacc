@@ -128,13 +128,13 @@ int main(int argc, const char **argv) {
 
     // Image = Image
     IMG1 = IMG0;
-    out = IMG1.getData();
+    out = IMG1.data();
     compare_results(img0, out, img_roi, img_roi);
 
     // Accessor = Image
     Accessor<int> AccImg1NN(IMG1, Interpolate::NN);
     AccImg1NN = IMG0;
-    out = IMG1.getData();
+    out = IMG1.data();
     compare_results(img0, out, img_roi, img_roi);
 
     // Accessor = Accessor
@@ -143,18 +143,18 @@ int main(int argc, const char **argv) {
     roi_t acc_roi0(width, height, roi_width, roi_height, roi_width/2, roi_height/2);
     roi_t acc_roi1(width, height, roi_width, roi_height, roi_offset_x, roi_offset_y);
     AccImg1LF = AccImg0;
-    out = IMG1.getData();
+    out = IMG1.data();
     compare_results(img0, out, acc_roi0, acc_roi1);
 
     // Image = Accessor
     IMG2 = AccImg0;
     roi_t img_roi2(roi_width, roi_height);
-    out = IMG2.getData();
+    out = IMG2.data();
     compare_results(img0, out, acc_roi0, img_roi2);
 
-    // Image = Image.getData()
-    IMG1 = IMG0.getData();
-    out = IMG1.getData();
+    // Image = Image.data()
+    IMG1 = IMG0.data();
+    out = IMG1.data();
     compare_results(img0, out, img_roi, img_roi);
 
 

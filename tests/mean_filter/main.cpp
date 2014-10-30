@@ -145,7 +145,7 @@ class HorizontalMeanFilter : public Kernel<float> {
             d(d),
             nt(nt),
             width(width)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             float sum = 0.0f;
@@ -157,20 +157,20 @@ class HorizontalMeanFilter : public Kernel<float> {
 
             output() = sum/(float)d;
             #else
-            int t0 = getX();
+            int t0 = x();
 
             // first phase: convolution
             for (int k=0; k<d; ++k) {
-                sum += input.getPixel(k + t0*nt, input.getY());
+                sum += input.pixel_at(k + t0*nt, input.y());
             }
-            outputAtPixel(t0*nt, getY()) = sum/(float)d;
+            output_at(t0*nt, y()) = sum/(float)d;
 
             // second phase: rolling sum
             for (int dt=1; dt<min(nt, width-d-(t0*nt)); ++dt) {
                 int t = t0*nt + dt;
-                sum -= input.getPixel(t-1, input.getY());
-                sum += input.getPixel(t-1+d, input.getY());
-                outputAtPixel(t, getY()) = sum/(float)d;
+                sum -= input.pixel_at(t-1,   input.y());
+                sum += input.pixel_at(t-1+d, input.y());
+                output_at(t, y()) = sum/(float)d;
             }
             #endif
         }
@@ -189,7 +189,7 @@ class VerticalMeanFilter : public Kernel<float> {
             d(d),
             nt(nt),
             height(height)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             float sum = 0;
@@ -201,20 +201,20 @@ class VerticalMeanFilter : public Kernel<float> {
 
             output() = sum/(float)d;
             #else
-            int t0 = getY();
+            int t0 = y();
 
             // first phase: convolution
             for (int k=0; k<d; ++k) {
-                sum += input.getPixel(input.getX(), k + t0*nt);
+                sum += input.pixel_at(input.x(), k + t0*nt);
             }
-            outputAtPixel(getX(), t0*nt) = sum/(float)d;
+            output_at(x(), t0*nt) = sum/(float)d;
 
             // second phase: rolling sum
             for (int dt=1; dt<min(nt, height-d-(t0*nt)); ++dt) {
                 int t = t0*nt + dt;
-                sum -= input.getPixel(input.getX(), t-1);
-                sum += input.getPixel(input.getX(), t-1+d);
-                outputAtPixel(getX(), t) = sum/(float)d;
+                sum -= input.pixel_at(input.x(), t-1);
+                sum += input.pixel_at(input.x(), t-1+d);
+                output_at(x(), t) = sum/(float)d;
             }
             #endif
         }
@@ -275,10 +275,10 @@ int main(int argc, const char **argv) {
     #else
     VMF.execute();
     #endif
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
     // get pointer to result data
-    float *output = OUT.getData();
+    float *output = OUT.data();
 
     #ifdef HSCAN
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-d)*height/timing)/1000);

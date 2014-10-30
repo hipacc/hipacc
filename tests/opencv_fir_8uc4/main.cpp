@@ -93,7 +93,7 @@ class FIRFilterMask : public Kernel<uchar4> {
             input(input),
             mask(mask),
             size_x(size_x)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -191,7 +191,7 @@ int main(int argc, const char **argv) {
     FIRFilterMask FFU(IsOut, AccInUndef2, MX, size_x);
 
     FFU.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
@@ -203,7 +203,7 @@ int main(int argc, const char **argv) {
     FIRFilterMask FFC(IsOut, AccInClamp2, MX, size_x);
 
     FFC.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
 
@@ -214,7 +214,7 @@ int main(int argc, const char **argv) {
     FIRFilterMask FFR(IsOut, AccInRepeat2, MX, size_x);
 
     FFR.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
 
@@ -225,7 +225,7 @@ int main(int argc, const char **argv) {
     FIRFilterMask FFM(IsOut, AccInMirror2, MX, size_x);
 
     FFM.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
 
@@ -236,13 +236,13 @@ int main(int argc, const char **argv) {
     FIRFilterMask FFConst(IsOut, AccInConst2, MX, size_x);
 
     FFConst.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width/timing)/1000);
 
 
     // get pointer to result data
-    uchar4 *output = OUT.getData();
+    uchar4 *output = OUT.data();
     #endif
 
 

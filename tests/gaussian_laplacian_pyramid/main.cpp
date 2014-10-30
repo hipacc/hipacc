@@ -60,7 +60,7 @@ class Gaussian : public Kernel<char> {
           mask(mask),
           size_x(size_x),
           size_y(size_y) {
-      addAccessor(&input);
+      add_accessor(&input);
     }
 
     void kernel() {
@@ -92,7 +92,7 @@ class Subsample : public Kernel<char> {
     Subsample(IterationSpace<char> &iter, Accessor<char> &input)
         : Kernel(iter),
           input(input) {
-      addAccessor(&input);
+      add_accessor(&input);
     }
 
     void kernel() {
@@ -111,8 +111,8 @@ class DifferenceOfGaussian : public Kernel<char> {
         : Kernel(iter),
           input1(input1),
           input2(input2) {
-      addAccessor(&input1);
-      addAccessor(&input2);
+      add_accessor(&input1);
+      add_accessor(&input2);
     }
 
     void kernel() {
@@ -131,8 +131,8 @@ class Collapse : public Kernel<char> {
         : Kernel(iter),
           input1(input1),
           input2(input2) {
-      addAccessor(&input1);
-      addAccessor(&input2);
+      add_accessor(&input1);
+      add_accessor(&input2);
     }
 
     void kernel() {
@@ -215,19 +215,19 @@ int main(int argc, const char **argv) {
     Pyramid<char> PLAP(LAP, depth);
 
     traverse(PGAUS, PTMP, PLAP, [&] () {
-        if (!PGAUS.isTopLevel()) {
+        if (!PGAUS.is_top_level()) {
           // Construct gaussian pyramid
           BoundaryCondition<char> BC(PGAUS(-1), M, Boundary::CLAMP);
           Accessor<char> Acc1(BC);
           IterationSpace<char> IS1(PTMP(-1));
           Gaussian Gaus(IS1, Acc1, M, size_x, size_y);
-          printf("Level %d: Gaussian\n", PGAUS.getLevel()-1);
+          printf("Level %d: Gaussian\n", PGAUS.level()-1);
           Gaus.execute();
 
           Accessor<char> Acc2(PTMP(-1), Interpolate::NN);
           IterationSpace<char> IS2(PGAUS(0));
           Subsample Sub(IS2, Acc2);
-          printf("Level %d: Subsample\n", PGAUS.getLevel()-1);
+          printf("Level %d: Subsample\n", PGAUS.level()-1);
           Sub.execute();
 
           // Construct lapacian pyramid
@@ -235,25 +235,25 @@ int main(int argc, const char **argv) {
           Accessor<char> Acc4(PGAUS(0), Interpolate::LF);
           IterationSpace<char> IS3(PLAP(-1));
           DifferenceOfGaussian DoG(IS3, Acc3, Acc4);
-          printf("Level %d: DifferenceOfGaussian\n", PGAUS.getLevel()-1);
+          printf("Level %d: DifferenceOfGaussian\n", PGAUS.level()-1);
           DoG.execute();
         }
 
         traverse();
 
         // Collapse laplacian pyramid
-        if (!PGAUS.isBottomLevel()) {
+        if (!PGAUS.is_bottom_level()) {
           Accessor<char> Acc1(PGAUS(1), Interpolate::LF);
           Accessor<char> Acc2(PLAP(0));
           IterationSpace<char> IS(PGAUS(0));
           Collapse Col(IS, Acc1, Acc2);
-          printf("Level %d: Collapse\n", PGAUS.getLevel());
+          printf("Level %d: Collapse\n", PGAUS.level());
           Col.execute();
         }
     });
 
     // get pointer to result data
-    char *output = GAUS.getData();
+    char *output = GAUS.data();
 
     for (int y = 0; y < height; ++y) {
       for (int x = 0; x < width; ++x) {

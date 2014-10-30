@@ -115,7 +115,7 @@ class LaplaceFilter : public Kernel<uchar> {
             dom(dom),
             mask(mask),
             size(size)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -236,7 +236,7 @@ int main(int argc, const char **argv) {
     LaplaceFilter LFU(IsOut, AccInUndef, D, M, size_x);
 
     LFU.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
@@ -248,7 +248,7 @@ int main(int argc, const char **argv) {
     LaplaceFilter LFC(IsOut, AccInClamp, D, M, size_x);
 
     LFC.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
@@ -259,7 +259,7 @@ int main(int argc, const char **argv) {
     LaplaceFilter LFR(IsOut, AccInRepeat, D, M, size_x);
 
     LFR.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
@@ -270,7 +270,7 @@ int main(int argc, const char **argv) {
     LaplaceFilter LFM(IsOut, AccInMirror, D, M, size_x);
 
     LFM.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
@@ -281,13 +281,13 @@ int main(int argc, const char **argv) {
     LaplaceFilter LFConst(IsOut, AccInConst, D, M, size_x);
 
     LFConst.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     // get pointer to result data
-    uchar *output = OUT.getData();
+    uchar *output = OUT.data();
     #endif
 
 

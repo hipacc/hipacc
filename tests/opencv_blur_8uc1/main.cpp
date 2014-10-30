@@ -169,7 +169,7 @@ class BlurFilter : public Kernel<uchar> {
             , nt(nt),
             height(height)
             #endif
-        { addAccessor(&in); }
+        { add_accessor(&in); }
 
         #ifdef SIMPLE
         void kernel() {
@@ -198,24 +198,24 @@ class BlurFilter : public Kernel<uchar> {
             int anchor_y = size_y >> 1;
             int sum = 0;
 
-            int t0 = getY();
+            int t0 = y();
 
             // first phase: convolution
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum += in.getPixel(in.getX() + xf, t0*nt + yf);
+                    sum += in.pixel_at(in.x() + xf, t0*nt + yf);
                 }
             }
-            outputAtPixel(getX(), t0*nt) = (uchar) ((1/(float)(size_x*size_y))*sum);
+            output_at(x(), t0*nt) = (uchar) ((1/(float)(size_x*size_y))*sum);
 
             // second phase: rolling sum
             for (int dt=1; dt<min(nt, height-2*anchor_y-(t0*nt)); ++dt) {
                 int t = t0*nt + dt;
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum -= in.getPixel(in.getX() + xf, t-anchor_y-1);
-                    sum += in.getPixel(in.getX() + xf, t-anchor_y-1+size_y);
+                    sum -= in.pixel_at(in.x() + xf, t-anchor_y-1);
+                    sum += in.pixel_at(in.x() + xf, t-anchor_y-1+size_y);
                 }
-                outputAtPixel(getX(), t) = (uchar) ((1/(float)(size_x*size_y))*sum);
+                output_at(x(), t) = (uchar) ((1/(float)(size_x*size_y))*sum);
             }
         }
         #endif
@@ -307,10 +307,10 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     filter.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
     // get pointer to result data
-    uchar *output = out.getData();
+    uchar *output = out.data();
 
     fprintf(stderr, "HIPACC: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
 

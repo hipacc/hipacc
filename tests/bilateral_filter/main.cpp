@@ -148,7 +148,7 @@ class BilateralFilter : public Kernel<float> {
             input(input),
             sigma_d(sigma_d),
             sigma_r(sigma_r)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -187,7 +187,7 @@ class BilateralFilterMask : public Kernel<float> {
             dom(dom),
             sigma_d(sigma_d),
             sigma_r(sigma_r)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -243,7 +243,7 @@ class BilateralFilterBHCLAMP : public Kernel<float> {
             sigma_r(sigma_r),
             width(width),
             height(height)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -252,17 +252,17 @@ class BilateralFilterBHCLAMP : public Kernel<float> {
             float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                int iy = input.getY() + yf;
+                int iy = input.y() + yf;
                 iy = min(max(iy, 0), height-1);
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    int ix = input.getX() + xf;
+                    int ix = input.x() + xf;
                     ix = min(max(ix, 0), width-1);
-                    float diff = input.getPixel(ix, iy) - input();
+                    float diff = input.pixel_at(ix, iy) - input();
 
                     float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
                         expf(-c_d * yf*yf);
                     d += s;
-                    p += s * input.getPixel(ix, iy);
+                    p += s * input.pixel_at(ix, iy);
                 }
             }
 
@@ -287,7 +287,7 @@ class BilateralFilterBHREPEAT : public Kernel<float> {
             sigma_r(sigma_r),
             width(width),
             height(height)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -296,19 +296,19 @@ class BilateralFilterBHREPEAT : public Kernel<float> {
             float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                int iy = input.getY() + yf;
+                int iy = input.y() + yf;
                 while (iy < 0) iy += height;
                 while (iy >= height) iy -= height;
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    int ix = input.getX() + xf;
+                    int ix = input.x() + xf;
                     while (ix < 0) ix += width;
                     while (ix >= width) ix -= width;
-                    float diff = input.getPixel(ix, iy) - input();
+                    float diff = input.pixel_at(ix, iy) - input();
 
                     float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
                         expf(-c_d * yf*yf);
                     d += s;
-                    p += s * input.getPixel(ix, iy);
+                    p += s * input.pixel_at(ix, iy);
                 }
             }
 
@@ -333,7 +333,7 @@ class BilateralFilterBHMIRROR : public Kernel<float> {
             sigma_r(sigma_r),
             width(width),
             height(height)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -342,19 +342,19 @@ class BilateralFilterBHMIRROR : public Kernel<float> {
             float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                int iy = input.getY() + yf;
+                int iy = input.y() + yf;
                 if (iy < 0) iy = -iy - 1;
                 if (iy >= height) iy = height - (iy+1 - height);
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    int ix = input.getX() + xf;
+                    int ix = input.x() + xf;
                     if (ix < 0) ix = -ix - 1;
                     if (ix >= width) ix = width - (ix+1 - width);
-                    float diff = input.getPixel(ix, iy) - input();
+                    float diff = input.pixel_at(ix, iy) - input();
 
                     float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
                         expf(-c_d * yf*yf);
                     d += s;
-                    p += s * input.getPixel(ix, iy);
+                    p += s * input.pixel_at(ix, iy);
                 }
             }
 
@@ -379,7 +379,7 @@ class BilateralFilterBHCONSTANT : public Kernel<float> {
             sigma_r(sigma_r),
             width(width),
             height(height)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             float c_r = 1.0f/(2.0f*sigma_r*sigma_r);
@@ -388,14 +388,14 @@ class BilateralFilterBHCONSTANT : public Kernel<float> {
             float p = 0;
 
             for (int yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                int iy = input.getY() + yf;
+                int iy = input.y() + yf;
                 for (int xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    int ix = input.getX() + xf;
+                    int ix = input.x() + xf;
                     float diff;
                     if (ix < 0 || iy < 0 || ix >= width || iy >= height) {
                         diff = CONSTANT;
                     } else {
-                        diff = input.getPixel(ix, iy) - input();
+                        diff = input.pixel_at(ix, iy) - input();
                     }
 
                     float s = expf(-c_r * diff*diff) * expf(-c_d * xf*xf) *
@@ -404,7 +404,7 @@ class BilateralFilterBHCONSTANT : public Kernel<float> {
                     if (ix < 0 || iy < 0 || ix >= width || iy >= height) {
                         p += s * CONSTANT;
                     } else {
-                        p += s * input.getPixel(ix, iy);
+                        p += s * input.pixel_at(ix, iy);
                     }
                 }
             }
@@ -515,7 +515,7 @@ int main(int argc, const char **argv) {
 
 
     BFNOBH.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
     fprintf(stderr, "Hipacc (NOBH): %.3f ms, %.3f Mpixel/s\n\n", timing, (width*height/timing)/1000);
 
@@ -530,13 +530,13 @@ int main(int argc, const char **argv) {
     #endif
 
     BF.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n\n", timing, (width*height/timing)/1000);
 
 
     // get pointer to result data
-    float *output = out.getData();
+    float *output = out.data();
 
 
     // manual border handling: CLAMP
@@ -546,7 +546,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
 
     BFBHCLAMP.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
     fprintf(stderr, "Hipacc(BHCLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
@@ -557,7 +557,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
 
     BFBHREPEAT.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
     fprintf(stderr, "Hipacc(BHREPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
@@ -568,7 +568,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
 
     BFBHMIRROR.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
     fprintf(stderr, "Hipacc(BHMIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
@@ -579,7 +579,7 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
 
     BFBHCONSTANT.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
     fprintf(stderr, "Hipacc(BHCONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 

@@ -53,7 +53,7 @@ class GaussianBlurFilter : public Kernel<uchar> {
             Kernel(iter),
             input(input),
             mask(mask)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             output() = (uchar)(convolve(mask, Reduce::SUM, [&] () -> float {
@@ -78,7 +78,7 @@ class GradFilter : public Kernel<float> {
             mask_y(mask_y),
             dom_x(dom_x),
             dom_y(dom_y)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             int gx = reduce(dom_x, Reduce::SUM, [&] () -> int {
@@ -100,7 +100,7 @@ class NMSFilter : public Kernel<int> {
         NMSFilter(IterationSpace<int> &iter, Accessor<float> &input) :
             Kernel(iter),
             input(input)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             int pixel = input();
@@ -139,7 +139,7 @@ class ThresholdFilter : public Kernel<uchar> {
         ThresholdFilter(IterationSpace<uchar> &iter, Accessor<int> &input) :
             Kernel(iter),
             input(input)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             int pixel = input();
@@ -257,32 +257,32 @@ int main(int argc, const char **argv) {
 
         // blur input image
         gauss.execute();
-        timing = hipaccGetLastKernelTiming();
+        timing = hipacc_last_kernel_timing();
         fps_timing = timing;
         fprintf(stderr, "HIPAcc Gaussian blur filter: %.3f ms\n", timing);
 
         // compute edge gradient
         grad.execute();
-        timing = hipaccGetLastKernelTiming();
+        timing = hipacc_last_kernel_timing();
         fps_timing += timing;
         fprintf(stderr, "HIPAcc edge gradient filter: %.3f ms\n", timing);
 
         // perform non-maximum suppression
         nms.execute();
-        timing = hipaccGetLastKernelTiming();
+        timing = hipacc_last_kernel_timing();
         fps_timing += timing;
         fprintf(stderr, "HIPAcc NMS filter: %.3f ms\n", timing);
 
         // final thresholding
         threshold.execute();
-        timing = hipaccGetLastKernelTiming();
+        timing = hipacc_last_kernel_timing();
         fps_timing += timing;
         fprintf(stderr, "HIPAcc threshold filter: %.3f ms\n", timing);
 
         // fps time
         fprintf(stderr, "HIPAcc canny: %.3f ms, %f fps\n", fps_timing, 1000.0f/fps_timing);
 
-        frameCanny.data = output_img.getData();
+        frameCanny.data = output_img.data();
 
         // display frame
         imshow("Canny", frameCanny);

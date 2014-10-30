@@ -150,7 +150,7 @@ class GaussianBlurFilterMask : public Kernel<uchar4> {
             mask(mask),
             size_x(size_x),
             size_y(size_y)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -188,7 +188,7 @@ class GaussianBlurFilterMaskRow : public Kernel<float4> {
             input(input),
             mask(mask),
             size(size)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -222,7 +222,7 @@ class GaussianBlurFilterMaskColumn : public Kernel<uchar4> {
             input(input),
             mask(mask),
             size(size)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -406,7 +406,7 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMask GFU(IsOut, AccInUndef2, M, size_x, size_y);
 
     GFU.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<uchar4> BcInUndef(IN, MX, Boundary::UNDEFINED);
     Accessor<uchar4> AccInUndef(BcInUndef);
@@ -417,9 +417,9 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMaskColumn GFCU(IsOut, AccTmpUndef, MY, size_y);
 
     GFRU.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     GFCU.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     #endif
     timings.push_back(timing);
@@ -433,7 +433,7 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMask GFC(IsOut, AccInClamp2, M, size_x, size_y);
 
     GFC.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<uchar4> BcInClamp(IN, MX, Boundary::CLAMP);
     Accessor<uchar4> AccInClamp(BcInClamp);
@@ -444,9 +444,9 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMaskColumn GFCC(IsOut, AccTmpClamp, MY, size_y);
 
     GFRC.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     GFCC.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
@@ -459,7 +459,7 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMask GFR(IsOut, AccInRepeat2, M, size_x, size_y);
 
     GFR.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<uchar4> BcInRepeat(IN, MX, Boundary::REPEAT);
     Accessor<uchar4> AccInRepeat(BcInRepeat);
@@ -470,9 +470,9 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMaskColumn GFCR(IsOut, AccTmpRepeat, MY, size_y);
 
     GFRR.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     GFCR.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
@@ -485,7 +485,7 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMask GFM(IsOut, AccInMirror2, M, size_x, size_y);
 
     GFM.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<uchar4> BcInMirror(IN, MX, Boundary::MIRROR);
     Accessor<uchar4> AccInMirror(BcInMirror);
@@ -496,9 +496,9 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMaskColumn GFCM(IsOut, AccTmpMirror, MY, size_y);
 
     GFRM.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     GFCM.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
@@ -511,7 +511,7 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMask GFConst(IsOut, AccInConst2, M, size_x, size_y);
 
     GFConst.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     #else
     BoundaryCondition<uchar4> BcInConst(IN, MX, Boundary::CONSTANT, (uchar4){'1','1','1','1'});
     Accessor<uchar4> AccInConst(BcInConst);
@@ -522,16 +522,16 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMaskColumn GFCConst(IsOut, AccTmpConst, MY, size_y);
 
     GFRConst.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     GFCConst.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
     fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     // get pointer to result data
-    uchar4 *output = OUT.getData();
+    uchar4 *output = OUT.data();
     #endif
 
 

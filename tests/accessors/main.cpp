@@ -83,7 +83,7 @@ class CopyKernel : public Kernel<int> {
         CopyKernel(IterationSpace<int> &iter, Accessor<int> &input) :
             Kernel(iter),
             input(input)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             output() = input();
@@ -144,11 +144,11 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Executing copy (NN) kernel ...\n");
 
     copy_nn.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
 
     // get pointer to result data
-    int *output = OUT.getData();
+    int *output = OUT.data();
 
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (is_width*is_height/timing)/1000);
 

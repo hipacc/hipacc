@@ -72,7 +72,7 @@ class Deriv1D : public Kernel<float> {
     Deriv1D(IterationSpace<float> &iter, Accessor<uchar> &input,
             Mask<float> &mask)
           : Kernel(iter), input(input), mask(mask) {
-      addAccessor(&input);
+      add_accessor(&input);
     }
 
     void kernel() {
@@ -97,7 +97,7 @@ class Deriv1DCol : public Kernel<float> {
             input(input),
             mask(mask),
             size(size) {
-      addAccessor(&input);
+      add_accessor(&input);
     }
 
     void kernel() {
@@ -121,7 +121,7 @@ class Deriv1DRow : public Kernel<float> {
             input(input),
             mask(mask),
             size(size) {
-      addAccessor(&input);
+      add_accessor(&input);
     }
 
     void kernel() {
@@ -149,7 +149,7 @@ class Deriv2D : public Kernel<float> {
             dom(dom),
             mask1(mask1),
             mask2(mask2) {
-      addAccessor(&input);
+      add_accessor(&input);
     }
 
     void kernel() {
@@ -176,7 +176,7 @@ class GaussianBlurFilterMaskRow : public Kernel<float> {
           input(input),
           mask(mask),
           size(size) {
-      addAccessor(&input);
+      add_accessor(&input);
     }
 
     #ifdef USE_LAMBDA
@@ -212,7 +212,7 @@ class GaussianBlurFilterMaskColumn : public Kernel<float> {
           input(input),
           mask(mask),
           size(size) {
-      addAccessor(&input);
+      add_accessor(&input);
     }
 
     #ifdef USE_LAMBDA
@@ -250,9 +250,9 @@ class HarrisCorner : public Kernel<float> {
             Dy(Dy),
             Dxy(Dxy),
             k(k) {
-      addAccessor(&Dx);
-      addAccessor(&Dy);
-      addAccessor(&Dxy);
+      add_accessor(&Dx);
+      add_accessor(&Dy);
+      add_accessor(&Dxy);
     }
 
     void kernel() {
@@ -409,12 +409,12 @@ int main(int argc, const char **argv) {
     #ifdef NO_SEP
     Deriv1D D1dx(IsDx, AccInClamp, MX);
     D1dx.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
 
     Deriv1D D1dy(IsDy, AccInClamp, MY);
     D1dy.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     #else
     BoundaryCondition<float> BcTmpDcClamp(TMP, 1, 3, Boundary::CLAMP);
@@ -422,29 +422,29 @@ int main(int argc, const char **argv) {
 
     Deriv1DCol D1dxc(IsTmp, AccInClamp, MXX, 3);
     D1dxc.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
 
     Deriv1DRow D1dxr(IsDx, AccTmpDcClamp, MXY, 3);
     D1dxr.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
 
     Deriv1DCol D1dyc(IsTmp, AccInClamp, MYX, 3);
     D1dyc.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
 
     Deriv1DRow D1dyr(IsDy, AccTmpDcClamp, MYY, 3);
     D1dyr.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     #endif
 
     Domain dom(3, 3);
     Deriv2D D2dxy(IsDxy, AccInClamp, dom, MX, MY);
     D2dxy.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
 
     BoundaryCondition<float> BcTmpClamp(TMP, 1, size_y, Boundary::CLAMP);
@@ -455,9 +455,9 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMaskRow GRDx(IsTmp, AccInClampDx, GX, size_x);
     GaussianBlurFilterMaskColumn GCDx(IsDx, AccTmpClamp, GY, size_y);
     GRDx.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     GCDx.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     timings.push_back(timing);
 
     BoundaryCondition<float> BcInClampDy(DY, size_x, 1, Boundary::CLAMP);
@@ -465,9 +465,9 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMaskRow GRDy(IsTmp, AccInClampDy, GX, size_x);
     GaussianBlurFilterMaskColumn GCDy(IsDy, AccTmpClamp, GY, size_y);
     GRDy.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     GCDy.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     timings.push_back(timing);
 
     BoundaryCondition<float> BcInClampDxy(DXY, size_x, 1, Boundary::CLAMP);
@@ -475,9 +475,9 @@ int main(int argc, const char **argv) {
     GaussianBlurFilterMaskRow GRDxy(IsTmp, AccInClampDxy, GX, size_x);
     GaussianBlurFilterMaskColumn GCDxy(IsDxy, AccTmpClamp, GY, size_y);
     GRDxy.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     GCDxy.execute();
-    timing += hipaccGetLastKernelTiming();
+    timing += hipacc_last_kernel_timing();
     timings.push_back(timing);
 
     Accessor<float> AccDx(DX);
@@ -485,11 +485,11 @@ int main(int argc, const char **argv) {
     Accessor<float> AccDxy(DXY);
     HarrisCorner HC(IsOut, AccDx, AccDy, AccDxy, k);
     HC.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
 
     // get pointer to result data
-    float *output = OUT.getData();
+    float *output = OUT.data();
 
     for (int x = 0; x < width; ++x) {
       for (int y = 0; y < height; y++) {

@@ -103,7 +103,7 @@ class ErodeFilter : public Kernel<uchar> {
             dom(dom),
             size_x(size_x),
             size_y(size_y)
-        { addAccessor(&in); }
+        { add_accessor(&in); }
 
         #ifdef USE_LAMBDA
         void kernel() {
@@ -202,10 +202,10 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     filter.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
 
     // get pointer to result data
-    uchar *output = out.getData();
+    uchar *output = out.data();
 
     fprintf(stderr, "HIPACC: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
 

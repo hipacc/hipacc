@@ -114,7 +114,7 @@ class MinReductionInt : public Kernel<int> {
         MinReductionInt(IterationSpace<int> &iter, Accessor<int> &in) :
             Kernel(iter),
             in(in)
-        { addAccessor(&in); }
+        { add_accessor(&in); }
 
         void kernel() {
             output() = in();
@@ -132,7 +132,7 @@ class MinReductionFloat : public Kernel<float> {
         MinReductionFloat(IterationSpace<float> &iter, Accessor<float> &in) :
             Kernel(iter),
             in(in)
-        { addAccessor(&in); }
+        { add_accessor(&in); }
 
         void kernel() {
             output() = in();
@@ -150,7 +150,7 @@ class MaxReductionInt : public Kernel<int> {
         MaxReductionInt(IterationSpace<int> &iter, Accessor<int> &in) :
             Kernel(iter),
             in(in)
-        { addAccessor(&in); }
+        { add_accessor(&in); }
 
         void kernel() {
             output() = in();
@@ -168,7 +168,7 @@ class MaxReductionFloat : public Kernel<float> {
         MaxReductionFloat(IterationSpace<float> &iter, Accessor<float> &in) :
             Kernel(iter),
             in(in)
-        { addAccessor(&in); }
+        { add_accessor(&in); }
 
         void kernel() {
             output() = in();
@@ -186,7 +186,7 @@ class SumReductionInt : public Kernel<int> {
         SumReductionInt(IterationSpace<int> &iter, Accessor<int> &in) :
             Kernel(iter),
             in(in)
-        { addAccessor(&in); }
+        { add_accessor(&in); }
 
         void kernel() {
             output() = in();
@@ -204,7 +204,7 @@ class SumReductionFloat : public Kernel<float> {
         SumReductionFloat(IterationSpace<float> &iter, Accessor<float> &in) :
             Kernel(iter),
             in(in)
-        { addAccessor(&in); }
+        { add_accessor(&in); }
 
         void kernel() {
             output() = in();
@@ -297,41 +297,41 @@ int main(int argc, const char **argv) {
     time0 = time_ms();
 
     // Images
-    int min_pixel_functor_int_img = redMinINInt.getReducedData();
+    int min_pixel_functor_int_img = redMinINInt.reduced_data();
     fprintf(stderr, "reduction functor, min (img, int): %d\n", min_pixel_functor_int_img);
 
-    int max_pixel_functor_int_img = redMaxINInt.getReducedData();
+    int max_pixel_functor_int_img = redMaxINInt.reduced_data();
     fprintf(stderr, "reduction functor, max (img, int): %d\n", max_pixel_functor_int_img);
 
-    int sum_pixel_functor_int_img = redSumINInt.getReducedData();
+    int sum_pixel_functor_int_img = redSumINInt.reduced_data();
     fprintf(stderr, "reduction functor, sum (img, int): %d\n", sum_pixel_functor_int_img);
 
-    float min_pixel_functor_float_img = redMinINFloat.getReducedData();
+    float min_pixel_functor_float_img = redMinINFloat.reduced_data();
     fprintf(stderr, "reduction functor, min (img, float): %f\n", min_pixel_functor_float_img);
 
-    float max_pixel_functor_float_img = redMaxINFloat.getReducedData();
+    float max_pixel_functor_float_img = redMaxINFloat.reduced_data();
     fprintf(stderr, "reduction functor, max (img, float): %f\n", max_pixel_functor_float_img);
 
-    float sum_pixel_functor_float_img = redSumINFloat.getReducedData();
+    float sum_pixel_functor_float_img = redSumINFloat.reduced_data();
     fprintf(stderr, "reduction functor, sum (img, float): %f\n", sum_pixel_functor_float_img);
 
     // Accessors
-    int min_pixel_functor_int_acc = redMinAccInInt.getReducedData();
+    int min_pixel_functor_int_acc = redMinAccInInt.reduced_data();
     fprintf(stderr, "reduction functor, min (acc, int): %d\n", min_pixel_functor_int_acc);
 
-    int max_pixel_functor_int_acc = redMaxAccInInt.getReducedData();
+    int max_pixel_functor_int_acc = redMaxAccInInt.reduced_data();
     fprintf(stderr, "reduction functor, max (acc, int): %d\n", max_pixel_functor_int_acc);
 
-    int sum_pixel_functor_int_acc = redSumAccInInt.getReducedData();
+    int sum_pixel_functor_int_acc = redSumAccInInt.reduced_data();
     fprintf(stderr, "reduction functor, sum (acc, int): %d\n", sum_pixel_functor_int_acc);
 
-    float min_pixel_functor_float_acc = redMinAccInFloat.getReducedData();
+    float min_pixel_functor_float_acc = redMinAccInFloat.reduced_data();
     fprintf(stderr, "reduction functor, min (acc, float): %f\n", min_pixel_functor_float_acc);
 
-    float max_pixel_functor_float_acc = redMaxAccInFloat.getReducedData();
+    float max_pixel_functor_float_acc = redMaxAccInFloat.reduced_data();
     fprintf(stderr, "reduction functor, max (acc, float): %f\n", max_pixel_functor_float_acc);
 
-    float sum_pixel_functor_float_acc = redSumAccInFloat.getReducedData();
+    float sum_pixel_functor_float_acc = redSumAccInFloat.reduced_data();
     fprintf(stderr, "reduction functor, sum (acc, float): %f\n", sum_pixel_functor_float_acc);
 
     time1 = time_ms();

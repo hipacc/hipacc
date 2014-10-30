@@ -118,7 +118,7 @@ class GlobalOffsetCorrection : public Kernel<int> {
             Kernel(iter),
             input(input),
             offset(offset)
-        { addAccessor(&input); }
+        { add_accessor(&input); }
 
         void kernel() {
             output() = input() + offset;
@@ -136,8 +136,8 @@ class AbsoluteDifferences : public Kernel<int> {
             input0(input0),
             input1(input1)
         {
-            addAccessor(&input0);
-            addAccessor(&input1);
+            add_accessor(&input0);
+            add_accessor(&input1);
         }
 
         void kernel() {
@@ -156,8 +156,8 @@ class SquareDifferences : public Kernel<int> {
             input0(input0),
             input1(input1)
         {
-            addAccessor(&input0);
-            addAccessor(&input1);
+            add_accessor(&input0);
+            add_accessor(&input1);
         }
 
         void kernel() {
@@ -172,7 +172,7 @@ class Read1 : public Kernel<int> {
         Read1(IterationSpace<int> &iter, Accessor<int> &input0) :
             Kernel(iter),
             input0(input0)
-        { addAccessor(&input0); }
+        { add_accessor(&input0); }
 
         void kernel() {
             output() = input0();
@@ -190,8 +190,8 @@ class Read2 : public Kernel<int> {
             input0(input0),
             input1(input1)
         {
-            addAccessor(&input0);
-            addAccessor(&input1);
+            add_accessor(&input0);
+            add_accessor(&input1);
         }
 
         void kernel() {
@@ -212,9 +212,9 @@ class Read3 : public Kernel<int> {
             input1(input1),
             input2(input2)
         {
-            addAccessor(&input0);
-            addAccessor(&input1);
-            addAccessor(&input2);
+            add_accessor(&input0);
+            add_accessor(&input1);
+            add_accessor(&input2);
         }
 
         void kernel() {
@@ -237,10 +237,10 @@ class Read4 : public Kernel<int> {
             input2(input2),
             input3(input3)
         {
-            addAccessor(&input0);
-            addAccessor(&input1);
-            addAccessor(&input2);
-            addAccessor(&input3);
+            add_accessor(&input0);
+            add_accessor(&input1);
+            add_accessor(&input2);
+            add_accessor(&input3);
         }
 
         void kernel() {
@@ -266,11 +266,11 @@ class Read5 : public Kernel<int> {
             input3(input3),
             input4(input4)
         {
-            addAccessor(&input0);
-            addAccessor(&input1);
-            addAccessor(&input2);
-            addAccessor(&input3);
-            addAccessor(&input4);
+            add_accessor(&input0);
+            add_accessor(&input1);
+            add_accessor(&input2);
+            add_accessor(&input3);
+            add_accessor(&input4);
         }
 
         void kernel() {
@@ -299,12 +299,12 @@ class Read6 : public Kernel<int> {
             input4(input4),
             input5(input5)
         {
-            addAccessor(&input0);
-            addAccessor(&input1);
-            addAccessor(&input2);
-            addAccessor(&input3);
-            addAccessor(&input4);
-            addAccessor(&input5);
+            add_accessor(&input0);
+            add_accessor(&input1);
+            add_accessor(&input2);
+            add_accessor(&input3);
+            add_accessor(&input4);
+            add_accessor(&input5);
         }
 
         void kernel() {
@@ -335,13 +335,13 @@ class Read7 : public Kernel<int> {
             input5(input5),
             input6(input6)
         {
-            addAccessor(&input0);
-            addAccessor(&input1);
-            addAccessor(&input2);
-            addAccessor(&input3);
-            addAccessor(&input4);
-            addAccessor(&input5);
-            addAccessor(&input6);
+            add_accessor(&input0);
+            add_accessor(&input1);
+            add_accessor(&input2);
+            add_accessor(&input3);
+            add_accessor(&input4);
+            add_accessor(&input5);
+            add_accessor(&input6);
         }
 
         void kernel() {
@@ -375,14 +375,14 @@ class Read8 : public Kernel<int> {
             input6(input6),
             input7(input7)
         {
-            addAccessor(&input0);
-            addAccessor(&input1);
-            addAccessor(&input2);
-            addAccessor(&input3);
-            addAccessor(&input4);
-            addAccessor(&input5);
-            addAccessor(&input6);
-            addAccessor(&input7);
+            add_accessor(&input0);
+            add_accessor(&input1);
+            add_accessor(&input2);
+            add_accessor(&input3);
+            add_accessor(&input4);
+            add_accessor(&input5);
+            add_accessor(&input6);
+            add_accessor(&input7);
         }
 
         void kernel() {
@@ -484,7 +484,7 @@ int main(int argc, const char **argv) {
 
     fprintf(stderr, "Calculating 1 image kernel ...\n");
     R1.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
     size_t memory_size = sizeof(int)*width*height;
@@ -493,70 +493,70 @@ int main(int argc, const char **argv) {
 
     fprintf(stderr, "Calculating 2 image kernel ...\n");
     R2.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     fprintf(stderr, "Calculating 3 image kernel ...\n");
     R3.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     fprintf(stderr, "Calculating 4 image kernel ...\n");
     R4.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     fprintf(stderr, "Calculating 5 image kernel ...\n");
     R5.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     fprintf(stderr, "Calculating 6 image kernel ...\n");
     R6.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     fprintf(stderr, "Calculating 7 image kernel ...\n");
     R7.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     fprintf(stderr, "Calculating 8 image kernel ...\n");
     R8.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     fprintf(stderr, "Calculating global offset correction kernel ...\n");
     GOC.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     fprintf(stderr, "Calculating absolute difference kernel ...\n");
     AD.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
 
     fprintf(stderr, "Calculating square difference kernel ...\n");
     SD.execute();
-    timing = hipaccGetLastKernelTiming();
+    timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
     fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
 
@@ -577,9 +577,9 @@ int main(int argc, const char **argv) {
 
 
     // get pointer to result data
-    int *output0 = OUT0.getData();
-    int *output1 = OUT1.getData();
-    int *output2 = OUT2.getData();
+    int *output0 = OUT0.data();
+    int *output1 = OUT1.data();
+    int *output2 = OUT2.data();
 
 
     // GOC
