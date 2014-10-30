@@ -99,13 +99,6 @@ int main(int argc, const char **argv) {
     int *img2 = (int *)malloc(sizeof(int)*roi_width*roi_height);
     int *img3 = (int *)malloc(sizeof(int)*roi_width*roi_height);
 
-    // input and output image of width x height pixels
-    Image<int> IMG0(width, height);
-    Image<int> IMG1(width, height);
-    Image<int> IMG2(roi_width, roi_height);
-    Image<int> IMG3(roi_width, roi_height);
-    roi_t img_roi(width, height);
-
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
@@ -120,10 +113,13 @@ int main(int argc, const char **argv) {
         }
     }
 
-    IMG0 = img0;
-    IMG1 = img1;
-    IMG2 = img2;
-    IMG3 = img3;
+    // input and output image of width x height pixels
+    Image<int> IMG0(width, height, img0);
+    Image<int> IMG1(width, height, img1);
+    Image<int> IMG2(roi_width, roi_height, img2);
+    Image<int> IMG3(roi_width, roi_height, img3);
+
+    roi_t img_roi(width, height);
     int *out = NULL;
 
     // Image = Image

@@ -278,7 +278,7 @@ int main(int argc, const char **argv) {
 
 
     // input and output image of width x height pixels
-    Image<uchar> in(width, height);
+    Image<uchar> in(width, height, input);
     Image<uchar> out(width, height);
 
     // define Domain for blur filter
@@ -300,8 +300,6 @@ int main(int argc, const char **argv) {
     IterationSpace<uchar> iter(out, width-2*offset_x, (int)ceil((float)(height-2*offset_y)/t), offset_x, offset_y);
     BlurFilter filter(iter, acc, dom, size_x, size_y, t, height);
     #endif
-
-    in = input;
 
     fprintf(stderr, "Calculating HIPAcc blur filter ...\n");
     float timing = 0.0f;

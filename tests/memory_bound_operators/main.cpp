@@ -408,28 +408,6 @@ int main(int argc, const char **argv) {
     int *reference_out1 = (int *)malloc(sizeof(int)*width*height);
     int *reference_out2 = (int *)malloc(sizeof(int)*width*height);
 
-    // input and output image of width x height pixels
-    Image<int> IN0(width, height);
-    Image<int> IN1(width, height);
-    Image<int> IN2(width, height);
-    Image<int> IN3(width, height);
-    Image<int> IN4(width, height);
-    Image<int> IN5(width, height);
-    Image<int> IN6(width, height);
-    Image<int> IN7(width, height);
-    Image<int> OUT0(width, height);
-    Image<int> OUT1(width, height);
-    Image<int> OUT2(width, height);
-
-    Accessor<int> AccIn0(IN0);
-    Accessor<int> AccIn1(IN1);
-    Accessor<int> AccIn2(IN2);
-    Accessor<int> AccIn3(IN3);
-    Accessor<int> AccIn4(IN4);
-    Accessor<int> AccIn5(IN5);
-    Accessor<int> AccIn6(IN6);
-    Accessor<int> AccIn7(IN7);
-
     // initialize data
     #define DELTA 0.001f
     for (int y=0; y<height; ++y) {
@@ -443,6 +421,28 @@ int main(int argc, const char **argv) {
             reference_out2[y*width + x] = (int) (3.12451);
         }
     }
+
+    // input and output image of width x height pixels
+    Image<int> IN0(width, height, input0);
+    Image<int> IN1(width, height, input1);
+    Image<int> IN2(width, height, input2);
+    Image<int> IN3(width, height, input3);
+    Image<int> IN4(width, height, input4);
+    Image<int> IN5(width, height, input5);
+    Image<int> IN6(width, height, input6);
+    Image<int> IN7(width, height, input7);
+    Image<int> OUT0(width, height);
+    Image<int> OUT1(width, height);
+    Image<int> OUT2(width, height);
+
+    Accessor<int> AccIn0(IN0);
+    Accessor<int> AccIn1(IN1);
+    Accessor<int> AccIn2(IN2);
+    Accessor<int> AccIn3(IN3);
+    Accessor<int> AccIn4(IN4);
+    Accessor<int> AccIn5(IN5);
+    Accessor<int> AccIn6(IN6);
+    Accessor<int> AccIn7(IN7);
 
     IterationSpace<int> ISOut0(OUT0);
     IterationSpace<int> ISOut1(OUT1);
@@ -458,15 +458,6 @@ int main(int argc, const char **argv) {
     Read6 R6(ISOut0, AccIn0, AccIn1, AccIn2, AccIn3, AccIn4, AccIn5);
     Read7 R7(ISOut0, AccIn0, AccIn1, AccIn2, AccIn3, AccIn4, AccIn5, AccIn6);
     Read8 R8(ISOut0, AccIn0, AccIn1, AccIn2, AccIn3, AccIn4, AccIn5, AccIn6, AccIn7);
-
-    IN0 = input0;
-    IN1 = input1;
-    IN2 = input1;
-    IN3 = input1;
-    IN4 = input1;
-    IN5 = input1;
-    IN6 = input1;
-    IN7 = input1;
 
     // warmup
     R1.execute();

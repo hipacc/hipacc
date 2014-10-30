@@ -386,7 +386,7 @@ int main(int argc, const char **argv) {
 
 
     // input and output image of width x height pixels
-    Image<uchar> IN(width, height);
+    Image<uchar> IN(width, height, input);
     Image<uchar> OUT(width, height);
     Image<float> TMP(width, height);
 
@@ -397,8 +397,6 @@ int main(int argc, const char **argv) {
 
     IterationSpace<uchar> IsOut(OUT);
     IterationSpace<float> IsTmp(TMP);
-
-    IN = input;
 
 
     #ifndef OpenCV

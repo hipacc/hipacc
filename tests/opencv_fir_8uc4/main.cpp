@@ -155,10 +155,6 @@ int main(int argc, const char **argv) {
     }
     #endif
 
-    // input and output image of width pixels
-    Image<uchar4> IN(width, 1);
-    Image<uchar4> OUT(width, 1);
-
     // host memory for image of width pixels
     uchar4 *input = (uchar4 *)malloc(sizeof(uchar4)*width);
     uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width);
@@ -172,14 +168,16 @@ int main(int argc, const char **argv) {
         reference_out[x] = (uchar4){ 0, 0, 0, 0 };
     }
 
+    // input and output image of width pixels
+    Image<uchar4> IN(width, 1, input);
+    Image<uchar4> OUT(width, 1);
+
 
     #ifndef OpenCV
     // filter mask
     Mask<float> MX(filter_x);
 
     IterationSpace<uchar4> IsOut(OUT);
-
-    IN = input;
 
     fprintf(stderr, "Calculating HIPAcc FIR filter ...\n");
     float timing = 0.0f;

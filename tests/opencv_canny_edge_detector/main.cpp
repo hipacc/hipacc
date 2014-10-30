@@ -186,7 +186,7 @@ int main(int argc, const char **argv) {
 
 
     // images
-    Image<uchar> input_img(frame.cols, frame.rows);
+    Image<uchar> input_img(frame.cols, frame.rows, frame.data);
     Image<uchar> gauss_img(frame.cols, frame.rows);
     Image<float> grad_img(frame.cols, frame.rows);
     Image<int> nms_img(frame.cols, frame.rows);
@@ -217,7 +217,6 @@ int main(int argc, const char **argv) {
 
 
     // blur input image
-    input_img = frame.data;
     BoundaryCondition<uchar> bound_input_img(input_img, gauss_mask, Boundary::CLAMP);
     Accessor<uchar> acc_input_img(bound_input_img);
     IterationSpace<uchar> iter_gauss(gauss_img);

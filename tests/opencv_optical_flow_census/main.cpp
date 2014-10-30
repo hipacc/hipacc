@@ -323,8 +323,8 @@ int main(int argc, const char **argv) {
 
 
     // images
+    Image<uchar> img(frame.cols, frame.rows, frame.data);
     Image<uchar> prev(frame.cols, frame.rows);
-    Image<uchar> img(frame.cols, frame.rows);
     Image<uchar> filter_img(frame.cols, frame.rows);
     Image<uint> prev_signature(frame.cols, frame.rows);
     Image<uint> img_signature(frame.cols, frame.rows);
@@ -388,7 +388,6 @@ int main(int argc, const char **argv) {
 
 
     // filter first image/frame
-    img = frame.data;
     BoundaryCondition<uchar> bound_img(img, mask, Boundary::CLAMP);
     Accessor<uchar> acc_img(bound_img);
     IterationSpace<uchar> iter_blur(filter_img);

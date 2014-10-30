@@ -495,13 +495,11 @@ int main(int argc, const char **argv) {
 
 
     // input and output image of width x height pixels
-    Image<float> in(width, height);
+    Image<float> in(width, height, input);
     Image<float> out(width, height);
 
     // iteration space
     IterationSpace<float> iter(out);
-
-    in = input;
 
     fprintf(stderr, "Calculating HIPAcc bilateral filter ...\n");
 

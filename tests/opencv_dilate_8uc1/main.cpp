@@ -182,7 +182,7 @@ int main(int argc, const char **argv) {
 
 
     // input and output image of width x height pixels
-    Image<uchar> in(width, height);
+    Image<uchar> in(width, height, input);
     Image<uchar> out(width, height);
 
     // define Domain for Erode filter
@@ -195,8 +195,6 @@ int main(int argc, const char **argv) {
 
     IterationSpace<uchar> iter(out, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
     DilateFilter filter(iter, acc, dom, size_x, size_y);
-
-    in = input;
 
     fprintf(stderr, "Calculating HIPAcc Dilate filter ...\n");
     float timing = 0.0f;

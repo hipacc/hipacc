@@ -109,15 +109,6 @@ int main(int argc, const char **argv) {
     int *reference_in = (int *)malloc(sizeof(int)*width*height);
     int *reference_out = (int *)malloc(sizeof(int)*is_width*is_height);
 
-    // input and output image of width x height pixels
-    Image<int> IN(width, height);
-    Image<int> OUT(is_width, is_height);
-
-    // use nearest neighbor interpolation
-    Accessor<int> AccInNN(IN, Interpolate::NN);
-    // use linear filtering interpolation
-    Accessor<int> AccInLF(IN, Interpolate::LF);
-
     // initialize data
     for (int y=0; y<height; ++y) {
         for (int x=0; x<width; ++x) {
@@ -132,8 +123,14 @@ int main(int argc, const char **argv) {
         }
     }
 
-    IN = input;
-    OUT = out_init;
+    // input and output image of width x height pixels
+    Image<int> IN(width, height, input);
+    Image<int> OUT(is_width, is_height, out_init);
+
+    // use nearest neighbor interpolation
+    Accessor<int> AccInNN(IN, Interpolate::NN);
+    // use linear filtering interpolation
+    Accessor<int> AccInLF(IN, Interpolate::LF);
 
     IterationSpace<int> CIS(OUT);
 

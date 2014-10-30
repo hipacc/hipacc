@@ -191,7 +191,7 @@ int main(int argc, const char **argv) {
 
 
     // input and output image of width x height pixels
-    Image<uchar4> in(width, height);
+    Image<uchar4> in(width, height, input);
     Image<uchar4> out(width, height);
 
     // define Domain for box filter
@@ -204,8 +204,6 @@ int main(int argc, const char **argv) {
 
     IterationSpace<uchar4> iter(out, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
     BoxFilter filter(iter, acc, dom, size_x, size_y);
-
-    in = input;
 
     fprintf(stderr, "Calculating HIPAcc box filter ...\n");
     float timing = 0.0f;

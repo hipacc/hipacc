@@ -229,23 +229,6 @@ int main(int argc, const char **argv) {
     float *reference_in_float = (float *)malloc(sizeof(float)*width*height);
     float *reference_out_float = (float *)malloc(sizeof(float)*width*height);
 
-    // input and output image of width x height pixels
-    Image<int> in_int(width, height);
-    Image<int> out_int(width, height);
-    Image<float> in_float(width, height);
-    Image<float> out_float(width, height);
-
-    Accessor<int> img_in_int(in_int);
-    Accessor<float> img_in_float(in_float);
-    Accessor<int> acc_in_int(in_int, width/3, height/3, width/3, height/3);
-    Accessor<float> acc_in_float(in_float, width/3, height/3, width/3, height/3);
-
-    // iteration spaces
-    IterationSpace<int> out_int_iter(out_int);
-    IterationSpace<float> out_float_iter(out_float);
-    IterationSpace<int> out_acc_int_iter(out_int, width/3, height/3, width/3, height/3);
-    IterationSpace<float> out_acc_float_iter(out_float, width/3, height/3, width/3, height/3);
-
     // initialize data
     #define DELTA 0.001f
     for (int y=0; y<height; ++y) {
@@ -259,10 +242,22 @@ int main(int argc, const char **argv) {
         }
     }
 
-    in_int = input_int;
-    out_int = reference_out_int;
-    in_float = input_float;
-    out_float = reference_out_float;
+    // input and output image of width x height pixels
+    Image<int> in_int(width, height, input_int);
+    Image<int> out_int(width, height, reference_out_int);
+    Image<float> in_float(width, height, input_float);
+    Image<float> out_float(width, height, reference_out_float);
+
+    Accessor<int> img_in_int(in_int);
+    Accessor<float> img_in_float(in_float);
+    Accessor<int> acc_in_int(in_int, width/3, height/3, width/3, height/3);
+    Accessor<float> acc_in_float(in_float, width/3, height/3, width/3, height/3);
+
+    // iteration spaces
+    IterationSpace<int> out_int_iter(out_int);
+    IterationSpace<float> out_float_iter(out_float);
+    IterationSpace<int> out_acc_int_iter(out_int, width/3, height/3, width/3, height/3);
+    IterationSpace<float> out_acc_float_iter(out_float, width/3, height/3, width/3, height/3);
 
     // global operation using functors: Images
     MinReductionInt redMinINInt(out_int_iter, img_in_int);

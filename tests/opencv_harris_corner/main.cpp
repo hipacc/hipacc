@@ -315,14 +315,6 @@ int main(int argc, const char **argv) {
     std::vector<float> timings;
     float timing = 0.0f;
 
-    // input and output image of width x height pixels
-    Image<uchar> IN(width, height);
-    Image<float> OUT(width, height);
-    Image<float> DX(width, height);
-    Image<float> DY(width, height);
-    Image<float> DXY(width, height);
-    Image<float> TMP(width, height);
-
     // host memory for image of width x height pixels
     #ifdef USE_FREEIMAGE
     uchar *input = FreeImage_GetBits(gray);
@@ -338,6 +330,14 @@ int main(int argc, const char **argv) {
         #endif
       }
     }
+
+    // input and output image of width x height pixels
+    Image<uchar> IN(width, height, input);
+    Image<float> OUT(width, height);
+    Image<float> DX(width, height);
+    Image<float> DY(width, height);
+    Image<float> DXY(width, height);
+    Image<float> TMP(width, height);
 
     #ifndef OpenCV
     // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
@@ -398,8 +398,6 @@ int main(int argc, const char **argv) {
     IterationSpace<float> IsDy(DY);
     IterationSpace<float> IsDxy(DXY);
     IterationSpace<float> IsTmp(TMP);
-
-    IN = input;
 
     std::cerr << "Calculating HIPAcc Harris Corner filter ..." << std::endl;
 

@@ -192,12 +192,10 @@ int main(int argc, const char **argv) {
     }
 
     // input and output image of width x height pixels
-    Image<char> GAUS(width, height);
+    Image<char> GAUS(width, height, input);
     Image<char> TMP(width, height);
     Image<char> LAP(width, height);
     Mask<float> M(filter_xy);
-
-    GAUS = input;
 
     int depth = 1;
     {

@@ -211,7 +211,7 @@ int main(int argc, const char **argv) {
 
 
     // input and output image of width x height pixels
-    Image<uchar> IN(width, height);
+    Image<uchar> IN(width, height, input);
     Image<uchar> OUT(width, height);
 
     // filter mask
@@ -221,8 +221,6 @@ int main(int argc, const char **argv) {
     Domain D(M);
 
     IterationSpace<uchar> IsOut(OUT);
-
-    IN = input;
 
 
     #ifndef OpenCV

@@ -234,11 +234,6 @@ int main(int argc, const char **argv) {
     float *reference_in = (float *)malloc(sizeof(float)*width*height);
     float *reference_out = (float *)malloc(sizeof(float)*width*height);
 
-    // input and output image of width x height pixels
-    Image<float> IN(width, height);
-    Image<float> OUT(width, height);
-    Accessor<float> AccIN(IN);
-
     // initialize data
     #define DELTA 0.001f
     for (int y=0; y<height; ++y) {
@@ -248,6 +243,11 @@ int main(int argc, const char **argv) {
             reference_out[y*width + x] = (float) (3.12451);
         }
     }
+
+    // input and output image of width x height pixels
+    Image<float> IN(width, height, input);
+    Image<float> OUT(width, height);
+    Accessor<float> AccIN(IN);
 
 
     #ifdef HSCAN
@@ -265,8 +265,6 @@ int main(int argc, const char **argv) {
     #endif
     VerticalMeanFilter VMF(VIS, AccIN, d, t, height);
     #endif
-
-    IN = input;
 
     fprintf(stderr, "Calculating mean filter ...\n");
 
