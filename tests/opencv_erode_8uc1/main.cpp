@@ -107,7 +107,7 @@ class ErodeFilter : public Kernel<uchar> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = reduce(dom, Hipacc:MIN, [&] () -> uchar {
+            output() = reduce(dom, Reduce::MIN, [&] () -> uchar {
                     return in(dom);
                     });
         }

@@ -107,7 +107,7 @@ class DilateFilter : public Kernel<uchar> {
 
         #ifdef USE_LAMBDA
         void kernel() {
-            output() = reduce(dom, Hipacc:MAX, [&] () -> uchar {
+            output() = reduce(dom, Reduce::MAX, [&] () -> uchar {
                     return in(dom);
                     });
         }
