@@ -55,15 +55,15 @@ class Kernel {
         Kernel(IterationSpace<data_t> &iteration_space) :
             iteration_space(iteration_space),
             out_acc(iteration_space.img,
-                    iteration_space.getWidth(), iteration_space.getHeight(),
-                    iteration_space.getOffsetX(), iteration_space.getOffsetY())
+                    iteration_space.width(), iteration_space.height(),
+                    iteration_space.offset_x(), iteration_space.offset_y())
         {}
 
         virtual ~Kernel() {}
         virtual void kernel() = 0;
         virtual data_t reduce(data_t left, data_t right) { return left; }
 
-        void addAccessor(AccessorBase *acc) { images.push_back(acc); }
+        void add_accessor(AccessorBase *acc) { images.push_back(acc); }
 
         void execute() {
             double time0, time1;
@@ -120,7 +120,7 @@ class Kernel {
             reduction_result = result;
         }
 
-        data_t getReducedData() {
+        data_t reduced_data() {
             return reduction_result;
         }
 
@@ -132,18 +132,18 @@ class Kernel {
 
 
         // low-level access functions
-        data_t &outputAtPixel(const int xf, const int yf) {
-            return out_acc.getPixelFromImg(xf, yf);
+        data_t &output_at(const int xf, const int yf) {
+            return out_acc.pixel_at(xf, yf);
         }
 
-        int getX(void) {
+        int x(void) {
             assert(out_acc.EI!=ElementIterator() && "ElementIterator not set!");
-            return out_acc.getX();
+            return out_acc.x();
         }
 
-        int getY(void) {
+        int y(void) {
             assert(out_acc.EI!=ElementIterator() && "ElementIterator not set!");
-            return out_acc.getY();
+            return out_acc.y();
         }
 
         // built-in functions: convolve, iterate, and reduce

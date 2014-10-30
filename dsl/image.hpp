@@ -57,26 +57,25 @@ enum class Interpolate : uint8_t {
 template<typename data_t>
 class Image {
     private:
-        const int width;
-        const int height;
+        const int width_, height_;
         data_t *array;
-        unsigned int *refcount;
+        size_t *refcount;
 
-        data_t &getPixel(int x, int y) { return array[y*width + x]; }
+        data_t &pixel(const int x, const int y) { return array[y*width_ + x]; }
 
     public:
-        Image(int width, int height) :
-            width(width),
-            height(height),
+        Image(const int width, const int height) :
+            width_(width),
+            height_(height),
             array(new data_t[width*height]),
-            refcount(new unsigned int(1))
+            refcount(new size_t(1))
         {
             std::fill(array, array + width*height, 0);
         }
 
         Image(const Image &image) :
-            width(image.width),
-            height(image.height),
+            width_(image.width_),
+            height_(image.height_),
             array(image.array),
             refcount(image.refcount)
         {
@@ -93,36 +92,36 @@ class Image {
             }
         }
 
-        int getWidth() const { return width; }
-        int getHeight() const { return height; }
+        int width() const { return width_; }
+        int height() const { return height_; }
 
-        data_t *getData() { return array; }
+        data_t *data() { return array; }
 
         Image &operator=(data_t *other) {
-            for (int y=0; y<height; ++y) {
-                for (int x=0; x<width; ++x) {
-                    array[y*width + x] = other[y*width + x];
+            for (int y=0; y<height_; ++y) {
+                for (int x=0; x<width_; ++x) {
+                    array[y*width_ + x] = other[y*width_ + x];
                 }
             }
 
             return *this;
         }
         void operator=(Image &other) {
-            assert(width == other.getWidth() && height == other.getHeight() &&
+            assert(width_ == other.width() && height_ == other.height() &&
                     "Image sizes have to be the same!");
-            for (int y=0; y<height; ++y) {
-                for (int x=0; x<width; ++x) {
-                    getPixel(x, y) = other.getPixel(x, y);
+            for (int y=0; y<height_; ++y) {
+                for (int x=0; x<width_; ++x) {
+                    pixel(x, y) = other.pixel(x, y);
                 }
             }
         }
         void operator=(Accessor<data_t> &other) {
-            assert(width == other.width && height == other.height &&
+            assert(width_ == other.width_ && height_ == other.height_ &&
                     "Size of Image and Accessor have to be the same!");
-            for (int y=0; y<height; ++y) {
-                for (int x=0; x<width; ++x) {
-                    getPixel(x, y) = other.img.getPixel(x + other.offset_x,
-                            y + other.offset_y);
+            for (int y=0; y<height_; ++y) {
+                for (int x=0; x<width_; ++x) {
+                    pixel(x, y) = other.img.pixel(x + other.offset_x_,
+                                                  y + other.offset_y_);
                 }
             }
         }
@@ -133,90 +132,90 @@ class Image {
 
 template<typename data_t>
 class BoundaryCondition {
-    protected:
+    private:
         Image<data_t> &img;
-        int size_x, size_y;
-        Boundary mode;
+        const int size_x_, size_y_;
+        Boundary bmode;
         // dummy reference to return a reference for constants
         data_t const_val;
         data_t &dummy;
 
     public:
-        BoundaryCondition(Image<data_t> &Img, int size_x, int size_y, Boundary mode) :
+        BoundaryCondition(Image<data_t> &Img, const int size_x, const int size_y, Boundary bmode) :
             img(Img),
-            size_x(size_x),
-            size_y(size_y),
-            mode(mode),
+            size_x_(size_x),
+            size_y_(size_y),
+            bmode(bmode),
             const_val(),
             dummy(const_val)
         {
-            assert(mode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
+            assert(bmode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, int size, Boundary mode) :
+        BoundaryCondition(Image<data_t> &Img, const int size, Boundary bmode) :
             img(Img),
-            size_x(size),
-            size_y(size),
-            mode(mode),
+            size_x_(size),
+            size_y_(size),
+            bmode(bmode),
             const_val(),
             dummy(const_val)
         {
-            assert(mode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
+            assert(bmode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, Boundary mode) :
+        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, Boundary bmode) :
             img(Img),
-            size_x(Mask.getSizeX()),
-            size_y(Mask.getSizeY()),
-            mode(mode),
+            size_x_(Mask.size_x()),
+            size_y_(Mask.size_y()),
+            bmode(bmode),
             const_val(),
             dummy(const_val)
         {
-            assert(mode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
+            assert(bmode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, int size_x, int size_y, Boundary mode, data_t val) :
+        BoundaryCondition(Image<data_t> &Img, const int size_x, const int size_y, Boundary bmode, data_t val) :
             img(Img),
-            size_x(size_x),
-            size_y(size_y),
-            mode(mode),
+            size_x_(size_x),
+            size_y_(size_y),
+            bmode(bmode),
             const_val(),
             dummy(const_val)
         {
-            assert(mode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
+            assert(bmode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, int size, Boundary mode, data_t val) :
+        BoundaryCondition(Image<data_t> &Img, const int size, Boundary bmode, data_t val) :
             img(Img),
-            size_x(size),
-            size_y(size),
-            mode(mode),
+            size_x_(size),
+            size_y_(size),
+            bmode(bmode),
             const_val(),
             dummy(const_val)
         {
-            assert(mode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
+            assert(bmode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, Boundary mode, data_t val) :
+        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, Boundary bmode, data_t val) :
             img(Img),
-            size_x(Mask.getSizeX()),
-            size_y(Mask.getSizeY()),
-            mode(mode),
+            size_x_(Mask.size_x()),
+            size_y_(Mask.size_y()),
+            bmode(bmode),
             const_val(),
             dummy(const_val)
         {
-            assert(mode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
+            assert(bmode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
         }
 
-        int clamp(int idx, int lower, int upper) {
+        int clamp(int idx, const int lower, const int upper) {
             return std::min(std::max(idx, lower), upper-1);
         }
-        int repeat(int idx, int lower, int upper) {
+        int repeat(int idx, const int lower, const int upper) {
             if (idx  < lower) idx += lower + upper;
             if (idx >= upper) idx -= lower + upper;
             return idx;
         }
-        int mirror(int idx, int lower, int upper) {
+        int mirror(int idx, const int lower, const int upper) {
             if (idx  < lower) idx = lower + (lower - idx-1);
             if (idx >= upper) idx = upper - (idx+1 - upper);
             return idx;
@@ -229,12 +228,12 @@ class BoundaryCondition {
 template<typename data_t>
 class Interpolation {
     protected:
-        Interpolate mode;
+        Interpolate imode;
         // dummy reference to return a reference for interpolation
         data_t interpol_init;
         data_t &interpol_val;
 
-        virtual data_t &getPixelBH(int x, int y) = 0;
+        virtual data_t &pixel_bh(int x, int y) = 0;
 
         data_t bicubic(float t, data_t a, data_t b, data_t c, data_t d) {
             return 0.5 * (c - a + (2.0f * a - 5.0f * b + 4.0f * c - d + (3.0f * (b - c) + d -a) * t) * t) * t + b;
@@ -284,29 +283,30 @@ class Interpolation {
         }
 
     public:
-        Interpolation(Interpolate mode) :
-            mode(mode), interpol_init(0), interpol_val(interpol_init) {}
+        Interpolation(Interpolate imode) :
+            imode(imode), interpol_init(0), interpol_val(interpol_init) {}
         Interpolation() : Interpolation(Interpolate::NO) {}
 
-        data_t &interpolate(ElementIterator *EI, int offset_x, int offset_y, int width, int height, int x, int y, int xf, int yf) {
-            switch (mode) {
+        data_t &interpolate(ElementIterator *EI, const int offset_x, const int offset_y, const int width, const int height,
+                            const int x, const int y, const int xf, const int yf) {
+            switch (imode) {
                 case Interpolate::NO:
-                    return getPixelBH(EI->getX() - EI->getOffsetX() + offset_x + xf,
-                                      EI->getY() - EI->getOffsetY() + offset_y + yf);
+                    return pixel_bh(EI->x() - EI->offset_x() + offset_x + xf,
+                                    EI->y() - EI->offset_y() + offset_y + yf);
                 case Interpolate::NN: {
-                    float stride_x = width/(float)EI->getWidth();
-                    float stride_y = height/(float)EI->getHeight();
-                    int x_mapped = offset_x + (int)(stride_x*(x - EI->getOffsetX() + xf));
-                    int y_mapped = offset_y + (int)(stride_y*(y - EI->getOffsetY() + yf));
+                    float stride_x = width/(float)EI->width();
+                    float stride_y = height/(float)EI->height();
+                    int x_mapped = offset_x + (int)(stride_x*(x - EI->offset_x() + xf));
+                    int y_mapped = offset_y + (int)(stride_y*(y - EI->offset_y() + yf));
 
-                    return getPixelBH(x_mapped, y_mapped);
+                    return pixel_bh(x_mapped, y_mapped);
                     }
                 case Interpolate::LF: {
                     // first calculate the mapped address
-                    float stride_x = width/(float)EI->getWidth();
-                    float stride_y = height/(float)EI->getHeight();
-                    float x_mapped = offset_x + stride_x*(x - EI->getOffsetX() + xf);
-                    float y_mapped = offset_y + stride_y*(y - EI->getOffsetY() + yf);
+                    float stride_x = width/(float)EI->width();
+                    float stride_y = height/(float)EI->height();
+                    float x_mapped = offset_x + stride_x*(x - EI->offset_x() + xf);
+                    float y_mapped = offset_y + stride_y*(y - EI->offset_y() + yf);
 
                     // then do the interpolation
                     float xb = x_mapped - 0.5f;
@@ -317,19 +317,19 @@ class Interpolation {
                     float y_frac = yb - y_int;
 
                     interpol_val =
-                        (1.0f-x_frac) * (1.0f-y_frac) * getPixelBH(x_int  , y_int) +
-                              x_frac  * (1.0f-y_frac) * getPixelBH(x_int+1, y_int) +
-                        (1.0f-x_frac) *       y_frac  * getPixelBH(x_int  , y_int+1) +
-                              x_frac  *       y_frac  * getPixelBH(x_int+1, y_int+1);
+                        (1.0f-x_frac) * (1.0f-y_frac) * pixel_bh(x_int  , y_int) +
+                              x_frac  * (1.0f-y_frac) * pixel_bh(x_int+1, y_int) +
+                        (1.0f-x_frac) *       y_frac  * pixel_bh(x_int  , y_int+1) +
+                              x_frac  *       y_frac  * pixel_bh(x_int+1, y_int+1);
 
                     return interpol_val;
                     }
                 case Interpolate::CF: {
                     // first calculate the mapped address
-                    float stride_x = width/(float)EI->getWidth();
-                    float stride_y = height/(float)EI->getHeight();
-                    float x_mapped = offset_x + stride_x*(x - EI->getOffsetX() + xf);
-                    float y_mapped = offset_y + stride_y*(y - EI->getOffsetY() + yf);
+                    float stride_x = width/(float)EI->width();
+                    float stride_y = height/(float)EI->height();
+                    float x_mapped = offset_x + stride_x*(x - EI->offset_x() + xf);
+                    float y_mapped = offset_y + stride_y*(y - EI->offset_y() + yf);
 
                     // then do the interpolation
                     float xb = x_mapped - 0.5f;
@@ -340,22 +340,22 @@ class Interpolation {
                     float y_frac = yb - y_int;
 
                     #if 1
-                    data_t y0 = getPixelBH(x_int - 1 + 0, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 0) +
-                                getPixelBH(x_int - 1 + 1, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 1) +
-                                getPixelBH(x_int - 1 + 2, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 2) +
-                                getPixelBH(x_int - 1 + 3, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 3);
-                    data_t y1 = getPixelBH(x_int - 1 + 0, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 0) +
-                                getPixelBH(x_int - 1 + 1, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 1) +
-                                getPixelBH(x_int - 1 + 2, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 2) +
-                                getPixelBH(x_int - 1 + 3, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 3);
-                    data_t y2 = getPixelBH(x_int - 1 + 0, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 0) +
-                                getPixelBH(x_int - 1 + 1, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 1) +
-                                getPixelBH(x_int - 1 + 2, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 2) +
-                                getPixelBH(x_int - 1 + 3, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 3);
-                    data_t y3 = getPixelBH(x_int - 1 + 0, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 0) +
-                                getPixelBH(x_int - 1 + 1, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 1) +
-                                getPixelBH(x_int - 1 + 2, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 2) +
-                                getPixelBH(x_int - 1 + 3, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 3);
+                    data_t y0 = pixel_bh(x_int - 1 + 0, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 0) +
+                                pixel_bh(x_int - 1 + 1, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 1) +
+                                pixel_bh(x_int - 1 + 2, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 2) +
+                                pixel_bh(x_int - 1 + 3, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 3);
+                    data_t y1 = pixel_bh(x_int - 1 + 0, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 0) +
+                                pixel_bh(x_int - 1 + 1, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 1) +
+                                pixel_bh(x_int - 1 + 2, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 2) +
+                                pixel_bh(x_int - 1 + 3, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 3);
+                    data_t y2 = pixel_bh(x_int - 1 + 0, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 0) +
+                                pixel_bh(x_int - 1 + 1, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 1) +
+                                pixel_bh(x_int - 1 + 2, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 2) +
+                                pixel_bh(x_int - 1 + 3, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 3);
+                    data_t y3 = pixel_bh(x_int - 1 + 0, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 0) +
+                                pixel_bh(x_int - 1 + 1, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 1) +
+                                pixel_bh(x_int - 1 + 2, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 2) +
+                                pixel_bh(x_int - 1 + 3, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 3);
 
                     interpol_val = y0*bicubic_spline(y_frac - 1 + 0) +
                                    y1*bicubic_spline(y_frac - 1 + 1) +
@@ -363,25 +363,25 @@ class Interpolation {
                                    y3*bicubic_spline(y_frac - 1 + 3);
                     #else
                     data_t y0 = bicubic(x_frac,
-                            getPixelBH(i-1, j-1),
-                            getPixelBH(i,   j-1),
-                            getPixelBH(i+1, j-1),
-                            getPixelBH(i+2, j-1));
+                            pixel_bh(i-1, j-1),
+                            pixel_bh(i,   j-1),
+                            pixel_bh(i+1, j-1),
+                            pixel_bh(i+2, j-1));
                     data_t y1 = bicubic(x_frac,
-                            getPixelBH(i-1, j),
-                            getPixelBH(i,   j),
-                            getPixelBH(i+1, j),
-                            getPixelBH(i+2, j));
+                            pixel_bh(i-1, j),
+                            pixel_bh(i,   j),
+                            pixel_bh(i+1, j),
+                            pixel_bh(i+2, j));
                     data_t y2 = bicubic(x_frac,
-                            getPixelBH(i-1, j+1),
-                            getPixelBH(i,   j+1),
-                            getPixelBH(i+1, j+1),
-                            getPixelBH(i+2, j+1));
+                            pixel_bh(i-1, j+1),
+                            pixel_bh(i,   j+1),
+                            pixel_bh(i+1, j+1),
+                            pixel_bh(i+2, j+1));
                     data_t y3 = bicubic(x_frac,
-                            getPixelBH(i-1, j+2),
-                            getPixelBH(i,   j+2),
-                            getPixelBH(i+1, j+2),
-                            getPixelBH(i+2, j+2));
+                            pixel_bh(i-1, j+2),
+                            pixel_bh(i,   j+2),
+                            pixel_bh(i+1, j+2),
+                            pixel_bh(i+2, j+2));
 
                     interpol_val = bicubic(y_frac, y0, y1, y2, y3);
                     #endif
@@ -390,10 +390,10 @@ class Interpolation {
                     }
                 case Interpolate::L3: {
                     // first calculate the mapped address
-                    float stride_x = width/(float)EI->getWidth();
-                    float stride_y = height/(float)EI->getHeight();
-                    float x_mapped = offset_x + stride_x*(x - EI->getOffsetX() + xf);
-                    float y_mapped = offset_y + stride_y*(y - EI->getOffsetY() + yf);
+                    float stride_x = width/(float)EI->width();
+                    float stride_y = height/(float)EI->height();
+                    float x_mapped = offset_x + stride_x*(x - EI->offset_x() + xf);
+                    float y_mapped = offset_y + stride_y*(y - EI->offset_y() + yf);
 
                     // then do the interpolation
                     float xb = x_mapped - 0.5f;
@@ -403,42 +403,42 @@ class Interpolation {
                     float x_frac = xb - x_int;
                     float y_frac = yb - y_int;
 
-                    data_t y0 = getPixelBH(x_int - 2 + 0, y_int - 1 + 0) * lanczos(x_frac - 2 + 0) +
-                                getPixelBH(x_int - 2 + 1, y_int - 1 + 0) * lanczos(x_frac - 2 + 1) +
-                                getPixelBH(x_int - 2 + 2, y_int - 1 + 0) * lanczos(x_frac - 2 + 2) +
-                                getPixelBH(x_int - 2 + 3, y_int - 1 + 0) * lanczos(x_frac - 2 + 3) +
-                                getPixelBH(x_int - 2 + 4, y_int - 1 + 0) * lanczos(x_frac - 2 + 4) +
-                                getPixelBH(x_int - 2 + 5, y_int - 1 + 0) * lanczos(x_frac - 2 + 5);
-                    data_t y1 = getPixelBH(x_int - 2 + 0, y_int - 1 + 1) * lanczos(x_frac - 2 + 0) +
-                                getPixelBH(x_int - 2 + 1, y_int - 1 + 1) * lanczos(x_frac - 2 + 1) +
-                                getPixelBH(x_int - 2 + 2, y_int - 1 + 1) * lanczos(x_frac - 2 + 2) +
-                                getPixelBH(x_int - 2 + 3, y_int - 1 + 1) * lanczos(x_frac - 2 + 3) +
-                                getPixelBH(x_int - 2 + 4, y_int - 1 + 1) * lanczos(x_frac - 2 + 5) +
-                                getPixelBH(x_int - 2 + 5, y_int - 1 + 1) * lanczos(x_frac - 2 + 5);
-                    data_t y2 = getPixelBH(x_int - 2 + 0, y_int - 1 + 2) * lanczos(x_frac - 2 + 0) +
-                                getPixelBH(x_int - 2 + 1, y_int - 1 + 2) * lanczos(x_frac - 2 + 1) +
-                                getPixelBH(x_int - 2 + 2, y_int - 1 + 2) * lanczos(x_frac - 2 + 2) +
-                                getPixelBH(x_int - 2 + 3, y_int - 1 + 2) * lanczos(x_frac - 2 + 3) +
-                                getPixelBH(x_int - 2 + 4, y_int - 1 + 2) * lanczos(x_frac - 2 + 4) +
-                                getPixelBH(x_int - 2 + 5, y_int - 1 + 2) * lanczos(x_frac - 2 + 5);
-                    data_t y3 = getPixelBH(x_int - 2 + 0, y_int - 1 + 3) * lanczos(x_frac - 2 + 0) +
-                                getPixelBH(x_int - 2 + 1, y_int - 1 + 3) * lanczos(x_frac - 2 + 1) +
-                                getPixelBH(x_int - 2 + 2, y_int - 1 + 3) * lanczos(x_frac - 2 + 2) +
-                                getPixelBH(x_int - 2 + 3, y_int - 1 + 3) * lanczos(x_frac - 2 + 3) +
-                                getPixelBH(x_int - 2 + 4, y_int - 1 + 3) * lanczos(x_frac - 2 + 4) +
-                                getPixelBH(x_int - 2 + 5, y_int - 1 + 3) * lanczos(x_frac - 2 + 5);
-                    data_t y4 = getPixelBH(x_int - 2 + 0, y_int - 1 + 4) * lanczos(x_frac - 2 + 0) +
-                                getPixelBH(x_int - 2 + 1, y_int - 1 + 4) * lanczos(x_frac - 2 + 1) +
-                                getPixelBH(x_int - 2 + 2, y_int - 1 + 4) * lanczos(x_frac - 2 + 2) +
-                                getPixelBH(x_int - 2 + 3, y_int - 1 + 4) * lanczos(x_frac - 2 + 3) +
-                                getPixelBH(x_int - 2 + 4, y_int - 1 + 4) * lanczos(x_frac - 2 + 4) +
-                                getPixelBH(x_int - 2 + 5, y_int - 1 + 4) * lanczos(x_frac - 2 + 5);
-                    data_t y5 = getPixelBH(x_int - 2 + 0, y_int - 1 + 5) * lanczos(x_frac - 2 + 0) +
-                                getPixelBH(x_int - 2 + 1, y_int - 1 + 5) * lanczos(x_frac - 2 + 1) +
-                                getPixelBH(x_int - 2 + 2, y_int - 1 + 5) * lanczos(x_frac - 2 + 2) +
-                                getPixelBH(x_int - 2 + 3, y_int - 1 + 5) * lanczos(x_frac - 2 + 3) +
-                                getPixelBH(x_int - 2 + 4, y_int - 1 + 5) * lanczos(x_frac - 2 + 4) +
-                                getPixelBH(x_int - 2 + 5, y_int - 1 + 5) * lanczos(x_frac - 2 + 5);
+                    data_t y0 = pixel_bh(x_int - 2 + 0, y_int - 1 + 0) * lanczos(x_frac - 2 + 0) +
+                                pixel_bh(x_int - 2 + 1, y_int - 1 + 0) * lanczos(x_frac - 2 + 1) +
+                                pixel_bh(x_int - 2 + 2, y_int - 1 + 0) * lanczos(x_frac - 2 + 2) +
+                                pixel_bh(x_int - 2 + 3, y_int - 1 + 0) * lanczos(x_frac - 2 + 3) +
+                                pixel_bh(x_int - 2 + 4, y_int - 1 + 0) * lanczos(x_frac - 2 + 4) +
+                                pixel_bh(x_int - 2 + 5, y_int - 1 + 0) * lanczos(x_frac - 2 + 5);
+                    data_t y1 = pixel_bh(x_int - 2 + 0, y_int - 1 + 1) * lanczos(x_frac - 2 + 0) +
+                                pixel_bh(x_int - 2 + 1, y_int - 1 + 1) * lanczos(x_frac - 2 + 1) +
+                                pixel_bh(x_int - 2 + 2, y_int - 1 + 1) * lanczos(x_frac - 2 + 2) +
+                                pixel_bh(x_int - 2 + 3, y_int - 1 + 1) * lanczos(x_frac - 2 + 3) +
+                                pixel_bh(x_int - 2 + 4, y_int - 1 + 1) * lanczos(x_frac - 2 + 5) +
+                                pixel_bh(x_int - 2 + 5, y_int - 1 + 1) * lanczos(x_frac - 2 + 5);
+                    data_t y2 = pixel_bh(x_int - 2 + 0, y_int - 1 + 2) * lanczos(x_frac - 2 + 0) +
+                                pixel_bh(x_int - 2 + 1, y_int - 1 + 2) * lanczos(x_frac - 2 + 1) +
+                                pixel_bh(x_int - 2 + 2, y_int - 1 + 2) * lanczos(x_frac - 2 + 2) +
+                                pixel_bh(x_int - 2 + 3, y_int - 1 + 2) * lanczos(x_frac - 2 + 3) +
+                                pixel_bh(x_int - 2 + 4, y_int - 1 + 2) * lanczos(x_frac - 2 + 4) +
+                                pixel_bh(x_int - 2 + 5, y_int - 1 + 2) * lanczos(x_frac - 2 + 5);
+                    data_t y3 = pixel_bh(x_int - 2 + 0, y_int - 1 + 3) * lanczos(x_frac - 2 + 0) +
+                                pixel_bh(x_int - 2 + 1, y_int - 1 + 3) * lanczos(x_frac - 2 + 1) +
+                                pixel_bh(x_int - 2 + 2, y_int - 1 + 3) * lanczos(x_frac - 2 + 2) +
+                                pixel_bh(x_int - 2 + 3, y_int - 1 + 3) * lanczos(x_frac - 2 + 3) +
+                                pixel_bh(x_int - 2 + 4, y_int - 1 + 3) * lanczos(x_frac - 2 + 4) +
+                                pixel_bh(x_int - 2 + 5, y_int - 1 + 3) * lanczos(x_frac - 2 + 5);
+                    data_t y4 = pixel_bh(x_int - 2 + 0, y_int - 1 + 4) * lanczos(x_frac - 2 + 0) +
+                                pixel_bh(x_int - 2 + 1, y_int - 1 + 4) * lanczos(x_frac - 2 + 1) +
+                                pixel_bh(x_int - 2 + 2, y_int - 1 + 4) * lanczos(x_frac - 2 + 2) +
+                                pixel_bh(x_int - 2 + 3, y_int - 1 + 4) * lanczos(x_frac - 2 + 3) +
+                                pixel_bh(x_int - 2 + 4, y_int - 1 + 4) * lanczos(x_frac - 2 + 4) +
+                                pixel_bh(x_int - 2 + 5, y_int - 1 + 4) * lanczos(x_frac - 2 + 5);
+                    data_t y5 = pixel_bh(x_int - 2 + 0, y_int - 1 + 5) * lanczos(x_frac - 2 + 0) +
+                                pixel_bh(x_int - 2 + 1, y_int - 1 + 5) * lanczos(x_frac - 2 + 1) +
+                                pixel_bh(x_int - 2 + 2, y_int - 1 + 5) * lanczos(x_frac - 2 + 2) +
+                                pixel_bh(x_int - 2 + 3, y_int - 1 + 5) * lanczos(x_frac - 2 + 3) +
+                                pixel_bh(x_int - 2 + 4, y_int - 1 + 5) * lanczos(x_frac - 2 + 4) +
+                                pixel_bh(x_int - 2 + 5, y_int - 1 + 5) * lanczos(x_frac - 2 + 5);
 
                     interpol_val = y0*lanczos(y_frac - 2 + 0) +
                                    y1*lanczos(y_frac - 2 + 1) +
@@ -456,18 +456,18 @@ class Interpolation {
 
 class AccessorBase {
     protected:
-        const int width, height;
-        const int offset_x, offset_y;
+        const int width_, height_;
+        const int offset_x_, offset_y_;
         ElementIterator *EI;
 
         void setEI(ElementIterator *ei) { EI = ei; }
 
     public:
-        AccessorBase(int width, int height, int offset_x, int offset_y) :
-            width(width),
-            height(height),
-            offset_x(offset_x),
-            offset_y(offset_y),
+        AccessorBase(const int width, const int height, const int offset_x, const int offset_y) :
+            width_(width),
+            height_(height),
+            offset_x_(offset_x),
+            offset_y_(offset_y),
             EI(nullptr)
         {}
 
@@ -479,54 +479,44 @@ template<typename data_t>
 class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<data_t> {
     private:
         using BoundaryCondition<data_t>::img;
-        using BoundaryCondition<data_t>::size_x;
-        using BoundaryCondition<data_t>::size_y;
-        using BoundaryCondition<data_t>::mode;
+        using BoundaryCondition<data_t>::bmode;
         using BoundaryCondition<data_t>::const_val;
         using BoundaryCondition<data_t>::dummy;
         using BoundaryCondition<data_t>::clamp;
         using BoundaryCondition<data_t>::repeat;
         using BoundaryCondition<data_t>::mirror;
         using Interpolation<data_t>::interpolate;
+        using Interpolation<data_t>::imode;
 
-        data_t &interpolate(int x, int y, int xf=0, int yf=0) {
-            return interpolate(EI, offset_x, offset_y, width, height, x, y, xf, yf);
+        data_t &interpolate(const int x, const int y, const int xf=0, const int yf=0) {
+            return interpolate(EI, offset_x_, offset_y_, width_, height_, x, y, xf, yf);
         }
 
-        // used by output Accessor: outputAtPixel(x, y)
-        // and input Accessors: getPixel(x, y)
-        // x and y refer to the area defined by the Accessor
-        data_t &getPixelFromImg(int x, int y) {
-            assert(EI && "ElementIterator not set!");
-            return img.getPixel(x + offset_x,
-                    y + offset_y);
-        }
-
-        virtual data_t &getPixelBH(int x, int y) override {
+        virtual data_t &pixel_bh(int x, int y) override {
             data_t *ret = &dummy;
-            int lower_x = offset_x;
-            int lower_y = offset_y;
-            int upper_x = offset_x + width;
-            int upper_y = offset_y + height;
+            int lower_x = offset_x_;
+            int lower_y = offset_y_;
+            int upper_x = offset_x_ + width_;
+            int upper_y = offset_y_ + height_;
 
-            switch (mode) {
+            switch (bmode) {
                 case Boundary::UNDEFINED:
-                    ret = &img.getPixel(x, y);
+                    ret = &img.pixel(x, y);
                     break;
                 case Boundary::CLAMP:
                     x = clamp(x, lower_x, upper_x);
                     y = clamp(y, lower_y, upper_y);
-                    ret = &img.getPixel(x, y);
+                    ret = &img.pixel(x, y);
                     break;
                 case Boundary::REPEAT:
                     x = repeat(x, lower_x, upper_x);
                     y = repeat(y, lower_y, upper_y);
-                    ret = &img.getPixel(x, y);
+                    ret = &img.pixel(x, y);
                     break;
                 case Boundary::MIRROR:
                     x = mirror(x, lower_x, upper_x);
                     y = mirror(y, lower_y, upper_y);
-                    ret = &img.getPixel(x, y);
+                    ret = &img.pixel(x, y);
                     break;
                 case Boundary::CONSTANT:
                     if (x < lower_x || x >= upper_x ||
@@ -534,7 +524,7 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
                         dummy = const_val;
                         ret = &dummy;
                     } else {
-                        ret = &img.getPixel(x, y);
+                        ret = &img.pixel(x, y);
                     }
                     break;
             }
@@ -544,89 +534,88 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
 
 
     public:
-        Accessor(Image<data_t> &Img, Interpolate mode = Interpolate::NO) :
-            AccessorBase(Img.getWidth(), Img.getHeight(), 0, 0),
+        Accessor(Image<data_t> &Img, Interpolate imode = Interpolate::NO) :
+            AccessorBase(Img.width(), Img.height(), 0, 0),
             BoundaryCondition<data_t>(BoundaryCondition<data_t>(Img, 0, 0, Boundary::CLAMP)),
-            Interpolation<data_t>(mode)
+            Interpolation<data_t>(imode)
         {}
 
-        Accessor(Image<data_t> &Img, int width, int height, int xf, int yf,
-                 Interpolate mode = Interpolate::NO) :
+        Accessor(Image<data_t> &Img, const int width, const int height, const int xf, const int yf, Interpolate imode = Interpolate::NO) :
             AccessorBase(width, height, xf, yf),
             BoundaryCondition<data_t>(BoundaryCondition<data_t>(Img, 0, 0, Boundary::CLAMP)),
-            Interpolation<data_t>(mode)
+            Interpolation<data_t>(imode)
         {}
 
-        Accessor(BoundaryCondition<data_t> &BC, Interpolate mode = Interpolate::NO) :
-            AccessorBase(BC.img.getWidth(), BC.img.getHeight(), 0, 0),
+        Accessor(BoundaryCondition<data_t> &BC, Interpolate imode = Interpolate::NO) :
+            AccessorBase(BC.img.width(), BC.img.height(), 0, 0),
             BoundaryCondition<data_t>(BC),
-            Interpolation<data_t>(mode)
+            Interpolation<data_t>(imode)
         {}
 
-        Accessor(BoundaryCondition<data_t> &BC, int width, int height, int xf,
-                 int yf, Interpolate mode = Interpolate::NO) :
+        Accessor(BoundaryCondition<data_t> &BC, const int width, const int height, const int xf, const int yf, Interpolate imode = Interpolate::NO) :
             AccessorBase(width, height, xf, yf),
             BoundaryCondition<data_t>(BC),
-            Interpolation<data_t>(mode)
+            Interpolation<data_t>(imode)
         {}
 
         data_t &operator()(void) {
             assert(EI && "ElementIterator not set!");
-            return interpolate(EI->getX(), EI->getY());
+            return interpolate(EI->x(), EI->y());
         }
 
         data_t &operator()(const int xf, const int yf) {
             assert(EI && "ElementIterator not set!");
-            return interpolate(EI->getX(), EI->getY(), xf, yf);
+            return interpolate(EI->x(), EI->y(), xf, yf);
         }
 
         data_t &operator()(MaskBase &M) {
             assert(EI && "ElementIterator not set!");
-            return interpolate(EI->getX(), EI->getY(), M.getX(), M.getY());
+            return interpolate(EI->x(), EI->y(), M.x(), M.y());
         }
 
 
         void operator=(Image<data_t> &other) {
-            assert(width == other.getWidth() && height == other.getHeight() &&
+            assert(width_ == other.width() && height_ == other.height() &&
                     "Size of Accessor and Image have to be the same!");
-            for (int y=offset_y; y<offset_y+height; ++y) {
-                for (int x=offset_x; x<offset_x+width; ++x) {
-                    img.getPixel(x, y) = other.getPixel(x - offset_x, y -
-                            offset_y);
+            for (int y=offset_y_; y<offset_y_+height_; ++y) {
+                for (int x=offset_x_; x<offset_x_+width_; ++x) {
+                    img.pixel(x, y) = other.pixel(x - offset_x_, y - offset_y_);
                 }
             }
         }
         void operator=(Accessor<data_t> &other) {
-            assert(width == other.width && height == other.height &&
+            assert(width_ == other.width_ && height_ == other.height_ &&
                     "Accessor sizes have to be the same!");
-            for (int y=offset_y; y<offset_y+height; ++y) {
-                for (int x=offset_x; x<offset_x+width; ++x) {
-                    img.getPixel(x, y) = other.img.getPixel(x - offset_x +
-                            other.offset_x, y - offset_y + other.offset_y);
+            for (int y=offset_y_; y<offset_y_+height_; ++y) {
+                for (int x=offset_x_; x<offset_x_+width_; ++x) {
+                    img.pixel(x, y) = other.img.pixel(x - offset_x_ + other.offset_x_,
+                                                      y - offset_y_ + other.offset_y_);
                 }
             }
         }
 
         // low-level access methods
-        data_t &getPixel(int x, int y) {
-            return getPixelFromImg(x, y);
+        data_t &pixel_at(const int x, const int y) {
+            assert(EI && "ElementIterator not set!");
+            // x and y refer to the area defined by the Accessor
+            return img.pixel(x + offset_x_, y + offset_y_);
         }
 
-        int getX(void) {
+        int x(void) {
             assert(EI && "ElementIterator not set!");
-            switch (mode) {
-                case Interpolate::NO: return  EI->getX() - EI->getOffsetX();
-                default:              return (EI->getX() - EI->getOffsetX()) *
-                                              width/(float)EI->getWidth();
+            switch (imode) {
+                case Interpolate::NO: return  EI->x() - EI->offset_x();
+                default:              return (EI->x() - EI->offset_x()) *
+                                              width_/(float)EI->width();
             }
         }
 
-        int getY(void) {
+        int y(void) {
             assert(EI && "ElementIterator not set!");
-            switch (mode) {
-                case Interpolate::NO: return  EI->getY() - EI->getOffsetY();
-                default:              return (EI->getY() - EI->getOffsetY()) *
-                                              height/(float)EI->getHeight();
+            switch (imode) {
+                case Interpolate::NO: return  EI->y() - EI->offset_y();
+                default:              return (EI->y() - EI->offset_y()) *
+                                              height_/(float)EI->height();
             }
         }
 

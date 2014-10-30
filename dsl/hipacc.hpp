@@ -43,7 +43,7 @@ float hipacc_last_timing = 0.0f;
 #endif // __CUDACC__
 
 namespace hipacc {
-float hipaccGetLastKernelTiming() {
+float hipacc_last_kernel_timing() {
     return hipacc_last_timing;
 }
 

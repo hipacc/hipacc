@@ -43,31 +43,31 @@ class Coordinate {
 
 class IterationSpaceBase {
     private:
-        const int width, height;
-        const int offset_x, offset_y;
+        const int width_, height_;
+        const int offset_x_, offset_y_;
 
     public:
         IterationSpaceBase(int width, int height, int offset_x=0, int
                 offset_y=0) :
-            width(width),
-            height(height),
-            offset_x(offset_x),
-            offset_y(offset_y)
+            width_(width),
+            height_(height),
+            offset_x_(offset_x),
+            offset_y_(offset_y)
         {}
 
         virtual ~IterationSpaceBase() {}
 
         class ElementIterator {
             protected:
-                int min_x, min_y;
-                int max_x, max_y;
+                const int min_x, min_y;
+                const int max_x, max_y;
                 const IterationSpaceBase *iteration_space;
                 Coordinate coord;
 
             public:
-                ElementIterator(int width=0, int height=0, int offset_x=0, int
-                        offset_y=0, const IterationSpaceBase
-                        *iteration_space=nullptr) :
+                ElementIterator(const int width=0, const int height=0,
+                                const int offset_x=0, const int offset_y=0,
+                                const IterationSpaceBase *iteration_space=nullptr) :
                     min_x(offset_x),
                     min_y(offset_y),
                     max_x(offset_x+width),
@@ -93,23 +93,23 @@ class IterationSpaceBase {
 
                 operator const void*() { return iteration_space; }
 
-                int getX() const { return coord.x; }
-                int getY() const { return coord.y; }
-                int getWidth() const { return max_x - min_x; }
-                int getHeight() const { return max_y - min_y; }
-                int getOffsetX() const { return min_x; }
-                int getOffsetY() const { return min_y; }
+                int x() const { return coord.x; }
+                int y() const { return coord.y; }
+                int width() const { return max_x - min_x; }
+                int height() const { return max_y - min_y; }
+                int offset_x() const { return min_x; }
+                int offset_y() const { return min_y; }
         };
 
         ElementIterator begin() const {
-            return ElementIterator(width, height, offset_x, offset_y, this);
+            return ElementIterator(width_, height_, offset_x_, offset_y_, this);
         }
         ElementIterator end() const { return ElementIterator(); }
 
-        int getWidth() const { return width; }
-        int getHeight() const { return height; }
-        int getOffsetX() const { return offset_x; }
-        int getOffsetY() const { return offset_y; }
+        int width()    const { return width_; }
+        int height()   const { return height_; }
+        int offset_x() const { return offset_x_; }
+        int offset_y() const { return offset_y_; }
 };
 
 
@@ -120,17 +120,16 @@ class IterationSpace : public IterationSpaceBase {
 
     public:
         IterationSpace(Image<data_t> &img) :
-            IterationSpaceBase(img.getWidth(), img.getHeight()),
+            IterationSpaceBase(img.width(), img.height()),
             img(img)
         {}
 
-        IterationSpace(Image<data_t> &img, int width, int height) :
+        IterationSpace(Image<data_t> &img, const int width, const int height) :
             IterationSpaceBase(width, height),
             img(img)
         {}
 
-        IterationSpace(Image<data_t> &img, int width, int height, int offset_x,
-                int offset_y) :
+        IterationSpace(Image<data_t> &img, const int width, const int height, const int offset_x, const int offset_y) :
             IterationSpaceBase(width, height, offset_x, offset_y),
             img(img)
         {}
