@@ -518,88 +518,64 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
 }
 
 
+template<typename T>
+HipaccImage createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
+    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), mem, mem_type);
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    Ctx.add_image(img);
+    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host);
+    return img;
+}
+
+template<typename T>
+cl_mem createBuffer(size_t stride, size_t height, cl_mem_flags flags) {
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    cl_int err = CL_SUCCESS;
+    cl_mem buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*stride*height, NULL, &err);
+    checkErr(err, "clCreateBuffer()");
+    return buffer;
+}
+
+
 // Allocate memory with alignment specified
 template<typename T>
-HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height, int alignment) {
-    cl_int err = CL_SUCCESS;
-    cl_mem buffer;
-    cl_mem_flags flags = CL_MEM_READ_WRITE;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    if (host_mem) {
-        flags |= CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR;
-    }
+HipaccImage hipaccCreateBuffer(T *host_mem, size_t width, size_t height, size_t alignment) {
     // alignment has to be a multiple of sizeof(T)
-    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T);
-    // compute stride
-    int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
-    buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*stride*height, host_mem, &err);
-    checkErr(err, "clCreateBuffer()");
+    alignment = (size_t)ceilf((float)alignment/sizeof(T)) * sizeof(T);
+    size_t stride = (size_t)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
 
-    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), (void *)buffer);
-    Ctx.add_image(img);
-
-    return img;
+    cl_mem buffer = createBuffer<T>(stride, height, CL_MEM_READ_WRITE);
+    return createImage(host_mem, (void *)buffer, width, height, stride, alignment);
 }
 
 
 // Allocate memory without any alignment considerations
 template<typename T>
-HipaccImage hipaccCreateBuffer(T *host_mem, int width, int height) {
-    cl_int err = CL_SUCCESS;
-    cl_mem buffer;
-    cl_mem_flags flags = CL_MEM_READ_WRITE;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    if (host_mem) {
-        flags |= CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR;
-    }
-    int stride = width;
-    buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*width*height, host_mem, &err);
-    checkErr(err, "clCreateBuffer()");
-
-    HipaccImage img = HipaccImage(width, height, stride, 0, sizeof(T), (void *)buffer);
-    Ctx.add_image(img);
-
-    return img;
+HipaccImage hipaccCreateBuffer(T *host_mem, size_t width, size_t height) {
+    cl_mem buffer = createBuffer<T>(width, height, CL_MEM_READ_WRITE);
+    return createImage(host_mem, (void *)buffer, width, height, width, 0);
 }
 
 
 // Allocate constant buffer
 template<typename T>
-HipaccImage hipaccCreateBufferConstant(int width, int height) {
-    cl_int err = CL_SUCCESS;
-    cl_mem buffer;
-    cl_mem_flags flags = CL_MEM_READ_ONLY;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    buffer = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*width*height, NULL, &err);
-    checkErr(err, "clCreateBuffer()");
-
-    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), (void *)buffer);
-    Ctx.add_image(img);
-
-    return img;
+HipaccImage hipaccCreateBufferConstant(T *host_mem, size_t width, size_t height) {
+    cl_mem buffer = createBuffer<T>(width, height, CL_MEM_READ_ONLY);
+    return createImage(host_mem, (void *)buffer, width, height, width, 0);
 }
 
 
 // Allocate image - no alignment can be specified
 template<typename T>
-HipaccImage hipaccCreateImage(T *host_mem, int width, int height,
+HipaccImage hipaccCreateImage(T *host_mem, size_t width, size_t height,
         cl_channel_type channel_type, cl_channel_order channel_order) {
     cl_int err = CL_SUCCESS;
-    cl_mem image;
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     cl_image_format image_format;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
     image_format.image_channel_order = channel_order;
     image_format.image_channel_data_type = channel_type;
+    HipaccContext &Ctx = HipaccContext::getInstance();
 
-    if (host_mem) {
-        flags |= CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR;
-    }
-    int stride = width;
     #ifdef CL_VERSION_1_2
     cl_image_desc image_desc;
     memset(&image_desc, '\0', sizeof(cl_image_desc));
@@ -611,23 +587,20 @@ HipaccImage hipaccCreateImage(T *host_mem, int width, int height,
     image_desc.image_width = width;
     image_desc.image_height = height;
 
-    image = clCreateImage(Ctx.get_contexts()[0], flags, &image_format, &image_desc, host_mem, &err);
+    cl_mem image = clCreateImage(Ctx.get_contexts()[0], flags, &image_format, &image_desc, host_mem, &err);
     checkErr(err, "clCreateImage()");
     #else
-    image = clCreateImage2D(Ctx.get_contexts()[0], flags, &image_format, width, height, 0, host_mem, &err);
+    cl_mem image = clCreateImage2D(Ctx.get_contexts()[0], flags, &image_format, width, height, 0, host_mem, &err);
     checkErr(err, "clCreateImage2D()");
     #endif
 
-    HipaccImage img = HipaccImage(width, height, stride, 0, sizeof(T), (void *)image, Array2D);
-    Ctx.add_image(img);
-
-    return img;
+    return createImage(host_mem, (void *)image, width, height, width, 0, Array2D);
 }
 template<typename T>
-HipaccImage hipaccCreateImage(T *host_mem, int width, int height);
+HipaccImage hipaccCreateImage(T *host_mem, size_t width, size_t height);
 #define CREATE_IMAGE(DATA_TYPE, CHANNEL_TYPE, CHANNEL_ORDER) \
 template <> \
-HipaccImage hipaccCreateImage<DATA_TYPE>(DATA_TYPE *host_mem, int width, int height) { \
+HipaccImage hipaccCreateImage<DATA_TYPE>(DATA_TYPE *host_mem, size_t width, size_t height) { \
     return hipaccCreateImage(host_mem, width, height, CHANNEL_TYPE, CHANNEL_ORDER); \
 }
 CREATE_IMAGE(char,                  CL_SIGNED_INT8,     CL_R)
@@ -1307,7 +1280,7 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
 
 
 template<typename T>
-HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height) {
+HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t height) {
   switch (base.mem_type) {
     case Array2D:
       return hipaccCreateImage<T>(NULL, width, height);

@@ -60,37 +60,34 @@ void hipaccStopTiming() {
 }
 
 
-// Allocate memory with alignment specified
 template<typename T>
-HipaccImage hipaccCreateMemory(T *host_mem, int width, int height, int alignment) {
-    T *mem;
+HipaccImage createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
+    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), mem, mem_type);
     HipaccContext &Ctx = HipaccContext::getInstance();
-
-    // alignment has to be a multiple of sizeof(T)
-    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T);
-    // compute stride
-    int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
-    mem = (T *)malloc(sizeof(T)*stride*height);
-
-    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), (void *)mem);
     Ctx.add_image(img);
+    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host);
 
     return img;
 }
 
 
+// Allocate memory with alignment specified
+template<typename T>
+HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height, size_t alignment) {
+    // alignment has to be a multiple of sizeof(T)
+    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T);
+    int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
+
+    T *mem = (T *)malloc(sizeof(T)*stride*height);
+    return createImage(host_mem, (void *)mem, width, height, stride, alignment);
+}
+
+
 // Allocate memory without any alignment considerations
 template<typename T>
-HipaccImage hipaccCreateMemory(T *host_mem, int width, int height) {
-    T *mem;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    mem = (T *)malloc(sizeof(T)*width*height);
-
-    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), (void *)mem);
-    Ctx.add_image(img);
-
-    return img;
+HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height) {
+    T *mem = (T *)malloc(sizeof(T)*width*height);
+    return createImage(host_mem, (void *)mem, width, height, width, 0);
 }
 
 

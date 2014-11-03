@@ -331,65 +331,62 @@ void hipaccInitCUDA() {
 }
 
 
-// Allocate memory with alignment specified
 template<typename T>
-HipaccImage hipaccCreateMemory(T *host_mem, int width, int height, int alignment) {
-    T *mem;
+HipaccImage createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
+    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), mem, mem_type);
     HipaccContext &Ctx = HipaccContext::getInstance();
-
-    // alignment has to be a multiple of sizeof(T)
-    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T);
-    // compute stride
-    int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
-    cudaError_t err = cudaMalloc((void **) &mem, sizeof(T)*stride*height);
-    //err = cudaMallocPitch((void **) &mem, &stride, stride*sizeof(float), height);
-    checkErr(err, "cudaMalloc()");
-
-    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), (void *)mem);
     Ctx.add_image(img);
+    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host);
 
     return img;
+}
+
+template<typename T>
+T *createMemory(size_t stride, size_t height) {
+    T *mem;
+    cudaError_t err = cudaMalloc((void **) &mem, sizeof(T)*stride*height);
+    //err = cudaMallocPitch((void **) &mem, &stride, sizeof(T)*stride, height);
+    checkErr(err, "cudaMalloc()");
+    return mem;
+}
+
+
+// Allocate memory with alignment specified
+template<typename T>
+HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height, size_t alignment) {
+    // alignment has to be a multiple of sizeof(T)
+    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T);
+    int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
+
+    T *mem = createMemory(stride, height);
+    return createImage(host_mem, (void *)mem, width, height, stride, alignment);
 }
 
 
 // Allocate memory without any alignment considerations
 template<typename T>
-HipaccImage hipaccCreateMemory(T *host_mem, int width, int height) {
-    T *mem;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    cudaError_t err = cudaMalloc((void **) &mem, sizeof(T)*width*height);
-    checkErr(err, "cudaMalloc()");
-
-    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), (void *)mem);
-    Ctx.add_image(img);
-
-    return img;
+HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height) {
+    T *mem = createMemory(width, height);
+    return createImage(host_mem, (void *)mem, width, height, width, 0);
 }
 
 
 // Allocate 2D array
 template<typename T>
-HipaccImage hipaccCreateArray2D(T *host_mem, int width, int height) {
+HipaccImage hipaccCreateArray2D(T *host_mem, size_t width, size_t height) {
     cudaArray *array;
     int flags = cudaArraySurfaceLoadStore;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
-
     cudaError_t err = cudaMallocArray(&array, &channelDesc, width, height, flags);
     checkErr(err, "cudaMallocArray()");
 
-    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), (void *)array, Array2D);
-    Ctx.add_image(img);
-
-    return img;
+    return createImage(host_mem, (void *)array, width, height, width, 0, Array2D);
 }
 
 
 // Allocate memory for Pyramid image
 template<typename T>
-HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height) {
+HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t height) {
     switch (base.mem_type) {
         default:
             if (base.alignment > 0) {
@@ -429,7 +426,9 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
     int height = img.height;
     int stride = img.stride;
 
-    std::copy(host_mem, host_mem + width*height, (T*)img.host);
+    if (host_mem != img.host) {
+        std::copy(host_mem, host_mem + width*height, (T*)img.host);
+    }
     if (img.mem_type >= Array2D) {
         err = cudaMemcpyToArray((cudaArray *)img.mem, 0, 0, host_mem, sizeof(T)*width*height, cudaMemcpyHostToDevice);
         checkErr(err, "cudaMemcpyToArray()");

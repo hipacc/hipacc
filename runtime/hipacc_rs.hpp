@@ -115,8 +115,8 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
 void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst);
 void hipaccReleaseMemory(HipaccImage &img);
 #define CREATE_ALLOCATION_DECL(T) \
-  HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, int alignment); \
-  HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height);
+  HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height, size_t alignment); \
+  HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height);
 CREATE_ALLOCATION_DECL(uint8_t)
 CREATE_ALLOCATION_DECL(uint16_t)
 CREATE_ALLOCATION_DECL(uint32_t)
@@ -484,54 +484,36 @@ void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst) {
 }
 
 
+template<typename T>
+HipaccImage createImage(T *host_mem, size_t width, size_t height, size_t stride, size_t alignment) {
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    PRS rs = Ctx.get_context();
+
+    Type::Builder type(rs, E);
+    type.setX(stride);
+    type.setY(height);
+
+    sp<Allocation> allocation = Allocation::createTyped(rs, type.create());
+
+    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), (void *)allocation.get());
+    Ctx.add_image(img, allocation);
+    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host);
+
+    return img;
+}
+
+
 #define CREATE_ALLOCATION(T, E) \
 /* Allocate memory with alignment specified */ \
-HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height, \
-                                      int alignment) { \
-    HipaccContext &Ctx = HipaccContext::getInstance(); \
-    PRS rs = Ctx.get_context(); \
-\
-    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T); \
-    int stride = (int)ceilf((float)(width) / (alignment / sizeof(T))) \
-                   * (alignment / sizeof(T)); \
-\
-    Type::Builder type(rs, E); \
-    type.setX(stride); \
-    type.setY(height); \
-\
-    sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
-\
-    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), \
-                                  (void *)allocation.get()); \
-    Ctx.add_image(img, allocation); \
-\
-    if (host_mem) { \
-        hipaccWriteMemory(img, host_mem); \
-    } \
-\
-    return img; \
+HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height, size_t alignment) { \
+    alignment = (size_t)ceilf((float)alignment/sizeof(T)) * sizeof(T); \
+    size_t stride = (size_t)ceilf((float)(width) / (alignment / sizeof(T))) * (alignment / sizeof(T)); \
+    return createImage(host_mem, width, height, stride, alignment); \
 } \
 \
 /* Allocate memory without any alignment considerations */ \
-HipaccImage hipaccCreateAllocation(T *host_mem, int width, int height) { \
-    HipaccContext &Ctx = HipaccContext::getInstance(); \
-    PRS rs = Ctx.get_context(); \
-\
-    Type::Builder type(rs, E); \
-    type.setX(width); \
-    type.setY(height); \
-\
-    sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
-\
-    HipaccImage img = HipaccImage(width, height, width, 0, sizeof(T), \
-                                  (void *)allocation.get()); \
-    Ctx.add_image(img, allocation); \
-\
-    if (host_mem) { \
-        hipaccWriteMemory(img, host_mem); \
-    } \
-\
-    return img; \
+HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height) { \
+    return createImage(host_mem, width, height, width, 0); \
 }
 
 
@@ -807,12 +789,12 @@ T hipaccApplyReduction(
 
 
 template<typename T>
-HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height) {
-  if (base.alignment > 0) {
-    return hipaccCreateAllocation((T*)NULL, width, height, base.alignment);
-  } else {
-    return hipaccCreateAllocation((T*)NULL, width, height);
-  }
+HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t height) {
+    if (base.alignment > 0)
+        return hipaccCreateAllocation((T*)NULL, width, height, base.alignment);
+    } else {
+        return hipaccCreateAllocation((T*)NULL, width, height);
+    }
 }
 
 #endif  // __HIPACC_RS_HPP__
