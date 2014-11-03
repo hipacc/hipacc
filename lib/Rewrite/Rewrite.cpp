@@ -600,9 +600,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   if (!compilerClasses.HipaccEoP) return true;
 
   // a) convert Image declarations into memory allocations, e.g.
-  //    Image<int> IN(width, height);
+  //    Image<int> IN(width, height, data);
   //    =>
-  //    int *IN = hipaccCreateMemory<int>(nullptr, width, height, &stride, padding);
+  //    HipaccImage IN = hipaccCreateMemory<int>(data, width, height, &stride, padding);
   // b) convert Pyramid declarations into pyramid creation, e.g.
   //    Pyramid<int> P(IN, 3);
   //    =>
@@ -634,15 +634,17 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Image)) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert(CCE->getNumArgs() == 2 && "Image definition requires exactly two arguments!");
+        assert((CCE->getNumArgs() == 2 || CCE->getNumArgs() == 3) &&
+               "Image definition requires two or three arguments!");
 
         HipaccImage *Img = new HipaccImage(Context, VD,
             compilerClasses.getFirstTemplateType(VD->getType()));
 
-        // get the text string for the image width
-        std::string widthStr;
-        llvm::raw_string_ostream WS(widthStr);
+        // get the text string for the image width and height
+        std::string widthStr, heightStr;
+        llvm::raw_string_ostream WS(widthStr), HS(heightStr);
         CCE->getArg(0)->printPretty(WS, 0, PrintingPolicy(CI.getLangOpts()));
+        CCE->getArg(1)->printPretty(HS, 0, PrintingPolicy(CI.getLangOpts()));
 
         if (compilerOptions.emitC99()) {
           // check if the parameter can be resolved to a constant
@@ -660,17 +662,19 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           Img->setSizeY(CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue());
         }
 
-
-        // get the text string for the image height
-        std::string heightStr;
-        llvm::raw_string_ostream HS(heightStr);
-        CCE->getArg(1)->printPretty(HS, 0, PrintingPolicy(CI.getLangOpts()));
+        // host memory
+        std::string initStr;
+        llvm::raw_string_ostream IS(initStr);
+        if (CCE->getNumArgs() == 3) {
+          CCE->getArg(2)->printPretty(IS, 0, PrintingPolicy(CI.getLangOpts()));
+        } else {
+          IS << "NULL";
+        }
 
         // create memory allocation string
         std::string newStr;
-        stringCreator.writeMemoryAllocation(VD->getName(),
-            compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
-            WS.str(), HS.str(), newStr);
+        stringCreator.writeMemoryAllocation(Img, WS.str(), HS.str(), IS.str(),
+            newStr);
 
         // rewrite Image definition
         // get the start location and compute the semi location.
@@ -1200,9 +1204,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         std::string newStr;
         if (!Buf->isConstant() && !compilerOptions.emitCUDA()) {
           // create Buffer for Mask
-          stringCreator.writeMemoryAllocationConstant(Buf->getName(),
-              Buf->getTypeStr(), Buf->getSizeXStr(), Buf->getSizeYStr(),
-            newStr);
+          stringCreator.writeMemoryAllocationConstant(Buf, newStr);
 
           if (Buf->hasCopyMask()) {
             // create Domain from Mask and upload to Buffer
@@ -1689,7 +1691,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           }
           HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
           // create memory transfer string
-          stringCreator.writeMemoryTransfer(Img, "nullptr", DEVICE_TO_HOST,
+          stringCreator.writeMemoryTransfer(Img, "NULL", DEVICE_TO_HOST,
               newStr);
           // rewrite Image assignment to memory transfer
           // get the start location and compute the semi location.

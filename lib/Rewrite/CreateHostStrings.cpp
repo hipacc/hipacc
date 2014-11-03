@@ -191,37 +191,37 @@ void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
 }
 
 
-void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
-    type, std::string width, std::string height, std::string &resultStr) {
-  resultStr += "HipaccImage " + memName + " = ";
+void CreateHostStrings::writeMemoryAllocation(HipaccImage *Img, std::string
+    width, std::string height, std::string host, std::string &resultStr) {
+  resultStr += "HipaccImage " + Img->getName() + " = ";
   switch (options.getTargetLang()) {
     case Language::C99:
-      resultStr += "hipaccCreateMemory<" + type + ">(";
+      resultStr += "hipaccCreateMemory<" + Img->getTypeStr() + ">(";
       break;
     case Language::CUDA:
       // texture is bound at kernel launch
       if (options.useTextureMemory() &&
           options.getTextureType()==Texture::Array2D) {
-        resultStr += "hipaccCreateArray2D<" + type + ">(";
+        resultStr += "hipaccCreateArray2D<" + Img->getTypeStr() + ">(";
       } else {
-        resultStr += "hipaccCreateMemory<" + type + ">(";
+        resultStr += "hipaccCreateMemory<" + Img->getTypeStr() + ">(";
       }
       break;
     case Language::Renderscript:
     case Language::Filterscript:
-      resultStr += "hipaccCreateAllocation((" + type + "*)";
+      resultStr += "hipaccCreateAllocation((" + Img->getTypeStr() + "*)";
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
       if (options.useTextureMemory()) {
-        resultStr += "hipaccCreateImage<" + type + ">(";
+        resultStr += "hipaccCreateImage<" + Img->getTypeStr() + ">(";
       } else {
-        resultStr += "hipaccCreateBuffer<" + type + ">(";
+        resultStr += "hipaccCreateBuffer<" + Img->getTypeStr() + ">(";
       }
       break;
   }
-  resultStr += "NULL, " + width + ", " + height;
+  resultStr += host + ", " + width + ", " + height;
   if (options.useTextureMemory() &&
       options.getTextureType()==Texture::Array2D) {
     // OpenCL Image objects and CUDA Arrays don't support padding
@@ -234,31 +234,27 @@ void CreateHostStrings::writeMemoryAllocation(std::string memName, std::string
 }
 
 
-void CreateHostStrings::writeMemoryAllocationConstant(std::string memName,
-    std::string type, std::string width, std::string height, std::string
-    &resultStr) {
-
-  resultStr += "HipaccImage " + memName + " = ";
+void CreateHostStrings::writeMemoryAllocationConstant(HipaccMask *Buf,
+    std::string &resultStr) {
+  resultStr += "HipaccImage " + Buf->getName() + " = ";
   switch (options.getTargetLang()) {
     case Language::C99:
-      resultStr += "hipaccCreateMemory<" + type + ">(";
-      resultStr += "NULL, " + width + ", " + height + ");";
+      resultStr += "hipaccCreateMemory<" + Buf->getTypeStr() + ">(";
       break;
     case Language::CUDA:
       assert(0 && "constant memory allocation not required in CUDA!");
       break;
     case Language::Renderscript:
     case Language::Filterscript:
-      resultStr += "hipaccCreateAllocation((" + type + "*)";
-      resultStr += "NULL, " + width + ", " + height + ");";
+      resultStr += "hipaccCreateAllocation((" + Buf->getTypeStr() + "*)";
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
-      resultStr += "hipaccCreateBufferConstant<" + type + ">(";
-      resultStr += width + ", " + height + ");";
+      resultStr += "hipaccCreateBufferConstant<" + Buf->getTypeStr() + ">(";
       break;
   }
+  resultStr += "NULL, " + Buf->getSizeXStr() + ", " + Buf->getSizeYStr() + ");";
 }
 
 
