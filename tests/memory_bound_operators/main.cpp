@@ -425,12 +425,12 @@ int main(int argc, const char **argv) {
     // input and output image of width x height pixels
     Image<int> IN0(width, height, input0);
     Image<int> IN1(width, height, input1);
-    Image<int> IN2(width, height, input2);
-    Image<int> IN3(width, height, input3);
-    Image<int> IN4(width, height, input4);
-    Image<int> IN5(width, height, input5);
-    Image<int> IN6(width, height, input6);
-    Image<int> IN7(width, height, input7);
+    Image<int> IN2(width, height, input1);
+    Image<int> IN3(width, height, input1);
+    Image<int> IN4(width, height, input1);
+    Image<int> IN5(width, height, input1);
+    Image<int> IN6(width, height, input1);
+    Image<int> IN7(width, height, input1);
     Image<int> OUT0(width, height);
     Image<int> OUT1(width, height);
     Image<int> OUT2(width, height);
