@@ -29,7 +29,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
 
 #include "hipacc.hpp"
 
@@ -38,15 +37,6 @@
 //#define HEIGHT 4096
 
 using namespace hipacc;
-
-
-// get time in milliseconds
-double time_ms () {
-    struct timeval tv;
-    gettimeofday (&tv, NULL);
-
-    return ((double)(tv.tv_sec) * 1e+3 + (double)(tv.tv_usec) * 1e-3);
-}
 
 struct roi_t {
     int img_width, img_height;

@@ -353,7 +353,6 @@ int main(int argc, const char **argv) {
 
     // vector image
     Image<int> img_vec((frame.cols-WINDOW_SIZE_X)/2, (frame.rows-WINDOW_SIZE_Y)/2);
-    int *vecs = (int *) malloc(img_vec.width() * img_vec.height() * sizeof(int));
     Accessor<uint> acc_img_sig(img_signature,   frame.cols-WINDOW_SIZE_X, frame.rows-WINDOW_SIZE_Y, WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2, Interpolate::NN);
     Accessor<uint> acc_prev_sig(prev_signature, frame.cols-WINDOW_SIZE_X, frame.rows-WINDOW_SIZE_Y, WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2, Interpolate::NN);
     IterationSpace<int> iter_vec(img_vec);
@@ -440,11 +439,11 @@ int main(int argc, const char **argv) {
         timing = hipacc_last_kernel_timing();
         fps_timing += timing;
         std::cerr << "HIPAcc vector kernel: " << timing << " ms" << std::endl;
-        vecs = img_vec.data();
 
         // fps time
         std::cerr << "HIPAcc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
+        int *vecs = img_vec.data();
         vector<Point2i> v0, v1;
         for (int y=0; y<img_vec.height(); y++) {
             for (int x=0; x<img_vec.width(); x++) {
@@ -495,11 +494,11 @@ int main(int argc, const char **argv) {
     timing = hipacc_last_kernel_timing();
     fps_timing += timing;
     std::cerr << "HIPAcc vector kernel: " << timing << " ms" << std::endl;
-    vecs = img_vec.data();
 
     // fps time
     std::cerr << "HIPAcc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
+    int *vecs = img_vec.data();
     vector<Point2i> v0, v1;
     for (int y=0; y<img_vec.height(); y++) {
         for (int x=0; x<img_vec.width(); x++) {
