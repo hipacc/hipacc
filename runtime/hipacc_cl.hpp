@@ -36,10 +36,9 @@
 #include <float.h>
 #include <math.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -226,9 +225,7 @@ inline void __checkOpenCLErrors(cl_int err, std::string name, std::string file, 
 void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name platform_name=ALL) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024];
-    int platform_number = -1, device_number = -1;
     cl_uint num_platforms, num_devices, num_devices_type;
-    cl_int err = CL_SUCCESS;
 
     // Set environment variable to tell AMD/ATI platform to dump kernel
     // this has to be done before platform initialization
@@ -242,13 +239,14 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
     }
 
     // Get OpenCL platform count
-    err = clGetPlatformIDs(0, NULL, &num_platforms);
+    cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
     std::cerr << "Number of available Platforms: " << num_platforms << std::endl;
     if (num_platforms == 0) {
         exit(EXIT_FAILURE);
     } else {
+        int platform_number = -1, device_number = -1;
         std::vector<cl_platform_id> platforms(num_platforms);
         std::vector<cl_platform_name> platform_names(num_platforms);
 
@@ -384,11 +382,10 @@ void hipaccCreateContextsAndCommandQueues(bool all_devies=false) {
 
 // Get binary from OpenCL program and dump it to stderr
 void hipaccDumpBinary(cl_program program, cl_device_id device) {
-    cl_int err = CL_SUCCESS;
     cl_uint num_devices;
 
     // Get the number of devices associated with the program
-    err = clGetProgramInfo(program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL);
+    cl_int err = clGetProgramInfo(program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL);
 
     // Get the associated device ids
     std::vector<cl_device_id> devices(num_devices);
@@ -645,12 +642,10 @@ cl_sampler hipaccCreateSampler(cl_bool normalized_coords, cl_addressing_mode add
 
 // Release buffer or image
 void hipaccReleaseMemory(HipaccImage &img) {
-    cl_int err = CL_SUCCESS;
-    HipaccContext &Ctx = HipaccContext::getInstance();
-
-    err = clReleaseMemObject((cl_mem)img.mem);
+    cl_int err = clReleaseMemObject((cl_mem)img.mem);
     checkErr(err, "clReleaseMemObject()");
 
+    HipaccContext &Ctx = HipaccContext::getInstance();
     Ctx.del_image(img);
 }
 
@@ -658,25 +653,28 @@ void hipaccReleaseMemory(HipaccImage &img) {
 // Write to memory
 template<typename T>
 void hipaccWriteMemory(HipaccImage &img, T *host_mem, int num_device=0) {
-    cl_int err = CL_SUCCESS;
-    HipaccContext &Ctx = HipaccContext::getInstance();
+    if (host_mem == NULL) return;
 
-    std::copy(host_mem, host_mem + img.width*img.height, (T*)img.host);
+    size_t width  = img.width;
+    size_t height = img.height;
+    size_t stride = img.stride;
+
+    if ((char *)host_mem != img.host)
+        std::copy(host_mem, host_mem + width*height, (T*)img.host);
+
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    cl_int err = CL_SUCCESS;
     if (img.mem_type >= Array2D) {
         const size_t origin[] = { 0, 0, 0 };
-        const size_t region[] = { (size_t)img.width, (size_t)img.height, 1 };
+        const size_t region[] = { width, height, 1 };
         // no stride supported for images in OpenCL
-        const size_t input_row_pitch = img.width*sizeof(T);
+        const size_t input_row_pitch = width*sizeof(T);
         const size_t input_slice_pitch = 0;
 
         err = clEnqueueWriteImage(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, origin, region, input_row_pitch, input_slice_pitch, host_mem, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueWriteImage()");
     } else {
-        size_t width = img.width;
-        size_t height = img.height;
-        size_t stride = img.stride;
-
         if (stride > width) {
             for (size_t i=0; i<height; ++i) {
                 err |= clEnqueueWriteBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &host_mem[i*width], 0, NULL, NULL);
@@ -698,7 +696,7 @@ T *hipaccReadMemory(HipaccImage &img, int num_device=0) {
 
     if (img.mem_type >= Array2D) {
         const size_t origin[] = { 0, 0, 0 };
-        const size_t region[] = { (size_t)img.width, (size_t)img.height, 1 };
+        const size_t region[] = { img.width, img.height, 1 };
         // no stride supported for images in OpenCL
         const size_t row_pitch = img.width*sizeof(T);
         const size_t slice_pitch = 0;
@@ -729,16 +727,16 @@ T *hipaccReadMemory(HipaccImage &img, int num_device=0) {
 // Infer non-const Domain from non-const Mask
 template<typename T>
 void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
-  int size = dom.width * dom.height;
-  uchar *dom_mem = new uchar[size];
-
-  for (int i = 0; i < size; ++i) {
-    dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
-  }
-
-  hipaccWriteMemory(dom, dom_mem);
-
-  delete[] dom_mem;
+    size_t size = dom.width * dom.height;
+    uchar *dom_mem = new uchar[size];
+    
+    for (size_t i=0; i < size; ++i) {
+        dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
+    }
+    
+    hipaccWriteMemory(dom, dom_mem);
+    
+    delete[] dom_mem;
 }
 
 
@@ -751,7 +749,7 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst, int num_device=0) {
 
     if (src.mem_type >= Array2D) {
         const size_t origin[] = { 0, 0, 0 };
-        const size_t region[] = { (size_t)src.width, (size_t)src.height, 1 };
+        const size_t region[] = { src.width, src.height, 1 };
 
         err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, origin, origin, region, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
@@ -772,7 +770,7 @@ void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst, int num_devi
     if (src.img.mem_type >= Array2D) {
         const size_t dst_origin[] = { (size_t)dst.offset_x, (size_t)dst.offset_y, 0 };
         const size_t src_origin[] = { (size_t)src.offset_x, (size_t)src.offset_y, 0 };
-        const size_t region[] = { (size_t)dst.width, (size_t)dst.height, 1 };
+        const size_t region[]     = { dst.width, dst.height, 1 };
 
         err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device],
                 (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin,
@@ -780,9 +778,9 @@ void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst, int num_devi
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyImage()");
     } else {
-        const size_t dst_origin[] = { (size_t)dst.offset_x*dst.img.pixel_size, (size_t)dst.offset_y, 0 };
-        const size_t src_origin[] = { (size_t)src.offset_x*src.img.pixel_size, (size_t)src.offset_y, 0 };
-        const size_t region[] = { (size_t)dst.width*dst.img.pixel_size, (size_t)dst.height, 1 };
+        const size_t dst_origin[] = { dst.offset_x*dst.img.pixel_size, (size_t)dst.offset_y, 0 };
+        const size_t src_origin[] = { src.offset_x*src.img.pixel_size, (size_t)src.offset_y, 0 };
+        const size_t region[]     = { dst.width*dst.img.pixel_size, dst.height, 1 };
 
         err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device],
                 (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin,
@@ -859,16 +857,14 @@ double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_dev
 // Set a single argument of a kernel
 template<typename T>
 void hipaccSetKernelArg(cl_kernel kernel, unsigned int num, size_t size, T* param) {
-    cl_int err = CL_SUCCESS;
-
-    err = clSetKernelArg(kernel, num, size, param);
+    cl_int err = clSetKernelArg(kernel, num, size, param);
     checkErr(err, "clSetKernelArg()");
 }
 
 
 // Enqueue and launch kernel
 void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *local_work_size, bool print_timing=true) {
-    cl_int err = CL_SUCCESS;
+    cl_int err;
     #ifdef EVENT_TIMING
     cl_event event;
     cl_ulong end, start;

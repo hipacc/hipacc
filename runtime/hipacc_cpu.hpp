@@ -29,9 +29,10 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <string.h>
 
+#include <cstring>
 #include <iostream>
+#include <string>
 
 #include "hipacc_base.hpp"
 
@@ -102,17 +103,21 @@ void hipaccReleaseMemory(HipaccImage &img) {
 // Write to memory
 template<typename T>
 void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
-    int width = img.width;
-    int height = img.height;
-    int stride = img.stride;
+    if (host_mem == NULL) return;
 
-    std::copy(host_mem, host_mem + width*height, (T*)img.host);
+    size_t width  = img.width;
+    size_t height = img.height;
+    size_t stride = img.stride;
+
+    if ((char *)host_mem != img.host)
+        std::copy(host_mem, host_mem + width*height, (T*)img.host);
+
     if (stride > width) {
         for (size_t i=0; i<height; ++i) {
-            memcpy(&((T*)img.mem)[i*stride], &host_mem[i*width], sizeof(T)*width);
+            std::memcpy(&((T*)img.mem)[i*stride], &host_mem[i*width], sizeof(T)*width);
         }
     } else {
-        memcpy(img.mem, host_mem, sizeof(T)*width*height);
+        std::memcpy(img.mem, host_mem, sizeof(T)*width*height);
     }
 }
 
@@ -120,16 +125,16 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
 // Read from memory
 template<typename T>
 T *hipaccReadMemory(HipaccImage &img) {
-    int width = img.width;
-    int height = img.height;
-    int stride = img.stride;
+    size_t width  = img.width;
+    size_t height = img.height;
+    size_t stride = img.stride;
 
     if (stride > width) {
         for (size_t i=0; i<height; ++i) {
-            memcpy(&((T*)img.host)[i*width], &((T*)img.mem)[i*stride], sizeof(T)*width);
+            std::memcpy(&((T*)img.host)[i*width], &((T*)img.mem)[i*stride], sizeof(T)*width);
         }
     } else {
-        memcpy((T*)img.host, img.mem, sizeof(T)*width*height);
+        std::memcpy((T*)img.host, img.mem, sizeof(T)*width*height);
     }
 
     return (T*)img.host;
@@ -138,10 +143,9 @@ T *hipaccReadMemory(HipaccImage &img) {
 
 // Copy from memory to memory
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
-    int height = src.height;
-    int stride = src.stride;
-
-    memcpy(dst.mem, src.mem, src.pixel_size*stride*height);
+    size_t height = src.height;
+    size_t stride = src.stride;
+    std::memcpy(dst.mem, src.mem, src.pixel_size*stride*height);
 }
 
 
@@ -163,10 +167,10 @@ void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
 
 // Copy from memory region to memory region
 void hipaccCopyMemoryRegion(HipaccAccessor src, HipaccAccessor dst) {
-    for (size_t i=0; i<(size_t)dst.height; ++i) {
-        memcpy(&((uchar*)dst.img.mem)[dst.offset_x*dst.img.pixel_size + (dst.offset_y + i)*dst.img.stride*dst.img.pixel_size],
-               &((uchar*)src.img.mem)[src.offset_x*src.img.pixel_size + (src.offset_y + i)*src.img.stride*src.img.pixel_size],
-               src.width*src.img.pixel_size);
+    for (size_t i=0; i<dst.height; ++i) {
+        std::memcpy(&((uchar*)dst.img.mem)[dst.offset_x*dst.img.pixel_size + (dst.offset_y + i)*dst.img.stride*dst.img.pixel_size],
+                    &((uchar*)src.img.mem)[src.offset_x*src.img.pixel_size + (src.offset_y + i)*src.img.stride*src.img.pixel_size],
+                    src.width*src.img.pixel_size);
     }
 }
 

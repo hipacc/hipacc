@@ -87,20 +87,19 @@ enum hipaccMemoryType {
 
 class HipaccImage {
     public:
-        int32_t width, height;
-        int32_t stride, alignment;
-        int32_t pixel_size;
+        size_t width, height;
+        size_t stride, alignment;
+        size_t pixel_size;
         void *mem;
         hipaccMemoryType mem_type;
         char *host;
         uint32_t *refcount;
 
     public:
-        HipaccImage(int32_t width, int32_t height, int32_t stride, int32_t
-                alignment, int32_t pixel_size, void *mem, hipaccMemoryType
-                mem_type=Global) :
-            width(width),
-            height(height),
+        HipaccImage(size_t width, size_t height, size_t stride,
+                    size_t alignment, size_t pixel_size, void *mem,
+                    hipaccMemoryType mem_type=Global) :
+            width(width), height(height),
             stride(stride),
             alignment(alignment),
             pixel_size(pixel_size),
@@ -144,11 +143,11 @@ class HipaccImage {
 class HipaccAccessor {
     public:
         HipaccImage &img;
-        int32_t width, height;
+        size_t width, height;
         int32_t offset_x, offset_y;
 
     public:
-        HipaccAccessor(HipaccImage &img, int32_t width, int32_t height, int32_t offset_x=0, int32_t offset_y=0) :
+        HipaccAccessor(HipaccImage &img, size_t width, size_t height, int32_t offset_x=0, int32_t offset_y=0) :
             img(img),
             width(width),
             height(height),
@@ -295,23 +294,23 @@ class HipaccPyramid {
 
 // forward declarations
 template<typename T>
-HipaccImage hipaccCreatePyramidImage(HipaccImage &base, int width, int height);
+HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t height);
 void hipaccReleaseMemory(HipaccImage &Img);
 
 template<typename data_t>
 HipaccPyramid hipaccCreatePyramid(HipaccImage &img, size_t depth) {
-  HipaccPyramid p(depth);
-  p.add(img);
-
-  int height = img.height/2;
-  int width = img.width/2;
-  for (size_t i=1; i<depth; ++i) {
-    assert(width * height > 0 && "Pyramid stages too deep for image size");
-    p.add(hipaccCreatePyramidImage<data_t>(img, width, height));
-    height /= 2;
-    width /= 2;
-  }
-  return p;
+    HipaccPyramid p(depth);
+    p.add(img);
+    
+    size_t width  = img.width  / 2;
+    size_t height = img.height / 2;
+    for (size_t i=1; i<depth; ++i) {
+        assert(width * height > 0 && "Pyramid stages too deep for image size");
+        p.add(hipaccCreatePyramidImage<data_t>(img, width, height));
+        width  /= 2;
+        height /= 2;
+    }
+    return p;
 }
 
 
