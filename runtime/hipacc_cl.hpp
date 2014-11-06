@@ -729,13 +729,13 @@ template<typename T>
 void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
     size_t size = dom.width * dom.height;
     uchar *dom_mem = new uchar[size];
-    
+
     for (size_t i=0; i < size; ++i) {
         dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
     }
-    
+
     hipaccWriteMemory(dom, dom_mem);
-    
+
     delete[] dom_mem;
 }
 

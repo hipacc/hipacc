@@ -301,7 +301,7 @@ template<typename data_t>
 HipaccPyramid hipaccCreatePyramid(HipaccImage &img, size_t depth) {
     HipaccPyramid p(depth);
     p.add(img);
-    
+
     size_t width  = img.width  / 2;
     size_t height = img.height / 2;
     for (size_t i=1; i<depth; ++i) {
