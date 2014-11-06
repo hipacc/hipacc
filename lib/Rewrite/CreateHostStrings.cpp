@@ -868,7 +868,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       if (options.emitCUDA()) {
         resultStr += ", " + std::to_string(device.getTargetCC());
       }
-      if (!options.emitRenderscript() && !options.emitFilterscript()) {
+      if (options.emitRenderscript() || options.emitFilterscript()) {
         resultStr += ", " + gridStr;
       }
     } else {
