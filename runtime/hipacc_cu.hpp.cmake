@@ -658,32 +658,8 @@ void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, st
 // DRIVER API
 //
 
-// Compile CUDA source file to ptx assembly using nvcc compiler
-void hipaccCompileCUDAToPTX(std::string file_name, int cc, std::string build_options = std::string()) {
-    char line[FILENAME_MAX];
-    FILE *fpipe;
-
-    std::stringstream ss;
-    ss << cc;
-
-    std::string command = "${NVCC} -ptx -arch=compute_" + ss.str() + " ";
-    command += build_options + " " + file_name;
-    command += " -o " + file_name + ".ptx 2>&1";
-
-    if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
-        perror("Problems with pipe");
-        exit(EXIT_FAILURE);
-    }
-
-    while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
-        std::cerr << line;
-    }
-    pclose(fpipe);
-}
-
-
-// Load ptx assembly, create a module and kernel
-void hipaccCreateModuleKernel(CUfunction &function, CUmodule &module, std::string file_name, std::string kernel_name, int cc) {
+// Create a module from ptx assembly
+void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
     CUresult err = CUDA_SUCCESS;
     CUjit_target target_cc;
 
@@ -706,31 +682,65 @@ void hipaccCreateModuleKernel(CUfunction &function, CUmodule &module, std::strin
     #endif
 
 
-    std::ifstream srcFile(file_name.c_str());
-    if (!srcFile.is_open()) {
-        std::cerr << "ERROR: Can't open PTX source file '" << file_name.c_str() << "'!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    std::string ptxString(std::istreambuf_iterator<char>(srcFile),
-            (std::istreambuf_iterator<char>()));
-
     const int errorLogSize = 10240;
     char errorLogBuffer[errorLogSize] = {0};
 
+    int num_options = 2;
     CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET };
     void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize, (void *)target_cc };
 
-    // Load PTX source
-    err = cuModuleLoadDataEx(&module, ptxString.c_str(), 2, options, optionValues);
+    // load ptx source
+    err = cuModuleLoadDataEx(&module, ptx, num_options, options, optionValues);
+
     if (err != CUDA_SUCCESS) {
         std::cerr << "Error log: " << errorLogBuffer << std::endl;
     }
     checkErrDrv(err, "cuModuleLoadDataEx()");
+}
 
-    // Get function entry point
-    err = cuModuleGetFunction(&function, module, kernel_name.c_str());
-    checkErrDrv(err, "cuModuleGetFunction()");
+
+// Compile CUDA source file and create module
+void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::string build_options = std::string()) {
+    char line[FILENAME_MAX];
+    FILE *fpipe;
+
+    std::stringstream ss;
+    ss << cc;
+
+    std::string command = "${NVCC} -ptx -arch=compute_" + ss.str() + " ";
+    command += build_options + " " + file_name;
+    command += " -o " + file_name + ".ptx 2>&1";
+
+    if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
+        perror("Problems with pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
+        std::cerr << line;
+    }
+    pclose(fpipe);
+
+    std::string ptx_filename = file_name + ".ptx";
+    std::ifstream ptx_file(ptx_filename);
+    if (!ptx_file.is_open()) {
+        std::cerr << "ERROR: Can't open PTX source file '" << ptx_filename << "'!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string ptx_string(std::istreambuf_iterator<char>(ptx_file), (std::istreambuf_iterator<char>()));
+
+    const char *ptx = (const char *)ptx_string.c_str();
+    // compile ptx
+    hipaccCreateModule(module, ptx, cc);
+}
+
+
+// Get kernel from a module
+void hipaccGetKernel(CUfunction &function, CUmodule &module, std::string kernel_name) {
+    // get function entry point
+    CUresult err = cuModuleGetFunction(&function, module, kernel_name.c_str());
+    checkErrDrv(err, "cuModuleGetFunction('" + kernel_name + "')");
 }
 
 
@@ -1110,14 +1120,13 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
 
         std::string compile_options = "-D PPT=" + num_ppt_ss.str() + " -D BS=" + num_bs_ss.str() + " -I./include ";
         compile_options += "-D BSX_EXPLORE=64 -D BSY_EXPLORE=1 ";
-        hipaccCompileCUDAToPTX(filename, cc, compile_options);
-
-        std::string ptx_filename = filename + ".ptx";
         CUmodule modReduction;
+        hipaccCompileCUDAToModule(modReduction, filename, cc, compile_options);
+
         CUfunction exploreReduction2D;
         CUfunction exploreReduction1D;
-        hipaccCreateModuleKernel(exploreReduction2D, modReduction, ptx_filename, kernel2D, cc);
-        hipaccCreateModuleKernel(exploreReduction1D, modReduction, ptx_filename, kernel1D, cc);
+        hipaccGetKernel(exploreReduction2D, modReduction, kernel2D);
+        hipaccGetKernel(exploreReduction1D, modReduction, kernel1D);
 
         float min_dt=FLT_MAX;
         for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
@@ -1220,7 +1229,6 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
         max_threads_per_block, size_t max_threads_for_kernel, size_t
         max_smem_per_block, size_t heu_tx, size_t heu_ty, int cc) {
     CUresult err = CUDA_SUCCESS;
-    std::string ptx_filename = filename + ".ptx";
     size_t opt_tx=warp_size, opt_ty=1;
     float opt_time = FLT_MAX;
 
@@ -1275,11 +1283,12 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
             std::string compile_options = "-D BSX_EXPLORE=" +
                 num_threads_x_ss.str() + " -D BSY_EXPLORE=" +
                 num_threads_y_ss.str() + " -I./include ";
-            hipaccCompileCUDAToPTX(filename, cc, compile_options);
 
             CUmodule modKernel;
+            hipaccCompileCUDAToModule(modKernel, filename, cc, compile_options);
+
             CUfunction exploreKernel;
-            hipaccCreateModuleKernel(exploreKernel, modKernel, ptx_filename, kernel, cc);
+            hipaccGetKernel(exploreKernel, modKernel, kernel);
 
             // load constant memory
             CUdeviceptr constMem;
