@@ -700,7 +700,7 @@ void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
 
 
 // Compile CUDA source file and create module
-void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::string build_options = std::string()) {
+void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
@@ -708,8 +708,8 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
     ss << cc;
 
     std::string command = "${NVCC} -ptx -arch=compute_" + ss.str() + " ";
-    command += build_options + " " + file_name;
-    command += " -o " + file_name + ".ptx 2>&1";
+    for (auto option : build_options) command += option + " ";
+    command += file_name + " -o " + file_name + ".ptx 2>&1";
 
     if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
         perror("Problems with pipe");
@@ -1118,8 +1118,13 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
         num_ppt_ss << ppt;
         num_bs_ss << max_threads;
 
-        std::string compile_options = "-D PPT=" + num_ppt_ss.str() + " -D BS=" + num_bs_ss.str() + " -I./include ";
-        compile_options += "-D BSX_EXPLORE=64 -D BSY_EXPLORE=1 ";
+        std::vector<std::string> compile_options;
+        compile_options.push_back("-I./include");
+        compile_options.push_back("-D PPT=" + num_ppt_ss.str());
+        compile_options.push_back("-D BS=" + num_bs_ss.str());
+        compile_options.push_back("-D BSX_EXPLORE=64");
+        compile_options.push_back("-D BSY_EXPLORE=1");
+
         CUmodule modReduction;
         hipaccCompileCUDAToModule(modReduction, filename, cc, compile_options);
 
@@ -1280,9 +1285,10 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
             num_threads_y_ss << tile_size_y;
 
             // compile kernel
-            std::string compile_options = "-D BSX_EXPLORE=" +
-                num_threads_x_ss.str() + " -D BSY_EXPLORE=" +
-                num_threads_y_ss.str() + " -I./include ";
+            std::vector<std::string> compile_options;
+            compile_options.push_back("-I./include");
+            compile_options.push_back("-D BSX_EXPLORE=" + num_threads_x_ss.str());
+            compile_options.push_back("-D BSY_EXPLORE=" + num_threads_y_ss.str());
 
             CUmodule modKernel;
             hipaccCompileCUDAToModule(modKernel, filename, cc, compile_options);
