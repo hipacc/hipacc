@@ -298,33 +298,27 @@ class Interpolation {
 
         data_t &interpolate(ElementIterator *EI, const int offset_x, const int offset_y, const int width, const int height,
                             const int x, const int y, const int xf, const int yf) {
+            // calculate the mapped address
+            float stride_x = width  / (float)EI->width();
+            float stride_y = height / (float)EI->height();
+            float x_mapped = offset_x + stride_x*(x - EI->offset_x() + xf);
+            float y_mapped = offset_y + stride_y*(y - EI->offset_y() + yf);
+
+            float xb = x_mapped - 0.5f;
+            float yb = y_mapped - 0.5f;
+            int x_int = xb;
+            int y_int = yb;
+            float x_frac = xb - x_int;
+            float y_frac = yb - y_int;
+
+            // do the interpolation
             switch (imode) {
                 case Interpolate::NO:
                     return pixel_bh(EI->x() - EI->offset_x() + offset_x + xf,
                                     EI->y() - EI->offset_y() + offset_y + yf);
-                case Interpolate::NN: {
-                    float stride_x = width/(float)EI->width();
-                    float stride_y = height/(float)EI->height();
-                    int x_mapped = offset_x + (int)(stride_x*(x - EI->offset_x() + xf));
-                    int y_mapped = offset_y + (int)(stride_y*(y - EI->offset_y() + yf));
-
+                case Interpolate::NN:
                     return pixel_bh(x_mapped, y_mapped);
-                    }
-                case Interpolate::LF: {
-                    // first calculate the mapped address
-                    float stride_x = width/(float)EI->width();
-                    float stride_y = height/(float)EI->height();
-                    float x_mapped = offset_x + stride_x*(x - EI->offset_x() + xf);
-                    float y_mapped = offset_y + stride_y*(y - EI->offset_y() + yf);
-
-                    // then do the interpolation
-                    float xb = x_mapped - 0.5f;
-                    float yb = y_mapped - 0.5f;
-                    int x_int = xb;
-                    int y_int = yb;
-                    float x_frac = xb - x_int;
-                    float y_frac = yb - y_int;
-
+                case Interpolate::LF:
                     interpol_val =
                         (1.0f-x_frac) * (1.0f-y_frac) * pixel_bh(x_int  , y_int) +
                               x_frac  * (1.0f-y_frac) * pixel_bh(x_int+1, y_int) +
@@ -332,22 +326,7 @@ class Interpolation {
                               x_frac  *       y_frac  * pixel_bh(x_int+1, y_int+1);
 
                     return interpol_val;
-                    }
                 case Interpolate::CF: {
-                    // first calculate the mapped address
-                    float stride_x = width/(float)EI->width();
-                    float stride_y = height/(float)EI->height();
-                    float x_mapped = offset_x + stride_x*(x - EI->offset_x() + xf);
-                    float y_mapped = offset_y + stride_y*(y - EI->offset_y() + yf);
-
-                    // then do the interpolation
-                    float xb = x_mapped - 0.5f;
-                    float yb = y_mapped - 0.5f;
-                    int x_int = xb;
-                    int y_int = yb;
-                    float x_frac = xb - x_int;
-                    float y_frac = yb - y_int;
-
                     #if 1
                     data_t y0 = pixel_bh(x_int - 1 + 0, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 0) +
                                 pixel_bh(x_int - 1 + 1, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 1) +
@@ -398,20 +377,6 @@ class Interpolation {
                     return interpol_val;
                     }
                 case Interpolate::L3: {
-                    // first calculate the mapped address
-                    float stride_x = width/(float)EI->width();
-                    float stride_y = height/(float)EI->height();
-                    float x_mapped = offset_x + stride_x*(x - EI->offset_x() + xf);
-                    float y_mapped = offset_y + stride_y*(y - EI->offset_y() + yf);
-
-                    // then do the interpolation
-                    float xb = x_mapped - 0.5f;
-                    float yb = y_mapped - 0.5f;
-                    int x_int = xb;
-                    int y_int = yb;
-                    float x_frac = xb - x_int;
-                    float y_frac = yb - y_int;
-
                     data_t y0 = pixel_bh(x_int - 2 + 0, y_int - 1 + 0) * lanczos(x_frac - 2 + 0) +
                                 pixel_bh(x_int - 2 + 1, y_int - 1 + 0) * lanczos(x_frac - 2 + 1) +
                                 pixel_bh(x_int - 2 + 2, y_int - 1 + 0) * lanczos(x_frac - 2 + 2) +
