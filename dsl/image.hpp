@@ -245,7 +245,7 @@ class Interpolation {
         virtual data_t &pixel_bh(int x, int y) = 0;
 
         data_t bicubic(float t, data_t a, data_t b, data_t c, data_t d) {
-            return 0.5 * (c - a + (2.0f * a - 5.0f * b + 4.0f * c - d + (3.0f * (b - c) + d -a) * t) * t) * t + b;
+            return 0.5f* (c - a + (2.0f * a - 5.0f * b + 4.0f * c - d + (3.0f * (b - c) + d -a) * t) * t) * t + b;
         }
 
         data_t bicubic_spline(float diff) {
@@ -351,25 +351,25 @@ class Interpolation {
                                    y3*bicubic_spline(y_frac - 1 + 3);
                     #else
                     data_t y0 = bicubic(x_frac,
-                            pixel_bh(i-1, j-1),
-                            pixel_bh(i,   j-1),
-                            pixel_bh(i+1, j-1),
-                            pixel_bh(i+2, j-1));
+                            pixel_bh(x_int - 1 + 0, y_int - 1 + 0),
+                            pixel_bh(x_int - 1 + 1, y_int - 1 + 0),
+                            pixel_bh(x_int - 1 + 2, y_int - 1 + 0),
+                            pixel_bh(x_int - 1 + 3, y_int - 1 + 0));
                     data_t y1 = bicubic(x_frac,
-                            pixel_bh(i-1, j),
-                            pixel_bh(i,   j),
-                            pixel_bh(i+1, j),
-                            pixel_bh(i+2, j));
+                            pixel_bh(x_int - 1 + 0, y_int - 1 + 1),
+                            pixel_bh(x_int - 1 + 1, y_int - 1 + 1),
+                            pixel_bh(x_int - 1 + 2, y_int - 1 + 1),
+                            pixel_bh(x_int - 1 + 3, y_int - 1 + 1));
                     data_t y2 = bicubic(x_frac,
-                            pixel_bh(i-1, j+1),
-                            pixel_bh(i,   j+1),
-                            pixel_bh(i+1, j+1),
-                            pixel_bh(i+2, j+1));
+                            pixel_bh(x_int - 1 + 0, y_int - 1 + 2),
+                            pixel_bh(x_int - 1 + 1, y_int - 1 + 2),
+                            pixel_bh(x_int - 1 + 2, y_int - 1 + 2),
+                            pixel_bh(x_int - 1 + 3, y_int - 1 + 2));
                     data_t y3 = bicubic(x_frac,
-                            pixel_bh(i-1, j+2),
-                            pixel_bh(i,   j+2),
-                            pixel_bh(i+1, j+2),
-                            pixel_bh(i+2, j+2));
+                            pixel_bh(x_int - 1 + 0, y_int - 1 + 3),
+                            pixel_bh(x_int - 1 + 1, y_int - 1 + 3),
+                            pixel_bh(x_int - 1 + 2, y_int - 1 + 3),
+                            pixel_bh(x_int - 1 + 3, y_int - 1 + 3));
 
                     interpol_val = bicubic(y_frac, y0, y1, y2, y3);
                     #endif
