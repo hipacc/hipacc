@@ -1,0 +1,427 @@
+//
+// Copyright (c) 2014, University of Erlangen-Nuremberg
+// Copyright (c) 2014, Saarland University
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+
+#include <float.h>
+#include <math.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/time.h>
+
+#include <vector>
+
+//#define CPU
+#ifdef OpenCV
+#include "opencv2/opencv.hpp"
+#ifndef CPU
+#include "opencv2/gpu/gpu.hpp"
+#endif
+#endif
+
+#include "hipacc.hpp"
+
+// variables set by Makefile
+//#define SIZE_X 3
+//#define SIZE_Y 3
+//#define WIDTH 4096
+//#define HEIGHT 4096
+#define CONST_MASK
+#define USE_LAMBDA
+//#define RUN_UNDEF
+
+using namespace hipacc;
+using namespace hipacc::math;
+
+
+// get time in milliseconds
+double time_ms () {
+    struct timeval tv;
+    gettimeofday (&tv, NULL);
+
+    return ((double)(tv.tv_sec) * 1e+3 + (double)(tv.tv_usec) * 1e-3);
+}
+
+
+// Laplace filter reference
+void laplace_filter(uchar4 *in, uchar4 *out, int *filter, int size, int width,
+        int height) {
+    const int size_x = size;
+    const int size_y = size;
+    int anchor_x = size_x >> 1;
+    int anchor_y = size_y >> 1;
+#ifdef OpenCV
+    int upper_x = width-size_x+anchor_x;
+    int upper_y = height-size_y+anchor_y;
+#else
+    int upper_x = width-anchor_x;
+    int upper_y = height-anchor_y;
+#endif
+
+    for (int y=anchor_y; y<upper_y; ++y) {
+        for (int x=anchor_x; x<upper_x; ++x) {
+            int4 sum = { 0, 0, 0, 0 };
+
+            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
+                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x] *
+                           convert_int4(in[(y+yf)*width + x + xf]);
+                }
+            }
+
+            sum = min(sum, 255);
+            sum = max(sum, 0);
+            out[y*width + x] = convert_uchar4(sum);
+        }
+    }
+}
+
+
+// Laplace filter in HIPAcc
+class LaplaceFilter : public Kernel<uchar4> {
+    private:
+        Accessor<uchar4> &input;
+        Domain &dom;
+        Mask<int> &mask;
+        const int size;
+
+    public:
+        LaplaceFilter(IterationSpace<uchar4> &iter, Accessor<uchar4> &input,
+                Domain &dom, Mask<int> &mask, const int size) :
+            Kernel(iter),
+            input(input),
+            dom(dom),
+            mask(mask),
+            size(size)
+        { add_accessor(&input); }
+
+        #ifdef USE_LAMBDA
+        void kernel() {
+            int4 sum = reduce(dom, Reduce::SUM, [&] () -> int4 {
+                    return mask(dom) * convert_int4(input(dom));
+                    });
+            sum = min(sum, 255);
+            sum = max(sum, 0);
+            output() = convert_uchar4(sum);
+        }
+        #else
+        void kernel() {
+            const int anchor = size >> 1;
+            int4 sum = { 0, 0, 0, 0 };
+
+            for (int yf = -anchor; yf<=anchor; yf++) {
+                for (int xf = -anchor; xf<=anchor; xf++) {
+                    sum += mask(xf, yf) * convert_int4(input(xf, yf));
+                }
+            }
+
+            sum = min(sum, 255);
+            sum = max(sum, 0);
+            output() = convert_uchar4(sum);
+        }
+        #endif
+};
+
+
+/*************************************************************************
+ * Main function                                                         *
+ *************************************************************************/
+int main(int argc, const char **argv) {
+    double time0, time1, dt, min_dt;
+    const int width = WIDTH;
+    const int height = HEIGHT;
+    const int size_x = SIZE_X;
+    const int size_y = SIZE_Y;
+    const int offset_x = size_x >> 1;
+    const int offset_y = size_y >> 1;
+    std::vector<float> timings;
+
+    // only filter kernel sizes 3x3 and 5x5 supported
+    if (size_x != size_y || !(size_x == 3 || size_x == 5)) {
+        fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // convolution filter mask
+    #ifdef CONST_MASK
+    const
+    #endif
+    #if SIZE_X == 1
+    #define SIZE 3
+    #elif SIZE_X == 3
+    #define SIZE 3
+    #else
+    #define SIZE 5
+    #endif
+    int mask[SIZE][SIZE] = {
+        #if SIZE_X==1
+        { 0,  1,  0 },
+        { 1, -4,  1 },
+        { 0,  1,  0 }
+        #endif
+        #if SIZE_X==3
+        { 2,  0,  2 },
+        { 0, -8,  0 },
+        { 2,  0,  2 }
+        #endif
+        #if SIZE_X==5
+        { 1,   1,   1,   1,   1 },
+        { 1,   1,   1,   1,   1 },
+        { 1,   1, -24,   1,   1 },
+        { 1,   1,   1,   1,   1 },
+        { 1,   1,   1,   1,   1 }
+        #endif
+    };
+
+    // host memory for image of width x height pixels
+    uchar4 *input = (uchar4 *)malloc(sizeof(uchar4)*width*height);
+    uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
+    uchar4 *reference_out = (uchar4 *)malloc(sizeof(uchar4)*width*height);
+
+    // initialize data
+    for (int y=0; y<height; ++y) {
+        for (int x=0; x<width; ++x) {
+            uchar4 val;
+            val.x = (y*width + x + 1) % 256;
+            val.y = (y*width + x + 2) % 256;
+            val.z = (y*width + x + 3) % 256;
+            val.w = (y*width + x + 4) % 256;
+            input[y*width + x] = val;
+            reference_in[y*width + x] = val;
+            reference_out[y*width + x] = (uchar4){ 0, 0, 0, 0 };
+        }
+    }
+
+
+    // input and output image of width x height pixels
+    Image<uchar4> IN(width, height, input);
+    Image<uchar4> OUT(width, height);
+
+    // filter mask
+    Mask<int> M(mask);
+
+    // filter domain
+    Domain D(M);
+
+    IterationSpace<uchar4> IsOut(OUT);
+
+
+    #ifndef OpenCV
+    fprintf(stderr, "Calculating Laplace filter ...\n");
+    float timing = 0.0f;
+
+    // UNDEFINED
+    #ifdef RUN_UNDEF
+    BoundaryCondition<uchar4> BcInUndef(IN, M, Boundary::UNDEFINED);
+    Accessor<uchar4> AccInUndef(BcInUndef);
+    LaplaceFilter LFU(IsOut, AccInUndef, D, M, size_x);
+
+    LFU.execute();
+    timing = hipacc_last_kernel_timing();
+    #endif
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // CLAMP
+    BoundaryCondition<uchar4> BcInClamp(IN, M, Boundary::CLAMP);
+    Accessor<uchar4> AccInClamp(BcInClamp);
+    LaplaceFilter LFC(IsOut, AccInClamp, D, M, size_x);
+
+    LFC.execute();
+    timing = hipacc_last_kernel_timing();
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // REPEAT
+    BoundaryCondition<uchar4> BcInRepeat(IN, M, Boundary::REPEAT);
+    Accessor<uchar4> AccInRepeat(BcInRepeat);
+    LaplaceFilter LFR(IsOut, AccInRepeat, D, M, size_x);
+
+    LFR.execute();
+    timing = hipacc_last_kernel_timing();
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // MIRROR
+    BoundaryCondition<uchar4> BcInMirror(IN, M, Boundary::MIRROR);
+    Accessor<uchar4> AccInMirror(BcInMirror);
+    LaplaceFilter LFM(IsOut, AccInMirror, D, M, size_x);
+
+    LFM.execute();
+    timing = hipacc_last_kernel_timing();
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // CONSTANT
+    BoundaryCondition<uchar4> BcInConst(IN, M, Boundary::CONSTANT, '1');
+    Accessor<uchar4> AccInConst(BcInConst);
+    LaplaceFilter LFConst(IsOut, AccInConst, D, M, size_x);
+
+    LFConst.execute();
+    timing = hipacc_last_kernel_timing();
+    timings.push_back(timing);
+    fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+
+
+    // get pointer to result data
+    uchar4 *output = (uchar4 *)OUT.data();
+    #endif
+
+
+
+    #ifdef OpenCV
+    #ifdef CPU
+    fprintf(stderr, "\nCalculating OpenCV Laplacian filter on the CPU ...\n");
+    #else
+    fprintf(stderr, "\nCalculating OpenCV Laplacian filter on the GPU ...\n");
+    #endif
+
+
+    cv::Mat cv_data_in(height, width, CV_8UC4, input);
+    cv::Mat cv_data_out(height, width, CV_8UC4, cv::Scalar(0));
+    int ddepth = CV_8U;
+    double scale = 1.0f;
+    double delta = 0.0f;
+
+    for (int brd_type=0; brd_type<5; brd_type++) {
+        #ifdef CPU
+        if (brd_type==cv::BORDER_WRAP) {
+            // BORDER_WRAP is not supported on the CPU by OpenCV
+            timings.push_back(0.0f);
+            continue;
+        }
+        min_dt = DBL_MAX;
+        for (int nt=0; nt<10; nt++) {
+            time0 = time_ms();
+
+            cv::Laplacian(cv_data_in, cv_data_out, ddepth, size_x, scale, delta, brd_type);
+
+            time1 = time_ms();
+            dt = time1 - time0;
+            if (dt < min_dt) min_dt = dt;
+        }
+        #else
+        #if SIZE_X==5
+        #error "OpenCV supports only 1x1 and 3x3 Laplace filters on the GPU!"
+        #endif
+        cv::gpu::GpuMat gpu_in, gpu_out;
+        gpu_in.upload(cv_data_in);
+
+        min_dt = DBL_MAX;
+        for (int nt=0; nt<10; nt++) {
+            time0 = time_ms();
+
+            cv::gpu::Laplacian(gpu_in, gpu_out, -1, size_x, scale, brd_type);
+
+            time1 = time_ms();
+            dt = time1 - time0;
+            if (dt < min_dt) min_dt = dt;
+        }
+
+        gpu_out.download(cv_data_out);
+        #endif
+
+        fprintf(stderr, "OpenCV(");
+        switch (brd_type) {
+            case IPL_BORDER_CONSTANT:    fprintf(stderr, "CONSTANT");   break;
+            case IPL_BORDER_REPLICATE:   fprintf(stderr, "CLAMP");      break;
+            case IPL_BORDER_REFLECT:     fprintf(stderr, "MIRROR");     break;
+            case IPL_BORDER_WRAP:        fprintf(stderr, "REPEAT");     break;
+            case IPL_BORDER_REFLECT_101: fprintf(stderr, "MIRROR_101"); break;
+            default: break;
+        }
+        timings.push_back(min_dt);
+        fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
+    }
+
+    // get pointer to result data
+    uchar4 *output = (uchar4 *)cv_data_out.data;
+    #endif
+
+    // print statistics
+    for (std::vector<float>::const_iterator it = timings.begin();
+         it != timings.end(); ++it) {
+        fprintf(stderr, "\t%.3f", *it);
+    }
+    fprintf(stderr, "\n\n");
+
+
+    fprintf(stderr, "\nCalculating reference ...\n");
+    min_dt = DBL_MAX;
+    for (int nt=0; nt<3; nt++) {
+        time0 = time_ms();
+
+        // calculate reference
+        laplace_filter(reference_in, reference_out, (int *)mask, size_x, width, height);
+
+        time1 = time_ms();
+        dt = time1 - time0;
+        if (dt < min_dt) min_dt = dt;
+    }
+    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
+
+    fprintf(stderr, "\nComparing results ...\n");
+    #ifdef OpenCV
+    int upper_y = height-size_y+offset_y;
+    int upper_x = width-size_x+offset_x;
+    #else
+    int upper_y = height-offset_y;
+    int upper_x = width-offset_x;
+    #endif
+    // compare results
+    for (int y=offset_y; y<upper_y; y++) {
+        for (int x=offset_x; x<upper_x; x++) {
+            if (reference_out[y*width + x].x != output[y*width + x].x ||
+                reference_out[y*width + x].y != output[y*width + x].y ||
+                reference_out[y*width + x].z != output[y*width + x].z ||
+                reference_out[y*width + x].w != output[y*width + x].w) {
+                fprintf(stderr, "Test FAILED, at (%d,%d): "
+                        "%hhu,%hhu,%hhu,%hhu vs. %hhu,%hhu,%hhu,%hhu\n", x, y,
+                        reference_out[y*width + x].x,
+                        reference_out[y*width + x].y,
+                        reference_out[y*width + x].z,
+                        reference_out[y*width + x].w,
+                        output[y*width + x].x,
+                        output[y*width + x].y,
+                        output[y*width + x].z,
+                        output[y*width + x].w);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+    fprintf(stderr, "Test PASSED\n");
+
+    // memory cleanup
+    free(input);
+    free(reference_in);
+    free(reference_out);
+
+    return EXIT_SUCCESS;
+}
+
