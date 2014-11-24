@@ -2258,7 +2258,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           break;
         case Language::Renderscript:
         case Language::Filterscript:
-          *OS << "rs_allocation Output;\n";
+          *OS << "rs_allocation " << K->getDeviceArgNames()[cur_arg] << ";\n";
           break;
       }
       continue;

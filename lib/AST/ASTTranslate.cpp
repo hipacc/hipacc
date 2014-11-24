@@ -510,11 +510,6 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
         DC->addDecl(output);
         kernelBody.push_back(createDeclStmt(Ctx, output));
         retValRef = createDeclRefExpr(Ctx, output);
-        // rename iteration space to "Output"
-        Kernel->setUsed(outputImage->getNameInfo().getAsString());
-        VarDecl *outputImgDecl = createVarDecl(Ctx, kernelDecl, "Output",
-            Ctx.getPointerType(Kernel->getIterationSpace()->getImage()->getType()));
-        outputImage = createDeclRefExpr(Ctx, outputImgDecl);
       }
       break;
   }
