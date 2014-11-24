@@ -1340,10 +1340,11 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   }
 
   if (compilerOptions.emitFilterscript()) {
-      Expr *result = accessMem(outputImage, Kernel->getIterationSpace(),
-          WRITE_ONLY);
-      setExprProps(outputImage, result);
-      kernelBody.push_back(createReturnStmt(Ctx, result));
+    // in case no value was written, return the value of the iteration space
+    Expr *result = accessMem(outputImage, Kernel->getIterationSpace(),
+        READ_ONLY);
+    setExprProps(outputImage, result);
+    kernelBody.push_back(createReturnStmt(Ctx, result));
   }
 
   CompoundStmt *CS = createCompoundStmt(Ctx, kernelBody);
