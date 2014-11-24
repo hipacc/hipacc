@@ -498,7 +498,7 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
     default: break;
     case Language::Renderscript: {
         // retValRef: Kernel parameter pointing to current output pixel
-        VarDecl *output = createVarDecl(Ctx, kernelDecl, "_IS",
+        VarDecl *output = createVarDecl(Ctx, kernelDecl, "_iter",
             Kernel->getIterationSpace()->getImage()->getType());
         retValRef = createDeclRefExpr(Ctx, output);
       }
@@ -510,6 +510,11 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
         DC->addDecl(output);
         kernelBody.push_back(createDeclStmt(Ctx, output));
         retValRef = createDeclRefExpr(Ctx, output);
+        // rename iteration space to "Output"
+        Kernel->setUsed(outputImage->getNameInfo().getAsString());
+        VarDecl *outputImgDecl = createVarDecl(Ctx, kernelDecl, "Output",
+            Ctx.getPointerType(Kernel->getIterationSpace()->getImage()->getType()));
+        outputImage = createDeclRefExpr(Ctx, outputImgDecl);
       }
       break;
   }
@@ -562,7 +567,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   for (auto param : kernelDecl->params()) {
     auto parm_ref = createDeclRefExpr(Ctx, param);
     // the first parameter is the output image; create association between them.
-    if (param==*kernelDecl->param_begin()) {
+    if (param == *kernelDecl->param_begin()) {
       outputImage = parm_ref;
       continue;
     }
@@ -710,8 +715,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     // search for member name in kernel parameter list
     for (auto param : kernelDecl->params()) {
       // output image - iteration space
-      if (param->getName().equals("Output")) {
-        // <type>4 *Input4 = (<type>4 *) Input;
+      if (param->getName().equals((*kernelDecl->param_begin())->getName())) {
+        // <type>4 *Output4 = (<type>4 *) Output;
         VarDecl *VD = CloneParmVarDecl(param);
 
         VD->setInit(createCStyleCastExpr(Ctx, VD->getType(), CK_BitCast,
@@ -1413,7 +1418,7 @@ VarDecl *ASTTranslate::CloneParmVarDecl(ParmVarDecl *PVD) {
       for (auto img : KernelClass->getImgFields()) {
         // parameter name matches
         if (PVD->getName().equals(img->getName()) ||
-            PVD->getName().equals("Output")) {
+            PVD->getName().equals((*kernelDecl->param_begin())->getName())) {
           // mark original variable as being used
           Kernel->setUsed(name);
 

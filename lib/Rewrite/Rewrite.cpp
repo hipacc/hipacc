@@ -2511,7 +2511,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           // parameters are set separately for Renderscript
           // add parameters for dummy allocation and indices
           *OS << K->getIterationSpace()->getImage()->getTypeStr()
-              << " *_IS, uint32_t x, uint32_t y";
+              << " *_iter, uint32_t x, uint32_t y";
           doBreak = true;
           break;
         case Language::Filterscript:
