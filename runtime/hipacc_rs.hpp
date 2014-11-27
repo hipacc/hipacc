@@ -141,7 +141,7 @@ CREATE_ALLOCATION_DECL(double4)
 class HipaccContext : public HipaccContextBase {
     private:
         PRS context;
-        std::vector<std::pair<sp<Allocation>, HipaccImage> > allocs;
+        std::list<std::pair<sp<Allocation>, HipaccImage> > allocs;
 
         HipaccContext() {
           context = new RS();
@@ -154,15 +154,15 @@ class HipaccContext : public HipaccContextBase {
             return instance;
         }
         void add_image(HipaccImage &img, sp<Allocation> id) {
-            imgs.push_back(&img);
+            imgs.push_back(img);
             allocs.push_back(std::make_pair(id, img));
         }
         void del_image(HipaccImage &img) {
             size_t num=0;
-            std::vector<std::pair<sp<Allocation>, HipaccImage> >::const_iterator i;
+            std::list<std::pair<sp<Allocation>, HipaccImage> >::iterator i;
             for (i=allocs.begin(); i!=allocs.end(); ++i, ++num) {
                 if (i->second == img) {
-                    allocs.erase(allocs.begin() + num);
+                    allocs.erase(i);
                     HipaccContextBase::del_image(img);
                     return;
                 }
@@ -173,7 +173,7 @@ class HipaccContext : public HipaccContextBase {
             exit(EXIT_FAILURE);
         }
         const sp<Allocation> *get_allocation(HipaccImage &img) {
-            std::vector<std::pair<sp<Allocation>, HipaccImage> >::const_iterator i;
+            std::list<std::pair<sp<Allocation>, HipaccImage> >::const_iterator i;
             for (i=allocs.begin(); i!=allocs.end(); ++i) {
                 if (i->second == img) {
                     return &i->first;

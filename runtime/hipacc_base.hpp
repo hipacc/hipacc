@@ -35,6 +35,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <list>
 #include <vector>
 #if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 #include <functional>
@@ -135,7 +136,7 @@ class HipaccImage {
             }
         }
 
-        bool operator==(HipaccImage &other) const {
+        bool operator==(HipaccImage other) const {
             return mem==other.mem;
         }
 };
@@ -165,16 +166,16 @@ class HipaccAccessor {
 
 class HipaccContextBase {
     protected:
-        std::vector<HipaccImage*> imgs;
+        std::list<HipaccImage> imgs;
 
         HipaccContextBase() {};
         HipaccContextBase(HipaccContextBase const &);
         void operator=(HipaccContextBase const &);
 
     public:
-        void add_image(HipaccImage &img) { imgs.push_back(&img); }
+        void add_image(HipaccImage &img) { imgs.push_back(img); }
         void del_image(HipaccImage &img) {
-            imgs.erase(std::remove(imgs.begin(), imgs.end(), &img), imgs.end());
+            imgs.erase(std::remove(imgs.begin(), imgs.end(), img), imgs.end());
         }
 };
 
