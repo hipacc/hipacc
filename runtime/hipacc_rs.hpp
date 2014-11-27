@@ -154,7 +154,7 @@ class HipaccContext : public HipaccContextBase {
             return instance;
         }
         void add_image(HipaccImage &img, sp<Allocation> id) {
-            imgs.push_back(img);
+            HipaccContextBase::add_image(img);
             allocs.push_back(std::make_pair(id, img));
         }
         void del_image(HipaccImage &img) {
