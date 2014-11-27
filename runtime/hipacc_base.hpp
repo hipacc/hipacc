@@ -175,7 +175,12 @@ class HipaccContextBase {
     public:
         void add_image(HipaccImage &img) { imgs.push_back(img); }
         void del_image(HipaccImage &img) {
-            imgs.erase(std::remove(imgs.begin(), imgs.end(), img), imgs.end());
+            for (std::list<HipaccImage>::iterator i=imgs.begin(); i!=imgs.end(); ++i) {
+                if (*i == img) {
+                    imgs.erase(i);
+                    return;
+                }
+            }
         }
 };
 
