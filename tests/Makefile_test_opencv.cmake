@@ -4,7 +4,7 @@ CC = g++
 HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
 
 MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5 -D OpenCV
-CFLAGS        = $(MYFLAGS) -std=c++11 @PTHREAD@ -Wall -Wunused \
+CFLAGS        = $(MYFLAGS) -std=c++11 ${CMAKE_THREAD_LIBS_INIT} -Wall -Wunused \
                 -I$(HIPACC_DIR)/include/dsl \
                 -I@OPENCV_INCLUDE_DIR@
 LDFLAGS       = -lm \

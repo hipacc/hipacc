@@ -45,6 +45,7 @@ STRING(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
 
 # add path for custom modules
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
+FIND_PACKAGE(Threads)
 FIND_PACKAGE(Clang REQUIRED)
 FIND_PACKAGE(CUDA)
 FIND_PACKAGE(OpenCL)
@@ -95,12 +96,10 @@ IF(APPLE)
     SET(CUDA_LINK "-Xlinker -framework,CUDA")
     SET(NVCC_COMP "${NVCC_CPP_STD} -ccbin ${CLANG_EXECUTABLE} -Xcompiler -arch -Xcompiler x86_64 -Xcompiler -stdlib=libstdc++")
     SET(TIME_LINK "")
-    SET(PTHREAD   "")
 ELSE(APPLE)
     SET(CUDA_LINK "-lcuda -lcudart")
     SET(NVCC_COMP "${NVCC_CPP_STD}")
     SET(TIME_LINK "-lrt")
-    SET(PTHREAD   "-pthread")
 ENDIF(APPLE)
 
 
