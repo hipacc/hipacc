@@ -33,12 +33,6 @@
 #ifndef _SIMDTYPES_H_
 #define _SIMDTYPES_H_
 
-#include <clang/AST/Type.h>
-
-#include <sstream>
-
-#include "hipacc/AST/ASTNode.h"
-#include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/Builtins.h"
 
 namespace clang {

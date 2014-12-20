@@ -33,11 +33,11 @@
 #ifndef _TARGET_DESCRIPTION_H
 #define _TARGET_DESCRIPTION_H
 
-#include <sstream>
-
 #include "hipacc/Config/config.h"
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDevices.h"
+
+#include <string>
 
 namespace clang {
 namespace hipacc {

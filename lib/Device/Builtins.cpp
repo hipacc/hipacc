@@ -32,6 +32,8 @@
 
 #include "hipacc/Device/Builtins.h"
 
+#include <clang/Basic/TargetInfo.h>
+
 using namespace clang;
 using namespace hipacc;
 using namespace hipacc::Builtin;

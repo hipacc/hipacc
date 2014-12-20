@@ -33,6 +33,8 @@
 #ifndef _TARGET_DEVICES_H
 #define _TARGET_DEVICES_H
 
+#include <cstdint>
+
 namespace clang {
 namespace hipacc {
 // supported target devices

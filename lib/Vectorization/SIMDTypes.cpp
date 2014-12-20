@@ -31,6 +31,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "hipacc/Vectorization/SIMDTypes.h"
+#include "hipacc/AST/ASTNode.h"
+#include "hipacc/Config/CompilerOptions.h"
+
+#include <clang/AST/Type.h>
 
 using namespace clang;
 using namespace hipacc;

@@ -34,12 +34,10 @@
 #ifndef _BUILTINS_H_
 #define _BUILTINS_H_
 
+#include "hipacc/Config/CompilerOptions.h"
+
 #include <clang/AST/ASTContext.h>
 #include <clang/Basic/Builtins.h>
-#include <clang/Basic/TargetInfo.h>
-#include <llvm/Support/raw_ostream.h>
-
-#include "hipacc/Config/CompilerOptions.h"
 
 namespace clang {
 namespace hipacc {

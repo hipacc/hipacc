@@ -36,6 +36,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "hipacc/Analysis/KernelStatistics.h"
+
+#include <clang/Analysis/Analyses/PostOrderCFGView.h>
+#include <clang/AST/ASTContext.h>
+#include <clang/AST/StmtVisitor.h>
+
 //#define DEBUG_ANALYSIS
 
 using namespace clang;

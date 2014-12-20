@@ -33,12 +33,12 @@
 #ifndef _COMPILER_OPTIONS_H_
 #define _COMPILER_OPTIONS_H_
 
-#include <string>
+#include "hipacc/Config/config.h"
+#include "hipacc/Device/TargetDevices.h"
 
 #include <llvm/Support/raw_ostream.h>
 
-#include "hipacc/Config/config.h"
-#include "hipacc/Device/TargetDevices.h"
+#include <string>
 
 namespace clang {
 namespace hipacc {

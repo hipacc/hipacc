@@ -25,9 +25,9 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-//===--- CreateHostStrings.h - OpenCL/CUDA helper for the Rewriter --------===//
+//===--- CreateHostStrings.h - Runtime string creator for the Rewriter ----===//
 //
-// This file implements functionality for printing OpenCL/CUDA host code to
+// This file implements functionality for printing HIPAcc runtime code to
 // strings.
 //
 //===----------------------------------------------------------------------===//
@@ -35,10 +35,9 @@
 #ifndef _CREATE_HOST_STRINGS_H_
 #define _CREATE_HOST_STRINGS_H_
 
-#include "hipacc/Config/CompilerOptions.h"
-#include "hipacc/Device/TargetDescription.h"
 #include "hipacc/DSL/ClassRepresentation.h"
 
+#include <string>
 
 namespace clang {
 namespace hipacc {

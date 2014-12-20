@@ -34,18 +34,16 @@
 #ifndef _CLASS_REPRESENTATION_H_
 #define _CLASS_REPRESENTATION_H_
 
-#include <clang/AST/Decl.h>
-#include <clang/AST/DeclCXX.h>
-#include <llvm/ADT/StringRef.h>
-#include <llvm/Support/Format.h>
-
-#include <map>
-#include <sstream>
-#include <algorithm>
-
 #include "hipacc/Analysis/KernelStatistics.h"
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDescription.h"
+
+#include <clang/AST/ASTContext.h>
+
+#include <locale>
+#include <map>
+#include <set>
+#include <string>
 
 namespace clang {
 namespace hipacc {
