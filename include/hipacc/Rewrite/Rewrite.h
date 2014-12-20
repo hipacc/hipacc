@@ -25,46 +25,20 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-//===--- Rewrite.h - OpenCL/CUDA rewriter for the AST ---------------------===//
+//===--- Rewrite.h - Mapping the DSL (AST nodes) to the runtime -----------===//
 //
-// This file implements functionality for rewriting OpenCL/CUDA kernels.
+// This file implements functionality for mapping the DSL to the HIPAcc runtime.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef _REWRITE_H_
 #define _REWRITE_H_
 
-#include <clang/Analysis/CFG.h>
-#include <clang/AST/ASTConsumer.h>
-#include <clang/AST/RecursiveASTVisitor.h>
-#include <clang/Basic/SourceManager.h>
-#include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendAction.h>
-#include <clang/Rewrite/Core/Rewriter.h>
-#include <llvm/ADT/APFloat.h>
-#include <llvm/Support/MemoryBuffer.h>
-#include <llvm/Support/Casting.h>
-
-#include "hipacc/Config/config.h"
-#include "hipacc/Analysis/KernelStatistics.h"
-#ifdef USE_POLLY
-#include "hipacc/Analysis/Polly.h"
-#endif
-#include "hipacc/AST/ASTNode.h"
-#include "hipacc/AST/ASTTranslate.h"
-#include "hipacc/Config/CompilerOptions.h"
-#include "hipacc/Device/TargetDescription.h"
-#include "hipacc/DSL/CompilerKnownClasses.h"
-#include "hipacc/Rewrite/CreateHostStrings.h"
-
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <unistd.h>
 
 namespace clang {
 namespace hipacc {
+class CompilerOptions;
 class HipaccRewriteAction : public ASTFrontendAction {
   CompilerOptions &options;
 
@@ -74,11 +48,8 @@ class HipaccRewriteAction : public ASTFrontendAction {
   {}
 
   protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI, StringRef
-      InFile);
+  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI, StringRef file);
 };
-ASTConsumer *CreateHipaccRewriteAction(CompilerInstance &CI, CompilerOptions
-    &options, llvm::raw_ostream *out);
 } // end namespace hipacc
 } // end namespace clang
 

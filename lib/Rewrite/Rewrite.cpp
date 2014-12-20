@@ -32,6 +32,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "hipacc/Rewrite/Rewrite.h"
+#include "hipacc/Analysis/KernelStatistics.h"
+#ifdef USE_POLLY
+#include "hipacc/Analysis/Polly.h"
+#endif
+#include "hipacc/AST/ASTNode.h"
+#include "hipacc/AST/ASTTranslate.h"
+#include "hipacc/Config/config.h"
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/Device/TargetDescription.h"
+#include "hipacc/DSL/CompilerKnownClasses.h"
+#include "hipacc/Rewrite/CreateHostStrings.h"
+
+#include <clang/AST/ASTConsumer.h>
+#include <clang/AST/RecursiveASTVisitor.h>
+#include <clang/Rewrite/Core/Rewriter.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 using namespace clang;
 using namespace hipacc;
@@ -133,8 +152,8 @@ ASTConsumer *CreateRewrite(CompilerInstance &CI, CompilerOptions &options,
 
 
 ASTConsumer *HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
-    StringRef InFile) {
-  if (llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, InFile)) {
+    StringRef file) {
+  if (llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, file)) {
     return CreateRewrite(CI, options, OS);
   }
 

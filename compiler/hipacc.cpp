@@ -26,41 +26,28 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-//===--- hipacc.cpp - CUDA/OpenCL Source-to-Source Compiler ---------------===//
+//===--- hipacc.cpp - DSL Source-to-Source Compiler -----------------------===//
 //
-// This file implements the CUDA/OpenCL Source-to-Source Compiler.
+// This file implements the DSL Source-to-Source Compiler.
 //
 //===----------------------------------------------------------------------===//
 
 #include "hipacc.h"
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/Device/TargetDescription.h"
+#include "hipacc/Rewrite/Rewrite.h"
+
+#include <clang/Driver/Compilation.h>
+#include <clang/Driver/Driver.h>
+#include <clang/Frontend/CompilerInstance.h>
+#include <clang/Frontend/CompilerInvocation.h>
+#include <clang/Frontend/TextDiagnosticPrinter.h>
+#include <llvm/Support/Host.h>
+
+#include <sstream>
 
 using namespace clang;
 using namespace hipacc;
-
-
-static void LLVMErrorHandler(void *userData, const std::string &message, bool
-    genCrashDiag) {
-  DiagnosticsEngine &Diags = *static_cast<DiagnosticsEngine *>(userData);
-
-  Diags.Report(diag::err_fe_error_backend) << message;
-
-  // Run the interrupt handlers to make sure any special cleanups get done, in
-  // particular that we remove files registered with RemoveFileOnSignal.
-  llvm::sys::RunInterruptHandlers();
-
-  // We cannot recover from llvm errors.  When reporting a fatal error, exit
-  // with status 70 to generate crash diagnostics.  For BSD systems this is
-  // defined as an internal software error.  Otherwise, exit with status 1.
-  exit(genCrashDiag ? 70 : EXIT_FAILURE);
-}
-
-
-std::string getExecutablePath(const char *argv0) {
-  // this just needs to be some symbol in the binary; C++ doesn't
-  // allow taking the address of ::main however
-  void *mainAddr = (void *) (intptr_t) getExecutablePath;
-  return llvm::sys::fs::getMainExecutable(argv0, mainAddr);
-}
 
 
 void printCopyright() {
@@ -126,19 +113,12 @@ int main(int argc, char *argv[]) {
   // first, print the Copyright notice
   printCopyright();
 
-  // get stack trace on SegFaults
-  llvm::sys::PrintStackTraceOnErrorSignal();
-  llvm::PrettyStackTraceProgram X(argc, argv);
-
-  // argument list for CompilerInvocation after removing our compiler flags
-  SmallVector<const char *, 16> Args;
+  // argument list for Driver after removing our compiler flags
+  SmallVector<const char *, 16> args;
   CompilerOptions compilerOptions = CompilerOptions();
 
-  // support exceptions
-  Args.push_back("-fexceptions");
-
   // parse command line options
-  for (int i=1; i<argc; ++i) {
+  for (int i=0; i<argc; ++i) {
     if (StringRef(argv[i]) == "-emit-cpu") {
       compilerOptions.setTargetLang(Language::C99);
       continue;
@@ -314,7 +294,7 @@ int main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     }
 
-    Args.push_back(argv[i]);
+    args.push_back(argv[i]);
   }
 
   // create target device description from compiler options
@@ -417,65 +397,43 @@ int main(int argc, char *argv[]) {
   compilerOptions.printSummary(targetDevice.getTargetDeviceName());
 
 
-  // setup and initialize compiler instance
-  void *mainAddr = (void *) (intptr_t) getExecutablePath;
-  std::string Path = getExecutablePath(argv[0]);
-
-  std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
-  IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-
+  // use the Driver
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
-  TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
-  DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagsBuffer);
+  TextDiagnosticPrinter DiagnosticPrinter(llvm::errs(), &*DiagOpts);
+  DiagnosticsEngine Diagnostics(
+      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs()),
+      &*DiagOpts, &DiagnosticPrinter, false);
 
-  // initialize a compiler invocation object from the arguments
-  bool success;
-  success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(),
-      const_cast<const char **>(Args.data()),
-      const_cast<const char **>(Args.data()) + Args.size(), Diags);
+  driver::Driver Driver(args[0], llvm::sys::getDefaultTargetTriple(),
+      Diagnostics);
+  Driver.setCheckInputsExist(false);
+  Driver.setTitle("hipacc");
 
-  // infer the builtin include path if unspecified
-  if (Clang->getHeaderSearchOpts().UseBuiltinIncludes &&
-      Clang->getHeaderSearchOpts().ResourceDir.empty()) {
-    Clang->getHeaderSearchOpts().ResourceDir =
-      CompilerInvocation::GetResourcesPath(argv[0], mainAddr);
-  }
+  std::unique_ptr<driver::Compilation> Compilation(
+      Driver.BuildCompilation(args));
 
-  // create the actual diagnostics engine
-  Clang->createDiagnostics();
-  if (!Clang->hasDiagnostics()) return EXIT_FAILURE;
-  // print diagnostics in color
-  Clang->getDiagnosticOpts().ShowColors = 1;
-  // print statistics
-  //Clang->getFrontendOpts().ShowStats = 1;
+  std::unique_ptr<CompilerInvocation> Invocation(new CompilerInvocation());
+  CompilerInvocation::CreateFromArgs(*Invocation,
+      args.data() + 1, args.data() + args.size(), Diagnostics);
+  Invocation->getFrontendOpts().DisableFree = false;
+  Invocation->getCodeGenOpts().DisableFree = false;
+  Invocation->getDependencyOutputOpts() = DependencyOutputOptions();
 
-  // set an error handler, so that any LLVM back end diagnostics go through
-  // our error handler
-  llvm::install_fatal_error_handler(LLVMErrorHandler,
-      static_cast<void *>(&Clang->getDiagnostics()));
+  // create a compiler instance to handle the actual work
+  CompilerInstance Compiler;
+  Compiler.setInvocation(Invocation.release());
 
-  DiagsBuffer->FlushDiagnostics(Clang->getDiagnostics());
-  if (!success) return EXIT_FAILURE;
+  // create the action for Hipacc
+  std::unique_ptr<ASTFrontendAction> HipaccAction(
+      new HipaccRewriteAction(compilerOptions));
 
-  // create and execute the frontend action
-  std::unique_ptr<ASTFrontendAction> Act(new HipaccRewriteAction(compilerOptions));
+  // create the compiler's actual diagnostics engine.
+  Compiler.createDiagnostics();
+  if (!Compiler.hasDiagnostics())
+    return EXIT_FAILURE;
 
-  if (!Clang->ExecuteAction(*Act)) return EXIT_FAILURE;
-
-  // if any timers were active but haven't been destroyed yet, print their
-  // results now.  This happens in -disable-free mode.
-  llvm::TimerGroup::printAll(llvm::errs());
-
-  // our error handler depends on the Diagnostics object, which we're
-  // potentially about to delete. Uninstall the handler now so that any
-  // later errors use the default handling behavior instead.
-  llvm::remove_fatal_error_handler();
-
-  // managed static deconstruction. Useful for making things like
-  // -time-passes usable.
-  llvm::llvm_shutdown();
-
-  return EXIT_SUCCESS;
+  // run the action
+  return !Compiler.ExecuteAction(*HipaccAction);
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

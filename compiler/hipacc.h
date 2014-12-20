@@ -25,25 +25,16 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-//===--- hipacc.h - CUDA/OpenCL Source-to-Source Compiler -----------------===//
+//===--- hipacc.h - DSL Source-to-Source Compiler -------------------------===//
 //
-// This file implements the CUDA/OpenCL Source-to-Source Compiler.
+// This file implements the DSL Source-to-Source Compiler.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef _HIPACC_H_
 #define _HIPACC_H_
 
-#include <clang/Frontend/FrontendDiagnostic.h>
-#include <clang/Frontend/TextDiagnosticBuffer.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/ManagedStatic.h>
-#include <llvm/Support/Signals.h>
-#include <llvm/Support/Timer.h>
-
 #include "hipacc/Config/config.h"
-#include "hipacc/Config/CompilerOptions.h"
-#include "hipacc/Rewrite/Rewrite.h"
 
 #endif /* _HIPACC_H_ */
 
