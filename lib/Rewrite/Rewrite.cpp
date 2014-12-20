@@ -660,10 +660,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             compilerClasses.getFirstTemplateType(VD->getType()));
 
         // get the text string for the image width and height
-        std::string widthStr, heightStr;
-        llvm::raw_string_ostream WS(widthStr), HS(heightStr);
-        CCE->getArg(0)->printPretty(WS, 0, PrintingPolicy(CI.getLangOpts()));
-        CCE->getArg(1)->printPretty(HS, 0, PrintingPolicy(CI.getLangOpts()));
+        std::string width_str  = TextRewriter.ConvertToString(CCE->getArg(0));
+        std::string height_str = TextRewriter.ConvertToString(CCE->getArg(1));
 
         if (compilerOptions.emitC99()) {
           // check if the parameter can be resolved to a constant
@@ -682,18 +680,15 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         }
 
         // host memory
-        std::string initStr;
-        llvm::raw_string_ostream IS(initStr);
+        std::string init_str = "NULL";
         if (CCE->getNumArgs() == 3) {
-          CCE->getArg(2)->printPretty(IS, 0, PrintingPolicy(CI.getLangOpts()));
-        } else {
-          IS << "NULL";
+          init_str = TextRewriter.ConvertToString(CCE->getArg(2));
         }
 
         // create memory allocation string
         std::string newStr;
-        stringCreator.writeMemoryAllocation(Img, WS.str(), HS.str(), IS.str(),
-            newStr);
+        stringCreator.writeMemoryAllocation(Img, width_str, height_str,
+            init_str, newStr);
 
         // rewrite Image definition
         // get the start location and compute the semi location.
@@ -718,21 +713,15 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccPyramid *Pyr = new HipaccPyramid(Context, VD,
             compilerClasses.getFirstTemplateType(VD->getType()));
 
-        // get the text string for the pyramid image
-        std::string imageStr;
-        llvm::raw_string_ostream IS(imageStr);
-        CCE->getArg(0)->printPretty(IS, 0, PrintingPolicy(CI.getLangOpts()));
-
-        // get the text string for the pyramid depth
-        std::string depthStr;
-        llvm::raw_string_ostream DS(depthStr);
-        CCE->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
+        // get the text string for the pyramid image & depth
+        std::string image_str = TextRewriter.ConvertToString(CCE->getArg(0));
+        std::string depth_str = TextRewriter.ConvertToString(CCE->getArg(1));
 
         // create memory allocation string
         std::string newStr;
         stringCreator.writePyramidAllocation(VD->getName(),
             compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
-            IS.str(), DS.str(), newStr);
+            image_str, depth_str, newStr);
 
         // rewrite Pyramid definition
         // get the start location and compute the semi location.
@@ -886,8 +875,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         for (size_t i=0, e=CCE->getNumArgs(); i!=e; ++i) {
           auto arg = CCE->getArg(i)->IgnoreParenCasts();
-          std::string Str;
-          llvm::raw_string_ostream SS(Str);
 
           if (isa<CXXDefaultArgExpr>(arg))
             continue;
@@ -935,8 +922,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               BCDeclMap[VD] = BC; // Fixme: store BoundaryCondition???
 
               // add call expression to pyramid argument
-              arg->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-              Parms = SS.str();
+              Parms = TextRewriter.ConvertToString(arg);
               continue;
             }
 
@@ -956,8 +942,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get text string for arguments, argument order is:
           // img|bc|pyramid-call
           // img|bc|pyramid-call, width, height, xf, yf
-          arg->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-          Parms += ", " + SS.str();
+          Parms += ", " + TextRewriter.ConvertToString(arg);
           roi_args++;
         }
 
@@ -997,9 +982,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         for (size_t i=0, e=CCE->getNumArgs(); i!=e; ++i) {
           auto arg = CCE->getArg(i)->IgnoreParenCasts();
-          std::string Str;
-          llvm::raw_string_ostream SS(Str);
-
           auto dsl_arg = arg;
           if (auto call = dyn_cast<CXXOperatorCallExpr>(arg)) {
             // for pyramid call use the first argument
@@ -1019,16 +1001,14 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             if (PyrDeclMap.count(DRE->getDecl())) {
               Pyr = PyrDeclMap[DRE->getDecl()];
               // add call expression to pyramid argument
-              arg->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-              Parms = SS.str();
+              Parms = TextRewriter.ConvertToString(arg);
               continue;
             }
           }
 
           // get text string for arguments, argument order is:
           // img[, is_width, is_height[, offset_x, offset_y]]
-          arg->printPretty(SS, 0, PrintingPolicy(CI.getLangOpts()));
-          Parms += ", " + SS.str();
+          Parms += ", " + TextRewriter.ConvertToString(arg);
           roi_args++;
         }
 
@@ -1590,16 +1570,14 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
         if (write_pointer) {
           // get the text string for the memory transfer src
-          std::string dataStr;
-          llvm::raw_string_ostream DS(dataStr);
-          E->getArg(1)->printPretty(DS, 0, PrintingPolicy(CI.getLangOpts()));
+          std::string data_str = TextRewriter.ConvertToString(E->getArg(1));
 
           // create memory transfer string
           if (PyrLHS) {
-            stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS, DS.str(),
+            stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS, data_str,
                 HOST_TO_DEVICE, newStr);
           } else {
-            stringCreator.writeMemoryTransfer(ImgLHS, DS.str(), HOST_TO_DEVICE,
+            stringCreator.writeMemoryTransfer(ImgLHS, data_str, HOST_TO_DEVICE,
                 newStr);
           }
         }
