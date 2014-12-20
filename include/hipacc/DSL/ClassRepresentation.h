@@ -101,18 +101,12 @@ class HipaccSize {
     {}
 
     void setSizeX(unsigned x) {
-      std::string Str;
-      llvm::raw_string_ostream SS(Str);
-      SS << x;
-      size_x_str = SS.str();
       size_x = x;
+      size_x_str = std::to_string(x);
     }
     void setSizeY(unsigned y) {
-      std::string Str;
-      llvm::raw_string_ostream SS(Str);
-      SS << y;
-      size_y_str = SS.str();
       size_y = y;
+      size_y_str = std::to_string(y);
     }
     unsigned getSizeX() { return size_x; }
     unsigned getSizeY() { return size_y; }
