@@ -118,14 +118,12 @@ namespace {
 class TransferFunctions : public StmtVisitor<TransferFunctions> {
   private:
     KernelStatsImpl &KS;
-    const CFGBlock *currentBlock;
     bool checkImageAccess(Expr *E, MemoryAccess curMemAcc);
     MemoryAccessDetail checkStride(Expr *EX, Expr *EY);
 
   public:
-    TransferFunctions(KernelStatsImpl &ks, const CFGBlock *block) :
-      KS(ks),
-      currentBlock(block)
+    TransferFunctions(KernelStatsImpl &ks) :
+      KS(ks)
     {}
 
     void VisitBinaryOperator(BinaryOperator *E);
@@ -165,7 +163,7 @@ class TransferFunctions : public StmtVisitor<TransferFunctions> {
 
 
 void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
-  TransferFunctions TF(*this, block);
+  TransferFunctions TF(*this);
 
   #ifdef DEBUG_ANALYSIS
   block->dump(analysisContext.getCFG(), Ctx.getLangOpts());
