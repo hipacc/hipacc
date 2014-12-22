@@ -39,6 +39,7 @@
 
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
+#include <clang/Driver/Tool.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/CompilerInvocation.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
@@ -412,9 +413,14 @@ int main(int argc, char *argv[]) {
   std::unique_ptr<driver::Compilation> Compilation(
       Driver.BuildCompilation(args));
 
+  // use the flags from the first job
+  const driver::JobList &Jobs = Compilation->getJobs();
+  const driver::Command *Cmd = cast<driver::Command>(*Jobs.begin());
+  const llvm::opt::ArgStringList *const cc1_args = &Cmd->getArguments();
+
   std::unique_ptr<CompilerInvocation> Invocation(new CompilerInvocation());
   CompilerInvocation::CreateFromArgs(*Invocation,
-      args.data() + 1, args.data() + args.size(), Diagnostics);
+      cc1_args->data() + 1, cc1_args->data() + cc1_args->size(), Diagnostics);
   Invocation->getFrontendOpts().DisableFree = false;
   Invocation->getCodeGenOpts().DisableFree = false;
   Invocation->getDependencyOutputOpts() = DependencyOutputOptions();
