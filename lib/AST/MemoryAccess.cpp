@@ -147,16 +147,12 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       switch (compilerOptions.getTargetLang()) {
         default: break;
         case Language::Renderscript: {
-            bool isGlobalAllocation = false;
             if (Kernel->getKernelClass()->getMembers()[0].name.compare(
-                  LHS->getNameInfo().getAsString()) == 0) {
-              isGlobalAllocation = true;
-              break;
-            }
-            if (!isGlobalAllocation) {
+                  LHS->getNameInfo().getAsString()) != 0) {
               // access allocation by using local pointer type kernel argument
               return accessMemAllocPtr(LHS);
             }
+            // fall through to READ_ONLY for global allocation
           }
           break;
         case Language::Filterscript:
