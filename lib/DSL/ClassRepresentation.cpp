@@ -33,6 +33,8 @@
 
 #include "hipacc/DSL/ClassRepresentation.h"
 
+#include <llvm/Support/Format.h>
+
 #ifdef USE_JIT_ESTIMATE
 #include <cuda_occupancy.h>
 #endif
