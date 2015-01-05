@@ -66,7 +66,6 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     DiagnosticsEngine &Diags;
     SourceManager &SM;
     llvm::raw_ostream &Out;
-    bool dump;
     Rewriter TextRewriter;
     Rewriter::RewriteOptions TextRewriteOptions;
 
@@ -100,13 +99,12 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
   public:
     Rewrite(CompilerInstance &CI, CompilerOptions &options, llvm::raw_ostream*
-        o=nullptr, bool dump=false) :
+        o=nullptr) :
       CI(CI),
       Context(CI.getASTContext()),
       Diags(CI.getASTContext().getDiagnostics()),
       SM(CI.getASTContext().getSourceManager()),
       Out(o? *o : llvm::outs()),
-      dump(dump),
       compilerOptions(options),
       targetDevice(options),
       builtins(CI.getASTContext()),
@@ -133,8 +131,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     void Initialize(ASTContext &Context) {
       // get the ID and start/end of the main file.
       mainFileID = SM.getMainFileID();
-      TextRewriter.setSourceMgr(Context.getSourceManager(),
-          Context.getLangOpts());
+      TextRewriter.setSourceMgr(SM, Context.getLangOpts());
       TextRewriteOptions.RemoveLineIfEmpty = true;
     }
 
@@ -145,16 +142,12 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
         HipaccKernel *K, std::string file, bool emitHints);
 };
 }
-ASTConsumer *CreateRewrite(CompilerInstance &CI, CompilerOptions &options,
-    llvm::raw_ostream *out) {
-  return new Rewrite(CI, options, out);
-}
 
 
 ASTConsumer *HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
     StringRef file) {
   if (llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, file)) {
-    return CreateRewrite(CI, options, OS);
+    return new Rewrite(CI, options, OS);
   }
 
   return nullptr;
@@ -1760,7 +1753,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
       break;
   }
 
-  if (!jit_compile || dump) {
+  if (!jit_compile) {
     K->setDefaultConfig();
     return;
   }
@@ -2115,15 +2108,13 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // open file stream using own file descriptor. We need to call fsync() to
   // compile the generated code using nvcc afterwards.
   llvm::raw_ostream *OS = &llvm::errs();
-  if (!dump) {
-    while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
-      if (errno != EINTR) {
-        std::string errorInfo("Error opening output file '" + filename + "'");
-        perror(errorInfo.c_str());
-      }
+  while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
+    if (errno != EINTR) {
+      std::string errorInfo("Error opening output file '" + filename + "'");
+      perror(errorInfo.c_str());
     }
-    OS = new llvm::raw_fd_ostream(fd, false);
   }
+  OS = new llvm::raw_fd_ostream(fd, false);
 
   // write ifndef, ifdef
   std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper);
@@ -2601,10 +2592,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   *OS << "#endif //" + ifdef + "\n";
   *OS << "\n";
   OS->flush();
-  if (!dump) {
-    fsync(fd);
-    close(fd);
-  }
+  fsync(fd);
+  close(fd);
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:
