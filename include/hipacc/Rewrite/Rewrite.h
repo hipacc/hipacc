@@ -41,10 +41,12 @@ namespace hipacc {
 class CompilerOptions;
 class HipaccRewriteAction : public ASTFrontendAction {
   CompilerOptions &options;
+  std::string out_file;
 
   public:
-  HipaccRewriteAction(CompilerOptions &options) :
-    options(options)
+  HipaccRewriteAction(CompilerOptions &options, std::string out_file) :
+    options(options),
+    out_file(out_file)
   {}
 
   protected:

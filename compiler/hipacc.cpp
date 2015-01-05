@@ -117,6 +117,7 @@ int main(int argc, char *argv[]) {
   // argument list for Driver after removing our compiler flags
   SmallVector<const char *, 16> args;
   CompilerOptions compilerOptions = CompilerOptions();
+  std::string out;
 
   // parse command line options
   for (int i=0; i<argc; ++i) {
@@ -294,6 +295,13 @@ int main(int argc, char *argv[]) {
       printVersion();
       return EXIT_SUCCESS;
     }
+    if (StringRef(argv[i]) == "-o") {
+      assert(i<(argc-1) && "Mandatory output file name for -o switch missing.");
+      args.push_back(argv[i]);
+      args.push_back(argv[++i]);
+      out = argv[i];
+      continue;
+    }
 
     args.push_back(argv[i]);
   }
@@ -431,7 +439,7 @@ int main(int argc, char *argv[]) {
 
   // create the action for Hipacc
   std::unique_ptr<ASTFrontendAction> HipaccAction(
-      new HipaccRewriteAction(compilerOptions));
+      new HipaccRewriteAction(compilerOptions, out));
 
   // create the compiler's actual diagnostics engine.
   Compiler.createDiagnostics();

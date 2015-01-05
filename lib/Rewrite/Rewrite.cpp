@@ -47,6 +47,7 @@
 #include <clang/AST/ASTConsumer.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Rewrite/Core/Rewriter.h>
+#include <llvm/Support/Path.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -146,11 +147,20 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
 ASTConsumer *HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
     StringRef file) {
-  if (llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, file)) {
-    return new Rewrite(CI, options, OS);
+  std::string out;
+  if (!out_file.empty()) {
+    StringRef rel_path(out_file);
+    SmallString<1024> abs_path = rel_path;
+    std::error_code EC = llvm::sys::fs::make_absolute(abs_path);
+    assert(!EC); (void)EC;
+    llvm::sys::path::native(abs_path);
+    out = abs_path.str();
   }
 
-  return nullptr;
+  llvm::raw_ostream *OS = CI.createOutputFile(out, false, true, "", "", false);
+  assert(OS && "Cannot create output stream.");
+
+  return new Rewrite(CI, options, OS);
 }
 
 
@@ -983,7 +993,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           // match for DSL arguments
           if (auto DRE = dyn_cast<DeclRefExpr>(dsl_arg)) {
-            // check if the argument is an image 
+            // check if the argument is an image
             if (ImgDeclMap.count(DRE->getDecl())) {
               Img = ImgDeclMap[DRE->getDecl()];
               Parms = Img->getName();
