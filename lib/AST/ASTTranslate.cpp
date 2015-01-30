@@ -2129,11 +2129,18 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
           mask_idx_x = convIdxX;
           mask_idx_y = convIdxY;
         } else {
-          assert(Mask==redDomains.back() &&
+          bool found = false;
+          for (unsigned int i = 0; i < redDomains.size(); ++i) {
+            if (redDomains[i]==Mask) {
+              mask_idx_x = redIdxX[i];
+              mask_idx_y = redIdxY[i];
+              found = true;
+              break;
+            }
+          }
+          assert(found &&
               "the Domain parameter for Accessor operator(Domain) has to be"
               "the Domain parameter of the reduce method.");
-          mask_idx_x = redIdxX.back();
-          mask_idx_y = redIdxY.back();
         }
       case 3:
         // 0: -> (this *) Image Class
