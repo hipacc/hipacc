@@ -1,7 +1,7 @@
 # Find the OpenCL includes and library
 #
 # To set manually the paths, define these environment variables:
-# OPENCL_INC_PATH       - Include path (e.g. OPENCL_INC_PATH=/opt/cuda/include)
+# OPENCL_INC_PATH       - Include path (e.g. OPENCL_INC_PATH=/usr/local/cuda/include)
 # OPENCL_LIB_PATH       - Library path (e.g. OPENCL_LIB_PATH=/usr/lib64/nvidia)
 #
 # Once done this will define

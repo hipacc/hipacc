@@ -28,7 +28,7 @@ components:
 CMAKE_INSTALL_PREFIX        - Installation prefix (this must be an absolute path)
 CMAKE_BUILD_TYPE            - Build type (Debug or Release)
 OPENCL_INC_PATH             - OpenCL include path
-                              e.g. -DOPENCL_INC_PATH=/opt/cuda/include
+                              e.g. -DOPENCL_INC_PATH=/usr/local/cuda/include
 OPENCL_LIB_PATH             - OpenCL library path
                               e.g. -DOPENCL_LIB_PATH=/usr/lib64
 CUDA_BIN_PATH               - CUDA binary path
@@ -46,7 +46,7 @@ NDK_TOOLCHAIN_DIR           - Android NDK directory
 RS_TARGET_API               - Android API level
                               e.g. -DRS_TARGET_API=16
 EMBEDDED_OPENCL_INC_PATH    - OpenCL include path
-                              e.g. -DEMBEDDED_OPENCL_INC_PATH=/opt/cuda/include
+                              e.g. -DEMBEDDED_OPENCL_INC_PATH=/usr/local/cuda/include
 EMBEDDED_OPENCL_LIB_PATH    - OpenCL library path within the target system
                               e.g. -DEMBEDDED_OPENCL_LIB_PATH=vendor/lib/egl
 EMBEDDED_OPENCL_LIB         - Name of the embedded OpenCL library
