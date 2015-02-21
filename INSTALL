@@ -31,8 +31,6 @@ OPENCL_INC_PATH             - OpenCL include path
                               e.g. -DOPENCL_INC_PATH=/usr/local/cuda/include
 OPENCL_LIB_PATH             - OpenCL library path
                               e.g. -DOPENCL_LIB_PATH=/usr/lib64
-CUDA_BIN_PATH               - CUDA binary path
-                              e.g. -DCUDA_BIN_PATH=/opt/cuda/bin
 
 For Android, the cross compiler etc. have to be specified in addition:
 ANDROID_SOURCE_DIR          - Android source directory
