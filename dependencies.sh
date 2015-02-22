@@ -1,8 +1,8 @@
-clang_revision=release_35
-llvm_revision=release_35
-compiler_rt_revision=release_35
-libcxx_revision=release_35
-polly_revision=release_35
+clang_revision=release_36
+llvm_revision=release_36
+compiler_rt_revision=release_36
+libcxx_revision=release_36
+polly_revision=release_36
 
 clang_repository=http://llvm.org/git/clang.git
 llvm_repository=http://llvm.org/git/llvm.git
