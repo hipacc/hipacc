@@ -132,18 +132,15 @@ T *ASTTranslate::lookup(std::string name, QualType QT, NamespaceDecl *NS) {
   DeclContext *DC = Ctx.getTranslationUnitDecl();
   if (NS) DC = Decl::castToDeclContext(NS);
 
-  for (auto Lookup = DC->lookup(&Ctx.Idents.get(name)); !Lookup.empty();
-      Lookup=Lookup.slice(1)) {
-    T *result = cast_or_null<T>(Lookup.front());
-
-    if (result) {
-      if (auto decl = dyn_cast<FunctionDecl>(result)) {
-        if (decl->getReturnType().getDesugaredType(Ctx) ==
+  for (auto *decl : DC->lookup(&Ctx.Idents.get(name))) {
+    if (auto result = cast_or_null<T>(decl)) {
+      if (auto fun = dyn_cast<FunctionDecl>(result)) {
+        if (fun->getReturnType().getDesugaredType(Ctx) ==
             QT.getDesugaredType(Ctx)) return result;
         continue;
       }
-      if (auto decl = dyn_cast<VarDecl>(result)) {
-        if (decl->getType().getDesugaredType(Ctx) == QT.getDesugaredType(Ctx))
+      if (auto var = dyn_cast<VarDecl>(result)) {
+        if (var->getType().getDesugaredType(Ctx) == QT.getDesugaredType(Ctx))
           return result;
         continue;
       }

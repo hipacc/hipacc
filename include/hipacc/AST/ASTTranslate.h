@@ -337,19 +337,16 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       lidYRef(nullptr),
       gidYRef(nullptr) {
         // get 'hipacc' namespace context for lookups
-        for (auto Lookup =
-            Ctx.getTranslationUnitDecl()->lookup(&Ctx.Idents.get("hipacc"));
-            !Lookup.empty(); Lookup=Lookup.slice(1)) {
-          hipaccNS = cast_or_null<NamespaceDecl>(Lookup.front());
-          if (hipaccNS) break;
+        auto hipacc_ident = &Ctx.Idents.get("hipacc");
+        for (auto *decl : Ctx.getTranslationUnitDecl()->lookup(hipacc_ident)) {
+          if ((hipaccNS = cast_or_null<NamespaceDecl>(decl))) break;
         }
         assert(hipaccNS && "could not lookup 'hipacc' namespace");
 
-        // get 'hipacc::' namespace context for lookups
-        for (auto Lookup = hipaccNS->lookup(&Ctx.Idents.get("math"));
-            !Lookup.empty(); Lookup=Lookup.slice(1)) {
-          hipaccMathNS = cast_or_null<NamespaceDecl>(Lookup.front());
-          if (hipaccMathNS) break;
+        // get 'hipacc::math' namespace context for lookups
+        auto math_ident = &Ctx.Idents.get("math");
+        for (auto *decl : hipaccNS->lookup(math_ident)) {
+          if ((hipaccMathNS = cast_or_null<NamespaceDecl>(decl))) break;
         }
         assert(hipaccMathNS && "could not lookup 'hipacc::math' namespace");
 

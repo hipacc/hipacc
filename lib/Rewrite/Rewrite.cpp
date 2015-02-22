@@ -884,14 +884,13 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         std::string Parms;
         size_t roi_args = 0;
 
-        for (size_t i=0, e=CCE->getNumArgs(); i!=e; ++i) {
-          auto arg = CCE->getArg(i)->IgnoreParenCasts();
+        for (auto arg : CCE->arguments()) {
+          auto dsl_arg = arg->IgnoreParenCasts();
 
-          if (isa<CXXDefaultArgExpr>(arg))
+          if (isa<CXXDefaultArgExpr>(dsl_arg))
             continue;
 
-          auto dsl_arg = arg;
-          if (auto call = dyn_cast<CXXOperatorCallExpr>(arg)) {
+          if (auto call = dyn_cast<CXXOperatorCallExpr>(dsl_arg)) {
             // for pyramid call use the first argument
             dsl_arg = call->getArg(0);
           }
@@ -991,10 +990,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         std::string Parms;
         size_t roi_args = 0;
 
-        for (size_t i=0, e=CCE->getNumArgs(); i!=e; ++i) {
-          auto arg = CCE->getArg(i)->IgnoreParenCasts();
-          auto dsl_arg = arg;
-          if (auto call = dyn_cast<CXXOperatorCallExpr>(arg)) {
+        for (auto arg : CCE->arguments()) {
+          auto dsl_arg = arg->IgnoreParenCasts();
+          if (auto call = dyn_cast<CXXOperatorCallExpr>(dsl_arg)) {
             // for pyramid call use the first argument
             dsl_arg = call->getArg(0);
           }
@@ -1263,8 +1261,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           size_t num_img = 0, num_mask = 0;
           auto imgFields = KC->getImgFields();
           auto maskFields = KC->getMaskFields();
-          for (size_t i=0; i<CCE->getNumArgs(); ++i) {
-            auto arg = CCE->getArg(i);
+          for (auto arg : CCE->arguments()) {
             if (auto DRE = dyn_cast<DeclRefExpr>(arg->IgnoreParenCasts())) {
               // check if we have an Image
               if (ImgDeclMap.count(DRE->getDecl())) {

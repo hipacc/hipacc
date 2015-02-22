@@ -195,6 +195,7 @@ Stmt *ASTTranslate::VisitCapturedStmt(CapturedStmt *S) {
 // Asm Statements
 Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
   SmallVector<IdentifierInfo *, 16> names;
+  SmallVector<StringLiteral *, 16> clobbers;
   SmallVector<StringLiteral *, 16> constraints;
   SmallVector<Expr *, 16> exprs;
 
@@ -212,8 +213,7 @@ Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
     exprs.push_back(Clone(S->getInputExpr(I)));
   }
 
-  // constraints
-  SmallVector<StringLiteral *, 16> clobbers;
+  // clobbers
   for (size_t I=0, N=S->getNumClobbers(); I!=N; ++I)
     clobbers.push_back(S->getClobberStringLiteral(I));
 
@@ -519,8 +519,8 @@ Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
   SmallVector<Expr *, 16> index_exprs;
 
   size_t numIndexExprs = E->getNumSubExprs() - 1;
-  for (size_t I=0 ; I<numIndexExprs; ++I)
-    index_exprs.push_back(Clone(E->getSubExpr(I+1)));
+  for (size_t i=0; i<numIndexExprs; ++i)
+    index_exprs.push_back(Clone(E->getSubExpr(i+1)));
 
   Expr *result = DesignatedInitExpr::Create(Ctx, E->getDesignator(0), E->size(),
       index_exprs, E->getEqualOrColonLoc(), E->usesGNUSyntax(),
