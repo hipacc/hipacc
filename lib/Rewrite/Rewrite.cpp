@@ -136,6 +136,14 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       TextRewriteOptions.RemoveLineIfEmpty = true;
     }
 
+    std::string convertToString(Stmt *from) {
+      assert(from != nullptr && "Expected non-null Stmt");
+      std::string SS;
+      llvm::raw_string_ostream S(SS);
+      from->printPretty(S, nullptr, PrintingPolicy(Context.getLangOpts()));
+      return S.str();
+    }
+
     void setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K);
     void printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
         PrintingPolicy Policy, llvm::raw_ostream *OS);
@@ -145,8 +153,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 }
 
 
-ASTConsumer *HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
-    StringRef file) {
+std::unique_ptr<ASTConsumer>
+HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI, StringRef file) {
   std::string out;
   if (!out_file.empty()) {
     StringRef rel_path(out_file);
@@ -160,7 +168,7 @@ ASTConsumer *HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
   llvm::raw_ostream *OS = CI.createOutputFile(out, false, true, "", "", false);
   assert(OS && "Cannot create output stream.");
 
-  return new Rewrite(CI, options, OS);
+  return llvm::make_unique<Rewrite>(CI, options, OS);
 }
 
 
@@ -663,8 +671,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             compilerClasses.getFirstTemplateType(VD->getType()));
 
         // get the text string for the image width and height
-        std::string width_str  = TextRewriter.ConvertToString(CCE->getArg(0));
-        std::string height_str = TextRewriter.ConvertToString(CCE->getArg(1));
+        std::string width_str  = convertToString(CCE->getArg(0));
+        std::string height_str = convertToString(CCE->getArg(1));
 
         if (compilerOptions.emitC99()) {
           // check if the parameter can be resolved to a constant
@@ -685,7 +693,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         // host memory
         std::string init_str = "NULL";
         if (CCE->getNumArgs() == 3) {
-          init_str = TextRewriter.ConvertToString(CCE->getArg(2));
+          init_str = convertToString(CCE->getArg(2));
         }
 
         // create memory allocation string
@@ -717,8 +725,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             compilerClasses.getFirstTemplateType(VD->getType()));
 
         // get the text string for the pyramid image & depth
-        std::string image_str = TextRewriter.ConvertToString(CCE->getArg(0));
-        std::string depth_str = TextRewriter.ConvertToString(CCE->getArg(1));
+        std::string image_str = convertToString(CCE->getArg(0));
+        std::string depth_str = convertToString(CCE->getArg(1));
 
         // create memory allocation string
         std::string newStr;
@@ -925,7 +933,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               BCDeclMap[VD] = BC; // Fixme: store BoundaryCondition???
 
               // add call expression to pyramid argument
-              Parms = TextRewriter.ConvertToString(arg);
+              Parms = convertToString(arg);
               continue;
             }
 
@@ -945,7 +953,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get text string for arguments, argument order is:
           // img|bc|pyramid-call
           // img|bc|pyramid-call, width, height, xf, yf
-          Parms += ", " + TextRewriter.ConvertToString(arg);
+          Parms += ", " + convertToString(arg);
           roi_args++;
         }
 
@@ -1004,14 +1012,14 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             if (PyrDeclMap.count(DRE->getDecl())) {
               Pyr = PyrDeclMap[DRE->getDecl()];
               // add call expression to pyramid argument
-              Parms = TextRewriter.ConvertToString(arg);
+              Parms = convertToString(arg);
               continue;
             }
           }
 
           // get text string for arguments, argument order is:
           // img[, is_width, is_height[, offset_x, offset_y]]
-          Parms += ", " + TextRewriter.ConvertToString(arg);
+          Parms += ", " + convertToString(arg);
           roi_args++;
         }
 
@@ -1573,7 +1581,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
         if (write_pointer) {
           // get the text string for the memory transfer src
-          std::string data_str = TextRewriter.ConvertToString(E->getArg(1));
+          std::string data_str = convertToString(E->getArg(1));
 
           // create memory transfer string
           if (PyrLHS) {

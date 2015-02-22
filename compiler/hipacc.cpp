@@ -423,8 +423,8 @@ int main(int argc, char *argv[]) {
 
   // use the flags from the first job
   const driver::JobList &Jobs = Compilation->getJobs();
-  const driver::Command *Cmd = cast<driver::Command>(*Jobs.begin());
-  const llvm::opt::ArgStringList *const cc1_args = &Cmd->getArguments();
+  const driver::Command &Cmd = cast<driver::Command>(*Jobs.begin());
+  const llvm::opt::ArgStringList *const cc1_args = &Cmd.getArguments();
 
   std::unique_ptr<CompilerInvocation> Invocation(new CompilerInvocation());
   CompilerInvocation::CreateFromArgs(*Invocation,

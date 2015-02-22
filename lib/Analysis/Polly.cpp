@@ -78,7 +78,6 @@ void Polly::analyzeKernel() {
   // initialize passes
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initializeCore(Registry);
-  initializeDebugIRPass(Registry);
   initializeScalarOpts(Registry);
   initializeVectorization(Registry);
   initializeIPO(Registry);
@@ -96,13 +95,11 @@ void Polly::analyzeKernel() {
   llvm::PassManager Passes;
 
   // add an appropriate TargetLibraryInfo pass for the module's triple
-  auto TLI = new llvm::TargetLibraryInfo(Triple(irModule->getTargetTriple()));
-  Passes.add(TLI);
+  Passes.add(new llvm::TargetLibraryInfo(Triple(irModule->getTargetTriple())));
 
   // add an appropriate DataLayout instance for this module.
-  auto DL = irModule->getDataLayout();
-  if (DL)
-    Passes.add(new DataLayoutPass(irModule));
+  if (irModule->getDataLayout())
+    Passes.add(new DataLayoutPass());
 
   Passes.add(llvm::createPromoteMemoryToRegisterPass());
   Passes.add(llvm::createFunctionInliningPass());

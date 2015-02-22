@@ -40,17 +40,19 @@ namespace clang {
 namespace hipacc {
 class CompilerOptions;
 class HipaccRewriteAction : public ASTFrontendAction {
-  CompilerOptions &options;
-  std::string out_file;
+  private:
+    CompilerOptions &options;
+    std::string out_file;
 
   public:
-  HipaccRewriteAction(CompilerOptions &options, std::string out_file) :
-    options(options),
-    out_file(out_file)
-  {}
+    HipaccRewriteAction(CompilerOptions &options, std::string out_file) :
+      options(options),
+      out_file(out_file)
+    {}
 
   protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI, StringRef file);
+    virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+        StringRef file);
 };
 } // end namespace hipacc
 } // end namespace clang

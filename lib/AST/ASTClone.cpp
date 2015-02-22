@@ -245,7 +245,7 @@ Stmt *ASTTranslate::VisitCXXTryStmt(CXXTryStmt *S) {
 // Expressions
 Expr *ASTTranslate::VisitPredefinedExpr(PredefinedExpr *E) {
   Expr *result = new (Ctx) PredefinedExpr(E->getLocation(), E->getType(),
-      E->getIdentType());
+      E->getIdentType(), E->getFunctionName());
 
   setExprPropsClone(E, result);
 
@@ -262,7 +262,7 @@ Expr *ASTTranslate::VisitDeclRefExpr(DeclRefExpr *E) {
   QualType QT = VD->getType().getNonReferenceType();
 
   DeclRefExpr *result = DeclRefExpr::Create(Ctx, E->getQualifierLoc(),
-      E->getTemplateKeywordLoc(), VD, E->refersToEnclosingLocal(),
+      E->getTemplateKeywordLoc(), VD, E->refersToEnclosingVariableOrCapture(),
       E->getLocation(), QT, E->getValueKind(), E->getFoundDecl(),
       E->getNumTemplateArgs()?&templateArgs:0);
 
