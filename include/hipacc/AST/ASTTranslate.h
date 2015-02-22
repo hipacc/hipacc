@@ -530,6 +530,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_EXPR( FunctionParmPackExpr )
     Expr *VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E);
     Expr *VisitLambdaExpr(LambdaExpr *E);
+    HIPACC_UNSUPPORTED_EXPR( CXXFoldExpr )
 
     // Obj-C Expressions
     HIPACC_UNSUPPORTED_EXPR( ObjCStringLiteral )
@@ -558,6 +559,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitConvertVectorExpr(ConvertVectorExpr *E);
     HIPACC_UNSUPPORTED_EXPR( BlockExpr )
     HIPACC_UNSUPPORTED_EXPR( OpaqueValueExpr )
+    HIPACC_UNSUPPORTED_EXPR( TypoExpr )
 
     // Microsoft Extensions
     HIPACC_UNSUPPORTED_EXPR( MSPropertyRefExpr )
@@ -573,21 +575,28 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // OpenMP Directives
     HIPACC_UNSUPPORTED_STMT( OMPExecutableDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPLoopDirective )
     HIPACC_UNSUPPORTED_STMT( OMPParallelDirective )
     HIPACC_UNSUPPORTED_STMT( OMPSimdDirective )
     HIPACC_UNSUPPORTED_STMT( OMPForDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPForSimdDirective )
     HIPACC_UNSUPPORTED_STMT( OMPSectionsDirective )
     HIPACC_UNSUPPORTED_STMT( OMPSectionDirective )
     HIPACC_UNSUPPORTED_STMT( OMPSingleDirective )
     HIPACC_UNSUPPORTED_STMT( OMPMasterDirective )
     HIPACC_UNSUPPORTED_STMT( OMPCriticalDirective )
     HIPACC_UNSUPPORTED_STMT( OMPParallelForDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPParallelForSimdDirective )
     HIPACC_UNSUPPORTED_STMT( OMPParallelSectionsDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTaskDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTaskyieldDirective )
     HIPACC_UNSUPPORTED_STMT( OMPBarrierDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTaskwaitDirective )
     HIPACC_UNSUPPORTED_STMT( OMPFlushDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPOrderedDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPAtomicDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTeamsDirective )
 };
 } // end namespace hipacc
 } // end namespace clang
