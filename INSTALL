@@ -31,6 +31,10 @@ OPENCL_INC_PATH             - OpenCL include path
                               e.g. -DOPENCL_INC_PATH=/usr/local/cuda/include
 OPENCL_LIB_PATH             - OpenCL library path
                               e.g. -DOPENCL_LIB_PATH=/usr/lib64
+OPENCV_INC_PATH             - OpenCV include path
+                              e.g. -DOPENCV_INC_PATH=/opt/local/include
+OPENCV_LIB_PATH             - OpenCV library path
+                              e.g. -DOPENCV_LIB_PATH=/opt/local/lib
 
 For Android, the cross compiler etc. have to be specified in addition:
 ANDROID_SOURCE_DIR          - Android source directory
@@ -49,10 +53,6 @@ EMBEDDED_OPENCL_LIB_PATH    - OpenCL library path within the target system
                               e.g. -DEMBEDDED_OPENCL_LIB_PATH=vendor/lib/egl
 EMBEDDED_OPENCL_LIB         - Name of the embedded OpenCL library
                               e.g. -DEMBEDDED_OPENCL_LIB=libGLES_mali.so
-OPENCV_INC_PATH             - OpenCV include path
-                              e.g. -DOPENCV_INC_PATH=/opt/local/include
-OPENCV_LIB_PATH             - OpenCV library path
-                              e.g. -DOPENCV_LIB_PATH=/opt/local/lib
 
 The following options can be enabled or disabled:
 USE_POLLY               - Use Polly for kernel analysis (e.g. -DUSE_POLLY=ON)
