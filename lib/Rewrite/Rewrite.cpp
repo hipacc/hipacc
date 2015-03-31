@@ -32,7 +32,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "hipacc/Rewrite/Rewrite.h"
-#include "hipacc/Analysis/KernelStatistics.h"
 #ifdef USE_POLLY
 #include "hipacc/Analysis/Polly.h"
 #endif
@@ -589,26 +588,13 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
     for (auto method : D->methods()) {
       // kernel function
       if (method->getNameAsString() == "kernel") {
-        // set kernel method
-        KC->setKernelFunction(method);
-
-        // define analysis context used for different checkers
-        AnalysisDeclContext AC(/* AnalysisDeclContextManager */ 0, method);
-        KernelStatistics::setAnalysisOptions(AC);
-
-        // create kernel analysis pass, execute it and store it to kernel class
-        KernelStatistics *stats = KernelStatistics::create(AC, D->getName(),
-            compilerClasses);
-        KC->setKernelStatistics(stats);
-
+        KC->setKernelFunction(method, compilerClasses);
         continue;
       }
 
       // reduce function
       if (method->getNameAsString() == "reduce") {
-        // set reduce method
         KC->setReduceFunction(method);
-
         continue;
       }
     }
@@ -2240,28 +2226,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     auto cur_arg = num_arg++;
     if (!K->getUsed(K->getDeviceArgNames()[cur_arg])) continue;
 
-    // output image declaration
-    if (cur_arg==0) {
-      switch (compilerOptions.getTargetLang()) {
-        default: break;
-        case Language::CUDA:
-          // surface declaration
-          if (compilerOptions.useTextureMemory() &&
-              compilerOptions.getTextureType()==Texture::Array2D) {
-            *OS << "surface<void, cudaSurfaceType2D> _surfOutput"
-                << K->getName() << ";\n"
-                << "const struct surfaceReference *_surfOutput"
-                << K->getName() << "Ref;\n\n";
-          }
-          break;
-        case Language::Renderscript:
-        case Language::Filterscript:
-          *OS << "rs_allocation " << K->getDeviceArgNames()[cur_arg] << ";\n";
-          break;
-      }
-      continue;
-    }
-
     // global image declarations
     HipaccAccessor *Acc = K->getImgFromMapping(arg);
     if (Acc) {
@@ -2270,31 +2234,41 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       switch (compilerOptions.getTargetLang()) {
         default: break;
         case Language::CUDA:
-          // texture declaration
-          if (KC->getImgAccess(arg) == READ_ONLY &&
-              K->useTextureMemory(Acc)!=Texture::None) {
-            // no texture declaration for __ldg() intrinsic
-            if (K->useTextureMemory(Acc) == Texture::Ldg) break;
-            *OS << "texture<";
-            *OS << T.getAsString();
-            switch (K->useTextureMemory(Acc)) {
-              default: assert(0 && "texture expected.");
-              case Texture::Linear1D:
-                *OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
-                break;
-              case Texture::Linear2D:
-              case Texture::Array2D:
-                *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
-                break;
+          // texture and surface declarations
+          if (K->useTextureMemory(Acc)!=Texture::None &&
+              // no texture declaration for __ldg() intrinsic
+              !(K->useTextureMemory(Acc) == Texture::Ldg)) {
+            if (KC->getImgAccess(arg) == READ_ONLY) {
+              *OS << "texture<";
+              *OS << T.getAsString();
+              switch (K->useTextureMemory(Acc)) {
+                default: assert(0 && "texture expected.");
+                case Texture::Linear1D:
+                  *OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
+                  break;
+                case Texture::Linear2D:
+                case Texture::Array2D:
+                  *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
+                  break;
+              }
+              *OS << arg->getNameAsString() << K->getName() << ";\n"
+                  << "const textureReference *_tex"
+                  << arg->getNameAsString() << K->getName() << "Ref;\n";
+            } else {
+              *OS << "surface<void, cudaSurfaceType2D> _surf"
+                  << arg->getNameAsString() << K->getName() << ";\n"
+                  << "const struct surfaceReference *_surf"
+                  << arg->getNameAsString() << K->getName() << "Ref;\n\n";
             }
-            *OS << arg->getNameAsString() << K->getName() << ";\n"
-                << "const textureReference *_tex"
-                << arg->getNameAsString() << K->getName() << "Ref;\n";
           }
           break;
         case Language::Renderscript:
         case Language::Filterscript:
-          *OS << "rs_allocation " << arg->getNameAsString() << ";\n";
+          if (cur_arg==0) { // TODO: check required?
+            *OS << "rs_allocation " << K->getDeviceArgNames()[cur_arg] << ";\n";
+          } else {
+            *OS << "rs_allocation " << arg->getNameAsString() << ";\n";
+          }
           break;
       }
       continue;
@@ -2441,20 +2415,26 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // write kernel parameters
   size_t comma = 0; num_arg = 0;
   for (auto param : D->params()) {
-    size_t i = num_arg++;
-    std::string Name(param->getNameAsString());
-    FieldDecl *FD = K->getDeviceArgFields()[i];
-
-    if (!K->getUsed(Name) &&
-        !compilerOptions.emitFilterscript() &&
-        !compilerOptions.emitRenderscript()) {
-        // Proceed for Filterscript, because output image is never explicitly used
-        continue;
+    // print default parameters for Renderscript and Filterscript only
+    if (compilerOptions.emitFilterscript()) {
+      *OS << "uint32_t x, uint32_t y";
+      break;
     }
+    if (compilerOptions.emitRenderscript()) {
+      *OS << K->getIterationSpace()->getImage()->getTypeStr()
+          << " *_iter, uint32_t x, uint32_t y";
+      break;
+    }
+
+    size_t i = num_arg++;
+    FieldDecl *FD = K->getDeviceArgFields()[i];
 
     QualType T = param->getType();
     T.removeLocalConst();
     T.removeLocalRestrict();
+
+    std::string Name(param->getNameAsString());
+    if (!K->getUsed(Name)) continue;
 
     // check if we have a Mask or Domain
     HipaccMask *Mask = K->getMaskFromMapping(FD);
@@ -2490,41 +2470,12 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
     // check if we have an Accessor
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
-    MemoryAccess memAcc = KC->getImgAccess(FD);
-    if (i==0) { // first argument is always the output image
-      bool doBreak = false;
-      switch (compilerOptions.getTargetLang()) {
-        case Language::C99:
-        case Language::OpenCLACC:
-        case Language::OpenCLCPU:
-        case Language::OpenCLGPU:
-          break;
-        case Language::CUDA:
-          if (compilerOptions.useTextureMemory() &&
-              compilerOptions.getTextureType()==Texture::Array2D) {
-              continue;
-          }
-          break;
-        case Language::Renderscript:
-          // parameters are set separately for Renderscript
-          // add parameters for dummy allocation and indices
-          *OS << K->getIterationSpace()->getImage()->getTypeStr()
-              << " *_iter, uint32_t x, uint32_t y";
-          doBreak = true;
-          break;
-        case Language::Filterscript:
-          *OS << "uint32_t x, uint32_t y";
-          doBreak = true;
-          break;
-      }
-      if (doBreak) break;
-    }
-
     if (Acc) {
+      MemoryAccess mem_acc = KC->getImgAccess(FD);
       switch (compilerOptions.getTargetLang()) {
         case Language::C99:
           if (comma++) *OS << ", ";
-          if (memAcc==READ_ONLY) *OS << "const ";
+          if (mem_acc==READ_ONLY) *OS << "const ";
           *OS << Acc->getImage()->getTypeStr()
               << " " << Name
               << "[" << Acc->getImage()->getSizeYStr() << "]"
@@ -2533,14 +2484,14 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           // *OS << "[static const restrict 2048][4096]";
           break;
         case Language::CUDA:
-          if (K->useTextureMemory(Acc)!=Texture::None && memAcc==READ_ONLY &&
+          if (K->useTextureMemory(Acc)!=Texture::None &&
               // parameter required for __ldg() intrinsic
               !(K->useTextureMemory(Acc) == Texture::Ldg)) {
             // no parameter is emitted for textures
             continue;
           } else {
             if (comma++) *OS << ", ";
-            if (memAcc==READ_ONLY) *OS << "const ";
+            if (mem_acc==READ_ONLY) *OS << "const ";
             *OS << T->getPointeeType().getAsString();
             *OS << " * __restrict__ ";
             *OS << Name;
@@ -2552,14 +2503,14 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           // __global keyword to specify memory location is only needed for OpenCL
           if (comma++) *OS << ", ";
           if (K->useTextureMemory(Acc)!=Texture::None) {
-            if (memAcc==WRITE_ONLY) {
+            if (mem_acc==WRITE_ONLY) {
               *OS << "__write_only image2d_t ";
             } else {
               *OS << "__read_only image2d_t ";
             }
           } else {
             *OS << "__global ";
-            if (memAcc==READ_ONLY) *OS << "const ";
+            if (mem_acc==READ_ONLY) *OS << "const ";
             *OS << T->getPointeeType().getAsString();
             *OS << " * restrict ";
           }

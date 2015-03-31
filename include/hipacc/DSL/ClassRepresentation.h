@@ -389,6 +389,7 @@ class HipaccKernelClass {
     SmallVector<FieldDecl *, 16> imgFields;
     SmallVector<FieldDecl *, 16> maskFields;
     SmallVector<FieldDecl *, 16> domainFields;
+    FieldDecl *output_image;
 
   public:
     HipaccKernelClass(std::string name) :
@@ -399,19 +400,22 @@ class HipaccKernelClass {
       members(0),
       imgFields(0),
       maskFields(0),
-      domainFields(0)
+      domainFields(0),
+      output_image(nullptr)
     {}
 
     const std::string &getName() const { return name; }
 
-    void setKernelFunction(CXXMethodDecl *fun) { kernelFunction = fun; }
+    void setKernelFunction(CXXMethodDecl *fun, CompilerKnownClasses &classes) {
+      kernelFunction = fun;
+      kernelStatistics = KernelStatistics::create(fun, name, output_image,
+          classes);
+    }
+
     void setReduceFunction(CXXMethodDecl *fun) { reduceFunction = fun; }
     CXXMethodDecl *getKernelFunction() { return kernelFunction; }
     CXXMethodDecl *getReduceFunction() { return reduceFunction; }
 
-    void setKernelStatistics(KernelStatistics *stats) {
-      kernelStatistics = stats;
-    }
     KernelStatistics &getKernelStatistics(void) {
       return *kernelStatistics;
     }
@@ -419,8 +423,8 @@ class HipaccKernelClass {
     MemoryAccess getImgAccess(FieldDecl *decl) {
       return kernelStatistics->getMemAccess(decl);
     }
-    MemoryAccessDetail getImgAccessDetail(FieldDecl *decl) {
-      return kernelStatistics->getMemAccessDetail(decl);
+    MemoryPattern getImgPattern(FieldDecl *decl) {
+      return kernelStatistics->getMemPattern(decl);
     }
     VectorInfo getVectorizeInfo(VarDecl *decl) {
       return kernelStatistics->getVectorizeInfo(decl);
@@ -430,23 +434,24 @@ class HipaccKernelClass {
     }
 
     void addArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      KernelMemberInfo a = { FieldKind::Normal, FD, QT, Name };
-      members.push_back(a);
+      KernelMemberInfo info = { FieldKind::Normal, FD, QT, Name };
+      members.push_back(info);
     }
     void addImgArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      KernelMemberInfo a = { FieldKind::Image, FD, QT, Name };
-      members.push_back(a);
+      KernelMemberInfo info = { FieldKind::Image, FD, QT, Name };
+      members.push_back(info);
       imgFields.push_back(FD);
     }
     void addMaskArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      KernelMemberInfo a = { FieldKind::Mask, FD, QT, Name};
-      members.push_back(a);
+      KernelMemberInfo info = { FieldKind::Mask, FD, QT, Name};
+      members.push_back(info);
       maskFields.push_back(FD);
     }
     void addISArg(FieldDecl *FD, QualType QT, StringRef Name) {
-      KernelMemberInfo a = { FieldKind::IterationSpace, FD, QT, Name };
-      members.push_back(a);
+      KernelMemberInfo info = { FieldKind::IterationSpace, FD, QT, Name };
+      members.push_back(info);
       imgFields.push_back(FD);
+      output_image = FD;
     }
 
     ArrayRef<KernelMemberInfo> getMembers() { return members; }
@@ -475,7 +480,7 @@ class HipaccKernelFeatures : public HipaccDevice {
     void calcImgFeature(FieldDecl *decl, HipaccAccessor *acc) {
       MemoryType mem_type = Global;
       Texture tex_type = Texture::None;
-      MemoryAccessDetail memAccessDetail = KC->getImgAccessDetail(decl);
+      MemoryPattern mem_pattern = KC->getImgPattern(decl);
 
       if (options.useTextureMemory() &&
           options.getTextureType()==Texture::Array2D) {
@@ -486,21 +491,21 @@ class HipaccKernelFeatures : public HipaccDevice {
         // textures all the time otherwise, use texture memory only in case the
         // image is accessed with an offset to the x-coordinate
         if (options.emitCUDA()) {
-          if (memAccessDetail & NO_STRIDE) {
+          if (mem_pattern & NO_STRIDE) {
             if (require_textures[PointOperator]!=Texture::None) {
               mem_type = Texture_;
               tex_type = require_textures[PointOperator];
             }
           }
-          if ((memAccessDetail & STRIDE_X) ||
-              (memAccessDetail & STRIDE_Y) ||
-              (memAccessDetail & STRIDE_XY)) {
+          if ((mem_pattern & STRIDE_X) ||
+              (mem_pattern & STRIDE_Y) ||
+              (mem_pattern & STRIDE_XY)) {
             // possibly use textures only for stride_x ?
             if (require_textures[LocalOperator]!=Texture::None) {
               mem_type = Texture_;
               tex_type = require_textures[LocalOperator];
             }
-          } else if (memAccessDetail & USER_XY) {
+          } else if (mem_pattern & USER_XY) {
             if (require_textures[UserOperator]!=Texture::None) {
               mem_type = Texture_;
               tex_type = require_textures[LocalOperator];
