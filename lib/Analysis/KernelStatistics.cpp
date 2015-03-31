@@ -177,12 +177,9 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
 
   // apply the transfer function for all Stmts in the block.
   for (auto elem : *block) {
-    //it = block->begin(), ei = block->end(); it != ei; ++it) {
-    //const CFGElement &elem = *it;
-    if (!elem.getAs<CFGStmt>()) continue;
-
-    const Stmt *S = elem.castAs<CFGStmt>().getStmt();
-    TF.Visit(const_cast<Stmt*>(S));
+    if (auto cfg_stmt = elem.getAs<CFGStmt>()) {
+      TF.Visit(const_cast<Stmt*>(cfg_stmt->getStmt()));
+    }
   }
 
   #ifdef DEBUG_ANALYSIS
