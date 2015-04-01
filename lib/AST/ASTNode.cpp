@@ -33,7 +33,6 @@
 
 #include "hipacc/AST/ASTNode.h"
 
-
 namespace clang {
 namespace hipacc {
 namespace ASTNode {
