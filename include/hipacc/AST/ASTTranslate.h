@@ -25,7 +25,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-//===--- ASTTranslate.h - C to CL Translation of the AST ------------------===//
+//===--- ASTTranslate.h - Translation of the AST --------------------------===//
 //
 // This file implements translation of statements and expressions.
 //

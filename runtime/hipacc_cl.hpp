@@ -584,10 +584,10 @@ HipaccImage hipaccCreateImage(T *host_mem, size_t width, size_t height,
     image_desc.image_width = width;
     image_desc.image_height = height;
 
-    cl_mem image = clCreateImage(Ctx.get_contexts()[0], flags, &image_format, &image_desc, host_mem, &err);
+    cl_mem image = clCreateImage(Ctx.get_contexts()[0], flags, &image_format, &image_desc, NULL, &err);
     checkErr(err, "clCreateImage()");
     #else
-    cl_mem image = clCreateImage2D(Ctx.get_contexts()[0], flags, &image_format, width, height, 0, host_mem, &err);
+    cl_mem image = clCreateImage2D(Ctx.get_contexts()[0], flags, &image_format, width, height, 0, NULL, &err);
     checkErr(err, "clCreateImage2D()");
     #endif
 

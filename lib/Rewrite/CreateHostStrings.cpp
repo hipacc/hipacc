@@ -569,44 +569,55 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
 
     HipaccAccessor *Acc = K->getImgFromMapping(arg);
     if (Acc) {
-      if (options.emitCUDA() && K->useTextureMemory(Acc)!=Texture::None) {
-        if (KC->getImgAccess(arg)==READ_ONLY &&
-            // no texture required for __ldg() intrinsic
-            !(K->useTextureMemory(Acc) == Texture::Ldg)) {
-          // bind texture
-          if (options.exploreConfig()) {
-            std::string lit(std::to_string(literal_count++));
-            resultStr += "hipacc_tex_info tex_info" + lit;
-            resultStr += "(std::string(\"_tex" + deviceArgNames[i] + K->getName() + "\"), ";
-            resultStr += K->getImgFromMapping(arg)->getImage()->getTextureType() + ", ";
-            resultStr += hostArgNames[i] + ", ";
-            switch (K->useTextureMemory(Acc)) {
-              case Texture::Linear1D: resultStr += "Linear1D"; break;
-              case Texture::Linear2D: resultStr += "Linear2D"; break;
-              case Texture::Array2D:  resultStr += "Array2D";  break;
-              default: assert(0 && "unsupported texture type!");
-            }
-            resultStr += ");\n";
-            resultStr += indent;
-            resultStr += "_texs" + kernelName + ".push_back(";
-            resultStr += "&tex_info" + lit + ");\n";
+      if (options.emitCUDA() && K->useTextureMemory(Acc)!=Texture::None &&
+          // no texture required for __ldg() intrinsic
+          !(K->useTextureMemory(Acc) == Texture::Ldg)) {
+        std::string type_str = "_tex", array_str = "Array2D";
+        if (KC->getMemAccess(arg)==WRITE_ONLY) {
+          type_str = "_surf";
+          array_str = "Surface";
+        }
+        // bind texture and surface
+        if (options.exploreConfig()) {
+          std::string lit(std::to_string(literal_count++));
+          resultStr += "hipacc_tex_info tex_info" + lit;
+          resultStr += "(std::string(\"" + type_str + deviceArgNames[i] + K->getName() + "\"), ";
+          resultStr += K->getImgFromMapping(arg)->getImage()->getTextureType() + ", ";
+          resultStr += hostArgNames[i] + ", ";
+          switch (K->useTextureMemory(Acc)) {
+            case Texture::Linear1D: resultStr += "Linear1D"; break;
+            case Texture::Linear2D: resultStr += "Linear2D"; break;
+            case Texture::Array2D:  resultStr += array_str;  break;
+            default: assert(0 && "unsupported texture type!");
+          }
+          resultStr += ");\n";
+          resultStr += indent;
+          resultStr += "_texs" + kernelName + ".push_back(";
+          resultStr += "&tex_info" + lit + ");\n";
+        } else {
+          if (KC->getMemAccess(arg)==WRITE_ONLY) {
+            resultStr += "cudaGetSurfaceReference(&_surf";
           } else {
             resultStr += "cudaGetTextureReference(&_tex";
-            resultStr += deviceArgNames[i] + K->getName() + "Ref, &_tex";
-            resultStr += deviceArgNames[i] + K->getName() + ");\n";
-            resultStr += indent;
-            resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(";
-            switch (K->useTextureMemory(Acc)) {
-              case Texture::Linear1D: resultStr += "Linear1D"; break;
-              case Texture::Linear2D: resultStr += "Linear2D"; break;
-              case Texture::Array2D:  resultStr += "Array2D";  break;
-              default: assert(0 && "unsupported texture type!");
-            }
-            resultStr += ", _tex" + deviceArgNames[i] + K->getName() + "Ref, ";
-            resultStr += hostArgNames[i] + ");\n";
           }
+          resultStr += deviceArgNames[i] + K->getName() + "Ref, &" + type_str;
+          resultStr += deviceArgNames[i] + K->getName() + ");\n";
           resultStr += indent;
+          if (KC->getMemAccess(arg)==WRITE_ONLY) {
+            resultStr += "hipaccBindSurface<" + argTypeNames[i] + ">(";
+          } else {
+            resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(";
+          }
+          switch (K->useTextureMemory(Acc)) {
+            case Texture::Linear1D: resultStr += "Linear1D"; break;
+            case Texture::Linear2D: resultStr += "Linear2D"; break;
+            case Texture::Array2D:  resultStr += array_str;  break;
+            default: assert(0 && "unsupported texture type!");
+          }
+          resultStr += "," + type_str + deviceArgNames[i] + K->getName() + "Ref, ";
+          resultStr += hostArgNames[i] + ");\n";
         }
+        resultStr += indent;
       }
 
       if (options.exploreConfig() && K->useLocalMemory(Acc)) {
@@ -618,18 +629,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
         resultStr += indent;
       }
     }
-
-    if (options.emitCUDA() && options.exploreConfig()) {
-      HipaccMask *Mask = K->getMaskFromMapping(arg);
-      if (Mask && !Mask->isConstant()) {
-        // get constant pointer
-        resultStr += "_consts" + kernelName + ".push_back(";
-        resultStr += "hipacc_const_info(std::string(\"" + Mask->getName() + K->getName() + "\"), ";
-        resultStr += "(void *)" + Mask->getHostMemName() + ", ";
-        resultStr += "sizeof(" + Mask->getTypeStr() + ")*" + Mask->getSizeXStr() + "*" + Mask->getSizeYStr() + "));\n";
-        resultStr += indent;
-      }
-    }
   }
 
 
@@ -638,14 +637,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       options.getTextureType()==Texture::Array2D) {
     // bind surface
     if (options.exploreConfig()) {
-      std::string lit(std::to_string(literal_count++));
-      resultStr += "hipacc_tex_info tex_info" + lit;
-      resultStr += "(std::string(\"_surfOutput" + K->getName() + "\"), ";
-      resultStr += K->getIterationSpace()->getImage()->getTextureType() + ", ";
-      resultStr += K->getIterationSpace()->getImage()->getName() + ", Surface);\n";
-      resultStr += indent;
-      resultStr += "_texs" + kernelName + ".push_back(";
-      resultStr += "&tex_info" + lit + ");\n";
     } else {
       resultStr += "cudaGetSurfaceReference(&_surfOutput" + K->getName() + "Ref, ";
       resultStr += "&_surfOutput" + K->getName() + ");\n";
@@ -687,15 +678,8 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
       }
     }
 
-    if (options.emitCUDA() && i==0 && options.useTextureMemory() &&
-        options.getTextureType()==Texture::Array2D) {
-      // surface is handled separately
-      continue;
-    }
-
     HipaccAccessor *Acc = K->getImgFromMapping(arg);
     if (options.emitCUDA() && Acc && K->useTextureMemory(Acc)!=Texture::None &&
-        KC->getImgAccess(arg)==READ_ONLY &&
         // no texture required for __ldg() intrinsic
         !(K->useTextureMemory(Acc) == Texture::Ldg)) {
       // textures are handled separately
