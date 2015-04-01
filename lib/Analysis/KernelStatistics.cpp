@@ -392,6 +392,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
               KS.kernelType = LocalOperator;
             }
           }
+          KS.imgsToAccess[FD] = (MemoryAccess) (KS.imgsToAccess[FD]|mem_acc);
           KS.imgsToPattern[FD] = mem_pattern;
 
           return false;
