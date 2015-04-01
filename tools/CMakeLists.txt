@@ -1,6 +1,6 @@
 IF(OPENCL_FOUND)
     INCLUDE_DIRECTORIES(
-        ${OPENCL_INCLUDE_DIR}
+        ${OPENCL_INCLUDE_DIRS}
         ${HIPACC_SOURCE_DIR}/runtime)
 
     SET(cl_compile_SOURCES cl_compile.cc)

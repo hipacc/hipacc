@@ -1,7 +1,7 @@
 # Configuration
 HIPACC_DIR     ?= @CMAKE_INSTALL_PREFIX@
 COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
-COMMON_INC     ?= -I@OPENCV_INCLUDE_DIR@ \
+COMMON_INC     ?= -I@OPENCV_INCLUDE_DIRS@ \
                   -I$(TEST_CASE)
 COMPILER_INC   ?= -std=c++11 $(COMMON_INC) \
                   -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
