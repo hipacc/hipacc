@@ -752,7 +752,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   bool kernel_y = false;
   for (auto img : KernelClass->getImgFields()) {
     HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
-    MemoryAccess memAcc = KernelClass->getImgAccess(img);
+    MemoryAccess mem_acc = KernelClass->getImgAccess(img);
 
     // bail out for user defined kernels
     if (KernelClass->getKernelType()==UserOperator) break;
@@ -765,7 +765,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     }
 
     // check if we need shared memory
-    if (memAcc == READ_ONLY && Kernel->useLocalMemory(Acc)) {
+    if (mem_acc == READ_ONLY && Kernel->useLocalMemory(Acc)) {
       std::string sharedName = "_smem";
       sharedName += img->getNameAsString();
       use_shared = true;
@@ -1897,10 +1897,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
 
   // look for Mask user class member variable
-  if (Kernel->getMaskFromMapping(FD)) {
-    HipaccMask *Mask = Kernel->getMaskFromMapping(FD);
-    MemoryAccess memAcc = KernelClass->getImgAccess(FD);
-    assert(memAcc==READ_ONLY &&
+  if (auto mask = Kernel->getMaskFromMapping(FD)) {
+    MemoryAccess mem_acc = KernelClass->getImgAccess(FD);
+    assert(mem_acc==READ_ONLY &&
         "only read-only memory access to Mask supported");
 
     switch (E->getNumArgs()) {
@@ -1908,13 +1907,13 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         assert(0 && "0, 1, or 2 arguments for Mask operator() expected!");
         break;
       case 1:
-        assert(convMask && convMask==Mask &&
+        assert(convMask && convMask==mask &&
             "0 arguments for Mask operator() only allowed within"
             "convolution lambda-function.");
         // within convolute lambda-function
-        if (Mask->isConstant()) {
+        if (mask->isConstant()) {
           // propagate constants
-          result = Clone(Mask->getInitExpr(convIdxX, convIdxY));
+          result = Clone(mask->getInitExpr(convIdxX, convIdxY));
         } else {
           // access mask elements
           Expr *midx_x = createIntegerLiteral(Ctx, convIdxX);
@@ -1933,12 +1932,12 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
             case Language::OpenCLGPU:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                    (int)Mask->getSizeX()), midx_x, midx_y);
+                    (int)mask->getSizeX()), midx_x, midx_y);
               break;
             case Language::Renderscript:
             case Language::Filterscript:
               // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
-              result = accessMemAllocAt(LHS, memAcc, midx_x, midx_y);
+              result = accessMemAllocAt(LHS, mem_acc, midx_x, midx_y);
               break;
           }
         }
@@ -1958,14 +1957,14 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         (void)Domain; // silent compiler warning
         assert(Domain->isDomain() && "Domain required.");
 
-        assert(Mask->getSizeX()==Domain->getSizeX() &&
-               Mask->getSizeY()==Domain->getSizeY() &&
+        assert(mask->getSizeX()==Domain->getSizeX() &&
+               mask->getSizeY()==Domain->getSizeY() &&
                "Mask and Domain size must be equal.");
 
         // within reduce/iterate lambda-function
-        if (Mask->isConstant()) {
+        if (mask->isConstant()) {
           // propagate constants
-          result = Clone(Mask->getInitExpr(redIdxX.back(), redIdxY.back()));
+          result = Clone(mask->getInitExpr(redIdxX.back(), redIdxY.back()));
         } else {
           // access mask elements
           Expr *midx_x = createIntegerLiteral(Ctx, redIdxX.back());
@@ -1984,12 +1983,12 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
             case Language::OpenCLGPU:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                    (int)Mask->getSizeX()), midx_x, midx_y);
+                    (int)mask->getSizeX()), midx_x, midx_y);
               break;
             case Language::Renderscript:
             case Language::Filterscript:
               // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
-              result = accessMemAllocAt(LHS, memAcc, midx_x, midx_y);
+              result = accessMemAllocAt(LHS, mem_acc, midx_x, midx_y);
               break;
           }
         }
@@ -2008,50 +2007,50 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
             // array subscript: Mask[y+size_y/2][x+size_x/2]
             result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                   Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                    (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                    (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
                 createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                  createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                  createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
                   Ctx.IntTy));
             break;
           case Language::OpenCLACC:
           case Language::OpenCLCPU:
           case Language::OpenCLGPU:
-            if (Mask->isConstant()) {
+            if (mask->isConstant()) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
               result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                     Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                      (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                      (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
                   createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                    createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
                     Ctx.IntTy));
             } else {
               // array subscript: Mask[(y+size_y/2)*width + x+size_x/2]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                    (int)Mask->getSizeX()), createBinaryOperator(Ctx,
+                    (int)mask->getSizeX()), createBinaryOperator(Ctx,
                     Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                      (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                      (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
                   createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                    createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
                     Ctx.IntTy));
             }
             break;
           case Language::Renderscript:
           case Language::Filterscript:
-            if (Mask->isConstant()) {
+            if (mask->isConstant()) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
               result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                     Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                      (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                      (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
                   createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                    createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
                     Ctx.IntTy));
             } else {
               // allocation access: rsGetElementAt(Mask, x+size_x/2, y+size_y/2)
-              result = accessMemAllocAt(LHS, memAcc, createBinaryOperator(Ctx,
+              result = accessMemAllocAt(LHS, mem_acc, createBinaryOperator(Ctx,
                     Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                      (int)Mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                      (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
                   createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx, (int)Mask->getSizeY()/2), BO_Add,
+                    createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
                     Ctx.IntTy));
             }
             break;
@@ -2062,9 +2061,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
 
   // look for Image user class member variable
-  if (Kernel->getImgFromMapping(FD)) {
-    HipaccAccessor *Acc = Kernel->getImgFromMapping(FD);
-    MemoryAccess memAcc = KernelClass->getImgAccess(FD);
+  if (auto acc = Kernel->getImgFromMapping(FD)) {
+    MemoryAccess mem_acc = KernelClass->getImgAccess(FD);
 
     // Images are ParmVarDecls
     bool use_shared = false;
@@ -2082,7 +2080,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
     }
 
     Expr *SY, *TX;
-    if (Acc->getSizeX() > 1) {
+    if (acc->getSizeX() > 1) {
       if (compilerOptions.exploreConfig()) {
         TX = tileVars.local_size_x;
       } else {
@@ -2091,8 +2089,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
     } else {
       TX = createIntegerLiteral(Ctx, 0);
     }
-    if (Acc->getSizeY() > 1) {
-      SY = createIntegerLiteral(Ctx, (int)Acc->getSizeY()/2);
+    if (acc->getSizeY() > 1) {
+      SY = createIntegerLiteral(Ctx, (int)acc->getSizeY()/2);
     } else {
       SY = createIntegerLiteral(Ctx, 0);
     }
@@ -2108,7 +2106,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         if (use_shared) {
           result = accessMemShared(DRE, TX, SY);
         } else {
-          result = accessMem(LHS, Acc, memAcc);
+          result = accessMem(LHS, acc, mem_acc);
         }
         break;
       case 2:
@@ -2162,16 +2160,16 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
                 TX, BO_Add, Ctx.IntTy), createBinaryOperator(Ctx, offset_y,
                   SY, BO_Add, Ctx.IntTy));
         } else {
-          switch (memAcc) {
+          switch (mem_acc) {
             case READ_ONLY:
               if (bh_variant.borderVal) {
-                return addBorderHandling(LHS, offset_x, offset_y, Acc);
+                return addBorderHandling(LHS, offset_x, offset_y, acc);
               }
               // fall through
             case WRITE_ONLY:
             case READ_WRITE:
             case UNDEFINED:
-              result = accessMem(LHS, Acc, memAcc, offset_x, offset_y);
+              result = accessMem(LHS, acc, mem_acc, offset_x, offset_y);
               break;
           }
         }
@@ -2188,12 +2186,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
   assert(isa<MemberExpr>(E->getCallee()) &&
       "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
-  MemberExpr *ME = dyn_cast<MemberExpr>(E->getCallee());
-
-  DeclRefExpr *LHS = nullptr;
-  HipaccAccessor *Acc = nullptr;
-  Expr *result = nullptr;
-  MemoryAccess memAcc = UNDEFINED;
+  MemberExpr *ME = cast<MemberExpr>(E->getCallee());
 
   if (isa<CXXThisExpr>(ME->getBase()->IgnoreImpCasts())) {
     // check if this is a convolve function call
@@ -2205,9 +2198,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     }
 
     // Kernel context -> use Iteration Space output Accessor
-    LHS = outputImage;
-    Acc = Kernel->getIterationSpace();
-    memAcc = WRITE_ONLY;
+    auto LHS = outputImage;
+    HipaccAccessor *acc = Kernel->getIterationSpace();
+    MemoryAccess mem_acc = KernelClass->getImgAccess(KernelClass->getOutField());
 
     // x() method -> gid_x - is_offset_x
     if (ME->getMemberNameInfo().getAsString() == "x") {
@@ -2228,6 +2221,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     // output() method -> img[y][x]
     if (ME->getMemberNameInfo().getAsString() == "output") {
       assert(E->getNumArgs()==0 && "no arguments for output() method supported!");
+      Expr *result = nullptr;
 
       switch (compilerOptions.getTargetLang()) {
         case Language::Renderscript:
@@ -2241,7 +2235,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         case Language::OpenCLACC:
         case Language::OpenCLCPU:
         case Language::OpenCLGPU:
-          result = accessMem(LHS, Acc, memAcc);
+          result = accessMem(LHS, acc, mem_acc);
           break;
         case Language::Filterscript:
           postStmts.push_back(createReturnStmt(Ctx, retValRef));
@@ -2254,28 +2248,20 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
       return result;
     }
-  } else if (isa<MemberExpr>(ME->getBase()->IgnoreImpCasts())) {
-    // Accessor context -> use Accessor
-    // MemberExpr is converted to DeclRefExpr when cloning
-    LHS = dyn_cast<DeclRefExpr>(Clone(ME->getBase()->IgnoreImpCasts()));
+  }
 
-    // find corresponding Image user class member variable
-    MemberExpr *ImgAcc = dyn_cast<MemberExpr>(ME->getBase()->IgnoreImpCasts());
-    FieldDecl *FD = dyn_cast<FieldDecl>(ImgAcc->getMemberDecl());
+  if (auto base = dyn_cast<MemberExpr>(ME->getBase()->IgnoreImpCasts())) {
+    FieldDecl *FD = dyn_cast<FieldDecl>(base->getMemberDecl());
 
-    Acc = Kernel->getImgFromMapping(FD);
-    HipaccMask *Mask = Kernel->getMaskFromMapping(FD);
-    memAcc = KernelClass->getImgAccess(FD);
-    assert((Acc || Mask) &&
-           "Could not find Image/Accessor/Mask/Domain Field Decl.");
+    if (auto acc = Kernel->getImgFromMapping(FD)) {
+      MemoryAccess mem_acc = KernelClass->getImgAccess(FD);
 
-    if (Acc != nullptr) {
       // Acc.x() method -> acc_scale_x * (gid_x - is_offset_x)
       if (ME->getMemberNameInfo().getAsString() == "x") {
         // remove is_offset_x and scale index to Accessor size
-        if (Acc->getInterpolationMode() != Interpolate::NO) {
+        if (acc->getInterpolationMode() != Interpolate::NO) {
           return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-              createParenExpr(Ctx, addNNInterpolationX(Acc,
+              createParenExpr(Ctx, addNNInterpolationX(acc,
                   tileVars.global_id_x)), nullptr,
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
         } else {
@@ -2287,9 +2273,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       if (ME->getMemberNameInfo().getAsString() == "y") {
         Expr *idx_y = gidYRef;
         // scale index to Accessor size
-        if (Acc->getInterpolationMode() != Interpolate::NO) {
+        if (acc->getInterpolationMode() != Interpolate::NO) {
           idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-              createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), nullptr,
+              createParenExpr(Ctx, addNNInterpolationY(acc, idx_y)), nullptr,
               Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
         } else if (compilerOptions.emitRenderscript() ||
             compilerOptions.emitFilterscript()) {
@@ -2298,14 +2284,64 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
         return idx_y;
       }
-    } else if (Mask != nullptr) {
-      if (Mask->isDomain()) {
+
+      // Acc.pixel_at(x, y) method -> img[y][x]
+      //    output_at(x, y) method -> img[y][x]
+      if (ME->getMemberNameInfo().getAsString() == "pixel_at" ||
+          ME->getMemberNameInfo().getAsString() == "output_at") {
+        assert(E->getNumArgs()==2 &&
+               "x and y argument for pixel_at() or output_at() required!");
+        Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), acc);
+        Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), acc);
+
+        // MemberExpr is converted to DeclRefExpr when cloning
+        auto LHS = cast<DeclRefExpr>(Clone(ME->getBase()->IgnoreImpCasts()));
+        Expr *result = nullptr;
+
+        switch (compilerOptions.getTargetLang()) {
+          case Language::C99:
+            result = accessMem2DAt(LHS, idx_x, idx_y);
+            break;
+          case Language::CUDA:
+            if (Kernel->useTextureMemory(acc)!=Texture::None) {
+              result = accessMemTexAt(LHS, acc, mem_acc, idx_x, idx_y);
+            } else {
+              result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
+            }
+            break;
+          case Language::OpenCLACC:
+          case Language::OpenCLCPU:
+          case Language::OpenCLGPU:
+            if (Kernel->useTextureMemory(acc)!=Texture::None) {
+              result = accessMemImgAt(LHS, acc, mem_acc, idx_x, idx_y);
+            } else {
+              result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
+            }
+            break;
+          case Language::Renderscript:
+          case Language::Filterscript:
+            if (ME->getMemberNameInfo().getAsString() == "output_at" &&
+                compilerOptions.emitFilterscript()) {
+                assert(0 && "Filterscript does not support output_at().");
+            }
+            result = accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
+            break;
+        }
+
+        setExprProps(E, result);
+
+        return result;
+      }
+    }
+
+    if (auto mask = Kernel->getMaskFromMapping(FD)) {
+      if (mask->isDomain()) {
         bool isDomainValid = false;
         int redDepth = 0;
 
         // search corresponding domain
         for (size_t i=0, e=redDomains.size(); i!=e; ++i) {
-          if (Mask == redDomains[i]) {
+          if (mask == redDomains[i]) {
             isDomainValid = true;
             redDepth = i;
             break;
@@ -2324,61 +2360,17 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
               redIdxY[redDepth] - (int)redDomains[redDepth]->getSizeY()/2);
         }
       } else {
-        assert(Mask==convMask && "Getting Mask convolution IDs is only allowed "
+        assert(mask==convMask && "Getting Mask convolution IDs is only allowed "
                                  "allowed within convolution lambda-function.");
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "x") {
-          return createIntegerLiteral(Ctx, convIdxX - (int)Mask->getSizeX()/2);
+          return createIntegerLiteral(Ctx, convIdxX - (int)mask->getSizeX()/2);
         }
         if (ME->getMemberNameInfo().getAsString() == "y") {
-          return createIntegerLiteral(Ctx, convIdxY - (int)Mask->getSizeY()/2);
+          return createIntegerLiteral(Ctx, convIdxY - (int)mask->getSizeY()/2);
         }
       }
     }
-  }
-
-  // Acc.pixel_at(x, y) method -> img[y][x]
-  //    output_at(x, y) method -> img[y][x]
-  if (ME->getMemberNameInfo().getAsString() == "pixel_at" ||
-      ME->getMemberNameInfo().getAsString() == "output_at") {
-    assert(Acc && E->getNumArgs()==2 &&
-           "x and y argument for pixel_at() or output_at() required!");
-    Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), Acc);
-    Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), Acc);
-
-    switch (compilerOptions.getTargetLang()) {
-      case Language::C99:
-        result = accessMem2DAt(LHS, idx_x, idx_y);
-        break;
-      case Language::CUDA:
-        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
-          result = accessMemTexAt(LHS, Acc, memAcc, idx_x, idx_y);
-        } else {
-          result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
-        }
-        break;
-      case Language::OpenCLACC:
-      case Language::OpenCLCPU:
-      case Language::OpenCLGPU:
-        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
-          result = accessMemImgAt(LHS, Acc, memAcc, idx_x, idx_y);
-        } else {
-          result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
-        }
-        break;
-      case Language::Renderscript:
-      case Language::Filterscript:
-        if (ME->getMemberNameInfo().getAsString() == "output_at" &&
-            compilerOptions.emitFilterscript()) {
-            assert(0 && "Filterscript does not support output_at().");
-        }
-        result = accessMemAllocAt(LHS, memAcc, idx_x, idx_y);
-        break;
-    }
-
-    setExprProps(E, result);
-
-    return result;
   }
 
   assert(0 && "Hipacc: Stumbled upon unsupported expression: CXXMemberCallExpr");

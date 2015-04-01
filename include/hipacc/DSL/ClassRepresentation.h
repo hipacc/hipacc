@@ -457,6 +457,7 @@ class HipaccKernelClass {
     ArrayRef<KernelMemberInfo> getMembers() { return members; }
     ArrayRef<FieldDecl *>  getImgFields() { return imgFields; }
     ArrayRef<FieldDecl *>  getMaskFields() { return maskFields; }
+    FieldDecl *getOutField() { return output_image; }
 
     friend class HipaccKernel;
 };
