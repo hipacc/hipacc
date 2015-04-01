@@ -573,7 +573,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           // no texture required for __ldg() intrinsic
           !(K->useTextureMemory(Acc) == Texture::Ldg)) {
         std::string type_str = "_tex", array_str = "Array2D";
-        if (KC->getImgAccess(arg)==WRITE_ONLY) {
+        if (KC->getMemAccess(arg)==WRITE_ONLY) {
           type_str = "_surf";
           array_str = "Surface";
         }
@@ -595,7 +595,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += "_texs" + kernelName + ".push_back(";
           resultStr += "&tex_info" + lit + ");\n";
         } else {
-          if (KC->getImgAccess(arg)==WRITE_ONLY) {
+          if (KC->getMemAccess(arg)==WRITE_ONLY) {
             resultStr += "cudaGetSurfaceReference(&_surf";
           } else {
             resultStr += "cudaGetTextureReference(&_tex";
@@ -603,7 +603,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += deviceArgNames[i] + K->getName() + "Ref, &" + type_str;
           resultStr += deviceArgNames[i] + K->getName() + ");\n";
           resultStr += indent;
-          if (KC->getImgAccess(arg)==WRITE_ONLY) {
+          if (KC->getMemAccess(arg)==WRITE_ONLY) {
             resultStr += "hipaccBindSurface<" + argTypeNames[i] + ">(";
           } else {
             resultStr += "hipaccBindTexture<" + argTypeNames[i] + ">(";

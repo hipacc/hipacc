@@ -2238,7 +2238,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           if (K->useTextureMemory(Acc)!=Texture::None &&
               // no texture declaration for __ldg() intrinsic
               !(K->useTextureMemory(Acc) == Texture::Ldg)) {
-            if (KC->getImgAccess(arg) == READ_ONLY) {
+            if (KC->getMemAccess(arg) == READ_ONLY) {
               *OS << "texture<";
               *OS << T.getAsString();
               switch (K->useTextureMemory(Acc)) {
@@ -2471,7 +2471,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     // check if we have an Accessor
     HipaccAccessor *Acc = K->getImgFromMapping(FD);
     if (Acc) {
-      MemoryAccess mem_acc = KC->getImgAccess(FD);
+      MemoryAccess mem_acc = KC->getMemAccess(FD);
       switch (compilerOptions.getTargetLang()) {
         case Language::C99:
           if (comma++) *OS << ", ";

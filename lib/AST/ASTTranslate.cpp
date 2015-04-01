@@ -752,7 +752,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   bool kernel_y = false;
   for (auto img : KernelClass->getImgFields()) {
     HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
-    MemoryAccess mem_acc = KernelClass->getImgAccess(img);
+    MemoryAccess mem_acc = KernelClass->getMemAccess(img);
 
     // bail out for user defined kernels
     if (KernelClass->getKernelType()==UserOperator) break;
@@ -1898,7 +1898,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
   // look for Mask user class member variable
   if (auto mask = Kernel->getMaskFromMapping(FD)) {
-    MemoryAccess mem_acc = KernelClass->getImgAccess(FD);
+    MemoryAccess mem_acc = KernelClass->getMemAccess(FD);
     assert(mem_acc==READ_ONLY &&
         "only read-only memory access to Mask supported");
 
@@ -2062,7 +2062,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
   // look for Image user class member variable
   if (auto acc = Kernel->getImgFromMapping(FD)) {
-    MemoryAccess mem_acc = KernelClass->getImgAccess(FD);
+    MemoryAccess mem_acc = KernelClass->getMemAccess(FD);
 
     // Images are ParmVarDecls
     bool use_shared = false;
@@ -2200,7 +2200,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     // Kernel context -> use Iteration Space output Accessor
     auto LHS = outputImage;
     HipaccAccessor *acc = Kernel->getIterationSpace();
-    MemoryAccess mem_acc = KernelClass->getImgAccess(KernelClass->getOutField());
+    MemoryAccess mem_acc = KernelClass->getMemAccess(KernelClass->getOutField());
 
     // x() method -> gid_x - is_offset_x
     if (ME->getMemberNameInfo().getAsString() == "x") {
@@ -2254,7 +2254,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     FieldDecl *FD = dyn_cast<FieldDecl>(base->getMemberDecl());
 
     if (auto acc = Kernel->getImgFromMapping(FD)) {
-      MemoryAccess mem_acc = KernelClass->getImgAccess(FD);
+      MemoryAccess mem_acc = KernelClass->getMemAccess(FD);
 
       // Acc.x() method -> acc_scale_x * (gid_x - is_offset_x)
       if (ME->getMemberNameInfo().getAsString() == "x") {

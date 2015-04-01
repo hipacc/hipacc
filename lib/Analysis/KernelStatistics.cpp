@@ -54,8 +54,8 @@ namespace {
 class KernelStatsImpl {
   public:
     AnalysisDeclContext &analysisContext;
-    llvm::DenseMap<const FieldDecl *, MemoryAccess> imgsToAccess;
-    llvm::DenseMap<const FieldDecl *, MemoryPattern> imgsToPattern;
+    llvm::DenseMap<const FieldDecl *, MemoryAccess> memToAccess;
+    llvm::DenseMap<const FieldDecl *, MemoryPattern> memToPattern;
     llvm::DenseMap<const VarDecl *, VectorInfo> declsToVector;
     KernelType kernelType;
 
@@ -248,7 +248,7 @@ void KernelStatsImpl::runOnAllBlocks() {
                << "  mask stores: "         << num_mask_stores << "\n";
 
   llvm::errs() << "  images:\n";
-  for (auto map : imgsToPattern) {
+  for (auto map : memToPattern) {
     llvm::errs() << "    " << map.first->getNameAsString() << ": ";
     if (map.second == 0)        llvm::errs() << "UNDEFINED ";
     if (map.second & NO_STRIDE) llvm::errs() << "NO_STRIDE ";
@@ -279,12 +279,12 @@ void KernelStatsImpl::runOnAllBlocks() {
 //===----------------------------------------------------------------------===//
 
 MemoryAccess KernelStatistics::getMemAccess(const FieldDecl *FD) {
-  return getImpl(impl).imgsToAccess[FD];
+  return getImpl(impl).memToAccess[FD];
 }
 
 
 MemoryPattern KernelStatistics::getMemPattern(const FieldDecl *FD) {
-  return getImpl(impl).imgsToPattern[FD];
+  return getImpl(impl).memToPattern[FD];
 }
 
 
@@ -328,7 +328,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
   if (auto call = dyn_cast<CXXOperatorCallExpr>(E)) {
     if (auto ME = dyn_cast<MemberExpr>(call->getArg(0))) {
       if (auto FD = dyn_cast<FieldDecl>(ME->getMemberDecl())) {
-        MemoryPattern mem_pattern = KS.imgsToPattern[FD];
+        MemoryPattern mem_pattern = KS.memToPattern[FD];
 
         // access to Image
         if (KS.compilerClasses.isTypeOfTemplateClass(FD->getType(),
@@ -366,8 +366,8 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
               }
               break;
           }
-          KS.imgsToAccess[FD] = (MemoryAccess) (KS.imgsToAccess[FD]|mem_acc);
-          KS.imgsToPattern[FD] = mem_pattern;
+          KS.memToAccess[FD] = (MemoryAccess) (KS.memToAccess[FD]|mem_acc);
+          KS.memToPattern[FD] = mem_pattern;
 
           return true;
         }
@@ -392,8 +392,8 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
               KS.kernelType = LocalOperator;
             }
           }
-          KS.imgsToAccess[FD] = (MemoryAccess) (KS.imgsToAccess[FD]|mem_acc);
-          KS.imgsToPattern[FD] = mem_pattern;
+          KS.memToAccess[FD] = (MemoryAccess) (KS.memToAccess[FD]|mem_acc);
+          KS.memToPattern[FD] = mem_pattern;
 
           return false;
         }
@@ -418,7 +418,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
               KS.kernelType = LocalOperator;
             }
           }
-          KS.imgsToPattern[FD] = mem_pattern;
+          KS.memToPattern[FD] = mem_pattern;
 
           return false;
         }
@@ -445,7 +445,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
         if (mem_acc & READ_ONLY) KS.num_img_loads++;
         if (mem_acc & WRITE_ONLY) KS.num_img_stores++;
 
-        MemoryPattern mem_pattern = KS.imgsToPattern[FD];
+        MemoryPattern mem_pattern = KS.memToPattern[FD];
 
         if (ME->getMemberNameInfo().getAsString()=="output") {
           mem_pattern = (MemoryPattern) (mem_pattern|NO_STRIDE);
@@ -455,8 +455,8 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
           KS.kernelType = UserOperator;
         }
 
-        KS.imgsToAccess[FD] = (MemoryAccess) (KS.imgsToAccess[FD]|mem_acc);
-        KS.imgsToPattern[FD] = mem_pattern;
+        KS.memToAccess[FD] = (MemoryAccess) (KS.memToAccess[FD]|mem_acc);
+        KS.memToPattern[FD] = mem_pattern;
 
         return true;
       }

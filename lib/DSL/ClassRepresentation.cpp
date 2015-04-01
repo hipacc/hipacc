@@ -504,7 +504,7 @@ void HipaccKernel::createArgInfo() {
       case HipaccKernelClass::FieldKind::Image:
         // for textures use no pointer type
         if (useTextureMemory(getImgFromMapping(arg.field))!=Texture::None &&
-            KC->getImgAccess(arg.field) == READ_ONLY &&
+            KC->getMemAccess(arg.field) == READ_ONLY &&
             // no texture required for __ldg() intrinsic
             !(useTextureMemory(getImgFromMapping(arg.field)) == Texture::Ldg)) {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),

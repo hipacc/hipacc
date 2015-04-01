@@ -420,10 +420,10 @@ class HipaccKernelClass {
       return *kernelStatistics;
     }
 
-    MemoryAccess getImgAccess(FieldDecl *decl) {
+    MemoryAccess getMemAccess(FieldDecl *decl) {
       return kernelStatistics->getMemAccess(decl);
     }
-    MemoryPattern getImgPattern(FieldDecl *decl) {
+    MemoryPattern getMemPattern(FieldDecl *decl) {
       return kernelStatistics->getMemPattern(decl);
     }
     VectorInfo getVectorizeInfo(VarDecl *decl) {
@@ -481,7 +481,7 @@ class HipaccKernelFeatures : public HipaccDevice {
     void calcImgFeature(FieldDecl *decl, HipaccAccessor *acc) {
       MemoryType mem_type = Global;
       Texture tex_type = Texture::None;
-      MemoryPattern mem_pattern = KC->getImgPattern(decl);
+      MemoryPattern mem_pattern = KC->getMemPattern(decl);
 
       if (options.useTextureMemory() &&
           options.getTextureType()==Texture::Array2D) {
