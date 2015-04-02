@@ -546,7 +546,23 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     }
   } else {
     // writeImageRHS is set by VisitBinaryOperator - side effect
-    writeImageRHS = createParenExpr(Ctx, writeImageRHS);
+    QualType QT = Acc->getImage()->getType();
+
+    if (writeImageRHS->IgnoreImpCasts()->getType() != QT) {
+      // introduce temporary for implicit casts
+      std::string tmp_lit("_tmp" + std::to_string(literalCount++));
+      VarDecl *tmp_decl = createVarDecl(Ctx, kernelDecl, tmp_lit, QT,
+          writeImageRHS);
+      DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+      DC->addDecl(tmp_decl);
+      DeclRefExpr *tmp_dre = createDeclRefExpr(Ctx, tmp_decl);
+      preStmts.push_back(createDeclStmt(Ctx, tmp_decl));
+      preCStmt.push_back(curCStmt);
+      writeImageRHS = tmp_dre;
+    } else {
+      writeImageRHS = createParenExpr(Ctx, writeImageRHS);
+    }
+
     args.push_back(writeImageRHS);
     args.push_back(LHStex);
     // byte addressing required for surf2Dwrite
