@@ -32,12 +32,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "hipacc/Rewrite/Rewrite.h"
+#include "hipacc/Config/config.h"
 #ifdef USE_POLLY
 #include "hipacc/Analysis/Polly.h"
 #endif
 #include "hipacc/AST/ASTNode.h"
 #include "hipacc/AST/ASTTranslate.h"
-#include "hipacc/Config/config.h"
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDescription.h"
 #include "hipacc/DSL/CompilerKnownClasses.h"
