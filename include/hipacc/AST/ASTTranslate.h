@@ -249,10 +249,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x);
     Expr *addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y);
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
-    FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
-    FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess memAcc);
+    FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess mem_acc);
+    FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess mem_acc);
     FunctionDecl *getAllocationFunction(const BuiltinType *BT, bool isVecType,
-                                        MemoryAccess memAcc);
+                                        MemoryAccess mem_acc);
     FunctionDecl *getConvertFunction(QualType QT, bool isVecType);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
@@ -263,18 +263,18 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addGlobalOffsetY(Expr *idx_y, HipaccAccessor *Acc);
     Expr *removeISOffsetX(Expr *idx_x);
     Expr *removeISOffsetY(Expr *idx_y);
-    Expr *accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess memAcc,
+    Expr *accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess mem_acc,
         Expr *offset_x=nullptr, Expr *offset_y=nullptr);
     Expr *accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
     Expr *accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x, Expr
         *idx_y);
-    Expr *accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess memAcc,
+    Expr *accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess mem_acc,
                            Expr *idx_x, Expr *idx_y);
     Expr *accessMemAllocPtr(DeclRefExpr *LHS);
     Expr *accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
-        memAcc, Expr *idx_x, Expr *idx_y);
+        mem_acc, Expr *idx_x, Expr *idx_y);
     Expr *accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
-        memAcc, Expr *idx_x, Expr *idx_y);
+        mem_acc, Expr *idx_x, Expr *idx_y);
     Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=nullptr, Expr
         *offset_y=nullptr);
     Expr *accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
