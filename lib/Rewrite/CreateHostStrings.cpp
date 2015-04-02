@@ -614,7 +614,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
             case Texture::Array2D:  resultStr += array_str;  break;
             default: assert(0 && "unsupported texture type!");
           }
-          resultStr += "," + type_str + deviceArgNames[i] + K->getName() + "Ref, ";
+          resultStr += ", " + type_str + deviceArgNames[i] + K->getName() + "Ref, ";
           resultStr += hostArgNames[i] + ");\n";
         }
         resultStr += indent;
@@ -631,23 +631,6 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
     }
   }
 
-
-  // check if Array2D memory is required for the iteration space
-  if (options.emitCUDA() && options.useTextureMemory() &&
-      options.getTextureType()==Texture::Array2D) {
-    // bind surface
-    if (options.exploreConfig()) {
-    } else {
-      resultStr += "cudaGetSurfaceReference(&_surfOutput" + K->getName() + "Ref, ";
-      resultStr += "&_surfOutput" + K->getName() + ");\n";
-      resultStr += indent;
-      resultStr += "hipaccBindSurface<";
-      resultStr += K->getIterationSpace()->getImage()->getTypeStr();
-      resultStr += ">(_surfOutput" + K->getName() + "Ref, ";
-      resultStr += K->getIterationSpace()->getImage()->getName() + ");\n";
-    }
-    resultStr += indent;
-  }
 
   #if 0
   for (auto img : KC->getImgFields()) {

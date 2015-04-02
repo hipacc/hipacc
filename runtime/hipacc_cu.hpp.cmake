@@ -502,8 +502,7 @@ void hipaccCopyMemoryRegion(HipaccAccessor &src, HipaccAccessor &dst) {
 
 // Bind memory to texture
 template<typename T>
-void hipaccBindTexture(hipaccMemoryType mem_type, const struct textureReference
-        *tex, HipaccImage &img) {
+void hipaccBindTexture(hipaccMemoryType mem_type, const struct textureReference *tex, HipaccImage &img) {
     cudaError_t err = cudaSuccess;
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
 
@@ -533,7 +532,8 @@ void hipaccBindTexture(hipaccMemoryType mem_type, const struct textureReference
 
 // Bind 2D array to surface
 template<typename T>
-void hipaccBindSurface(const struct surfaceReference *surf, HipaccImage &img) {
+void hipaccBindSurface(hipaccMemoryType mem_type, const struct surfaceReference *surf, HipaccImage &img) {
+    assert(mem_type==Surface && "wrong texture type");
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
     cudaError_t err = cudaBindSurfaceToArray(surf, (cudaArray *)img.mem, &channelDesc);
     checkErr(err, "cudaBindSurfaceToArray()");
