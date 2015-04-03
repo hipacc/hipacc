@@ -993,22 +993,21 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       case 9:
         LD = createLabelDecl(Ctx, kernelDecl, "BH_NO");
 
-        // Note: this dummy check, which is always true is required for
-        // the nvcc compiler to generate good code - otherwise nvcc
-        // tries to optimize the code of different blocks and register
-        // usage will increase significantly and will eventually spill
-        // registers to local memory. The OpenCL compiler does not show
-        // this behavior.
-        // CUDA: if (blockDim.x >= 16) goto BH_NO;
-        // OpenCL: if (get_local_size(0) >= 16) goto BH_NO;
-        if_goto = createBinaryOperator(Ctx, tileVars.local_size_x,
-            createIntegerLiteral(Ctx, 16), BO_GE, Ctx.BoolTy);
+        if (compilerOptions.getTargetDevice()<=Device::Tesla_13 &&
+            compilerOptions.getTargetLang()==Language::CUDA) {
+          // TODO: remove this once CUDA 7 is widespread and Tesla architecture
+          // is discontinued
+          // CUDA: if (blockDim.x >= 16) goto BH_NO;
+          if_goto = createBinaryOperator(Ctx, tileVars.local_size_x,
+              createIntegerLiteral(Ctx, 16), BO_GE, Ctx.BoolTy);
+        }
         break;
     }
     LDS.push_back(LD);
-    GotoStmt *GS = createGotoStmt(Ctx, LD);
-    IfStmt *goto_check = createIfStmt(Ctx, if_goto, GS);
-    kernelBody.push_back(goto_check);
+    Stmt *GS = createGotoStmt(Ctx, LD);
+    if (if_goto)
+      GS = createIfStmt(Ctx, if_goto, GS);
+    kernelBody.push_back(GS);
   }
 
   // add casts to tileVars if required

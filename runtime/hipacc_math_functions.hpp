@@ -26,9 +26,11 @@
 #ifndef __HIPACC_MATH_FUNCTIONS_HPP__
 #define __HIPACC_MATH_FUNCTIONS_HPP__
 
+#ifndef __CUDACC_RTC__
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#endif
 
 #include "hipacc_types.hpp"
 

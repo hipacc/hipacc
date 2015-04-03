@@ -37,6 +37,10 @@
 #ifdef USE_NVML
 #include <nvml.h>
 #endif
+#if CUDA_VERSION >= 7000
+#include <nvrtc.h>
+#endif
+
 
 #include <float.h>
 #include <math.h>
@@ -294,6 +298,25 @@ inline void checkErrNVML(nvmlReturn_t err, std::string name) {
 #endif
 #endif
 
+#if CUDA_VERSION >= 7000
+#if 1
+#define checkErrNVRTC(err, name) \
+    if (err != NVRTC_SUCCESS ) { \
+        std::cerr << "ERROR: " << name << " (" << (err) << ")" << " [file " << __FILE__ << ", line " << __LINE__ << "]: "; \
+        std::cerr << nvrtcGetErrorString(err) << std::endl; \
+        exit(EXIT_FAILURE); \
+    }
+#else
+inline void checkErrNVRTC(nvrtcResult err, std::string name) {
+    if (err != NVRTC_SUCCESS ) {
+        std::cerr << "ERROR: " << name << " (" << (err) << "): ";
+        std::cerr << nvrtcGetErrorString(err) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+#endif
+#endif
+
 
 // Initialize CUDA devices
 void hipaccInitCUDA() {
@@ -308,7 +331,14 @@ void hipaccInitCUDA() {
     checkErr(err, "cudaRuntimeGetVersion()");
 
     std::cerr << "CUDA Driver/Runtime Version " << driver_version/1000 << "." << (driver_version%100)/10
-        << "/" << runtime_version/1000 << "." << (runtime_version%100)/10 << std::endl;
+              << "/" << runtime_version/1000 << "." << (runtime_version%100)/10 << std::endl;
+
+    #if CUDA_VERSION >= 7000
+    int nvrtc_major = 0, nvrtc_minor = 0;
+    nvrtcResult errNvrtc = nvrtcVersion(&nvrtc_major, &nvrtc_minor);
+    checkErrNVRTC(errNvrtc, "nvrtcVersion()");
+    std::cerr << "NVRTC Version " << nvrtc_major << "." << nvrtc_minor << std::endl;
+    #endif
 
     for (size_t i=0; i<(size_t)device_count; ++i) {
         cudaDeviceProp device_prop;
@@ -318,8 +348,8 @@ void hipaccInitCUDA() {
         err = cudaGetDeviceProperties(&device_prop, i);
         checkErr(err, "cudaGetDeviceProperties()");
 
-        if (i==0) std::cerr << "  [*] ";
-        else std::cerr << "  [ ] ";
+        if (i) std::cerr << "  [ ] ";
+        else   std::cerr << "  [*] ";
         std::cerr << "Name: " << device_prop.name << std::endl;
         std::cerr << "      Compute capability: " << device_prop.major << "." << device_prop.minor << std::endl;
     }
@@ -700,6 +730,60 @@ void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
 
 
 // Compile CUDA source file and create module
+#if CUDA_VERSION >= 7000
+void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
+    nvrtcResult err;
+    nvrtcProgram program;
+    CUjit_target target_cc = (CUjit_target) cc;
+
+    std::ifstream cu_file(file_name);
+    if (!cu_file.is_open()) {
+        std::cerr << "ERROR: Can't open CU source file '" << file_name << "'!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string cu_string = std::string(std::istreambuf_iterator<char>(cu_file), (std::istreambuf_iterator<char>()));
+
+    err = nvrtcCreateProgram(&program, cu_string.c_str(), file_name.c_str(), 0, NULL, NULL);
+    checkErrNVRTC(err, "nvrtcCreateProgram()");
+
+    size_t offset = 2;
+    size_t num_options = build_options.size() + offset;
+    const char *options[num_options];
+    std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
+    options[0] = compute_arch.c_str();
+    options[1] = "-std=c++11";
+    //options[2] = "-G";
+    //options[3] = "-lineinfo";
+    for (size_t i=offset; i<num_options; ++i) options[i] = build_options[i-offset].c_str();
+
+    err = nvrtcCompileProgram(program, num_options, options);
+    if (err != NVRTC_SUCCESS) {
+        size_t log_size;
+        nvrtcGetProgramLogSize(program, &log_size);
+        char *error_log = new char[log_size];
+        nvrtcGetProgramLog(program, error_log);
+        std::cerr << "Error log: " << error_log << std::endl;
+        delete[] error_log;
+    }
+    checkErrNVRTC(err, "nvrtcCompileProgram()");
+
+    size_t ptx_size;
+    err = nvrtcGetPTXSize(program, &ptx_size);
+    checkErrNVRTC(err, "nvrtcGetPTXSize()");
+
+    char *ptx = new char[ptx_size];
+    err = nvrtcGetPTX(program, ptx);
+    checkErrNVRTC(err, "nvrtcGetPTX()");
+
+    err = nvrtcDestroyProgram(&program);
+    checkErrNVRTC(err, "nvrtcDestroyProgram()");
+
+    // compile ptx
+    hipaccCreateModule(module, ptx, cc);
+    delete[] ptx;
+}
+#else
 void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
     char line[FILENAME_MAX];
     FILE *fpipe;
@@ -734,6 +818,7 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
     // compile ptx
     hipaccCreateModule(module, ptx, cc);
 }
+#endif
 
 
 // Get kernel from a module
