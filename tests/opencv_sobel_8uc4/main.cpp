@@ -34,9 +34,9 @@
 
 //#define CPU
 #ifdef OpenCV
-#include "opencv2/opencv.hpp"
+#include <opencv2/opencv.hpp>
 #ifndef CPU
-#include "opencv2/gpu/gpu.hpp"
+#include <opencv2/gpu/gpu.hpp>
 #endif
 #endif
 
