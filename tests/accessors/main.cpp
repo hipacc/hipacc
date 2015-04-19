@@ -104,10 +104,10 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     // host memory for image of width x height pixels
-    int *input = (int *)malloc(sizeof(int)*width*height);
-    int *out_init = (int *)malloc(sizeof(int)*is_width*is_height);
-    int *reference_in = (int *)malloc(sizeof(int)*width*height);
-    int *reference_out = (int *)malloc(sizeof(int)*is_width*is_height);
+    int *input = new int[width*height];
+    int *out_init = new int[is_width*is_height];
+    int *reference_in = new int[width*height];
+    int *reference_out = new int[is_width*is_height];
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -177,10 +177,10 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Test PASSED\n");
 
     // memory cleanup
-    free(input);
-    free(out_init);
-    free(reference_in);
-    free(reference_out);
+    delete[] input;
+    delete[] out_init;
+    delete[] reference_in;
+    delete[] reference_out;
 
     return EXIT_SUCCESS;
 }

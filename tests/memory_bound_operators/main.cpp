@@ -400,13 +400,13 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     // host memory for image of width x height pixels
-    int *input0 = (int *)malloc(sizeof(int)*width*height);
-    int *input1 = (int *)malloc(sizeof(int)*width*height);
-    int *reference_in0 = (int *)malloc(sizeof(int)*width*height);
-    int *reference_in1 = (int *)malloc(sizeof(int)*width*height);
-    int *reference_out0 = (int *)malloc(sizeof(int)*width*height);
-    int *reference_out1 = (int *)malloc(sizeof(int)*width*height);
-    int *reference_out2 = (int *)malloc(sizeof(int)*width*height);
+    int *input0 = new int[width*height];
+    int *input1 = new int[width*height];
+    int *reference_in0 = new int[width*height];
+    int *reference_in1 = new int[width*height];
+    int *reference_out0 = new int[width*height];
+    int *reference_out1 = new int[width*height];
+    int *reference_out2 = new int[width*height];
 
     // initialize data
     #define DELTA 0.001f
@@ -640,13 +640,13 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "All Tests PASSED\n");
 
     // memory cleanup
-    free(input0);
-    free(input1);
-    free(reference_in0);
-    free(reference_in1);
-    free(reference_out0);
-    free(reference_out1);
-    free(reference_out2);
+    delete[] input0;
+    delete[] input1;
+    delete[] reference_in0;
+    delete[] reference_in1;
+    delete[] reference_out0;
+    delete[] reference_out1;
+    delete[] reference_out2;
 
     return EXIT_SUCCESS;
 }

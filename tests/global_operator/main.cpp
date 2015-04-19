@@ -222,12 +222,12 @@ int main(int argc, const char **argv) {
     const int height = HEIGHT;
 
     // host memory for image of width x height pixels
-    int *input_int = (int *)malloc(sizeof(int)*width*height);
-    int *reference_in_int = (int *)malloc(sizeof(int)*width*height);
-    int *reference_out_int = (int *)malloc(sizeof(int)*width*height);
-    float *input_float = (float *)malloc(sizeof(float)*width*height);
-    float *reference_in_float = (float *)malloc(sizeof(float)*width*height);
-    float *reference_out_float = (float *)malloc(sizeof(float)*width*height);
+    int *input_int = new int[width*height];
+    int *reference_in_int = new int[width*height];
+    int *reference_out_int = new int[width*height];
+    float *input_float = new float[width*height];
+    float *reference_in_float = new float[width*height];
+    float *reference_out_float = new float[width*height];
 
     // initialize data
     #define DELTA 0.001f
@@ -450,12 +450,12 @@ int main(int argc, const char **argv) {
     }
 
     // memory cleanup
-    free(input_int);
-    free(input_float);
-    free(reference_in_int);
-    free(reference_in_float);
-    free(reference_out_int);
-    free(reference_out_float);
+    delete[] input_int;
+    delete[] input_float;
+    delete[] reference_in_int;
+    delete[] reference_in_float;
+    delete[] reference_out_int;
+    delete[] reference_out_float;
 
     return EXIT_SUCCESS;
 }

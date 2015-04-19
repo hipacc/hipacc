@@ -182,7 +182,7 @@ int main(int argc, const char **argv) {
     };
 
     // host memory for image of width x height pixels
-    char *input = (char *)malloc(sizeof(char)*width*height);
+    char *input = new char[width*height];
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -265,7 +265,7 @@ int main(int argc, const char **argv) {
 
     fprintf(stderr, "Test PASSED\n");
 
-    free(input);
+    delete[] input;
 
     return EXIT_SUCCESS;
 }

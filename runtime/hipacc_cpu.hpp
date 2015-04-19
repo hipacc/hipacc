@@ -79,7 +79,7 @@ HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height, size_t 
     alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T);
     int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
 
-    T *mem = (T *)malloc(sizeof(T)*stride*height);
+    T *mem = new T[stride*height];
     return createImage(host_mem, (void *)mem, width, height, stride, alignment);
 }
 
@@ -87,7 +87,7 @@ HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height, size_t 
 // Allocate memory without any alignment considerations
 template<typename T>
 HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height) {
-    T *mem = (T *)malloc(sizeof(T)*width*height);
+    T *mem = new T[width*height];
     return createImage(host_mem, (void *)mem, width, height, width, 0);
 }
 
@@ -95,7 +95,7 @@ HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height) {
 // Release memory
 void hipaccReleaseMemory(HipaccImage &img) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    free(img.mem);
+    delete[] img.mem;
     Ctx.del_image(img);
 }
 

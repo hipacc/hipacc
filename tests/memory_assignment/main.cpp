@@ -84,10 +84,10 @@ int main(int argc, const char **argv) {
     const int roi_offset_y = 2;
 
     // host memory for image of width x height pixels
-    int *img0 = (int *)malloc(sizeof(int)*width*height);
-    int *img1 = (int *)malloc(sizeof(int)*width*height);
-    int *img2 = (int *)malloc(sizeof(int)*roi_width*roi_height);
-    int *img3 = (int *)malloc(sizeof(int)*roi_width*roi_height);
+    int *img0 = new int[width*height];
+    int *img1 = new int[width*height];
+    int *img2 = new int[roi_width*roi_height];
+    int *img3 = new int[roi_width*roi_height];
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -145,10 +145,10 @@ int main(int argc, const char **argv) {
 
 
     // memory cleanup
-    free(img0);
-    free(img1);
-    free(img2);
-    free(img3);
+    delete[] img0;
+    delete[] img1;
+    delete[] img2;
+    delete[] img3;
 
     return EXIT_SUCCESS;
 }

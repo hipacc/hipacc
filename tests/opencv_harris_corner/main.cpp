@@ -319,7 +319,7 @@ int main(int argc, const char **argv) {
     #ifdef USE_FREEIMAGE
     uchar *input = FreeImage_GetBits(gray);
     #else
-    uchar *input = (uchar *)malloc(sizeof(uchar)*width*height);
+    uchar *input = new uchar[width*height];
     #endif
 
     // initialize data
@@ -567,7 +567,7 @@ int main(int argc, const char **argv) {
     FreeImage_Unload(out);
     FreeImage_Unload(gray);
     #else
-    free(input);
+    delete[] input;
     #endif
 
     return EXIT_SUCCESS;

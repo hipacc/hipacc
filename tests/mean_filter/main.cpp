@@ -230,9 +230,9 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     // host memory for image of width x height pixels
-    float *input = (float *)malloc(sizeof(float)*width*height);
-    float *reference_in = (float *)malloc(sizeof(float)*width*height);
-    float *reference_out = (float *)malloc(sizeof(float)*width*height);
+    float *input = new float[width*height];
+    float *reference_in = new float[width*height];
+    float *reference_out = new float[width*height];
 
     // initialize data
     #define DELTA 0.001f
@@ -349,9 +349,9 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Test PASSED\n");
 
     // memory cleanup
-    free(input);
-    free(reference_in);
-    free(reference_out);
+    delete[] input;
+    delete[] reference_in;
+    delete[] reference_out;
 
     return EXIT_SUCCESS;
 }

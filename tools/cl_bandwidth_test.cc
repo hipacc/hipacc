@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     // c) accessMode : MAPPED, DIRECT
 
     // allocate host memory
-    uchar *host_idata = (uchar *)malloc(memory_size);
+    uchar *host_idata = new uchar[memory_size/sizeof(uchar)];
 
     // initialize the memory
     for (size_t i=0; i < memory_size/sizeof(uchar); ++i) {
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
     }
 
     // clean up memory on host
-    free(host_idata);
+    delete[] host_idata;
 
     // clean up memory on device
     hipaccReleaseMemory(dev_idata);

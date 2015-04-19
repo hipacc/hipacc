@@ -451,10 +451,10 @@ int main(int argc, const char **argv) {
     #endif
 
     // host memory for image of width x height pixels
-    uchar *input = (uchar *)malloc(sizeof(uchar)*width*height);
-    uchar *reference_in = (uchar *)malloc(sizeof(uchar)*width*height);
-    short *reference_out = (short *)malloc(sizeof(short)*width*height);
-    short *reference_tmp = (short *)malloc(sizeof(short)*width*height);
+    uchar *input = new uchar[width*height];
+    uchar *reference_in = new uchar[width*height];
+    short *reference_out = new short[width*height];
+    short *reference_tmp = new short[width*height];
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -778,10 +778,10 @@ int main(int argc, const char **argv) {
     fprintf(stderr, "Test PASSED\n");
 
     // memory cleanup
-    free(input);
-    free(reference_in);
-    free(reference_tmp);
-    free(reference_out);
+    delete[] input;
+    delete[] reference_in;
+    delete[] reference_tmp;
+    delete[] reference_out;
 
     return EXIT_SUCCESS;
 }
