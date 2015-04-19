@@ -29,15 +29,15 @@
  */
 
 #include <algorithm>
-#include <glob.h>
-#include <stdio.h>
+#include <iostream>
+
 #include <unistd.h>
 
 #include "hipacc_cl.hpp"
 
 
 void usage(char **argv) {
-    fprintf(stderr, "Usage: %s [-h] [-d ACC|CPU|GPU|ALL] [-p AMD|APPLE|ARM|INTEL|NVIDIA|ALL] [-i <include_dir>] -k <kernel_name> -f <opencl_file>\n", argv[0]);
+    std::cout << "Usage: " << argv[0] << " [-h] [-d ACC|CPU|GPU|ALL] [-p AMD|APPLE|ARM|INTEL|NVIDIA|ALL] [-i <include_dir>] -k <kernel_name> -f <opencl_file>" << std::endl;
 }
 
 
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     while ((option = getopt(argc, (char * const *)argv, "hd:p:k:f:i:")) != -1) {
         switch (option) {
             case 'h':
-                fprintf(stderr, "Compile OpenCL kernel for given Platform and/or device type.\n");
+                std::cout << "Compile OpenCL kernel for given Platform and/or device type." << std::endl;
                 usage(argv);
                 exit(EXIT_SUCCESS);
             case 'd':
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
                 else if (strncmp(optarg, "CPU", 3) == 0) device_type = CL_DEVICE_TYPE_CPU;
                 else if (strncmp(optarg, "GPU", 3) == 0) device_type = CL_DEVICE_TYPE_GPU;
                 else if (strncmp(optarg, "ALL", 3) == 0) device_type = CL_DEVICE_TYPE_ALL;
-                else fprintf(stderr, "Unknown device type '%s', using 'ALL' as default ...\n", optarg);
+                else std::cout << "Unknown device type '" << optarg << "', using 'ALL' as default ..." << std::endl;
                 break;
             case 'p':
                 if (strncmp(optarg, "AMD", 3) == 0) platform_name = AMD;
@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
                 else if (strncmp(optarg, "ARM", 3) == 0) platform_name = ARM;
                 else if (strncmp(optarg, "INTEL", 3) == 0) platform_name = INTEL;
                 else if (strncmp(optarg, "NVIDIA", 3) == 0) platform_name = NVIDIA;
-                else fprintf(stderr, "Unknown platform name '%s', using 'ALL' as default ...\n", optarg);
+                else std::cout << "Unknown platform name '" << optarg << "', using 'ALL' as default ..." << std::endl;
                 break;
             case 'k':
                 found_kernel_name = true;
@@ -87,19 +87,19 @@ int main(int argc, char *argv[]) {
                 build_includes += " ";
                 break;
             default: /* '?' */
-                fprintf(stderr, "Wrong call syntax!\n");
+                std::cout << "Wrong call syntax!" << std::endl;
                 usage(argv);
                 exit(EXIT_FAILURE);
         }
     }
 
     if (!found_file_name) {
-        fprintf(stderr, "No OpenCL input file specified ...\n");
+        std::cout << "No OpenCL input file specified ..." << std::endl;
         usage(argv);
         exit(EXIT_FAILURE);
     }
     if (!found_kernel_name) {
-        fprintf(stderr, "No OpenCL kernel specified ...\n");
+        std::cout << "No OpenCL kernel specified ..." << std::endl;
         usage(argv);
         exit(EXIT_FAILURE);
     }
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
 
         std::ifstream file;
         file.open(kernel_file_name.c_str());
-        printf("kernels: '%s'\n", kernel_file_name.c_str());
+        std::cout << "kernels: '" << kernel_file_name << "'" << std::endl;
 
         std::string line;
         int num_gprs=-1, lds_size=-1;
@@ -151,10 +151,11 @@ int main(int argc, char *argv[]) {
             }
         }
         if (num_gprs < 0 || lds_size < 0) {
-            printf("isa error while determining resource usage : Used %d gprs, %d bytes lds\n", num_gprs, lds_size);
+            std::cout << "isa error while determining resource usage : ";
         } else {
-            printf("isa info : Used %d gprs, %d bytes lds\n", num_gprs, lds_size);
+            std::cout << "isa info : ";
         }
+        std::cout << "Used " << num_gprs << " gprs, " << lds_size << " bytes lds" << std::endl;
         fflush(stdout);
     }
 
