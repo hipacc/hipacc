@@ -112,7 +112,7 @@ std::string getRSErrorCodeStr(int errorNum);
 EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, std::string errorText);
 void hipaccInitRenderScript(int targetAPI);
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
-void hipaccCopyMemoryRegion(HipaccAccessor &src, HipaccAccessor &dst);
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst);
 void hipaccReleaseMemory(HipaccImage &img);
 #define CREATE_ALLOCATION_DECL(T) \
   HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height, size_t alignment); \
@@ -471,7 +471,7 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
 
 
 // Copy from allocation region to allocation region
-void hipaccCopyMemoryRegion(HipaccAccessor &src, HipaccAccessor &dst) {
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
     COPYFROM2D((Allocation *)dst.img.mem, dst.offset_x, dst.offset_y,
         src.width, src.height, (Allocation *)src.img.mem, src.width*src.height,
         src.offset_x, src.offset_y);

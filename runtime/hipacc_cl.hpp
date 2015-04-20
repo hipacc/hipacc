@@ -763,7 +763,7 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst, int num_device=0) {
 
 
 // Copy from memory region to memory region
-void hipaccCopyMemoryRegion(HipaccAccessor &src, HipaccAccessor &dst, int num_device=0) {
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
 

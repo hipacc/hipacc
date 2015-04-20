@@ -166,7 +166,7 @@ void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
 
 
 // Copy from memory region to memory region
-void hipaccCopyMemoryRegion(HipaccAccessor &src, HipaccAccessor &dst) {
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
     for (size_t i=0; i<dst.height; ++i) {
         std::memcpy(&((uchar*)dst.img.mem)[dst.offset_x*dst.img.pixel_size + (dst.offset_y + i)*dst.img.stride*dst.img.pixel_size],
                     &((uchar*)src.img.mem)[src.offset_x*src.img.pixel_size + (src.offset_y + i)*src.img.stride*src.img.pixel_size],
