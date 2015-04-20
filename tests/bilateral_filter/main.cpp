@@ -24,9 +24,12 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cfloat>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+
 #include <sys/time.h>
 
 #include "hipacc.hpp"
@@ -134,7 +137,7 @@ void bilateral_filter(float *in, float *out, int sigma_d, int sigma_r, int
 }
 
 
-// Kernel description in HIPAcc
+// Kernel description in Hipacc
 class BilateralFilter : public Kernel<float> {
     private:
         Accessor<float> &input;
@@ -467,9 +470,9 @@ int main(int argc, const char **argv) {
     for (int yf=-2*sigma_d; yf<=2*sigma_d; yf++) {
         for (int xf=-2*sigma_d; xf<=2*sigma_d; xf++) {
             filter_mask[yf+2*sigma_d][xf+2*sigma_d] = mask_tmp[yf+2*sigma_d] * mask_tmp[xf+2*SIGMA_D];
-            fprintf(stderr, "%ff, ", filter_mask[yf+2*sigma_d][xf+2*sigma_d]);
+            std::cerr << filter_mask[yf+2*sigma_d][xf+2*sigma_d] << ", ";
         }
-        fprintf(stderr, "\n");
+        std::cerr << std::endl;
     }
     #endif
     Mask<float> mask(filter_mask);
@@ -501,7 +504,7 @@ int main(int argc, const char **argv) {
     // iteration space
     IterationSpace<float> iter(out);
 
-    fprintf(stderr, "Calculating HIPAcc bilateral filter ...\n");
+    std::cerr << "Calculating Hipacc bilateral filter ..." << std::endl;
 
     // Image only
     Accessor<float> AccInUndef(in);
@@ -515,7 +518,7 @@ int main(int argc, const char **argv) {
     BFNOBH.execute();
     timing = hipacc_last_kernel_timing();
 
-    fprintf(stderr, "Hipacc (NOBH): %.3f ms, %.3f Mpixel/s\n\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (NOBH): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // CLAMP
@@ -530,7 +533,7 @@ int main(int argc, const char **argv) {
     BF.execute();
     timing = hipacc_last_kernel_timing();
 
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (CLAMP): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // get pointer to result data
@@ -541,68 +544,70 @@ int main(int argc, const char **argv) {
     Accessor<float> AccIn(in);
     BilateralFilterBHCLAMP BFBHCLAMP(iter, AccIn, sigma_d, sigma_r, width, height);
 
-    fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
+    std::cerr << "Calculating bilateral filter with manual border handling ..." << std::endl;
 
     BFBHCLAMP.execute();
     timing = hipacc_last_kernel_timing();
 
-    fprintf(stderr, "Hipacc(BHCLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (BHCLAMP): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // manual border handling: REPEAT
     BilateralFilterBHREPEAT BFBHREPEAT(iter, AccIn, sigma_d, sigma_r, width, height);
 
-    fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
+    std::cerr << "Calculating bilateral filter with manual border handling ..." << std::endl;
 
     BFBHREPEAT.execute();
     timing = hipacc_last_kernel_timing();
 
-    fprintf(stderr, "Hipacc(BHREPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (BHREPEAT): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // manual border handling: MIRROR
     BilateralFilterBHMIRROR BFBHMIRROR(iter, AccIn, sigma_d, sigma_r, width, height);
 
-    fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
+    std::cerr << "Calculating bilateral filter with manual border handling ..." << std::endl;
 
     BFBHMIRROR.execute();
     timing = hipacc_last_kernel_timing();
 
-    fprintf(stderr, "Hipacc(BHMIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (BHMIRROR): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // manual border handling: CONSTANT
     BilateralFilterBHCONSTANT BFBHCONSTANT(iter, AccIn, sigma_d, sigma_r, width, height);
 
-    fprintf(stderr, "Calculating bilateral filter with manual border handling ...\n");
+    std::cerr << "Calculating bilateral filter with manual border handling ..." << std::endl;
 
     BFBHCONSTANT.execute();
     timing = hipacc_last_kernel_timing();
 
-    fprintf(stderr, "Hipacc(BHCONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (BHCONSTANT): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "\nCalculating reference ...\n");
+    std::cerr << std::endl << "Calculating reference ..." << std::endl;
     time0 = time_ms();
+
 
     // calculate reference
     bilateral_filter(reference_in, reference_out, sigma_d, sigma_r, width, height, BH_CLAMP);
 
     time1 = time_ms();
     dt = time1 - time0;
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, (width*height/dt)/1000);
+    std::cerr << "Reference: " << dt << " ms, " << (width*height/dt)/1000 << " Mpixel/s" << std::endl;
 
-    fprintf(stderr, "\nComparing results ...\n");
+    std::cerr << std::endl << "Comparing results ..." << std::endl;
     // compare results
-    float rms_err = 0.0f;   // RMS error
+    float rms_err = 0;  // RMS error
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
             float derr = reference_out[y*width + x] - output[y*width + x];
             rms_err += derr*derr;
 
             if (fabs(derr) > EPS) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
-                        reference_out[y*width + x], output[y*width + x]);
+                std::cerr << "Test FAILED, at (" << x << "," << y << "): "
+                          << reference_out[y*width + x] << " vs. "
+                          << output[y*width + x] << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
@@ -610,10 +615,10 @@ int main(int argc, const char **argv) {
     rms_err = sqrtf(rms_err / ((float)(width*height)));
     // check RMS error
     if (rms_err > EPS) {
-        fprintf(stderr, "Test FAILED: RMS error in image: %.3f > %.3f, aborting...\n", rms_err, EPS);
+        std::cerr << "Test FAILED: RMS error in image: " << rms_err << " > " << EPS << ", aborting..." << std::endl;
         exit(EXIT_FAILURE);
     }
-    fprintf(stderr, "Test PASSED\n");
+    std::cerr << "Test PASSED" << std::endl;
 
     // memory cleanup
     delete[] input;

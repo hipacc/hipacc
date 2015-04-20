@@ -24,12 +24,13 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <cfloat>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <vector>
 
-#include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <sys/time.h>
 
 #include "hipacc.hpp"
@@ -106,7 +107,7 @@ int calc_ssd(int *in0, int *in1, int *out, int width, int height) {
 }
 
 
-// Kernel description in HIPAcc
+// Kernel description in Hipacc
 class GlobalOffsetCorrection : public Kernel<int> {
     private:
         Accessor<int> &input;
@@ -473,98 +474,97 @@ int main(int argc, const char **argv) {
     AD.execute();
     SD.execute();
 
-    fprintf(stderr, "Calculating 1 image kernel ...\n");
+    std::cerr << "Calculating 1 image kernel ..." << std::endl;
     R1.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
     size_t memory_size = sizeof(int)*width*height;
     float bandwidth_MBs = (2.0f * (double)memory_size)/(timing/1000 * (double)(1 << 20));
 
 
-    fprintf(stderr, "Calculating 2 image kernel ...\n");
+    std::cerr << "Calculating 2 image kernel ..." << std::endl;
     R2.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "Calculating 3 image kernel ...\n");
+    std::cerr << "Calculating 3 image kernel ..." << std::endl;
     R3.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "Calculating 4 image kernel ...\n");
+    std::cerr << "Calculating 4 image kernel ..." << std::endl;
     R4.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "Calculating 5 image kernel ...\n");
+    std::cerr << "Calculating 5 image kernel ..." << std::endl;
     R5.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "Calculating 6 image kernel ...\n");
+    std::cerr << "Calculating 6 image kernel ..." << std::endl;
     R6.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "Calculating 7 image kernel ...\n");
+    std::cerr << "Calculating 7 image kernel ..." << std::endl;
     R7.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "Calculating 8 image kernel ...\n");
+    std::cerr << "Calculating 8 image kernel ..." << std::endl;
     R8.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "Calculating global offset correction kernel ...\n");
+    std::cerr << "Calculating global offset correction kernel ..." << std::endl;
     GOC.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "Calculating absolute difference kernel ...\n");
+    std::cerr << "Calculating absolute difference kernel ..." << std::endl;
     AD.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "Calculating square difference kernel ...\n");
+    std::cerr << "Calculating square difference kernel ..." << std::endl;
     SD.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // print statistics
-    fprintf(stderr, "PPT: %d", PPT);
-    for (std::vector<float>::const_iterator it = timings.begin();
-         it != timings.end(); ++it) {
-        fprintf(stderr, "\t%.3f", *it);
+    std::cerr << "PPT: " << PPT;
+    for (std::vector<float>::const_iterator it = timings.begin(); it != timings.end(); ++it) {
+        std::cerr << "\t" << *it;
     }
-    fprintf(stderr, "\n\n");
+    std::cerr << std::endl << std::endl;
 
     // print achieved bandwidth
-    fprintf(stderr, "Bandwidth for memory size [MB]: %lu\n", memory_size/(1024*1024));
-    fprintf(stderr, "Bandwidth [MB/s]: %f\n", bandwidth_MBs);
-    fprintf(stderr, "Bandwidth [GB/s]: %f\n", bandwidth_MBs/1024);
-    fprintf(stderr, "\n\n");
+    std::cerr << "Bandwidth for memory size [MB]: " << memory_size/(1024*1024) << std::endl
+              << "Bandwidth [MB/s]: " << bandwidth_MBs << std::endl
+              << "Bandwidth [GB/s]: " << bandwidth_MBs/1024 << std::endl
+              << std::endl;
 
 
     // get pointer to result data
@@ -574,70 +574,73 @@ int main(int argc, const char **argv) {
 
 
     // GOC
-    fprintf(stderr, "\nCalculating reference ...\n");
+    std::cerr << std::endl << "Calculating reference ..." << std::endl;
     time0 = time_ms();
 
     calc_goc(reference_in0, reference_out0, offset, width, height);
 
     time1 = time_ms();
     dt = time1 - time0;
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, (width*height/dt)/1000);
+    std::cerr << "Reference: " << dt << " ms, " << (width*height/dt)/1000 << " Mpixel/s" << std::endl;
 
     // SAD
-    fprintf(stderr, "\nCalculating reference ...\n");
+    std::cerr << std::endl << "Calculating reference ..." << std::endl;
     time0 = time_ms();
 
     calc_sad(reference_in0, reference_in1, reference_out1, width, height);
 
     time1 = time_ms();
     dt = time1 - time0;
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, (width*height/dt)/1000);
+    std::cerr << "Reference: " << dt << " ms, " << (width*height/dt)/1000 << " Mpixel/s" << std::endl;
 
     // SSD
-    fprintf(stderr, "\nCalculating reference ...\n");
+    std::cerr << std::endl << "Calculating reference ..." << std::endl;
     time0 = time_ms();
 
     calc_ssd(reference_in0, reference_in1, reference_out2, width, height);
 
     time1 = time_ms();
     dt = time1 - time0;
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, (width*height/dt)/1000);
+    std::cerr << "Reference: " << dt << " ms, " << (width*height/dt)/1000 << " Mpixel/s" << std::endl;
 
     // compare results
-    fprintf(stderr, "\nComparing results for GOC ... ");
+    std::cerr << std::endl << "Comparing results for GOC ... ";
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
             if (reference_out0[y*width + x] != output0[y*width + x]) {
-                fprintf(stderr, " FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out0[y*width + x], output0[y*width + x]);
+                std::cerr << " FAILED, at (" << x << "," << y << "): "
+                          << reference_out0[y*width + x] << " vs. "
+                          << output0[y*width + x] << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
     }
-    fprintf(stderr, "PASSED\n");
-    fprintf(stderr, "Comparing results for AD ... ");
+    std::cerr << "PASSED" << std::endl;
+    std::cerr << "Comparing results for AD ... ";
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
             if (reference_out1[y*width + x] != output1[y*width + x]) {
-                fprintf(stderr, " FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out1[y*width + x], output1[y*width + x]);
+                std::cerr << " FAILED, at (" << x << "," << y << "): "
+                          << reference_out1[y*width + x] << " vs. "
+                          << output1[y*width + x] << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
     }
-    fprintf(stderr, "PASSED\n");
-    fprintf(stderr, "Comparing results for SD ... ");
+    std::cerr << "PASSED" << std::endl;
+    std::cerr << "Comparing results for SD ... ";
     for (int y=0; y<height; y++) {
         for (int x=0; x<width; x++) {
             if (reference_out2[y*width + x] != output2[y*width + x]) {
-                fprintf(stderr, " FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out2[y*width + x], output2[y*width + x]);
+                std::cerr << " FAILED, at (" << x << "," << y << "): "
+                          << reference_out2[y*width + x] << " vs. "
+                          << output2[y*width + x] << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
     }
-    fprintf(stderr, "PASSED\n");
-    fprintf(stderr, "All Tests PASSED\n");
+    std::cerr << "PASSED" << std::endl;
+    std::cerr << "All Tests PASSED" << std::endl;
 
     // memory cleanup
     delete[] input0;

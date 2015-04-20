@@ -24,14 +24,14 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <float.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/time.h>
-
+#include <cfloat>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 #include <vector>
+
+#include <sys/time.h>
 
 //#define CPU
 #ifdef OpenCV
@@ -146,7 +146,7 @@ void gaussian_filter_column(float *in, uchar *out, float *filter, int size_y,
 }
 
 
-// Gaussian blur filter in HIPAcc
+// Gaussian blur filter in Hipacc
 #ifdef NO_SEP
 class GaussianBlurFilterMask : public Kernel<uchar> {
     private:
@@ -277,7 +277,7 @@ int main(int argc, const char **argv) {
     #ifdef CONST_MASK
     // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
     if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
-        fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3, 5x5, and 7x7!\n");
+        std::cerr << "Wrong filter kernel size. Currently supported values: 3x3, 5x5, and 7x7!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -400,7 +400,7 @@ int main(int argc, const char **argv) {
 
 
     #ifndef OpenCV
-    fprintf(stderr, "Calculating HIPAcc Gaussian filter ...\n");
+    std::cerr << "Calculating Hipacc Gaussian filter ..." << std::endl;
     float timing = 0.0f;
 
     // UNDEFINED
@@ -428,7 +428,7 @@ int main(int argc, const char **argv) {
     #endif
     #endif
     timings.push_back(timing);
-    fprintf(stderr, "HIPACC (UNDEFINED): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (UNDEFINED): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // CLAMP
@@ -454,7 +454,7 @@ int main(int argc, const char **argv) {
     timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
-    fprintf(stderr, "HIPACC (CLAMP): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (CLAMP): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // REPEAT
@@ -480,7 +480,7 @@ int main(int argc, const char **argv) {
     timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
-    fprintf(stderr, "HIPACC (REPEAT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (REPEAT): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // MIRROR
@@ -506,7 +506,7 @@ int main(int argc, const char **argv) {
     timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
-    fprintf(stderr, "HIPACC (MIRROR): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (MIRROR): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // CONSTANT
@@ -532,7 +532,7 @@ int main(int argc, const char **argv) {
     timing += hipacc_last_kernel_timing();
     #endif
     timings.push_back(timing);
-    fprintf(stderr, "HIPACC (CONSTANT): %.3f ms, %.3f Mpixel/s\n", timing, (width*height/timing)/1000);
+    std::cerr << "Hipacc (CONSTANT): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // get pointer to result data
@@ -543,9 +543,9 @@ int main(int argc, const char **argv) {
 
     #ifdef OpenCV
     #ifdef CPU
-    fprintf(stderr, "\nCalculating OpenCV Gaussian filter on the CPU ...\n");
+    std::cerr << std::endl << "Calculating OpenCV Gaussian filter on the CPU ..." << std::endl;
     #else
-    fprintf(stderr, "\nCalculating OpenCV Gaussian filter on the GPU ...\n");
+    std::cerr << std::endl << "Calculating OpenCV Gaussian filter on the GPU ..." << std::endl;
     #endif
 
 
@@ -588,17 +588,17 @@ int main(int argc, const char **argv) {
         gpu_out.download(cv_data_out);
         #endif
 
-        fprintf(stderr, "OpenCV(");
+        std::cerr << "OpenCV (";
         switch (brd_type) {
-            case IPL_BORDER_CONSTANT:    fprintf(stderr, "CONSTANT");   break;
-            case IPL_BORDER_REPLICATE:   fprintf(stderr, "CLAMP");      break;
-            case IPL_BORDER_REFLECT:     fprintf(stderr, "MIRROR");     break;
-            case IPL_BORDER_WRAP:        fprintf(stderr, "REPEAT");     break;
-            case IPL_BORDER_REFLECT_101: fprintf(stderr, "MIRROR_101"); break;
+            case IPL_BORDER_CONSTANT:    std::cerr << "CONSTANT";   break;
+            case IPL_BORDER_REPLICATE:   std::cerr << "CLAMP";      break;
+            case IPL_BORDER_REFLECT:     std::cerr << "MIRROR";     break;
+            case IPL_BORDER_WRAP:        std::cerr << "REPEAT";     break;
+            case IPL_BORDER_REFLECT_101: std::cerr << "MIRROR_101"; break;
             default: break;
         }
+        std::cerr << "): " << min_dt << " ms, " << (width*height/min_dt)/1000 << " Mpixel/s" << std::endl;
         timings.push_back(min_dt);
-        fprintf(stderr, "): %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
     }
 
     // get pointer to result data
@@ -606,14 +606,13 @@ int main(int argc, const char **argv) {
     #endif
 
     // print statistics
-    for (std::vector<float>::const_iterator it = timings.begin();
-         it != timings.end(); ++it) {
-        fprintf(stderr, "\t%.3f", *it);
+    for (std::vector<float>::const_iterator it = timings.begin(); it != timings.end(); ++it) {
+        std::cerr << "\t" << *it;
     }
-    fprintf(stderr, "\n\n");
+    std::cerr << std::endl << std::endl;
 
 
-    fprintf(stderr, "\nCalculating reference ...\n");
+    std::cerr << "Calculating reference ..." << std::endl;
     min_dt = DBL_MAX;
     for (int nt=0; nt<3; nt++) {
         time0 = time_ms();
@@ -630,9 +629,9 @@ int main(int argc, const char **argv) {
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, (width*height/min_dt)/1000);
+    std::cerr << "Reference: " << min_dt << " ms, " << (width*height/min_dt)/1000 << " Mpixel/s" << std::endl;
 
-    fprintf(stderr, "\nComparing results ...\n");
+    std::cerr << std::endl << "Comparing results ..." << std::endl;
     #ifdef OpenCV
     int upper_y = height-size_y+offset_y;
     int upper_x = width-size_x+offset_x;
@@ -644,13 +643,14 @@ int main(int argc, const char **argv) {
     for (int y=offset_y; y<upper_y; y++) {
         for (int x=offset_x; x<upper_x; x++) {
             if (reference_out[y*width + x] != output[y*width + x]) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): %hhu vs. %hhu\n", x,
-                        y, reference_out[y*width + x], output[y*width + x]);
+                std::cerr << "Test FAILED, at (" << x << "," << y << "): "
+                          << (int)reference_out[y*width + x] << " vs. "
+                          << (int)output[y*width + x] << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
     }
-    fprintf(stderr, "Test PASSED\n");
+    std::cerr << "Test PASSED" << std::endl;
 
     // memory cleanup
     delete[] input;

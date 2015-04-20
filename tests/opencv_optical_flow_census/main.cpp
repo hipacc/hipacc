@@ -288,6 +288,7 @@ int main(int argc, const char **argv) {
     float timing = 0, fps_timing = 0;
     // RGB image
     Mat frameRGB;
+    Mat frame;
 
     #ifdef VIDEO
     // open default camera
@@ -297,8 +298,6 @@ int main(int argc, const char **argv) {
         return EXIT_FAILURE;
     }
 
-    // frame
-    Mat frame;
     // get first frame
     cap >> frameRGB;
     cvtColor(frameRGB, frame, CV_BGR2GRAY);
@@ -395,7 +394,7 @@ int main(int argc, const char **argv) {
 
     blur_img.execute();
     timing = hipacc_last_kernel_timing();
-    std::cerr << "HIPAcc blur filter: " << timing << " ms" << std::endl;
+    std::cerr << "Hipacc blur filter: " << timing << " ms" << std::endl;
 
 
     // generate signature for first image/frame
@@ -407,7 +406,7 @@ int main(int argc, const char **argv) {
 
     sig_img.execute();
     timing = hipacc_last_kernel_timing();
-    std::cerr << "HIPAcc signature kernel: " << timing << " ms" << std::endl;
+    std::cerr << "Hipacc signature kernel: " << timing << " ms" << std::endl;
 
 
     prev_signature = img_signature;
@@ -426,22 +425,22 @@ int main(int argc, const char **argv) {
         blur_img.execute();
         timing = hipacc_last_kernel_timing();
         fps_timing = timing;
-        std::cerr << "HIPAcc blur filter: " << timing << " ms" << std::endl;
+        std::cerr << "Hipacc blur filter: " << timing << " ms" << std::endl;
 
         // generate signature for frame
         sig_img.execute();
         timing = hipacc_last_kernel_timing();
         fps_timing += timing;
-        std::cerr << "HIPAcc signature kernel: " << timing << " ms" << std::endl;
+        std::cerr << "Hipacc signature kernel: " << timing << " ms" << std::endl;
 
         // perform matching
         vector_kernel.execute();
         timing = hipacc_last_kernel_timing();
         fps_timing += timing;
-        std::cerr << "HIPAcc vector kernel: " << timing << " ms" << std::endl;
+        std::cerr << "Hipacc vector kernel: " << timing << " ms" << std::endl;
 
         // fps time
-        std::cerr << "HIPAcc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
+        std::cerr << "Hipacc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
         int *vecs = img_vec.data();
         vector<Point2i> v0, v1;
@@ -459,7 +458,7 @@ int main(int argc, const char **argv) {
         }
 
         // draw lines
-        for (unsigned int i = 0; i < v0.size(); i++) {
+        for (size_t i = 0; i < v0.size(); i++) {
             line(frameRGB, v0[i], v1[i], CV_RGB(255,0,0), 1, CV_AA);
         }
 
@@ -481,22 +480,22 @@ int main(int argc, const char **argv) {
     blur_img.execute();
     timing = hipacc_last_kernel_timing();
     fps_timing = timing;
-    std::cerr << "HIPAcc blur filter: " << timing << " ms" << std::endl;
+    std::cerr << "Hipacc blur filter: " << timing << " ms" << std::endl;
 
     // generate signature for frame
     sig_img.execute();
     timing = hipacc_last_kernel_timing();
     fps_timing += timing;
-    std::cerr << "HIPAcc signature kernel: " << timing << " ms" << std::endl;
+    std::cerr << "Hipacc signature kernel: " << timing << " ms" << std::endl;
 
     // perform matching
     vector_kernel.execute();
     timing = hipacc_last_kernel_timing();
     fps_timing += timing;
-    std::cerr << "HIPAcc vector kernel: " << timing << " ms" << std::endl;
+    std::cerr << "Hipacc vector kernel: " << timing << " ms" << std::endl;
 
     // fps time
-    std::cerr << "HIPAcc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
+    std::cerr << "Hipacc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
     int *vecs = img_vec.data();
     vector<Point2i> v0, v1;
@@ -517,7 +516,7 @@ int main(int argc, const char **argv) {
     cvtColor(frame2, frameRGB, CV_GRAY2BGR);
 
     // draw lines
-    for (unsigned int i = 0; i < v0.size(); i++) {
+    for (size_t i = 0; i < v0.size(); i++) {
         line(frameRGB, v0[i], v1[i], CV_RGB(255,0,0), 1, CV_AA);
     }
 

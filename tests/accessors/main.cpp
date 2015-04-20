@@ -24,12 +24,12 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <cfloat>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
-#include <float.h>
-#include <limits.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
+
 #include <sys/time.h>
 
 #include "hipacc.hpp"
@@ -74,7 +74,7 @@ void access_nn(data_t *in, data_t *out, int in_width, int in_height, int
 }
 
 
-// Kernel description in HIPAcc
+// Kernel description in Hipacc
 class CopyKernel : public Kernel<int> {
     private:
         Accessor<int> &input;
@@ -138,7 +138,7 @@ int main(int argc, const char **argv) {
     CopyKernel copy_nn(CIS, AccInNN);
     CopyKernel copy_lf(CIS, AccInLF);
 
-    fprintf(stderr, "Executing copy (NN) kernel ...\n");
+    std::cerr << "Executing copy (NN) kernel ..." << std::endl;
 
     copy_nn.execute();
     timing = hipacc_last_kernel_timing();
@@ -147,10 +147,10 @@ int main(int argc, const char **argv) {
     // get pointer to result data
     int *output = OUT.data();
 
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (is_width*is_height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (is_width*is_height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    fprintf(stderr, "\nCalculating reference ...\n");
+    std::cerr << std::endl << "Calculating reference ..." << std::endl;
     time0 = time_ms();
 
     // calculate reference
@@ -161,20 +161,21 @@ int main(int argc, const char **argv) {
 
     time1 = time_ms();
     dt = time1 - time0;
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, (is_width*is_height/dt)/1000);
+    std::cerr << "Reference: " << dt << " ms, " << (is_width*is_height/dt)/1000 << " Mpixel/s" << std::endl;
 
-    fprintf(stderr, "\nComparing results ...\n");
+    std::cerr << std::endl << "Comparing results ..." << std::endl;
     // compare results
     for (int y=0; y<is_height; y++) {
         for (int x=0; x<is_width; x++) {
             if (reference_out[y*is_width + x] != output[y*is_width + x]) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        reference_out[y*is_width + x], output[y*is_width + x]);
+                std::cerr << "Test FAILED, at (" << x << "," << y << "): "
+                          << reference_out[y*width + x] << " vs. "
+                          << output[y*width + x] << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
     }
-    fprintf(stderr, "Test PASSED\n");
+    std::cerr << "Test PASSED" << std::endl;
 
     // memory cleanup
     delete[] input;

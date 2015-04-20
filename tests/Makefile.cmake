@@ -88,15 +88,15 @@ run:
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC)
 
 cpu:
-	@echo 'Executing HIPAcc Compiler for C++:'
+	@echo 'Executing Hipacc Compiler for C++:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cpu $(HIPACC_OPTS) -o main.cc
-	@echo 'Compiling C++ file using g++:'
+	@echo 'Compiling C++ file using c++:'
 	$(CC_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc $(CC_LINK)
 	@echo 'Executing C++ binary'
 	./main_cpu
 
 cuda:
-	@echo 'Executing HIPAcc Compiler for CUDA:'
+	@echo 'Executing Hipacc Compiler for CUDA:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cuda $(HIPACC_OPTS) -o main.cu
 	@echo 'Compiling CUDA file using nvcc:'
 	$(CU_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_cuda main.cu $(CU_LINK)
@@ -104,9 +104,9 @@ cuda:
 	./main_cuda
 
 opencl-acc opencl-cpu opencl-gpu:
-	@echo 'Executing HIPAcc Compiler for OpenCL:'
+	@echo 'Executing Hipacc Compiler for OpenCL:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-$@ $(HIPACC_OPTS) -o main.cc
-	@echo 'Compiling OpenCL file using g++:'
+	@echo 'Compiling OpenCL file using c++:'
 	$(CL_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(CL_LINK)
 ifneq ($(HIPACC_TARGET),Midgard)
 	@echo 'Executing OpenCL binary'
@@ -115,7 +115,7 @@ endif
 
 filterscript renderscript:
 	rm -f *.rs *.fs
-	@echo 'Executing HIPAcc Compiler for $@:'
+	@echo 'Executing Hipacc Compiler for $@:'
 	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-$@ $(HIPACC_OPTS) -o main.cc
 	mkdir -p build_$@
 ifeq ($(call ifge, $(RS_TARGET_API), 19), true) # build using ndk-build
@@ -123,7 +123,7 @@ ifeq ($(call ifge, $(RS_TARGET_API), 19), true) # build using ndk-build
 	mkdir -p build_$@/jni
 	cp @CMAKE_CURRENT_SOURCE_DIR@/tests/Android.mk.cmake build_$@/jni/Android.mk
 	cp main.cc *.$(subst renderscript,rs,$(subst filterscript,fs,$@)) build_$@
-	@echo 'Compiling $@ file using llvm-rs-cc and g++:'
+	@echo 'Compiling $@ file using llvm-rs-cc and c++:'
 	export CASE_FLAGS="$(MYFLAGS)"; \
 	export RS_TARGET_API=$(RS_TARGET_API); \
 	export HIPACC_INCLUDE=$(HIPACC_DIR)/include; \
@@ -132,7 +132,7 @@ ifeq ($(call ifge, $(RS_TARGET_API), 19), true) # build using ndk-build
 else
 	@echo 'Generating build system current test case:'
 	cd build_$@; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=$(RS_TARGET_API) $(MYFLAGS)
-	@echo 'Compiling $@ file using llvm-rs-cc and g++:'
+	@echo 'Compiling $@ file using llvm-rs-cc and c++:'
 	cd build_$@; make
 	cp build_$@/main_renderscript ./main_$@
 endif
