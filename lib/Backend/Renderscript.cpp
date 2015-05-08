@@ -37,7 +37,7 @@ using namespace std;
 
 Renderscript::CodeGenerator::Descriptor::Descriptor()
 {
-  SetTargetCode(::clang::hipacc::TARGET_Renderscript);
+  SetTargetLang(::clang::hipacc::Language::Renderscript);
   SetName("Renderscript");
   SetEmissionKey("renderscript");
   SetDescription("Emit Renderscript code for Android");

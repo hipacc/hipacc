@@ -38,7 +38,7 @@ using namespace std;
 
 CUDA::CodeGenerator::Descriptor::Descriptor()
 {
-  SetTargetCode(::clang::hipacc::TARGET_CUDA);
+  SetTargetLang(::clang::hipacc::Language::CUDA);
   SetName("CUDA");
   SetEmissionKey("cuda");
   SetDescription("Emit CUDA code for GPU devices");
@@ -142,19 +142,19 @@ void CUDA::CodeGenerator::_CheckConfiguration()
   if (GetCompilerOptions().useTextureMemory(USER_ON))
   {
     // Writing to Array2D textures has been introduced with Fermi architecture
-    if ( (GetCompilerOptions().getTextureType() == Array2D) && (GetCompilerOptions().getTargetDevice() < FERMI_20) )
+    if ( (GetCompilerOptions().getTextureType() == Texture::Array2D) && (GetCompilerOptions().getTargetDevice() < Device::Fermi_20) )
     {
       llvm::errs() << "Warning: 'Array2D' texture memory only supported for Fermi and later on (CC >= 2.0)!  Using 'Linear2D' instead!\n";
 
-      GetCompilerOptions().setTextureMemory(Linear2D);
+      GetCompilerOptions().setTextureMemory(Texture::Linear2D);
     }
 
     // Ldg (load via texture cache) was introduced with Kepler architecture
-    if ( (GetCompilerOptions().getTextureType() == Ldg) && (GetCompilerOptions().getTargetDevice() < KEPLER_35) )
+    if ( (GetCompilerOptions().getTextureType() == Texture::Ldg) && (GetCompilerOptions().getTargetDevice() < Device::Kepler_35) )
     {
       llvm::errs() << "Warning: 'Ldg' texture memory only supported for Kepler and later on (CC >= 3.5)!  Using 'Linear1D' instead!\n";
 
-      GetCompilerOptions().setTextureMemory(Linear1D);
+      GetCompilerOptions().setTextureMemory(Texture::Linear1D);
     }
   }
 }

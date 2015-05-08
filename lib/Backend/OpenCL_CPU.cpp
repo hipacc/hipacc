@@ -38,7 +38,7 @@ using namespace std;
 
 OpenCL_CPU::CodeGenerator::Descriptor::Descriptor()
 {
-  SetTargetCode(::clang::hipacc::TARGET_OpenCLCPU);
+  SetTargetLang(::clang::hipacc::Language::OpenCLCPU);
   SetName("OpenCL for CPU");
   SetEmissionKey("opencl-cpu");
   SetDescription("Emit OpenCL code for CPU devices");

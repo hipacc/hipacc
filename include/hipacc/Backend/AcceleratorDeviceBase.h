@@ -134,25 +134,26 @@ namespace Backend
         /** \brief  The option parser for this switch. */
         struct OptionParser final
         {
-          typedef ::clang::hipacc::TargetDevice   ReturnType;   //!< The type of the parsed option.
+          typedef ::clang::hipacc::Device   ReturnType;   //!< The type of the parsed option.
 
           /** \brief  Converts the name of the selected target device into the internal ID.
            *  \param  strOption   The command line option as a string.
            *  \return If successful, the internal ID of the selected target device. */
           inline static ReturnType Parse(std::string strOption)
           {
-            if      (strOption == "Tesla-10")         return ::clang::hipacc::TESLA_10;
-            else if (strOption == "Tesla-11")         return ::clang::hipacc::TESLA_11;
-            else if (strOption == "Tesla-12")         return ::clang::hipacc::TESLA_12;
-            else if (strOption == "Tesla-13")         return ::clang::hipacc::TESLA_13;
-            else if (strOption == "Fermi-20")         return ::clang::hipacc::FERMI_20;
-            else if (strOption == "Fermi-21")         return ::clang::hipacc::FERMI_21;
-            else if (strOption == "Kepler-30")        return ::clang::hipacc::KEPLER_30;
-            else if (strOption == "Kepler-35")        return ::clang::hipacc::KEPLER_35;
-            else if (strOption == "Evergreen")        return ::clang::hipacc::EVERGREEN;
-            else if (strOption == "NorthernIsland")   return ::clang::hipacc::NORTHERN_ISLAND;
-            else if (strOption == "Midgard")          return ::clang::hipacc::MIDGARD;
-            else if (strOption == "KnightsCorner")    return ::clang::hipacc::KNIGHTSCORNER;
+            if      (strOption == "Tesla-10")         return ::clang::hipacc::Device::Tesla_10;
+            else if (strOption == "Tesla-11")         return ::clang::hipacc::Device::Tesla_11;
+            else if (strOption == "Tesla-12")         return ::clang::hipacc::Device::Tesla_12;
+            else if (strOption == "Tesla-13")         return ::clang::hipacc::Device::Tesla_13;
+            else if (strOption == "Fermi-20")         return ::clang::hipacc::Device::Fermi_20;
+            else if (strOption == "Fermi-21")         return ::clang::hipacc::Device::Fermi_21;
+            else if (strOption == "Kepler-30")        return ::clang::hipacc::Device::Kepler_30;
+            else if (strOption == "Kepler-35")        return ::clang::hipacc::Device::Kepler_35;
+            else if (strOption == "Evergreen")        return ::clang::hipacc::Device::Evergreen;
+            else if (strOption == "NorthernIsland")   return ::clang::hipacc::Device::NorthernIsland;
+            //else if (strOption == "SouthernIsland")   return ::clang::hipacc::Device::SouthernIsland;
+            else if (strOption == "Midgard")          return ::clang::hipacc::Device::Midgard;
+            else if (strOption == "KnightsCorner")    return ::clang::hipacc::Device::KnightsCorner;
             else
             {
               throw RuntimeErrors::InvalidOptionException(Key(), strOption);
@@ -257,18 +258,18 @@ namespace Backend
         /** \brief  The option parser for this switch. */
         struct OptionParser final
         {
-          typedef ::clang::hipacc::TextureType  ReturnType;   //!< The type of the parsed option.
+          typedef ::clang::hipacc::Texture  ReturnType;   //!< The type of the parsed option.
 
           /** \brief  Parses the selected texture access method.
            *  \param  strOption   The command line option as a string.
            *  \return If successful, the internal ID of the selected texture access method. */
           inline static ReturnType Parse(std::string strOption)
           {
-            if      (strOption == "off")        return ::clang::hipacc::NoTexture;
-            else if (strOption == "Linear1D")   return ::clang::hipacc::Linear1D;
-            else if (strOption == "Linear2D")   return ::clang::hipacc::Linear2D;
-            else if (strOption == "Array2D")    return ::clang::hipacc::Array2D;
-            else if (strOption == "Ldg")        return ::clang::hipacc::Ldg;
+            if      (strOption == "off")        return ::clang::hipacc::Texture::None;
+            else if (strOption == "Linear1D")   return ::clang::hipacc::Texture::Linear1D;
+            else if (strOption == "Linear2D")   return ::clang::hipacc::Texture::Linear2D;
+            else if (strOption == "Array2D")    return ::clang::hipacc::Texture::Array2D;
+            else if (strOption == "Ldg")        return ::clang::hipacc::Texture::Ldg;
             else
             {
               throw RuntimeErrors::InvalidOptionException(Key(), strOption);

@@ -67,7 +67,7 @@ namespace Backend
     {
     private:
 
-      ::clang::hipacc::TargetCode _eTargetCode;     //!< The internal ID of the specific code generator.
+      ::clang::hipacc::Language   _eTargetLang;     //!< The internal ID of the specific code generator.
       std::string                 _strName;         //!< The internal name of the specific code generator.
       std::string                 _strEmissionKey;  //!< The suffix for the <b>-emit-...</b> compiler switch which selects the specific code generator.
       std::string                 _strDescription;  //!< The description of the specific code generator for the compiler usage.
@@ -86,7 +86,7 @@ namespace Backend
       inline void SetName(std::string strNewName)                             { _strName = strNewName; }
 
       /** \brief  Sets the internal ID of the specific code generator. */
-      inline void SetTargetCode(::clang::hipacc::TargetCode eNewTargetCode)   { _eTargetCode = eNewTargetCode; }
+      inline void SetTargetLang(::clang::hipacc::Language eNewTargetLang)     { _eTargetLang = eNewTargetLang; }
 
 
     public:
@@ -97,7 +97,7 @@ namespace Backend
       /** \brief  Assignment operator. */
       inline CodeGeneratorDescriptorBase& operator=(const CodeGeneratorDescriptorBase &crRVal)
       {
-        _eTargetCode    = crRVal._eTargetCode;
+        _eTargetLang    = crRVal._eTargetLang;
         _strName        = crRVal._strName;
         _strEmissionKey = crRVal._strEmissionKey;
         _strDescription = crRVal._strDescription;
@@ -118,7 +118,7 @@ namespace Backend
       inline std::string                  Name() const         { return _strName; }
 
       /** \brief  Returns the internal ID of the specific code generator. */
-      inline ::clang::hipacc::TargetCode  TargetCode() const   { return _eTargetCode; }
+      inline ::clang::hipacc::Language    TargetLang() const   { return _eTargetLang; }
     };
 
     //@}
@@ -274,7 +274,7 @@ namespace Backend
     virtual void Configure(CommonDefines::ArgumentVectorType & rvecArguments) final override
     {
       // Set the target code for this code generator
-      GetCompilerOptions().setTargetCode(_Descriptor.TargetCode());
+      GetCompilerOptions().setTargetLang(_Descriptor.TargetLang());
 
       // Parse all command line switches and options by the derived code generator
       for (size_t i = static_cast<size_t>(0); i < rvecArguments.size(); ++i)

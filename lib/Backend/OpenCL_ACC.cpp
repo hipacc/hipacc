@@ -38,7 +38,7 @@ using namespace std;
 
 OpenCL_ACC::CodeGenerator::Descriptor::Descriptor()
 {
-  SetTargetCode(::clang::hipacc::TARGET_OpenCLACC);
+  SetTargetLang(::clang::hipacc::Language::OpenCLACC);
   SetName("OpenCL for Accelerator devices");
   SetEmissionKey("opencl-acc");
   SetDescription("Emit OpenCL code for Accelerator devices");

@@ -37,7 +37,7 @@ using namespace std;
 
 CPU_x86::CodeGenerator::Descriptor::Descriptor()
 {
-  SetTargetCode(::clang::hipacc::TARGET_C);
+  SetTargetLang(::clang::hipacc::Language::C99);
   SetName("CPU-x86");
   SetEmissionKey("cpu");
   SetDescription("Emit C++ code for x86-CPUs");

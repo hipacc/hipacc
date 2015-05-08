@@ -37,7 +37,7 @@ using namespace std;
 
 Filterscript::CodeGenerator::Descriptor::Descriptor()
 {
-  SetTargetCode(::clang::hipacc::TARGET_Filterscript);
+  SetTargetLang(::clang::hipacc::Language::Filterscript);
   SetName("Filterscript");
   SetEmissionKey("filterscript");
   SetDescription("Emit Filterscript code for Android");

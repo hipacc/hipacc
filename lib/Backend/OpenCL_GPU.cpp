@@ -38,7 +38,7 @@ using namespace std;
 
 OpenCL_GPU::CodeGenerator::Descriptor::Descriptor()
 {
-  SetTargetCode(::clang::hipacc::TARGET_OpenCLGPU);
+  SetTargetLang(::clang::hipacc::Language::OpenCLGPU);
   SetName("OpenCL for GPU");
   SetEmissionKey("opencl-gpu");
   SetDescription("Emit OpenCL code for GPU devices");
@@ -142,11 +142,11 @@ void OpenCL_GPU::CodeGenerator::_CheckConfiguration()
   if (GetCompilerOptions().useTextureMemory(USER_ON))
   {
     // Only Array2D textures supported in OpenCL
-    if (GetCompilerOptions().getTextureType() != Array2D)
+    if (GetCompilerOptions().getTextureType() != Texture::Array2D)
     {
       llvm::errs() << "Warning: 'Linear1D', 'Linear2D', and 'Ldg' texture memory not supported by OpenCL!  Using 'Array2D' instead!\n";
 
-      GetCompilerOptions().setTextureMemory(Array2D);
+      GetCompilerOptions().setTextureMemory(Texture::Array2D);
     }
   }
 }
