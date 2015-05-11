@@ -42,6 +42,7 @@
 #include <string>
 #include <vector>
 #include <type_traits>
+#include <limits>
 
 namespace clang
 {
@@ -853,17 +854,6 @@ namespace Vectorization
           }
         }
 
-        template <>                   inline bool      GetValue<bool>() const
-        {
-          switch (_eType)
-          {
-          case KnownTypes::Float: case KnownTypes::Double:
-            return ( _unionValues.dFloatingPointValue != 0. );
-          default:
-            return ( _unionValues.ui64IntegralValue   != static_cast< std::uint64_t >( 0 ) );
-          }
-        }
-
 
         template <typename ValueType> inline void SetValue(ValueType TValue)
         {
@@ -891,13 +881,6 @@ namespace Vectorization
           }
         }
 
-        template<>                    inline void SetValue<bool>(bool TValue)
-        {
-          _unionValues.ui64IntegralValue  = static_cast< std::uint64_t >( TValue ? 1 : 0 );
-          _eType                          = KnownTypes::Bool;
-        }
-
-
 
         std::string GetAsString() const;
 
@@ -905,6 +888,7 @@ namespace Vectorization
 
         virtual std::string DumpToXML(const size_t cszIntend) const final override;
       };
+
 
       class Identifier final : public Value
       {
@@ -1691,6 +1675,23 @@ namespace Vectorization
         return spNode;
       }
   };
+
+  template<> inline bool AST::Expressions::Constant::GetValue<bool>() const
+  {
+    switch (_eType)
+    {
+    case KnownTypes::Float: case KnownTypes::Double:
+      return ( _unionValues.dFloatingPointValue != 0. );
+    default:
+      return ( _unionValues.ui64IntegralValue   != static_cast< std::uint64_t >( 0 ) );
+    }
+  }
+
+  template<> inline void AST::Expressions::Constant::SetValue<bool>(bool TValue)
+  {
+    _unionValues.ui64IntegralValue  = static_cast< std::uint64_t >( TValue ? 1 : 0 );
+    _eType                          = KnownTypes::Bool;
+  }
 } // end namespace Vectorization
 } // end namespace Backend
 } // end namespace hipacc

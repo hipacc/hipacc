@@ -106,6 +106,8 @@ IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, int32_t val);
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint32_t val);
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, int64_t val);
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint64_t val);
+FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, float val);
+FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, double val);
 
 // create label/goto statements
 LabelDecl *createLabelDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name);

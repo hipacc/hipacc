@@ -76,12 +76,12 @@ public:
     OutpuStream << TValue;
     return OutpuStream.str();
   }
-
-  template <>                     inline static string ToString<bool>(bool TValue)
-  {
-    return TValue ? "true" : "false";
-  }
 };
+
+template<> inline string XMLSupport::ToString<bool>(bool TValue)
+{
+  return TValue ? "true" : "false";
+}
 
 
 // Implementation of class AST::XMLSupport
@@ -89,7 +89,7 @@ string XMLSupport::CreateXmlTag(const size_t cszIntend, string strName, const st
 {
   string strAttributes("");
 
-  for each (auto itAttribute in crmapAttributes)
+  for (auto itAttribute : crmapAttributes)
   {
     strAttributes += string(" ") + itAttribute.first + string("=\"") + itAttribute.second + string("\"");
   }
@@ -201,7 +201,7 @@ string AST::BaseClasses::TypeInfo::DumpToXML(const size_t cszIntend) const
   {
     string strDim("");
 
-    for each (auto itDim in _vecArrayDimensions)
+    for (auto itDim : _vecArrayDimensions)
     {
       strDim += string("[") + XMLSupport::ToString(itDim) + string("]");
     }
@@ -1752,7 +1752,7 @@ string AST::Scope::DumpToXML(const size_t cszIntend) const
   {
     string strDeclarations("");
 
-    for each (auto itVar in _setDeclaredVariables)
+    for (auto itVar : _setDeclaredVariables)
     {
       XMLSupport::AttributesMapType mapDeclAttributes;
 
@@ -1765,7 +1765,7 @@ string AST::Scope::DumpToXML(const size_t cszIntend) const
   }
 
   // Dump children
-  for each (auto itNode in _Children)
+  for (auto itNode : _Children)
   {
     strXmlString += itNode->DumpToXML(cszIntend + 2);
   }
@@ -1842,7 +1842,7 @@ void AST::Scope::ImportScope(ScopePtr spOtherScope)
 
   ImportVariableDeclarations(spOtherScope);
 
-  for each (auto itChild in spOtherScope->_Children)
+  for (auto itChild : spOtherScope->_Children)
   {
     AddChild(itChild);
   }
@@ -1854,7 +1854,7 @@ void AST::Scope::ImportVariableDeclarations(ScopePtr spOtherScope)
 {
   CHECK_NULL_POINTER( spOtherScope );
 
-  for each (auto itDecl in spOtherScope->_setDeclaredVariables)
+  for (auto itDecl : spOtherScope->_setDeclaredVariables)
   {
     _setDeclaredVariables.insert( itDecl );
   }
@@ -1960,7 +1960,7 @@ string AST::FunctionDeclaration::DumpToXML(const size_t cszIntend) const
   {
     string strXmlVariables("");
 
-    for each (auto itVariable in _mapKnownVariables)
+    for (auto itVariable : _mapKnownVariables)
     {
       strXmlVariables += itVariable.second->DumpToXML(cszIntend + 4);
     }
@@ -1972,7 +1972,7 @@ string AST::FunctionDeclaration::DumpToXML(const size_t cszIntend) const
   {
     string strXmlParams("");
 
-    for each (auto itParameter in _Parameters)
+    for (auto itParameter : _Parameters)
     {
       strXmlParams += itParameter->DumpToXML(cszIntend + 4);
     }

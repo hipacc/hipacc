@@ -252,7 +252,7 @@ namespace Vectorization
         throw InternalErrorException(std::string("The intrinsic \"") + itIntrinEntry->second.first + std::string("\" has not been initialized!"));
       }
 
-      return pIntrinsicDecl->getResultType();
+      return pIntrinsicDecl->getReturnType();
     }
 
     template < typename IntrinsicIDType >
@@ -276,13 +276,13 @@ namespace Vectorization
 
         if (vecFunctions.size() != static_cast<size_t>(1))
         {
-          throw InternalErrorException(string("Found ambiguous entry for intrinsic function \"") + rIntrinsicInfo.first + string("\" !"));
+          throw InternalErrorException(std::string("Found ambiguous entry for intrinsic function \"") + rIntrinsicInfo.first + std::string("\" !"));
         }
 
         rIntrinsicInfo.second = vecFunctions.front();
 
         #ifdef VERBOSE_INIT_MODE
-        llvm::errs() << "\n" << rIntrinsicInfo.second->getResultType().getAsString() << " " << rIntrinsicInfo.second->getNameAsString() << "(";
+        llvm::errs() << "\n" << rIntrinsicInfo.second->getReturnType().getAsString() << " " << rIntrinsicInfo.second->getNameAsString() << "(";
         for (unsigned int uiParam = 0; uiParam < rIntrinsicInfo.second->getNumParams(); ++uiParam)
         {
           ParmVarDecl *pParam = rIntrinsicInfo.second->getParamDecl(uiParam);

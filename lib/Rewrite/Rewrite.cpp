@@ -2396,8 +2396,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   if (!bKernelPrinted)
   {
     // write kernel name and qualifiers
-    switch (compilerOptions.getTargetCode()) {
-      case TARGET_CUDA:
+    switch (compilerOptions.getTargetLang()) {
+      case Language::CUDA:
         *OS << "__global__ ";
         if (compilerOptions.exploreConfig() && emitHints) {
           *OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";
@@ -2406,11 +2406,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
               << K->getNumThreadsY() << ") ";
         }
         break;
-      case TARGET_OpenCLACC:
-      case TARGET_OpenCLCPU:
-      case TARGET_OpenCLGPU:
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
         if (compilerOptions.useTextureMemory() &&
-            compilerOptions.getTextureType()==Array2D) {
+            compilerOptions.getTextureType()==Texture::Array2D) {
           *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
               << "Sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | "
               << " CLK_FILTER_NEAREST; \n\n";
@@ -2424,11 +2424,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
               << ", " << K->getNumThreadsY() << ", 1))) ";
         }
         break;
-      case TARGET_C:
-      case TARGET_Renderscript:
+      case Language::C99:
+      case Language::Renderscript:
         break;
-      case TARGET_Filterscript:
-        *OS << K->getIterationSpace()->getAccessor()->getImage()->getTypeStr()
+      case Language::Filterscript:
+        *OS << K->getIterationSpace()->getImage()->getTypeStr()
             << " __attribute__((kernel)) ";
         break;
     }
@@ -2458,10 +2458,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       // check if we have a Mask or Domain
       HipaccMask *Mask = K->getMaskFromMapping(FD);
       if (Mask) {
-        switch (compilerOptions.getTargetCode()) {
-          case TARGET_OpenCLACC:
-          case TARGET_OpenCLCPU:
-          case TARGET_OpenCLGPU:
+        switch (compilerOptions.getTargetLang()) {
+          case Language::OpenCLACC:
+          case Language::OpenCLCPU:
+          case Language::OpenCLGPU:
             if (!Mask->isConstant()) {
               if (comma++) *OS << ", ";
               *OS << "__constant ";
@@ -2472,7 +2472,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                   << Mask->getTypeStr() << "))))";
               }
             break;
-          case TARGET_C:
+          case Language::C99:
             if (!Mask->isConstant()) {
               if (comma++) *OS << ", ";
               *OS << "const "
@@ -2482,11 +2482,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                   << "[" << Mask->getSizeXStr() << "]";
             }
             break;
-          case TARGET_CUDA:
+          case Language::CUDA:
             // mask/domain is declared as constant memory
             break;
-          case TARGET_Renderscript:
-          case TARGET_Filterscript:
+          case Language::Renderscript:
+          case Language::Filterscript:
             // mask/domain is declared as static memory
             break;
         }
@@ -2498,45 +2498,45 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       MemoryAccess memAcc = UNDEFINED;
       if (i==0) { // first argument is always the output image
         bool doBreak = false;
-        switch (compilerOptions.getTargetCode()) {
-          case TARGET_C:
-          case TARGET_OpenCLACC:
-          case TARGET_OpenCLCPU:
-          case TARGET_OpenCLGPU:
+        switch (compilerOptions.getTargetLang()) {
+          case Language::C99:
+          case Language::OpenCLACC:
+          case Language::OpenCLCPU:
+          case Language::OpenCLGPU:
             break;
-          case TARGET_CUDA:
+          case Language::CUDA:
             if (compilerOptions.useTextureMemory() &&
-                compilerOptions.getTextureType()==Array2D) {
+                compilerOptions.getTextureType()==Texture::Array2D) {
                 continue;
             }
             break;
-          case TARGET_Renderscript:
+          case Language::Renderscript:
             // parameters are set separately for Renderscript
             // add parameters for dummy allocation and indices
-            *OS << K->getIterationSpace()->getAccessor()->getImage()->getTypeStr()
+            *OS << K->getIterationSpace()->getImage()->getTypeStr()
                 << " *_IS, uint32_t x, uint32_t y";
             doBreak = true;
             break;
-          case TARGET_Filterscript:
+          case Language::Filterscript:
             *OS << "uint32_t x, uint32_t y";
             doBreak = true;
             break;
         }
         if (doBreak) break;
-        Acc = K->getIterationSpace()->getAccessor();
+        Acc = K->getIterationSpace();
         memAcc = WRITE_ONLY;
       } else if (Acc) {
-        memAcc = KC->getImgAccess(FD);
+        memAcc = KC->getMemAccess(FD);
       }
 
       if (Acc) {
-        switch (compilerOptions.getTargetCode()) {
-          case TARGET_OpenCLACC:
-          case TARGET_OpenCLCPU:
-          case TARGET_OpenCLGPU:
+        switch (compilerOptions.getTargetLang()) {
+          case Language::OpenCLACC:
+          case Language::OpenCLCPU:
+          case Language::OpenCLGPU:
             // __global keyword to specify memory location is only needed for OpenCL
             if (comma++) *OS << ", ";
-            if (K->useTextureMemory(Acc)) {
+            if (K->useTextureMemory(Acc) != Texture::None) {
               if (memAcc==WRITE_ONLY) {
                 *OS << "__write_only image2d_t ";
               } else {
@@ -2550,10 +2550,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             }
             *OS << Name;
             break;
-          case TARGET_CUDA:
-            if (K->useTextureMemory(Acc) && memAcc==READ_ONLY &&
+          case Language::CUDA:
+            if (K->useTextureMemory(Acc) != Texture::None && memAcc==READ_ONLY &&
                 // parameter required for __ldg() intrinsic
-                !(K->useTextureMemory(Acc) == Ldg)) {
+                !(K->useTextureMemory(Acc) == Texture::Ldg)) {
               // no parameter is emitted for textures
               continue;
             } else {
@@ -2564,7 +2564,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
               *OS << Name;
             }
             break;
-          case TARGET_C:
+          case Language::C99:
             if (comma++) *OS << ", ";
             if (memAcc==READ_ONLY) *OS << "const ";
             *OS << Acc->getImage()->getTypeStr()
@@ -2574,8 +2574,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             // alternative for Pencil:
             // *OS << "[static const restrict 2048][4096]";
             break;
-          case TARGET_Renderscript:
-          case TARGET_Filterscript:
+          case Language::Renderscript:
+          case Language::Filterscript:
             break;
         }
         continue;
@@ -2613,10 +2613,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   *OS << "#endif //" + ifdef + "\n";
   *OS << "\n";
   OS->flush();
-  if (!dump) {
-    fsync(fd);
-    close(fd);
-  }
+  fsync(fd);
+  close(fd);
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

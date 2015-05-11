@@ -1778,7 +1778,7 @@ void Vectorizer::Transformations::FindBranchingInternalAssignments::Execute(AST:
 
     Transformations::Run(spBranch->GetBody(), AssignmentFinder);
 
-    for each (auto itAssignment in AssignmentFinder.lstFoundNodes)
+    for (auto itAssignment : AssignmentFinder.lstFoundNodes)
     {
       // Check if the assignment is done to a branch internal variable (these variables do not depend on the conditions)
       CheckInternalDeclaration DeclChecker( _GetAssigneeInfo(itAssignment)->GetName() );
@@ -1787,7 +1787,7 @@ void Vectorizer::Transformations::FindBranchingInternalAssignments::Execute(AST:
       // Only add assignments to external variables to the result map
       if (! DeclChecker.Found())
       {
-        for each (auto itCondition in lstConditions)
+        for (auto itCondition : lstConditions)
         {
           mapConditionalAssignments[itAssignment].push_back(itCondition);
         }
@@ -1801,7 +1801,7 @@ void Vectorizer::Transformations::FindBranchingInternalAssignments::Execute(AST:
 
     Transformations::Run(spBranchingStmt->GetDefaultBranch(), AssignmentFinder);
 
-    for each (auto itAssignment in AssignmentFinder.lstFoundNodes)
+    for (auto itAssignment : AssignmentFinder.lstFoundNodes)
     {
       // Check if the assignment is done to a branch internal variable (these variables do not depend on the conditions)
       CheckInternalDeclaration DeclChecker( _GetAssigneeInfo(itAssignment)->GetName() );
@@ -1810,7 +1810,7 @@ void Vectorizer::Transformations::FindBranchingInternalAssignments::Execute(AST:
       // Only add assignments to external variables to the result map
       if (! DeclChecker.Found())
       {
-        for each (auto itCondition in lstConditions)
+        for (auto itCondition : lstConditions)
         {
           mapConditionalAssignments[itAssignment].push_back(itCondition);
         }
@@ -1826,7 +1826,7 @@ void Vectorizer::Transformations::FindLoopInternalAssignments::Execute(AST::Cont
 
   Transformations::Run(spLoop->GetBody(), AssignmentFinder);
 
-  for each (auto itAssignment in AssignmentFinder.lstFoundNodes)
+  for (auto itAssignment : AssignmentFinder.lstFoundNodes)
   {
     // Check if the assignment is done to a loop internal variable (these variables do not depend on the loop condition)
     CheckInternalDeclaration DeclChecker( _GetAssigneeInfo(itAssignment)->GetName() );
@@ -2249,7 +2249,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
   {
     Transformations::Run(spFunction, ReturnStmtFinder);
 
-    for each (auto itReturnStmt in ReturnStmtFinder.lstFoundNodes)
+    for (auto itReturnStmt : ReturnStmtFinder.lstFoundNodes)
     {
       if (itReturnStmt->IsVectorized())
       {
@@ -2289,7 +2289,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
     Transformations::Run(spFunction, ControlFlowFinder);
 
-    for each (auto itControlFlow in ControlFlowFinder.lstFoundNodes)
+    for (auto itControlFlow : ControlFlowFinder.lstFoundNodes)
     {
       bool bAddNode = false;
 
@@ -2313,7 +2313,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
   {
     typedef AST::VectorSupport::CheckActiveElements::CheckType    VectorCheckType;
 
-    for each (auto itControlFlow in lstControlFlowStatements)
+    for (auto itControlFlow : lstControlFlowStatements)
     {
       // Fetch the parent mask
       AST::BaseClasses::ExpressionPtr spParentMask = nullptr;
@@ -2360,7 +2360,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
           Transformations::FindAssignments  AssignmentFinder;
           Transformations::Run( spLoopBody, AssignmentFinder );
 
-          for each (auto itAssignment in AssignmentFinder.lstFoundNodes)
+          for (auto itAssignment : AssignmentFinder.lstFoundNodes)
           {
             if (itAssignment->IsVectorized())
             {
@@ -2393,7 +2393,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
             Transformations::Run(spLoopBody, LoopControlFinder);
 
             // The local control mask is only required if "continue" statements are present for this loop
-            for each (auto itLoopControl in LoopControlFinder.lstFoundNodes)
+            for (auto itLoopControl : LoopControlFinder.lstFoundNodes)
             {
               if ((itLoopControl->GetControlledLoop() == spLoop) && (itLoopControl->GetControlType() == AST::ControlFlow::LoopControlStatement::LoopControlType::Continue))
               {
@@ -2463,7 +2463,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
           Transformations::FindAssignments  AssignmentFinder;
           Transformations::Run(spBranchingStatement, AssignmentFinder);
 
-          for each (auto itAssignment in AssignmentFinder.lstFoundNodes)
+          for (auto itAssignment : AssignmentFinder.lstFoundNodes)
           {
             if (itAssignment->IsVectorized())
             {
@@ -2514,7 +2514,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
 
       // Mask all internal vectorized assignments
-      for each (auto itAssignment in lstInternalAssignments)
+      for (auto itAssignment : lstInternalAssignments)
       {
         itAssignment->SetMask( AST::Expressions::Identifier::Create( strCurrentMaskName ) );
       }
@@ -2527,7 +2527,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
     Transformations::FindNodes< AST::ControlFlow::LoopControlStatement >  LoopControlFinder;
     Transformations::Run(spFunction, LoopControlFinder);
 
-    for each (auto itLoopControl in LoopControlFinder.lstFoundNodes)
+    for (auto itLoopControl : LoopControlFinder.lstFoundNodes)
     {
       AST::ControlFlow::LoopPtr spControlledLoop = itLoopControl->GetControlledLoop();
 
@@ -2591,7 +2591,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
           // Add the mask updates
           string strConditionMask = lstAffectedControlMasks.front();
-          for each (auto itMaskName in lstAffectedControlMasks)
+          for (auto itMaskName : lstAffectedControlMasks)
           {
             typedef AST::Expressions::ArithmeticOperator::ArithmeticOperatorType  ArithmeticOperatorType;
 
@@ -2610,7 +2610,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
   // Convert return statements
   if (mapControlMasks.find(spFunction) != mapControlMasks.end())
   {
-    for each (auto itReturnStmt in ReturnStmtFinder.lstFoundNodes)
+    for (auto itReturnStmt : ReturnStmtFinder.lstFoundNodes)
     {
       // Find the affected control masks of this loop control statement
       list< string >  lstAffectedControlMasks;
@@ -2648,7 +2648,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
         // Add the mask updates
         string strConditionMask = lstAffectedControlMasks.front();
-        for each (auto itMaskName in lstAffectedControlMasks)
+        for (auto itMaskName : lstAffectedControlMasks)
         {
           typedef AST::Expressions::ArithmeticOperator::ArithmeticOperatorType  ArithmeticOperatorType;
 
@@ -2665,13 +2665,17 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
 void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bEnsureMonoTypeVectorExpressions)
 {
-  Transformations::Run( spFunction, Transformations::RemoveImplicitConversions() );
+  auto rmvImplict = Transformations::RemoveImplicitConversions();
+  auto insrtRequiredC = Transformations::InsertRequiredConversions();
+  auto insrtRequiredBC = Transformations::InsertRequiredBroadcasts();
 
-  Transformations::Run( spFunction, Transformations::InsertRequiredConversions() );
+  Transformations::Run( spFunction, rmvImplict );
+
+  Transformations::Run( spFunction, insrtRequiredC );
 
   RemoveUnnecessaryConversions( spFunction );
 
-  Transformations::Run(spFunction, Transformations::InsertRequiredBroadcasts());
+  Transformations::Run(spFunction, insrtRequiredBC ); 
 
   if (bEnsureMonoTypeVectorExpressions)
   {
@@ -2680,7 +2684,7 @@ void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bE
       Transformations::FindNodes< AST::Expressions::Conversion >  ConversionFinder( Transformations::DirectionType::BottomUp );
       Transformations::Run( spFunction, ConversionFinder );
 
-      for each (auto itConversion in ConversionFinder.lstFoundNodes)
+      for (auto itConversion : ConversionFinder.lstFoundNodes)
       {
         if ( itConversion->IsVectorized() && (! itConversion->GetParent()->IsType<AST::Expressions::AssignmentOperator>()) )
         {
@@ -2702,7 +2706,7 @@ void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bE
       Transformations::FindNodes< AST::VectorSupport::BroadCast >  BroadCastFinder(Transformations::DirectionType::BottomUp);
       Transformations::Run( spFunction, BroadCastFinder );
 
-      for each (auto itBroadCast in BroadCastFinder.lstFoundNodes)
+      for (auto itBroadCast : BroadCastFinder.lstFoundNodes)
       {
         AST::BaseClasses::ExpressionPtr spSubExpression = itBroadCast->GetSubExpression();
         if ( spSubExpression && (! spSubExpression->IsLeafNode()) )
@@ -2732,7 +2736,7 @@ void Vectorizer::VectorizeFunction(AST::FunctionDeclarationPtr spFunction)
 
     Transformations::Run(spFunction, AssignmentFinder);
 
-    for each (auto itAssignment in AssignmentFinder.lstFoundNodes)
+    for (auto itAssignment : AssignmentFinder.lstFoundNodes)
     {
       mapVariableDependencies[ _GetAssigneeInfo(itAssignment) ].push_back( itAssignment->GetRHS() );
     }
@@ -2744,11 +2748,11 @@ void Vectorizer::VectorizeFunction(AST::FunctionDeclarationPtr spFunction)
 
     Transformations::Run(spFunction, LoopAssignmentFinder);
 
-    for each (auto itCondAssignment in LoopAssignmentFinder.mapConditionalAssignments)
+    for (auto itCondAssignment : LoopAssignmentFinder.mapConditionalAssignments)
     {
       AST::BaseClasses::VariableInfoPtr spVariableInfo = _GetAssigneeInfo(itCondAssignment.first);
 
-      for each (auto itCondition in itCondAssignment.second)
+      for (auto itCondition : itCondAssignment.second)
       {
         mapVariableDependencies[spVariableInfo].push_back(itCondition);
       }
@@ -2761,11 +2765,11 @@ void Vectorizer::VectorizeFunction(AST::FunctionDeclarationPtr spFunction)
 
     Transformations::Run(spFunction, BranchAssignmentFinder);
 
-    for each (auto itCondAssignment in BranchAssignmentFinder.mapConditionalAssignments)
+    for (auto itCondAssignment : BranchAssignmentFinder.mapConditionalAssignments)
     {
       AST::BaseClasses::VariableInfoPtr spVariableInfo = _GetAssigneeInfo(itCondAssignment.first);
 
-      for each (auto itCondition in itCondAssignment.second)
+      for (auto itCondition : itCondAssignment.second)
       {
         mapVariableDependencies[spVariableInfo].push_back(itCondition);
       }
@@ -2779,11 +2783,11 @@ void Vectorizer::VectorizeFunction(AST::FunctionDeclarationPtr spFunction)
   {
     bChanged = false;
 
-    for each (auto itEntry in mapVariableDependencies)
+    for (auto itEntry : mapVariableDependencies)
     {
       if (! itEntry.first->GetVectorize())
       {
-        for each (auto itExpression in itEntry.second)
+        for (auto itExpression : itEntry.second)
         {
           if (itExpression->IsVectorized())
           {

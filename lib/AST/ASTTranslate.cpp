@@ -259,8 +259,8 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
   {
     // The iteration space loops will be created by the code generator later on =>
     // Mark the width and height declaration as used
-    getWidthDecl(Kernel->getIterationSpace()->getAccessor());
-    getHeightDecl(Kernel->getIterationSpace()->getAccessor());
+    getWidthDecl(Kernel->getIterationSpace());
+    getHeightDecl(Kernel->getIterationSpace());
 
     // Set actual inner loop body as kernel function body (will be exported by the code generator)
     for (auto itChild = clonedStmt->child_begin(); itChild != clonedStmt->child_end(); itChild++)

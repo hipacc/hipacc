@@ -761,7 +761,7 @@ CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, string 
 
   ClangASTHelper::FunctionDeclarationVectorType vecFunctionDecls;
 
-  for each (auto itInstrSet in lstInstructionSets)
+  for (auto itInstrSet : lstInstructionSets)
   {
     vecFunctionDecls.push_back( _DumpInstructionSet(itInstrSet.second, itInstrSet.first) );
   }
@@ -770,9 +770,10 @@ CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, string 
   if (! vecFunctionDecls.empty())
   {
     string strErrorInfo;
-    llvm::raw_fd_ostream outputStream(strDumpfile.c_str(), strErrorInfo);
+    std::error_code errorCode;
+    llvm::raw_fd_ostream outputStream(llvm::StringRef(strDumpfile.c_str()), errorCode, llvm::sys::fs::F_RW); //strErrorInfo);
 
-    for each (auto itFuncDecl in vecFunctionDecls)
+    for (auto itFuncDecl : vecFunctionDecls)
     {
       itFuncDecl->print( outputStream );
       outputStream << "\n\n";
@@ -821,7 +822,7 @@ MemoryAccess CPU_x86::HipaccHelper::GetImageAccess(const string &crstrParamName)
     }
     else
     {
-      return _pKernel->getKernelClass()->getImgAccess(pFieldDescriptor);
+      return _pKernel->getKernelClass()->getMemAccess(pFieldDescriptor);
     }
   }
 }
@@ -836,7 +837,7 @@ HipaccAccessor* CPU_x86::HipaccHelper::GetImageFromMapping(const string &crstrPa
   }
   else if (iParamIndex == 0)  // First parameter is always the output image
   {
-    return _pKernel->getIterationSpace()->getAccessor();
+    return _pKernel->getIterationSpace();
   }
   else                        // Parameter found
   {
@@ -887,9 +888,9 @@ HipaccMask* CPU_x86::HipaccHelper::GetMaskFromMapping(const string &crstrParamNa
 
 ::clang::Expr* CPU_x86::HipaccHelper::GetIterationSpaceLimitX()
 {
-  ::clang::Expr *pUpperX = _pKernel->getIterationSpace()->getAccessor()->getWidthDecl();
+  ::clang::Expr *pUpperX = _pKernel->getIterationSpace()->getWidthDecl();
 
-  if (::clang::DeclRefExpr *pOffsetX = _pKernel->getIterationSpace()->getAccessor()->getOffsetXDecl())
+  if (::clang::DeclRefExpr *pOffsetX = _pKernel->getIterationSpace()->getOffsetXDecl())
   {
     pUpperX = ASTNode::createBinaryOperator(_GetASTContext(), pUpperX, pOffsetX, BO_Add, _GetASTContext().IntTy);
   }
@@ -899,9 +900,9 @@ HipaccMask* CPU_x86::HipaccHelper::GetMaskFromMapping(const string &crstrParamNa
 
 ::clang::Expr* CPU_x86::HipaccHelper::GetIterationSpaceLimitY()
 {
-  ::clang::Expr *pUpperY = _pKernel->getIterationSpace()->getAccessor()->getHeightDecl();
+  ::clang::Expr *pUpperY = _pKernel->getIterationSpace()->getHeightDecl();
 
-  if (::clang::DeclRefExpr *pOffsetY = _pKernel->getIterationSpace()->getAccessor()->getOffsetYDecl())
+  if (::clang::DeclRefExpr *pOffsetY = _pKernel->getIterationSpace()->getOffsetYDecl())
   {
     pUpperY = ASTNode::createBinaryOperator(_GetASTContext(), pUpperY, pOffsetY, BO_Add, _GetASTContext().IntTy);
   }
@@ -2697,7 +2698,7 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageAccesses(::cla
     list< ::clang::ArraySubscriptExpr* >  lstImageAccesses = _FindImageAccesses(strParamName, pStatement);
 
     // Linearize all found image accesses
-    for each (auto itImageAccess in lstImageAccesses)
+    for (auto itImageAccess : lstImageAccesses)
     {
       _LinearizeImageAccess(strParamName, itImageAccess);
     }
@@ -2926,7 +2927,7 @@ string CPU_x86::CodeGenerator::_FormatFunctionHeader(FunctionDecl *pFunctionDecl
   stringstream OutputStream;
 
   // Write function name and qualifiers
-  OutputStream << pFunctionDecl->getResultType().getAsString(GetPrintingPolicy()) << " " << pFunctionDecl->getNameAsString() << "(";
+  OutputStream << pFunctionDecl->getReturnType().getAsString(GetPrintingPolicy()) << " " << pFunctionDecl->getNameAsString() << "(";
 
   // Write all parameters with comma delimiters
   if (! vecParamStrings.empty())
@@ -3269,7 +3270,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
       }
 
 
-      KernelSubFunctionBuilder::DeclCallPairType  DeclCallPair = SubFuncBuilder.CreateFuntionDeclarationAndCall(pKernelFunction->getNameAsString() + string("_Scalar"), pKernelFunction->getResultType());
+      KernelSubFunctionBuilder::DeclCallPairType  DeclCallPair = SubFuncBuilder.CreateFuntionDeclarationAndCall(pKernelFunction->getNameAsString() + string("_Scalar"), pKernelFunction->getReturnType());
       ImgAccessTranslator.TranslateImageDeclarations(DeclCallPair.first, ImageAccessTranslator::ImageDeclarationTypes::NativePointer);
       DeclCallPair.first->setBody(pKernelBody);
 

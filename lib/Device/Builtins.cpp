@@ -391,7 +391,7 @@ FunctionDecl *hipacc::Builtin::Context::CreateBuiltin(QualType R, const char
 
   New->setImplicit();
 
-  // create Decl objects for each parameter, adding them to the FunctionDecl.
+  // create Decl objects for parameter, add:g them to the FunctionDecl.
   if (const FunctionProtoType *FT = dyn_cast<FunctionProtoType>(R)) {
     SmallVector<ParmVarDecl *, 16> Params;
     size_t num_parm = 0;

@@ -145,6 +145,20 @@ IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint64_t val) {
 }
 
 
+FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, float val) {
+  FloatingLiteral *E = FloatingLiteral::Create(Ctx, llvm::APFloat(val), false,
+      Ctx.FloatTy, SourceLocation());
+
+  return E;
+}
+FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, double val) {
+  FloatingLiteral *E = FloatingLiteral::Create(Ctx, llvm::APFloat(val), false,
+      Ctx.DoubleTy, SourceLocation());
+
+  return E;
+}
+
+
 DeclStmt *createDeclStmt(ASTContext &Ctx, Decl *VD) {
   DeclStmt *S = new (Ctx) DeclStmt(Stmt::EmptyShell());
 
