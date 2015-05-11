@@ -430,5 +430,9 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
   return vecClangArguments;
 }
 
+string BackendConfigurationManager::GetOutputFile() {
+  return _strOutputFile;
+}
+
 // vim: set ts=2 sw=2 sts=2 et ai:
 

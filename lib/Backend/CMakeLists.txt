@@ -23,7 +23,7 @@ SET(Backend_HEADERS "${CURRENT_HEADER_DIR}/BackendConfigurationManager.h"
                     ${Backend_Generators_HEADERS}
                     ${Backend_Generators_Base_HEADERS})
 
-ADD_LIBRARY(Backend ${Backend_SOURCES} ${Backend_HEADERS})
+ADD_LIBRARY(hipaccBackend ${Backend_SOURCES} ${Backend_HEADERS})
 
 SOURCE_GROUP("Source Files\\Generators" FILES ${Backend_Generators_SOURCES})
 SOURCE_GROUP("Header Files\\Common" FILES ${Backend_Common_HEADERS})

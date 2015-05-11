@@ -43,10 +43,14 @@
 #include <clang/Driver/Tool.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/CompilerInvocation.h>
+#include <clang/Frontend/FrontendDiagnostic.h>
+#include <clang/Frontend/TextDiagnosticBuffer.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <llvm/Support/Host.h>
+#include <llvm/Support/Signals.h>
 
 #include <sstream>
+#include <memory>
 
 using namespace clang;
 using namespace hipacc;
@@ -143,7 +147,7 @@ int main(int argc, char *argv[]) {
   // argument list for CompilerInvocation after removing our compiler flags
   SmallVector<const char *, 16> Args;
   CompilerOptions compilerOptions = CompilerOptions();
-
+  std::string out;
 
   // Initialize the backends
   Backend::BackendConfigurationManager	BackendConfigManager(&compilerOptions);
@@ -158,6 +162,7 @@ int main(int argc, char *argv[]) {
 
     // Let the backend configuration manager parse the command line arguments
     BackendConfigManager.Configure(vecArguments);
+    out = BackendConfigManager.GetOutputFile();
 
     // Fetch the commands vector the clang invocation and convert it to clang's format
     vecArguments = BackendConfigManager.GetClangArguments();
@@ -204,7 +209,7 @@ int main(int argc, char *argv[]) {
   void *mainAddr = (void *) (intptr_t) getExecutablePath;
   std::string Path = getExecutablePath(argv[0]);
 
-  OwningPtr<CompilerInstance> Clang(new CompilerInstance());
+  std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
 
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
@@ -241,7 +246,7 @@ int main(int argc, char *argv[]) {
   if (!success) return EXIT_FAILURE;
 
   // create and execute the frontend action
-  OwningPtr<ASTFrontendAction> Act(new HipaccRewriteAction(compilerOptions));
+  std::unique_ptr<ASTFrontendAction> Act(new HipaccRewriteAction(compilerOptions, out));
 
   if (!Clang->ExecuteAction(*Act)) return EXIT_FAILURE;
 

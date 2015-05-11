@@ -310,6 +310,9 @@ namespace Backend
 
     /** \brief  Returns the command arguments vector required for the clang frontend invocation. */
     CommonDefines::ArgumentVectorType GetClangArguments();
+
+    /** \brief  Returns the output file name. */
+    std::string GetOutputFile();
   };
 } // end namespace Backend
 } // end namespace hipacc
