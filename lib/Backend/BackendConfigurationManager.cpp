@@ -216,6 +216,7 @@ BackendConfigurationManager::BackendConfigurationManager(CompilerOptions *pCompi
   _InitSwitch< KnownSwitches::Help        >(CompilerSwitchTypeEnum::Help);
   _InitSwitch< KnownSwitches::OutputFile  >(CompilerSwitchTypeEnum::OutputFile);
   _InitSwitch< KnownSwitches::Version     >(CompilerSwitchTypeEnum::Version);
+  _InitSwitch< KnownSwitches::IncludeDir  >(CompilerSwitchTypeEnum::IncludeDir);
 
 
   // Init known backends
@@ -254,7 +255,7 @@ size_t BackendConfigurationManager::_HandleSwitch(std::string strSwitch, CommonD
       {
         throw RuntimeErrorException("Only one output file can be specified for the compiler invocation");
       }
-      else if (szCurIndex >= rvecArguments.size())
+      else if (szCurIndex >= rvecArguments.size()-2)
       {
         throw RuntimeErrors::MissingOptionException(strSwitch);
       }
@@ -292,6 +293,19 @@ size_t BackendConfigurationManager::_HandleSwitch(std::string strSwitch, CommonD
 
       throw RuntimeErrors::AbortException(EXIT_SUCCESS);
     }
+  case CompilerSwitchTypeEnum::IncludeDir:
+    {
+      string include = rvecArguments[szCurIndex];
+      if (strlen(rvecArguments[szCurIndex].c_str()) == 2) {
+        if (szCurIndex >= rvecArguments.size()-2) {
+          throw RuntimeErrors::MissingOptionException(strSwitch);
+        }
+        include += rvecArguments[szCurIndex+1];
+        ++szReturnIndex;
+      }
+      _vecClangArguments.push_back(include);
+    }
+    break;
   default:  throw InternalErrors::UnhandledSwitchException(strSwitch);
   }
 
@@ -334,6 +348,10 @@ void BackendConfigurationManager::Configure(CommonDefines::ArgumentVectorType & 
       {
         // Try to parse the current switch and pass unknown switches to the code generator
         string strArgument = _TranslateSwitchAlias(rvecArguments[i]);
+
+        if (strncmp(strArgument.c_str(), "-I", 2) == 0) {
+          strArgument = "-I";
+        }
 
         auto itSwitch = _mapKnownSwitches.find(strArgument);
 
@@ -387,6 +405,11 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
 
   // Add Clang library include path (required for e.g. intrinsics)
   vecClangArguments.push_back(string("-I") + string(CLANG_LIB_INCLUDE_DIR));
+
+  // Add additional clang arguments
+  if (!_vecClangArguments.empty()) {
+    vecClangArguments.insert( vecClangArguments.end(), _vecClangArguments.begin(), _vecClangArguments.end() );
+  }
 
   // Add code generator specific additional arguments
   if (_spSelectedCodeGenerator)

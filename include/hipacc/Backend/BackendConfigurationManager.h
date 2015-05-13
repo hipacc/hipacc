@@ -64,7 +64,8 @@ namespace Backend
       Emit,         //!< ID of all code generator selection switches
       Help,         //!< ID of the "print help" switch
       OutputFile,   //!< ID of the "output file" switch
-      Version       //!< ID of the "print version" switch
+      Version,      //!< ID of the "print version" switch
+      IncludeDir    //!< ID of the "include directory" switch
     };
 
 
@@ -156,6 +157,22 @@ namespace Backend
           return vecDuplicates;
         }
       };
+
+      /** \brief  The switch type for the "include directory" switch. */
+      struct IncludeDir final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-I"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return "<dir>"; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "include <dir>"; }
+
+        /** \brief  Returns the vector of known aliases for this switch. */
+        inline static AliasesVectorType GetAliases()    { return AliasesVectorType(); }
+      };
     };
 
     /** \brief  Handles the output to the console (e.g. printing of the usage). */
@@ -211,6 +228,7 @@ namespace Backend
     std::string         _strInputFile;              //!< The path to the user-defined input file (will be set in the configuration process).
     std::string         _strOutputFile;             //!< The path to the user-defined output file (will be set in the configuration process).
     ICodeGeneratorPtr   _spSelectedCodeGenerator;   //!< A shared pointer to the user-defined code generator (will be set in the configuration process).
+    CommonDefines::ArgumentVectorType _vecClangArguments; //!< Additional Clang arguments.
 
 
 

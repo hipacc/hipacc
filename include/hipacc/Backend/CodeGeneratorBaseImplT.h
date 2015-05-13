@@ -291,10 +291,16 @@ namespace Backend
 
         if (itSwitchEntry == _mapKnownSwitches.end())
         {
-          throw RuntimeErrors::UnknownSwitchException(strSwitch, GetName());
+          if (strncmp(strSwitch.c_str(), "-I", 2) == 0) {
+            if (strlen(strSwitch.c_str()) == 2) {
+              i++;
+            }
+          } else {
+            throw RuntimeErrors::UnknownSwitchException(strSwitch, GetName());
+          }
+        } else {
+          i = _HandleSwitch(itSwitchEntry->second.GetSwitchType(), rvecArguments, i);
         }
-
-        i = _HandleSwitch(itSwitchEntry->second.GetSwitchType(), rvecArguments, i);
       }
 
       // Finally, check the configuration
