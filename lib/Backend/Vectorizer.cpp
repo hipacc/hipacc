@@ -246,6 +246,11 @@ AST::Expressions::ConstantPtr Vectorizer::VASTBuilder::_BuildConstantExpression(
   {
     return AST::Expressions::Constant::Create( dyn_cast<::clang::CXXBoolLiteralExpr>(pExpression)->getValue() );
   }
+  else if (isa<::clang::CharacterLiteral>(pExpression))
+  {
+    ::clang::CharacterLiteral* pCharLiteral = dyn_cast<::clang::CharacterLiteral>(pExpression);
+    return AST::Expressions::Constant::Create(static_cast<uint8_t>(pCharLiteral->getValue()));
+  }
   else
   {
     throw InternalErrorException("Unknown literal expression!");
@@ -261,8 +266,10 @@ AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clan
 {
   AST::BaseClasses::ExpressionPtr spReturnExpression(nullptr);
 
-  if (isa<::clang::IntegerLiteral>(pExpression) || isa<::clang::FloatingLiteral>(pExpression) || isa<::clang::CXXBoolLiteralExpr>(pExpression))
-  {
+  if (isa<::clang::IntegerLiteral>(pExpression) ||
+      isa<::clang::FloatingLiteral>(pExpression) ||
+      isa<::clang::CXXBoolLiteralExpr>(pExpression) ||
+      isa<::clang::CharacterLiteral>(pExpression)) {
     spReturnExpression = _BuildConstantExpression(pExpression);
   }
   else if (isa<::clang::DeclRefExpr>(pExpression))
