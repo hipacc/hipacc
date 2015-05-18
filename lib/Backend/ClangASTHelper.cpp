@@ -234,7 +234,7 @@ UnaryOperator* ClangASTHelper::CreatePostIncrementOperator(DeclRefExpr *pDeclRef
 
 CXXReinterpretCastExpr* ClangASTHelper::CreateReinterpretCast(Expr *pOperandExpression, const QualType &crReturnType, CastKind eCastKind, bool bIsLValue)
 {
-  ExprValueKind  eValueKind = true ? VK_LValue : VK_RValue;
+  ExprValueKind  eValueKind = bIsLValue ? VK_LValue : VK_RValue;
 
   CXXCastPath CastPath;
 
@@ -248,7 +248,7 @@ ReturnStmt* ClangASTHelper::CreateReturnStatement(Expr *pReturnValue)
 
 CXXStaticCastExpr* ClangASTHelper::CreateStaticCast(Expr *pOperandExpression, const QualType &crReturnType, CastKind eCastKind, bool bIsLValue)
 {
-  ExprValueKind  eValueKind = true ? VK_LValue : VK_RValue;
+  ExprValueKind  eValueKind = bIsLValue ? VK_LValue : VK_RValue;
   
   CXXCastPath CastPath;
 
