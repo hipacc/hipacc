@@ -270,7 +270,7 @@ void InstructionSetBase::_CreateMissingIntrinsicsSSE4_1()
 
 CastExpr* InstructionSetBase::_CreatePointerCast(Expr *pPointerRef, const QualType &crNewPointerType)
 {
-  return _GetASTHelper().CreateReinterpretCast(pPointerRef, crNewPointerType, CK_ReinterpretMemberPointer);
+  return _GetASTHelper().CreateReinterpretCast(pPointerRef, crNewPointerType, CK_ArrayToPointerDecay);//CK_ReinterpretMemberPointer);
 }
 
 CastExpr* InstructionSetBase::_CreateValueCast(Expr *pValueRef, const QualType &crNewValueType, CastKind eCastKind)
