@@ -79,9 +79,7 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
       break;
     case Language::Renderscript:
     case Language::Filterscript:
-      resultStr += "hipaccInitRenderScript(";
-      resultStr += RS_TARGET_API;
-      resultStr += ");\n";
+      resultStr += "hipaccInitRenderScript();\n";
       resultStr += indent;
       break;
   }
@@ -759,7 +757,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += "&ScriptC_" + K->getFileName();
           resultStr += "::set_" + deviceArgNames[i] + ", ";
           if (Acc || Mask) {
-            resultStr += "sp<Allocation>(((Allocation *)" + hostArgNames[i];
+            resultStr += "sp<const Allocation>(((Allocation *)" + hostArgNames[i];
             resultStr += img_mem + ")));\n";
           } else {
             resultStr += "(" + argTypeNames[i] + ")" + hostArgNames[i] + img_mem + ");\n";

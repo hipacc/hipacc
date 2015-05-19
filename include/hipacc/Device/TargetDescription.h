@@ -397,8 +397,6 @@ class HipaccDevice : public HipaccDeviceOptions {
     }
 
     std::string getCLIncludes() {
-      if (isARMGPU())
-        return EMBEDDED_RUNTIME_INCLUDES;
       return RUNTIME_INCLUDES;
     }
 
