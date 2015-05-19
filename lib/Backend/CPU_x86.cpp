@@ -3325,6 +3325,8 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
 
           // Replace all references to the HIPAcc image by the "current pixel" pointer
           ASTHelper.ReplaceDeclarationReferences(pKernelFunction->getBody(), strParamName, LinePosDeclPair.second);
+          ASTHelper.ReplaceDeclarationReferences((Stmt*)pSubFuncCallScalar, strParamName, LinePosDeclPair.second);
+          ASTHelper.ReplaceDeclarationReferences((Stmt*)pSubFuncCallVectorized, strParamName, LinePosDeclPair.second);
         }
 
         // Compute the iteration space range, which must be handled by the scalar sub-function
