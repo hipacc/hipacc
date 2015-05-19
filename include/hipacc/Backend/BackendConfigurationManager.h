@@ -65,7 +65,8 @@ namespace Backend
       Help,         //!< ID of the "print help" switch
       OutputFile,   //!< ID of the "output file" switch
       Version,      //!< ID of the "print version" switch
-      IncludeDir    //!< ID of the "include directory" switch
+      IncludeDir,   //!< ID of the "include directory" switch
+      Define        //!< ID of the "define" switch
     };
 
 
@@ -169,6 +170,22 @@ namespace Backend
 
         /** \brief  Returns the description for this switch. */
         inline static std::string Description()         { return "include <dir>"; }
+
+        /** \brief  Returns the vector of known aliases for this switch. */
+        inline static AliasesVectorType GetAliases()    { return AliasesVectorType(); }
+      };
+
+      /** \brief  The switch type for the "define" switch. */
+      struct Define final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-D"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return "<val>"; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "define <val>"; }
 
         /** \brief  Returns the vector of known aliases for this switch. */
         inline static AliasesVectorType GetAliases()    { return AliasesVectorType(); }

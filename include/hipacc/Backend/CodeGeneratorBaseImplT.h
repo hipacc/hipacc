@@ -291,7 +291,8 @@ namespace Backend
 
         if (itSwitchEntry == _mapKnownSwitches.end())
         {
-          if (strncmp(strSwitch.c_str(), "-I", 2) == 0) {
+          if (strncmp(strSwitch.c_str(), "-I", 2) == 0 ||
+              strncmp(strSwitch.c_str(), "-D", 2) == 0) {
             if (strlen(strSwitch.c_str()) == 2) {
               i++;
             }

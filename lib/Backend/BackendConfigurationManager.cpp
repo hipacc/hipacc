@@ -217,6 +217,7 @@ BackendConfigurationManager::BackendConfigurationManager(CompilerOptions *pCompi
   _InitSwitch< KnownSwitches::OutputFile  >(CompilerSwitchTypeEnum::OutputFile);
   _InitSwitch< KnownSwitches::Version     >(CompilerSwitchTypeEnum::Version);
   _InitSwitch< KnownSwitches::IncludeDir  >(CompilerSwitchTypeEnum::IncludeDir);
+  _InitSwitch< KnownSwitches::Define      >(CompilerSwitchTypeEnum::Define);
 
 
   // Init known backends
@@ -294,6 +295,7 @@ size_t BackendConfigurationManager::_HandleSwitch(std::string strSwitch, CommonD
       throw RuntimeErrors::AbortException(EXIT_SUCCESS);
     }
   case CompilerSwitchTypeEnum::IncludeDir:
+  case CompilerSwitchTypeEnum::Define:
     {
       string include = rvecArguments[szCurIndex];
       if (strlen(rvecArguments[szCurIndex].c_str()) == 2) {
@@ -351,6 +353,8 @@ void BackendConfigurationManager::Configure(CommonDefines::ArgumentVectorType & 
 
         if (strncmp(strArgument.c_str(), "-I", 2) == 0) {
           strArgument = "-I";
+        } else if (strncmp(strArgument.c_str(), "-D", 2) == 0) {
+          strArgument = "-D";
         }
 
         auto itSwitch = _mapKnownSwitches.find(strArgument);
