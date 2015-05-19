@@ -1428,22 +1428,22 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorConversion(VectorElementTyp
           vecArgumentTypes.push_back( itSubExpr->getType() );
         }
 
-        FunctionDecl *pConversionHelper = _GetFirstMatchingFunctionDeclaration( cstrConversionHelperName, vecArgumentTypes );
-        if (! pConversionHelper)
+        bool bFunctionUnknown = _GetFirstMatchingFunctionDeclaration( cstrConversionHelperName, vecArgumentTypes ) == nullptr;
+
+        // Create the argument names
+        ClangASTHelper::StringVectorType vecArgumentNames;
+        for (size_t szParamIdx = static_cast<size_t>(0); szParamIdx < vecArgumentTypes.size(); ++szParamIdx)
         {
-          // Create the argument names
-          ClangASTHelper::StringVectorType vecArgumentNames;
-          for (size_t szParamIdx = static_cast<size_t>(0); szParamIdx < vecArgumentTypes.size(); ++szParamIdx)
-          {
-            stringstream ssParamName;
-            ssParamName << "value" << szParamIdx;
-            vecArgumentNames.push_back( ssParamName.str() );
-          }
+          stringstream ssParamName;
+          ssParamName << "value" << szParamIdx;
+          vecArgumentNames.push_back( ssParamName.str() );
+        }
 
+        // Create the function declaration
+        FunctionDecl* pConversionHelper = _GetASTHelper().CreateFunctionDeclaration( cstrConversionHelperName, _spInstructionSet->GetVectorType(eTargetElementType), vecArgumentNames, vecArgumentTypes );
 
-          // Create the function declaration
-          pConversionHelper = _GetASTHelper().CreateFunctionDeclaration( cstrConversionHelperName, _spInstructionSet->GetVectorType(eTargetElementType), vecArgumentNames, vecArgumentTypes );
-
+        if (bFunctionUnknown)
+        {
           // Create the function body (i.e. the actual downward conversion)
           {
             ClangASTHelper::ExpressionVectorType vecHelperFuncParams;
@@ -1460,8 +1460,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorConversion(VectorElementTyp
 
           // Add the generated helper function to the known functions
           _AddKnownFunctionDeclaration( pConversionHelper );
-          _vecHelperFunctions.push_back( pConversionHelper );
         }
+
+        _vecHelperFunctions.push_back( pConversionHelper );
       }
 
       return _BuildScalarFunctionCall( cstrConversionHelperName, vecSubExpressions );
@@ -3172,9 +3173,16 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
       // Print all generated helper functions
       for (auto itHelperFunction : Exporter.GetGeneratedHelperFunctions())
       {
-        rOutputStream << "\ninline ";
-        itHelperFunction->print( rOutputStream, GetPrintingPolicy() );
         rOutputStream << "\n";
+        if (!itHelperFunction->hasBody()) {
+          // Forward declaration
+          itHelperFunction->print( rOutputStream, GetPrintingPolicy() );
+          rOutputStream << ";";
+        } else {
+          // Function definition/implementation
+          rOutputStream << "inline ";
+          itHelperFunction->print( rOutputStream, GetPrintingPolicy() );
+        }
       }
 
       return pExportedKernelFunction;
