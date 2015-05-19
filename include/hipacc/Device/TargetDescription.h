@@ -396,12 +396,6 @@ class HipaccDevice : public HipaccDeviceOptions {
       }
     }
 
-    std::string getCompileCommand(bool emitCUDA) {
-      if (emitCUDA)
-        return CUDA_COMPILER;
-      return CL_COMPILER;
-    }
-
     std::string getCLIncludes() {
       if (isARMGPU())
         return EMBEDDED_RUNTIME_INCLUDES;
@@ -413,20 +407,22 @@ class HipaccDevice : public HipaccDeviceOptions {
       return static_cast<std::underlying_type<Device>::type>(target_device);
     }
 
-    std::string getCompileOptions(std::string kernel, std::string file, bool
+    std::string getCompileCommand(std::string kernel, std::string file, bool
         emitCUDA) {
       if (emitCUDA) {
-        return " -I " + std::string(RUNTIME_INCLUDES) + " -arch=sm_" +
-          std::to_string(getTargetCC()) + " -cubin -Xptxas -v " + file +
-          ".cu 2>&1";
+        return std::string(CU_COMPILER) +
+          " -I " + std::string(RUNTIME_INCLUDES) +
+          " -arch=sm_" + std::to_string(getTargetCC()) + " -cubin -Xptxas -v " +
+          file + ".cu 2>&1";
       } else {
-        if (isAMDGPU()) {
-          return " -i " + std::string(RUNTIME_INCLUDES) + " -k " + kernel +
-            " -f " + file + ".cl -p AMD -d GPU 2>&1";
-        } else {
-          return " -i " + std::string(RUNTIME_INCLUDES) + " -k " + kernel +
-            " -f " + file + ".cl -p NVIDIA -d GPU 2>&1";
-        }
+        std::string command = std::string(CL_COMPILER) +
+          " -i " + std::string(RUNTIME_INCLUDES) +
+          " -k " + kernel + " -f " + file + ".cl ";
+        if (isAMDGPU())    command += "-p AMD    -d GPU 2>&1";
+        if (isARMGPU())    command += "-p ARM    -d GPU 2>&1";
+        if (isINTELACC())  command += "-p INTEL  -d ACC 2>&1";
+        if (isNVIDIAGPU()) command += "-p NVIDIA -d GPU 2>&1";
+        return command;
       }
     }
 };
