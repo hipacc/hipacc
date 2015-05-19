@@ -3,7 +3,7 @@ HIPACC_DIR     ?= @CMAKE_INSTALL_PREFIX@
 COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
 COMMON_INC     ?= -I@OPENCV_INCLUDE_DIRS@ \
                   -I$(TEST_CASE)
-COMPILER_INC   ?= -std=c++11 $(COMMON_INC) \
+COMPILER_INC   ?= $(COMMON_INC) \
                   -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                   -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                   -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
@@ -51,6 +51,8 @@ HIPACC_CONFIG?=128x1
 HIPACC_EXPLORE?=off
 HIPACC_TIMING?=off
 HIPACC_TARGET?=Fermi-20
+HIPACC_VEC_WIDTH?=16
+HIPACC_VEC_IS?=sse2
 
 
 HIPACC_OPTS=-target $(HIPACC_TARGET)
@@ -68,6 +70,7 @@ ifdef HIPACC_PPT
 endif
 ifdef HIPACC_VEC
     HIPACC_OPTS+= -vectorize $(HIPACC_VEC)
+    HIPACC_WFV+= -v -v-w $(HIPACC_VEC_WIDTH) -i-s $(HIPACC_VEC_IS)
 endif
 ifdef HIPACC_CONFIG
     HIPACC_OPTS+= -use-config $(HIPACC_CONFIG)
@@ -89,15 +92,15 @@ run:
 
 cpu:
 	@echo 'Executing Hipacc Compiler for C++:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cpu $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-cpu $(HIPACC_WFV) -o main.cc $(TEST_CASE)/main.cpp
 	@echo 'Compiling C++ file using c++:'
-	$(CC_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc $(CC_LINK)
+	$(CC_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -m$(HIPACC_VEC_IS) -o main_cpu main.cc $(CC_LINK)
 	@echo 'Executing C++ binary'
 	./main_cpu
 
 cuda:
 	@echo 'Executing Hipacc Compiler for CUDA:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-cuda $(HIPACC_OPTS) -o main.cu
+	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-cuda $(HIPACC_OPTS) -o main.cu $(TEST_CASE)/main.cpp
 	@echo 'Compiling CUDA file using nvcc:'
 	$(CU_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_cuda main.cu $(CU_LINK)
 	@echo 'Executing CUDA binary'
@@ -105,7 +108,7 @@ cuda:
 
 opencl-acc opencl-cpu opencl-gpu:
 	@echo 'Executing Hipacc Compiler for OpenCL:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-$@ $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-$@ $(HIPACC_OPTS) -o main.cc $(TEST_CASE)/main.cpp
 	@echo 'Compiling OpenCL file using c++:'
 	$(CL_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(CL_LINK)
 ifneq ($(HIPACC_TARGET),Midgard)
@@ -116,7 +119,7 @@ endif
 filterscript renderscript:
 	rm -f *.rs *.fs
 	@echo 'Executing Hipacc Compiler for $@:'
-	$(COMPILER) $(TEST_CASE)/main.cpp $(MYFLAGS) $(COMPILER_INC) -emit-$@ $(HIPACC_OPTS) -o main.cc
+	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-$@ $(HIPACC_OPTS) -o main.cc $(TEST_CASE)/main.cpp
 	mkdir -p build_$@
 ifeq ($(call ifge, $(RS_TARGET_API), 19), true) # build using ndk-build
 	rm -rf build_$@/*
