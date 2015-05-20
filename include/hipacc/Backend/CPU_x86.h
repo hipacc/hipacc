@@ -603,8 +603,9 @@ namespace Backend
        *  \param  rAstHelper    A reference to the current AST helper object.
        *  \param  pLoopCounter  A pointer to the declaration reference object for the loop counter variable (e.g. gid_x).
        *  \param  pUpperLimit   A pointer to the expression object which defines the upper bound of the iteration space (this value is exclusive).
-       *  \param  pLoopBody     A pointer to the statement object which represents the loop body (if it is not a compound statement, it will be wrapped into one). */
-      static ::clang::ForStmt* _CreateIterationSpaceLoop(ClangASTHelper &rAstHelper, ::clang::DeclRefExpr *pLoopCounter, ::clang::Expr *pUpperLimit, ::clang::Stmt *pLoopBody);
+       *  \param  pLoopBody     A pointer to the statement object which represents the loop body (if it is not a compound statement, it will be wrapped into one).
+       *  \param  szIncrement   Amount to increment loop counter in each iteration. */
+      static ::clang::ForStmt* _CreateIterationSpaceLoop(ClangASTHelper &rAstHelper, ::clang::DeclRefExpr *pLoopCounter, ::clang::Expr *pUpperLimit, ::clang::Stmt *pLoopBody, const size_t szIncrement=1);
 
       /** \brief  Returns the declaration string of an image buffer parameter for the kernel function declarator.
        *  \param  strName               The name of the image buffer variable.

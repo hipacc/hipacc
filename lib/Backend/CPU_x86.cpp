@@ -2817,7 +2817,7 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
 }
 
 
-::clang::ForStmt* CPU_x86::CodeGenerator::_CreateIterationSpaceLoop(ClangASTHelper &rAstHelper, ::clang::DeclRefExpr *pLoopCounter, ::clang::Expr *pUpperLimit, ::clang::Stmt *pLoopBody)
+::clang::ForStmt* CPU_x86::CodeGenerator::_CreateIterationSpaceLoop(ClangASTHelper &rAstHelper, ::clang::DeclRefExpr *pLoopCounter, ::clang::Expr *pUpperLimit, ::clang::Stmt *pLoopBody, const size_t szIncrement)
 {
   ::clang::Stmt* pFinalLoopBody = pLoopBody;
   if (! isa<::clang::CompoundStmt>(pFinalLoopBody))
@@ -2827,7 +2827,13 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
 
   ::clang::DeclStmt   *pInitStatement = rAstHelper.CreateDeclarationStatement(pLoopCounter);
   ::clang::Expr       *pCondition     = rAstHelper.CreateBinaryOperatorLessThan(pLoopCounter, pUpperLimit);
-  ::clang::Expr       *pIncrement     = rAstHelper.CreatePostIncrementOperator(pLoopCounter);
+  ::clang::Expr       *pIncrement;
+
+  if (szIncrement == 1) {
+    pIncrement = rAstHelper.CreatePostIncrementOperator(pLoopCounter);
+  } else {
+    pIncrement = rAstHelper.CreateBinaryOperator(pLoopCounter, rAstHelper.CreateIntegerLiteral(static_cast<int>(szIncrement)), BO_AddAssign, pLoopCounter->getType());
+  }
 
   return ASTNode::createForStmt(rAstHelper.GetASTContext(), pInitStatement, pCondition, pIncrement, pFinalLoopBody);
 }
@@ -3371,7 +3377,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
           // Add the loop for the vectorized function call
           vecInnerLoopBody.pop_back();
           vecInnerLoopBody.push_back(pSubFuncCallVectorized);
-          vecOuterLoopBody.push_back( _CreateIterationSpaceLoop(ASTHelper, pNewGidXRef, hipaccHelper.GetIterationSpaceLimitX(), ASTHelper.CreateCompoundStatement(vecInnerLoopBody)) );
+          vecOuterLoopBody.push_back( _CreateIterationSpaceLoop(ASTHelper, pNewGidXRef, hipaccHelper.GetIterationSpaceLimitX(), ASTHelper.CreateCompoundStatement(vecInnerLoopBody), _szVectorWidth) );
         }
       }
       else
