@@ -68,7 +68,7 @@ endif
 ifdef HIPACC_PPT
     HIPACC_OPTS+= -pixels-per-thread $(HIPACC_PPT)
 endif
-ifdef HIPACC_VEC
+ifeq ($(HIPACC_VEC),on)
     HIPACC_OPTS+= -vectorize $(HIPACC_VEC)
     HIPACC_WFV+= -v -v-w $(HIPACC_VEC_WIDTH) -i-s $(HIPACC_VEC_IS)
 endif
