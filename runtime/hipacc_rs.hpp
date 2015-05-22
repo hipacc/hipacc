@@ -51,7 +51,7 @@ const sp<Allocation> *hipaccGetAllocation(HipaccImage &img);
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);
 long getMicroTime();
 std::string getRSErrorCodeStr(int errorNum);
-ErrorHandlerFunc_t errorHandler(uint32_t errorNum, std::string errorText);
+ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText);
 void hipaccInitRenderScript();
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst);
@@ -275,7 +275,7 @@ std::string getRSErrorCodeStr(int errorNum) {
 }
 
 
-ErrorHandlerFunc_t errorHandler(uint32_t errorNum, std::string errorText) {
+ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText) {
     std::cerr << "ERROR: " << getRSErrorCodeStr(errorNum)
               << " (" << errorNum << ")" << std::endl
               << "    " << errorText << std::endl;
