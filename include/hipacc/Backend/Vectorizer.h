@@ -234,6 +234,8 @@ namespace Vectorization
 
       inline static std::string   GetTemporaryNamePrefix()   { return "_temp"; }
 
+      inline static std::string   GetTemporaryIndexName()       { return GetTemporaryNamePrefix() + "_index"; }
+
 
 
     // Debug stuff
@@ -641,6 +643,60 @@ namespace Vectorization
     void VectorizeFunction(AST::FunctionDeclarationPtr spFunction);
 
     static void DumpVASTNodeToXML(AST::BaseClasses::NodePtr spVastNode, std::string strXmlFilename);
+
+    class VASTHelper {
+     public:
+      inline static std::string GetTemporaryIndexName() { return VASTBuilder::GetTemporaryIndexName(); }
+
+      inline static void ReplaceIdentifierByExpression(AST::BaseClasses::ExpressionPtr spParent, std::string strIdentifierName, AST::BaseClasses::ExpressionPtr spReplacement) {
+        for (AST::IndexType iChildIdx = 0; iChildIdx < spParent->GetChildCount(); ++iChildIdx) {
+          AST::BaseClasses::NodePtr spChild = spParent->GetChild(iChildIdx);
+          if (spChild->IsType<AST::Expressions::Identifier>()) {
+            AST::Expressions::IdentifierPtr spIdentifier = spChild->CastToType<AST::Expressions::Identifier>();
+            if (spIdentifier->GetName().compare(strIdentifierName) == 0) {
+              spParent->SetSubExpression(iChildIdx, spReplacement);
+              continue;
+            }
+          }
+
+          if (!spChild->IsLeafNode() &&
+              spChild->IsType<AST::BaseClasses::Expression>()) {
+            ReplaceIdentifierByExpression(spChild->CastToType<AST::BaseClasses::Expression>(), strIdentifierName, spReplacement);
+          }
+        }
+      }
+
+      inline static std::vector<AST::Expressions::AssignmentOperatorPtr> FindVariableAssignments(AST::BaseClasses::NodePtr spParent, std::string strVarName) {
+        std::vector<AST::Expressions::AssignmentOperatorPtr> vecAssignments;
+
+        for (AST::IndexType iChildIdx = 0; iChildIdx < spParent->GetChildCount(); ++iChildIdx) {
+          AST::BaseClasses::NodePtr spChild = spParent->GetChild(iChildIdx);
+
+          if (!spChild) continue; // somewhere a node containing null has been inserted
+
+          if (spChild->IsType<AST::Expressions::AssignmentOperator>()) {
+            AST::Expressions::AssignmentOperatorPtr spAssignment = spChild->CastToType<AST::Expressions::AssignmentOperator>();
+            if (spAssignment->GetLHS() &&
+                spAssignment->GetLHS()->IsType<AST::Expressions::Identifier>()) {
+              AST::Expressions::IdentifierPtr spIdentifier = spAssignment->GetLHS()->CastToType<AST::Expressions::Identifier>();
+              std::string strName = spIdentifier->GetName();
+              size_t szMatch = strName.find(strVarName);
+              if (szMatch == 0) {
+                vecAssignments.push_back(spAssignment);
+                continue;
+              }
+            }
+          }
+
+          if (!spChild->IsLeafNode()) {
+            std::vector<AST::Expressions::AssignmentOperatorPtr> vecResult = FindVariableAssignments(spChild, strVarName);
+            vecAssignments.insert(vecAssignments.end(), vecResult.begin(), vecResult.end());
+          }
+        }
+
+        return vecAssignments;
+      }
+    };
   };
 } // end namespace Vectorization
 } // end namespace Backend

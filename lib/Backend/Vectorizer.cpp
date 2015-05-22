@@ -1861,7 +1861,7 @@ void Vectorizer::Transformations::FlattenMemoryAccesses::Execute(AST::Expression
       AST::ScopePtr       spCurrentScope  = ScopePos.GetScope();
 
       // Create a name for a new tempory index variable
-      string strIndexVariableName = VASTBuilder::GetNextFreeVariableName(spCurrentScope, VASTBuilder::GetTemporaryNamePrefix() + string("_index"));
+      string strIndexVariableName = VASTBuilder::GetNextFreeVariableName(spCurrentScope, VASTBuilder::GetTemporaryIndexName());
 
       // Create the new index variable declaration
       spCurrentScope->AddVariableDeclaration( AST::BaseClasses::VariableInfo::Create(strIndexVariableName, spIndexExpr->GetResultType(), spIndexExpr->IsVectorized()) );
