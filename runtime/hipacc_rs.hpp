@@ -52,7 +52,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);
 long getMicroTime();
 std::string getRSErrorCodeStr(int errorNum);
 ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText);
-void hipaccInitRenderScript();
+void hipaccInitRenderScript(std::string rs_package_name);
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst);
 void hipaccReleaseMemory(HipaccImage &img);
@@ -283,14 +283,14 @@ ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText) {
 
 
 // Create RenderScript context
-void hipaccInitRenderScript() {
+void hipaccInitRenderScript(std::string rs_package_name) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     sp<RS> rs = Ctx.get_context();
 
     rs->setErrorHandler((ErrorHandlerFunc_t)&errorHandler);
 
     // Create context
-    if (!rs->init("/data/data/org.hipacc.rs")) {
+    if (!rs->init("/data/data/" + rs_package_name)) {
         std::cerr << "ERROR: RenderScript initialization failed!" << std::endl;
         exit(EXIT_FAILURE);
     }
