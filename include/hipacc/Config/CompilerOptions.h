@@ -83,7 +83,7 @@ class CompilerOptions {
     int align_bytes;
     int pixels_per_thread;
     Texture texture_type;
-    std::string rs_package_name;
+    std::string rs_package_name, rs_directory;
 
     void getOptionAsString(CompilerOption option, int val=-1) {
       switch (option) {
@@ -123,7 +123,8 @@ class CompilerOptions {
       align_bytes(0),
       pixels_per_thread(1),
       texture_type(Texture::None),
-      rs_package_name("org.hipacc.rs")
+      rs_package_name("org.hipacc.rs"),
+      rs_directory("/data/local/tmp")
     {}
 
     bool emitC99() { return target_lang == Language::C99; }
@@ -186,6 +187,7 @@ class CompilerOptions {
     }
     int getPixelsPerThread() { return pixels_per_thread; }
     std::string getRSPackageName() { return rs_package_name; }
+    std::string getRSDirectory() { return rs_directory; }
 
     void setTargetLang(Language lang) { target_lang = lang; }
     void setTargetDevice(Device td) { target_device = td; }
@@ -220,6 +222,7 @@ class CompilerOptions {
 
     void setRSPackageName(std::string name) {
       rs_package_name = name;
+      rs_directory = "/data/data/" + name;
     }
 
     std::string getTargetPrefix() {

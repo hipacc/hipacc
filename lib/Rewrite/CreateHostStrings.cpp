@@ -80,7 +80,7 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
     case Language::Renderscript:
     case Language::Filterscript:
       resultStr += "hipaccInitRenderScript(\"";
-      resultStr += options.getRSPackageName();
+      resultStr += options.getRSDirectory();
       resultStr += "\");\n";
       resultStr += indent;
       break;
