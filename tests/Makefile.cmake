@@ -113,6 +113,9 @@ filterscript renderscript:
 	export HIPACC_INCLUDE=$(HIPACC_DIR)/include; \
 	cd build_$@; @NDK_BUILD_EXECUTABLE@ -B APP_PLATFORM=android-@RS_TARGET_API@ APP_STL=stlport_static
 	cp build_$@/libs/armeabi/main_renderscript ./main_$@
+	adb shell mkdir -p /data/local/tmp
+	adb push main_$@ /data/local/tmp
+	adb shell /data/local/tmp/main_$@
 
 clean:
 	rm -f main_* *.cu *.cc *.cubin *.cl *.isa *.rs *.fs
