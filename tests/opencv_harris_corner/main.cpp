@@ -23,15 +23,15 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <sys/time.h>
-
 #include <cfloat>
 #include <iostream>
 #include <numeric>
 #include <vector>
 
+#include <sys/time.h>
+
 #ifdef OpenCV
-#include "opencv2/opencv.hpp"
+#include <opencv2/opencv.hpp>
 #endif
 
 #include "hipacc.hpp"
@@ -61,7 +61,7 @@ double time_ms () {
 }
 
 
-// Harris Corner filter in HIPAcc
+// Harris Corner filter in Hipacc
 #ifdef NO_SEP
 class Deriv1D : public Kernel<float> {
   private:
@@ -319,7 +319,7 @@ int main(int argc, const char **argv) {
     #ifdef USE_FREEIMAGE
     uchar *input = FreeImage_GetBits(gray);
     #else
-    uchar *input = (uchar *)malloc(sizeof(uchar)*width*height);
+    uchar *input = new uchar[width*height];
     #endif
 
     // initialize data
@@ -399,7 +399,7 @@ int main(int argc, const char **argv) {
     IterationSpace<float> IsDxy(DXY);
     IterationSpace<float> IsTmp(TMP);
 
-    std::cerr << "Calculating HIPAcc Harris Corner filter ..." << std::endl;
+    std::cerr << "Calculating Hipacc Harris Corner filter ..." << std::endl;
 
     BoundaryCondition<uchar> BcInClamp(IN, 3, 3, Boundary::CLAMP);
     Accessor<uchar> AccInClamp(BcInClamp);
@@ -567,7 +567,7 @@ int main(int argc, const char **argv) {
     FreeImage_Unload(out);
     FreeImage_Unload(gray);
     #else
-    free(input);
+    delete[] input;
     #endif
 
     return EXIT_SUCCESS;

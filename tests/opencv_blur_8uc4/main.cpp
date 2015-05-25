@@ -23,16 +23,17 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cfloat>
+#include <cstdlib>
+#include <iostream>
+
 #include <sys/time.h>
 
 //#define CPU
 #ifdef OpenCV
-#include "opencv2/opencv.hpp"
+#include <opencv2/opencv.hpp>
 #ifndef CPU
-#include "opencv2/gpu/gpu.hpp"
+#include <opencv2/gpu/gpu.hpp>
 #endif
 #endif
 
@@ -142,7 +143,7 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int t, int
 #endif
 
 
-// Kernel description in HIPAcc
+// Kernel description in Hipacc
 class BlurFilter : public Kernel<uchar4> {
     private:
         Accessor<uchar4> &in;
@@ -188,7 +189,6 @@ class BlurFilter : public Kernel<uchar4> {
                     sum += convert_int4(in(xf, yf));
                 }
             }
-
             output() = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
             #endif
         }
@@ -237,7 +237,7 @@ int main(int argc, const char **argv) {
 
     // only filter kernel sizes 3x3 and 5x5 implemented
     if (size_x != size_y && (size_x != 3 || size_x != 5)) {
-        fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!\n");
+        std::cerr << "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -263,9 +263,9 @@ int main(int argc, const char **argv) {
     #endif
 
     // host memory for image of width x height pixels
-    uchar4 *input = (uchar4 *)malloc(sizeof(uchar4)*width*height);
-    uchar4 *reference_in = (uchar4 *)malloc(sizeof(uchar4)*width*height);
-    uchar4 *reference_out = (uchar4 *)malloc(sizeof(uchar4)*width*height);
+    uchar4 *input = new uchar4[width*height];
+    uchar4 *reference_in = new uchar4[width*height];
+    uchar4 *reference_out = new uchar4[width*height];
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -306,7 +306,7 @@ int main(int argc, const char **argv) {
     BlurFilter filter(iter, acc, dom, size_x, size_y, t, height);
     #endif
 
-    fprintf(stderr, "Calculating HIPAcc blur filter ...\n");
+    std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
     float timing = 0.0f;
 
     filter.execute();
@@ -315,7 +315,7 @@ int main(int argc, const char **argv) {
     // get pointer to result data
     uchar4 *output = out.data();
 
-    fprintf(stderr, "HIPACC: %.3f ms, %.3f Mpixel/s\n", timing, ((width-2*offset_x)*(height-2*offset_y)/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << ((width-2*offset_x)*(height-2*offset_y)/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     #ifdef OpenCV
@@ -330,9 +330,9 @@ int main(int argc, const char **argv) {
     // offset 4x4 shifted by 1 -> 2x2
     // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
     #ifdef CPU
-    fprintf(stderr, "\nCalculating OpenCV blur filter on the CPU ...\n");
+    std::cerr << std::endl << "Calculating OpenCV blur filter on the CPU ..." << std::endl;
     #else
-    fprintf(stderr, "\nCalculating OpenCV blur filter on the GPU ...\n");
+    std::cerr << std::endl << "Calculating OpenCV blur filter on the GPU ..." << std::endl;
     #endif
 
 
@@ -365,17 +365,17 @@ int main(int argc, const char **argv) {
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
+
     gpu_out.download(cv_data_out);
+    #endif
+    std::cerr << "OpenCV: " << min_dt << " ms, " << ((width-size_x)*(height-size_y)/min_dt)/1000 << " Mpixel/s" << std::endl;
 
     // get pointer to result data
     output = (uchar4 *)cv_data_out.data;
     #endif
 
-    fprintf(stderr, "OpenCV: %.3f ms, %.3f Mpixel/s\n", min_dt, ((width-size_x)*(height-size_y)/min_dt)/1000);
-    #endif
 
-
-    fprintf(stderr, "\nCalculating reference ...\n");
+    std::cerr << std::endl << "Calculating reference ..." << std::endl;
     min_dt = DBL_MAX;
     for (int nt=0; nt<3; nt++) {
         time0 = time_ms();
@@ -391,9 +391,9 @@ int main(int argc, const char **argv) {
         dt = time1 - time0;
         if (dt < min_dt) min_dt = dt;
     }
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", min_dt, ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000);
+    std::cerr << "Reference: " << min_dt << " ms, " << ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000 << " Mpixel/s" << std::endl;
 
-    fprintf(stderr, "\nComparing results ...\n");
+    std::cerr << std::endl << "Comparing results ..." << std::endl;
     #ifdef OpenCV
     int upper_y = height-size_y+offset_y;
     int upper_x = width-size_x+offset_x;
@@ -408,26 +408,25 @@ int main(int argc, const char **argv) {
                 reference_out[y*width + x].y != output[y*width + x].y ||
                 reference_out[y*width + x].z != output[y*width + x].z ||
                 reference_out[y*width + x].w != output[y*width + x].w) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): "
-                        "%hhu,%hhu,%hhu,%hhu vs. %hhu,%hhu,%hhu,%hhu\n", x, y,
-                        reference_out[y*width + x].x,
-                        reference_out[y*width + x].y,
-                        reference_out[y*width + x].z,
-                        reference_out[y*width + x].w,
-                        output[y*width + x].x,
-                        output[y*width + x].y,
-                        output[y*width + x].z,
-                        output[y*width + x].w);
+                std::cerr << "Test FAILED, at (" << x << "," << y << "): ("
+                          << (int)reference_out[y*width + x].x << ","
+                          << (int)reference_out[y*width + x].y << ","
+                          << (int)reference_out[y*width + x].z << ","
+                          << (int)reference_out[y*width + x].w << ") vs. ("
+                          << (int)output[y*width + x].x << ","
+                          << (int)output[y*width + x].y << ","
+                          << (int)output[y*width + x].z << ","
+                          << (int)output[y*width + x].w << ")" << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
     }
-    fprintf(stderr, "Test PASSED\n");
+    std::cerr << "Test PASSED" << std::endl;
 
     // memory cleanup
-    free(input);
-    free(reference_in);
-    free(reference_out);
+    delete[] input;
+    delete[] reference_in;
+    delete[] reference_out;
 
     return EXIT_SUCCESS;
 }

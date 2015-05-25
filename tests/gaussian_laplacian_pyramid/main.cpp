@@ -24,15 +24,11 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <cfloat>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
-#include <vector>
-
-#include <float.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/time.h>
 
 #include "hipacc.hpp"
 
@@ -79,7 +75,7 @@ class Gaussian : public Kernel<char> {
         }
       }
 
-      output() = (unsigned char) sum;
+      output() = (char) sum;
       #endif
     }
 };
@@ -152,7 +148,7 @@ int main(int argc, const char **argv) {
     // filter coefficients
     // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
     if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
-        fprintf(stderr, "Wrong filter kernel size. Currently supported values: 3x3, 5x5, and 7x7!\n");
+        std::cerr << "Wrong filter kernel size. Currently supported values: 3x3, 5x5, and 7x7!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -182,7 +178,7 @@ int main(int argc, const char **argv) {
     };
 
     // host memory for image of width x height pixels
-    char *input = (char *)malloc(sizeof(char)*width*height);
+    char *input = new char[width*height];
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -219,13 +215,13 @@ int main(int argc, const char **argv) {
           Accessor<char> Acc1(BC);
           IterationSpace<char> IS1(PTMP(-1));
           Gaussian Gaus(IS1, Acc1, M, size_x, size_y);
-          printf("Level %d: Gaussian\n", PGAUS.level()-1);
+          std::cout << "Level " << PGAUS.level()-1 << ": Gaussian" << std::endl;
           Gaus.execute();
 
           Accessor<char> Acc2(PTMP(-1), Interpolate::NN);
           IterationSpace<char> IS2(PGAUS(0));
           Subsample Sub(IS2, Acc2);
-          printf("Level %d: Subsample\n", PGAUS.level()-1);
+          std::cout << "Level " << PGAUS.level()-1 << ": Subsample" << std::endl;
           Sub.execute();
 
           // Construct lapacian pyramid
@@ -233,7 +229,7 @@ int main(int argc, const char **argv) {
           Accessor<char> Acc4(PGAUS(0), Interpolate::LF);
           IterationSpace<char> IS3(PLAP(-1));
           DifferenceOfGaussian DoG(IS3, Acc3, Acc4);
-          printf("Level %d: DifferenceOfGaussian\n", PGAUS.level()-1);
+          std::cout << "Level " << PGAUS.level()-1 << ": DifferenceOfGaussian" << std::endl;
           DoG.execute();
         }
 
@@ -245,7 +241,7 @@ int main(int argc, const char **argv) {
           Accessor<char> Acc2(PLAP(0));
           IterationSpace<char> IS(PGAUS(0));
           Collapse Col(IS, Acc1, Acc2);
-          printf("Level %d: Collapse\n", PGAUS.level());
+          std::cout << "Level " << PGAUS.level() << ": Collapse" << std::endl;
           Col.execute();
         }
     });
@@ -256,16 +252,17 @@ int main(int argc, const char **argv) {
     for (int y = 0; y < height; ++y) {
       for (int x = 0; x < width; ++x) {
         if (input[y*height+x] != output[y*height+x]) {
-          fprintf(stderr, "Test FAILED, at (%d,%d): %hhu vs. %hhu\n",
-                  x, y, input[y*width + x], output[y*width + x]);
+          std::cerr << "Test FAILED, at (" << x << "," << y << "): "
+                    << (int)input[y*width + x] << " vs. "
+                    << (int)output[y*width + x] << std::endl;
           exit(EXIT_FAILURE);
         }
       }
     }
 
-    fprintf(stderr, "Test PASSED\n");
+    std::cerr << "Test PASSED" << std::endl;
 
-    free(input);
+    delete[] input;
 
     return EXIT_SUCCESS;
 }

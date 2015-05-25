@@ -23,11 +23,10 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cstdlib>
+#include <iostream>
 
-#include "opencv2/opencv.hpp"
+#include <opencv2/opencv.hpp>
 
 #include "hipacc.hpp"
 
@@ -91,7 +90,7 @@ int main(int argc, const char **argv) {
 
     MandelbrotKernel mandelbrot(iter_img, width, height, 1.00f, 0.00f, 0.00f);
     mandelbrot.execute();
-    fprintf(stderr, "HIPAcc Mandelbrot filter: %.3f ms\n", hipacc_last_kernel_timing());
+    std::cerr << "Hipacc Mandelbrot filter: " << hipacc_last_kernel_timing() << " ms" << std::endl;
 
     frame.data = (uchar *)img.data();
     imshow("Mandelbrot", frame);
@@ -99,7 +98,7 @@ int main(int argc, const char **argv) {
 
     MandelbrotKernel mandelbrot_z(iter_img, width, height, 10.00f, 0.97f, 0.83f);
     mandelbrot_z.execute();
-    fprintf(stderr, "HIPAcc Mandelbrot filter (zoom): %.3f ms\n", hipacc_last_kernel_timing());
+    std::cerr << "Hipacc Mandelbrot filter (zoom): " << hipacc_last_kernel_timing() << " ms" << std::endl;
 
     frame.data = (uchar *)img.data();
     imshow("Mandelbrot (zoom)", frame);

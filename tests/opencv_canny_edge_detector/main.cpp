@@ -28,11 +28,10 @@
 // thresholding).
 //
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
+#include <cstdlib>
+#include <iostream>
 
-#include "opencv2/opencv.hpp"
+#include <opencv2/opencv.hpp>
 
 #include "hipacc.hpp"
 
@@ -167,7 +166,7 @@ int main(int argc, const char **argv) {
     // open default camera
     VideoCapture cap(0);
     if (!cap.isOpened()) {
-        fprintf(stderr, "Error opening VideoCapture device!\n");
+        std::cerr << "Error opening VideoCapture device!" << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -177,9 +176,10 @@ int main(int argc, const char **argv) {
     imshow("Canny", frameRGB);
     #else
     // input image
-    frame = imread("0003.pgm", CV_LOAD_IMAGE_GRAYSCALE);
+    std::string frame_name = "0003.pgm";
+    frame = imread(frame_name.c_str(), CV_LOAD_IMAGE_GRAYSCALE);
     if (frame.empty()) {
-        fprintf(stderr, "Error reading image file '0003.pgm'!\n");
+        std::cerr << "Error reading image file '" << frame_name << "'!" << std::endl;
         return EXIT_FAILURE;
     }
     #endif
@@ -251,35 +251,35 @@ int main(int argc, const char **argv) {
 
         // convert to grayscale
         cvtColor(frameRGB, frame, CV_BGR2GRAY);
-    #endif
         input_img = frame.data;
+    #endif
 
         // blur input image
         gauss.execute();
         timing = hipacc_last_kernel_timing();
         fps_timing = timing;
-        fprintf(stderr, "HIPAcc Gaussian blur filter: %.3f ms\n", timing);
+        std::cerr << "Hipacc blur filter: " << timing << " ms" << std::endl;
 
         // compute edge gradient
         grad.execute();
         timing = hipacc_last_kernel_timing();
         fps_timing += timing;
-        fprintf(stderr, "HIPAcc edge gradient filter: %.3f ms\n", timing);
+        std::cerr << "Hipacc grad filter: " << timing << " ms" << std::endl;
 
         // perform non-maximum suppression
         nms.execute();
         timing = hipacc_last_kernel_timing();
         fps_timing += timing;
-        fprintf(stderr, "HIPAcc NMS filter: %.3f ms\n", timing);
+        std::cerr << "Hipacc NMS filter: " << timing << " ms" << std::endl;
 
         // final thresholding
         threshold.execute();
         timing = hipacc_last_kernel_timing();
         fps_timing += timing;
-        fprintf(stderr, "HIPAcc threshold filter: %.3f ms\n", timing);
+        std::cerr << "Hipacc threshold filter: " << timing << " ms" << std::endl;
 
         // fps time
-        fprintf(stderr, "HIPAcc canny: %.3f ms, %f fps\n", fps_timing, 1000.0f/fps_timing);
+        std::cerr << "Hipacc canny: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
         frameCanny.data = output_img.data();
 

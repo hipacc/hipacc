@@ -97,8 +97,7 @@ static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE x, BASIC_TYPE y, BASIC_TYP
 }
 
 #define MAKE_MOP(NEW_TYPE, BASIC_TYPE) \
-static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) \
-{ \
+static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) { \
     return make_##NEW_TYPE(s, s, s, s); \
 }
 

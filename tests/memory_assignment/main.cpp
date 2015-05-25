@@ -23,12 +23,11 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include <cfloat>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
-#include <float.h>
-#include <limits.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "hipacc.hpp"
 
@@ -57,21 +56,21 @@ void compare_results(data_t *ref, data_t *data, roi_t &ref_roi, roi_t &data_roi)
     // compare results
     assert(ref_roi.roi_width == data_roi.roi_width && ref_roi.roi_height ==
             data_roi.roi_height && "Image sizes have to be the same!");
-    fprintf(stderr, "\nComparing results ...\n");
+    std::cerr << std::endl << "Comparing results ..." << std::endl;
     for (int y=ref_roi.roi_oy; y<ref_roi.roi_oy+ref_roi.roi_height; y++) {
         for (int x=ref_roi.roi_ox; x<ref_roi.roi_ox+ref_roi.roi_width; x++) {
             if (ref[y*ref_roi.img_width + x] !=
                 data[(y-ref_roi.roi_oy+data_roi.roi_oy)*data_roi.img_width +
                 x-ref_roi.roi_ox+data_roi.roi_ox]) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): %d vs. %d\n", x, y,
-                        ref[y*ref_roi.img_width + x],
-                        data[(y-ref_roi.roi_oy+data_roi.roi_oy)*data_roi.img_width
-                        + x-ref_roi.roi_ox+data_roi.roi_ox]);
+                std::cerr << "Test FAILED, at (" << x << "," << y << "): "
+                          << ref[y*ref_roi.img_width + x] << " vs. "
+                          << data[(y-ref_roi.roi_oy+data_roi.roi_oy)*data_roi.img_width + x-ref_roi.roi_ox+data_roi.roi_ox]
+                          << std::endl;
                 return;
             }
         }
     }
-    fprintf(stderr, "Test PASSED\n");
+    std::cerr << "Test PASSED" << std::endl;
 }
 
 
@@ -84,10 +83,10 @@ int main(int argc, const char **argv) {
     const int roi_offset_y = 2;
 
     // host memory for image of width x height pixels
-    int *img0 = (int *)malloc(sizeof(int)*width*height);
-    int *img1 = (int *)malloc(sizeof(int)*width*height);
-    int *img2 = (int *)malloc(sizeof(int)*roi_width*roi_height);
-    int *img3 = (int *)malloc(sizeof(int)*roi_width*roi_height);
+    int *img0 = new int[width*height];
+    int *img1 = new int[width*height];
+    int *img2 = new int[roi_width*roi_height];
+    int *img3 = new int[roi_width*roi_height];
 
     // initialize data
     for (int y=0; y<height; ++y) {
@@ -145,10 +144,10 @@ int main(int argc, const char **argv) {
 
 
     // memory cleanup
-    free(img0);
-    free(img1);
-    free(img2);
-    free(img3);
+    delete[] img0;
+    delete[] img1;
+    delete[] img2;
+    delete[] img3;
 
     return EXIT_SUCCESS;
 }

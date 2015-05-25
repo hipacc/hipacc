@@ -30,17 +30,17 @@
  */
 
 #include <algorithm>
+#include <cstring>
+#include <iostream>
 #include <sstream>
 
-#include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "hipacc_cl.hpp"
 
 
 void usage(char **argv) {
-    fprintf(stderr, "Usage: %s [-h] [-d ACC|CPU|GPU|ALL] [-p AMD|APPLE|ARM|INTEL|NVIDIA|ALL] -s <memory_size>\n", argv[0]);
+    std::cout << "Usage: " << argv[0] << " [-h] [-d ACC|CPU|GPU|ALL] [-p AMD|APPLE|ARM|INTEL|NVIDIA|ALL] -s <memory_size>" << std::endl;
 }
 
 
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
     while ((option = getopt(argc, (char * const *)argv, "hd:p:s:")) != -1) {
         switch (option) {
             case 'h':
-                fprintf(stderr, "Compile OpenCL kernel for given Platform and/or device type.\n");
+                std::cout << "Bandwidth test for device-to-device memory copies." << std::endl;
                 usage(argv);
                 exit(EXIT_SUCCESS);
             case 'd':
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
                 else if (strncmp(optarg, "CPU", 3) == 0) device_type = CL_DEVICE_TYPE_CPU;
                 else if (strncmp(optarg, "GPU", 3) == 0) device_type = CL_DEVICE_TYPE_GPU;
                 else if (strncmp(optarg, "ALL", 3) == 0) device_type = CL_DEVICE_TYPE_ALL;
-                else fprintf(stderr, "Unknown device type '%s', using 'ALL' as default ...\n", optarg);
+                else std::cout << "Unknown device type '" << optarg << "', using 'ALL' as default ..." << std::endl;
                 break;
             case 'p':
                 if (strncmp(optarg, "AMD", 3) == 0) platform_name = AMD;
@@ -70,13 +70,13 @@ int main(int argc, char *argv[]) {
                 else if (strncmp(optarg, "ARM", 3) == 0) platform_name = ARM;
                 else if (strncmp(optarg, "INTEL", 3) == 0) platform_name = INTEL;
                 else if (strncmp(optarg, "NVIDIA", 3) == 0) platform_name = NVIDIA;
-                else fprintf(stderr, "Unknown platform name '%s', using 'ALL' as default ...\n", optarg);
+                else std::cout << "Unknown platform name '" << optarg << "', using 'ALL' as default ..." << std::endl;
                 break;
             case 's':
                 std::istringstream (optarg) >> memory_size;
                 break;
             default: /* '?' */
-                fprintf(stderr, "Wrong call syntax!\n");
+                std::cout << "Wrong call syntax!" << std::endl;
                 usage(argv);
                 exit(EXIT_FAILURE);
         }
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     // c) accessMode : MAPPED, DIRECT
 
     // allocate host memory
-    uchar *host_idata = (uchar *)malloc(memory_size);
+    uchar *host_idata = new uchar[memory_size/sizeof(uchar)];
 
     // initialize the memory
     for (size_t i=0; i < memory_size/sizeof(uchar); ++i) {
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
     }
 
     // clean up memory on host
-    free(host_idata);
+    delete[] host_idata;
 
     // clean up memory on device
     hipaccReleaseMemory(dev_idata);

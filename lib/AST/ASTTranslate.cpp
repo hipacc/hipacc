@@ -2184,6 +2184,49 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
   MemberExpr *ME = cast<MemberExpr>(E->getCallee());
 
+  auto mem_at_fun = [&] (HipaccAccessor *acc, DeclRefExpr *LHS,
+                         MemoryAccess mem_acc) -> Expr * {
+    assert(E->getNumArgs()==2 &&
+           "x and y argument for pixel_at() or output_at() required!");
+    Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), acc);
+    Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), acc);
+    Expr *result = nullptr;
+
+    switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
+        result = accessMem2DAt(LHS, idx_x, idx_y);
+        break;
+      case Language::CUDA:
+        if (Kernel->useTextureMemory(acc)!=Texture::None) {
+          result = accessMemTexAt(LHS, acc, mem_acc, idx_x, idx_y);
+        } else {
+          result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
+        }
+        break;
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        if (Kernel->useTextureMemory(acc)!=Texture::None) {
+          result = accessMemImgAt(LHS, acc, mem_acc, idx_x, idx_y);
+        } else {
+          result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
+        }
+        break;
+      case Language::Renderscript:
+      case Language::Filterscript:
+        if (ME->getMemberNameInfo().getAsString() == "output_at" &&
+            compilerOptions.emitFilterscript()) {
+            assert(0 && "Filterscript does not support output_at().");
+        }
+        result = accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
+        break;
+    }
+
+    setExprProps(E, result);
+
+    return result;
+  };
+
   if (isa<CXXThisExpr>(ME->getBase()->IgnoreImpCasts())) {
     // check if this is a convolve function call
     if (E->getDirectCallee() && (
@@ -2244,6 +2287,11 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
       return result;
     }
+
+    // output_at(x, y) method -> img[y][x]
+    if (ME->getMemberNameInfo().getAsString() == "output_at") {
+      return mem_at_fun(acc, LHS, mem_acc);
+    }
   }
 
   if (auto base = dyn_cast<MemberExpr>(ME->getBase()->IgnoreImpCasts())) {
@@ -2282,51 +2330,10 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       }
 
       // Acc.pixel_at(x, y) method -> img[y][x]
-      //    output_at(x, y) method -> img[y][x]
-      if (ME->getMemberNameInfo().getAsString() == "pixel_at" ||
-          ME->getMemberNameInfo().getAsString() == "output_at") {
-        assert(E->getNumArgs()==2 &&
-               "x and y argument for pixel_at() or output_at() required!");
-        Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), acc);
-        Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), acc);
-
+      if (ME->getMemberNameInfo().getAsString() == "pixel_at") {
         // MemberExpr is converted to DeclRefExpr when cloning
         auto LHS = cast<DeclRefExpr>(Clone(ME->getBase()->IgnoreImpCasts()));
-        Expr *result = nullptr;
-
-        switch (compilerOptions.getTargetLang()) {
-          case Language::C99:
-            result = accessMem2DAt(LHS, idx_x, idx_y);
-            break;
-          case Language::CUDA:
-            if (Kernel->useTextureMemory(acc)!=Texture::None) {
-              result = accessMemTexAt(LHS, acc, mem_acc, idx_x, idx_y);
-            } else {
-              result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
-            }
-            break;
-          case Language::OpenCLACC:
-          case Language::OpenCLCPU:
-          case Language::OpenCLGPU:
-            if (Kernel->useTextureMemory(acc)!=Texture::None) {
-              result = accessMemImgAt(LHS, acc, mem_acc, idx_x, idx_y);
-            } else {
-              result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
-            }
-            break;
-          case Language::Renderscript:
-          case Language::Filterscript:
-            if (ME->getMemberNameInfo().getAsString() == "output_at" &&
-                compilerOptions.emitFilterscript()) {
-                assert(0 && "Filterscript does not support output_at().");
-            }
-            result = accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
-            break;
-        }
-
-        setExprProps(E, result);
-
-        return result;
+        return mem_at_fun(acc, LHS, mem_acc);
       }
     }
 

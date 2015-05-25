@@ -113,7 +113,7 @@ ENDIF(APPLE)
 
 # debug and release builds
 STRING(TOUPPER "${CMAKE_BUILD_TYPE}" build)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti")
 IF(build STREQUAL "RELEASE")
     SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 ELSE()
@@ -138,6 +138,9 @@ CONFIGURE_FILE(
 CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/runtime/hipacc_cu.hpp.cmake"
     "${HIPACC_BINARY_DIR}/runtime/hipacc_cu.hpp")
+CONFIGURE_FILE(
+    "${HIPACC_SOURCE_DIR}/tests/Android.mk.cmake"
+    "${HIPACC_BINARY_DIR}/tests/Android.mk")
 CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/Makefile.cmake"
     "${HIPACC_BINARY_DIR}/tests/Makefile")

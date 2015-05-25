@@ -509,7 +509,7 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
 
 
 // Copy from memory region to memory region
-void hipaccCopyMemoryRegion(HipaccAccessor &src, HipaccAccessor &dst) {
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
     if (src.img.mem_type >= Array2D) {
         cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst.img.mem,
                 dst.offset_x*dst.img.pixel_size, dst.offset_y,

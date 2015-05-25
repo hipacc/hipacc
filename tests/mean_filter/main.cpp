@@ -25,8 +25,12 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cfloat>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+
 #include <sys/time.h>
 
 #include "hipacc.hpp"
@@ -131,7 +135,7 @@ void vertical_mean_filter(float *in, float *out, int d, int t, int width, int he
 }
 
 
-// Kernel description in HIPAcc
+// Kernel description in Hipacc
 class HorizontalMeanFilter : public Kernel<float> {
     private:
         Accessor<float> &input;
@@ -230,9 +234,9 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     // host memory for image of width x height pixels
-    float *input = (float *)malloc(sizeof(float)*width*height);
-    float *reference_in = (float *)malloc(sizeof(float)*width*height);
-    float *reference_out = (float *)malloc(sizeof(float)*width*height);
+    float *input = new float[width*height];
+    float *reference_in = new float[width*height];
+    float *reference_out = new float[width*height];
 
     // initialize data
     #define DELTA 0.001f
@@ -266,7 +270,7 @@ int main(int argc, const char **argv) {
     VerticalMeanFilter VMF(VIS, AccIN, d, t, height);
     #endif
 
-    fprintf(stderr, "Calculating mean filter ...\n");
+    std::cerr << "Calculating mean filter ..." << std::endl;
 
     #ifdef HSCAN
     HMF.execute();
@@ -279,13 +283,13 @@ int main(int argc, const char **argv) {
     float *output = OUT.data();
 
     #ifdef HSCAN
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, ((width-d)*height/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << ((width-d)*height/timing)/1000 << " Mpixel/s" << std::endl;
     #else
-    fprintf(stderr, "Hipacc: %.3f ms, %.3f Mpixel/s\n", timing, (width*(height-d)/timing)/1000);
+    std::cerr << "Hipacc: " << timing << " ms, " << (width*(height-d)/timing)/1000 << " Mpixel/s" << std::endl;
     #endif
 
 
-    fprintf(stderr, "\nCalculating reference ...\n");
+    std::cerr << std::endl << "Calculating reference ..." << std::endl;
     time0 = time_ms();
 
     // calculate reference
@@ -298,60 +302,56 @@ int main(int argc, const char **argv) {
     time1 = time_ms();
     dt = time1 - time0;
     #ifdef HSCAN
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, ((width-d)*height/dt)/1000);
+    std::cerr << "Reference: " << timing << " ms, " << ((width-d)*height/timing)/1000 << " Mpixel/s" << std::endl;
     #else
-    fprintf(stderr, "Reference: %.3f ms, %.3f Mpixel/s\n", dt, (width*(height-d)/dt)/1000);
+    std::cerr << "Reference: " << timing << " ms, " << (width*(height-d)/timing)/1000 << " Mpixel/s" << std::endl;
     #endif
 
-    fprintf(stderr, "\nComparing results ...\n");
+    std::cerr << std::endl << "Comparing results ..." << std::endl;
     // compare results
+    float rms_err = 0;   // RMS error
     #ifdef HSCAN
-    float rms_err = 0.0f;   // RMS error
     for (int y=0; y<height; y++) {
         for (int x=0; x<width-d; x++) {
             float derr = reference_out[y*width + x] - output[y*width + x];
             rms_err += derr*derr;
 
             if (fabs(derr) > EPS) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
-                        reference_out[y*width + x], output[y*width + x]);
+                std::cerr << "Test FAILED, at (" << x << "," << y << "): "
+                          << reference_out[y*width + x] << " vs. "
+                          << output[y*width + x] << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
     }
     rms_err = sqrtf(rms_err / (float((width-d)*height)));
-    // check RMS error
-    if (rms_err > EPS) {
-        fprintf(stderr, "Test FAILED: RMS error in image: %.3f > %.3f, aborting...\n", rms_err, EPS);
-        exit(EXIT_FAILURE);
-    }
     #else
-    float rms_err = 0.0f;   // RMS error
     for (int y=0; y<height-d; y++) {
         for (int x=0; x<width; x++) {
             float derr = reference_out[y*width + x] - output[y*width + x];
             rms_err += derr*derr;
 
             if (fabs(derr) > EPS) {
-                fprintf(stderr, "Test FAILED, at (%d,%d): %f vs. %f\n", x, y,
-                        reference_out[y*width + x], output[y*width + x]);
+                std::cerr << "Test FAILED, at (" << x << "," << y << "): "
+                          << reference_out[y*width + x] << " vs. "
+                          << output[y*width + x] << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
     }
     rms_err = sqrtf(rms_err / (float(width*(height-d))));
+    #endif
     // check RMS error
     if (rms_err > EPS) {
-        fprintf(stderr, "Test FAILED: RMS error in image: %.3f > %.3f, aborting...\n", rms_err, EPS);
+        std::cerr << "Test FAILED: RMS error in image: " << rms_err << " > " << EPS << ", aborting..." << std::endl;
         exit(EXIT_FAILURE);
     }
-    #endif
-    fprintf(stderr, "Test PASSED\n");
+    std::cerr << "Test PASSED" << std::endl;
 
     // memory cleanup
-    free(input);
-    free(reference_in);
-    free(reference_out);
+    delete[] input;
+    delete[] reference_in;
+    delete[] reference_out;
 
     return EXIT_SUCCESS;
 }
