@@ -14,7 +14,7 @@ NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),comput
                   -Xptxas -v @NVCC_COMP@ #-keep
 OFLAGS          = -O3
 
-CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 ${CMAKE_THREAD_LIBS_INIT} -Wall -Wunused
+CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 @CMAKE_THREAD_LIBS_INIT@ -Wall -Wunused
 CU_CC           = @NVCC@ $(NVCC_FLAGS) -Xcompiler -Wall -Xcompiler -Wunused
 CC_LINK         = -lm -ldl -lstdc++ @TIME_LINK@
 CU_LINK         = $(CC_LINK) @CUDA_LINK@
@@ -106,7 +106,7 @@ filterscript renderscript:
 	rm -rf build_$@/*
 	mkdir -p build_$@
 	mkdir -p build_$@/jni
-	cp @CMAKE_CURRENT_SOURCE_DIR@/tests/Android.mk.cmake build_$@/jni/Android.mk
+	cp Android.mk build_$@/jni/Android.mk
 	cp main.cc *.$(subst renderscript,rs,$(subst filterscript,fs,$@)) build_$@
 	@echo 'Compiling $@ file using ndk-build:'
 	export CASE_FLAGS="$(MYFLAGS)"; \

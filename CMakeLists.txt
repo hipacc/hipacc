@@ -132,6 +132,9 @@ CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/runtime/hipacc_cu.hpp.cmake"
     "${HIPACC_BINARY_DIR}/runtime/hipacc_cu.hpp")
 CONFIGURE_FILE(
+    "${HIPACC_SOURCE_DIR}/tests/Android.mk.cmake"
+    "${HIPACC_BINARY_DIR}/tests/Android.mk")
+CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/Makefile.cmake"
     "${HIPACC_BINARY_DIR}/tests/Makefile")
 CONFIGURE_FILE(
