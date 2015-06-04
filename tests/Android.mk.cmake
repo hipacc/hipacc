@@ -18,7 +18,7 @@ LOCAL_LDLIBS     := -llog -lRScpp_static
 
 LOCAL_CPPFLAGS   += $(CASE_FLAGS)
 
-LOCAL_RENDERSCRIPT_FLAGS := -allow-rs-prefix -target-api @RS_TARGET_API@ \
+LOCAL_RENDERSCRIPT_FLAGS := -allow-rs-prefix -target-api @ANDROID_API@ \
                             -I$(HIPACC_INCLUDE)
 
 include $(BUILD_EXECUTABLE)

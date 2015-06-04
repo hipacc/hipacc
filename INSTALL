@@ -37,8 +37,8 @@ OPENCV_DIR                  - OpenCV installation path
 For Android, the cross compiler etc. have to be specified in addition:
 NDK_DIR                     - Android NDK directory
                               e.g. -DNDK_DIR=/opt/android/android-ndk-r10e
-RS_TARGET_API               - Android API level
-                              e.g. -DRS_TARGET_API=19
+ANDROID_API                 - Android API level
+                              e.g. -DANDROID_API=19
 
 The following options can be enabled or disabled:
 USE_POLLY               - Use Polly for kernel analysis (e.g. -DUSE_POLLY=ON)

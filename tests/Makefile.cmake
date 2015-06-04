@@ -107,11 +107,12 @@ filterscript renderscript:
 	mkdir -p build_$@
 	mkdir -p build_$@/jni
 	cp Android.mk build_$@/jni/Android.mk
+	cp Application.mk build_$@/jni/Application.mk
 	cp main.cc *.$(subst renderscript,rs,$(subst filterscript,fs,$@)) build_$@
 	@echo 'Compiling $@ file using ndk-build:'
 	export CASE_FLAGS="$(MYFLAGS)"; \
 	export HIPACC_INCLUDE=$(HIPACC_DIR)/include; \
-	cd build_$@; @NDK_BUILD_EXECUTABLE@ -B APP_PLATFORM=android-@RS_TARGET_API@ APP_STL=stlport_static
+	cd build_$@; @NDK_BUILD_EXECUTABLE@ -B
 	cp build_$@/libs/armeabi/main_renderscript ./main_$@
 	adb shell mkdir -p /data/local/tmp
 	adb push main_$@ /data/local/tmp
