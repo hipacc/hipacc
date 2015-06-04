@@ -23,22 +23,23 @@ installation of Clang/LLVM (and Polly) is required. The llvm-config tool will be
 used to determine configuration for Hipacc and must be present in the
 environment.
 
-The following variables can be set to tell cmake where to look for certain
-components:
-CMAKE_INSTALL_PREFIX        - Installation prefix (this must be an absolute path)
-CMAKE_BUILD_TYPE            - Build type (Debug or Release)
-OPENCL_INC_DIR              - OpenCL include path
-                              e.g. -DOPENCL_INC_DIR=/usr/local/cuda/include
-OPENCL_LIB_DIR              - OpenCL library path
-                              e.g. -DOPENCL_LIB_DIR=/usr/lib64
-OPENCV_DIR                  - OpenCV installation path
-                              e.g. -DOPENCV_DIR=/opt/local
+The following variables can be set to configure the installation:
+CMAKE_INSTALL_PREFIX    - Installation prefix (this must be an absolute path)
+CMAKE_BUILD_TYPE        - Build type (Debug or Release)
 
-For Android, the cross compiler etc. have to be specified in addition:
-NDK_DIR                     - Android NDK directory
-                              e.g. -DNDK_DIR=/opt/android/android-ndk-r10e
-ANDROID_API                 - Android API level
-                              e.g. -DANDROID_API=19
+For OpenCL and OpenCV, the installation location can be specified:
+OPENCL_INC_DIR          - OpenCL include path
+                          e.g. -DOPENCL_INC_DIR=/usr/local/cuda/include
+OPENCL_LIB_DIR          - OpenCL library path
+                          e.g. -DOPENCL_LIB_DIR=/usr/lib64
+OPENCV_DIR              - OpenCV installation path
+                          e.g. -DOPENCV_DIR=/opt/local
+
+For Android, the Android NDK and API level have to be specified:
+NDK_DIR                 - Android NDK directory
+                          e.g. -DNDK_DIR=/opt/android/android-ndk-r10e
+ANDROID_API             - Android API level
+                          e.g. -DANDROID_API=19
 
 The following options can be enabled or disabled:
 USE_POLLY               - Use Polly for kernel analysis (e.g. -DUSE_POLLY=ON)
