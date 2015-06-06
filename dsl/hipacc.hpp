@@ -38,9 +38,7 @@ float hipacc_last_timing = 0.0f;
 #include "iterationspace.hpp"
 #include "kernel.hpp"
 #include "mask.hpp"
-#ifndef __CUDACC__
 #include "pyramid.hpp"
-#endif // __CUDACC__
 
 namespace hipacc {
 float hipacc_last_kernel_timing() {
