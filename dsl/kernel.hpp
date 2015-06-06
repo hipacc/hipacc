@@ -34,27 +34,24 @@
 
 
 namespace hipacc {
-// get time in milliseconds
-double hipacc_time_ms() {
-    struct timeval tv;
-    gettimeofday (&tv, nullptr);
-
-    return ((double)(tv.tv_sec) * 1e+3 + (double)(tv.tv_usec) * 1e-3);
+// get time in microseconds
+int64_t hipacc_time_micro() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 
 
 template<typename data_t>
 class Kernel {
     private:
-        const IterationSpace<data_t> &iteration_space;
-        Accessor<data_t> out_acc;
-        std::vector<AccessorBase *> images;
-        data_t reduction_result;
+        const IterationSpace<data_t> &iteration_space_;
+        Accessor<data_t> output_;
+        std::vector<AccessorBase *> inputs_;
+        data_t reduction_result_;
 
     public:
         Kernel(IterationSpace<data_t> &iteration_space) :
-            iteration_space(iteration_space),
-            out_acc(iteration_space.img,
+            iteration_space_(iteration_space),
+            output_(iteration_space.img,
                     iteration_space.width(), iteration_space.height(),
                     iteration_space.offset_x(), iteration_space.offset_y())
         {}
@@ -63,87 +60,77 @@ class Kernel {
         virtual void kernel() = 0;
         virtual data_t reduce(data_t left, data_t right) { return left; }
 
-        void add_accessor(AccessorBase *acc) { images.push_back(acc); }
+        void add_accessor(AccessorBase *acc) { inputs_.push_back(acc); }
 
         void execute() {
-            double time0, time1;
-            auto end  = iteration_space.end();
-            auto iter = iteration_space.begin();
-
-            // register input accessors
-            for (auto ei=images.begin(), ie=images.end(); ei!=ie; ++ei) {
-                AccessorBase *acc = *ei;
-                acc->setEI(&iter);
-            }
-            // register output accessors
-            out_acc.setEI(&iter);
+            auto end  = iteration_space_.end();
+            auto iter = iteration_space_.begin();
+            // register input & output accessors
+            for (auto acc : inputs_) acc->setEI(&iter);
+            output_.setEI(&iter);
 
             // advance iterator and apply kernel to whole iteration space
-            time0 = hipacc_time_ms();
+            auto start_time = hipacc_time_micro();
             while (iter != end) {
                 kernel();
                 ++iter;
             }
-            time1 = hipacc_time_ms();
-            hipacc_last_timing = time1 - time0;
+            auto end_time = hipacc_time_micro();
+            hipacc_last_timing = (float)(end_time - start_time)/1000.0f;
 
-            // de-register input accessors
-            for (auto ei=images.begin(), ie=images.end(); ei!=ie; ++ei) {
-                AccessorBase *acc = *ei;
-                acc->setEI(nullptr);
-            }
-            // de-register output accessor
-            out_acc.setEI(nullptr);
+            // de-register input & output accessors
+            for (auto acc : inputs_) acc->setEI(nullptr);
+            output_.setEI(nullptr);
 
             // apply reduction
             reduce();
         }
 
         void reduce(void) {
-            auto end  = iteration_space.end();
-            auto iter = iteration_space.begin();
+            auto end  = iteration_space_.end();
+            auto iter = iteration_space_.begin();
 
-            // register output accessors
-            out_acc.setEI(&iter);
+            // register output accessor
+            output_.setEI(&iter);
 
             // first element
-            data_t result = out_acc();
+            data_t result = output_();
 
             // advance iterator and apply kernel to whole iteration space
             while (++iter != end) {
-                result = reduce(result, out_acc());
+                result = reduce(result, output_());
             }
 
             // de-register output accessor
-            out_acc.setEI(nullptr);
+            output_.setEI(nullptr);
 
-            reduction_result = result;
+            reduction_result_ = result;
         }
 
         data_t reduced_data() {
-            return reduction_result;
+            return reduction_result_;
         }
 
 
         // access output image
         data_t &output(void) {
-            return out_acc();
+            return output_();
         }
 
 
         // low-level access functions
         data_t &output_at(const int xf, const int yf) {
-            return out_acc.pixel_at(xf, yf);
+            return output_.pixel_at(xf, yf);
         }
 
         int x(void) {
-            assert(out_acc.EI!=ElementIterator() && "ElementIterator not set!");
-            return out_acc.x();
+            assert(output_.EI!=ElementIterator() && "ElementIterator not set!");
+            return output_.x();
         }
 
         int y(void) {
-            assert(out_acc.EI!=ElementIterator() && "ElementIterator not set!");
-            return out_acc.y();
+            assert(output_.EI!=ElementIterator() && "ElementIterator not set!");
+            return output_.y();
         }
 
         // built-in functions: convolve, iterate, and reduce
@@ -170,27 +157,11 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, Reduce mode, const Function& f
     // advance iterator and apply kernel to remaining iteration space
     while (++iter != end) {
         switch (mode) {
-            case Reduce::SUM:
-                result += fun();
-                break;
-            case Reduce::MIN:
-                {
-                auto tmp = fun();
-                result = hipacc::math::min(tmp, result);
-                }
-                break;
-            case Reduce::MAX:
-                {
-                auto tmp = fun();
-                result = hipacc::math::max(tmp, result);
-                }
-                break;
-            case Reduce::PROD:
-                result *= fun();
-                break;
-            case Reduce::MEDIAN:
-                assert(0 && "HipaccMEDIAN not implemented yet!");
-                break;
+            case Reduce::SUM:    result += fun();                                    break;
+            case Reduce::MIN:    result  = hipacc::math::min(fun(), result);         break;
+            case Reduce::MAX:    result  = hipacc::math::max(fun(), result);         break;
+            case Reduce::PROD:   result *= fun();                                    break;
+            case Reduce::MEDIAN: assert(0 && "Reduce::MEDIAN not implemented yet!"); break;
         }
     }
 
@@ -215,25 +186,11 @@ auto Kernel<data_t>::reduce(Domain &domain, Reduce mode, const Function &fun) ->
     // advance iterator and apply kernel to remaining iteration space
     while (++iter != end) {
         switch (mode) {
-            case Reduce::SUM:
-                result += fun();
-                break;
-            case Reduce::MIN: {
-                auto tmp = fun();
-                result = hipacc::math::min(tmp, result);
-                }
-              break;
-            case Reduce::MAX: {
-                auto tmp = fun();
-                result = hipacc::math::max(tmp, result);
-                }
-                break;
-            case Reduce::PROD:
-                result *= fun();
-                break;
-            case Reduce::MEDIAN:
-                assert(0 && "HipaccMEDIAN not implemented yet!");
-                break;
+            case Reduce::SUM:    result += fun();                                    break;
+            case Reduce::MIN:    result  = hipacc::math::min(fun(), result);         break;
+            case Reduce::MAX:    result  = hipacc::math::max(fun(), result);         break;
+            case Reduce::PROD:   result *= fun();                                    break;
+            case Reduce::MEDIAN: assert(0 && "Reduce::MEDIAN not implemented yet!"); break;
         }
     }
 

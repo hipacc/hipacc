@@ -24,8 +24,8 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <assert.h>
-#include <sys/time.h>
+#include <cassert>
+#include <chrono>
 
 namespace hipacc {
 float hipacc_last_timing = 0.0f;
