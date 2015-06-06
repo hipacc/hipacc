@@ -14,9 +14,9 @@ NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),comput
                   -Xptxas -v @NVCC_COMP@ #-keep
 OFLAGS          = -O3
 
-CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 @CMAKE_THREAD_LIBS_INIT@ -Wall -Wunused
+CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 @THREADS_ARG@ -Wall -Wunused
 CU_CC           = @NVCC@ $(NVCC_FLAGS) -Xcompiler -Wall -Xcompiler -Wunused
-CC_LINK         = -lm -ldl -lstdc++ @TIME_LINK@
+CC_LINK         = -lm -ldl -lstdc++ @THREADS_LINK@ @RT_LIBRARIES@
 CU_LINK         = $(CC_LINK) @CUDA_LINK@
 CL_CC           = $(CC_CC) @OPENCL_CFLAGS@
 CL_LINK         = $(CC_LINK) @OPENCL_LFLAGS@
