@@ -251,49 +251,49 @@ class HipaccPyramid {
     }
 
     void add(HipaccImage img) {
-      imgs_.push_back(img);
+        imgs_.push_back(img);
     }
 
     HipaccImage &operator()(int relative) {
-      assert(level_ + relative >= 0 && level_ + relative < (int)imgs_.size() &&
-             "Accessed pyramid stage is out of bounds.");
-      return imgs_.at(level_+relative);
+        assert(level_ + relative >= 0 && level_ + relative < (int)imgs_.size() &&
+               "Accessed pyramid stage is out of bounds.");
+        return imgs_.at(level_+relative);
     }
 
     int depth() {
-      return depth_;
+        return depth_;
     }
 
     int level() {
-      return level_;
+        return level_;
     }
 
     bool is_top_level() {
-      return level_ == 0;
+        return level_ == 0;
     }
 
     bool is_bottom_level() {
-      return level_ == depth_-1;
+        return level_ == depth_-1;
     }
 
     void swap(HipaccPyramid &other) {
-      std::vector<HipaccImage> tmp = other.imgs_;
-      other.imgs_ = this->imgs_;
-      this->imgs_ = tmp;
+        std::vector<HipaccImage> tmp = other.imgs_;
+        other.imgs_ = this->imgs_;
+        this->imgs_ = tmp;
     }
 
     bool bind() {
-      if (!bound_) {
-        bound_ = true;
-        level_ = 0;
-        return true;
-      } else {
-        return false;
-      }
+        if (!bound_) {
+            bound_ = true;
+            level_ = 0;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     void unbind() {
-      bound_ = false;
+        bound_ = false;
     }
 };
 
@@ -321,11 +321,11 @@ HipaccPyramid hipaccCreatePyramid(HipaccImage &img, size_t depth) {
 
 
 void hipaccReleasePyramid(HipaccPyramid &pyr) {
-  // Do not remove the first one, it was created outside this context
-  while (pyr.imgs_.size() > 1) {
-    hipaccReleaseMemory(pyr.imgs_.back());
-    pyr.imgs_.pop_back();
-  }
+    // Do not remove the first one, it was created outside this context
+    while (pyr.imgs_.size() > 1) {
+        hipaccReleaseMemory(pyr.imgs_.back());
+        pyr.imgs_.pop_back();
+    }
 }
 
 
@@ -479,11 +479,10 @@ void hipaccTraverse(HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2,
 void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
                     const std::function<void()> func) {
     for (size_t i=0; i<pyrs.size(); ++i) {
-      if (i < pyrs.size() - 1) {
-        assert(pyrs[i]->depth_ == pyrs[i+1]->depth_ &&
-               "Pyramid depths do not match.");
-      }
-      assert(pyrs[i]->bind() && "Pyramid already bound to another traversal.");
+        if (i < pyrs.size() - 1) {
+            assert(pyrs[i]->depth_ == pyrs[i+1]->depth_ && "Pyramid depths do not match.");
+        }
+        assert(pyrs[i]->bind() && "Pyramid already bound to another traversal.");
     }
 
     hipaccPyramids.push_back(pyrs);
@@ -494,35 +493,28 @@ void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
 
-    for (size_t i=0; i<pyrs.size(); ++i) {
-      pyrs[i]->unbind();
-    }
+    for (auto pyr : pyrs) pyr->unbind();
 }
 
 
 void hipaccTraverse(unsigned int loop=1,
                     const std::function<void()> func=[]{}) {
-  assert(!hipaccPyramids.empty() &&
-         "Traverse recursion called outside of traverse.");
+    assert(!hipaccPyramids.empty() && "Traverse recursion called outside of traverse.");
 
-  std::vector<HipaccPyramid*> pyrs = hipaccPyramids.back();
+    std::vector<HipaccPyramid*> pyrs = hipaccPyramids.back();
 
-  if (!pyrs.at(0)->is_bottom_level()) {
-    for (auto it = pyrs.begin(); it != pyrs.end(); ++it) {
-      ++((*it)->level_);
+    if (!pyrs.at(0)->is_bottom_level()) {
+        for (auto pyr : pyrs) ++pyr->level_;
+
+        for (size_t i=0; i<loop; i++) {
+            (*hipaccTraverseFunc.back())();
+            if (i < loop-1) {
+                func();
+            }
+        }
+
+        for (auto pyr : pyrs) --pyr->level_;
     }
-
-    for (size_t i=0; i<loop; i++) {
-      (*hipaccTraverseFunc.back())();
-      if (i < loop-1) {
-        func();
-      }
-    }
-
-    for (auto it = pyrs.begin(); it != pyrs.end(); ++it) {
-      --((*it)->level_);
-    }
-  }
 }
 
 #endif // defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
