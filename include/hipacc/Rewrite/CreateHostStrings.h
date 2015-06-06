@@ -27,7 +27,7 @@
 
 //===--- CreateHostStrings.h - Runtime string creator for the Rewriter ----===//
 //
-// This file implements functionality for printing HIPAcc runtime code to
+// This file implements functionality for printing Hipacc runtime code to
 // strings.
 //
 //===----------------------------------------------------------------------===//

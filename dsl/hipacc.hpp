@@ -31,7 +31,7 @@ namespace hipacc {
 float hipacc_last_timing = 0.0f;
 }
 
-// include all other HIPAcc headers
+// include all other Hipacc headers
 #include "types.hpp"
 #include "math_functions.hpp"
 #include "image.hpp"

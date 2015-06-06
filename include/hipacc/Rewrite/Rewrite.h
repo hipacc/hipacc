@@ -27,7 +27,7 @@
 
 //===--- Rewrite.h - Mapping the DSL (AST nodes) to the runtime -----------===//
 //
-// This file implements functionality for mapping the DSL to the HIPAcc runtime.
+// This file implements functionality for mapping the DSL to the Hipacc runtime.
 //
 //===----------------------------------------------------------------------===//
 
