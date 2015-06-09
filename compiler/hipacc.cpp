@@ -88,7 +88,7 @@ void printCopyright() {
 
 
 void printUsage() {
-  llvm::errs() << "OVERVIEW: HIPAcc - Heterogeneous Image Processing Acceleration framework\n\n"
+  llvm::errs() << "OVERVIEW: Hipacc - Heterogeneous Image Processing Acceleration framework\n\n"
     << "USAGE:  hipacc [options] <input>\n\n"
     << "OPTIONS:\n\n"
     << "  -emit-cpu               Emit C++ code\n"

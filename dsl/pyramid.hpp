@@ -27,11 +27,11 @@
 #ifndef __PYRAMID_HPP__
 #define __PYRAMID_HPP__
 
-#include "types.hpp"
-#include "image.hpp"
-
 #include <vector>
 #include <functional>
+
+#include "types.hpp"
+#include "image.hpp"
 
 namespace hipacc {
 
@@ -171,16 +171,12 @@ class Recursion {
     Recursion(const std::function<void()> &func)
         : func_(func) {
       std::vector<PyramidBase*> pyrs = gPyramids.back();
-      for (auto it = pyrs.begin(); it != pyrs.end(); ++it) {
-        (*it)->increment();
-      }
+      for (auto pyr : pyrs) pyr->increment();
     }
 
     ~Recursion() {
       std::vector<PyramidBase*> pyrs = gPyramids.back();
-      for (auto it = pyrs.begin(); it != pyrs.end(); ++it) {
-        (*it)->decrement();
-      }
+      for (auto pyr : pyrs) pyr->decrement();
     }
 
     void run(const int loop) {

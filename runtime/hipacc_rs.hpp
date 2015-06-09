@@ -29,71 +29,13 @@
 #include <RenderScript.h>
 
 using namespace android;
+using namespace android::RSC;
 
-#ifndef RS_TARGET_API
-  // RS_TARGET_API now defines development kit platform version. If not
-  // specified assume highest currently available version, which is also the
-  // only one supporting Renderscript in Android NDK. In the future, this define
-  // will be removed completely.
-# define RS_TARGET_API 19
-#endif
-
-#ifdef RS_TARGET_API // RS_TARGET_API
-# if RS_TARGET_API < 16
-#   error Renderscript target API < 16 is not supported!
-# elif RS_TARGET_API < 18
-#   include <Type.h>
-#   include <Allocation.h>
-    using namespace android::renderscriptCpp;
-    // Namespace for ErrorHandlerFunc_t
-#   define EHF android::renderscriptCpp::RenderScript
-    // Abstraction for type name
-#   define RS RenderScript
-    // Abstraction for type pointer
-#   define PRS RS*
-    // Abstraction for functions
-#   define INIT(rs, target) rs->init(target)
-#   define COPYTO(T, src, offset, count, buf) \
-      (src)->copyToUnchecked(buf, sizeof(T) * count);
-#   define COPYFROM(T, dst, offset, count, buf) \
-      (dst)->copyFromUnchecked(buf, sizeof(T) * count);
-#   define COPYFROM2D(dst, dx, dy, width, height, src, count, sx, sy) \
-      (dst)->copy2DRangeFrom(dx, dy, width, height, src, count, sx, sy);
-    // Function signature for forEach() kernel functions
-#   define KERNEL1(type, name) \
-      void(type::*name)(sp<const Allocation>) const
-#   define KERNEL2(type, name) \
-      void(type::*name)(sp<const Allocation>, sp<const Allocation>) const
-# elif RS_TARGET_API < 20
-    using namespace android::RSC;
-    // Namespace for ErrorHandlerFunc_t
-#   define EHF android::RSC
-    // Abstraction for type encapsulated by strong pointer
-#   define PRS sp<RS>
-    // Abstraction for functions
-#   define INIT(rs, target) rs->init()
-#   define COPYTO(T, src, offset, count, buf) \
-      (src)->copy1DRangeTo(offset, count, buf);
-#   define COPYFROM(T, dst, offset, count, buf) \
-      (dst)->copy1DRangeFrom(offset, count, buf);
-#   define COPYFROM2D(dst, dx, dy, width, height, src, count, sx, sy) \
-      (dst)->copy2DRangeFrom(dx, dy, width, height, src, sx, sy);
-    // Function signature for forEach() kernel functions
-#   define KERNEL1(type, name) \
-      void(type::*name)(sp<const Allocation>)
-#   define KERNEL2(type, name) \
-      void(type::*name)(sp<const Allocation>, sp<const Allocation>)
-# else // RS_TARGET_API > 19
-#   error Renderscript target API > 19 is not supported!
-# endif // RS_TARGET_API > 19
-#endif // RS_TARGET_API
-
-#include <float.h>
-#include <math.h>
-#include <stddef.h>
-#include <stdlib.h>
-
+#include <cfloat>
+#include <cmath>
 #include <cstring>
+#include <cstddef>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -109,8 +51,8 @@ const sp<Allocation> *hipaccGetAllocation(HipaccImage &img);
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);
 long getMicroTime();
 std::string getRSErrorCodeStr(int errorNum);
-EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, std::string errorText);
-void hipaccInitRenderScript(int targetAPI);
+ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText);
+void hipaccInitRenderScript(std::string rs_directory);
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst);
 void hipaccReleaseMemory(HipaccImage &img);
@@ -140,7 +82,7 @@ CREATE_ALLOCATION_DECL(double4)
 
 class HipaccContext : public HipaccContextBase {
     private:
-        PRS context;
+        sp<RS> context;
         std::list<std::pair<sp<Allocation>, HipaccImage> > allocs;
 
         HipaccContext() {
@@ -181,7 +123,7 @@ class HipaccContext : public HipaccContextBase {
             }
             exit(EXIT_FAILURE);
         }
-        PRS get_context() { return context; }
+        sp<RS> get_context() { return context; }
 };
 
 
@@ -235,26 +177,6 @@ class hipacc_script_arg {
       return std::make_pair((void(F::*)(sp<Allocation>))memptr,
                             (sp<Allocation>*)valptr);
     }
-
-#if RS_TARGET_API > 18
-    // Set a single allocation of script. Extends previously declared ctors
-    // by support for newly introduced setter type with 'const' specifier. This
-    // can be removed by setting the 'const' specifier in caller by the
-    // rewriter (some time in the future when pre-19 Renderscript support will
-    // eventually be dropped). Same issue at function @see hipaccSetScriptArg.
-    hipacc_script_arg(void(F::*setter)(sp<const Allocation>),
-                      sp<Allocation> const *arg)
-        : id(21), memptr((void(F::*)())setter), valptr((void*)arg) {}
-    std::pair<void(F::*)(sp<const Allocation>), sp<Allocation>*> get21() const {
-      return std::make_pair((void(F::*)(sp<const Allocation>))memptr,
-                            (sp<Allocation>*)valptr);
-    }
-#else // RS_TARGET_API > 18
-    // unused getter, just to make the compiler happy
-    std::pair<void(F::*)(int),int*> get21() const {
-      return std::make_pair((void(F::*)(int))NULL, (int*)NULL);
-    }
-#endif // RS_TARGET_API > 18
 };
 
 
@@ -338,31 +260,22 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
 
 std::string getRSErrorCodeStr(int errorNum) {
     switch (errorNum) {
-        case RS_ERROR_NONE:
-            return "RS_ERROR_NONE";
-        case RS_ERROR_BAD_SHADER:
-            return "RS_ERROR_BAD_SHADER";
-        case RS_ERROR_BAD_SCRIPT:
-            return "RS_ERROR_BAD_SCRIPT";
-        case RS_ERROR_BAD_VALUE:
-            return "RS_ERROR_BAD_VALUE";
-        case RS_ERROR_OUT_OF_MEMORY:
-            return "RS_ERROR_OUT_OF_MEMORY";
-        case RS_ERROR_DRIVER:
-            return "RS_ERROR_DRIVER";
-        case RS_ERROR_FATAL_UNKNOWN:
-            return "RS_ERROR_FATAL_UNKNOWN";
-        case RS_ERROR_FATAL_DRIVER:
-            return "RS_ERROR_FATAL_DRIVER";
-        case RS_ERROR_FATAL_PROGRAM_LINK:
-            return "RS_ERROR_FATAL_PROGRAM_LINK";
-        default:
-            return "unknown error code";
+        case RS_ERROR_NONE:                 return "RS_ERROR_NONE";
+        case RS_ERROR_BAD_SHADER:           return "RS_ERROR_BAD_SHADER";
+        case RS_ERROR_BAD_SCRIPT:           return "RS_ERROR_BAD_SCRIPT";
+        case RS_ERROR_BAD_VALUE:            return "RS_ERROR_BAD_VALUE";
+        case RS_ERROR_OUT_OF_MEMORY:        return "RS_ERROR_OUT_OF_MEMORY";
+        case RS_ERROR_DRIVER:               return "RS_ERROR_DRIVER";
+        case RS_ERROR_FATAL_DEBUG:          return "RS_ERROR_FATAL_DEBUG";
+        case RS_ERROR_FATAL_UNKNOWN:        return "RS_ERROR_FATAL_UNKNOWN";
+        case RS_ERROR_FATAL_DRIVER:         return "RS_ERROR_FATAL_DRIVER";
+        case RS_ERROR_FATAL_PROGRAM_LINK:   return "RS_ERROR_FATAL_PROGRAM_LINK";
+        default:                            return "unknown error code";
     }
 }
 
 
-EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, std::string errorText) {
+ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText) {
     std::cerr << "ERROR: " << getRSErrorCodeStr(errorNum)
               << " (" << errorNum << ")" << std::endl
               << "    " << errorText << std::endl;
@@ -370,16 +283,16 @@ EHF::ErrorHandlerFunc_t errorHandler(uint32_t errorNum, std::string errorText) {
 
 
 // Create RenderScript context
-void hipaccInitRenderScript(int targetAPI) {
+void hipaccInitRenderScript(std::string rs_directory) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    PRS rs = Ctx.get_context();
+    sp<RS> rs = Ctx.get_context();
 
-    rs->setErrorHandler((EHF::ErrorHandlerFunc_t)&errorHandler);
+    rs->setErrorHandler((ErrorHandlerFunc_t)&errorHandler);
 
     // Create context
-    if (!INIT(rs, targetAPI)) {
-        std::cerr << "ERROR: RenderScript initialization failed for targetAPI: "
-                  << targetAPI << std::endl;
+    if (!rs->init(rs_directory)) {
+        std::cerr << "ERROR: RenderScript initialization failed!" << std::endl;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -387,13 +300,7 @@ void hipaccInitRenderScript(int targetAPI) {
 
 template<typename T>
 T hipaccInitScript() {
-#if RS_TARGET_API < 19
-    std::string cache_path = "/sdcard";
-    return T(HipaccContext::getInstance().get_context(), cache_path.c_str(),
-            cache_path.length());
-#else
     return T(HipaccContext::getInstance().get_context());
-#endif
 }
 
 
@@ -414,10 +321,10 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
         for (size_t i=0; i<height; ++i) {
             std::memcpy(buff + (i * stride), host_mem + (i * width), sizeof(T) * width);
         }
-        COPYFROM(T, (Allocation *)img.mem, 0, stride * height, buff);
+        ((Allocation *)img.mem)->copy1DRangeFrom(0, stride * height, buff);
         delete[] buff;
     } else {
-        COPYFROM(T, (Allocation *)img.mem, 0, width * height, host_mem);
+        ((Allocation *)img.mem)->copy1DRangeFrom(0, width * height, host_mem);
     }
 }
 
@@ -431,13 +338,13 @@ T *hipaccReadMemory(HipaccImage &img) {
 
     if (stride > width) {
         T* buff = new T[stride * height];
-        COPYTO(T, (Allocation *)img.mem, 0, stride * height, buff);
+        ((Allocation *)img.mem)->copy1DRangeTo(0, stride * height, buff);
         for (size_t i=0; i<height; ++i) {
             std::memcpy(&((T*)img.host)[i*width], buff + (i * stride), sizeof(T) * width);
         }
         delete[] buff;
     } else {
-        COPYTO(T, (Allocation *)img.mem, 0, width * height, (T*)img.host);
+        ((Allocation *)img.mem)->copy1DRangeTo(0, width * height, (T*)img.host);
     }
 
     return (T*)img.host;
@@ -472,16 +379,16 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
 
 // Copy from allocation region to allocation region
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
-    COPYFROM2D((Allocation *)dst.img.mem, dst.offset_x, dst.offset_y,
-        src.width, src.height, (Allocation *)src.img.mem, src.width*src.height,
-        src.offset_x, src.offset_y);
+    ((Allocation *)dst.img.mem)->copy2DRangeFrom(dst.offset_x, dst.offset_y,
+        src.width, src.height, (Allocation *)src.img.mem, src.offset_x,
+        src.offset_y);
 }
 
 
 #define CREATE_ALLOCATION(T, E) \
 HipaccImage createImage(T *host_mem, size_t width, size_t height, size_t stride, size_t alignment) { \
     HipaccContext &Ctx = HipaccContext::getInstance(); \
-    PRS rs = Ctx.get_context(); \
+    sp<RS> rs = Ctx.get_context(); \
 \
     Type::Builder type(rs, E); \
     type.setX(stride); \
@@ -553,30 +460,16 @@ void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
 }
 
 
-#if RS_TARGET_API > 18
-// Set a single allocation of script. Extends previously declared function by
-// support for newly introduced setter type with 'const' specifier. This can be
-// removed by setting the 'const' specifier in caller by the rewriter (some
-// time in the future when pre-19 Renderscript support will eventually be
-// dropped). Same issue at class @see hipacc_script_arg.
-template<typename F>
-void hipaccSetScriptArg(F* script, void(F::*setter)(sp<const Allocation>),
-                        sp<Allocation> param) {
-    (script->*setter)((sp<const Allocation>)param);
-}
-#endif // RS_TARGET_API > 18
-
-
 // Launch script kernel (one allocation)
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
-    KERNEL1(F, kernel),
+    void(F::*kernel)(sp<const Allocation>),
     HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    PRS rs = Ctx.get_context();
+    sp<RS> rs = Ctx.get_context();
 
     rs->finish();
     start = getMicroTime();
@@ -598,12 +491,12 @@ void hipaccLaunchScriptKernel(
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
-    KERNEL2(F, kernel),
+    void(F::*kernel)(sp<const Allocation>, sp<const Allocation>),
     HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
     long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
-    PRS rs = Ctx.get_context();
+    sp<RS> rs = Ctx.get_context();
 
     rs->finish();
     start = getMicroTime();
@@ -626,7 +519,7 @@ template<typename F>
 void hipaccLaunchScriptKernelBenchmark(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
-    KERNEL1(F, kernel),
+    void(F::*kernel)(sp<const Allocation>),
     HipaccImage &out, size_t *work_size,
     bool print_timing=true
 ) {
@@ -662,7 +555,7 @@ template<typename F, typename T>
 void hipaccLaunchScriptKernelExploration(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
-    KERNEL1(F, kernel),
+    void(F::*kernel)(sp<const Allocation>),
     std::vector<hipacc_smem_info> smems, hipacc_launch_info &info,
     int warp_size, int max_threads_per_block, int max_threads_for_kernel,
     int max_smem_per_block, int heu_tx, int heu_ty,
@@ -729,14 +622,14 @@ void hipaccLaunchScriptKernelExploration(
 template<typename F, typename T>
 T hipaccApplyReduction(
     F *script,
-    KERNEL1(F, kernel2D),
-    KERNEL1(F, kernel1D),
+    void(F::*kernel2D)(sp<const Allocation>),
+    void(F::*kernel1D)(sp<const Allocation>),
     void(F::*setter)(sp<Allocation>),
     std::vector<hipacc_script_arg<F> > args,
     int is_width, bool print_timing=true
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    PRS rs = Ctx.get_context();
+    sp<RS> rs = Ctx.get_context();
     long end, start;
 
     // allocate temporary memory
@@ -772,7 +665,7 @@ T hipaccApplyReduction(
 
     // download result of reduction
     T result;
-    COPYTO(T, is2, 0, 1, &result);
+    is2->copy1DRangeTo(0, 1, &result);
 
     return result;
 }

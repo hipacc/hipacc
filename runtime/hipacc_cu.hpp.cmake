@@ -638,9 +638,8 @@ void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, st
 
         // set kernel arguments
         size_t offset = 0;
-        for (size_t j=0; j<args.size(); ++j) {
-            hipaccSetupArgument(args[j].second, args[j].first, offset);
-        }
+        for (auto arg : args)
+            hipaccSetupArgument(arg.second, arg.first, offset);
 
         // launch kernel
         hipaccLaunchKernel(kernel, kernel_name, grid, block, print_timing);
@@ -1274,9 +1273,8 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
 
             // check if we exceed size of shared memory
             size_t used_smem = 0;
-            for (size_t i=0; i<smems.size(); ++i) {
-                used_smem += (tile_size_x + smems[i].size_x)*(tile_size_y + smems[i].size_y - 1) * smems[i].pixel_size;
-            }
+            for (auto smem : smems)
+                used_smem += (tile_size_x + smem.size_x)*(tile_size_y + smem.size_y - 1) * smem.pixel_size;
             if (used_smem >= max_smem_per_block) continue;
             if (used_smem && tile_size_x > warp_size) continue;
 
@@ -1298,24 +1296,23 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
 
             // load constant memory
             CUdeviceptr constMem;
-            for (size_t i=0; i<consts.size(); ++i) {
-                hipaccGetGlobal(constMem, modKernel, consts[i].name);
-                err = cuMemcpyHtoD(constMem, consts[i].memory, consts[i].size);
+            for (auto cmem : consts) {
+                hipaccGetGlobal(constMem, modKernel, cmem.name);
+                err = cuMemcpyHtoD(constMem, cmem.memory, cmem.size);
                 checkErrDrv(err, "cuMemcpyHtoD()");
             }
 
             CUtexref texImage;
             CUsurfref surfImage;
-            for (size_t i=0; i<texs.size(); ++i) {
-                if (texs[i]->tex_type==Surface) {
+            for (auto tex : texs) {
+                if (tex->tex_type==Surface) {
                     // bind surface memory
-                    hipaccGetSurfRef(surfImage, modKernel, texs[i]->name);
-                    hipaccBindSurfaceDrv(surfImage, texs[i]->image);
+                    hipaccGetSurfRef(surfImage, modKernel, tex->name);
+                    hipaccBindSurfaceDrv(surfImage, tex->image);
                 } else {
                     // bind texture memory
-                    hipaccGetTexRef(texImage, modKernel, texs[i]->name);
-                    hipaccBindTextureDrv(texImage, texs[i]->image,
-                            texs[i]->format, texs[i]->tex_type);
+                    hipaccGetTexRef(texImage, modKernel, tex->name);
+                    hipaccBindTextureDrv(texImage, tex->image, tex->format, tex->tex_type);
                 }
             }
 

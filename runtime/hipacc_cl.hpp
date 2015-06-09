@@ -365,13 +365,13 @@ void hipaccCreateContextsAndCommandQueues(bool all_devies=false) {
     Ctx.add_context(context);
 
     // Create command queues
-    for (size_t i=0; i<devices.size(); ++i) {
+    for (auto device : devices) {
         #ifdef CL_VERSION_2_0
         cl_queue_properties cprops[3] = { CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0 };
-        command_queue = clCreateCommandQueueWithProperties(context, devices[i], cprops, &err);
+        command_queue = clCreateCommandQueueWithProperties(context, device, cprops, &err);
         checkErr(err, "clCreateCommandQueueWithProperties()");
         #else
-        command_queue = clCreateCommandQueue(context, devices[i], CL_QUEUE_PROFILING_ENABLE, &err);
+        command_queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
         checkErr(err, "clCreateCommandQueue()");
         #endif
 
@@ -1197,9 +1197,8 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
 
             // check if we exceed size of shared memory
             int used_smem = 0;
-            for (size_t i=0; i<smems.size(); ++i) {
-                used_smem += (tile_size_x + smems[i].size_x)*(tile_size_y + smems[i].size_y - 1) * smems[i].pixel_size;
-            }
+            for (auto smem : smems)
+                used_smem += (tile_size_x + smem.size_x)*(tile_size_y + smem.size_y - 1) * smem.pixel_size;
             if (used_smem >= max_smem_per_block) continue;
             if (used_smem && tile_size_x > warp_size) continue;
 

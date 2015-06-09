@@ -3,7 +3,7 @@ HIPACC_DIR     ?= @CMAKE_INSTALL_PREFIX@
 COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
 COMMON_INC     ?= -I@OPENCV_INCLUDE_DIRS@ \
                   -I$(TEST_CASE)
-COMPILER_INC   ?= $(COMMON_INC) \
+COMPILER_INC   ?= -std=c++11 $(COMMON_INC) \
                   -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                   -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                   -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
@@ -14,24 +14,12 @@ NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),comput
                   -Xptxas -v @NVCC_COMP@ #-keep
 OFLAGS          = -O3
 
-CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 ${CMAKE_THREAD_LIBS_INIT} -Wall -Wunused
+CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 @THREADS_ARG@ -Wall -Wunused
 CU_CC           = @NVCC@ $(NVCC_FLAGS) -Xcompiler -Wall -Xcompiler -Wunused
-CC_LINK         = -lm -ldl -lstdc++ @TIME_LINK@
+CC_LINK         = -lm -ldl -lstdc++ @THREADS_LINK@ @RT_LIBRARIES@
 CU_LINK         = $(CC_LINK) @CUDA_LINK@
-# OpenCL specific configuration
-ifeq ($(HIPACC_TARGET),Midgard)
-    CL_CC       = @NDK_CXX_COMPILER@ @NDK_CXX_FLAGS@ @NDK_INCLUDE_DIRS_STR@ -std=c++0x -Wall -Wunused
-    CL_LINK     = $(CC_LINK) @NDK_LINK_LIBRARIES_STR@ @EMBEDDED_OPENCL_LFLAGS@
-    COMMON_INC += @EMBEDDED_OPENCL_CFLAGS@
-else
-    CL_CC       = $(CC_CC)
-    CL_LINK     = $(CC_LINK) @OPENCL_LFLAGS@
-    COMMON_INC += @OPENCL_CFLAGS@
-endif
-
-# Renderscript specific configuration
-RS_TARGET_API = @RS_TARGET_API@
-ifge = $(shell if [ $(1) -ge $(2) ]; then echo true; else echo false; fi)
+CL_CC           = $(CC_CC) @OPENCL_CFLAGS@
+CL_LINK         = $(CC_LINK) @OPENCL_LFLAGS@
 
 
 # Source-to-source compiler configuration
@@ -111,34 +99,27 @@ opencl-acc opencl-cpu opencl-gpu:
 	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-$@ $(HIPACC_OPTS) -o main.cc $(TEST_CASE)/main.cpp
 	@echo 'Compiling OpenCL file using c++:'
 	$(CL_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_opencl main.cc $(CL_LINK)
-ifneq ($(HIPACC_TARGET),Midgard)
 	@echo 'Executing OpenCL binary'
 	./main_opencl
-endif
 
 filterscript renderscript:
 	rm -f *.rs *.fs
 	@echo 'Executing Hipacc Compiler for $@:'
 	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-$@ $(HIPACC_OPTS) -o main.cc $(TEST_CASE)/main.cpp
-	mkdir -p build_$@
-ifeq ($(call ifge, $(RS_TARGET_API), 19), true) # build using ndk-build
 	rm -rf build_$@/*
+	mkdir -p build_$@
 	mkdir -p build_$@/jni
-	cp @CMAKE_CURRENT_SOURCE_DIR@/tests/Android.mk.cmake build_$@/jni/Android.mk
+	cp Android.mk build_$@/jni/Android.mk
+	cp Application.mk build_$@/jni/Application.mk
 	cp main.cc *.$(subst renderscript,rs,$(subst filterscript,fs,$@)) build_$@
-	@echo 'Compiling $@ file using llvm-rs-cc and c++:'
+	@echo 'Compiling $@ file using ndk-build:'
 	export CASE_FLAGS="$(MYFLAGS)"; \
-	export RS_TARGET_API=$(RS_TARGET_API); \
 	export HIPACC_INCLUDE=$(HIPACC_DIR)/include; \
-	cd build_$@; ndk-build -B APP_PLATFORM=android-$(RS_TARGET_API) APP_STL=stlport_static
+	cd build_$@; @NDK_BUILD_EXECUTABLE@ -B
 	cp build_$@/libs/armeabi/main_renderscript ./main_$@
-else
-	@echo 'Generating build system current test case:'
-	cd build_$@; cmake .. -DANDROID_SOURCE_DIR=@ANDROID_SOURCE_DIR@ -DTARGET_NAME=@TARGET_NAME@ -DHOST_TYPE=@HOST_TYPE@ -DNDK_TOOLCHAIN_DIR=@NDK_TOOLCHAIN_DIR@ -DRS_TARGET_API=$(RS_TARGET_API) $(MYFLAGS)
-	@echo 'Compiling $@ file using llvm-rs-cc and c++:'
-	cd build_$@; make
-	cp build_$@/main_renderscript ./main_$@
-endif
+	adb shell mkdir -p /data/local/tmp
+	adb push main_$@ /data/local/tmp
+	adb shell /data/local/tmp/main_$@
 
 clean:
 	rm -f main_* *.cu *.cc *.cubin *.cl *.isa *.rs *.fs

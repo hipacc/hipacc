@@ -39,11 +39,9 @@
 #cmakedefine USE_JIT_ESTIMATE
 #cmakedefine USE_MINGW
 
-#define CUDA_COMPILER "${NVCC}"
+#define CU_COMPILER "${NVCC}"
 #define CL_COMPILER "${CL_COMPILER}"
 #define RUNTIME_INCLUDES "${CMAKE_INSTALL_PREFIX}/include"
-#define EMBEDDED_RUNTIME_INCLUDES "/sdcard/hipacc"
-#define RS_TARGET_API "${RS_TARGET_API}"
 
 #define CLANG_LIB_INCLUDE_DIR "${CLANG_LIB_INCLUDE_DIR}"
 

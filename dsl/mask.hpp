@@ -46,7 +46,7 @@ class MaskBase {
         {
             assert(size_x>0 && size_y>0 && "Size for Domain must be positive!");
             // initialize full domain
-            for (int i = 0; i < size_x*size_y; ++i) {
+            for (int i=0; i<size_x*size_y; ++i) {
               domain_space[i] = 1;
             }
         }

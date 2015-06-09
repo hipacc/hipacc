@@ -27,7 +27,7 @@
 
 //===--- Rewrite.cpp - Mapping the DSL (AST nodes) to the runtime ---------===//
 //
-// This file implements functionality for mapping the DSL to the HIPAcc runtime.
+// This file implements functionality for mapping the DSL to the Hipacc runtime.
 //
 //===----------------------------------------------------------------------===//
 
@@ -1789,9 +1789,8 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   printKernelFunction(kernelDeclEst, KC, K, K->getFileName(), false);
 
   // compile kernel in order to get resource usage
-  std::string command(K->getCompileCommand(compilerOptions.emitCUDA()) +
-      K->getCompileOptions(K->getKernelName(), K->getFileName(),
-        compilerOptions.emitCUDA()));
+  std::string command = K->getCompileCommand(K->getKernelName(),
+      K->getFileName(), compilerOptions.emitCUDA());
 
   int reg=0, lmem=0, smem=0, cmem=0;
   char line[FILENAME_MAX];

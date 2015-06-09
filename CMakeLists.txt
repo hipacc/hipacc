@@ -38,31 +38,39 @@ ENDIF(MSVC)
 
 
 # get repository and revision
-OPTION(CHECK_GIT_REPO_VERSION "Check GIT repository and version" ON)
-IF(CHECK_GIT_REPO_VERSION)
-    EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_repository_path.sh
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        TIMEOUT 5
-        RESULT_VARIABLE git_result
-        OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
-    STRING(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
+EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_repository_path.sh
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    TIMEOUT 5
+    RESULT_VARIABLE git_result
+    OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
+STRING(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
 
-    EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_source_version.sh
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        TIMEOUT 5
-        RESULT_VARIABLE git_result
-        OUTPUT_VARIABLE HIPACC_GIT_VERSION)
-    STRING(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
-ENDIF()
+EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_source_version.sh
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    TIMEOUT 5
+    RESULT_VARIABLE git_result
+    OUTPUT_VARIABLE HIPACC_GIT_VERSION)
+STRING(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
+
 
 # add path for custom modules
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
-FIND_PACKAGE(Threads)
+FIND_LIBRARY(RT_LIBRARIES rt)
+IF(NOT RT_LIBRARIES)
+    SET(RT_LIBRARIES "")
+ENDIF()
 FIND_PACKAGE(Clang REQUIRED)
 FIND_PACKAGE(CUDA)
 FIND_PACKAGE(OpenCL)
 FIND_PACKAGE(RenderScript)
 FIND_PACKAGE(OpenCV)
+FIND_PACKAGE(Threads)
+IF(THREADS_HAVE_PTHREAD_ARG)
+    SET(THREADS_ARG "-pthread")
+endif()
+if(CMAKE_THREAD_LIBS_INIT)
+    SET(THREADS_LINK "${CMAKE_THREAD_LIBS_INIT}")
+endif()
 
 IF(USE_MINGW)
     FIND_PACKAGE(MinGW REQUIRED)
@@ -130,11 +138,9 @@ IF(MSVC)
 ELSEIF(APPLE)
     SET(CUDA_LINK "-Xlinker -framework,CUDA")
     SET(NVCC_COMP "${NVCC_CPP_STD} -ccbin ${CLANG_EXECUTABLE} -Xcompiler -arch -Xcompiler x86_64 -Xcompiler -stdlib=libstdc++")
-    SET(TIME_LINK "")
 ELSE()
     SET(CUDA_LINK "-lcuda -lcudart")
     SET(NVCC_COMP "${NVCC_CPP_STD}")
-    SET(TIME_LINK "-lrt")
 
     OPTION(USE_NCURSES "Use NCurses library instead of Curses library" OFF)
     IF(USE_NCURSES)
@@ -145,6 +151,7 @@ ENDIF()
 
 # debug and release builds
 STRING(TOUPPER "${CMAKE_BUILD_TYPE}" build)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti")
 
 # Set compiler-specific flags
 IF(MSVC)
@@ -211,6 +218,12 @@ CONFIGURE_FILE(
 CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/runtime/hipacc_cu.hpp.cmake"
     "${HIPACC_BINARY_DIR}/runtime/hipacc_cu.hpp")
+CONFIGURE_FILE(
+    "${HIPACC_SOURCE_DIR}/tests/Android.mk.cmake"
+    "${HIPACC_BINARY_DIR}/tests/Android.mk")
+CONFIGURE_FILE(
+    "${HIPACC_SOURCE_DIR}/tests/Application.mk.cmake"
+    "${HIPACC_BINARY_DIR}/tests/Application.mk")
 CONFIGURE_FILE(
     "${HIPACC_SOURCE_DIR}/tests/Makefile.cmake"
     "${HIPACC_BINARY_DIR}/tests/Makefile")
