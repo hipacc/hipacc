@@ -322,6 +322,10 @@ namespace Backend
      *  \param  crstrDeclRefName  The name of the declaration reference which shall be replaced.
      *  \param  pNewDecl          A pointer to the value declaration to which all reference will be updated. */
     static void                     ReplaceDeclarationReferences(::clang::Stmt* pStatement, const std::string &crstrDeclRefName, ::clang::ValueDecl *pNewDecl);
+
+    /** \brief  Determines whether a pointer is referencing to a type marked by the const qualifier.
+     *  \param  crPointer         The qualified type of the pointer. */
+    bool                            IsPointerToConstType(const QualType& crPointer);
   };
 
 

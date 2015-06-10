@@ -434,6 +434,20 @@ void ClangASTHelper::ReplaceDeclarationReferences(Stmt* pStatement, const string
   }
 }
 
+bool ClangASTHelper::IsPointerToConstType(const QualType& crPointer)
+{
+  const Type* pType = crPointer.getTypePtrOrNull();
+
+  if (pType != nullptr)
+  {
+    return pType->getPointeeType().isConstQualified();
+  }
+  else
+  {
+    return false;
+  }
+}
+
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

@@ -1966,7 +1966,15 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
         else
         {
           Expr *pPointerRef = _TranslateMemoryAccessToPointerRef( spMemoryAccess, crVectorIndex );
-          pReturnExpr       = _spInstructionSet->LoadVector( eElementType, pPointerRef );
+
+          if ( _GetASTHelper().IsPointerToConstType( _BuildVectorExpression( spMemoryReference, crVectorIndex )->getType() ) )
+          {
+            pReturnExpr       = _spInstructionSet->LoadVectorConst( eElementType, pPointerRef );
+          }
+          else
+          {
+            pReturnExpr       = _spInstructionSet->LoadVector( eElementType, pPointerRef );
+          }
         }
       }
     }
