@@ -2142,21 +2142,22 @@ Expr* CPU_x86::VASTExportInstructionSet::_ConvertMaskDown(VectorElementTypes eSo
           vecArgumentTypes.push_back( itSubExpr->getType() );
         }
 
-        FunctionDecl *pConversionHelper = _GetFirstMatchingFunctionDeclaration( cstrConversionHelperName, vecArgumentTypes );
-        if (! pConversionHelper)
+        bool bFunctionUnknown = _GetFirstMatchingFunctionDeclaration( cstrConversionHelperName, vecArgumentTypes ) == nullptr;
+
+        // Create the argument names
+        ClangASTHelper::StringVectorType vecArgumentNames;
+        for (size_t szParamIdx = static_cast<size_t>(0); szParamIdx < vecArgumentTypes.size(); ++szParamIdx)
         {
-          // Create the argument names
-          ClangASTHelper::StringVectorType vecArgumentNames;
-          for (size_t szParamIdx = static_cast<size_t>(0); szParamIdx < vecArgumentTypes.size(); ++szParamIdx)
-          {
-            stringstream ssParamName;
-            ssParamName << "mask" << szParamIdx;
-            vecArgumentNames.push_back( ssParamName.str() );
-          }
+          stringstream ssParamName;
+          ssParamName << "mask" << szParamIdx;
+          vecArgumentNames.push_back( ssParamName.str() );
+        }
 
-          // Create the function declaration
-          pConversionHelper = _GetASTHelper().CreateFunctionDeclaration( cstrConversionHelperName, _spInstructionSet->GetVectorType( _GetMaskElementType() ), vecArgumentNames, vecArgumentTypes );
+        // Create the function declaration
+        FunctionDecl *pConversionHelper = _GetASTHelper().CreateFunctionDeclaration( cstrConversionHelperName, _spInstructionSet->GetVectorType( _GetMaskElementType() ), vecArgumentNames, vecArgumentTypes );
 
+        if (bFunctionUnknown)
+        {
           // Create the function body (i.e. the actual downward conversion)
           {
             ClangASTHelper::ExpressionVectorType vecHelperFuncParams;
@@ -2172,8 +2173,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_ConvertMaskDown(VectorElementTypes eSo
 
           // Add the generated helper function to the known functions
           _AddKnownFunctionDeclaration( pConversionHelper );
-          _vecHelperFunctions.push_back( pConversionHelper );
         }
+
+        _vecHelperFunctions.push_back( pConversionHelper );
       }
 
       return _BuildScalarFunctionCall( cstrConversionHelperName, crvecSubExpressions );
