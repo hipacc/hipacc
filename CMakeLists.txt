@@ -157,7 +157,6 @@ ENDIF()
 
 # debug and release builds
 STRING(TOUPPER "${CMAKE_BUILD_TYPE}" build)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti")
 
 # Set compiler-specific flags
 IF(MSVC)
