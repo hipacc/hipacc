@@ -290,10 +290,12 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     #define HIPACC_UNSUPPORTED_EXPR(EXPR) \
     Expr *Visit##EXPR(EXPR *) { \
       assert(0 && "Hipacc: Stumbled upon unsupported expression: " #EXPR); \
+      return nullptr; /* Required by MSVC compiler. */ \
     }
     #define HIPACC_UNSUPPORTED_STMT(STMT) \
     Stmt *Visit##STMT(STMT *) { \
       assert(0 && "Hipacc: Stumbled upon unsupported statement: " #STMT); \
+      return nullptr; /* Required by MSVC compiler. */ \
     }
     #define HIPACC_UNSUPPORTED_EXPR_BASE_CLASS(EXPR) \
     Expr *Visit##EXPR(EXPR *) { \

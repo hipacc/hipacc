@@ -50,8 +50,10 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
 
+#ifndef _MSC_VER
+#include <unistd.h>
+#endif
 
 // Re-route POSIX functions for Visual Studio
 #ifdef _MSC_VER
