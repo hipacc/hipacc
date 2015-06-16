@@ -27,6 +27,16 @@ SET(CLANG_LIBS
     clangBasic
 )
 
+# Overwrite the LLVM library dir with the correct value
+IF(MSVC)
+    # This step is required, because the variable LLVM_LIBRARY_DIRS contains a Visual Studio macro, which cannot be resolved by the OS
+    EXECUTE_PROCESS(
+        COMMAND ${LLVM_CONFIG_EXECUTABLE} --libdir
+        OUTPUT_VARIABLE LLVM_LIBRARY_DIRS
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+ENDIF(MSVC)
+
 FUNCTION(clang_map_components_to_libnames out_libs)
     FOREACH(l ${CLANG_LIBS})
         FIND_LIBRARY(LIB_${l} NAMES ${l} HINTS ${LLVM_LIBRARY_DIRS} )
