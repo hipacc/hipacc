@@ -36,16 +36,22 @@ IF(MSVC)
     ENDIF()
 ENDIF(MSVC)
 
+# Select the correct script file extension (for repository path and revision) depending on the currently used OS
+IF(WIN32)
+    SET(SHELL_SCRIPT_EXTENSION "bat")
+ELSE(WIN32)
+    SET(SHELL_SCRIPT_EXTENSION "sh")
+ENDIF(WIN32)
 
 # get repository and revision
-EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_repository_path.sh
+EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_repository_path.${SHELL_SCRIPT_EXTENSION}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     TIMEOUT 5
     RESULT_VARIABLE git_result
     OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
 STRING(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
 
-EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_source_version.sh
+EXECUTE_PROCESS(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_source_version.${SHELL_SCRIPT_EXTENSION}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     TIMEOUT 5
     RESULT_VARIABLE git_result
