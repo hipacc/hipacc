@@ -41,6 +41,6 @@ SOURCE_GROUP("Header Files\\Generators\\Base" FILES ${Backend_Generators_Base_HE
 
 # Activate Runtime Type Information for the Backend library
 IF (MSVC)
-    SET_TARGET_PROPERTIES(Backend PROPERTIES COMPILE_FLAGS "/GR")
+    SET_TARGET_PROPERTIES(hipaccBackend PROPERTIES COMPILE_FLAGS "/GR")
 ENDIF (MSVC)
 
