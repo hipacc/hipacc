@@ -208,6 +208,11 @@ namespace Vectorization
      *  \param  strFunctionName   The fully qualified name of the requested function. */
     ClangASTHelper::FunctionDeclarationVectorType _GetFunctionDecl(std::string strFunctionName);
 
+    /** \brief  Internal function, which returns the qualified Clang-specific type of a vector variable with a specified element type.
+     *  \param  eElementType  The element type stored in the vector.
+     *  \param  bIsConst      Specifies, whether the returned type shall be flagged with the <b>const</b> attribute. */
+    ::clang::QualType _GetVectorType(VectorElementTypes eElementType, bool bIsConst);
+
 
     /** \brief  Generic base function for the creation of function call expression objects to intrinsic functions.
      *  \tparam IntrinsicIDType   The type of the enumeration containing all the internal intrinsic function IDs.
@@ -696,8 +701,7 @@ namespace Vectorization
     /** \brief  Returns an expression, which reads a vector value from memory.
      *  \param  eElementType  The element type stored in the vector.
      *  \param  pPointerRef   A pointer to an expression object, which returns a pointer to the desired memory location. */
-    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, bool isConst=false) = 0;
-    virtual ::clang::Expr* LoadVectorConst(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) = 0;
+    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) = 0;
 
     /** \brief    Returns an expression, which describes a <b>gather read</b> operation from multiple memory locations.
      *  \param    eElementType        The element type stored in the loaded vector.
@@ -1004,8 +1008,7 @@ namespace Vectorization
     virtual ::clang::Expr* CreateZeroVector(VectorElementTypes eElementType) override;
     virtual ::clang::Expr* ExtractElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, std::uint32_t uiIndex) override;
     virtual ::clang::Expr* InsertElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, ::clang::Expr *pElementValue, std::uint32_t uiIndex) override;
-    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, bool isConst=false) override;
-    virtual ::clang::Expr* LoadVectorConst(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) override;
+    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) override;
     virtual ::clang::Expr* LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, ::clang::Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex) override;
     virtual ::clang::Expr* RelationalOperator(VectorElementTypes eElementType, RelationalOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) override;
     virtual ::clang::Expr* ShiftElements(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, bool bShiftLeft, uint32_t uiCount) override;
@@ -1260,8 +1263,7 @@ namespace Vectorization
     virtual ::clang::Expr* CreateZeroVector(VectorElementTypes eElementType) final override;
     virtual ::clang::Expr* ExtractElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, std::uint32_t uiIndex) override;
     virtual ::clang::Expr* InsertElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, ::clang::Expr *pElementValue, std::uint32_t uiIndex) override;
-    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, bool isConst=false) override;
-    virtual ::clang::Expr* LoadVectorConst(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) override;
+    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) override;
     virtual ::clang::Expr* LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, ::clang::Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex) final override;
     virtual ::clang::Expr* ShiftElements(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, bool bShiftLeft, uint32_t uiCount) final override;
     virtual ::clang::Expr* StoreVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, ::clang::Expr *pVectorValue) final override;
@@ -1368,8 +1370,7 @@ namespace Vectorization
     virtual ::clang::Expr* BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments) override;
     virtual ::clang::Expr* ExtractElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, std::uint32_t uiIndex) override;
     virtual ::clang::Expr* InsertElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, ::clang::Expr *pElementValue, std::uint32_t uiIndex) override;
-    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, bool isConst=false) final override;
-    virtual ::clang::Expr* LoadVectorConst(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) final override;
+    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) final override;
     virtual ::clang::Expr* RelationalOperator(VectorElementTypes eElementType, RelationalOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) override;
     virtual ::clang::Expr* UnaryOperator(VectorElementTypes eElementType, UnaryOperatorType eOpType, ::clang::Expr *pSubExpr) override;
 
@@ -1949,8 +1950,7 @@ namespace Vectorization
     virtual ::clang::Expr* CreateZeroVector(VectorElementTypes eElementType) final override;
     virtual ::clang::Expr* ExtractElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, std::uint32_t uiIndex) final override;
     virtual ::clang::Expr* InsertElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, ::clang::Expr *pElementValue, std::uint32_t uiIndex) final override;
-    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, bool isConst=false) final override;
-    virtual ::clang::Expr* LoadVectorConst(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) final override;
+    virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) final override;
     virtual ::clang::Expr* LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, ::clang::Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex) final override;
     virtual ::clang::Expr* RelationalOperator(VectorElementTypes eElementType, RelationalOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) final override;
     virtual ::clang::Expr* ShiftElements(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, bool bShiftLeft, uint32_t uiCount) final override;

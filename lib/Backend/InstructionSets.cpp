@@ -359,6 +359,18 @@ QualType InstructionSetBase::_GetFunctionReturnType(string strFuntionName)
   return vecFunctionsDecls.front()->getReturnType();
 }
 
+QualType InstructionSetBase::_GetVectorType(VectorElementTypes eElementType, bool bIsConst)
+{
+  QualType qtReturnType = GetVectorType(eElementType);
+
+  if (bIsConst)
+  {
+    qtReturnType.addConst();
+  }
+
+  return qtReturnType;
+}
+
 ClangASTHelper::ExpressionVectorType InstructionSetBase::_SwapExpressionOrder(const ClangASTHelper::ExpressionVectorType &crvecExpressions)
 {
   ClangASTHelper::ExpressionVectorType vecSwappedExpressions;
@@ -699,16 +711,11 @@ bool InstructionSetSSE::IsElementTypeSupported(VectorElementTypes eElementType) 
   return (eElementType == VectorElementTypes::Float);
 }
 
-Expr* InstructionSetSSE::LoadVector(VectorElementTypes eElementType, Expr *pPointerRef, bool isConst)
+Expr* InstructionSetSSE::LoadVector(VectorElementTypes eElementType, Expr *pPointerRef)
 {
   _CheckElementType(eElementType);
 
   return _CreateFunctionCall(IntrinsicsSSEEnum::LoadFloat, pPointerRef);
-}
-
-Expr* InstructionSetSSE::LoadVectorConst(VectorElementTypes eElementType, Expr *pPointerRef)
-{
-  return LoadVector(eElementType, pPointerRef, true);
 }
 
 Expr* InstructionSetSSE::LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex)
@@ -2368,7 +2375,7 @@ bool InstructionSetSSE2::IsElementTypeSupported(VectorElementTypes eElementType)
   }
 }
 
-Expr* InstructionSetSSE2::LoadVector(VectorElementTypes eElementType, Expr *pPointerRef, bool isConst)
+Expr* InstructionSetSSE2::LoadVector(VectorElementTypes eElementType, Expr *pPointerRef)
 {
   switch (eElementType)
   {
@@ -2378,11 +2385,7 @@ Expr* InstructionSetSSE2::LoadVector(VectorElementTypes eElementType, Expr *pPoi
   case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
   case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
     {
-      QualType qtReturnType = GetVectorType(VectorElementTypes::Int32);
-
-      if (isConst) {
-        qtReturnType.addConst();
-      }
+      QualType qtReturnType = _GetVectorType( eElementType, _GetASTHelper().IsPointerToConstType(pPointerRef->getType()) );
 
       CastExpr *pPointerCast = _CreatePointerCast( pPointerRef, _GetASTHelper().GetPointerType(qtReturnType) );
 
@@ -2390,11 +2393,6 @@ Expr* InstructionSetSSE2::LoadVector(VectorElementTypes eElementType, Expr *pPoi
     }
   default:  return BaseType::LoadVector(eElementType, pPointerRef);
   }
-}
-
-Expr* InstructionSetSSE2::LoadVectorConst(VectorElementTypes eElementType, Expr *pPointerRef)
-{
-  return LoadVector(eElementType, pPointerRef, true);
 }
 
 Expr* InstructionSetSSE2::LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex)
@@ -2737,7 +2735,7 @@ Expr* InstructionSetSSE3::ExtractElement(VectorElementTypes eElementType, Expr *
   return BaseType::ExtractElement(eElementType, pVectorRef, uiIndex);
 }
 
-Expr* InstructionSetSSE3::LoadVector(VectorElementTypes eElementType, Expr *pPointerRef, bool isConst)
+Expr* InstructionSetSSE3::LoadVector(VectorElementTypes eElementType, Expr *pPointerRef)
 {
   switch (eElementType)
   {
@@ -2746,11 +2744,7 @@ Expr* InstructionSetSSE3::LoadVector(VectorElementTypes eElementType, Expr *pPoi
   case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
   case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
     {
-      QualType qtReturnType = GetVectorType(VectorElementTypes::Int32);
-
-      if (isConst) {
-        qtReturnType.addConst();
-      }
+      QualType qtReturnType = _GetVectorType( eElementType, _GetASTHelper().IsPointerToConstType(pPointerRef->getType()) );
 
       CastExpr *pPointerCast = _CreatePointerCast( pPointerRef, _GetASTHelper().GetPointerType(qtReturnType) );
 
@@ -2758,11 +2752,6 @@ Expr* InstructionSetSSE3::LoadVector(VectorElementTypes eElementType, Expr *pPoi
     }
   default:  return BaseType::LoadVector(eElementType, pPointerRef);
   }
-}
-
-Expr* InstructionSetSSE3::LoadVectorConst(VectorElementTypes eElementType, Expr *pPointerRef)
-{
-  return LoadVector(eElementType, pPointerRef, true);
 }
 
 Expr* InstructionSetSSE3::InsertElement(VectorElementTypes eElementType, Expr *pVectorRef, Expr *pElementValue, uint32_t uiIndex)
@@ -4441,7 +4430,7 @@ bool InstructionSetAVX::IsElementTypeSupported(VectorElementTypes eElementType) 
   }
 }
 
-Expr* InstructionSetAVX::LoadVector(VectorElementTypes eElementType, Expr *pPointerRef, bool isConst)
+Expr* InstructionSetAVX::LoadVector(VectorElementTypes eElementType, Expr *pPointerRef)
 {
   IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::LoadDouble;
 
@@ -4456,10 +4445,7 @@ Expr* InstructionSetAVX::LoadVector(VectorElementTypes eElementType, Expr *pPoin
     {
       eFunctionID = IntrinsicsAVXEnum::LoadInteger;
 
-      QualType qtReturnType = GetVectorType( eElementType );
-      if (isConst) {
-        qtReturnType.addConst();
-      }
+      QualType qtReturnType = _GetVectorType( eElementType, _GetASTHelper().IsPointerToConstType(pPointerRef->getType()) );
 
       pPointerRef = _CreatePointerCast( pPointerRef, _GetASTHelper().GetPointerType(qtReturnType) );
       break;
@@ -4468,11 +4454,6 @@ Expr* InstructionSetAVX::LoadVector(VectorElementTypes eElementType, Expr *pPoin
   }
 
   return _CreateFunctionCall( eFunctionID, pPointerRef );
-}
-
-Expr* InstructionSetAVX::LoadVectorConst(VectorElementTypes eElementType, Expr *pPointerRef)
-{
-  return LoadVector(eElementType, pPointerRef, true);
 }
 
 Expr* InstructionSetAVX::LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex)
