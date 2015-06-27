@@ -5,13 +5,13 @@ IF(OPENCL_FOUND)
 
     SET(cl_compile_SOURCES cl_compile.cc)
     ADD_EXECUTABLE(cl_compile ${cl_compile_SOURCES})
-    TARGET_LINK_LIBRARIES(cl_compile ${OPENCL_LFLAGS} ${TIME_LINK})
+    TARGET_LINK_LIBRARIES(cl_compile ${OPENCL_LFLAGS} ${RT_LIBRARIES})
 
     INSTALL(TARGETS cl_compile RUNTIME DESTINATION bin)
 
     SET(cl_bandwidth_test_SOURCES cl_bandwidth_test.cc)
     ADD_EXECUTABLE(cl_bandwidth_test ${cl_bandwidth_test_SOURCES})
-    TARGET_LINK_LIBRARIES(cl_bandwidth_test ${OPENCL_LFLAGS} ${TIME_LINK})
+    TARGET_LINK_LIBRARIES(cl_bandwidth_test ${OPENCL_LFLAGS} ${RT_LIBRARIES})
 
     INSTALL(TARGETS cl_bandwidth_test RUNTIME DESTINATION bin)
 ENDIF(OPENCL_FOUND)

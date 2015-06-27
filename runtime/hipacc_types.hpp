@@ -81,14 +81,15 @@ typedef unsigned long       ulong;
 
 // vector type definition
 #define MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
-_Pragma("pack(1)") \
+_Pragma("pack(push, 1)") \
 struct NEW_TYPE { \
     BASIC_TYPE x, y, z, w; \
     void operator=(BASIC_TYPE b) { \
         x = b; y = b; z = b; w = b; \
     } \
 }; \
-typedef struct NEW_TYPE NEW_TYPE;
+typedef struct NEW_TYPE NEW_TYPE; \
+_Pragma("pack(pop)")
 
 
 // make function
