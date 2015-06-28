@@ -45,13 +45,11 @@
 
 #define HIPACC_NUM_ITERATIONS 10
 
-extern float total_time;
 extern float last_gpu_timing;
 float hipacc_last_kernel_timing();
 unsigned int nextPow2(unsigned int x);
 
 #ifndef EXCLUDE_IMPL
-float total_time = 0.0f;
 float last_gpu_timing = 0.0f;
 // get GPU timing of last executed Kernel in ms
 float hipacc_last_kernel_timing() {
