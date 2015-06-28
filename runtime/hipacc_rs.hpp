@@ -141,7 +141,7 @@ class hipacc_script_arg {
     hipacc_script_arg(void(F::*setter)(T), T const *arg) \
         : id(ID), memptr((void(F::*)())setter), valptr((void*)arg) {} \
     std::pair<void(F::*)(T), T*> get ## ID() const { \
-      return std::make_pair((void(F::*)(T))memptr, (T*)valptr); \
+        return std::make_pair((void(F::*)(T))memptr, (T*)valptr); \
     }
 
     CREATE_SCRIPT_ARG(0, uint8_t)
@@ -170,12 +170,10 @@ class hipacc_script_arg {
     CREATE_SCRIPT_ARG(18, float4)
     CREATE_SCRIPT_ARG(19, double4)
 
-    hipacc_script_arg(void(F::*setter)(sp<Allocation>),
-                      sp<Allocation> const *arg)
+    hipacc_script_arg(void(F::*setter)(sp<const Allocation>), sp<const Allocation> const *arg)
         : id(20), memptr((void(F::*)())setter), valptr((void*)arg) {}
-    std::pair<void(F::*)(sp<Allocation>), sp<Allocation>*> get20() const {
-      return std::make_pair((void(F::*)(sp<Allocation>))memptr,
-                            (sp<Allocation>*)valptr);
+    std::pair<void(F::*)(sp<const Allocation>), sp<const Allocation>*> get20() const {
+        return std::make_pair((void(F::*)(sp<const Allocation>))memptr, (sp<const Allocation>*)valptr);
     }
 };
 
@@ -208,7 +206,6 @@ class hipacc_script_arg {
        case 18: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 18) break; \
        case 19: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 19) break; \
        case 20: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 20) break; \
-       case 21: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 21) break; \
     }
 
 #ifndef EXCLUDE_IMPL
@@ -624,7 +621,7 @@ T hipaccApplyReduction(
     F *script,
     void(F::*kernel2D)(sp<const Allocation>),
     void(F::*kernel1D)(sp<const Allocation>),
-    void(F::*setter)(sp<Allocation>),
+    void(F::*setter)(sp<const Allocation>),
     std::vector<hipacc_script_arg<F> > args,
     int is_width, bool print_timing=true
 ) {

@@ -73,8 +73,6 @@ class CreateHostStrings {
     void writeHeaders(std::string &resultStr);
     void writeInitialization(std::string &resultStr);
     void writeKernelCompilation(HipaccKernel *K, std::string &resultStr);
-    void addReductionArgument(HipaccKernel *K, std::string device_name,
-        std::string host_name, std::string &resultStr);
     void writeReductionDeclaration(HipaccKernel *K, std::string &resultStr);
     void writeMemoryAllocation(HipaccImage *Img, std::string width, std::string
         height, std::string host, std::string &resultStr);
