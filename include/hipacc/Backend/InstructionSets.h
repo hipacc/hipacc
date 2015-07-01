@@ -332,7 +332,7 @@ namespace Vectorization
 
         auto vecFunctions = _GetFunctionDecl(rIntrinsicInfo.first);
 
-        if (vecFunctions.size() != static_cast<size_t>(1))
+        if (! _GetASTHelper().AreSignaturesEqual(vecFunctions))
         {
           throw InternalErrorException( std::string("Found ambiguous entry for intrinsic function \"") + rIntrinsicInfo.first + std::string("\" !") );
         }
@@ -409,8 +409,8 @@ namespace Vectorization
 
 
     /** \brief  Returns the return type of a known non-ambiguous function declaration.
-     *  \param  strFuntionName  The name of the function, whose return type shall be retrieved. */
-    ::clang::QualType _GetFunctionReturnType(std::string strFuntionName);
+     *  \param  strFunctionName  The name of the function, whose return type shall be retrieved. */
+    ::clang::QualType _GetFunctionReturnType(std::string strFunctionName);
 
     //@}
 

@@ -347,16 +347,18 @@ ClangASTHelper::FunctionDeclarationVectorType InstructionSetBase::_GetFunctionDe
   }
 }
 
-QualType InstructionSetBase::_GetFunctionReturnType(string strFuntionName)
+QualType InstructionSetBase::_GetFunctionReturnType(string strFunctionName)
 {
-  auto vecFunctionsDecls = _GetFunctionDecl(strFuntionName);
+  auto vecFunctionDecls = _GetFunctionDecl(strFunctionName);
 
-  if (vecFunctionsDecls.size() != static_cast<size_t>(1))
+  if ( _GetASTHelper().AreSignaturesEqual( vecFunctionDecls ) )
   {
-    throw InternalErrorException(string("The function declaration \"") + strFuntionName + string("\" is ambiguous!"));
+    return vecFunctionDecls.front()->getReturnType();
   }
-
-  return vecFunctionsDecls.front()->getReturnType();
+  else
+  {
+    throw InternalErrorException(string("The function declaration \"") + strFunctionName + string("\" is ambiguous!"));
+  }
 }
 
 QualType InstructionSetBase::_GetVectorType(VectorElementTypes eElementType, bool bIsConst)
