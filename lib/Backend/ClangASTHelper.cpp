@@ -32,6 +32,7 @@
 
 #include "hipacc/Backend/BackendExceptions.h"
 #include "hipacc/Backend/ClangASTHelper.h"
+#include <clang/AST/DeclCXX.h>
 
 using namespace clang::hipacc::Backend;
 using namespace clang;
@@ -351,16 +352,14 @@ ClangASTHelper::FunctionDeclarationVectorType ClangASTHelper::GetKnownFunctionDe
 {
   TranslationUnitDecl *pTranslationUnit = GetASTContext().getTranslationUnitDecl();
 
-  DeclContext *pGlobalNamespaceDeclContext = pTranslationUnit->getEnclosingNamespaceContext();
-
-  return GetNamespaceFunctionDeclarations( NamespaceDecl::castFromDeclContext(pGlobalNamespaceDeclContext) );
+  return GetFunctionDeclarationsFromContext( pTranslationUnit->getEnclosingNamespaceContext() );
 }
 
-ClangASTHelper::FunctionDeclarationVectorType ClangASTHelper::GetNamespaceFunctionDeclarations(NamespaceDecl *pNamespaceDecl)
+ClangASTHelper::FunctionDeclarationVectorType ClangASTHelper::GetFunctionDeclarationsFromContext(DeclContext *pDeclContextRoot)
 {
   FunctionDeclarationVectorType vecFunctionDecls;
 
-  for (auto itDecl = pNamespaceDecl->decls_begin(); itDecl != pNamespaceDecl->decls_end(); itDecl++)
+  for (auto itDecl = pDeclContextRoot->decls_begin(); itDecl != pDeclContextRoot->decls_end(); itDecl++)
   {
     Decl *pDecl = *itDecl;
     if (pDecl == nullptr)
@@ -372,9 +371,14 @@ ClangASTHelper::FunctionDeclarationVectorType ClangASTHelper::GetNamespaceFuncti
     {
       vecFunctionDecls.push_back(dyn_cast<FunctionDecl>(pDecl));
     }
-    else if (isa<NamespaceDecl>(pDecl))
+    else if (isa<CXXRecordDecl>(pDecl))
     {
-      FunctionDeclarationVectorType vecNamespaceFunctionDecls = GetNamespaceFunctionDeclarations( dyn_cast<NamespaceDecl>(pDecl) );
+      // We don't want to find class member functions at this point => Don't traverse through CXXRecordDecl objects
+      continue;
+    }
+    else if (isa<DeclContext>(pDecl))
+    {
+      FunctionDeclarationVectorType vecNamespaceFunctionDecls = GetFunctionDeclarationsFromContext( dyn_cast<DeclContext>(pDecl) );
 
       vecFunctionDecls.insert( vecFunctionDecls.end(), vecNamespaceFunctionDecls.begin(), vecNamespaceFunctionDecls.end() );
     }

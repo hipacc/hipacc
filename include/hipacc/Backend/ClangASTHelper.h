@@ -308,10 +308,10 @@ namespace Backend
      *  \remarks  This method parses all namespaces, beginning with the global namespace. */
     FunctionDeclarationVectorType   GetKnownFunctionDeclarations();
 
-    /** \brief    Returns a vector of all known function declarations inside a namespace declaration.
-     *  \param    pNamespaceDecl  A pointer to the namespace declaration object which shall be parsed for function declarations.
-     *  \remarks  This method also parses all child namespace declarations of the specified namespace declaration. */
-    FunctionDeclarationVectorType   GetNamespaceFunctionDeclarations(::clang::NamespaceDecl *pNamespaceDecl);
+    /** \brief    Returns a vector of all known function declarations inside of a declaration context.
+     *  \param    pDeclContextRoot  A pointer to the declaration context object which shall be parsed for function declarations.
+     *  \remarks  This method also parses all child declaration contexts of the specified root declaration context. */
+    FunctionDeclarationVectorType   GetFunctionDeclarationsFromContext(::clang::DeclContext *pDeclContextRoot);
 
     /** \brief  Checks whether a statement tree has only one branch (i.e. none of its nodes has more than one child).
      *  \param  pStatement  A pointer to the root of the statement tree. */
