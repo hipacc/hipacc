@@ -407,9 +407,6 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
   vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES));
   vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES) + string("/dsl"));
 
-  // Add Clang library include path (required for e.g. intrinsics)
-  vecClangArguments.push_back(string("-I") + string(CLANG_LIB_INCLUDE_DIR));
-
   // Add additional clang arguments
   if (!_vecClangArguments.empty()) {
     vecClangArguments.insert( vecClangArguments.end(), _vecClangArguments.begin(), _vecClangArguments.end() );
@@ -432,6 +429,9 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
   // Set required Clang compiler options to ensure compatibility with the Visual Studio headers
   vecClangArguments.push_back("-fms-extensions");
   vecClangArguments.push_back("-fms-compatibility");
+#else
+  // Add Clang library include path (required for e.g. intrinsics)
+  vecClangArguments.push_back(string("-I") + string(CLANG_LIB_INCLUDE_DIR));
 #endif // _MSC_VER
 
 
