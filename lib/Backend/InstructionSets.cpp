@@ -221,10 +221,12 @@ void InstructionSetBase::_CreateMissingIntrinsicsSSE()
 {
   // Get float vector type
   QualType  qtFloatVector = _GetFunctionReturnType("_mm_setzero_ps");
+  QualType  qtFloat       = _GetClangType(VectorElementTypes::Float);
 
   // Create missing SSE intrinsic functions
   _CreateIntrinsicDeclaration( "_mm_ceil_ps",     qtFloatVector, qtFloatVector, "a" );
   _CreateIntrinsicDeclaration( "_mm_floor_ps",    qtFloatVector, qtFloatVector, "a" );
+  _CreateIntrinsicDeclaration( "_mm_set1_ps",     qtFloatVector, qtFloat,       "a" );
   _CreateIntrinsicDeclaration( "_mm_shuffle_ps",  qtFloatVector, qtFloatVector, "a", qtFloatVector, "b", _GetClangType(VectorElementTypes::UInt32), "imm" );
 }
 
@@ -234,16 +236,21 @@ void InstructionSetBase::_CreateMissingIntrinsicsSSE2()
   QualType  qtDoubleVector  = _GetFunctionReturnType("_mm_setzero_pd");
   QualType  qtIntegerVector = _GetFunctionReturnType("_mm_setzero_si128");
   QualType  qtInt           = _GetClangType(VectorElementTypes::Int32);
+  QualType  qtLong          = _GetClangType(VectorElementTypes::Int64);
 
   // Create missing SSE2 intrinsic functions
+  _CreateIntrinsicDeclaration( "_mm_cvttsd_si64",     qtLong,          qtDoubleVector,  "a" );
+  _CreateIntrinsicDeclaration( "_mm_cvtsi128_si64",   qtLong,          qtIntegerVector, "a" );
   _CreateIntrinsicDeclaration( "_mm_ceil_pd",         qtDoubleVector,  qtDoubleVector,  "a" );
   _CreateIntrinsicDeclaration( "_mm_floor_pd",        qtDoubleVector,  qtDoubleVector,  "a" );
-  _CreateIntrinsicDeclaration( "_mm_slli_si128",      qtIntegerVector, qtIntegerVector, "a", qtInt,          "imm" );
-  _CreateIntrinsicDeclaration( "_mm_srli_si128",      qtIntegerVector, qtIntegerVector, "a", qtInt,          "imm" );
-  _CreateIntrinsicDeclaration( "_mm_shufflehi_epi16", qtIntegerVector, qtIntegerVector, "a", qtInt,          "imm" );
-  _CreateIntrinsicDeclaration( "_mm_shufflelo_epi16", qtIntegerVector, qtIntegerVector, "a", qtInt,          "imm" );
-  _CreateIntrinsicDeclaration( "_mm_shuffle_epi32",   qtIntegerVector, qtIntegerVector, "a", qtInt,          "imm" );
-  _CreateIntrinsicDeclaration( "_mm_shuffle_pd",      qtDoubleVector,  qtDoubleVector,  "a", qtDoubleVector, "b", qtInt, "imm" );
+  _CreateIntrinsicDeclaration( "_mm_slli_si128",      qtIntegerVector, qtIntegerVector, "a",  qtInt,          "imm" );
+  _CreateIntrinsicDeclaration( "_mm_srli_si128",      qtIntegerVector, qtIntegerVector, "a",  qtInt,          "imm" );
+  _CreateIntrinsicDeclaration( "_mm_set_epi64x",      qtIntegerVector, qtLong,          "e1", qtLong,         "e0"  );
+  _CreateIntrinsicDeclaration( "_mm_set1_epi64x",     qtIntegerVector, qtLong,          "a" );
+  _CreateIntrinsicDeclaration( "_mm_shufflehi_epi16", qtIntegerVector, qtIntegerVector, "a",  qtInt,          "imm" );
+  _CreateIntrinsicDeclaration( "_mm_shufflelo_epi16", qtIntegerVector, qtIntegerVector, "a",  qtInt,          "imm" );
+  _CreateIntrinsicDeclaration( "_mm_shuffle_epi32",   qtIntegerVector, qtIntegerVector, "a",  qtInt,          "imm" );
+  _CreateIntrinsicDeclaration( "_mm_shuffle_pd",      qtDoubleVector,  qtDoubleVector,  "a",  qtDoubleVector, "b", qtInt, "imm" );
 }
 
 void InstructionSetBase::_CreateMissingIntrinsicsSSE4_1()
