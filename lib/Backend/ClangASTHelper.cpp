@@ -286,6 +286,50 @@ QualType ClangASTHelper::GetConstantArrayType(const QualType &crElementType, con
 }
 
 
+bool ClangASTHelper::AreSignaturesEqual(const FunctionDeclarationVectorType &crvecFunctionDecls)
+{
+  if (crvecFunctionDecls.size() > 1)
+  {
+    FunctionDecl *pRefDecl = crvecFunctionDecls.front();
+
+    for (auto itOtherDecl = crvecFunctionDecls.begin() + 1; itOtherDecl != crvecFunctionDecls.end(); ++itOtherDecl)
+    {
+      bool          bMismatch  = false;
+      FunctionDecl *pOtherDecl = *itOtherDecl;
+
+      if (pRefDecl->getReturnType() != pOtherDecl->getReturnType())
+      {
+        bMismatch = true;
+      }
+      else if (pRefDecl->getNumParams() != pOtherDecl->getNumParams())
+      {
+        bMismatch = true;
+      }
+      else
+      {
+        for (unsigned int uiParamIdx = pRefDecl->getNumParams(); uiParamIdx < pRefDecl->getNumParams(); ++uiParamIdx)
+        {
+          ParmVarDecl *pRefParam   = pRefDecl->getParamDecl(uiParamIdx);
+          ParmVarDecl *pOtherParam = pOtherDecl->getParamDecl(uiParamIdx);
+
+          if (pRefParam->getType() != pOtherParam->getType())
+          {
+            bMismatch = true;
+            break;
+          }
+        }
+      }
+
+      if (bMismatch)
+      {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 DeclRefExpr* ClangASTHelper::FindDeclaration(FunctionDecl *pFunction, const string &crstrDeclName)
 {
   DeclContext *pDeclContext = FunctionDecl::castToDeclContext(pFunction);

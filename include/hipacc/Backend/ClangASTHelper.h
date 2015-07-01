@@ -289,6 +289,10 @@ namespace Backend
   public:
 
 
+    /** \brief  Checks, whether all function declaration objects in a function declaration vector have the same signature.
+     *  \param  crvecFunctionDecls   A vector containing all function declaration objects whose signature shall be compared. */
+    static bool                     AreSignaturesEqual(const FunctionDeclarationVectorType &crvecFunctionDecls);
+
     /** \brief  Counts the number of declaration references to a specific declaration inside a statement tree.
      *  \param  pStatement          A pointer to the root of the statement tree which shall be parsed for the specified declaration references.
      *  \param  crstrReferenceName  The name of the declaration reference whose appearances shall be counted. */
