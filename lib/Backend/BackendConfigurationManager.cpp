@@ -424,11 +424,17 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
   }
 
 
-#ifdef USE_MINGW
-  // Add MinGW system include paths
+#ifdef _MSC_VER
+  // Add Visual Studio system include paths
   vecClangArguments.push_back("-isystem");
-  vecClangArguments.push_back(MINGW_INCLUDE_ROOT);
+  vecClangArguments.push_back(string(HOST_COMPILER_INSTALL_PREFIX) + string("VC/include"));
 
+  // Set required Clang compiler options to ensure compatibility with the Visual Studio headers
+  vecClangArguments.push_back("-fms-extensions");
+  vecClangArguments.push_back("-fms-compatibility");
+#endif // _MSC_VER
+
+#ifdef USE_MINGW
   vecClangArguments.push_back("-isystem");
   vecClangArguments.push_back(MINGW_INCLUDE_ROOT_CPP);
   vecClangArguments.push_back("-isystem");
