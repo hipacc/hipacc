@@ -434,14 +434,6 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
   vecClangArguments.push_back("-fms-compatibility");
 #endif // _MSC_VER
 
-#ifdef USE_MINGW
-  vecClangArguments.push_back("-isystem");
-  vecClangArguments.push_back(MINGW_INCLUDE_ROOT_CPP);
-  vecClangArguments.push_back("-isystem");
-  vecClangArguments.push_back(string(MINGW_INCLUDE_ROOT_CPP) + string("/c++"));
-  vecClangArguments.push_back("-isystem");
-  vecClangArguments.push_back(string(MINGW_INCLUDE_ROOT_CPP) + string("/c++/mingw32"));
-#endif
 
   // Add exception support
   vecClangArguments.push_back("-fexceptions");

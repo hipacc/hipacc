@@ -27,15 +27,6 @@ INCLUDE(CMakeDependentOption)
 CMAKE_DEPENDENT_OPTION(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
 
-# Check MinGW setting
-OPTION(USE_MINGW "Use MinGW include files instead of the ones from the installed compiler" OFF)
-
-IF(MSVC)
-    IF(NOT USE_MINGW)
-        MESSAGE(FATAL_ERROR "HIPACC cannot parse the Visual Studio STL! You have to use MinGW instead -> Check USE_MINGW")
-    ENDIF()
-ENDIF(MSVC)
-
 # Select the correct script file extension (for repository path and revision) depending on the currently used OS
 IF(WIN32)
     SET(SHELL_SCRIPT_EXTENSION "bat")
@@ -77,14 +68,6 @@ endif()
 if(CMAKE_THREAD_LIBS_INIT)
     SET(THREADS_LINK "${CMAKE_THREAD_LIBS_INIT}")
 endif()
-
-IF(USE_MINGW)
-    FIND_PACKAGE(MinGW REQUIRED)
-
-    IF(NOT MINGW_FOUND)
-        MESSAGE(FATAL_ERROR "MinGW could not be found! HIPACC most probably will not function correctly.")
-    ENDIF(NOT MINGW_FOUND)
-ENDIF(USE_MINGW)
 
 
 IF(NOT CUDA_FOUND AND NOT OPENCL_FOUND AND NOT RENDERSCRIPT_FOUND)
