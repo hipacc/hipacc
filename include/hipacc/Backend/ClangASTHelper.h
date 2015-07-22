@@ -230,6 +230,8 @@ namespace Backend
      *  \param  pBody       The statement which represents the loop body. */
     ::clang::WhileStmt*               CreateLoopWhile(::clang::Expr *pCondition, ::clang::Stmt *pBody);
 
+    /** \brief  Creates a <b>#pragma omp parallel for</b> directive. */
+    ::clang::Stmt*                    CreateOpenMPDirectiveParallelFor();
 
     /** \brief  Creates a parenthesis expression around another expression.
      *  \param  pSubExpression  A pointer to the expression object which shall be encapsulated into a parenthesis expression. */

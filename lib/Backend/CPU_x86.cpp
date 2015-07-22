@@ -2866,6 +2866,7 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageDeclarations(:
 CPU_x86::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions) : BaseType(pCompilerOptions, Descriptor())
 {
   _InitSwitch< KnownSwitches::InstructionSet    >( CompilerSwitchTypeEnum::InstructionSet );
+  _InitSwitch< KnownSwitches::Parallelize       >( CompilerSwitchTypeEnum::Parallelize );
   _InitSwitch< KnownSwitches::UnrollVectorLoops >( CompilerSwitchTypeEnum::UnrollVectorLoops );
   _InitSwitch< KnownSwitches::VectorizeKernel   >( CompilerSwitchTypeEnum::VectorizeKernel );
   _InitSwitch< KnownSwitches::VectorWidth       >( CompilerSwitchTypeEnum::VectorWidth );
@@ -2873,6 +2874,7 @@ CPU_x86::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompile
   _eInstructionSet    = InstructionSetEnum::Array;
   _bUnrollVectorLoops = true;
   _bVectorizeKernel   = false;
+  _bParallelize       = false;
   _szVectorWidth      = static_cast< size_t >(0);
 }
 
@@ -2886,6 +2888,9 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
   case CompilerSwitchTypeEnum::InstructionSet:
     _eInstructionSet = _ParseOption< KnownSwitches::InstructionSet >(rvecArguments, szCurrentIndex);
     ++szReturnIndex;
+    break;
+  case CompilerSwitchTypeEnum::Parallelize:
+    _bParallelize = true;
     break;
   case CompilerSwitchTypeEnum::UnrollVectorLoops:
     {
@@ -3377,10 +3382,11 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
 
     if (! strIncludeFile.empty())
     {
-      rOutputStream << "\n#include <" << strIncludeFile << ">\n\n";
+      rOutputStream << "#include <" << strIncludeFile << ">\n";
     }
   }
 
+  rOutputStream << "\n\n";
 
   // Add the iteration space loops
   {
@@ -3523,6 +3529,13 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
 
     // Create the vertical iteration space loop and set it as kernel function body
     vecKernelFunctionBody.push_back( _CreateIterationSpaceLoop(ASTHelper, gid_y_ref, hipaccHelper.GetIterationSpaceLimitY(), ASTHelper.CreateCompoundStatement(vecOuterLoopBody)) );
+
+    // Add an OpenMP parallel for directive right in front of the outer iteration space loop if parallelization is activated
+    if (_bParallelize)
+    {
+      vecKernelFunctionBody.insert( vecKernelFunctionBody.end() - 1, ASTHelper.CreateOpenMPDirectiveParallelFor() );
+    }
+
     pKernelFunction->setBody( ASTHelper.CreateCompoundStatement(vecKernelFunctionBody) );
   }
 

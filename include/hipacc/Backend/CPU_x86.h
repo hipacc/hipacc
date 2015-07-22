@@ -60,6 +60,7 @@ namespace Backend
     enum class CompilerSwitchTypeEnum
     {
       InstructionSet,       //!< ID of the "select instruction set" switch.
+      Parallelize,          //!< ID of the "OpenMP multi-thread parallelization" switch.
       UnrollVectorLoops,    //!< ID of the "unroll vector array loops" switch.
       VectorizeKernel,      //!< ID of the "kernel function vectorization" switch.
       VectorWidth           //!< ID of the "set vector width" switch.
@@ -188,6 +189,19 @@ namespace Backend
             }
           }
         };
+      };
+
+      /** \brief  The switch type for the "OpenMP multi-thread parallelization" switch. */
+      struct Parallelize final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-omp"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return ""; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "Parallelizes the iteration space across multiple threads via OpenMP."; }
       };
 
       /** \brief  The switch type for the "unroll vector array loops" switch. */
@@ -713,6 +727,7 @@ namespace Backend
       InstructionSetEnum  _eInstructionSet;     //!< The selected vector instruction set for the code generation.
       bool                _bUnrollVectorLoops;  //!< Specifies, whether loops over vector array expressions shall be unrolled.
       bool                _bVectorizeKernel;    //!< Specifies, whether the kernel function shall be vectorized.
+      bool                _bParallelize;        //!< Specifies, whether the iteration space shall be divided amongst multiple threads.
       size_t              _szVectorWidth;       //!< The width of the vectors inside the kernel function in pixels (only relevant if vectorization is turned on).
 
     protected:

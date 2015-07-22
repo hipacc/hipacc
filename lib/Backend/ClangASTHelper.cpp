@@ -33,6 +33,7 @@
 #include "hipacc/Backend/BackendExceptions.h"
 #include "hipacc/Backend/ClangASTHelper.h"
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/StmtOpenMP.h>
 
 using namespace clang::hipacc::Backend;
 using namespace clang;
@@ -221,6 +222,11 @@ ForStmt* ClangASTHelper::CreateLoopFor(Expr *pCondition, Stmt *pBody, Stmt *pIni
 WhileStmt* ClangASTHelper::CreateLoopWhile(Expr *pCondition, Stmt *pBody)
 {
   return ASTNode::createWhileStmt(GetASTContext(), nullptr, pCondition, pBody);
+}
+
+Stmt* ClangASTHelper::CreateOpenMPDirectiveParallelFor()
+{
+  return OMPParallelForDirective::Create( GetASTContext(), SourceLocation(), SourceLocation(), 0, std::vector< OMPClause* >(), nullptr, OMPLoopDirective::HelperExprs() );
 }
 
 ParenExpr* ClangASTHelper::CreateParenthesisExpression(Expr *pSubExpression)
