@@ -33,8 +33,8 @@
     #error "CUDA 5.0 or higher required!"
 #endif
 
-//#define USE_NVML
-#ifdef USE_NVML
+#cmakedefine NVML_FOUND
+#ifdef NVML_FOUND
 #include <nvml.h>
 #endif
 
@@ -274,7 +274,7 @@ inline void checkErr(cudaError_t err, std::string name) {
 }
 #endif
 
-#ifdef USE_NVML
+#ifdef NVML_FOUND
 // Macro for error checking NVML
 #if 1
 #define checkErrNVML(err, name) \
@@ -1245,10 +1245,11 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
               << " (" << heu_tx << "x" << heu_ty << "). " << std::endl;
 
 
-    #ifdef USE_NVML
+    #ifdef NVML_FOUND
     nvmlReturn_t nvml_err = NVML_SUCCESS;
     nvmlDevice_t nvml_device;
     nvmlEnableState_t nvml_mode;
+    bool nvml_power_avail = true;
     unsigned int nvml_device_count, nvml_temperature, nvml_power;
 
     nvml_err = nvmlInit();
@@ -1264,6 +1265,7 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
     nvml_err = nvmlDeviceGetPowerManagementMode(nvml_device, &nvml_mode);
     if (nvml_mode == NVML_FEATURE_DISABLED || nvml_err == NVML_ERROR_NOT_SUPPORTED) {
         std::cerr << "NVML Warning: device does not support querying power usage!" << std::endl;
+        nvml_power_avail = false;
     } else {
         checkErrNVML(nvml_err, "nvmlDeviceGetPowerManagementMode()");
     }
@@ -1339,11 +1341,13 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
                 opt_ty = tile_size_y;
             }
 
-            #ifdef USE_NVML
+            #ifdef NVML_FOUND
             nvml_err = nvmlDeviceGetTemperature(nvml_device, NVML_TEMPERATURE_GPU, &nvml_temperature);
             checkErrNVML(nvml_err, "nvmlDeviceGetTemperature()");
-            nvml_err = nvmlDeviceGetPowerUsage(nvml_device, &nvml_power);
-            checkErrNVML(nvml_err, "nvmlDeviceGetPowerUsage()");
+            if (nvml_power_avail) {
+                nvml_err = nvmlDeviceGetPowerUsage(nvml_device, &nvml_power);
+                checkErrNVML(nvml_err, "nvmlDeviceGetPowerUsage()");
+            }
             #endif
 
             // print timing
@@ -1355,9 +1359,10 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
                       << std::setw(8) << std::fixed << std::setprecision(4)
                       << last_gpu_timing << " | " << times.front() << " | " << times.back()
                       << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms";
-            #ifdef USE_NVML
-            std::cerr << ";  temperature: " << nvml_temperature << " °C"
-                      << ";  power usage: " << nvml_power/1000.f << " W";
+            #ifdef NVML_FOUND
+            std::cerr << ";  temperature: " << nvml_temperature << " °C";
+            if (nvml_power_avail)
+                std::cerr << ";  power usage: " << nvml_power/1000.f << " W";
             #endif
             hipaccPrintKernelOccupancy(exploreKernel, tile_size_x, tile_size_y);
 
@@ -1371,7 +1376,7 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
               << opt_tx*opt_ty << " (" << opt_tx << "x" << opt_ty << "): "
               << opt_time << " ms" << std::endl;
 
-    #ifdef USE_NVML
+    #ifdef NVML_FOUND
     nvml_err = nvmlShutdown();
     checkErrNVML(nvml_err, "nvmlShutdown()");
     #endif
