@@ -33,8 +33,8 @@
     #error "CUDA 5.0 or higher required!"
 #endif
 
-//#define USE_NVML
-#ifdef USE_NVML
+#cmakedefine NVML_FOUND
+#ifdef NVML_FOUND
 #include <nvml.h>
 #endif
 #if CUDA_VERSION >= 7000
@@ -278,7 +278,7 @@ inline void checkErr(cudaError_t err, std::string name) {
 }
 #endif
 
-#ifdef USE_NVML
+#ifdef NVML_FOUND
 // Macro for error checking NVML
 #if 1
 #define checkErrNVML(err, name) \
@@ -631,7 +631,6 @@ void hipaccSetupArgument(const void *arg, size_t size, size_t &offset) {
 // Launch kernel
 void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 grid, dim3 block, bool print_timing=true) {
     cudaEvent_t start, end;
-    float time;
 
     cudaEventCreate(&start);
     cudaEventCreate(&end);
@@ -646,21 +645,20 @@ void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 grid, 
 
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
-    cudaEventElapsedTime(&time, start, end);
+    cudaEventElapsedTime(&last_gpu_timing, start, end);
 
     cudaEventDestroy(start);
     cudaEventDestroy(end);
 
-    last_gpu_timing = time;
     if (print_timing) {
-        std::cerr << "<HIPACC:> Kernel timing ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << time << "(ms)" << std::endl;
+        std::cerr << "<HIPACC:> Kernel timing ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << last_gpu_timing << "(ms)" << std::endl;
     }
 }
 
 
 // Benchmark timing for a kernel call
 void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, std::vector<std::pair<size_t, void *> > args, dim3 grid, dim3 block, bool print_timing=true) {
-    float min_dt=FLT_MAX;
+    std::vector<float> times;
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
         // setup call
@@ -673,12 +671,14 @@ void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, st
 
         // launch kernel
         hipaccLaunchKernel(kernel, kernel_name, grid, block, print_timing);
-        if (last_gpu_timing < min_dt) min_dt = last_gpu_timing;
+        times.push_back(last_gpu_timing);
     }
 
-    last_gpu_timing = min_dt;
+    std::sort(times.begin(), times.end());
+    last_gpu_timing = times[times.size()/2];
+
     if (print_timing) {
-        std::cerr << "<HIPACC:> Kernel timing benchmark ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << min_dt << "(ms)" << std::endl;
+        std::cerr << "<HIPACC:> Kernel timing benchmark ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << last_gpu_timing << "(ms)" << std::endl;
     }
 }
 
@@ -871,7 +871,6 @@ void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y
 // Launch kernel
 void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 grid, dim3 block, void **args, bool print_timing=true) {
     cudaEvent_t start, end;
-    float time;
 
     cudaEventCreate(&start);
     cudaEventCreate(&end);
@@ -885,30 +884,31 @@ void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 grid, 
 
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
-    cudaEventElapsedTime(&time, start, end);
-    total_time += time;
+    cudaEventElapsedTime(&last_gpu_timing, start, end);
 
     cudaEventDestroy(start);
     cudaEventDestroy(end);
 
-    last_gpu_timing = time;
     if (print_timing) {
-        std::cerr << "<HIPACC:> Kernel timing (" << block.x*block.y << ": " << block.x << "x" << block.y << "): " << time << "(ms)" << std::endl;
+        std::cerr << "<HIPACC:> Kernel timing (" << block.x*block.y << ": " << block.x << "x" << block.y << "): " << last_gpu_timing << "(ms)" << std::endl;
     }
 }
 void hipaccLaunchKernelBenchmark(CUfunction &kernel, std::string kernel_name, dim3 grid, dim3 block, void **args, bool print_timing=true) {
-    float min_dt=FLT_MAX;
+    std::vector<float> times;
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; i++) {
         hipaccLaunchKernel(kernel, kernel_name, grid, block, args, print_timing);
-        if (last_gpu_timing < min_dt) min_dt = last_gpu_timing;
+        times.push_back(last_gpu_timing);
     }
 
-    last_gpu_timing = min_dt;
+    std::sort(times.begin(), times.end());
+    last_gpu_timing = times[times.size()/2];
+
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing benchmark (" << block.x*block.y
-                  << ": " << block.x << "x" << block.y << "): " << min_dt
-                  << "(ms)" << std::endl;
+                  << ": " << block.x << "x" << block.y << "): "
+                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
     }
 }
 
@@ -1197,6 +1197,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
     float opt_time = FLT_MAX;
     int opt_ppt = 1;
     for (size_t ppt=1; ppt<=acc.height; ++ppt) {
+        std::vector<float> times;
         std::stringstream num_ppt_ss;
         std::stringstream num_bs_ss;
         num_ppt_ss << ppt;
@@ -1217,7 +1218,6 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
         hipaccGetKernel(exploreReduction2D, modReduction, kernel2D);
         hipaccGetKernel(exploreReduction1D, modReduction, kernel1D);
 
-        float min_dt=FLT_MAX;
         for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
             dim3 block(max_threads, 1);
             dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/ppt));
@@ -1238,9 +1238,6 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
                 idle_left *= block.x;
             }
 
-            // start timing
-            total_time = 0.0f;
-
             // bind texture to CUDA array
             CUtexref texImage;
             if (tex_info.tex_type==Array2D) {
@@ -1250,6 +1247,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
             } else {
                 hipaccLaunchKernel(exploreReduction2D, kernel2D, grid, block, argsReduction2D, false);
             }
+            float total_time = last_gpu_timing;
 
 
             // second step: reduce partial blocks on GPU
@@ -1267,26 +1265,32 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
                 };
 
                 hipaccLaunchKernel(exploreReduction1D, kernel1D, grid, block, argsReduction1D, false);
+                total_time += last_gpu_timing;
 
                 num_blocks = grid.x;
             }
-            // stop timing
-            if (total_time < min_dt) min_dt = total_time;
+            times.push_back(total_time);
         }
-        if (total_time < opt_time) {
-            opt_time = total_time;
+
+        std::sort(times.begin(), times.end());
+        last_gpu_timing = times[times.size()/2];
+
+        if (last_gpu_timing < opt_time) {
+            opt_time = last_gpu_timing;
             opt_ppt = ppt;
         }
 
         // print timing
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
-                  << min_dt << " ms" << std::endl;
+                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
 
         // cleanup
         CUresult err = cuModuleUnload(modReduction);
         checkErrDrv(err, "cuModuleUnload()");
     }
+    last_gpu_timing = opt_time;
     std::cerr << "<HIPACC:> Best unroll factor for reduction kernel '"
               << kernel2D << "/" << kernel1D << "': "
               << opt_ppt << ": " << opt_time << " ms" << std::endl;
@@ -1326,10 +1330,11 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
               << " (" << heu_tx << "x" << heu_ty << "). " << std::endl;
 
 
-    #ifdef USE_NVML
+    #ifdef NVML_FOUND
     nvmlReturn_t nvml_err = NVML_SUCCESS;
     nvmlDevice_t nvml_device;
     nvmlEnableState_t nvml_mode;
+    bool nvml_power_avail = true;
     unsigned int nvml_device_count, nvml_temperature, nvml_power;
 
     nvml_err = nvmlInit();
@@ -1345,6 +1350,7 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
     nvml_err = nvmlDeviceGetPowerManagementMode(nvml_device, &nvml_mode);
     if (nvml_mode == NVML_FEATURE_DISABLED || nvml_err == NVML_ERROR_NOT_SUPPORTED) {
         std::cerr << "NVML Warning: device does not support querying power usage!" << std::endl;
+        nvml_power_avail = false;
     } else {
         checkErrNVML(nvml_err, "nvmlDeviceGetPowerManagementMode()");
     }
@@ -1404,28 +1410,29 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
             dim3 block(tile_size_x, tile_size_y);
             dim3 grid(hipaccCalcGridFromBlock(info, block));
             hipaccPrepareKernelLaunch(info, block);
+            std::vector<float> times;
 
-            float min_dt=FLT_MAX;
             for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
-                // start timing
-                total_time = 0.0f;
-
                 hipaccLaunchKernel(exploreKernel, kernel, grid, block, args.data(), false);
-
-                // stop timing
-                if (total_time < min_dt) min_dt = total_time;
+                times.push_back(last_gpu_timing);
             }
-            if (min_dt < opt_time) {
-                opt_time = min_dt;
+
+            std::sort(times.begin(), times.end());
+            last_gpu_timing = times[times.size()/2];
+
+            if (last_gpu_timing < opt_time) {
+                opt_time = last_gpu_timing;
                 opt_tx = tile_size_x;
                 opt_ty = tile_size_y;
             }
 
-            #ifdef USE_NVML
+            #ifdef NVML_FOUND
             nvml_err = nvmlDeviceGetTemperature(nvml_device, NVML_TEMPERATURE_GPU, &nvml_temperature);
             checkErrNVML(nvml_err, "nvmlDeviceGetTemperature()");
-            nvml_err = nvmlDeviceGetPowerUsage(nvml_device, &nvml_power);
-            checkErrNVML(nvml_err, "nvmlDeviceGetPowerUsage()");
+            if (nvml_power_avail) {
+                nvml_err = nvmlDeviceGetPowerUsage(nvml_device, &nvml_power);
+                checkErrNVML(nvml_err, "nvmlDeviceGetPowerUsage()");
+            }
             #endif
 
             // print timing
@@ -1435,10 +1442,12 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
                       << std::setw(5-floor(log10f((float)(tile_size_x*tile_size_y))))
                       << std::right << "(" << tile_size_x*tile_size_y << "): "
                       << std::setw(8) << std::fixed << std::setprecision(4)
-                      << min_dt << " ms";
-            #ifdef USE_NVML
-            std::cerr << ";  temperature: " << nvml_temperature << " °C"
-                      << ";  power usage: " << nvml_power/1000.f << " W";
+                      << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                      << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms";
+            #ifdef NVML_FOUND
+            std::cerr << ";  temperature: " << nvml_temperature << " °C";
+            if (nvml_power_avail)
+                std::cerr << ";  power usage: " << nvml_power/1000.f << " W";
             #endif
             hipaccPrintKernelOccupancy(exploreKernel, tile_size_x, tile_size_y);
 
@@ -1447,11 +1456,12 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
             checkErrDrv(err, "cuModuleUnload()");
         }
     }
+    last_gpu_timing = opt_time;
     std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
               << opt_tx*opt_ty << " (" << opt_tx << "x" << opt_ty << "): "
               << opt_time << " ms" << std::endl;
 
-    #ifdef USE_NVML
+    #ifdef NVML_FOUND
     nvml_err = nvmlShutdown();
     checkErrNVML(nvml_err, "nvmlShutdown()");
     #endif

@@ -11,11 +11,11 @@ COMPILER_INC   ?= -std=c++11 $(COMMON_INC) \
 TEST_CASE      ?= ./tests/opencv_blur_8uc1
 MYFLAGS        ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
 NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
-                  -Xptxas -v @NVCC_COMP@ #-keep
+                  -Xptxas -v #-keep
 OFLAGS          = -O3
 
 CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 @THREADS_ARG@ -Wall -Wunused
-CU_CC           = @NVCC@ $(NVCC_FLAGS) -Xcompiler -Wall -Xcompiler -Wunused
+CU_CC           = @NVCC@ @NVCC_COMP@ -Xcompiler -Wall -Xcompiler -Wunused $(NVCC_FLAGS)
 CC_LINK         = -lm -ldl -lstdc++ @THREADS_LINK@ @RT_LIBRARIES@
 CU_LINK         = $(CC_LINK) @CUDA_LINK@
 CL_CC           = $(CC_CC) @OPENCL_CFLAGS@

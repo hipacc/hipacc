@@ -133,20 +133,19 @@ void CreateHostStrings::writeKernelCompilation(HipaccKernel *K,
 }
 
 
-void CreateHostStrings::addReductionArgument(HipaccKernel *K, std::string
-    device_name, std::string host_name, std::string &resultStr) {
-  resultStr += "_args" + K->getReduceName();
-  resultStr += ".push_back(hipacc_script_arg<ScriptC_" + K->getFileName();
-  resultStr += ">(&ScriptC_" + K->getFileName();
-  resultStr += "::set_" + device_name + ", &" + host_name + "));\n";
-  resultStr += indent;
-}
-
-
 void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
     &resultStr) {
   HipaccAccessor *Acc = K->getIterationSpace();
   HipaccImage *Img = Acc->getImage();
+
+  auto add_red_arg = [&] (std::string device, std::string host,
+                          std::string type) -> void {
+    resultStr += "_args" + K->getReduceName();
+    resultStr += ".push_back(hipacc_script_arg<ScriptC_" + K->getFileName();
+    resultStr += ">(&ScriptC_" + K->getFileName();
+    resultStr += "::set_" + device + ", " + "(" + type + ")&" + host + "));\n";
+    resultStr += indent;
+  };
 
   switch (options.getTargetLang()) {
     case Language::C99:
@@ -163,28 +162,18 @@ void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
       resultStr += indent;
 
       // store reduction arguments
-      std::string lit(std::to_string(literal_count++));
-      resultStr += "sp<Allocation> alloc_" + lit + " = (Allocation  *)";
-      resultStr += Img->getName() + ".mem;\n" + indent;
-      addReductionArgument(K, "_red_Input", "alloc_" + lit, resultStr);
-      addReductionArgument(K, "_red_stride", Img->getName() + ".stride",
-          resultStr);
+      add_red_arg("_red_Input", Img->getName() + ".mem", "sp<const Allocation> *");
+      add_red_arg("_red_stride", Img->getName() + ".stride", "int *");
 
       // print optional offset_x/offset_y and iteration space width/height
       if (K->getIterationSpace()->isCrop()) {
-        addReductionArgument(K, "_red_offset_x", Acc->getName() + ".offset_x",
-            resultStr);
-        addReductionArgument(K, "_red_offset_y", Acc->getName() + ".offset_y",
-            resultStr);
-        addReductionArgument(K, "_red_is_height", Acc->getName() + ".height",
-            resultStr);
-        addReductionArgument(K, "_red_num_elements", Acc->getName() + ".width",
-            resultStr);
+        add_red_arg("_red_offset_x", Acc->getName() + ".offset_x", "int *");
+        add_red_arg("_red_offset_y", Acc->getName() + ".offset_y", "int *");
+        add_red_arg("_red_is_height", Acc->getName() + ".height", "int *");
+        add_red_arg("_red_num_elements", Acc->getName() + ".width", "int *");
       } else {
-        addReductionArgument(K, "_red_is_height", Img->getName() + ".height",
-            resultStr);
-        addReductionArgument(K, "_red_num_elements", Img->getName() + ".width",
-            resultStr);
+        add_red_arg("_red_is_height", Img->getName() + ".height", "int *");
+        add_red_arg("_red_num_elements", Img->getName() + ".width", "int *");
       }
       break;
   }
@@ -695,17 +684,12 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           break;
         case Language::Renderscript:
         case Language::Filterscript: {
-            std::string lit(std::to_string(literal_count++));
-            if (Acc || Mask) {
-              resultStr += "sp<Allocation> alloc_" + lit + " = (Allocation  *)";
-              resultStr += hostArgNames[i] + img_mem + ";\n" + indent;
-            }
             resultStr += "_args" + kernelName + ".push_back(";
             resultStr += "hipacc_script_arg<ScriptC_" + K->getFileName() + ">(";
             resultStr += "&ScriptC_" + K->getFileName();
             resultStr += "::set_" + deviceArgNames[i] + ", ";
             if (Acc || Mask) {
-              resultStr += "&alloc_" + lit + "));\n";
+              resultStr += "(sp<const Allocation> *)&" + hostArgNames[i] + img_mem + "));\n";
             } else {
               resultStr += "(" + argTypeNames[i] + "*)&" + hostArgNames[i] + "));\n";
             }
@@ -759,8 +743,7 @@ void CreateHostStrings::writeKernelCall(std::string kernelName,
           resultStr += "&ScriptC_" + K->getFileName();
           resultStr += "::set_" + deviceArgNames[i] + ", ";
           if (Acc || Mask) {
-            resultStr += "sp<const Allocation>(((Allocation *)" + hostArgNames[i];
-            resultStr += img_mem + ")));\n";
+            resultStr += "(sp<const Allocation>)(Allocation *)" + hostArgNames[i] + img_mem + ");\n";
           } else {
             resultStr += "(" + argTypeNames[i] + ")" + hostArgNames[i] + img_mem + ");\n";
           }
@@ -916,8 +899,12 @@ void CreateHostStrings::writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K,
       break;
     case Language::Renderscript:
     case Language::Filterscript:
-      // no exploration supported atm since this involves lots of memory
-      // reallocations in Renderscript
+      if (options.exploreConfig()) {
+          // no exploration supported atm since this involves lots of memory
+          // reallocations in Renderscript
+          resultStr += "ScriptC_" + K->getFileName() + " " + K->getReduceName() + " = ";
+          resultStr += "hipaccInitScript<ScriptC_" + K->getFileName() + ">();\n";
+      }
       resultStr += red_decl;
       resultStr += "hipaccApplyReduction<ScriptC_" + K->getFileName() + ", ";
       resultStr += typeStr + ">(&" + K->getReduceName() + ", ";
