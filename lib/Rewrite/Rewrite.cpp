@@ -1663,6 +1663,9 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         if (ME->getMemberNameInfo().getAsString() == "reduced_data") {
           HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
 
+          //
+          // TODO: make sure that kernel was executed before reduced_data call
+          //
           // replace member function invocation
           SourceRange range(E->getLocStart(), E->getLocEnd());
           TextRewriter.ReplaceText(range, K->getReduceStr());
