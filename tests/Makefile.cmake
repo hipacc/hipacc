@@ -108,7 +108,7 @@ filterscript renderscript:
 	mkdir -p build_$@/jni
 	cp Android.mk build_$@/jni/Android.mk
 	cp Application.mk build_$@/jni/Application.mk
-	cp main.cc *.$(subst renderscript,rs,$(subst filterscript,fs,$@)) build_$@
+	cp main.cc *.$(subst renderscript,rs,$(subst filterscript,fs,$@)) build_$@ || true
 	@echo 'Compiling $@ file using ndk-build:'
 	export CASE_FLAGS="$(MYFLAGS)"; \
 	export HIPACC_INCLUDE=$(HIPACC_DIR)/include; \
