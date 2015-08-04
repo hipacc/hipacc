@@ -261,8 +261,13 @@ Expr *ASTTranslate::VisitDeclRefExpr(DeclRefExpr *E) {
   // remove reference type if present
   QualType QT = VD->getType().getNonReferenceType();
 
+  // required for LLVM CodeGen when resolving convolution functions
+  bool enclosing = E->refersToEnclosingVariableOrCapture();
+  if (convMask || !redDomains.empty())
+    enclosing = false;
+
   DeclRefExpr *result = DeclRefExpr::Create(Ctx, E->getQualifierLoc(),
-      E->getTemplateKeywordLoc(), VD, E->refersToEnclosingVariableOrCapture(),
+      E->getTemplateKeywordLoc(), VD, enclosing,
       E->getLocation(), QT, E->getValueKind(), E->getFoundDecl(),
       E->getNumTemplateArgs()?&templateArgs:0);
 
