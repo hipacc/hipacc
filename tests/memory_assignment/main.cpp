@@ -23,7 +23,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -51,17 +50,14 @@ struct roi_t {
 
 // reference
 template<typename data_t>
-void compare_results(data_t *ref, data_t *data, roi_t &ref_roi, roi_t &data_roi)
-{
-    // compare results
-    assert(ref_roi.roi_width == data_roi.roi_width && ref_roi.roi_height ==
-            data_roi.roi_height && "Image sizes have to be the same!");
+void compare_results(data_t *ref, data_t *data, roi_t &ref_roi, roi_t &data_roi) {
+    assert(ref_roi.roi_width  == data_roi.roi_width &&
+           ref_roi.roi_height == data_roi.roi_height &&
+           "Image sizes have to be the same!");
     std::cerr << std::endl << "Comparing results ..." << std::endl;
-    for (int y=ref_roi.roi_oy; y<ref_roi.roi_oy+ref_roi.roi_height; y++) {
-        for (int x=ref_roi.roi_ox; x<ref_roi.roi_ox+ref_roi.roi_width; x++) {
-            if (ref[y*ref_roi.img_width + x] !=
-                data[(y-ref_roi.roi_oy+data_roi.roi_oy)*data_roi.img_width +
-                x-ref_roi.roi_ox+data_roi.roi_ox]) {
+    for (int y=ref_roi.roi_oy; y<ref_roi.roi_oy+ref_roi.roi_height; ++y) {
+        for (int x=ref_roi.roi_ox; x<ref_roi.roi_ox+ref_roi.roi_width; ++x) {
+            if (ref[y*ref_roi.img_width + x] != data[(y-ref_roi.roi_oy+data_roi.roi_oy)*data_roi.img_width + x-ref_roi.roi_ox+data_roi.roi_ox]) {
                 std::cerr << "Test FAILED, at (" << x << "," << y << "): "
                           << ref[y*ref_roi.img_width + x] << " vs. "
                           << data[(y-ref_roi.roi_oy+data_roi.roi_oy)*data_roi.img_width + x-ref_roi.roi_ox+data_roi.roi_ox]
@@ -143,7 +139,7 @@ int main(int argc, const char **argv) {
     compare_results(img0, out, img_roi, img_roi);
 
 
-    // memory cleanup
+    // free memory
     delete[] img0;
     delete[] img1;
     delete[] img2;

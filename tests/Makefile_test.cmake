@@ -1,5 +1,4 @@
-CC = clang++
-CC = g++
+CC = @CMAKE_CXX_COMPILER@
 
 HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
 

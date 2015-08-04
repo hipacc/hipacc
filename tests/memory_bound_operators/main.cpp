@@ -24,7 +24,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -38,6 +37,8 @@
 // variables set by Makefile
 //#define WIDTH 4096
 //#define HEIGHT 4096
+
+// code variants
 #ifndef PPT
 #define PPT 1
 #endif
@@ -57,8 +58,7 @@ double time_ms () {
 
 // reference implementations
 // GOC: global offset correction
-void calc_goc(int *in, int *out, int offset, int width, int height, int
-        offset_x, int offset_y, int is_width, int is_height) {
+void calc_goc(int *in, int *out, int offset, int width, int height, int offset_x, int offset_y, int is_width, int is_height) {
     for (int y=offset_y; y<offset_y+is_height; ++y) {
         for (int x=offset_x; x<offset_x+is_width; ++x) {
             out[y*width + x] = in[y*width + x] + offset;
@@ -69,8 +69,7 @@ void calc_goc(int *in, int *out, int offset, int width, int height) {
     calc_goc(in, out, offset, width, height, 0, 0, width, height);
 }
 // SAD: sum of absolut differences
-int calc_sad(int *in0, int *in1, int *out, int width, int height, int offset_x,
-        int offset_y, int is_width, int is_height) {
+int calc_sad(int *in0, int *in1, int *out, int width, int height, int offset_x, int offset_y, int is_width, int is_height) {
     int sum = 0;
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
@@ -87,8 +86,7 @@ int calc_sad(int *in0, int *in1, int *out, int width, int height) {
     return calc_sad(in0, in1, out, width, height, 0, 0, width, height);
 }
 // SSD: sum of square differences
-int calc_ssd(int *in0, int *in1, int *out, int width, int height, int offset_x,
-        int offset_y, int is_width, int is_height) {
+int calc_ssd(int *in0, int *in1, int *out, int width, int height, int offset_x, int offset_y, int is_width, int is_height) {
     int sum = 0;
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
@@ -142,7 +140,7 @@ class AbsoluteDifferences : public Kernel<int> {
         }
 
         void kernel() {
-            output() = abs(input0()-input1());
+            output() = abs(input0() - input1());
         }
 };
 class SquareDifferences : public Kernel<int> {
@@ -162,7 +160,7 @@ class SquareDifferences : public Kernel<int> {
         }
 
         void kernel() {
-            output() = (input0()-input1())*(input0()-input1());
+            output() = (input0() - input1()) * (input0() - input1());
         }
 };
 class Read1 : public Kernel<int> {
@@ -393,12 +391,9 @@ class Read8 : public Kernel<int> {
 
 
 int main(int argc, const char **argv) {
-    double time0, time1, dt;
     const int width = WIDTH;
     const int height = HEIGHT;
     int offset = 5;
-    std::vector<float> timings;
-    float timing = 0.0f;
 
     // host memory for image of width x height pixels
     int *input0 = new int[width*height];
@@ -460,19 +455,8 @@ int main(int argc, const char **argv) {
     Read7 R7(ISOut0, AccIn0, AccIn1, AccIn2, AccIn3, AccIn4, AccIn5, AccIn6);
     Read8 R8(ISOut0, AccIn0, AccIn1, AccIn2, AccIn3, AccIn4, AccIn5, AccIn6, AccIn7);
 
-    // warmup
-    R1.execute();
-    R2.execute();
-    R3.execute();
-    R4.execute();
-    R5.execute();
-    R6.execute();
-    R7.execute();
-    R8.execute();
-
-    GOC.execute();
-    AD.execute();
-    SD.execute();
+    std::vector<float> timings;
+    float timing = 0;
 
     std::cerr << "Calculating 1 image kernel ..." << std::endl;
     R1.execute();
@@ -553,11 +537,9 @@ int main(int argc, const char **argv) {
     std::cerr << "Hipacc: " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    // print statistics
     std::cerr << "PPT: " << PPT;
-    for (std::vector<float>::const_iterator it = timings.begin(); it != timings.end(); ++it) {
+    for (std::vector<float>::const_iterator it = timings.begin(); it != timings.end(); ++it)
         std::cerr << "\t" << *it;
-    }
     std::cerr << std::endl << std::endl;
 
     // print achieved bandwidth
@@ -575,38 +557,38 @@ int main(int argc, const char **argv) {
 
     // GOC
     std::cerr << std::endl << "Calculating reference ..." << std::endl;
-    time0 = time_ms();
+    double start = time_ms();
 
     calc_goc(reference_in0, reference_out0, offset, width, height);
 
-    time1 = time_ms();
-    dt = time1 - time0;
-    std::cerr << "Reference: " << dt << " ms, " << (width*height/dt)/1000 << " Mpixel/s" << std::endl;
+    double end = time_ms();
+    float time = end - start;
+    std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
     // SAD
     std::cerr << std::endl << "Calculating reference ..." << std::endl;
-    time0 = time_ms();
+    start = time_ms();
 
     calc_sad(reference_in0, reference_in1, reference_out1, width, height);
 
-    time1 = time_ms();
-    dt = time1 - time0;
-    std::cerr << "Reference: " << dt << " ms, " << (width*height/dt)/1000 << " Mpixel/s" << std::endl;
+    end = time_ms();
+    time = end - start;
+    std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
     // SSD
     std::cerr << std::endl << "Calculating reference ..." << std::endl;
-    time0 = time_ms();
+    start = time_ms();
 
     calc_ssd(reference_in0, reference_in1, reference_out2, width, height);
 
-    time1 = time_ms();
-    dt = time1 - time0;
-    std::cerr << "Reference: " << dt << " ms, " << (width*height/dt)/1000 << " Mpixel/s" << std::endl;
+    end = time_ms();
+    time = end - start;
+    std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
-    // compare results
+
     std::cerr << std::endl << "Comparing results for GOC ... ";
-    for (int y=0; y<height; y++) {
-        for (int x=0; x<width; x++) {
+    for (int y=0; y<height; ++y) {
+        for (int x=0; x<width; ++x) {
             if (reference_out0[y*width + x] != output0[y*width + x]) {
                 std::cerr << " FAILED, at (" << x << "," << y << "): "
                           << reference_out0[y*width + x] << " vs. "
@@ -617,8 +599,8 @@ int main(int argc, const char **argv) {
     }
     std::cerr << "PASSED" << std::endl;
     std::cerr << "Comparing results for AD ... ";
-    for (int y=0; y<height; y++) {
-        for (int x=0; x<width; x++) {
+    for (int y=0; y<height; ++y) {
+        for (int x=0; x<width; ++x) {
             if (reference_out1[y*width + x] != output1[y*width + x]) {
                 std::cerr << " FAILED, at (" << x << "," << y << "): "
                           << reference_out1[y*width + x] << " vs. "
@@ -629,8 +611,8 @@ int main(int argc, const char **argv) {
     }
     std::cerr << "PASSED" << std::endl;
     std::cerr << "Comparing results for SD ... ";
-    for (int y=0; y<height; y++) {
-        for (int x=0; x<width; x++) {
+    for (int y=0; y<height; ++y) {
+        for (int x=0; x<width; ++x) {
             if (reference_out2[y*width + x] != output2[y*width + x]) {
                 std::cerr << " FAILED, at (" << x << "," << y << "): "
                           << reference_out2[y*width + x] << " vs. "
@@ -642,7 +624,7 @@ int main(int argc, const char **argv) {
     std::cerr << "PASSED" << std::endl;
     std::cerr << "All Tests PASSED" << std::endl;
 
-    // memory cleanup
+    // free memory
     delete[] input0;
     delete[] input1;
     delete[] reference_in0;
