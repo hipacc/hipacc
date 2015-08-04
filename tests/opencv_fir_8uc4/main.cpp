@@ -66,8 +66,9 @@ double time_ms () {
 // FIR filter reference
 void fir_filter(uchar4 *in, uchar4 *out, float *filter, int size_x, int width) {
     int anchor_x = size_x >> 1;
+    int upper_x = width - anchor_x;
 
-    for (int x=anchor_x; x<width-anchor_x; ++x) {
+    for (int x=anchor_x; x<upper_x; ++x) {
         float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
         // size_x is even => -size_x/2 .. +size_x/2 - 1
@@ -412,13 +413,10 @@ int main(int argc, const char **argv) {
     std::cerr << "Reference: " << time << " ms, " << (width/time)/1000 << " Mpixel/s" << std::endl;
 
 
-    std::cerr << std::endl << "Comparing results ..." << std::endl;
-    #ifdef OPENCV
-    int upper_x = width-size_x+offset_x;
-    #else
-    int upper_x = width-offset_x;
-    #endif
-    for (int x=offset_x; x<upper_x; ++x) {
+    std::cerr << "Comparing results ..." << std::endl
+              << "Warning: The CPU, OCL, and CUDA modules in OpenCV use different implementations and yield inconsistent results." << std::endl
+              << "         This is the case even for different filter sizes within the same module!" << std::endl;
+    for (int x=offset_x; x<width-offset_x; ++x) {
         if (reference_out[x].x != output[x].x ||
             reference_out[x].y != output[x].y ||
             reference_out[x].z != output[x].z ||

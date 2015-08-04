@@ -73,13 +73,8 @@ void laplace_filter(uchar4 *in, uchar4 *out, int *filter, int size, int width, i
     const int size_y = size;
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-    #ifdef OPENCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
@@ -457,16 +452,11 @@ int main(int argc, const char **argv) {
     std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
 
-    std::cerr << std::endl << "Comparing results ..." << std::endl;
-    #ifdef OPENCV
-    int upper_y = height-size_y+offset_y;
-    int upper_x = width-size_x+offset_x;
-    #else
-    int upper_y = height-offset_y;
-    int upper_x = width-offset_x;
-    #endif
-    for (int y=offset_y; y<upper_y; ++y) {
-        for (int x=offset_x; x<upper_x; ++x) {
+    std::cerr << "Comparing results ..." << std::endl
+              << "Warning: The CPU, OCL, and CUDA modules in OpenCV use different implementations and yield inconsistent results." << std::endl
+              << "         This is the case even for different filter sizes within the same module!" << std::endl;
+    for (int y=offset_y; y<height-offset_y; ++y) {
+        for (int x=offset_x; x<width-offset_x; ++x) {
             if (reference_out[y*width + x].x != output[y*width + x].x ||
                 reference_out[y*width + x].y != output[y*width + x].y ||
                 reference_out[y*width + x].z != output[y*width + x].z ||

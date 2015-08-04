@@ -74,13 +74,8 @@ double time_ms () {
 void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-    #ifdef OPENCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
@@ -91,11 +86,7 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int width, int
                     sum += convert_int4(in[(y + yf)*width + x + xf]);
                 }
             }
-            #ifdef OPENCV
-            out[y*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum) + 0.5f);
-            #else
-            out[y*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
-            #endif
+            out[y*width + x] = convert_uchar4(1.0f/(float)(size_x*size_y)*convert_float4(sum));
         }
     }
 }
@@ -103,13 +94,8 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int width, int
 void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int t, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-    #ifdef OPENCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
 
     for (int x=anchor_x; x<upper_x; ++x) {
         for (int t0=anchor_y; t0<upper_y; t0+=t) {
@@ -121,11 +107,7 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int t, int wid
                     sum += convert_int4(in[(t0 + yf)*width + x + xf]);
                 }
             }
-            #ifdef OPENCV
-            out[t0*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum) + 0.5f);
-            #else
-            out[t0*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
-            #endif
+            out[t0*width + x] = convert_uchar4((1.0f/(float)(size_x*size_y))*convert_float4(sum));
 
             // second phase: rolling sum
             for (int dt=1; dt<min(t, upper_y-t0); ++dt) {
@@ -134,11 +116,7 @@ void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int t, int wid
                     sum -= convert_int4(in[(t-anchor_y-1)*width + x + xf]);
                     sum += convert_int4(in[(t-anchor_y-1+size_y)*width + x + xf]);
                 }
-                #ifdef OPENCV
-                out[t*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum) + 0.5f);
-                #else
-                out[t*width + x] = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
-                #endif
+                out[t*width + x] = convert_uchar4((1.0f/(float)(size_x*size_y))*convert_float4(sum));
             }
         }
     }
@@ -173,7 +151,7 @@ class BlurFilter : public Kernel<uchar4> {
         #ifdef SIMPLE
         void kernel() {
             #ifdef USE_LAMBDA
-            output() = convert_uchar4( (1/(float)(size_x*size_y)) *
+            output() = convert_uchar4( (1.0f/(float)(size_x*size_y)) *
                     convert_float4(reduce(dom, Reduce::SUM, [&] () -> int4 {
                         return convert_int4(in(dom));
                     })));
@@ -182,13 +160,12 @@ class BlurFilter : public Kernel<uchar4> {
             int anchor_y = size_y >> 1;
             int4 sum = { 0, 0, 0, 0 };
 
-            // for even filter sizes use -anchor ... +anchor-1
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
                     sum += convert_int4(in(xf, yf));
                 }
             }
-            output() = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
+            output() = convert_uchar4((1.0f/(float)(size_x*size_y))*convert_float4(sum));
             #endif
         }
         #else
@@ -205,7 +182,7 @@ class BlurFilter : public Kernel<uchar4> {
                     sum += convert_int4(in.pixel_at(in.x() + xf, t0*nt + yf));
                 }
             }
-            output_at(x(), t0*nt) = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
+            output_at(x(), t0*nt) = convert_uchar4((1.0f/(float)(size_x*size_y))*convert_float4(sum));
 
             // second phase: rolling sum
             for (int dt=1; dt<min(nt, height-(t0*nt)); ++dt) {
@@ -214,7 +191,7 @@ class BlurFilter : public Kernel<uchar4> {
                     sum -= convert_int4(in.pixel_at(in.x() + xf, t-anchor_y-1));
                     sum += convert_int4(in.pixel_at(in.x() + xf, t-anchor_y-1+size_y));
                 }
-                output_at(x(), t) = convert_uchar4((1/(float)(size_x*size_y))*convert_float4(sum));
+                output_at(x(), t) = convert_uchar4((1.0f/(float)(size_x*size_y))*convert_float4(sum));
             }
         }
         #endif
@@ -480,16 +457,11 @@ int main(int argc, const char **argv) {
     std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
 
-    std::cerr << std::endl << "Comparing results ..." << std::endl;
-    #ifdef OPENCV
-    int upper_y = height-size_y+offset_y;
-    int upper_x = width-size_x+offset_x;
-    #else
-    int upper_y = height-offset_y;
-    int upper_x = width-offset_x;
-    #endif
-    for (int y=offset_y; y<upper_y; ++y) {
-        for (int x=offset_x; x<upper_x; ++x) {
+    std::cerr << "Comparing results ..." << std::endl
+              << "Warning: The CPU, OCL, and CUDA modules in OpenCV use different implementations and yield inconsistent results." << std::endl
+              << "         This is the case even for different filter sizes within the same module!" << std::endl;
+    for (int y=offset_y; y<height-offset_y; ++y) {
+        for (int x=offset_x; x<width-offset_x; ++x) {
             if (reference_out[y*width + x].x != output[y*width + x].x ||
                 reference_out[y*width + x].y != output[y*width + x].y ||
                 reference_out[y*width + x].z != output[y*width + x].z ||

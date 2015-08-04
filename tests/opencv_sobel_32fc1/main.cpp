@@ -72,13 +72,8 @@ double time_ms () {
 void sobel_filter(float *in, float *out, int *filter, int size_x, int size_y, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-    #ifdef OPENCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
@@ -95,11 +90,7 @@ void sobel_filter(float *in, float *out, int *filter, int size_x, int size_y, in
 }
 void sobel_filter_row(float *in, float *out, int *filter, int size_x, int width, int height) {
     int anchor_x = size_x >> 1;
-    #ifdef OPENCV
-    int upper_x = width-size_x+anchor_x;
-    #else
-    int upper_x = width-anchor_x;
-    #endif
+    int upper_x = width - anchor_x;
 
     for (int y=0; y<height; ++y) {
         //for (int x=0; x<anchor_x; ++x) out[y*width + x] = in[y*width + x];
@@ -116,11 +107,7 @@ void sobel_filter_row(float *in, float *out, int *filter, int size_x, int width,
 }
 void sobel_filter_column(float *in, float *out, int *filter, int size_y, int width, int height) {
     int anchor_y = size_y >> 1;
-    #ifdef OPENCV
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_y = height - anchor_y;
 
     //for (int y=0; y<anchor_y; ++y) {
     //    for (int x=0; x<width; ++x) {
@@ -740,16 +727,11 @@ int main(int argc, const char **argv) {
     std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
 
-    std::cerr << std::endl << "Comparing results ..." << std::endl;
-    #ifdef OPENCV
-    int upper_y = height-size_y+offset_y;
-    int upper_x = width-size_x+offset_x;
-    #else
-    int upper_y = height-offset_y;
-    int upper_x = width-offset_x;
-    #endif
-    for (int y=offset_y; y<upper_y; ++y) {
-        for (int x=offset_x; x<upper_x; ++x) {
+    std::cerr << "Comparing results ..." << std::endl
+              << "Warning: The CPU, OCL, and CUDA modules in OpenCV use different implementations and yield inconsistent results." << std::endl
+              << "         This is the case even for different filter sizes within the same module!" << std::endl;
+    for (int y=offset_y; y<height-offset_y; ++y) {
+        for (int x=offset_x; x<width-offset_x; ++x) {
             if (reference_out[y*width + x] != output[y*width + x]) {
                 std::cerr << "Test FAILED, at (" << x << "," << y << "): "
                           << reference_out[y*width + x] << " vs. "
