@@ -1649,14 +1649,13 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         // TODO: handle the case when only reduce function is specified
         //
         // create kernel call string
-        stringCreator.writeKernelCall(K->getKernelName(), K->getKernelClass(),
-            K, newStr);
+        stringCreator.writeKernelCall(K, newStr);
 
         // create reduce call string
         if (K->getKernelClass()->getReduceFunction()) {
           newStr += "\n" + stringCreator.getIndent();
           stringCreator.writeReductionDeclaration(K, newStr);
-          stringCreator.writeReduceCall(K->getKernelClass(), K, newStr);
+          stringCreator.writeReduceCall(K, newStr);
         }
 
         // rewrite kernel invocation
@@ -1680,6 +1679,9 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         if (ME->getMemberNameInfo().getAsString() == "reduced_data") {
           HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
 
+          //
+          // TODO: make sure that kernel was executed before reduced_data call
+          //
           // replace member function invocation
           SourceRange range(E->getLocStart(), E->getLocEnd());
           TextRewriter.ReplaceText(range, K->getReduceStr());

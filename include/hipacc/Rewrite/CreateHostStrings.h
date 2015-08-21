@@ -73,8 +73,6 @@ class CreateHostStrings {
     void writeHeaders(std::string &resultStr);
     void writeInitialization(std::string &resultStr);
     void writeKernelCompilation(HipaccKernel *K, std::string &resultStr);
-    void addReductionArgument(HipaccKernel *K, std::string device_name,
-        std::string host_name, std::string &resultStr);
     void writeReductionDeclaration(HipaccKernel *K, std::string &resultStr);
     void writeMemoryAllocation(HipaccImage *Img, std::string width, std::string
         height, std::string host, std::string &resultStr);
@@ -92,10 +90,8 @@ class CreateHostStrings {
         HipaccMask *Mask, std::string &resultStr);
     void writeMemoryRelease(HipaccMemory *Mem, std::string &resultStr,
         bool isPyramid=false);
-    void writeKernelCall(std::string kernelName, HipaccKernelClass *KC,
-        HipaccKernel *K, std::string &resultStr);
-    void writeReduceCall(HipaccKernelClass *KC, HipaccKernel *K, std::string
-        &resultStr);
+    void writeKernelCall(HipaccKernel *K, std::string &resultStr);
+    void writeReduceCall(HipaccKernel *K, std::string &resultStr);
     void writeInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,
         std::string function_name, std::string type_suffix, Interpolate ip_mode,
         Boundary bh_mode, std::string &resultStr);

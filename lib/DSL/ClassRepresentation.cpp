@@ -640,7 +640,6 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
     i++;
   }
 
-  setInfoStr();
   // bh_start_left, bh_start_right
   if (getMaxSizeX() || options.exploreConfig()) {
     hostArgNames.push_back(getInfoStr() + ".bh_start_left");

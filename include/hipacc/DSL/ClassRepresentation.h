@@ -644,11 +644,6 @@ class HipaccKernel : public HipaccKernelFeatures {
     const std::string &getKernelName() const { return kernelName; }
     const std::string &getReduceName() const { return reduceName; }
     const std::string &getFileName() const { return fileName; }
-    void setInfoStr() {
-      std::string cnt(std::to_string(infoStrCnt++));
-      infoStr = name + "_info" + cnt;
-      reduceStr = name + "_red" + cnt;
-    }
     const std::string &getInfoStr() const { return infoStr; }
     const std::string &getReduceStr() const { return reduceStr; }
 
@@ -712,6 +707,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     }
     void setHostArgNames(ArrayRef<Expr *> hostArgs, std::string &hostLiterals,
         unsigned &literalCount) {
+      std::string cnt(std::to_string(infoStrCnt++));
+      infoStr = name + "_info" + cnt;
+      reduceStr = name + "_red" + cnt;
       createArgInfo();
       createHostArgInfo(hostArgs, hostLiterals, literalCount);
     }
