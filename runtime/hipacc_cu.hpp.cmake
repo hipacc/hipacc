@@ -128,11 +128,11 @@ dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
 
 
 std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
-    const char *errorName;
-    const char *errorString;
-    cuGetErrorName(errorCode, &errorName);
-    cuGetErrorString(errorCode, &errorString);
-    return std::string(errorName) + ": " + std::string(errorString);
+    const char *error_name;
+    const char *error_string;
+    cuGetErrorName(errorCode, &error_name);
+    cuGetErrorString(errorCode, &error_string);
+    return std::string(error_name) + ": " + std::string(error_string);
 }
 
 
@@ -584,20 +584,19 @@ void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, st
 void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
     CUresult err = CUDA_SUCCESS;
     CUjit_target target_cc = (CUjit_target) cc;
+    const unsigned opt_level = 3;
+    const int error_log_size = 10240;
+    const int num_options = 4;
+    char error_log_buffer[error_log_size] = { 0 };
 
-
-    const int errorLogSize = 10240;
-    char errorLogBuffer[errorLogSize] = {0};
-
-    int num_options = 2;
-    CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET };
-    void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize, (void *)target_cc };
+    CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET, CU_JIT_OPTIMIZATION_LEVEL };
+    void *option_values[]  = { (void *)error_log_buffer, (void *)(size_t)error_log_size, (void *)target_cc, (void*)(size_t)opt_level };
 
     // load ptx source
-    err = cuModuleLoadDataEx(&module, ptx, num_options, options, optionValues);
+    err = cuModuleLoadDataEx(&module, ptx, num_options, options, option_values);
 
     if (err != CUDA_SUCCESS) {
-        std::cerr << "Error log: " << errorLogBuffer << std::endl;
+        std::cerr << "Error log: " << error_log_buffer << std::endl;
     }
     checkErrDrv(err, "cuModuleLoadDataEx()");
 }
@@ -659,7 +658,7 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
 }
 #else
 void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
-    std::string command = "${NVCC} -ptx -arch=compute_" + std::to_string(cc) + " ";
+    std::string command = "${NVCC} -O4 -ptx -arch=compute_" + std::to_string(cc) + " ";
     for (auto option : build_options) command += option + " ";
     command += file_name + " -o " + file_name + ".ptx 2>&1";
 
@@ -687,8 +686,8 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
     }
 
     std::string ptx_string(std::istreambuf_iterator<char>(ptx_file), (std::istreambuf_iterator<char>()));
-
     const char *ptx = (const char *)ptx_string.c_str();
+
     // compile ptx
     hipaccCreateModule(module, ptx, cc);
 }
