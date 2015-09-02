@@ -29,8 +29,8 @@
 
 #include <cuda.h>
 
-#if CUDA_VERSION < 5000
-    #error "CUDA 5.0 or higher required!"
+#if CUDA_VERSION < 6050
+    #error "CUDA 6.5 or higher required!"
 #endif
 
 #cmakedefine NVML_FOUND
@@ -127,7 +127,6 @@ dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
 }
 
 
-#if CUDA_VERSION >= 6000
 std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
     const char *errorName;
     const char *errorString;
@@ -135,114 +134,8 @@ std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
     cuGetErrorString(errorCode, &errorString);
     return std::string(errorName) + ": " + std::string(errorString);
 }
-#else
-std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
-    switch (errorCode) {
-        case CUDA_SUCCESS:
-            return "CUDA_SUCCESS";
-        case CUDA_ERROR_INVALID_VALUE:
-            return "CUDA_ERROR_INVALID_VALUE";
-        case CUDA_ERROR_OUT_OF_MEMORY:
-            return "CUDA_ERROR_OUT_OF_MEMORY";
-        case CUDA_ERROR_NOT_INITIALIZED:
-            return "CUDA_ERROR_NOT_INITIALIZED";
-        case CUDA_ERROR_DEINITIALIZED:
-            return "CUDA_ERROR_DEINITIALIZED";
-        case CUDA_ERROR_PROFILER_DISABLED:
-            return "CUDA_ERROR_PROFILER_DISABLED";
-        case CUDA_ERROR_PROFILER_NOT_INITIALIZED:
-            return "CUDA_ERROR_PROFILER_NOT_INITIALIZED";
-        case CUDA_ERROR_PROFILER_ALREADY_STARTED:
-            return "CUDA_ERROR_PROFILER_ALREADY_STARTED";
-        case CUDA_ERROR_PROFILER_ALREADY_STOPPED:
-            return "CUDA_ERROR_PROFILER_ALREADY_STOPPED";
-        case CUDA_ERROR_NO_DEVICE:
-            return "CUDA_ERROR_NO_DEVICE";
-        case CUDA_ERROR_INVALID_DEVICE:
-            return "CUDA_ERROR_INVALID_DEVICE";
-        case CUDA_ERROR_INVALID_IMAGE:
-            return "CUDA_ERROR_INVALID_IMAGE";
-        case CUDA_ERROR_INVALID_CONTEXT:
-            return "CUDA_ERROR_INVALID_CONTEXT";
-        case CUDA_ERROR_CONTEXT_ALREADY_CURRENT:
-            return "CUDA_ERROR_CONTEXT_ALREADY_CURRENT";
-        case CUDA_ERROR_MAP_FAILED:
-            return "CUDA_ERROR_MAP_FAILED";
-        case CUDA_ERROR_UNMAP_FAILED:
-            return "CUDA_ERROR_UNMAP_FAILED";
-        case CUDA_ERROR_ARRAY_IS_MAPPED:
-            return "CUDA_ERROR_ARRAY_IS_MAPPED";
-        case CUDA_ERROR_ALREADY_MAPPED:
-            return "CUDA_ERROR_ALREADY_MAPPED";
-        case CUDA_ERROR_NO_BINARY_FOR_GPU:
-            return "CUDA_ERROR_NO_BINARY_FOR_GPU";
-        case CUDA_ERROR_ALREADY_ACQUIRED:
-            return "CUDA_ERROR_ALREADY_ACQUIRED";
-        case CUDA_ERROR_NOT_MAPPED:
-            return "CUDA_ERROR_NOT_MAPPED";
-        case CUDA_ERROR_NOT_MAPPED_AS_ARRAY:
-            return "CUDA_ERROR_NOT_MAPPED_AS_ARRAY";
-        case CUDA_ERROR_NOT_MAPPED_AS_POINTER:
-            return "CUDA_ERROR_NOT_MAPPED_AS_POINTER";
-        case CUDA_ERROR_ECC_UNCORRECTABLE:
-            return "CUDA_ERROR_ECC_UNCORRECTABLE";
-        case CUDA_ERROR_UNSUPPORTED_LIMIT:
-            return "CUDA_ERROR_UNSUPPORTED_LIMIT";
-        case CUDA_ERROR_CONTEXT_ALREADY_IN_USE:
-            return "CUDA_ERROR_CONTEXT_ALREADY_IN_USE";
-        case CUDA_ERROR_PEER_ACCESS_UNSUPPORTED:
-            return "CUDA_ERROR_PEER_ACCESS_UNSUPPORTED";
-        case CUDA_ERROR_INVALID_SOURCE:
-            return "CUDA_ERROR_INVALID_SOURCE";
-        case CUDA_ERROR_FILE_NOT_FOUND:
-            return "CUDA_ERROR_FILE_NOT_FOUND";
-        case CUDA_ERROR_SHARED_OBJECT_SYMBOL_NOT_FOUND:
-            return "CUDA_ERROR_SHARED_OBJECT_SYMBOL_NOT_FOUND";
-        case CUDA_ERROR_SHARED_OBJECT_INIT_FAILED:
-            return "CUDA_ERROR_SHARED_OBJECT_INIT_FAILED";
-        case CUDA_ERROR_OPERATING_SYSTEM:
-            return "CUDA_ERROR_OPERATING_SYSTEM";
-        case CUDA_ERROR_INVALID_HANDLE:
-            return "CUDA_ERROR_INVALID_HANDLE";
-        case CUDA_ERROR_NOT_FOUND:
-            return "CUDA_ERROR_NOT_FOUND";
-        case CUDA_ERROR_NOT_READY:
-            return "CUDA_ERROR_NOT_READY";
-        case CUDA_ERROR_LAUNCH_FAILED:
-            return "CUDA_ERROR_LAUNCH_FAILED";
-        case CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES:
-            return "CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES";
-        case CUDA_ERROR_LAUNCH_TIMEOUT:
-            return "CUDA_ERROR_LAUNCH_TIMEOUT";
-        case CUDA_ERROR_LAUNCH_INCOMPATIBLE_TEXTURING:
-            return "CUDA_ERROR_LAUNCH_INCOMPATIBLE_TEXTURING";
-        case CUDA_ERROR_PEER_ACCESS_ALREADY_ENABLED:
-            return "CUDA_ERROR_PEER_ACCESS_ALREADY_ENABLED";
-        case CUDA_ERROR_PEER_ACCESS_NOT_ENABLED:
-            return "CUDA_ERROR_PEER_ACCESS_NOT_ENABLED";
-        case CUDA_ERROR_PRIMARY_CONTEXT_ACTIVE:
-            return "CUDA_ERROR_PRIMARY_CONTEXT_ACTIVE";
-        case CUDA_ERROR_CONTEXT_IS_DESTROYED:
-            return "CUDA_ERROR_CONTEXT_IS_DESTROYED";
-        case CUDA_ERROR_ASSERT:
-            return "CUDA_ERROR_ASSERT";
-        case CUDA_ERROR_TOO_MANY_PEERS:
-            return "CUDA_ERROR_TOO_MANY_PEERS";
-        case CUDA_ERROR_HOST_MEMORY_ALREADY_REGISTERED:
-            return "CUDA_ERROR_HOST_MEMORY_ALREADY_REGISTERED";
-        case CUDA_ERROR_HOST_MEMORY_NOT_REGISTERED:
-            return "CUDA_ERROR_HOST_MEMORY_NOT_REGISTERED";
-        case CUDA_ERROR_NOT_PERMITTED:
-            return "CUDA_ERROR_NOT_PERMITTED";
-        case CUDA_ERROR_NOT_SUPPORTED:
-            return "CUDA_ERROR_NOT_SUPPORTED";
-        case CUDA_ERROR_UNKNOWN:
-            return "CUDA_ERROR_UNKNOWN";
-        default:
-            return "unknown error code";
-    }
-}
-#endif
+
+
 // Macro for error checking device driver
 #if 1
 #define checkErrDrv(err, name) \
@@ -690,25 +583,7 @@ void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, st
 // Create a module from ptx assembly
 void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
     CUresult err = CUDA_SUCCESS;
-    CUjit_target target_cc;
-
-    #if CUDA_VERSION >= 6000
-    target_cc = (CUjit_target) cc;
-    #else
-    switch (cc) {
-        default:
-            std::cerr << "ERROR: Specified compute capability '" << cc << "' is not supported!" << std::endl;
-            exit(EXIT_FAILURE);
-        case 10: target_cc = CU_TARGET_COMPUTE_10; break;
-        case 11: target_cc = CU_TARGET_COMPUTE_11; break;
-        case 12: target_cc = CU_TARGET_COMPUTE_12; break;
-        case 13: target_cc = CU_TARGET_COMPUTE_13; break;
-        case 20: target_cc = CU_TARGET_COMPUTE_20; break;
-        case 21: target_cc = CU_TARGET_COMPUTE_21; break;
-        case 30: target_cc = CU_TARGET_COMPUTE_30; break;
-        case 35: target_cc = CU_TARGET_COMPUTE_35; break;
-    }
-    #endif
+    CUjit_target target_cc = (CUjit_target) cc;
 
 
     const int errorLogSize = 10240;
@@ -831,7 +706,6 @@ void hipaccGetKernel(CUfunction &function, CUmodule &module, std::string kernel_
 // Computes occupancy for kernel function
 size_t blockSizeToSmemSize(int blockSize) { return 0; } // TODO: provide proper function to estimate smem usage
 void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y) {
-    #if CUDA_VERSION >= 6050
     CUresult err = CUDA_SUCCESS;
     CUdevice dev = 0;
 
@@ -862,9 +736,6 @@ void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y
               << active_warps << " out of " << max_warps << " warps"
               //<< "; optimal block size: " << opt_block_size
               << ")" << std::endl;
-    #else
-    std::cerr << std::endl;
-    #endif
 }
 
 
