@@ -659,25 +659,25 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
 }
 #else
 void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
-    char line[FILENAME_MAX];
-    FILE *fpipe;
-
-    std::stringstream ss;
-    ss << cc;
-
-    std::string command = "${NVCC} -ptx -arch=compute_" + ss.str() + " ";
+    std::string command = "${NVCC} -ptx -arch=compute_" + std::to_string(cc) + " ";
     for (auto option : build_options) command += option + " ";
     command += file_name + " -o " + file_name + ".ptx 2>&1";
 
-    if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
+    if (auto stream = popen(command.c_str(), "r")) {
+        char line[FILENAME_MAX];
+
+        while (fgets(line, sizeof(char) * FILENAME_MAX, stream)) {
+            std::cerr << line;
+        }
+
+        int exit_status = pclose(stream);
+        if (WEXITSTATUS(exit_status)) {
+            exit(EXIT_FAILURE);
+        }
+    } else {
         perror("Problems with pipe");
         exit(EXIT_FAILURE);
     }
-
-    while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
-        std::cerr << line;
-    }
-    pclose(fpipe);
 
     std::string ptx_filename = file_name + ".ptx";
     std::ifstream ptx_file(ptx_filename);
