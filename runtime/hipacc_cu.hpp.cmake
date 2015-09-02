@@ -708,19 +708,18 @@ size_t blockSizeToSmemSize(int blockSize) { return 0; } // TODO: provide proper 
 void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y) {
     CUresult err = CUDA_SUCCESS;
     CUdevice dev = 0;
-
     int warp_size;
-    err = cuDeviceGetAttribute(&warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, dev);
-    checkErrDrv(err, "cuDeviceGetAttribute()");
     int block_size = tile_size_x*tile_size_y;
     size_t dynamic_smem_bytes = 0;
     int block_size_limit = 0;
+
+    err = cuDeviceGetAttribute(&warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, dev);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
 
     int active_blocks;
     int min_grid_size, opt_block_size;
     err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&active_blocks, fun, block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
-
     err = cuOccupancyMaxPotentialBlockSize(&min_grid_size, &opt_block_size, fun, &blockSizeToSmemSize, dynamic_smem_bytes, block_size_limit);
     checkErrDrv(err, "cuOccupancyMaxPotentialBlockSize()");
 
@@ -728,6 +727,8 @@ void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y
     int max_blocks;
     err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&max_blocks, fun, opt_block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
+
+    block_size = ((block_size + warp_size - 1) / warp_size) * warp_size;
     int max_warps = max_blocks * (opt_block_size/warp_size);
     int active_warps = active_blocks * (block_size/warp_size);
     float occupancy = (float)active_warps/(float)max_warps;
