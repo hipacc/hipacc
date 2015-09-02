@@ -88,15 +88,13 @@ class Deriv1DCol : public Kernel<float> {
   private:
     Accessor<uchar> &input;
     Mask<float> &mask;
-    const int size;
 
   public:
     Deriv1DCol(IterationSpace<float> &iter, Accessor<uchar> &input,
-            Mask<float> &mask, const int size)
+            Mask<float> &mask)
           : Kernel(iter),
             input(input),
-            mask(mask),
-            size(size) {
+            mask(mask) {
       add_accessor(&input);
     }
 
@@ -112,15 +110,13 @@ class Deriv1DRow : public Kernel<float> {
   private:
     Accessor<float> &input;
     Mask<float> &mask;
-    const int size;
 
   public:
     Deriv1DRow(IterationSpace<float> &iter, Accessor<float> &input,
-            Mask<float> &mask, const int size)
+            Mask<float> &mask)
           : Kernel(iter),
             input(input),
-            mask(mask),
-            size(size) {
+            mask(mask) {
       add_accessor(&input);
     }
 
@@ -418,22 +414,22 @@ int main(int argc, const char **argv) {
     BoundaryCondition<float> BcTmpDcClamp(TMP, 1, 3, Boundary::CLAMP);
     Accessor<float> AccTmpDcClamp(BcTmpDcClamp);
 
-    Deriv1DCol D1dxc(IsTmp, AccInClamp, MXX, 3);
+    Deriv1DCol D1dxc(IsTmp, AccInClamp, MXX);
     D1dxc.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
 
-    Deriv1DRow D1dxr(IsDx, AccTmpDcClamp, MXY, 3);
+    Deriv1DRow D1dxr(IsDx, AccTmpDcClamp, MXY);
     D1dxr.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
 
-    Deriv1DCol D1dyc(IsTmp, AccInClamp, MYX, 3);
+    Deriv1DCol D1dyc(IsTmp, AccInClamp, MYX);
     D1dyc.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);
 
-    Deriv1DRow D1dyr(IsDy, AccTmpDcClamp, MYY, 3);
+    Deriv1DRow D1dyr(IsDy, AccTmpDcClamp, MYY);
     D1dyr.execute();
     timing = hipacc_last_kernel_timing();
     timings.push_back(timing);

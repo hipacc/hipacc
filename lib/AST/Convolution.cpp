@@ -90,8 +90,8 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
 template<typename T> T get_init(Reduce mode) {
   switch (mode) {
     case Reduce::SUM:    return 0;
-    case Reduce::MIN:    return std::numeric_limits<T>::min();
-    case Reduce::MAX:    return std::numeric_limits<T>::max();
+    case Reduce::MIN:    return std::numeric_limits<T>::max();
+    case Reduce::MAX:    return std::numeric_limits<T>::min();
     case Reduce::PROD:   return 1;
     case Reduce::MEDIAN: assert(false && "median not yet supported");
   }
