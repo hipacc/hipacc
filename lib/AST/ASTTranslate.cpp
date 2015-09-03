@@ -1523,14 +1523,12 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
 
 Stmt *ASTTranslate::VisitReturnStmtTranslate(ReturnStmt *S) {
   // replace return statements within convolve lambda-functions
-  if (convMask && convTmp) {
+  if (convMask && convTmp)
     return getConvolutionStmt(convMode, convTmp, Clone(S->getRetValue()));
-  } else if (!redDomains.empty() && !redTmps.empty()) {
+  if (!redDomains.empty() && !redTmps.empty())
     return getConvolutionStmt(redModes.back(), redTmps.back(),
                               Clone(S->getRetValue()));
-  } else {
-    return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
-  }
+  return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
 }
 
 
@@ -1662,9 +1660,9 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
     }
 
     return result;
-  } else {
-    assert(0 && "CallExpr without FunctionDecl as Callee!");
   }
+
+  assert(0 && "CallExpr without FunctionDecl as Callee!");
 }
 
 
@@ -2252,9 +2250,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           compilerOptions.emitRenderscript() ||
           compilerOptions.emitFilterscript()) {
         return createParenExpr(Ctx, removeISOffsetY(gidYRef));
-      } else {
-        return gidYRef;
       }
+
+      return gidYRef;
     }
 
     // output() method -> img[y][x]
@@ -2302,31 +2300,29 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
       // Acc.x() method -> acc_scale_x * (gid_x - is_offset_x)
       if (ME->getMemberNameInfo().getAsString() == "x") {
-        // remove is_offset_x and scale index to Accessor size
-        if (acc->getInterpolationMode() != Interpolate::NO) {
-          return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-              createParenExpr(Ctx, addNNInterpolationX(acc,
-                  tileVars.global_id_x)), nullptr,
-              Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
-        } else {
+        if (acc->getInterpolationMode() == Interpolate::NO) {
           return createParenExpr(Ctx, removeISOffsetX(tileVars.global_id_x));
         }
+        // remove is_offset_x and scale index to Accessor size
+        return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+            createParenExpr(Ctx, addNNInterpolationX(acc,
+                tileVars.global_id_x)), nullptr,
+            Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       }
 
       // Acc.y() method -> acc_scale_y * gid_y
       if (ME->getMemberNameInfo().getAsString() == "y") {
-        Expr *idx_y = gidYRef;
-        // scale index to Accessor size
-        if (acc->getInterpolationMode() != Interpolate::NO) {
-          idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
-              createParenExpr(Ctx, addNNInterpolationY(acc, idx_y)), nullptr,
-              Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
-        } else if (compilerOptions.emitRenderscript() ||
-            compilerOptions.emitFilterscript()) {
-          idx_y = createParenExpr(Ctx, removeISOffsetY(gidYRef));
+        if (acc->getInterpolationMode() == Interpolate::NO) {
+          if (compilerOptions.emitRenderscript() ||
+              compilerOptions.emitFilterscript()) {
+            return createParenExpr(Ctx, removeISOffsetY(gidYRef));
+          }
+          return gidYRef;
         }
-
-        return idx_y;
+        // scale index to Accessor size
+        return createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+            createParenExpr(Ctx, addNNInterpolationY(acc, gidYRef)), nullptr,
+            Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       }
 
       // Acc.pixel_at(x, y) method -> img[y][x]

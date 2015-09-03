@@ -115,9 +115,8 @@ Expr *ASTTranslate::addConstantUpper(HipaccAccessor *Acc, Expr *idx, Expr
 
   if (cond) {
     return createBinaryOperator(Ctx, bo_upper, cond, BO_LAnd, Ctx.BoolTy);
-  } else {
-    return bo_upper;
   }
+  return bo_upper;
 }
 Expr *ASTTranslate::addConstantLower(HipaccAccessor *Acc, Expr *idx, Expr
     *lower, Expr *cond) {
@@ -126,9 +125,8 @@ Expr *ASTTranslate::addConstantLower(HipaccAccessor *Acc, Expr *idx, Expr
 
   if (cond) {
     return createBinaryOperator(Ctx, bo_lower, cond, BO_LAnd, Ctx.BoolTy);
-  } else {
-    return bo_lower;
   }
+  return bo_lower;
 }
 
 

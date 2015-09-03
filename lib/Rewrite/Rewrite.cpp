@@ -1694,7 +1694,9 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
           return true;
-        } else if (ME->getMemberNameInfo().getAsString() == "width") {
+        }
+
+        if (ME->getMemberNameInfo().getAsString() == "width") {
           newStr = "width";
         } else if (ME->getMemberNameInfo().getAsString() == "height") {
           newStr = "height";

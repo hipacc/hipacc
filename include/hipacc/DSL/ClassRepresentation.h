@@ -677,15 +677,13 @@ class HipaccKernel : public HipaccKernelFeatures {
 
     HipaccAccessor *getImgFromMapping(FieldDecl *decl) {
       auto iter = imgMap.find(decl);
-
       if (iter == imgMap.end()) return nullptr;
-      else return iter->second;
+      return iter->second;
     }
     HipaccMask *getMaskFromMapping(FieldDecl *decl) {
       auto iter = maskMap.find(decl);
-
       if (iter == maskMap.end()) return nullptr;
-      else return iter->second;
+      return iter->second;
     }
 
     ArrayRef<QualType> getArgTypes() {

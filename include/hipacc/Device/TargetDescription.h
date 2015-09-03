@@ -437,16 +437,15 @@ class HipaccDevice : public HipaccDeviceOptions {
           " -I " + std::string(RUNTIME_INCLUDES) +
           " -arch=sm_" + std::to_string(getTargetCC()) + " -cubin -Xptxas -v " +
           file + ".cu 2>&1";
-      } else {
-        std::string command = std::string(CL_COMPILER) +
-          " -i " + std::string(RUNTIME_INCLUDES) +
-          " -k " + kernel + " -f " + file + ".cl ";
-        if (isAMDGPU())    command += "-p AMD    -d GPU 2>&1";
-        if (isARMGPU())    command += "-p ARM    -d GPU 2>&1";
-        if (isINTELACC())  command += "-p INTEL  -d ACC 2>&1";
-        if (isNVIDIAGPU()) command += "-p NVIDIA -d GPU 2>&1";
-        return command;
       }
+      std::string command = std::string(CL_COMPILER) +
+        " -i " + std::string(RUNTIME_INCLUDES) +
+        " -k " + kernel + " -f " + file + ".cl ";
+      if (isAMDGPU())    command += "-p AMD    -d GPU 2>&1";
+      if (isARMGPU())    command += "-p ARM    -d GPU 2>&1";
+      if (isINTELACC())  command += "-p INTEL  -d ACC 2>&1";
+      if (isNVIDIAGPU()) command += "-p NVIDIA -d GPU 2>&1";
+      return command;
     }
 };
 } // end namespace hipacc
