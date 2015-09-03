@@ -115,9 +115,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       skipTransfer(false)
     {}
 
-    void HandleTranslationUnit(ASTContext &Context);
-    bool HandleTopLevelDecl(DeclGroupRef D);
-
+    // RecursiveASTVisitor
     bool VisitCXXRecordDecl(CXXRecordDecl *D);
     bool VisitDeclStmt(DeclStmt *D);
     bool VisitFunctionDecl(FunctionDecl *D);
@@ -125,16 +123,18 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     bool VisitCXXMemberCallExpr(CXXMemberCallExpr *E);
     bool VisitCallExpr (CallExpr *E);
 
-    //bool shouldVisitTemplateInstantiations() const { return true; }
-
   private:
-    void Initialize(ASTContext &Context) {
+    // ASTConsumer
+    void HandleTranslationUnit(ASTContext &Context) override;
+    bool HandleTopLevelDecl(DeclGroupRef D) override;
+    void Initialize(ASTContext &Context) override {
       // get the ID and start/end of the main file.
       mainFileID = SM.getMainFileID();
       TextRewriter.setSourceMgr(SM, Context.getLangOpts());
       TextRewriteOptions.RemoveLineIfEmpty = true;
     }
 
+    // Rewrite
     std::string convertToString(Stmt *from) {
       assert(from != nullptr && "Expected non-null Stmt");
       std::string SS;

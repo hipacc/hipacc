@@ -80,7 +80,7 @@ class KernelStatistics : public ManagedAnalysis {
     VectorInfo getVectorizeInfo(const VarDecl *VD);
     KernelType getKernelType();
 
-    virtual ~KernelStatistics();
+    ~KernelStatistics() override;
 
     static KernelStatistics *computeKernelStatistics(AnalysisDeclContext
         &analysisContext, StringRef name, FieldDecl *output_image,
