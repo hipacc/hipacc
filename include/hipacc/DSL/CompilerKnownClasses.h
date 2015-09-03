@@ -76,11 +76,7 @@ class CompilerKnownClasses {
         QT = QT->getPointeeType();
       }
 
-      if (QT == CRD->getTypeForDecl()->getCanonicalTypeInternal()) {
-        return true;
-      }
-
-      return false;
+      return QT == CRD->getTypeForDecl()->getCanonicalTypeInternal();
     }
 
     bool isTypeOfTemplateClass(QualType QT, CXXRecordDecl *CRD) {

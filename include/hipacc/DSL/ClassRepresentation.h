@@ -652,8 +652,7 @@ class HipaccKernel : public HipaccKernelFeatures {
         map.second->resetDecls();
     }
     bool getUsed(std::string name) {
-      if (usedVars.find(name) != usedVars.end()) return true;
-      else return false;
+      return usedVars.find(name) != usedVars.end();
     }
 
     // keep track of functions called within kernel
