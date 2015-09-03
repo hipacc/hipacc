@@ -39,7 +39,7 @@ using namespace hipacc;
 using namespace hipacc::Builtin;
 
 static hipacc::Builtin::Info BuiltinInfo[] = {
-  { "not a builtin function", 0, Language::C99, (ID)0, (ID)0, (ID)0, 0 },
+  { "not a builtin function", 0, Language::C99, static_cast<ID>(0), static_cast<ID>(0), static_cast<ID>(0), 0 },
   #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID, RSID) { #NAME, TYPE, Language::C99, CUDAID, OPENCLID, RSID, 0 },
   #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, Language::CUDA, (ID)0, (ID)0, (ID)0, 0 },
   #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, Language::OpenCLCPU, (ID)0, (ID)0, (ID)0, 0 },

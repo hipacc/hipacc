@@ -516,7 +516,7 @@ class HipaccKernelFeatures : public HipaccDevice {
       }
 
       if (acc->getSizeX() * acc->getSizeY() >= local_memory_threshold) {
-        mem_type = (MemoryType) (mem_type|Local);
+        mem_type = static_cast<MemoryType>(mem_type|Local);
       }
 
       memMap[acc] = mem_type;

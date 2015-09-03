@@ -70,7 +70,7 @@ class KernelStatsImpl {
     unsigned num_ops, num_sops;
     unsigned num_img_loads, num_img_stores;
     unsigned num_mask_loads, num_mask_stores;
-    VectorInfo curStmtVectorize;
+    VectorInfo stmtVectorize;
     bool inLambdaFunction;
 
     void runOnBlock(const CFGBlock *block);
@@ -104,14 +104,14 @@ class KernelStatsImpl {
       num_img_stores(0),
       num_mask_loads(0),
       num_mask_stores(0),
-      curStmtVectorize(SCALAR),
+      stmtVectorize(SCALAR),
       inLambdaFunction(false)
     {}
 };
 }
 
 static KernelStatsImpl &getImpl(void *x) {
-  return *((KernelStatsImpl *) x);
+  return *(reinterpret_cast<KernelStatsImpl *>(x));
 }
 
 
@@ -349,24 +349,25 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
             default:
               break;
             case 1:
-              mem_pattern = (MemoryPattern) (mem_pattern|NO_STRIDE);
+              mem_pattern = static_cast<MemoryPattern>(mem_pattern|NO_STRIDE);
               if (KS.kernelType < PointOperator) KS.kernelType = PointOperator;
               break;
             case 2:
               // TODO: check for Mask or Domain as parameter and check if we
               // need only STRIDE_X or STRIDE_Y
-              mem_pattern = (MemoryPattern) (mem_pattern|STRIDE_XY);
+              mem_pattern = static_cast<MemoryPattern>(mem_pattern|STRIDE_XY);
               if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
               break;
             case 3:
-              mem_pattern = (MemoryPattern)
-                (mem_pattern|checkStride(call->getArg(1), call->getArg(2)));
+              mem_pattern = static_cast<MemoryPattern>(mem_pattern |
+                  checkStride(call->getArg(1), call->getArg(2)));
               if (mem_pattern > NO_STRIDE && KS.kernelType < LocalOperator) {
                 KS.kernelType = LocalOperator;
               }
               break;
           }
-          KS.memToAccess[FD] = (MemoryAccess) (KS.memToAccess[FD]|mem_acc);
+          KS.memToAccess[FD] =
+            static_cast<MemoryAccess>(KS.memToAccess[FD]|mem_acc);
           KS.memToPattern[FD] = mem_pattern;
 
           return true;
@@ -381,18 +382,19 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
           if (KS.inLambdaFunction) {
             // TODO: check for Mask as parameter and check if we need only
             // STRIDE_X or STRIDE_Y
-            mem_pattern = (MemoryPattern) (mem_pattern|STRIDE_XY);
+            mem_pattern = static_cast<MemoryPattern>(mem_pattern|STRIDE_XY);
             if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
           } else {
             assert(call->getNumArgs()==3 &&
                 "Mask access requires x and y parameters!");
-            mem_pattern = (MemoryPattern)
-              (mem_pattern|checkStride(call->getArg(1), call->getArg(2)));
+            mem_pattern = static_cast<MemoryPattern>(mem_pattern |
+                checkStride(call->getArg(1), call->getArg(2)));
             if (mem_pattern > NO_STRIDE && KS.kernelType < LocalOperator) {
               KS.kernelType = LocalOperator;
             }
           }
-          KS.memToAccess[FD] = (MemoryAccess) (KS.memToAccess[FD]|mem_acc);
+          KS.memToAccess[FD] =
+            static_cast<MemoryAccess>(KS.memToAccess[FD]|mem_acc);
           KS.memToPattern[FD] = mem_pattern;
 
           return false;
@@ -407,13 +409,13 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
           if (KS.inLambdaFunction) {
             // TODO: check for Domain as parameter and check if we need only
             // STRIDE_X or STRIDE_Y
-            mem_pattern = (MemoryPattern) (mem_pattern|STRIDE_XY);
+            mem_pattern = static_cast<MemoryPattern>(mem_pattern|STRIDE_XY);
             if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
           } else {
             assert(call->getNumArgs()==3 &&
                 "Domain access requires x and y parameters!");
-            mem_pattern = (MemoryPattern)
-              (mem_pattern|checkStride(call->getArg(1), call->getArg(2)));
+            mem_pattern = static_cast<MemoryPattern>(mem_pattern |
+                checkStride(call->getArg(1), call->getArg(2)));
             if (mem_pattern > NO_STRIDE && KS.kernelType < LocalOperator) {
               KS.kernelType = LocalOperator;
             }
@@ -448,14 +450,15 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
         MemoryPattern mem_pattern = KS.memToPattern[FD];
 
         if (ME->getMemberNameInfo().getAsString()=="output") {
-          mem_pattern = (MemoryPattern) (mem_pattern|NO_STRIDE);
+          mem_pattern = static_cast<MemoryPattern>(mem_pattern|NO_STRIDE);
           if (KS.kernelType < PointOperator) KS.kernelType = PointOperator;
         } else {
-          mem_pattern = (MemoryPattern) (mem_pattern|USER_XY);
+          mem_pattern = static_cast<MemoryPattern>(mem_pattern|USER_XY);
           KS.kernelType = UserOperator;
         }
 
-        KS.memToAccess[FD] = (MemoryAccess) (KS.memToAccess[FD]|mem_acc);
+        KS.memToAccess[FD] =
+          static_cast<MemoryAccess>(KS.memToAccess[FD]|mem_acc);
         KS.memToPattern[FD] = mem_pattern;
 
         return true;
@@ -502,16 +505,16 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
     case BO_LOr:
       KS.num_ops++;
       if (checkImageAccess(E->getLHS(), READ_ONLY)) {
-        KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
+        KS.stmtVectorize = static_cast<VectorInfo>(KS.stmtVectorize|VECTORIZE);
       }
       if (checkImageAccess(E->getRHS(), READ_ONLY)) {
-        KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
+        KS.stmtVectorize = static_cast<VectorInfo>(KS.stmtVectorize|VECTORIZE);
       }
       break;
     case BO_Assign:
       KS.num_ops++;
       if (checkImageAccess(E->getRHS(), READ_ONLY)) {
-        KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
+        KS.stmtVectorize = static_cast<VectorInfo>(KS.stmtVectorize|VECTORIZE);
       } else {
         if (isa<DeclRefExpr>(E->getRHS()->IgnoreParenImpCasts())) {
           DRE = dyn_cast<DeclRefExpr>(E->getRHS()->IgnoreParenImpCasts());
@@ -519,8 +522,8 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
 
-            KS.declsToVector[VD] = (VectorInfo)
-              (KS.curStmtVectorize|KS.declsToVector[VD]);
+            KS.declsToVector[VD] =
+              static_cast<VectorInfo>(KS.stmtVectorize|KS.declsToVector[VD]);
           }
         }
       }
@@ -531,8 +534,8 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
 
-            KS.declsToVector[VD] = (VectorInfo)
-              (KS.curStmtVectorize|KS.declsToVector[VD]);
+            KS.declsToVector[VD] =
+              static_cast<VectorInfo>(KS.stmtVectorize|KS.declsToVector[VD]);
           }
         } else {
           #ifdef DEBUG_ANALYSIS
@@ -543,7 +546,7 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
         }
       }
       // reset vectorization status for next statement
-      KS.curStmtVectorize = SCALAR;
+      KS.stmtVectorize = SCALAR;
 
       break;
     case BO_MulAssign:
@@ -558,7 +561,7 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
     case BO_OrAssign:
       KS.num_ops+=2;
       if (checkImageAccess(E->getRHS(), READ_ONLY)) {
-        KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
+        KS.stmtVectorize = static_cast<VectorInfo>(KS.stmtVectorize|VECTORIZE);
       } else {
         if (isa<DeclRefExpr>(E->getRHS()->IgnoreParenImpCasts())) {
           DRE = dyn_cast<DeclRefExpr>(E->getRHS()->IgnoreParenImpCasts());
@@ -566,8 +569,8 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
 
-            KS.declsToVector[VD] = (VectorInfo)
-              (KS.curStmtVectorize|KS.declsToVector[VD]);
+            KS.declsToVector[VD] =
+              static_cast<VectorInfo>(KS.stmtVectorize|KS.declsToVector[VD]);
           }
         }
       }
@@ -578,8 +581,8 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
           if (isa<VarDecl>(DRE->getDecl())) {
             VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl());
 
-            KS.declsToVector[VD] = (VectorInfo)
-              (KS.curStmtVectorize|KS.declsToVector[VD]);
+            KS.declsToVector[VD] =
+              static_cast<VectorInfo>(KS.stmtVectorize|KS.declsToVector[VD]);
           }
         } else {
           #ifdef DEBUG_ANALYSIS
@@ -590,7 +593,7 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
         }
       }
       // reset vectorization status for next statement
-      KS.curStmtVectorize = SCALAR;
+      KS.stmtVectorize = SCALAR;
 
       break;
     case BO_Comma:
@@ -634,7 +637,7 @@ void TransferFunctions::VisitUnaryOperator(UnaryOperator *E) {
       break;
   }
   // reset vectorization status for next statement
-  KS.curStmtVectorize = SCALAR;
+  KS.stmtVectorize = SCALAR;
 }
 
 void TransferFunctions::VisitCallExpr(CallExpr *E) {
@@ -670,15 +673,16 @@ void TransferFunctions::VisitDeclStmt(DeclStmt *S) {
       VarDecl *VD = dyn_cast<VarDecl>(decl);
       if (VD->hasInit()) {
         if (checkImageAccess(VD->getInit(), READ_ONLY)) {
-          KS.curStmtVectorize = (VectorInfo) (KS.curStmtVectorize|VECTORIZE);
+          KS.stmtVectorize =
+            static_cast<VectorInfo>(KS.stmtVectorize|VECTORIZE);
         }
       }
-      KS.declsToVector[VD] = KS.curStmtVectorize;
+      KS.declsToVector[VD] = KS.stmtVectorize;
     }
   }
 
   // reset vectorization status for next statement
-  KS.curStmtVectorize = SCALAR;
+  KS.stmtVectorize = SCALAR;
 }
 
 void TransferFunctions::VisitDeclRefExpr(DeclRefExpr *E) {
@@ -688,8 +692,8 @@ void TransferFunctions::VisitDeclRefExpr(DeclRefExpr *E) {
     // update vectorization information for current statement only if the
     // referenced variable is a vector
     if (KS.declsToVector.count(VD)) {
-      KS.curStmtVectorize = (VectorInfo)
-        (KS.curStmtVectorize|KS.declsToVector[VD]);
+      KS.stmtVectorize =
+        static_cast<VectorInfo>(KS.stmtVectorize|KS.declsToVector[VD]);
     }
   }
 }
@@ -795,7 +799,7 @@ void TransferFunctions::VisitTerminatorSwitchStmt(const SwitchStmt *S) {
 KernelStatistics::KernelStatistics(void *im) : impl(im) {}
 
 KernelStatistics::~KernelStatistics() {
-  delete (KernelStatsImpl*) impl;
+  delete reinterpret_cast<KernelStatsImpl*>(impl);
 }
 
 KernelStatistics *KernelStatistics::computeKernelStatistics(AnalysisDeclContext

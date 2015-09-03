@@ -183,7 +183,7 @@ class HipaccDeviceOptions {
       pixels_per_thread[UserOperator] = 1;
 
       // use default provided by user as compiler option
-      if (options.multiplePixelsPerThread((CompilerOption)(USER_ON|USER_OFF))) {
+      if (options.multiplePixelsPerThread(static_cast<CompilerOption>(USER_ON|USER_OFF))) {
         pixels_per_thread[PointOperator] = options.getPixelsPerThread();
         pixels_per_thread[LocalOperator] = options.getPixelsPerThread();
         pixels_per_thread[GlobalOperator] = options.getPixelsPerThread();
@@ -216,7 +216,7 @@ class HipaccDeviceOptions {
 
       if (options.vectorizeKernels(USER_ON)) {
         vectorization = true;
-      } else if (options.vectorizeKernels((CompilerOption)(USER_OFF|OFF))) {
+      } else if (options.vectorizeKernels(static_cast<CompilerOption>(USER_OFF|OFF))) {
         vectorization = false;
       }
     }
