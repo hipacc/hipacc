@@ -1,14 +1,14 @@
-CC = clang++
-CC = g++
+CC = @CMAKE_CXX_COMPILER@
+
+#OPENCV_OPENCL_DEVICE= <Platform>:<CPU|GPU|ACCELERATOR|nothing=GPU/CPU>:<DeviceName or ID>
 
 HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
 
-MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5 -D OpenCV
+MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5 @OPENCV_DEFINITIONS@
 CFLAGS        = $(MYFLAGS) -std=c++11 @THREADS_ARG@ -Wall -Wunused \
                 -I$(HIPACC_DIR)/include/dsl \
                 -I@OPENCV_INCLUDE_DIRS@
-LDFLAGS       = -lm @RT_LIBRARIES@ @THREADS_LINK@ \
-                -L@OPENCV_LIBRARY_DIRS@ -lopencv_core -lopencv_gpu -lopencv_highgui -lopencv_imgproc
+LDFLAGS       = -lm @RT_LIBRARIES@ @THREADS_LINK@ @OPENCV_LIBRARIES@
 OFLAGS        = -O3
 
 ifeq ($(notdir $(CC)),clang++)

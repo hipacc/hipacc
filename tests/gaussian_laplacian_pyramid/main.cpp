@@ -24,7 +24,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -37,6 +36,8 @@
 //#define SIZE_Y 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
+
+// code variants
 #define USE_LAMBDA
 
 using namespace hipacc;
@@ -45,8 +46,7 @@ class Gaussian : public Kernel<char> {
   private:
     Accessor<char> &input;
     Mask<float> &mask;
-    int size_x;
-    int size_y;
+    int size_x, size_y;
 
   public:
     Gaussian(IterationSpace<char> &iter, Accessor<char> &input,
@@ -67,11 +67,11 @@ class Gaussian : public Kernel<char> {
       #else
       const int anchor_x = size_x >> 1;
       const int anchor_y = size_y >> 1;
-      float sum = 0.0f;
+      float sum = 0;
 
-      for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-        for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-          sum += mask(xf, yf)*input(xf, yf);
+      for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
+        for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
+          sum += mask(xf, yf) * input(xf, yf);
         }
       }
 
@@ -210,7 +210,7 @@ int main(int argc, const char **argv) {
 
     traverse(PGAUS, PTMP, PLAP, [&] () {
         if (!PGAUS.is_top_level()) {
-          // Construct gaussian pyramid
+          // Construct Gaussian pyramid
           BoundaryCondition<char> BC(PGAUS(-1), M, Boundary::CLAMP);
           Accessor<char> Acc1(BC);
           IterationSpace<char> IS1(PTMP(-1));
@@ -224,7 +224,7 @@ int main(int argc, const char **argv) {
           std::cout << "Level " << PGAUS.level()-1 << ": Subsample" << std::endl;
           Sub.execute();
 
-          // Construct lapacian pyramid
+          // Construct Laplacian pyramid
           Accessor<char> Acc3(PGAUS(-1));
           Accessor<char> Acc4(PGAUS(0), Interpolate::LF);
           IterationSpace<char> IS3(PLAP(-1));
@@ -235,7 +235,7 @@ int main(int argc, const char **argv) {
 
         traverse();
 
-        // Collapse laplacian pyramid
+        // Collapse Laplacian pyramid
         if (!PGAUS.is_bottom_level()) {
           Accessor<char> Acc1(PGAUS(1), Interpolate::LF);
           Accessor<char> Acc2(PLAP(0));

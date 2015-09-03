@@ -24,7 +24,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -52,8 +51,7 @@ double time_ms () {
 
 // reference
 template<typename data_t>
-data_t calc_min_pixel(data_t *in, int width, int height, int offset_x, int
-        offset_y, int is_width, int is_height) {
+data_t calc_min_pixel(data_t *in, int width, int height, int offset_x, int offset_y, int is_width, int is_height) {
     data_t min_val = in[offset_x + offset_y*width];
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
@@ -70,8 +68,7 @@ data_t calc_min_pixel(data_t *in, int width, int height) {
 }
 
 template<typename data_t>
-float calc_max_pixel(data_t *in, int width, int height, int offset_x, int
-        offset_y, int is_width, int is_height) {
+float calc_max_pixel(data_t *in, int width, int height, int offset_x, int offset_y, int is_width, int is_height) {
     data_t max_val = in[offset_x + offset_y*width];
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
@@ -88,8 +85,7 @@ float calc_max_pixel(data_t *in, int width, int height) {
 }
 
 template<typename data_t>
-data_t calc_sum_pixel(data_t *in, int width, int height, int offset_x, int
-        offset_y, int is_width, int is_height) {
+data_t calc_sum_pixel(data_t *in, int width, int height, int offset_x, int offset_y, int is_width, int is_height) {
     data_t sum = 0;
 
     for (int y=offset_y; y<offset_y+is_height; ++y) {
@@ -218,7 +214,6 @@ class SumReductionFloat : public Kernel<float> {
 
 
 int main(int argc, const char **argv) {
-    double time0, time1, dt;
     const int width = WIDTH;
     const int height = HEIGHT;
 
@@ -275,69 +270,68 @@ int main(int argc, const char **argv) {
     MaxReductionFloat redMaxAccInFloat(out_acc_float_iter, acc_in_float);
     SumReductionFloat redSumAccInFloat(out_acc_float_iter, acc_in_float);
 
-    // warmup
-    redMinINInt.execute();
-    redMaxINInt.execute();
-    redSumINInt.execute();
-    redMinINFloat.execute();
-    redMaxINFloat.execute();
-    redSumINFloat.execute();
-    redMinAccInInt.execute();
-    redMaxAccInInt.execute();
-    redSumAccInInt.execute();
-    redMinAccInFloat.execute();
-    redMaxAccInFloat.execute();
-    redSumAccInFloat.execute();
 
     std::cerr << "Calculating global reductions ..." << std::endl;
-    time0 = time_ms();
+    double start = time_ms();
 
     // Images
+    redMinINInt.execute();
     int min_pixel_kernel_int_img = redMinINInt.reduced_data();
     std::cerr << "min (img, int) reduction: " << min_pixel_kernel_int_img << std::endl;
 
+    redMaxINInt.execute();
     int max_pixel_kernel_int_img = redMaxINInt.reduced_data();
     std::cerr << "max (img, int) reduction: " << max_pixel_kernel_int_img << std::endl;
 
+    redSumINInt.execute();
     int sum_pixel_kernel_int_img = redSumINInt.reduced_data();
     std::cerr << "sum (img, int) reduction: " << sum_pixel_kernel_int_img << std::endl;
 
+    redMinINFloat.execute();
     float min_pixel_kernel_float_img = redMinINFloat.reduced_data();
     std::cerr << "min (img, float) reduction: " << min_pixel_kernel_float_img << std::endl;
 
+    redMaxINFloat.execute();
     float max_pixel_kernel_float_img = redMaxINFloat.reduced_data();
     std::cerr << "max (img, float) reduction: " << max_pixel_kernel_float_img << std::endl;
 
+    redSumINFloat.execute();
     float sum_pixel_kernel_float_img = redSumINFloat.reduced_data();
     std::cerr << "sum (img, float) reduction: " << sum_pixel_kernel_float_img << std::endl;
 
     // Accessors
+    redMinAccInInt.execute();
     int min_pixel_kernel_int_acc = redMinAccInInt.reduced_data();
     std::cerr << "min (acc, int) reduction: " << min_pixel_kernel_int_acc << std::endl;
 
+    redMaxAccInInt.execute();
     int max_pixel_kernel_int_acc = redMaxAccInInt.reduced_data();
     std::cerr << "max (acc, int) reduction: " << max_pixel_kernel_int_acc << std::endl;
 
+    redSumAccInInt.execute();
     int sum_pixel_kernel_int_acc = redSumAccInInt.reduced_data();
     std::cerr << "sum (acc, int) reduction: " << sum_pixel_kernel_int_acc << std::endl;
 
+    redMinAccInFloat.execute();
     float min_pixel_kernel_float_acc = redMinAccInFloat.reduced_data();
     std::cerr << "min (acc, float) reduction: " << min_pixel_kernel_float_acc << std::endl;
 
+    redMaxAccInFloat.execute();
     float max_pixel_kernel_float_acc = redMaxAccInFloat.reduced_data();
     std::cerr << "max (acc, float) reduction: " << max_pixel_kernel_float_acc << std::endl;
 
+    redSumAccInFloat.execute();
     float sum_pixel_kernel_float_acc = redSumAccInFloat.reduced_data();
     std::cerr << "sum (acc, float) reduction: " << sum_pixel_kernel_float_acc << std::endl;
 
-    time1 = time_ms();
-    dt = time1 - time0;
+    double end = time_ms();
+    float time = end - start;
 
-    std::cerr << "Hipacc: " << dt << " ms, " << (width*height/dt)/1000 << " Mpixel/s" << std::endl;
+    std::cerr << "Hipacc: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
 
     std::cerr << std::endl << "Calculating reference ..." << std::endl;
-    time0 = time_ms();
+    start = time_ms();
 
     // calculate reference: Images
     int min_pixel_ref_int_img = calc_min_pixel(input_int, width, height);
@@ -355,9 +349,9 @@ int main(int argc, const char **argv) {
     float max_pixel_ref_float_acc = calc_max_pixel(input_float, width, height, width/3, height/3, width/3, height/3);
     float sum_pixel_ref_float_acc = calc_sum_pixel(input_float, width, height, width/3, height/3, width/3, height/3);
 
-    time1 = time_ms();
-    dt = time1 - time0;
-    std::cerr << "Reference: " << dt << " ms, " << (width*height/dt)/1000 << " Mpixel/s" << std::endl;
+    end = time_ms();
+    time = end - start;
+    std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
     // compare results: Images
     bool passed_all = true;
@@ -440,7 +434,7 @@ int main(int argc, const char **argv) {
     } else {
         std::cerr << "Sum reduction (acc, float): PASSED" << std::endl;
     }
-    // print final result
+
     if (passed_all) {
         std::cerr << "Tests PASSED" << std::endl;
     } else {
@@ -448,7 +442,7 @@ int main(int argc, const char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    // memory cleanup
+    // free memory
     delete[] input_int;
     delete[] input_float;
     delete[] reference_in_int;

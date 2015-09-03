@@ -15,11 +15,11 @@ NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),comput
 OFLAGS          = -O3
 
 CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 @THREADS_ARG@ -Wall -Wunused
-CU_CC           = @NVCC@ @NVCC_COMP@ -Xcompiler -Wall -Xcompiler -Wunused $(NVCC_FLAGS)
-CC_LINK         = -lm -ldl -lstdc++ @THREADS_LINK@ @RT_LIBRARIES@
-CU_LINK         = $(CC_LINK) @CUDA_LINK@
 CL_CC           = $(CC_CC) @OPENCL_CFLAGS@
+CU_CC           = @NVCC@ @NVCC_COMP@ -Xcompiler -Wall -Xcompiler -Wunused $(NVCC_FLAGS)
+CC_LINK         = -lm -ldl -lstdc++ @THREADS_LINK@ @RT_LIBRARIES@ @OPENCV_LIBRARIES@
 CL_LINK         = $(CC_LINK) @OPENCL_LFLAGS@
+CU_LINK         = $(CC_LINK) @CUDA_LINK@
 
 
 # Source-to-source compiler configuration

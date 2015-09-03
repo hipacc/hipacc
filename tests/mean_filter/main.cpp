@@ -25,7 +25,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -35,14 +34,16 @@
 
 #include "hipacc.hpp"
 
-//#define HSCAN
-//#define SIMPLE
-#define EPS 0.02f
-
 // variables set by Makefile
-#define NT 100
 #define WIDTH 5120
 #define HEIGHT 3200
+
+#define NT 100
+#define EPS 0.02f
+
+// code variants
+//#define HSCAN
+//#define SIMPLE
 
 using namespace hipacc;
 using namespace hipacc::math;
@@ -152,7 +153,7 @@ class HorizontalMeanFilter : public Kernel<float> {
         { add_accessor(&input); }
 
         void kernel() {
-            float sum = 0.0f;
+            float sum = 0;
 
             #ifdef SIMPLE
             for (int k=0; k<d; ++k) {
@@ -226,12 +227,10 @@ class VerticalMeanFilter : public Kernel<float> {
 
 
 int main(int argc, const char **argv) {
-    double time0, time1, dt;
-    int width = WIDTH;
-    int height = HEIGHT;
-    int d = 40;
-    int t = NT;
-    float timing = 0.0f;
+    const int width = WIDTH;
+    const int height = HEIGHT;
+    const int d = 40;
+    const int t = NT;
 
     // host memory for image of width x height pixels
     float *input = new float[width*height];
@@ -248,39 +247,36 @@ int main(int argc, const char **argv) {
         }
     }
 
+
     // input and output image of width x height pixels
-    Image<float> IN(width, height, input);
-    Image<float> OUT(width, height);
-    Accessor<float> AccIN(IN);
-
-
-    #ifdef HSCAN
-    #ifdef SIMPLE
-    IterationSpace<float> HIS(OUT, width-d, height);
-    #else
-    IterationSpace<float> HIS(OUT, (int)ceil(((float)width-d)/t), height);
-    #endif
-    HorizontalMeanFilter HMF(HIS, AccIN, d, t, width);
-    #else
-    #ifdef SIMPLE
-    IterationSpace<float> VIS(OUT, width, height-d);
-    #else
-    IterationSpace<float> VIS(OUT, width, (int)ceil(((float)height-d)/t));
-    #endif
-    VerticalMeanFilter VMF(VIS, AccIN, d, t, height);
-    #endif
+    Image<float> in(width, height, input);
+    Image<float> out(width, height);
+    Accessor<float> AccIN(in);
 
     std::cerr << "Calculating mean filter ..." << std::endl;
+    float timing = 0;
 
     #ifdef HSCAN
-    HMF.execute();
+    #ifdef SIMPLE
+    IterationSpace<float> iter(out, width-d, height);
     #else
-    VMF.execute();
+    IterationSpace<float> iter(out, (int)ceil(((float)width-d)/t), height);
     #endif
+    HorizontalMeanFilter mean_filter(iter, AccIN, d, t, width);
+    #else
+    #ifdef SIMPLE
+    IterationSpace<float> iter(out, width, height-d);
+    #else
+    IterationSpace<float> iter(out, width, (int)ceil(((float)height-d)/t));
+    #endif
+    VerticalMeanFilter mean_filter(iter, AccIN, d, t, height);
+    #endif
+
+    mean_filter.execute();
     timing = hipacc_last_kernel_timing();
 
     // get pointer to result data
-    float *output = OUT.data();
+    float *output = out.data();
 
     #ifdef HSCAN
     std::cerr << "Hipacc: " << timing << " ms, " << ((width-d)*height/timing)/1000 << " Mpixel/s" << std::endl;
@@ -290,29 +286,27 @@ int main(int argc, const char **argv) {
 
 
     std::cerr << std::endl << "Calculating reference ..." << std::endl;
-    time0 = time_ms();
+    double start = time_ms();
 
-    // calculate reference
     #ifdef HSCAN
     horizontal_mean_filter(reference_in, reference_out, d, t, width, height);
     #else
     vertical_mean_filter(reference_in, reference_out, d, t, width, height);
     #endif
 
-    time1 = time_ms();
-    dt = time1 - time0;
+    double end = time_ms();
+    float time = end - start;
     #ifdef HSCAN
-    std::cerr << "Reference: " << timing << " ms, " << ((width-d)*height/timing)/1000 << " Mpixel/s" << std::endl;
+    std::cerr << "Reference: " << time << " ms, " << ((width-d)*height/time)/1000 << " Mpixel/s" << std::endl;
     #else
-    std::cerr << "Reference: " << timing << " ms, " << (width*(height-d)/timing)/1000 << " Mpixel/s" << std::endl;
+    std::cerr << "Reference: " << time << " ms, " << (width*(height-d)/time)/1000 << " Mpixel/s" << std::endl;
     #endif
 
     std::cerr << std::endl << "Comparing results ..." << std::endl;
-    // compare results
-    float rms_err = 0;   // RMS error
+    float rms_err = 0;  // RMS error
     #ifdef HSCAN
-    for (int y=0; y<height; y++) {
-        for (int x=0; x<width-d; x++) {
+    for (int y=0; y<height; ++y) {
+        for (int x=0; x<width-d; ++x) {
             float derr = reference_out[y*width + x] - output[y*width + x];
             rms_err += derr*derr;
 
@@ -326,8 +320,8 @@ int main(int argc, const char **argv) {
     }
     rms_err = sqrtf(rms_err / (float((width-d)*height)));
     #else
-    for (int y=0; y<height-d; y++) {
-        for (int x=0; x<width; x++) {
+    for (int y=0; y<height-d; ++y) {
+        for (int x=0; x<width; ++x) {
             float derr = reference_out[y*width + x] - output[y*width + x];
             rms_err += derr*derr;
 
@@ -348,7 +342,7 @@ int main(int argc, const char **argv) {
     }
     std::cerr << "Test PASSED" << std::endl;
 
-    // memory cleanup
+    // free memory
     delete[] input;
     delete[] reference_in;
     delete[] reference_out;

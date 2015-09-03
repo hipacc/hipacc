@@ -24,17 +24,20 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 #include <sys/time.h>
 
-//#define CPU
-#ifdef OpenCV
+#ifdef OPENCV
 #include <opencv2/opencv.hpp>
-#ifndef CPU
-#include <opencv2/gpu/gpu.hpp>
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/core/ocl.hpp>
+#ifdef OPENCV_CUDA_FOUND
+#include <opencv2/cudafilters.hpp>
 #endif
 #endif
 
@@ -45,6 +48,8 @@
 //#define SIZE_Y 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
+
+// code variants
 #define ARRAY_DOMAIN
 #define CONST_DOMAIN
 #define USE_LAMBDA
@@ -67,76 +72,52 @@ double time_ms () {
 
 // blur filter reference
 #ifdef SIMPLE
-void blur_filter(uchar *in, uchar *out, int size_x, int size_y, int width, int
-        height) {
+void blur_filter(uchar *in, uchar *out, int size_x, int size_y, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-    #ifdef OpenCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
             int sum = 0;
 
-            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
                     sum += in[(y + yf)*width + x + xf];
                 }
             }
-            #ifdef OpenCV
-            out[y*width + x] = (uchar) ((1/(float)(size_x*size_y))*sum + 0.5f);
-            #else
-            out[y*width + x] = (uchar) ((1/(float)(size_x*size_y))*sum);
-            #endif
+            out[y*width + x] = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
         }
     }
 }
 #else
-void blur_filter(uchar *in, uchar *out, int size_x, int size_y, int t, int
-        width, int height) {
+void blur_filter(uchar *in, uchar *out, int size_x, int size_y, int t, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-    #ifdef OpenCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
 
     for (int x=anchor_x; x<upper_x; ++x) {
         for (int t0=anchor_y; t0<upper_y; t0+=t) {
             int sum = 0;
 
             // first phase: convolution
-            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
                     sum += in[(t0 + yf)*width + x + xf];
                 }
             }
-            #ifdef OpenCV
-            out[t0*width + x] = (uchar) ((1/(float)(size_x*size_y))*sum + 0.5f);
-            #else
-            out[t0*width + x] = (uchar) ((1/(float)(size_x*size_y))*sum);
-            #endif
+            out[t0*width + x] = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
 
             // second phase: rolling sum
             for (int dt=1; dt<min(t, upper_y-t0); ++dt) {
                 int t = t0+dt;
-                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
                     sum -= in[(t-anchor_y-1)*width + x + xf];
                     sum += in[(t-anchor_y-1+size_y)*width + x + xf];
                 }
-                #ifdef OpenCV
-                out[t*width + x] = (uchar) ((1/(float)(size_x*size_y))*sum + 0.5f);
-                #else
-                out[t*width + x] = (uchar) ((1/(float)(size_x*size_y))*sum);
-                #endif
+                out[t*width + x] = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
             }
         }
     }
@@ -161,21 +142,17 @@ class BlurFilter : public Kernel<uchar> {
                 , int nt, int height
                 #endif
                 ) :
-            Kernel(iter),
-            in(in),
-            dom(dom),
-            size_x(size_x),
-            size_y(size_y)
+            Kernel(iter), in(in), dom(dom),
+            size_x(size_x), size_y(size_y)
             #ifndef SIMPLE
-            , nt(nt),
-            height(height)
+            , nt(nt), height(height)
             #endif
         { add_accessor(&in); }
 
         #ifdef SIMPLE
         void kernel() {
             #ifdef USE_LAMBDA
-            output() = (uchar) ( (1/(float)(size_x*size_y)) *
+            output() = (uchar) ( (1.0f/(float)(size_x*size_y)) *
                     reduce(dom, Reduce::SUM, [&] () -> int {
                         return in(dom);
                     }));
@@ -184,13 +161,12 @@ class BlurFilter : public Kernel<uchar> {
             int anchor_y = size_y >> 1;
             int sum = 0;
 
-            // for even filter sizes use -anchor ... +anchor-1
             for (int yf = -anchor_y; yf<=anchor_y; yf++) {
                 for (int xf = -anchor_x; xf<=anchor_x; xf++) {
                     sum += in(xf, yf);
                 }
             }
-            output() = (uchar) ((1/(float)(size_x*size_y))*sum);
+            output() = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
             #endif
         }
         #else
@@ -202,21 +178,21 @@ class BlurFilter : public Kernel<uchar> {
             int t0 = y();
 
             // first phase: convolution
-            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
                     sum += in.pixel_at(in.x() + xf, t0*nt + yf);
                 }
             }
-            output_at(x(), t0*nt) = (uchar) ((1/(float)(size_x*size_y))*sum);
+            output_at(x(), t0*nt) = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
 
             // second phase: rolling sum
-            for (int dt=1; dt<min(nt, height-2*anchor_y-(t0*nt)); ++dt) {
+            for (int dt=1; dt<min(nt, height-(t0*nt)); ++dt) {
                 int t = t0*nt + dt;
-                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
                     sum -= in.pixel_at(in.x() + xf, t-anchor_y-1);
                     sum += in.pixel_at(in.x() + xf, t-anchor_y-1+size_y);
                 }
-                output_at(x(), t) = (uchar) ((1/(float)(size_x*size_y))*sum);
+                output_at(x(), t) = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
             }
         }
         #endif
@@ -227,7 +203,6 @@ class BlurFilter : public Kernel<uchar> {
  * Main function                                                         *
  *************************************************************************/
 int main(int argc, const char **argv) {
-    double time0, time1, dt, min_dt;
     const int width = WIDTH;
     const int height = HEIGHT;
     const int size_x = SIZE_X;
@@ -289,117 +264,200 @@ int main(int argc, const char **argv) {
     Domain dom(size_x, size_y);
     #endif
 
-    // use undefined boundary handling to access image pixels beyond region
-    // defined by Accessor
-    BoundaryCondition<uchar> bound(in, size_x, size_y, Boundary::UNDEFINED);
-    Accessor<uchar> acc(bound, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    #ifndef OPENCV
+    std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
+    std::vector<float> timings_hipacc;
+    float timing = 0;
+
+    BoundaryCondition<uchar> bound(in, dom, Boundary::CLAMP);
+    Accessor<uchar> acc(bound);
 
     #ifdef SIMPLE
-    IterationSpace<uchar> iter(out, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    IterationSpace<uchar> iter(out);
     BlurFilter filter(iter, acc, dom, size_x, size_y);
     #else
-    IterationSpace<uchar> iter(out, width-2*offset_x, (int)ceil((float)(height-2*offset_y)/t), offset_x, offset_y);
+    IterationSpace<uchar> iter(out, width, (int)ceil((float)height/t));
     BlurFilter filter(iter, acc, dom, size_x, size_y, t, height);
     #endif
 
-    std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
-    float timing = 0.0f;
-
     filter.execute();
     timing = hipacc_last_kernel_timing();
+    timings_hipacc.push_back(timing);
+    std::cerr << "Hipacc (CLAMP): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
     // get pointer to result data
     uchar *output = out.data();
 
-    std::cerr << "Hipacc: " << timing << " ms, " << ((width-2*offset_x)*(height-2*offset_y)/timing)/1000 << " Mpixel/s" << std::endl;
-
-
-    #ifdef OpenCV
-    // OpenCV uses NPP library for filtering
-    // image: 4096x4096
-    // kernel size: 3x3
-    // offset 3x3 shifted by 1 -> 1x1
-    // output: 4096x4096 - 3x3 -> 4093x4093; start: 1,1; end: 4094,4094
-    //
-    // image: 4096x4096
-    // kernel size: 4x4
-    // offset 4x4 shifted by 1 -> 2x2
-    // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
-    #ifdef CPU
-    std::cerr << std::endl << "Calculating OpenCV blur filter on the CPU ..." << std::endl;
-    #else
-    std::cerr << std::endl << "Calculating OpenCV blur filter on the GPU ..." << std::endl;
+    if (timings_hipacc.size()) {
+        std::cerr << "Hipacc:";
+        for (std::vector<float>::const_iterator it = timings_hipacc.begin(); it != timings_hipacc.end(); ++it)
+            std::cerr << "\t" << *it;
+        std::cerr << std::endl;
+    }
     #endif
 
 
-    cv::Mat cv_data_in(height, width, CV_8UC1, input);
-    cv::Mat cv_data_out(height, width, CV_8UC1, cv::Scalar(0));
+    #ifdef OPENCV
+    auto opencv_bench = [] (std::function<void(int)> init, std::function<void(int)> launch, std::function<void(float)> finish) {
+        for (int brd_type=0; brd_type<5; ++brd_type) {
+            init(brd_type);
+
+            std::vector<float> timings;
+            try {
+                for (int nt=0; nt<10; ++nt) {
+                    auto start = time_ms();
+                    launch(brd_type);
+                    auto end = time_ms();
+                    timings.push_back(end - start);
+                }
+            } catch (const cv::Exception &ex) {
+                std::cerr << ex.what();
+                timings.push_back(0);
+            }
+
+            std::cerr << "OpenCV (";
+            switch (brd_type) {
+                case IPL_BORDER_CONSTANT:    std::cerr << "CONSTANT";   break;
+                case IPL_BORDER_REPLICATE:   std::cerr << "CLAMP";      break;
+                case IPL_BORDER_REFLECT:     std::cerr << "MIRROR";     break;
+                case IPL_BORDER_WRAP:        std::cerr << "REPEAT";     break;
+                case IPL_BORDER_REFLECT_101: std::cerr << "MIRROR_101"; break;
+                default: break;
+            }
+            std::sort(timings.begin(), timings.end());
+            float time = timings[timings.size()/2];
+            std::cerr << "): " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
+
+            finish(time);
+        }
+    };
+
+    cv::Mat cv_data_src(height, width, CV_8UC1, input);
+    cv::Mat cv_data_dst(height, width, CV_8UC1, cv::Scalar(0));
     cv::Size ksize(size_x, size_y);
+    cv::Point anchor = cv::Point(-1,-1);
+    std::vector<float> timings_cpu;
+    std::vector<float> timings_ocl;
+    std::vector<float> timings_cuda;
 
-    #ifdef CPU
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
+    // OpenCV - CPU
+    cv::ocl::setUseOpenCL(false);
+    std::cerr << std::endl
+              << "Calculating OpenCV-CPU blur filter" << std::endl;
 
-        cv::blur(cv_data_in, cv_data_out, ksize);
+    cv::UMat dev_src, dev_dst;
+    opencv_bench(
+        [&] (int) {
+            cv_data_src.copyTo(dev_src);
+        },
+        [&] (int brd_type) {
+            cv::blur(cv_data_src, cv_data_dst, ksize, anchor, brd_type);
+        },
+        [&] (float timing) {
+            timings_cpu.push_back(timing);
+            dev_dst.copyTo(cv_data_dst);
+        }
+    );
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+    // OpenCV - OpenCL
+    if (cv::ocl::haveOpenCL()) {
+        cv::ocl::setUseOpenCL(true);
+        std::cerr << std::endl
+                  << "Calculating OpenCV-OCL blur filter on "
+                  << cv::ocl::Device::getDefault().vendorName().c_str()
+                  << " "  << cv::ocl::Device::getDefault().name().c_str()
+                  << std::endl;
+
+        cv::UMat dev_src, dev_dst;
+        opencv_bench(
+            [&] (int) {
+                cv_data_src.copyTo(dev_src);
+            },
+            [&] (int brd_type) {
+                cv::blur(dev_src, dev_dst, ksize, anchor, brd_type);
+                cv::ocl::finish();
+            },
+            [&] (float timing) {
+                timings_ocl.push_back(timing);
+                dev_dst.copyTo(cv_data_dst);
+            }
+        );
     }
-    #else
-    cv::gpu::GpuMat gpu_in, gpu_out;
-    gpu_in.upload(cv_data_in);
 
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
+    // OpenCV - CUDA
+    if (cv::cuda::getCudaEnabledDeviceCount()) {
+        #ifdef OPENCV_CUDA_FOUND
+        std::cerr << std::endl
+                  << "Calculating OpenCV-CUDA blur filter" << std::endl;
+        cv::cuda::printShortCudaDeviceInfo(cv::cuda::getDevice());
 
-        cv::gpu::blur(gpu_in, gpu_out, ksize);
+        cv::cuda::GpuMat dev_src, dev_dst;
+        cv::Ptr<cv::cuda::Filter> blur;
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+        opencv_bench(
+            [&] (int brd_type) {
+                dev_src.upload(cv_data_src);
+                blur = cv::cuda::createBoxFilter(dev_src.type(), dev_src.type(), ksize, anchor, brd_type);
+            },
+            [&] (int) {
+                blur->apply(dev_src, dev_dst);
+            },
+            [&] (float timing) {
+                timings_cuda.push_back(timing);
+                dev_dst.download(cv_data_dst);
+            }
+        );
+        #endif
     }
-
-    gpu_out.download(cv_data_out);
-    #endif
-    std::cerr << "OpenCV: " << min_dt << " ms, " << ((width-size_x)*(height-size_y)/min_dt)/1000 << " Mpixel/s" << std::endl;
 
     // get pointer to result data
-    output = (uchar *)cv_data_out.data;
+    uchar *output = (uchar *)cv_data_dst.data;
+
+    if (timings_cpu.size()) {
+        std::cerr << "CV-CPU: ";
+        for (auto time : timings_cpu)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
+    if (timings_ocl.size()) {
+        std::cerr << "CV-OCL: ";
+        for (auto time : timings_ocl)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
+    if (timings_cuda.size()) {
+        std::cerr << "CV-CUDA:";
+        for (auto time : timings_cuda)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
     #endif
 
 
-    std::cerr << std::endl << "Calculating reference ..." << std::endl;
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<3; nt++) {
-        time0 = time_ms();
+    std::cerr << "Calculating reference ..." << std::endl;
+    std::vector<float> timings_reference;
+    for (int nt=0; nt<3; ++nt) {
+        double start = time_ms();
 
-        // calculate reference
         #ifdef SIMPLE
         blur_filter(reference_in, reference_out, size_x, size_y, width, height);
         #else
         blur_filter(reference_in, reference_out, size_x, size_y, t, width, height);
         #endif
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+        double end = time_ms();
+        timings_reference.push_back(end - start);
     }
-    std::cerr << "Reference: " << min_dt << " ms, " << ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000 << " Mpixel/s" << std::endl;
+    std::sort(timings_reference.begin(), timings_reference.end());
+    float time = timings_reference[timings_reference.size()/2];
+    std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
-    std::cerr << std::endl << "Comparing results ..." << std::endl;
-    #ifdef OpenCV
-    int upper_y = height-size_y+offset_y;
-    int upper_x = width-size_x+offset_x;
-    #else
-    int upper_y = height-offset_y;
-    int upper_x = width-offset_x;
-    #endif
-    // compare results
-    for (int y=offset_y; y<upper_y; y++) {
-        for (int x=offset_x; x<upper_x; x++) {
+
+    std::cerr << "Comparing results ..." << std::endl
+              << "Warning: The CPU, OCL, and CUDA modules in OpenCV use different implementations and yield inconsistent results." << std::endl
+              << "         This is the case even for different filter sizes within the same module!" << std::endl;
+    for (int y=offset_y; y<height-offset_y; ++y) {
+        for (int x=offset_x; x<width-offset_x; ++x) {
             if (reference_out[y*width + x] != output[y*width + x]) {
                 std::cerr << "Test FAILED, at (" << x << "," << y << "): "
                           << (int)reference_out[y*width + x] << " vs. "
@@ -410,7 +468,7 @@ int main(int argc, const char **argv) {
     }
     std::cerr << "Test PASSED" << std::endl;
 
-    // memory cleanup
+    // free memory
     delete[] input;
     delete[] reference_in;
     delete[] reference_out;
