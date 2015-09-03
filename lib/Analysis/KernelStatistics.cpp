@@ -164,7 +164,7 @@ class TransferFunctions : public StmtVisitor<TransferFunctions> {
     void VisitTerminatorWhileStmt(const WhileStmt *S);
     void VisitTerminatorSwitchStmt(const SwitchStmt *S);
 };
-} // end anonymous namespace
+} // anonymous namespace
 
 
 void KernelStatsImpl::runOnBlock(const CFGBlock *block) {

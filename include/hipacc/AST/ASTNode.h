@@ -112,9 +112,9 @@ LabelDecl *createLabelDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name);
 LabelStmt *createLabelStmt(ASTContext &Ctx, LabelDecl *LD, Stmt *Stmt);
 GotoStmt *createGotoStmt(ASTContext &Ctx, LabelDecl *LD);
 
-} // end namespace ASTNode
-} // end namespace hipacc
-} // end namespace clang
+} // namespace ASTNode
+} // namespace hipacc
+} // namespace clang
 
 #endif /* _ASTNODE_H_ */
 

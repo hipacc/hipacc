@@ -776,8 +776,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       return pixels_per_thread[GlobalOperator];
     }
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _CLASS_REPRESENTATION_H_
 

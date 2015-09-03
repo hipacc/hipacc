@@ -129,8 +129,8 @@ class CompilerKnownClasses {
       return TST->getArg(0).getAsType();
     }
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _COMPILER_KNOWN_CLASSES_H_
 

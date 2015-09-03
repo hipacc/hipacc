@@ -56,8 +56,8 @@ namespace hipacc {
 
       void analyzeKernel();
   };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _POLLY_H_
 

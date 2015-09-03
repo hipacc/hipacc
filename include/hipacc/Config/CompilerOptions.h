@@ -274,8 +274,8 @@ class CompilerOptions {
       llvm::errs() << "\n\n";
     }
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _COMPILER_OPTIONS_H_
 

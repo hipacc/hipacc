@@ -448,8 +448,8 @@ class HipaccDevice : public HipaccDeviceOptions {
       return command;
     }
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _TARGET_DESCRIPTION_H
 

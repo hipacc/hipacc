@@ -98,8 +98,8 @@ class CreateHostStrings {
     void writePyramidAllocation(std::string pyrName, std::string type,
         std::string img, std::string depth, std::string &resultStr);
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _CREATE_HOST_STRINGS_H_
 

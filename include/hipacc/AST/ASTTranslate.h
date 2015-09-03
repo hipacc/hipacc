@@ -589,8 +589,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_STMT( OMPTargetDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTeamsDirective )
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _ASTTRANSLATE_H_
 

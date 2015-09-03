@@ -128,8 +128,8 @@ class KernelStatistics : public ManagedAnalysis {
       //.setAlwaysAdd(Stmt::ImplicitCastExprClass)
     }
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _KERNELSTATISTICS_H_
 

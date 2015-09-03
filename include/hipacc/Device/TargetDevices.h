@@ -67,8 +67,8 @@ enum class Texture : uint8_t {
   Array2D,
   Ldg
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _TARGET_DEVICES_H
 
