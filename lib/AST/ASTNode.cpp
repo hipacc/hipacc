@@ -332,9 +332,9 @@ GotoStmt *createGotoStmt(ASTContext &Ctx, LabelDecl *LD) {
   return new (Ctx) GotoStmt(LD, SourceLocation(), SourceLocation());
 }
 
-} // end ASTNode namespace
-} // end hipacc namespace
-} // end clang namespace
+} // namespace ASTNode
+} // namespace hipacc
+} // namespace clang
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

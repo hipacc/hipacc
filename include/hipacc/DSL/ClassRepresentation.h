@@ -747,10 +747,10 @@ class HipaccKernel : public HipaccKernelFeatures {
 
       for (auto map : memMap) {
         llvm::errs() << "  Image '" << map.first->getName() << "': ";
-        if (map.second & Global) llvm::errs() << "global ";
+        if (map.second & Global)   llvm::errs() << "global ";
         if (map.second & Constant) llvm::errs() << "constant ";
         if (map.second & Texture_) llvm::errs() << "texture ";
-        if (map.second & Local) llvm::errs() << "local ";
+        if (map.second & Local)    llvm::errs() << "local ";
         llvm::errs() << "\n";
       }
     }
