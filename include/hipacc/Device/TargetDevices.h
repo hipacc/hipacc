@@ -46,7 +46,12 @@ enum class Device {
   Fermi_20          = 20,
   Fermi_21          = 21,
   Kepler_30         = 30,
+  Kepler_32         = 32,
   Kepler_35         = 35,
+  Kepler_37         = 37,
+  Maxwell_50        = 50,
+  Maxwell_52        = 52,
+  Maxwell_53        = 53,
   Evergreen         = 58,
   NorthernIsland    = 69,
   //SouthernIsland    = 79

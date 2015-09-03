@@ -104,7 +104,12 @@ class HipaccDeviceOptions {
         case Device::Fermi_20:
         case Device::Fermi_21:
         case Device::Kepler_30:
+        case Device::Kepler_32:
         case Device::Kepler_35:
+        case Device::Kepler_37:
+        case Device::Maxwell_50:
+        case Device::Maxwell_52:
+        case Device::Maxwell_53:
           alignment = 256;
           if (options.emitCUDA()) local_memory_threshold = 6;
           else local_memory_threshold = 11;
@@ -287,18 +292,42 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_sfus = 8;
           break;
         case Device::Kepler_30:
+        case Device::Kepler_32:
         case Device::Kepler_35:
+        case Device::Kepler_37:
           max_blocks_per_multiprocessor = 16;
           max_threads_per_block = 1024;
           max_warps_per_multiprocessor = 64;
           max_threads_per_multiprocessor = 2048;
           max_total_registers = 65536;
           max_total_shared_memory = 49152;
-          if (target_device==Device::Kepler_30) max_register_per_thread = 63;
-          else max_register_per_thread = 255;
+          max_register_per_thread = 255;
           num_alus = 192;
           num_sfus = 32;
           // plus 8 CUDA FP64 cores according to andatech
+          if (target_device==Device::Kepler_37) {
+            max_total_registers = 131072;
+            max_total_shared_memory = 114688;
+          }
+          if (target_device==Device::Kepler_30) {
+            max_register_per_thread = 63;
+          }
+          break;
+        case Device::Maxwell_50:
+        case Device::Maxwell_52:
+        case Device::Maxwell_53:
+          max_blocks_per_multiprocessor = 32;
+          max_threads_per_block = 1024;
+          max_warps_per_multiprocessor = 64;
+          max_threads_per_multiprocessor = 2048;
+          max_total_registers = 65536;
+          max_total_shared_memory = 65536;
+          max_register_per_thread = 255;
+          num_alus = 128;
+          num_sfus = 32;
+          if (target_device==Device::Maxwell_52) {
+            max_total_shared_memory = 98304;
+          }
           break;
         case Device::Evergreen:
         case Device::NorthernIsland:
@@ -364,17 +393,8 @@ class HipaccDevice : public HipaccDeviceOptions {
     }
 
     bool isNVIDIAGPU() {
-      switch (target_device) {
-        default:                return false;
-        case Device::Tesla_10:
-        case Device::Tesla_11:
-        case Device::Tesla_12:
-        case Device::Tesla_13:
-        case Device::Fermi_20:
-        case Device::Fermi_21:
-        case Device::Kepler_30:
-        case Device::Kepler_35: return true;
-      }
+      return target_device >= Device::Tesla_10 &&
+             target_device <= Device::Maxwell_53;
     }
 
     std::string getTargetDeviceName() {
@@ -387,7 +407,12 @@ class HipaccDevice : public HipaccDeviceOptions {
         case Device::Fermi_20:        return "NVIDIA Fermi (20)";
         case Device::Fermi_21:        return "NVIDIA Fermi (21)";
         case Device::Kepler_30:       return "NVIDIA Kepler (30)";
+        case Device::Kepler_32:       return "NVIDIA Kepler (32)";
         case Device::Kepler_35:       return "NVIDIA Kepler (35)";
+        case Device::Kepler_37:       return "NVIDIA Kepler (37)";
+        case Device::Maxwell_50:      return "NVIDIA Maxwell (50)";
+        case Device::Maxwell_52:      return "NVIDIA Maxwell (52)";
+        case Device::Maxwell_53:      return "NVIDIA Maxwell (53)";
         case Device::Evergreen:       return "AMD Evergreen";
         case Device::NorthernIsland:  return "AMD Northern Island";
         //case Device::SouthernIsland:  return "AMD Southern Island";
