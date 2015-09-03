@@ -38,8 +38,8 @@ using namespace ASTNode;
 
 
 // add border handling: CLAMP
-Stmt *ASTTranslate::addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper,
-    bool) {
+Stmt *clamp_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *upper,
+    Expr *stride) {
   // if (idx >= upper) idx = upper-1;
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
 
@@ -47,8 +47,8 @@ Stmt *ASTTranslate::addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper,
         createBinaryOperator(Ctx, upper, createIntegerLiteral(Ctx, 1), BO_Sub,
           Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr, nullptr);
 }
-Stmt *ASTTranslate::addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
-    bool) {
+Stmt *clamp_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *lower,
+    Expr *stride) {
   // if (idx < lower) idx = lower;
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
 
@@ -58,21 +58,19 @@ Stmt *ASTTranslate::addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
 
 
 // add border handling: REPEAT
-Stmt *ASTTranslate::addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper,
-    bool is_x) {
+Stmt *repeat_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *upper,
+    Expr *stride) {
   // while (idx >= upper) idx -= is_width | is_height;
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
-  Expr *stride = is_x ? getWidthDecl(Acc) : getHeightDecl(Acc);
 
   return createWhileStmt(Ctx, nullptr, bo_upper, createBinaryOperator(Ctx, idx,
         createBinaryOperator(Ctx, idx, stride, BO_Sub, Ctx.IntTy), BO_Assign,
         Ctx.IntTy));
 }
-Stmt *ASTTranslate::addRepeatLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
-    bool is_x) {
+Stmt *repeat_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *lower,
+    Expr *stride) {
   // while (idx < lower) idx += is_width | is_height;
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
-  Expr *stride = is_x ? getWidthDecl(Acc) : getHeightDecl(Acc);
 
   return createWhileStmt(Ctx, nullptr, bo_lower, createBinaryOperator(Ctx, idx,
         createBinaryOperator(Ctx, idx, stride, BO_Add, Ctx.IntTy), BO_Assign,
@@ -81,8 +79,8 @@ Stmt *ASTTranslate::addRepeatLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
 
 
 // add border handling: MIRROR
-Stmt *ASTTranslate::addMirrorUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper,
-    bool) {
+Stmt *mirror_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *upper,
+    Expr *stride) {
   // if (idx >= upper) idx = upper - (idx+1 - upper);
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
 
@@ -93,8 +91,8 @@ Stmt *ASTTranslate::addMirrorUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper,
               createParenExpr(Ctx, upper), BO_Sub, Ctx.IntTy)) , BO_Sub,
           Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr, nullptr);
 }
-Stmt *ASTTranslate::addMirrorLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
-    bool) {
+Stmt *mirror_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *lower,
+    Expr *stride) {
   // if (idx < lower) idx = lower + (lower - idx-1);
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
 
@@ -108,7 +106,7 @@ Stmt *ASTTranslate::addMirrorLower(HipaccAccessor *Acc, Expr *idx, Expr *lower,
 
 
 // add border handling: CONSTANT
-Expr *ASTTranslate::addConstantUpper(HipaccAccessor *Acc, Expr *idx, Expr
+Expr *constant_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr
     *upper, Expr *cond) {
   // (idx < upper)
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_LT, Ctx.BoolTy);
@@ -118,7 +116,7 @@ Expr *ASTTranslate::addConstantUpper(HipaccAccessor *Acc, Expr *idx, Expr
   }
   return bo_upper;
 }
-Expr *ASTTranslate::addConstantLower(HipaccAccessor *Acc, Expr *idx, Expr
+Expr *constant_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr
     *lower, Expr *cond) {
   // (idx >= lower)
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_GE, Ctx.BoolTy);
@@ -146,22 +144,22 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
   std::string gidy_str("_gid_y" + std::to_string(literalCount));
   std::string tmp_str("_tmp" + std::to_string(literalCount++));
 
-  Expr *lowerX, *upperX, *lowerY, *upperY;
+  Expr *lower_x, *upper_x, *lower_y, *upper_y;
   if (Acc->getOffsetXDecl()) {
-    lowerX = getOffsetXDecl(Acc);
-    upperX = createBinaryOperator(Ctx, getOffsetXDecl(Acc), getWidthDecl(Acc),
+    lower_x = getOffsetXDecl(Acc);
+    upper_x = createBinaryOperator(Ctx, getOffsetXDecl(Acc), getWidthDecl(Acc),
         BO_Add, Ctx.IntTy);
   } else {
-    lowerX = createIntegerLiteral(Ctx, 0);
-    upperX = getWidthDecl(Acc);
+    lower_x = createIntegerLiteral(Ctx, 0);
+    upper_x = getWidthDecl(Acc);
   }
   if (Acc->getOffsetYDecl()) {
-    lowerY = getOffsetYDecl(Acc);
-    upperY = createBinaryOperator(Ctx, getOffsetYDecl(Acc), getHeightDecl(Acc),
+    lower_y = getOffsetYDecl(Acc);
+    upper_y = createBinaryOperator(Ctx, getOffsetYDecl(Acc), getHeightDecl(Acc),
         BO_Add, Ctx.IntTy);
   } else {
-    lowerY = createIntegerLiteral(Ctx, 0);
-    upperY = getHeightDecl(Acc);
+    lower_y = createIntegerLiteral(Ctx, 0);
+    upper_y = getHeightDecl(Acc);
   }
 
   Expr *idx_x = tileVars.global_id_x;
@@ -242,19 +240,19 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     Expr *bo_constant = nullptr;
     if (bh_variant.borders.right && local_offset_x) {
       // < _gid_x<0> >= offset_x+width >
-      bo_constant = addConstantUpper(Acc, idx_x, upperX, bo_constant);
+      bo_constant = constant_upper(Ctx, Acc, idx_x, upper_x, bo_constant);
     }
     if (bh_variant.borders.bottom && local_offset_y) {
       // if (_gid_y<0> >= offset_y+height)
-      bo_constant = addConstantUpper(Acc, idx_y, upperY, bo_constant);
+      bo_constant = constant_upper(Ctx, Acc, idx_y, upper_y, bo_constant);
     }
     if (bh_variant.borders.left && local_offset_x) {
       // if (_gid_x<0> < offset_x)
-      bo_constant = addConstantLower(Acc, idx_x, lowerX, bo_constant);
+      bo_constant = constant_lower(Ctx, Acc, idx_x, lower_x, bo_constant);
     }
     if (bh_variant.borders.top && local_offset_y) {
       // if (_gid_y<0> < offset_y)
-      bo_constant = addConstantLower(Acc, idx_y, lowerY, bo_constant);
+      bo_constant = constant_lower(Ctx, Acc, idx_y, lower_y, bo_constant);
     }
 
     switch (compilerOptions.getTargetLang()) {
@@ -296,23 +294,18 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     }
     result = tmp_t_ref;
   } else {
-    Stmt *(clang::hipacc::ASTTranslate::*lowerFun)
-      (HipaccAccessor *Acc, Expr *idx, Expr *lower, bool) = nullptr;
-    Stmt *(clang::hipacc::ASTTranslate::*upperFun)
-      (HipaccAccessor *Acc, Expr *idx, Expr *upper, bool) = nullptr;
+    std::function<Stmt*(ASTContext &, HipaccAccessor *, Expr *, Expr *, Expr *)>
+      lower_fun = nullptr, upper_fun = nullptr;
     switch (Acc->getBoundaryMode()) {
-      case Boundary::CLAMP:
-        lowerFun = &clang::hipacc::ASTTranslate::addClampLower;
-        upperFun = &clang::hipacc::ASTTranslate::addClampUpper;
-        break;
-      case Boundary::REPEAT:
-        lowerFun = &clang::hipacc::ASTTranslate::addRepeatLower;
-        upperFun = &clang::hipacc::ASTTranslate::addRepeatUpper;
-        break;
-      case Boundary::MIRROR:
-        lowerFun = &clang::hipacc::ASTTranslate::addMirrorLower;
-        upperFun = &clang::hipacc::ASTTranslate::addMirrorUpper;
-        break;
+      case Boundary::CLAMP:  lower_fun = clamp_lower;
+                             upper_fun = clamp_upper;
+                             break;
+      case Boundary::REPEAT: lower_fun = repeat_lower;
+                             upper_fun = repeat_upper;
+                             break;
+      case Boundary::MIRROR: lower_fun = mirror_lower;
+                             upper_fun = mirror_upper;
+                             break;
       case Boundary::UNDEFINED:
         // in case of exploration boundary handling variants are required
         if (!compilerOptions.exploreConfig()) {
@@ -324,23 +317,25 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         break;
     }
 
-    if (upperFun) {
+    auto stride_x = getWidthDecl(Acc);
+    auto stride_y = getHeightDecl(Acc);
+    if (upper_fun) {
       if (bh_variant.borders.right && local_offset_x) {
-        bhStmts.push_back((*this.*upperFun)(Acc, idx_x, upperX, true));
+        bhStmts.push_back(upper_fun(Ctx, Acc, idx_x, upper_x, stride_x));
         bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.bottom && local_offset_y) {
-        bhStmts.push_back((*this.*upperFun)(Acc, idx_y, upperY, false));
+        bhStmts.push_back(upper_fun(Ctx, Acc, idx_y, upper_y, stride_y));
         bhCStmt.push_back(curCStmt);
       }
     }
-    if (lowerFun) {
+    if (lower_fun) {
       if (bh_variant.borders.left && local_offset_x) {
-        bhStmts.push_back((*this.*lowerFun)(Acc, idx_x, lowerX, true));
+        bhStmts.push_back(lower_fun(Ctx, Acc, idx_x, lower_x, stride_x));
         bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.top && local_offset_y) {
-        bhStmts.push_back((*this.*lowerFun)(Acc, idx_y, lowerY, false));
+        bhStmts.push_back(lower_fun(Ctx, Acc, idx_y, lower_y, stride_y));
         bhCStmt.push_back(curCStmt);
       }
     }

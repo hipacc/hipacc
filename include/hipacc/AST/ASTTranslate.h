@@ -48,6 +48,7 @@
 #include "hipacc/DSL/ClassRepresentation.h"
 #include "hipacc/Vectorization/SIMDTypes.h"
 
+#include <functional>
 
 //===----------------------------------------------------------------------===//
 // Statement/expression transformations
@@ -227,16 +228,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
         *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
         SmallVector<CompoundStmt *, 16> &bhCStmt);
-    Stmt *addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, bool);
-    Stmt *addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, bool);
-    Stmt *addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, bool);
-    Stmt *addRepeatLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, bool);
-    Stmt *addMirrorUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, bool);
-    Stmt *addMirrorLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, bool);
-    Expr *addConstantUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, Expr
-        *cond);
-    Expr *addConstantLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, Expr
-        *cond);
 
     // Convolution.cpp
     Stmt *getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var, Expr *ret_val);
