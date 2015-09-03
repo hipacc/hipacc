@@ -71,7 +71,7 @@ enum VectorInfo {
 
 class KernelStatistics : public ManagedAnalysis {
   private:
-    KernelStatistics(void *impl);
+    explicit KernelStatistics(void *impl);
     void *impl;
 
   public:

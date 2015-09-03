@@ -61,7 +61,7 @@ class HipaccDeviceOptions {
     bool vectorization;
 
   public:
-    HipaccDeviceOptions(CompilerOptions &options) :
+    explicit HipaccDeviceOptions(CompilerOptions &options) :
       default_num_threads_x(128),
       default_num_threads_y(1)
     {
@@ -240,7 +240,7 @@ class HipaccDevice : public HipaccDeviceOptions {
     unsigned num_sfus;
 
   public:
-    HipaccDevice(CompilerOptions &options) :
+    explicit HipaccDevice(CompilerOptions &options) :
       HipaccDeviceOptions(options),
       target_device(options.getTargetDevice()),
       max_threads_per_warp(32),

@@ -392,7 +392,7 @@ class HipaccKernelClass {
     FieldDecl *output_image;
 
   public:
-    HipaccKernelClass(std::string name) :
+    explicit HipaccKernelClass(std::string name) :
       name(name),
       kernelFunction(nullptr),
       reduceFunction(nullptr),

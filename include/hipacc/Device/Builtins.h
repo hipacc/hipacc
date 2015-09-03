@@ -72,7 +72,7 @@ class Context {
     const Info &getRecord(unsigned ID) const;
 
   public:
-    Context(ASTContext &Ctx) :
+    explicit Context(ASTContext &Ctx) :
       Ctx(Ctx),
       initialized(false)
     {}

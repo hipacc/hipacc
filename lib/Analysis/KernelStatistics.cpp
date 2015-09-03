@@ -127,7 +127,7 @@ class TransferFunctions : public StmtVisitor<TransferFunctions> {
     MemoryPattern checkStride(Expr *EX, Expr *EY);
 
   public:
-    TransferFunctions(KernelStatsImpl &ks) :
+    explicit TransferFunctions(KernelStatsImpl &ks) :
       KS(ks)
     {}
 
