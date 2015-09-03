@@ -567,7 +567,8 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     args.push_back(LHStex);
     // byte addressing required for surf2Dwrite
     args.push_back(createBinaryOperator(Ctx, idx_x, createIntegerLiteral(Ctx,
-            (int32_t)Acc->getImage()->getPixelSize()), BO_Mul, Ctx.IntTy));
+            static_cast<int32_t>(Acc->getImage()->getPixelSize())), BO_Mul,
+          Ctx.IntTy));
     args.push_back(idx_y);
   }
 
@@ -774,10 +775,10 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
       HipaccAccessor *Acc = KernelDeclMapAcc[param];
 
       // check if the bottom apron has to be fetched
-      if (p>=(int)Kernel->getPixelsPerThread()) {
-        int p_add = (int)ceilf((Acc->getSizeY()-1) /
-            (float)Kernel->getNumThreadsY());
-        if (p>=(int)Kernel->getPixelsPerThread()+p_add) continue;
+      if (p>=static_cast<int>(Kernel->getPixelsPerThread())) {
+        int p_add = static_cast<int>(ceilf((Acc->getSizeY()-1) /
+              static_cast<float>(Kernel->getNumThreadsY())));
+        if (p>=static_cast<int>(Kernel->getPixelsPerThread())+p_add) continue;
       }
 
       Expr *global_offset_x = nullptr, *global_offset_y = nullptr;
@@ -787,15 +788,16 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
         if (compilerOptions.exploreConfig()) {
           SX2 = tileVars.local_size_x;
         } else {
-          SX2 = createIntegerLiteral(Ctx, (int32_t)Kernel->getNumThreadsX());
+          SX2 = createIntegerLiteral(Ctx,
+              static_cast<int32_t>(Kernel->getNumThreadsX()));
         }
       } else {
         SX2 = createIntegerLiteral(Ctx, 0);
       }
       if (Acc->getSizeY() > 1) {
         global_offset_y = createParenExpr(Ctx, createUnaryOperator(Ctx,
-              createIntegerLiteral(Ctx, (int32_t)Acc->getSizeY()/2), UO_Minus,
-              Ctx.IntTy));
+              createIntegerLiteral(Ctx,
+                static_cast<int32_t>(Acc->getSizeY()/2)), UO_Minus, Ctx.IntTy));
       } else {
         global_offset_y = nullptr;
       }
@@ -814,7 +816,8 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
         Expr *local_offset_x = nullptr;
         if (Acc->getSizeX() > 1) {
           local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                (int32_t)i), tileVars.local_size_x, BO_Mul, Ctx.IntTy);
+                static_cast<int32_t>(i)), tileVars.local_size_x, BO_Mul,
+              Ctx.IntTy);
           global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
               BO_Sub, Ctx.IntTy);
         }
@@ -847,7 +850,8 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
         if (compilerOptions.exploreConfig()) {
           SX2 = tileVars.local_size_x;
         } else {
-          SX2 = createIntegerLiteral(Ctx, (int32_t)Kernel->getNumThreadsX());
+          SX2 = createIntegerLiteral(Ctx,
+              static_cast<int32_t>(Kernel->getNumThreadsX()));
         }
       } else {
         SX2 = createIntegerLiteral(Ctx, 0);
@@ -857,8 +861,8 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
       if (Acc->getSizeY() > 1) {
         global_offset_y = createBinaryOperator(Ctx, global_offset_y,
             createUnaryOperator(Ctx, createIntegerLiteral(Ctx,
-                (int32_t)Acc->getSizeY()/2), UO_Minus, Ctx.IntTy), BO_Add,
-            Ctx.IntTy);
+                static_cast<int32_t>(Acc->getSizeY()/2)), UO_Minus, Ctx.IntTy),
+            BO_Add, Ctx.IntTy);
       }
 
       // check if we need to stage right apron
@@ -875,7 +879,8 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
         Expr *local_offset_x = nullptr;
         if (Acc->getSizeX() > 1) {
           local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                (int32_t)i), tileVars.local_size_x, BO_Mul, Ctx.IntTy);
+                static_cast<int32_t>(i)), tileVars.local_size_x, BO_Mul,
+              Ctx.IntTy);
           global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
               BO_Sub, Ctx.IntTy);
         }
@@ -891,7 +896,8 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
 
       Expr *SY;
       if (Kernel->getPixelsPerThread() > 1) {
-        SY = createIntegerLiteral(Ctx, (int32_t)Kernel->getPixelsPerThread());
+        SY = createIntegerLiteral(Ctx,
+            static_cast<int32_t>(Kernel->getPixelsPerThread()));
       } else {
         SY = createIntegerLiteral(Ctx, 1);
       }
@@ -899,9 +905,9 @@ void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
       if (Acc->getSizeY() > 1) {
         SY = createBinaryOperator(Ctx, SY, createBinaryOperator(Ctx,
               createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                  (int32_t)Acc->getSizeY()-2), DSY, BO_Div, Ctx.IntTy),
-              createIntegerLiteral(Ctx, 1), BO_Add, Ctx.IntTy), BO_Add,
-            Ctx.IntTy);
+                  static_cast<int32_t>(Acc->getSizeY()-2)), DSY, BO_Div,
+                Ctx.IntTy), createIntegerLiteral(Ctx, 1), BO_Add, Ctx.IntTy),
+            BO_Add, Ctx.IntTy);
       }
       // for (int N=0; N < PPT*BSY + (SY-2)/BSY + 1)*BSY; N++)
       ForStmt *stageLoop = createForStmt(Ctx, iter_stmt,

@@ -334,7 +334,7 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
       tileVars.block_id_y, BO_Mul, Ctx.IntTy);
   if (Kernel->getPixelsPerThread() > 1) {
     YE = createBinaryOperator(Ctx, YE, createIntegerLiteral(Ctx,
-          (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
+          static_cast<int>(Kernel->getPixelsPerThread())), BO_Mul, Ctx.IntTy);
   }
   gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
       createBinaryOperator(Ctx, YE, tileVars.local_id_y, BO_Add, Ctx.IntTy));
@@ -431,8 +431,8 @@ void ASTTranslate::initOpenCL(SmallVector<Stmt *, 16> &kernelBody) {
     YE = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
           createBinaryOperator(Ctx, tileVars.local_size_y, tileVars.block_id_y,
             BO_Mul, Ctx.IntTy), createIntegerLiteral(Ctx,
-              (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy),
-        tileVars.local_id_y, BO_Add, Ctx.IntTy);
+              static_cast<int>(Kernel->getPixelsPerThread())), BO_Mul,
+          Ctx.IntTy), tileVars.local_id_y, BO_Add, Ctx.IntTy);
   } else {
     // OpenCL: const int gid_y = get_global_id(1)*PPT;
     YE = get_global_id1;
@@ -466,8 +466,8 @@ void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
   if (Kernel->getPixelsPerThread() > 1) {
     // const int gid_y = y*PPT;
     YE = createBinaryOperator(Ctx, createDeclRefExpr(Ctx, yDecl),
-        createIntegerLiteral(Ctx, (int)Kernel->getPixelsPerThread()), BO_Mul,
-        Ctx.IntTy);
+        createIntegerLiteral(Ctx,
+          static_cast<int>(Kernel->getPixelsPerThread())), BO_Mul, Ctx.IntTy);
   } else {
     // OpenCL: const int gid_y = get_global_id(1)*PPT;
     YE = createDeclRefExpr(Ctx, yDecl);
@@ -538,9 +538,9 @@ void ASTTranslate::updateTileVars() {
         } else {
           // use constant for final kernel configuration
           tileVars.local_size_x = createIntegerLiteral(Ctx,
-              (int)Kernel->getNumThreadsX());
+              static_cast<int>(Kernel->getNumThreadsX()));
           tileVars.local_size_y = createIntegerLiteral(Ctx,
-              (int)Kernel->getNumThreadsY());
+              static_cast<int>(Kernel->getNumThreadsY()));
         }
       } else {
         // cast blockDim.[x|y] to signed integer
@@ -791,16 +791,17 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // -> PPT*BSY + ((SY-2)/BSY + 1) * BSY
         if (Kernel->getPixelsPerThread() > 1) {
           SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx,
-                (int)Kernel->getPixelsPerThread()), BO_Mul, Ctx.IntTy);
+                static_cast<int>(Kernel->getPixelsPerThread())), BO_Mul,
+              Ctx.IntTy);
         }
 
         if (Acc->getSizeY() > 1) {
           SY = createBinaryOperator(Ctx, SY, createBinaryOperator(Ctx,
                 createParenExpr(Ctx, createBinaryOperator(Ctx,
                     createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                        (int)Acc->getSizeY()-2), BSY, BO_Div, Ctx.IntTy),
-                    createIntegerLiteral(Ctx, 1), BO_Add, Ctx.IntTy)), BSY,
-                BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+                        static_cast<int>(Acc->getSizeY()-2)), BSY, BO_Div,
+                      Ctx.IntTy), createIntegerLiteral(Ctx, 1), BO_Add,
+                    Ctx.IntTy)), BSY, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
         }
 
         QT = Acc->getImage()->getType();
@@ -820,8 +821,10 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
         // size_y = ceil((PPT*BSY+SY-1)/BSY)
         int smem_size_y =
-          (int)ceilf((float)(Kernel->getPixelsPerThread()*Kernel->getNumThreadsY()
-                + Acc->getSizeY()-1)/(float)Kernel->getNumThreadsY());
+          static_cast<int>(ceilf(
+                static_cast<float>(Kernel->getPixelsPerThread() *
+                  Kernel->getNumThreadsY() + Acc->getSizeY() - 1) /
+                static_cast<float>(Kernel->getNumThreadsY())));
         SY = llvm::APInt(32, smem_size_y*Kernel->getNumThreadsY());
 
         QT = Acc->getImage()->getType();
@@ -1189,8 +1192,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     // ppt + ceil((size_y-1)/sy) iterations
     int p_add = 0;
     if (Kernel->getMaxSizeYUndef()) {
-      p_add = (int)ceilf(2*Kernel->getMaxSizeYUndef() /
-          (float)Kernel->getNumThreadsY());
+      p_add = static_cast<int>(ceilf(2*Kernel->getMaxSizeYUndef() /
+            static_cast<float>(Kernel->getNumThreadsY())));
     }
     SmallVector<Stmt *, 16> labelBody;
     for (size_t p=0; use_shared && p<Kernel->getPixelsPerThread()+p_add; ++p) {
@@ -1213,11 +1216,13 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // update lid_y to lid_y + p*(int)local_size_y
         // update gid_y to gid_y + p*(int)local_size_y
         lidYRef = createBinaryOperator(Ctx, tileVars.local_id_y,
-            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, (int32_t)p),
-              tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
+                static_cast<int32_t>(p)), tileVars.local_size_y, BO_Mul,
+              Ctx.IntTy), BO_Add, Ctx.IntTy);
         gidYRef = createBinaryOperator(Ctx, tileVars.global_id_y,
-            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, (int32_t)p),
-              tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
+                static_cast<int32_t>(p)), tileVars.local_size_y, BO_Mul,
+              Ctx.IntTy), BO_Add, Ctx.IntTy);
         // load next iteration to shared memory
         stageIterationToSharedMemory(labelBody, p);
       }
@@ -1258,11 +1263,13 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         // update lid_y to lid_y + p*(int)local_size_y
         // update gid_y to gid_y + p*(int)local_size_y
         lidYRef = createBinaryOperator(Ctx, tileVars.local_id_y,
-            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, (int32_t)p),
-              tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
+                static_cast<int32_t>(p)), tileVars.local_size_y, BO_Mul,
+              Ctx.IntTy), BO_Add, Ctx.IntTy);
         gidYRef = createBinaryOperator(Ctx, tileVars.global_id_y,
-            createBinaryOperator(Ctx, createIntegerLiteral(Ctx, (int32_t)p),
-              tileVars.local_size_y, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
+            createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
+                static_cast<int32_t>(p)), tileVars.local_size_y, BO_Mul,
+              Ctx.IntTy), BO_Add, Ctx.IntTy);
       }
 
       // convert kernel function body to CUDA/OpenCL kernel syntax
@@ -1926,7 +1933,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
             case Language::OpenCLGPU:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                    (int)mask->getSizeX()), midx_x, midx_y);
+                    static_cast<int>(mask->getSizeX())), midx_x, midx_y);
               break;
             case Language::Renderscript:
             case Language::Filterscript:
@@ -1977,7 +1984,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
             case Language::OpenCLGPU:
               // array subscript: Mask[(conv_y)*width + conv_x]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                    (int)mask->getSizeX()), midx_x, midx_y);
+                    static_cast<int>(mask->getSizeX())), midx_x, midx_y);
               break;
             case Language::Renderscript:
             case Language::Filterscript:
@@ -2001,10 +2008,10 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
             // array subscript: Mask[y+size_y/2][x+size_x/2]
             result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                   Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                    (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                    static_cast<int>(mask->getSizeX()/2)), BO_Add, Ctx.IntTy),
                 createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                  createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
-                  Ctx.IntTy));
+                  createIntegerLiteral(Ctx,
+                    static_cast<int>(mask->getSizeY()/2)), BO_Add, Ctx.IntTy));
             break;
           case Language::OpenCLACC:
           case Language::OpenCLCPU:
@@ -2013,18 +2020,21 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
               result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                     Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                      (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                      static_cast<int>(mask->getSizeX()/2)), BO_Add, Ctx.IntTy),
                   createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
+                    createIntegerLiteral(Ctx,
+                      static_cast<int>(mask->getSizeY()/2)), BO_Add,
                     Ctx.IntTy));
             } else {
               // array subscript: Mask[(y+size_y/2)*width + x+size_x/2]
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
-                    (int)mask->getSizeX()), createBinaryOperator(Ctx,
-                    Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                      (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                    static_cast<int>(mask->getSizeX())),
+                  createBinaryOperator(Ctx, Clone(E->getArg(1)),
+                    createIntegerLiteral(Ctx,
+                      static_cast<int>(mask->getSizeX()/2)), BO_Add, Ctx.IntTy),
                   createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
+                    createIntegerLiteral(Ctx,
+                      static_cast<int>(mask->getSizeY()/2)), BO_Add,
                     Ctx.IntTy));
             }
             break;
@@ -2034,17 +2044,19 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
               // array subscript: Mask[y+size_y/2][x+size_x/2]
               result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
                     Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                      (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                      static_cast<int>(mask->getSizeX()/2)), BO_Add, Ctx.IntTy),
                   createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
+                    createIntegerLiteral(Ctx,
+                      static_cast<int>(mask->getSizeY()/2)), BO_Add,
                     Ctx.IntTy));
             } else {
               // allocation access: rsGetElementAt(Mask, x+size_x/2, y+size_y/2)
               result = accessMemAllocAt(LHS, mem_acc, createBinaryOperator(Ctx,
                     Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                      (int)mask->getSizeX()/2), BO_Add, Ctx.IntTy),
+                      static_cast<int>(mask->getSizeX()/2)), BO_Add, Ctx.IntTy),
                   createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx, (int)mask->getSizeY()/2), BO_Add,
+                    createIntegerLiteral(Ctx,
+                      static_cast<int>(mask->getSizeY()/2)), BO_Add,
                     Ctx.IntTy));
             }
             break;
@@ -2078,13 +2090,14 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
       if (compilerOptions.exploreConfig()) {
         TX = tileVars.local_size_x;
       } else {
-        TX = createIntegerLiteral(Ctx, (int)Kernel->getNumThreadsX());
+        TX = createIntegerLiteral(Ctx,
+            static_cast<int>(Kernel->getNumThreadsX()));
       }
     } else {
       TX = createIntegerLiteral(Ctx, 0);
     }
     if (acc->getSizeY() > 1) {
-      SY = createIntegerLiteral(Ctx, (int)acc->getSizeY()/2);
+      SY = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeY()/2));
     } else {
       SY = createIntegerLiteral(Ctx, 0);
     }
@@ -2141,9 +2154,9 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         Expr *offset_x, *offset_y;
         if (E->getNumArgs()==2) {
           offset_x = createIntegerLiteral(Ctx,
-              mask_idx_x-(int)Mask->getSizeX()/2);
+              mask_idx_x-static_cast<int>(Mask->getSizeX()/2));
           offset_y = createIntegerLiteral(Ctx,
-              mask_idx_y-(int)Mask->getSizeY()/2);
+              mask_idx_y-static_cast<int>(Mask->getSizeY()/2));
         } else {
           offset_x = Clone(E->getArg(1));
           offset_y = Clone(E->getArg(2));
@@ -2351,22 +2364,24 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
                                 "within reduction lambda-function.");
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "x") {
-          return createIntegerLiteral(Ctx,
-              redIdxX[redDepth] - (int)redDomains[redDepth]->getSizeX()/2);
+          return createIntegerLiteral(Ctx, redIdxX[redDepth] -
+              static_cast<int>(redDomains[redDepth]->getSizeX()/2));
         }
         if (ME->getMemberNameInfo().getAsString() == "y") {
-          return createIntegerLiteral(Ctx,
-              redIdxY[redDepth] - (int)redDomains[redDepth]->getSizeY()/2);
+          return createIntegerLiteral(Ctx, redIdxY[redDepth] -
+              static_cast<int>(redDomains[redDepth]->getSizeY()/2));
         }
       } else {
         assert(mask==convMask && "Getting Mask convolution IDs is only allowed "
                                  "allowed within convolution lambda-function.");
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "x") {
-          return createIntegerLiteral(Ctx, convIdxX - (int)mask->getSizeX()/2);
+          return createIntegerLiteral(Ctx, convIdxX -
+              static_cast<int>(mask->getSizeX()/2));
         }
         if (ME->getMemberNameInfo().getAsString() == "y") {
-          return createIntegerLiteral(Ctx, convIdxY - (int)mask->getSizeY()/2);
+          return createIntegerLiteral(Ctx, convIdxY -
+              static_cast<int>(mask->getSizeY()/2));
         }
       }
     }

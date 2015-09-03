@@ -205,8 +205,8 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
     case Language::OpenCLGPU:
       // array subscript: Domain[y*width + x]
       dom_acc = accessMemArrAt(domain_var, createIntegerLiteral(Ctx,
-            (int)Domain->getSizeX()), createIntegerLiteral(Ctx, redIdxX.back()),
-          createIntegerLiteral(Ctx, redIdxY.back()));
+            static_cast<int>(Domain->getSizeX())), createIntegerLiteral(Ctx,
+            redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
       break;
     case Language::Renderscript:
     case Language::Filterscript:
