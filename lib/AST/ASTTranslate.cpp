@@ -1604,7 +1604,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
 
       // check if we have an intrinsic (math) function
       if (!targetFD) {
-        QualType QT = E->getCallReturnType();
+        QualType QT = E->getCallReturnType(Ctx);
         if (Kernel->vectorize() && !compilerOptions.emitC99()) {
           QT = simdTypes.getSIMDType(QT, QT.getAsString(), SIMD4);
           assert(false && "widening of intrinsic functions not supported currently");

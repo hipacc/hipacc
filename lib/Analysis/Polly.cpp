@@ -37,11 +37,11 @@
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
-#include <llvm/PassManager.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/ADT/Statistic.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/Passes.h>
-#include <llvm/Target/TargetLibraryInfo.h>
+#include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/Scalar.h>
 
@@ -63,7 +63,8 @@ void Polly::analyzeKernel() {
   llvm::LLVMContext *LLVMCtx = new llvm::LLVMContext;
   clang::CodeGenerator *llvm_ir_cg =
     clang::CreateLLVMCodeGen(Clang.getDiagnostics(), func->getNameAsString(),
-        Clang.getCodeGenOpts(), Clang.getTargetOpts(), *LLVMCtx);
+        Clang.getHeaderSearchOpts(), Clang.getPreprocessorOpts(),
+        Clang.getCodeGenOpts(), *LLVMCtx);
 
   DeclGroupRef DG = DeclGroupRef(func);
   llvm_ir_cg->Initialize(Ctx);
@@ -90,17 +91,10 @@ void Polly::analyzeKernel() {
 
   polly::initializePollyPasses(Registry);
 
-  // create a PassManager to hold and optimize the collection of passes we are
-  // about to build
-  llvm::PassManager Passes;
+  llvm::legacy::PassManager Passes;
+  auto triple = Triple(irModule->getTargetTriple());
 
-  // add an appropriate TargetLibraryInfo pass for the module's triple
-  Passes.add(new llvm::TargetLibraryInfo(Triple(irModule->getTargetTriple())));
-
-  // add an appropriate DataLayout instance for this module.
-  if (irModule->getDataLayout())
-    Passes.add(new DataLayoutPass());
-
+  Passes.add(new llvm::TargetLibraryInfoWrapperPass(triple));
   Passes.add(llvm::createPromoteMemoryToRegisterPass());
   Passes.add(llvm::createFunctionInliningPass());
   Passes.add(llvm::createCFGSimplificationPass());

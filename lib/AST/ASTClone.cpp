@@ -407,8 +407,9 @@ Expr *ASTTranslate::VisitCallExprClone(CallExpr *E) {
 
 Expr *ASTTranslate::VisitMemberExprClone(MemberExpr *E) {
   MemberExpr *result = new (Ctx) MemberExpr(Clone(E->getBase()), E->isArrow(),
-      CloneDecl(E->getMemberDecl()), E->getMemberNameInfo(), E->getType(),
-      E->getValueKind(), E->getObjectKind());
+      E->getOperatorLoc(), CloneDecl(E->getMemberDecl()),
+      E->getMemberNameInfo(), E->getType(), E->getValueKind(),
+      E->getObjectKind());
 
   setExprPropsClone(E, result);
 
