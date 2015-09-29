@@ -430,6 +430,9 @@ namespace Vectorization
     /** \brief  Creates all required missing intrinsic function declarations for the AVX instruction set (Clang header are incomplete). */
     void _CreateMissingIntrinsicsAVX();
 
+    /** \brief  Creates all required missing intrinsic function declarations for the AVX2 instruction set (Clang header are incomplete). */
+    void _CreateMissingIntrinsicsAVX2();
+
     //@}
 
 
@@ -1925,7 +1928,7 @@ namespace Vectorization
     /** \name Instruction set abstraction methods */
     //@{
 
-    virtual ::clang::Expr* _ConvertVector(VectorElementTypes eSourceType, VectorElementTypes eTargetType, const ClangASTHelper::ExpressionVectorType &crvecVectorRefs, std::uint32_t uiGroupIndex, bool bMaskConversion) final override;
+    virtual ::clang::Expr* _ConvertVector(VectorElementTypes eSourceType, VectorElementTypes eTargetType, const ClangASTHelper::ExpressionVectorType &crvecVectorRefs, std::uint32_t uiGroupIndex, bool bMaskConversion) override;
 
     //@}
 
@@ -1940,23 +1943,23 @@ namespace Vectorization
     virtual bool IsBuiltinFunctionSupported(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, std::uint32_t uiParamCount) const final override;
     virtual bool IsElementTypeSupported(VectorElementTypes eElementType) const final override;
 
-    virtual ::clang::Expr* ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) final override;
-    virtual ::clang::Expr* BlendVectors(VectorElementTypes eElementType, ::clang::Expr *pMaskRef, ::clang::Expr *pVectorTrue, ::clang::Expr *pVectorFalse) final override;
+    virtual ::clang::Expr* ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) override;
+    virtual ::clang::Expr* BlendVectors(VectorElementTypes eElementType, ::clang::Expr *pMaskRef, ::clang::Expr *pVectorTrue, ::clang::Expr *pVectorFalse) override;
     virtual ::clang::Expr* BroadCast(VectorElementTypes eElementType, ::clang::Expr *pBroadCastValue) final override;
     virtual ::clang::Expr* BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments) final override;
-    virtual ::clang::Expr* CheckActiveElements(VectorElementTypes eMaskElementType, ActiveElementsCheckType eCheckType, ::clang::Expr *pMaskExpr) final override;
-    virtual ::clang::Expr* CheckSingleMaskElement(VectorElementTypes eMaskElementType, ::clang::Expr *pMaskExpr, std::uint32_t uiIndex) final override;
+    virtual ::clang::Expr* CheckActiveElements(VectorElementTypes eMaskElementType, ActiveElementsCheckType eCheckType, ::clang::Expr *pMaskExpr) override;
+    virtual ::clang::Expr* CheckSingleMaskElement(VectorElementTypes eMaskElementType, ::clang::Expr *pMaskExpr, std::uint32_t uiIndex) override;
     virtual ::clang::Expr* CreateOnesVector(VectorElementTypes eElementType, bool bNegative) final override;
     virtual ::clang::Expr* CreateVector(VectorElementTypes eElementType, const ClangASTHelper::ExpressionVectorType &crvecElements, bool bReversedOrder) final override;
     virtual ::clang::Expr* CreateZeroVector(VectorElementTypes eElementType) final override;
     virtual ::clang::Expr* ExtractElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, std::uint32_t uiIndex) final override;
     virtual ::clang::Expr* InsertElement(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, ::clang::Expr *pElementValue, std::uint32_t uiIndex) final override;
     virtual ::clang::Expr* LoadVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef) final override;
-    virtual ::clang::Expr* LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, ::clang::Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex) final override;
-    virtual ::clang::Expr* RelationalOperator(VectorElementTypes eElementType, RelationalOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) final override;
-    virtual ::clang::Expr* ShiftElements(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, bool bShiftLeft, uint32_t uiCount) final override;
+    virtual ::clang::Expr* LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, ::clang::Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex) override;
+    virtual ::clang::Expr* RelationalOperator(VectorElementTypes eElementType, RelationalOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) override;
+    virtual ::clang::Expr* ShiftElements(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, bool bShiftLeft, uint32_t uiCount) override;
     virtual ::clang::Expr* StoreVector(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, ::clang::Expr *pVectorValue) final override;
-    virtual ::clang::Expr* StoreVectorMasked(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, ::clang::Expr *pVectorValue, ::clang::Expr *pMaskRef) final override;
+    virtual ::clang::Expr* StoreVectorMasked(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, ::clang::Expr *pVectorValue, ::clang::Expr *pMaskRef) override;
     virtual ::clang::Expr* UnaryOperator(VectorElementTypes eElementType, UnaryOperatorType eOpType, ::clang::Expr *pSubExpr) final override;
 
     //@}
@@ -1974,6 +1977,29 @@ namespace Vectorization
     /** \brief  Enumeration of all internal IDs for the intrinsic functions of the instruction set <b>AVX 2</b>. */
     enum class IntrinsicsAVX2Enum
     {
+      AddInt8, AddInt16, AddInt32, AddInt64,
+      AndInteger, AndNotInteger,
+      BlendInteger,
+      CompareEqualInt8, CompareEqualInt16, CompareEqualInt32, CompareEqualInt64,
+      CompareGreaterThanInt8, CompareGreaterThanInt16, CompareGreaterThanInt32, CompareGreaterThanInt64,
+      ConvertInt8Int16,   ConvertInt8Int32,   ConvertInt8Int64,
+      ConvertInt16Int32,  ConvertInt16Int64,
+      ConvertInt32Int64,
+      ConvertUInt8Int16,  ConvertUInt8Int32,  ConvertUInt8Int64,
+      ConvertUInt16Int32, ConvertUInt16Int64,
+      ConvertUInt32Int64,
+      ExtractSSEIntegerInteger,
+      GatherInt32, GatherInt64, GatherFloat, GatherDouble,
+      MoveMaskInt8,
+      MultiplyInt32, MultiplyUInt32,
+      OrInteger,
+      PackInt16ToInt8,              PackInt16ToUInt8,       PackInt32ToInt16,        PackInt32ToUInt16,
+      PermuteCrossInt32,
+      ShiftLeftInt16,               ShiftLeftInt32,         ShiftLeftInt64,          ShiftLeftVectorBytes,
+      ShiftRightArithInt16,         ShiftRightArithInt32,   ShiftRightLogInt16,      ShiftRightLogInt32,      ShiftRightLogInt64,  ShiftRightVectorBytes,
+      ShuffleInt8, ShuffleInt32,
+      SubtractInt8, SubtractInt16, SubtractInt32, SubtractInt64,
+      XorInteger
     };
 
     typedef InstructionSetBase::IntrinsicMapTemplateType< IntrinsicsAVX2Enum >  IntrinsicMapType;   //!< Type definition for the lookup-table of intrinsic functions.
@@ -1995,10 +2021,73 @@ namespace Vectorization
     /** \brief  Maps all used intrinsic functions to their corresponding internal IDs. */
     void _InitIntrinsicsMap();
 
+    /** \brief  Base function for the creation of function call expression objects to intrinsic functions.
+     *  \param  eIntrinID       The internal ID of the requested intrinsic function.
+     *  \param  crvecArguments  A vector containing the expression objects, which shall be used as arguments for the intrinsic function. */
+    inline ::clang::CallExpr* _CreateFunctionCall(IntrinsicsAVX2Enum eIntrinID, const ClangASTHelper::ExpressionVectorType &crvecArguments)
+    {
+      return InstructionSetBase::_CreateFunctionCall(_mapIntrinsicsAVX2, eIntrinID, crvecArguments);
+    }
+
+    /** \brief  Creates a function call expression object to an intrinsic function with one call parameter.
+     *  \param  eIntrinID   The internal ID of the requested intrinsic function.
+     *  \param  pArg1       A pointer to the expression object, which serves as the argument of the function. */
+    inline ::clang::CallExpr* _CreateFunctionCall(IntrinsicsAVX2Enum eIntrinID, ::clang::Expr *pArg1)
+    {
+      ClangASTHelper::ExpressionVectorType vecArguments;
+
+      vecArguments.push_back(pArg1);
+
+      return _CreateFunctionCall(eIntrinID, vecArguments);
+    }
+
+    /** \brief  Creates a function call expression object to an intrinsic function with two call parameters.
+     *  \param  eIntrinID   The internal ID of the requested intrinsic function.
+     *  \param  pArg1       A pointer to the expression object, which serves as the first argument.
+     *  \param  pArg2       A pointer to the expression object, which serves as the second argument. */
+    inline ::clang::CallExpr* _CreateFunctionCall(IntrinsicsAVX2Enum eIntrinID, ::clang::Expr *pArg1, ::clang::Expr *pArg2)
+    {
+      ClangASTHelper::ExpressionVectorType vecArguments;
+
+      vecArguments.push_back(pArg1);
+      vecArguments.push_back(pArg2);
+
+      return _CreateFunctionCall(eIntrinID, vecArguments);
+    }
+
+    /** \brief  Creates a function call expression object to an intrinsic function with three call parameters.
+     *  \param  eIntrinID   The internal ID of the requested intrinsic function.
+     *  \param  pArg1       A pointer to the expression object, which serves as the first argument.
+     *  \param  pArg2       A pointer to the expression object, which serves as the second argument.
+     *  \param  pArg3       A pointer to the expression object, which serves as the third argument. */
+    inline ::clang::CallExpr* _CreateFunctionCall(IntrinsicsAVX2Enum eIntrinID, ::clang::Expr *pArg1, ::clang::Expr *pArg2, ::clang::Expr *pArg3)
+    {
+      ClangASTHelper::ExpressionVectorType vecArguments;
+
+      vecArguments.push_back(pArg1);
+      vecArguments.push_back(pArg2);
+      vecArguments.push_back(pArg3);
+
+      return _CreateFunctionCall(eIntrinID, vecArguments);
+    }
+
 
   protected:
 
     InstructionSetAVX2(::clang::ASTContext &rAstContext);
+
+    /** \brief  Returns an expression, which shifts the contents of a vector within 128bit lanes by a specified amount of bytes.
+     *  \param  pVectorRef    A pointer to a vectorized expression object, which returns the vector whose contents shall be shifted.
+     *  \param  uiByteCount   The number of bytes, by which the vector contents shall be shifted.
+     *  \param  bShiftLeft    A flag indicating, whether the vector contents shall be shifted to the left or to the right. */
+    ::clang::Expr* _ShiftIntegerVectorBytes(::clang::Expr *pVectorRef, std::uint32_t uiByteCount, bool bShiftLeft);
+
+    /** \brief  Returns an expression, which extracts one half of an AVX vector into a SSE vector.
+     *  \param  eElementType  The element type stored in the vector.
+     *  \param  pAVXVector    A pointer to a vectorized expression, which returns the AVX vector used for the extraction.
+     *  \param  bLowHalf      A flag indicating, whether the low half or the high half of the AVX vector shall be extracted. */
+    ::clang::Expr*  _ExtractSSEVector(VectorElementTypes eElementType, ::clang::Expr *pAVXVector, bool bLowHalf);
+
 
   public:
 
@@ -2006,6 +2095,30 @@ namespace Vectorization
     {
       _mapIntrinsicsAVX2.clear();
     }
+
+
+  protected:
+
+    /** \name Instruction set abstraction methods */
+    //@{
+
+    virtual ::clang::Expr* _ConvertVector(VectorElementTypes eSourceType, VectorElementTypes eTargetType, const ClangASTHelper::ExpressionVectorType &crvecVectorRefs, std::uint32_t uiGroupIndex, bool bMaskConversion) final override;
+
+    //@}
+
+  public:
+
+    /** \name Instruction set abstraction methods */
+    //@{
+
+    virtual ::clang::Expr* ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) final override;
+    virtual ::clang::Expr* BlendVectors(VectorElementTypes eElementType, ::clang::Expr *pMaskRef, ::clang::Expr *pVectorTrue, ::clang::Expr *pVectorFalse) final override;
+    virtual ::clang::Expr* CheckActiveElements(VectorElementTypes eMaskElementType, ActiveElementsCheckType eCheckType, ::clang::Expr *pMaskExpr) final override;
+    virtual ::clang::Expr* CheckSingleMaskElement(VectorElementTypes eMaskElementType, ::clang::Expr *pMaskExpr, std::uint32_t uiIndex) final override;
+    virtual ::clang::Expr* LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, ::clang::Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex) final override;
+    virtual ::clang::Expr* RelationalOperator(VectorElementTypes eElementType, RelationalOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) final override;
+    virtual ::clang::Expr* ShiftElements(VectorElementTypes eElementType, ::clang::Expr *pVectorRef, bool bShiftLeft, uint32_t uiCount) final override;
+    virtual ::clang::Expr* StoreVectorMasked(VectorElementTypes eElementType, ::clang::Expr *pPointerRef, ::clang::Expr *pVectorValue, ::clang::Expr *pMaskRef) final override;
 
   };
 
