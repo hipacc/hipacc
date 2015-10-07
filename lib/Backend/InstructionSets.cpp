@@ -285,6 +285,9 @@ void InstructionSetBase::_CreateMissingIntrinsicsAVX()
   QualType  qtIntegerVectorAVX  = _GetFunctionReturnType( "_mm256_setzero_si256"   );
   QualType  qtIntegerVectorSSE  = _GetFunctionReturnType( "_mm256_castsi256_si128" );
   QualType  qtInt               = _GetClangType( VectorElementTypes::Int32 );
+  QualType  qtInt8              = _GetClangType( VectorElementTypes::Int8  );
+  QualType  qtInt16             = _GetClangType( VectorElementTypes::Int16 );
+  QualType  qtInt64             = _GetClangType( VectorElementTypes::Int64 );
   QualType  qtConstInt          = qtInt;
   qtConstInt.addConst();
 
@@ -293,6 +296,10 @@ void InstructionSetBase::_CreateMissingIntrinsicsAVX()
   _CreateIntrinsicDeclaration( "_mm256_ceil_ps",           qtFloatVectorAVX,   qtFloatVectorAVX,   "a" );
   _CreateIntrinsicDeclaration( "_mm256_cmp_pd",            qtDoubleVectorAVX,  qtDoubleVectorAVX,  "a",  qtDoubleVectorAVX,  "b",  qtConstInt, "imm" );
   _CreateIntrinsicDeclaration( "_mm256_cmp_ps",            qtFloatVectorAVX,   qtFloatVectorAVX,   "a",  qtFloatVectorAVX,   "b",  qtConstInt, "imm" );
+  _CreateIntrinsicDeclaration( "_mm256_extract_epi8",      qtInt8,             qtIntegerVectorAVX, "a",  qtConstInt,         "index" );
+  _CreateIntrinsicDeclaration( "_mm256_extract_epi16",     qtInt16,            qtIntegerVectorAVX, "a",  qtConstInt,         "index" );
+  _CreateIntrinsicDeclaration( "_mm256_extract_epi32",     qtInt,              qtIntegerVectorAVX, "a",  qtConstInt,         "index" );
+  _CreateIntrinsicDeclaration( "_mm256_extract_epi64",     qtInt64,            qtIntegerVectorAVX, "a",  qtConstInt,         "index" );
   _CreateIntrinsicDeclaration( "_mm256_extractf128_pd",    qtDoubleVectorSSE,  qtDoubleVectorAVX,  "a",  qtConstInt,         "imm" );
   _CreateIntrinsicDeclaration( "_mm256_extractf128_ps",    qtFloatVectorSSE,   qtFloatVectorAVX,   "a",  qtConstInt,         "imm" );
   _CreateIntrinsicDeclaration( "_mm256_extractf128_si256", qtIntegerVectorSSE, qtIntegerVectorAVX, "a",  qtConstInt,         "imm" );
@@ -3716,6 +3723,12 @@ void InstructionSetAVX::_InitIntrinsicsMap()
   _InitIntrinsic( IntrinsicsAVXEnum::DuplicateEvenFloat, "moveldup_ps" );
   _InitIntrinsic( IntrinsicsAVXEnum::DuplicateOddFloat,  "movehdup_ps" );
 
+  // Integer extraction functions
+  _InitIntrinsic( IntrinsicsAVXEnum::ExtractInt8,  "extract_epi8"  );
+  _InitIntrinsic( IntrinsicsAVXEnum::ExtractInt16, "extract_epi16" );
+  _InitIntrinsic( IntrinsicsAVXEnum::ExtractInt32, "extract_epi32" );
+  _InitIntrinsic( IntrinsicsAVXEnum::ExtractInt64, "extract_epi64" );
+
   // Extract SSE vectors functions
   _InitIntrinsic( IntrinsicsAVXEnum::ExtractSSEDouble,  "extractf128_pd"    );
   _InitIntrinsic( IntrinsicsAVXEnum::ExtractSSEFloat,   "extractf128_ps"    );
@@ -4330,16 +4343,31 @@ Expr* InstructionSetAVX::CreateZeroVector(VectorElementTypes eElementType)
 Expr* InstructionSetAVX::ExtractElement(VectorElementTypes eElementType, Expr *pVectorRef, uint32_t uiIndex)
 {
   const uint32_t cuiElementCountAVX = static_cast< uint32_t >( GetVectorElementCount(eElementType) );
-  const uint32_t cuiElementCountSSE = static_cast< uint32_t >( _GetFallback()->GetVectorElementCount(eElementType) );
 
   if (uiIndex >= cuiElementCountAVX)
   {
     throw InstructionSetExceptions::ExtractIndexOutOfRange( eElementType, cuiElementCountAVX );
   }
 
-  Expr *pVectorSSE = _ExtractSSEVector( eElementType, pVectorRef, (uiIndex < cuiElementCountSSE) );
+  IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::ExtractInt8;
 
-  return _GetFallback()->ExtractElement( eElementType, pVectorSSE, uiIndex % cuiElementCountSSE );
+  switch (eElementType)
+  {
+  case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:   eFunctionID = IntrinsicsAVXEnum::ExtractInt8;  break;
+  case VectorElementTypes::Int16: case VectorElementTypes::UInt16:  eFunctionID = IntrinsicsAVXEnum::ExtractInt16; break;
+  case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  eFunctionID = IntrinsicsAVXEnum::ExtractInt32; break;
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::ExtractInt64; break;
+  default:
+    {
+      const uint32_t cuiElementCountSSE = static_cast< uint32_t >( _GetFallback()->GetVectorElementCount(eElementType) );
+
+      Expr *pVectorSSE = _ExtractSSEVector( eElementType, pVectorRef, (uiIndex < cuiElementCountSSE) );
+
+      return _GetFallback()->ExtractElement( eElementType, pVectorSSE, uiIndex % cuiElementCountSSE );
+    }
+  }
+
+  return _CreateFunctionCall( eFunctionID, pVectorRef, _GetASTHelper().CreateIntegerLiteral( uiIndex ));
 }
 
 QualType InstructionSetAVX::GetVectorType(VectorElementTypes eElementType)
@@ -4467,8 +4495,44 @@ Expr* InstructionSetAVX::LoadVector(VectorElementTypes eElementType, Expr *pPoin
 
 Expr* InstructionSetAVX::LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex)
 {
-  // TODO: Implement
-  throw RuntimeErrorException("Not implemented!");
+  switch (eIndexElementType)
+  {
+  case VectorElementTypes::Int32: case VectorElementTypes::Int64:   break;
+  default:  throw RuntimeErrorException( string("Only index element types \"") + AST::BaseClasses::TypeInfo::GetTypeString( VectorElementTypes::Int32 ) + ("\" and \"") +
+                                         AST::BaseClasses::TypeInfo::GetTypeString( VectorElementTypes::Int64 ) + ("\" supported for gathered vector loads!") );
+  }
+
+  if ( GetVectorElementCount(eElementType) > (GetVectorElementCount(eIndexElementType) * crvecIndexExprs.size()) )
+  {
+    throw RuntimeErrorException( "The number of vector elements must be less or equal to the number of index elements times the number of index vectors for gathered vector loads!" );
+  }
+  else if ( (uiGroupIndex != 0) && (uiGroupIndex >= (GetVectorElementCount(eIndexElementType) / GetVectorElementCount(eElementType))) )
+  {
+    throw RuntimeErrorException( "The group index must be smaller than the size spread between the index element type and the vector element type!" );
+  }
+
+
+  const uint32_t cuiIndexOffset = uiGroupIndex * static_cast<uint32_t>( GetVectorElementCount(eIndexElementType) / GetVectorElementCount(eElementType) );
+
+  ClangASTHelper::ExpressionVectorType vecLoadedElements;
+
+  for (size_t szVecIdx = static_cast<size_t>(0); szVecIdx < crvecIndexExprs.size(); ++szVecIdx)
+  {
+    for (size_t szElemIdx = static_cast<size_t>(0); szElemIdx < GetVectorElementCount(eIndexElementType); ++szElemIdx)
+    {
+      if (vecLoadedElements.size() == GetVectorElementCount(eElementType))
+      {
+        // If more indices are given than required, break as soon as all elements are loaded
+        break;
+      }
+
+      Expr *pCurrentOffset = ExtractElement( eIndexElementType, crvecIndexExprs[szVecIdx], static_cast<uint32_t>(szElemIdx) + cuiIndexOffset );
+
+      vecLoadedElements.push_back( _GetASTHelper().CreateArraySubscriptExpression( pPointerRef, pCurrentOffset, _GetClangType(eElementType), false ) );
+    }
+  }
+
+  return CreateVector( eElementType, vecLoadedElements, false );
 }
 
 Expr* InstructionSetAVX::RelationalOperator(VectorElementTypes eElementType, RelationalOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)

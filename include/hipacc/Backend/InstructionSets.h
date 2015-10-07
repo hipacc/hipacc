@@ -1730,6 +1730,7 @@ namespace Vectorization
       ConvertDoubleFloat, ConvertDoubleInt32,   ConvertFloatDouble, ConvertFloatInt32,  ConvertInt32Double,   ConvertInt32Float,
       DivideDouble,       DivideFloat,
       DuplicateEvenFloat, DuplicateOddFloat,
+      ExtractInt8,        ExtractInt16,         ExtractInt32,       ExtractInt64,
       ExtractSSEDouble,   ExtractSSEFloat,      ExtractSSEInteger,
       FloorDouble,        FloorFloat,
       InsertSSEDouble,    InsertSSEFloat,       InsertSSEInteger,
