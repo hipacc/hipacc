@@ -910,7 +910,7 @@ HipaccMask* CPU_x86::HipaccHelper::GetMaskFromMapping(const string &crstrParamNa
   case ImageParamType::Width:   return pAccessor->getWidthDecl();
   case ImageParamType::Height:  return pAccessor->getHeightDecl();
   case ImageParamType::Stride:  return pAccessor->getStrideDecl();
-  default:                      throw RuntimeErrorException("Unknwon image parameter type!");
+  default:                      throw RuntimeErrorException("Unknown image parameter type!");
   }
 }
 
@@ -2765,9 +2765,12 @@ CPU_x86::CodeGenerator::ImageAccessTranslator::ImageLinePosDeclPairType CPU_x86:
 
   // Create the declaration of the currently processed image line, e.g. "float *Output_CurrentLine = Output[gid_y];"
   {
-    ::clang::ArraySubscriptExpr *pArrayAccess   = _ASTHelper.CreateArraySubscriptExpression(pImageDeclRef, _pDRGidY, qtArrayAccessType, false);
-    ::clang::ImplicitCastExpr   *pCastToPointer = _ASTHelper.CreateImplicitCastExpression(pArrayAccess, qtImagePointerType, CK_ArrayToPointerDecay, false);
-    LinePosDeclPair.first                       = _ASTHelper.CreateVariableDeclaration(pKernelFunction, strImageName + string("_CurrentLine"), qtImagePointerType, pCastToPointer);
+    HipaccAccessor* pImage = _rHipaccHelper.GetImageFromMapping(strImageName);
+    ::clang::DeclRefExpr *pStride = pImage->getStrideDecl();
+    _rHipaccHelper.MarkParamUsed(pStride->getNameInfo().getAsString());
+    ::clang::BinaryOperator *pOffset          = _ASTHelper.CreateBinaryOperator(pStride, _pDRGidY, BO_Mul, _pDRGidY->getType());
+    ::clang::BinaryOperator *pPointerAddition = _ASTHelper.CreateBinaryOperator(pImageDeclRef, pOffset, BO_Add, qtImagePointerType);
+    LinePosDeclPair.first                     = _ASTHelper.CreateVariableDeclaration(pKernelFunction, strImageName + string("_CurrentLine"), qtImagePointerType, pPointerAddition);
   }
 
   ::clang::DeclRefExpr *pImageLineDeclRef = _ASTHelper.CreateDeclarationReferenceExpression(LinePosDeclPair.first);
@@ -2954,9 +2957,7 @@ string CPU_x86::CodeGenerator::_GetImageDeclarationString(string strName, Hipacc
     FormatStream << "const ";
   }
 
-  FormatStream << pHipaccMemoryObject->getTypeStr() << " " << strName;
-  FormatStream << "[" << pHipaccMemoryObject->getSizeYStr() << "]";
-  FormatStream << "[" << pHipaccMemoryObject->getSizeXStr() << "]";
+  FormatStream << pHipaccMemoryObject->getTypeStr() << "* " << strName;
 
   return FormatStream.str();
 }

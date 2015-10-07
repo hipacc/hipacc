@@ -709,8 +709,7 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
             resultStr += ", ";
           }
           if (Acc) {
-            resultStr += "(" + Acc->getImage()->getTypeStr();
-            resultStr += "(*)[" + Acc->getImage()->getSizeXStr() + "])";
+            resultStr += "(" + Acc->getImage()->getTypeStr() + "*)";
           }
           if (Mask) {
             resultStr += "(" + argTypeNames[i] + ")";
