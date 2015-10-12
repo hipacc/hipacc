@@ -4992,7 +4992,7 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
         }
 
         IntrinsicsAVX2Enum ePack16Bit =
-            eSourceType == VectorElementTypes::Int16 ?
+            eTargetType == VectorElementTypes::Int8 ?
               IntrinsicsAVX2Enum::PackInt16ToInt8 :
               IntrinsicsAVX2Enum::PackInt16ToUInt8;
 
@@ -5030,12 +5030,12 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
         }
 
         IntrinsicsAVX2Enum ePack16Bit =
-            eSourceType == VectorElementTypes::Int32 ?
+            eTargetType == VectorElementTypes::Int8 ?
               IntrinsicsAVX2Enum::PackInt16ToInt8 :
               IntrinsicsAVX2Enum::PackInt16ToUInt8;
 
         IntrinsicsAVX2Enum ePack32Bit =
-            eSourceType == VectorElementTypes::Int32 ?
+            eTargetType == VectorElementTypes::Int8 ?
               IntrinsicsAVX2Enum::PackInt32ToInt16 :
               IntrinsicsAVX2Enum::PackInt32ToUInt16;
 
@@ -5092,7 +5092,7 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
         }
 
         IntrinsicsAVX2Enum ePack32Bit =
-            eSourceType == VectorElementTypes::Int32 ?
+            eTargetType == VectorElementTypes::Int16 ?
               IntrinsicsAVX2Enum::PackInt32ToInt16 :
               IntrinsicsAVX2Enum::PackInt32ToUInt16;
 
@@ -5193,13 +5193,19 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
      case VectorElementTypes::Float:
       switch (eSourceType) {
        case VectorElementTypes::Int8:
-       case VectorElementTypes::UInt8:
         eConvertID = IntrinsicsAVX2Enum::ConvertInt8Int32;
         break;
 
+       case VectorElementTypes::UInt8:
+        eConvertID = IntrinsicsAVX2Enum::ConvertUInt8Int32;
+        break;
+
        case VectorElementTypes::Int16:
-       case VectorElementTypes::UInt16:
         eConvertID = IntrinsicsAVX2Enum::ConvertInt16Int32;
+        break;
+
+       case VectorElementTypes::UInt16:
+        eConvertID = IntrinsicsAVX2Enum::ConvertUInt16Int32;
         break;
 
        default:
@@ -5210,18 +5216,27 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
      case VectorElementTypes::Double:
       switch (eSourceType) {
        case VectorElementTypes::Int8:
-       case VectorElementTypes::UInt8:
         eConvertID = IntrinsicsAVX2Enum::ConvertInt8Int64;
         break;
 
+       case VectorElementTypes::UInt8:
+        eConvertID = IntrinsicsAVX2Enum::ConvertUInt8Int64;
+        break;
+
        case VectorElementTypes::Int16:
-       case VectorElementTypes::UInt16:
         eConvertID = IntrinsicsAVX2Enum::ConvertInt16Int64;
         break;
 
+       case VectorElementTypes::UInt16:
+        eConvertID = IntrinsicsAVX2Enum::ConvertUInt16Int64;
+        break;
+
        case VectorElementTypes::Int32:
+        eConvertID = IntrinsicsAVX2Enum::ConvertInt32Int64;
+        break;
+
        case VectorElementTypes::UInt32:
-        eConvertID = IntrinsicsAVX2Enum::ConvertInt16Int64;
+        eConvertID = IntrinsicsAVX2Enum::ConvertUInt32Int64;
         break;
 
        default:
