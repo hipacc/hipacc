@@ -5234,6 +5234,7 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
     }
 
     if (bHandleConversion) {
+      // Upward conversion
       const uint32_t cuiShiftMultiplier = 32 / static_cast< uint32_t >(
           AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) /
           AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType));
@@ -5255,10 +5256,12 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
         pSelectedGroup =
           _ExtractSSEVector(eSourceType, pSelectedGroup, bLowHalf);
 
-        pSelectedGroup = _CreateFunctionCall(eConvertID, pSelectedGroup);
+        ClangASTHelper::ExpressionVectorType vecSelectedGroup;
+        vecSelectedGroup.push_back(
+            _CreateFunctionCall(eConvertID, pSelectedGroup));
 
-        return _CastVector(VectorElementTypes::Int32, eTargetType,
-            pSelectedGroup);
+        return _ConvertVector(VectorElementTypes::Int32, eTargetType,
+            vecSelectedGroup, uiGroupIndex, bMaskConversion);
        }
 
        default: {
