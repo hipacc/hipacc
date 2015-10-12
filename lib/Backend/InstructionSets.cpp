@@ -4975,7 +4975,6 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
     default: break; // Useless default branch avoiding GCC compiler warnings
     }
   } else {
-    // Handle all upward conversions from integer types to integer types
     bool bHandleConversion = true;
     IntrinsicsAVX2Enum eConvertID = IntrinsicsAVX2Enum::ConvertInt8Int32;
 
@@ -5067,13 +5066,37 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
                          true));
        }
 
-       case VectorElementTypes::Int8:
-        eConvertID = IntrinsicsAVX2Enum::ConvertInt8Int16;
-        break;
+       case VectorElementTypes::Float: {
+        // Special downward conversion
+        ClangASTHelper::ExpressionVectorType vecValues;
 
-       case VectorElementTypes::UInt8:
-        eConvertID = IntrinsicsAVX2Enum::ConvertUInt8Int16;
-        break;
+        for (auto vecRef : crvecVectorRefs) {
+          ClangASTHelper::ExpressionVectorType vecCurRef;
+          vecCurRef.push_back(vecRef);
+          vecValues.push_back(_ConvertVector(eSourceType,
+                VectorElementTypes::Int32, vecCurRef, uiGroupIndex,
+                bMaskConversion));
+        }
+
+        return _ConvertVector(VectorElementTypes::Int32, eTargetType,
+            vecValues, uiGroupIndex, bMaskConversion);
+       }
+
+       case VectorElementTypes::Double: {
+        // Special downward conversion
+        ClangASTHelper::ExpressionVectorType vecValues;
+
+        for (auto vecRef : crvecVectorRefs) {
+          ClangASTHelper::ExpressionVectorType vecCurRef;
+          vecCurRef.push_back(vecRef);
+          vecValues.push_back(_ConvertVector(eSourceType,
+                VectorElementTypes::Int32, vecCurRef, uiGroupIndex,
+                bMaskConversion));
+        }
+
+        return _ConvertVector(VectorElementTypes::Int32, eTargetType,
+            vecValues, uiGroupIndex, bMaskConversion);
+       }
 
        default:
         bHandleConversion = false;
@@ -5083,6 +5106,14 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
      case VectorElementTypes::Int16:
      case VectorElementTypes::UInt16:
       switch (eSourceType) {
+       case VectorElementTypes::Int8:
+        eConvertID = IntrinsicsAVX2Enum::ConvertInt8Int16;
+        break;
+
+       case VectorElementTypes::UInt8:
+        eConvertID = IntrinsicsAVX2Enum::ConvertUInt8Int16;
+        break;
+
        case VectorElementTypes::Int32:
        case VectorElementTypes::UInt32: {
         // Special downward conversion
@@ -5121,13 +5152,38 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
                          true));
        }
 
-       case VectorElementTypes::Int8:
-        eConvertID = IntrinsicsAVX2Enum::ConvertInt8Int16;
-        break;
+       case VectorElementTypes::Float: {
+        // Special downward conversion
+        ClangASTHelper::ExpressionVectorType vecValues;
 
-       case VectorElementTypes::UInt8:
-        eConvertID = IntrinsicsAVX2Enum::ConvertUInt8Int16;
-        break;
+        for (auto vecRef : crvecVectorRefs) {
+          ClangASTHelper::ExpressionVectorType vecCurRef;
+          vecCurRef.push_back(vecRef);
+          vecValues.push_back(_ConvertVector(eSourceType,
+                VectorElementTypes::Int32, vecCurRef, uiGroupIndex,
+                bMaskConversion));
+        }
+
+        return _ConvertVector(VectorElementTypes::Int32, eTargetType,
+            vecValues, uiGroupIndex, bMaskConversion);
+       }
+
+       case VectorElementTypes::Double: {
+        // Special downward conversion
+        ClangASTHelper::ExpressionVectorType vecValues;
+
+        for (auto vecRef : crvecVectorRefs) {
+          ClangASTHelper::ExpressionVectorType vecCurRef;
+          vecCurRef.push_back(vecRef);
+          vecValues.push_back(_ConvertVector(eSourceType,
+                VectorElementTypes::Int32, vecCurRef, uiGroupIndex,
+                bMaskConversion));
+        }
+
+        return _ConvertVector(VectorElementTypes::Int32, eTargetType,
+            vecValues, uiGroupIndex, bMaskConversion);
+       }
+
 
        default:
         bHandleConversion = false;
