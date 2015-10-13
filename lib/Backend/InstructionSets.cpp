@@ -4936,7 +4936,19 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
      case VectorElementTypes::Int32:
      case VectorElementTypes::UInt32:
      case VectorElementTypes::Int64:
-     case VectorElementTypes::UInt64:
+     case VectorElementTypes::UInt64: {
+      const size_t cszSourceSize =
+        AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType);
+      const size_t cszTargetSize =
+        AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType);
+
+      const VectorElementTypes ceNewSourceType =
+        AST::BaseClasses::TypeInfo::CreateSizedIntegerType(
+            cszSourceSize, true).GetType();
+      const VectorElementTypes ceNewTargetType =
+        AST::BaseClasses::TypeInfo::CreateSizedIntegerType(
+            cszTargetSize, true).GetType();
+
       switch (eTargetType) {
        case VectorElementTypes::Int8:
        case VectorElementTypes::UInt8:
@@ -4944,35 +4956,47 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
        case VectorElementTypes::UInt16:
        case VectorElementTypes::Int32:
        case VectorElementTypes::UInt32: {
-        const size_t cszSourceSize =
-          AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType);
-        const size_t cszTargetSize =
-          AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType);
-
-        // Boost downward mask conversions by special AVX2 signed integer
-        // downward conversions
         if (cszSourceSize > cszTargetSize) {
-          const VectorElementTypes ceNewSourceType =
-            AST::BaseClasses::TypeInfo::CreateSizedIntegerType(
-                cszSourceSize, true).GetType();
-          const VectorElementTypes ceNewTargetType =
-            AST::BaseClasses::TypeInfo::CreateSizedIntegerType(
-                cszTargetSize, true).GetType();
-
+          // Boost downward mask conversions by special AVX2 signed integer
+          // downward conversions
           return ConvertVectorDown(ceNewSourceType, ceNewTargetType,
               crvecVectorRefs);
+        } else if (cszSourceSize < cszTargetSize) {
+          return ConvertVectorUp(ceNewSourceType, ceNewTargetType,
+              crvecVectorRefs.front(), uiGroupIndex);
         }
         break;
        }
 
-       case VectorElementTypes::Float:
-        return ConvertVectorUp(eSourceType, eTargetType,
-            crvecVectorRefs.front(), uiGroupIndex);
+       case VectorElementTypes::Float: {
+        if (cszSourceSize < cszTargetSize) {
+          Expr *pIntMask = ConvertVectorUp(ceNewSourceType,
+              VectorElementTypes::Int32, crvecVectorRefs.front(), uiGroupIndex);
+
+          // Just cast to float, instead of convert
+          return ConvertMaskSameSize(VectorElementTypes::Int32, eTargetType,
+              pIntMask);
+        }
+        break;
+       }
+
+       case VectorElementTypes::Double: {
+        if (cszSourceSize < cszTargetSize) {
+          Expr *pIntMask = ConvertVectorUp(ceNewSourceType,
+              VectorElementTypes::Int64, crvecVectorRefs.front(), uiGroupIndex);
+
+          // Just cast to double, instead of convert
+          return ConvertMaskSameSize(VectorElementTypes::Int64, eTargetType,
+              pIntMask);
+        }
+        break;
+       }
 
        default: break; // Useless default branch avoiding GCC compiler warnings
       }
+     }
 
-    default: break; // Useless default branch avoiding GCC compiler warnings
+     default: break; // Useless default branch avoiding GCC compiler warnings
     }
   } else {
     bool bHandleConversion = true;
