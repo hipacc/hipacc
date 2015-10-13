@@ -1991,7 +1991,7 @@ namespace Vectorization
       ExtractSSEIntegerInteger,
       GatherInt32, GatherInt64, GatherFloat, GatherDouble,
       MoveMaskInt8,
-      MultiplyInt32, MultiplyUInt32,
+      MultiplyInt16, MultiplyInt32,
       OrInteger,
       PackInt16ToInt8,              PackInt16ToUInt8,       PackInt32ToInt16,        PackInt32ToUInt16,
       PermuteCrossInt32,

@@ -4848,8 +4848,8 @@ void InstructionSetAVX2::_InitIntrinsicsMap() {
   _InitIntrinsic(IntrinsicsAVX2Enum::MoveMaskInt8, "movemask_epi8");
 
   // Multiplication functions
-  _InitIntrinsic(IntrinsicsAVX2Enum::MultiplyInt32, "mul_epi32");
-  _InitIntrinsic(IntrinsicsAVX2Enum::MultiplyUInt32, "mul_epu32");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MultiplyInt16, "mullo_epi16");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MultiplyInt32, "mullo_epi32");
 
   // Bitwise "or"
   _InitIntrinsic(IntrinsicsAVX2Enum::OrInteger, "or_si256");
@@ -5451,10 +5451,13 @@ Expr* InstructionSetAVX2::ArithmeticOperator(
       break;
 
      case ArithmeticOperatorType::Divide:
-     case ArithmeticOperatorType::Multiply:
       // TODO
       return BaseType::ArithmeticOperator(eElementType, eOpType,
                                           pExprLHS, pExprRHS);
+
+     case ArithmeticOperatorType::Multiply:
+      eFunctionID = IntrinsicsAVX2Enum::MultiplyInt16;
+      break;
 
      case ArithmeticOperatorType::Subtract:
       eFunctionID = IntrinsicsAVX2Enum::SubtractInt16;
