@@ -4795,6 +4795,11 @@ InstructionSetAVX2::InstructionSetAVX2(ASTContext &rAstContext)
 }
 
 void InstructionSetAVX2::_InitIntrinsicsMap() {
+  // Abs functions
+  _InitIntrinsic(IntrinsicsAVX2Enum::AbsInt8, "abs_epi8");
+  _InitIntrinsic(IntrinsicsAVX2Enum::AbsInt16, "abs_epi16");
+  _InitIntrinsic(IntrinsicsAVX2Enum::AbsInt32, "abs_epi32");
+
   // Add functions
   _InitIntrinsic(IntrinsicsAVX2Enum::AddInt8, "add_epi8");
   _InitIntrinsic(IntrinsicsAVX2Enum::AddInt16, "add_epi16");
@@ -4843,6 +4848,22 @@ void InstructionSetAVX2::_InitIntrinsicsMap() {
   _InitIntrinsic(IntrinsicsAVX2Enum::GatherInt64, "i32gather_epi64");
   _InitIntrinsic(IntrinsicsAVX2Enum::GatherFloat, "i32gather_ps");
   _InitIntrinsic(IntrinsicsAVX2Enum::GatherDouble, "i32gather_pd");
+
+  // Max functions
+  _InitIntrinsic(IntrinsicsAVX2Enum::MaxInt8, "max_epi8");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MaxInt16, "max_epi16");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MaxInt32, "max_epi32");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MaxUInt8, "max_epu8");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MaxUInt16, "max_epu16");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MaxUInt32, "max_epu32");
+
+  // Min functions
+  _InitIntrinsic(IntrinsicsAVX2Enum::MinInt8, "min_epi8");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MinInt16, "min_epi16");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MinInt32, "min_epi32");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MinUInt8, "min_epu8");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MinUInt16, "min_epu16");
+  _InitIntrinsic(IntrinsicsAVX2Enum::MinUInt32, "min_epu32");
 
   // Mask conversion function
   _InitIntrinsic(IntrinsicsAVX2Enum::MoveMaskInt8, "movemask_epi8");
@@ -5603,6 +5624,121 @@ Expr* InstructionSetAVX2::BlendVectors(VectorElementTypes eElementType,
   }
 }
 
+Expr* InstructionSetAVX2::BuiltinFunction(
+    VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType,
+    const ClangASTHelper::ExpressionVectorType &crvecArguments) {
+  const uint32_t cuiParamCount = static_cast<uint32_t>(crvecArguments.size());
+
+  if (!IsBuiltinFunctionSupported(eElementType, eFunctionType, cuiParamCount)) {
+    throw InstructionSetExceptions::UnsupportedBuiltinFunctionType(eElementType,
+        eFunctionType, cuiParamCount, "AVX2");
+  }
+
+  bool bHandleBuiltin = true;
+  IntrinsicsAVX2Enum eFunctionID = IntrinsicsAVX2Enum::AbsInt8;
+
+  switch (eFunctionType) {
+   case BuiltinFunctionsEnum::Abs:
+    switch (eElementType) {
+     case VectorElementTypes::Int8:
+      eFunctionID = IntrinsicsAVX2Enum::AbsInt8;
+      break;
+
+     case VectorElementTypes::Int16:
+      eFunctionID = IntrinsicsAVX2Enum::AbsInt16;
+      break;
+
+     case VectorElementTypes::Int32:
+      eFunctionID = IntrinsicsAVX2Enum::AbsInt32;
+      break;
+
+     default:
+      bHandleBuiltin = false;
+      break;
+    }
+    break;
+
+   case BuiltinFunctionsEnum::Max:
+    switch (eElementType) {
+     case VectorElementTypes::Int8:
+      eFunctionID = IntrinsicsAVX2Enum::MaxInt8;
+      break;
+
+     case VectorElementTypes::UInt8:
+      eFunctionID = IntrinsicsAVX2Enum::MaxUInt8;
+      break;
+
+     case VectorElementTypes::Int16:
+      eFunctionID = IntrinsicsAVX2Enum::MaxInt16;
+      break;
+
+     case VectorElementTypes::UInt16:
+      eFunctionID = IntrinsicsAVX2Enum::MaxUInt16;
+      break;
+
+     case VectorElementTypes::Int32:
+      eFunctionID = IntrinsicsAVX2Enum::MaxInt32;
+      break;
+
+     case VectorElementTypes::UInt32:
+      eFunctionID = IntrinsicsAVX2Enum::MaxUInt32;
+      break;
+
+     default:
+      bHandleBuiltin = false;
+      break;
+    }
+    break;
+
+   case BuiltinFunctionsEnum::Min:
+    switch (eElementType) {
+     case VectorElementTypes::Int8:
+      eFunctionID = IntrinsicsAVX2Enum::MinInt8;
+      break;
+
+     case VectorElementTypes::UInt8:
+      eFunctionID = IntrinsicsAVX2Enum::MinUInt8;
+      break;
+
+     case VectorElementTypes::Int16:
+      eFunctionID = IntrinsicsAVX2Enum::MinInt16;
+      break;
+
+     case VectorElementTypes::UInt16:
+      eFunctionID = IntrinsicsAVX2Enum::MinUInt16;
+      break;
+
+     case VectorElementTypes::Int32:
+      eFunctionID = IntrinsicsAVX2Enum::MinInt32;
+      break;
+
+     case VectorElementTypes::UInt32:
+      eFunctionID = IntrinsicsAVX2Enum::MinUInt32;
+      break;
+
+     default:
+      bHandleBuiltin = false;
+      break;
+    }
+    break;
+
+   default:
+    bHandleBuiltin = false;
+    break;
+  }
+
+  if (bHandleBuiltin) {
+    if (cuiParamCount == 1) {
+      return _CreateFunctionCall(eFunctionID, crvecArguments.front());
+    } else if (cuiParamCount == 2) {
+      return _CreateFunctionCall(eFunctionID, crvecArguments[0],
+                                              crvecArguments[1]);
+    }
+  }
+
+  return BaseType::BuiltinFunction(eElementType, eFunctionType, crvecArguments);
+}
+
 Expr* InstructionSetAVX2::CheckActiveElements(
     VectorElementTypes eMaskElementType,
     ActiveElementsCheckType eCheckType, Expr *pMaskExpr) {
@@ -5656,6 +5792,52 @@ Expr* InstructionSetAVX2::CheckSingleMaskElement(
   return _GetASTHelper().CreateBinaryOperator(pMoveMask,
       _GetASTHelper().CreateLiteral(static_cast<int32_t>(1 << uiIndex)),
       BO_And, pMoveMask->getType());
+}
+
+bool InstructionSetAVX2::IsBuiltinFunctionSupported(
+    VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType,
+    uint32_t uiParamCount) const {
+  bool bSupported = false;
+
+  switch (eElementType) {
+   case VectorElementTypes::Int8:
+   case VectorElementTypes::UInt8:
+   case VectorElementTypes::Int16:
+   case VectorElementTypes::UInt16:
+   case VectorElementTypes::Int32:
+   case VectorElementTypes::UInt32: {
+    const bool cbIsUnsigned =
+      (!AST::BaseClasses::TypeInfo::IsSigned(eElementType));
+
+    switch (eFunctionType) {
+     case BuiltinFunctionsEnum::Abs:
+      bSupported = (uiParamCount == 1) && cbIsUnsigned;
+      break;
+
+     case BuiltinFunctionsEnum::Max:
+      bSupported = (uiParamCount == 2);
+      break;
+
+     case BuiltinFunctionsEnum::Min:
+      bSupported = (uiParamCount == 2);
+      break;
+
+     default:
+      break;    // Useless default branch avoiding GCC compiler warnings
+    }
+    break;
+   }
+
+   default:
+    break;    // Useless default branch avoiding GCC compiler warnings
+  }
+
+  if (bSupported) {
+    return true;
+  } else {
+    return BaseType::IsBuiltinFunctionSupported(eElementType, eFunctionType,
+        uiParamCount);
+  }
 }
 
 ::clang::Expr* InstructionSetAVX2::LoadVectorGathered(

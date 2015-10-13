@@ -1940,13 +1940,13 @@ namespace Vectorization
     virtual ::clang::QualType GetVectorType(VectorElementTypes eElementType) final override;
     virtual size_t            GetVectorWidthBytes() const final override   { return static_cast< size_t >(32); }
 
-    virtual bool IsBuiltinFunctionSupported(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, std::uint32_t uiParamCount) const final override;
+    virtual bool IsBuiltinFunctionSupported(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, std::uint32_t uiParamCount) const override;
     virtual bool IsElementTypeSupported(VectorElementTypes eElementType) const final override;
 
     virtual ::clang::Expr* ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) override;
     virtual ::clang::Expr* BlendVectors(VectorElementTypes eElementType, ::clang::Expr *pMaskRef, ::clang::Expr *pVectorTrue, ::clang::Expr *pVectorFalse) override;
     virtual ::clang::Expr* BroadCast(VectorElementTypes eElementType, ::clang::Expr *pBroadCastValue) final override;
-    virtual ::clang::Expr* BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments) final override;
+    virtual ::clang::Expr* BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments) override;
     virtual ::clang::Expr* CheckActiveElements(VectorElementTypes eMaskElementType, ActiveElementsCheckType eCheckType, ::clang::Expr *pMaskExpr) override;
     virtual ::clang::Expr* CheckSingleMaskElement(VectorElementTypes eMaskElementType, ::clang::Expr *pMaskExpr, std::uint32_t uiIndex) override;
     virtual ::clang::Expr* CreateOnesVector(VectorElementTypes eElementType, bool bNegative) final override;
@@ -1977,6 +1977,7 @@ namespace Vectorization
     /** \brief  Enumeration of all internal IDs for the intrinsic functions of the instruction set <b>AVX 2</b>. */
     enum class IntrinsicsAVX2Enum
     {
+      AbsInt8, AbsInt16, AbsInt32,
       AddInt8, AddInt16, AddInt32, AddInt64,
       AndInteger, AndNotInteger,
       BlendInteger,
@@ -1990,6 +1991,8 @@ namespace Vectorization
       ConvertUInt32Int64,
       ExtractSSEIntegerInteger,
       GatherInt32, GatherInt64, GatherFloat, GatherDouble,
+      MaxInt8, MaxUInt8, MaxInt16,  MaxUInt16, MaxInt32, MaxUInt32,
+      MinInt8, MinUInt8, MinInt16,  MinUInt16, MinInt32, MinUInt32,
       MoveMaskInt8,
       MultiplyInt16, MultiplyInt32,
       OrInteger,
@@ -2110,9 +2113,11 @@ namespace Vectorization
 
     /** \name Instruction set abstraction methods */
     //@{
+    virtual bool IsBuiltinFunctionSupported(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, std::uint32_t uiParamCount) const final override;
 
     virtual ::clang::Expr* ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, ::clang::Expr *pExprLHS, ::clang::Expr *pExprRHS) final override;
     virtual ::clang::Expr* BlendVectors(VectorElementTypes eElementType, ::clang::Expr *pMaskRef, ::clang::Expr *pVectorTrue, ::clang::Expr *pVectorFalse) final override;
+    virtual ::clang::Expr* BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments) final override;
     virtual ::clang::Expr* CheckActiveElements(VectorElementTypes eMaskElementType, ActiveElementsCheckType eCheckType, ::clang::Expr *pMaskExpr) final override;
     virtual ::clang::Expr* CheckSingleMaskElement(VectorElementTypes eMaskElementType, ::clang::Expr *pMaskExpr, std::uint32_t uiIndex) final override;
     virtual ::clang::Expr* LoadVectorGathered(VectorElementTypes eElementType, VectorElementTypes eIndexElementType, ::clang::Expr *pPointerRef, const ClangASTHelper::ExpressionVectorType &crvecIndexExprs, uint32_t uiGroupIndex) final override;
