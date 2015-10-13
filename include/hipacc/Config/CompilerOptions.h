@@ -39,11 +39,15 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <string>
-#include "hipacc/Backend/ICodeGenerator.h"
+#include <memory>
 
 
 namespace clang {
 namespace hipacc {
+namespace Backend {
+  class ICodeGenerator;
+  typedef std::shared_ptr<ICodeGenerator> ICodeGeneratorPtr;
+}
 
 // compiler option possibilities
 enum CompilerOption {

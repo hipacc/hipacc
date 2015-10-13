@@ -686,6 +686,17 @@ namespace Backend
        *  \param  szIncrement   Amount to increment loop counter in each iteration. */
       static ::clang::ForStmt* _CreateIterationSpaceLoop(ClangASTHelper &rAstHelper, ::clang::DeclRefExpr *pLoopCounter, ::clang::Expr *pUpperLimit, ::clang::Stmt *pLoopBody, const size_t szIncrement=1);
 
+      /** \brief  Create an if statement for deciding whether boundary handling is necessary or not.
+       *  \param  rAstHelper     A reference to the current AST helper object.
+       *  \param  rHipaccHelper  A reference to the current Hipacc helper object.
+       *  \param  pGidX          A pointer to the current x index declaration.
+       *  \param  pGidY          A pointer to the current y index declaration.
+       *  \param  iSizeX         Range for border handling in x direction.
+       *  \param  iSizeY         Range for border handling in y direction.
+       *  \param  pThenStmt      A pointer to the statement for the then branch.
+       *  \param  pElseStmt      A pointer to the statement for the else branch. */
+      static ::clang::IfStmt* _CreateBoundaryBranching(ClangASTHelper &rAstHelper, HipaccHelper &rHipaccHelper, ::clang::DeclRefExpr *pGidX, ::clang::DeclRefExpr *pGidY, int iSizeX, int iSizeY, ::clang::Stmt *pThenStmt, ::clang::Stmt *pElseStmt);
+
       /** \brief  Returns the declaration string of an image buffer parameter for the kernel function declarator.
        *  \param  strName               The name of the image buffer variable.
        *  \param  pHipaccMemoryObject   A pointer to the <b>HipaccMemory</b> object representing the image to be declared.
@@ -715,11 +726,17 @@ namespace Backend
       size_t      _GetVectorWidth(Vectorization::AST::FunctionDeclarationPtr spVecFunction);
 
       /** \brief    Vectorizes a kernel sub-function.
+       *  \param    cstrKernelName  Name of the vectorized kernel.
        *  \param    pSubFunction    A pointer to the function which shall be vectorized.
        *  \param    rHipaccHelper   A reference to the HIPAcc helper object which encapsulates the kernel.
-       *  \param    rOutputStream     A reference to the LLVM output stream the kernel shall be written to.
+       *  \param    rOutputStream   A reference to the LLVM output stream the kernel shall be written to.
        *  \return   A pointer to the function declaration statement of the vectorized kernel sub-function. */
-      ::clang::FunctionDecl* _VectorizeKernelSubFunction(FunctionDecl *pSubFunction, HipaccHelper &rHipaccHelper, llvm::raw_ostream &rOutputStream);
+      ::clang::FunctionDecl* _VectorizeKernelSubFunction(const std::string cstrKernelName, FunctionDecl *pSubFunction, HipaccHelper &rHipaccHelper, llvm::raw_ostream &rOutputStream);
+
+      /** \brief  Create a kernel function declaration with disabled boundary handling enforced.
+       *  \param  pKernelFunction  A pointer to the kernel function to replicate.
+       *  \param  pKernel          A pointer to the Hipacc kernel to replicate. */
+      FunctionDecl *_CreateKernelFunctionWithoutBH(FunctionDecl *pKernelFunction, HipaccKernel *pKernel);
 
 
     private:
