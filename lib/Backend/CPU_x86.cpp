@@ -3502,7 +3502,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
 
 
       // Create kernel variants without boundary handling for local operators
-      if (pKernel->getMaxSizeX() > 1 || pKernel->getMaxSizeY() > 1) {
+      if (pKernel->getMaxSizeX() > 0 || pKernel->getMaxSizeY() > 0) {
         // Replicate existing kernel with disabled boundary handling enforced
         FunctionDecl *pKernelFunctionNoBH = _CreateKernelFunctionWithoutBH(pKernelFunction, pKernel);
         ImgAccessTranslator.TranslateImageAccesses(pKernelFunctionNoBH->getBody());
