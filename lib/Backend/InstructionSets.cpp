@@ -549,7 +549,7 @@ Expr* InstructionSetSSE::_UnpackVectors(VectorElementTypes eElementType, Expr *p
   return _CreateFunctionCall( bLowHalf ? IntrinsicsSSEEnum::UnpackLowFloat : IntrinsicsSSEEnum::UnpackHighFloat, pVectorRef1, pVectorRef2 );
 }
 
-Expr* InstructionSetSSE::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
+Expr* InstructionSetSSE::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS, bool bIsRHSScalar)
 {
   _CheckElementType(eElementType);
 
@@ -871,7 +871,7 @@ InstructionSetSSE2::InstructionSetSSE2(ASTContext &rAstContext) : BaseType(rAstC
   InstructionSetBase::_LookupIntrinsics( _mapIntrinsicsSSE2, "SSE2" );
 }
 
-Expr* InstructionSetSSE2::_ArithmeticOpInteger(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
+Expr* InstructionSetSSE2::_ArithmeticOpInteger(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS, bool bIsRHSScalar)
 {
   switch (eOpType)
   {
@@ -927,8 +927,66 @@ Expr* InstructionSetSSE2::_ArithmeticOpInteger(VectorElementTypes eElementType, 
     default:    return _SeparatedArithmeticOpInteger(eElementType, BO_Mul, pExprLHS, pExprRHS);
     }
   case ArithmeticOperatorType::Modulo:      return _SeparatedArithmeticOpInteger( eElementType, BO_Rem, pExprLHS, pExprRHS );
-  case ArithmeticOperatorType::ShiftLeft:   return _SeparatedArithmeticOpInteger( eElementType, BO_Shl, pExprLHS, pExprRHS );
-  case ArithmeticOperatorType::ShiftRight:  return _SeparatedArithmeticOpInteger( eElementType, BO_Shr, pExprLHS, pExprRHS );
+  case ArithmeticOperatorType::ShiftLeft:
+    if (!bIsRHSScalar)
+    {
+      return _SeparatedArithmeticOpInteger( eElementType, BO_Shl, pExprLHS, pExprRHS );
+    }
+    else
+    {
+      switch (eElementType)
+      {
+      case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
+        {
+          // Convert vector to a signed / unsigned 16-bit integer data type, do the shift and convert back
+          const VectorElementTypes ceIntermediateType = AST::BaseClasses::TypeInfo::CreateSizedIntegerType(2, AST::BaseClasses::TypeInfo::IsSigned(eElementType)).GetType();
+
+          ClangASTHelper::ExpressionVectorType vecShiftedVectors;
+
+          for (uint32_t uiGroupIdx = 0; uiGroupIdx <= 1; ++uiGroupIdx)
+          {
+            Expr *pConvertedVector = ConvertVectorUp( eElementType, ceIntermediateType, pExprLHS, uiGroupIdx );
+            vecShiftedVectors.push_back( _ArithmeticOpInteger(ceIntermediateType, eOpType, pConvertedVector, pExprRHS, bIsRHSScalar) );
+          }
+
+          return ConvertVectorDown( ceIntermediateType, eElementType, vecShiftedVectors );
+        }
+      case VectorElementTypes::Int16: case VectorElementTypes::UInt16:  return _CreateFunctionCall( IntrinsicsSSE2Enum::ShiftLeftInt16, pExprLHS, pExprRHS );
+      case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  return _CreateFunctionCall( IntrinsicsSSE2Enum::ShiftLeftInt32, pExprLHS, pExprRHS );
+      default:    return _SeparatedArithmeticOpInteger(eElementType, BO_Shl, pExprLHS, pExprRHS);
+      }
+    }
+  case ArithmeticOperatorType::ShiftRight:
+    if (!bIsRHSScalar)
+    {
+      return _SeparatedArithmeticOpInteger( eElementType, BO_Shr, pExprLHS, pExprRHS );
+    }
+    else
+    {
+      switch (eElementType)
+      {
+      case VectorElementTypes::Int8: case VectorElementTypes::UInt8:
+        {
+          // Convert vector to a signed / unsigned 16-bit integer data type, do the shift and convert back
+          const VectorElementTypes ceIntermediateType = AST::BaseClasses::TypeInfo::CreateSizedIntegerType(2, AST::BaseClasses::TypeInfo::IsSigned(eElementType)).GetType();
+
+          ClangASTHelper::ExpressionVectorType vecShiftedVectors;
+
+          for (uint32_t uiGroupIdx = 0; uiGroupIdx <= 1; ++uiGroupIdx)
+          {
+            Expr *pConvertedVector = ConvertVectorUp( eElementType, ceIntermediateType, pExprLHS, uiGroupIdx );
+            vecShiftedVectors.push_back( _ArithmeticOpInteger(ceIntermediateType, eOpType, pConvertedVector, pExprRHS, bIsRHSScalar) );
+          }
+
+          return ConvertVectorDown( ceIntermediateType, eElementType, vecShiftedVectors );
+        }
+      case VectorElementTypes::Int16:  return _CreateFunctionCall( IntrinsicsSSE2Enum::ShiftRightArithInt16, pExprLHS, pExprRHS );
+      case VectorElementTypes::Int32:  return _CreateFunctionCall( IntrinsicsSSE2Enum::ShiftRightArithInt32, pExprLHS, pExprRHS );
+      case VectorElementTypes::UInt16:  return _CreateFunctionCall( IntrinsicsSSE2Enum::ShiftRightLogInt16, pExprLHS, pExprRHS );
+      case VectorElementTypes::UInt32:  return _CreateFunctionCall( IntrinsicsSSE2Enum::ShiftRightLogInt32, pExprLHS, pExprRHS );
+      default:    return _SeparatedArithmeticOpInteger(eElementType, BO_Shr, pExprLHS, pExprRHS);
+      }
+    }
   case ArithmeticOperatorType::Subtract:
     switch (eElementType)
     {
@@ -1880,7 +1938,7 @@ Expr* InstructionSetSSE2::_UnpackVectors(VectorElementTypes eElementType, Expr *
   return _CreateFunctionCall( eIntrinID, pVectorRef1, pVectorRef2 );
 }
 
-Expr* InstructionSetSSE2::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
+Expr* InstructionSetSSE2::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS, bool bIsRHSScalar)
 {
   switch (eElementType)
   {
@@ -1902,8 +1960,8 @@ Expr* InstructionSetSSE2::ArithmeticOperator(VectorElementTypes eElementType, Ar
   case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
   case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
   case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
-  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  return _ArithmeticOpInteger( eElementType, eOpType, pExprLHS, pExprRHS );
-  default:                                                          return BaseType::ArithmeticOperator( eElementType, eOpType, pExprLHS, pExprRHS );
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  return _ArithmeticOpInteger( eElementType, eOpType, pExprLHS, pExprRHS, bIsRHSScalar );
+  default:                                                          return BaseType::ArithmeticOperator( eElementType, eOpType, pExprLHS, pExprRHS, bIsRHSScalar );
   }
 }
 
@@ -2786,9 +2844,9 @@ void InstructionSetSSE3::_InitIntrinsicsMap()
   _InitIntrinsic (IntrinsicsSSE3Enum::LoadInteger, "lddqu_si128" );
 }
 
-Expr* InstructionSetSSE3::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
+Expr* InstructionSetSSE3::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS, bool bIsRHSScalar)
 {
-  return BaseType::ArithmeticOperator(eElementType, eOpType, pExprLHS, pExprRHS);
+  return BaseType::ArithmeticOperator(eElementType, eOpType, pExprLHS, pExprRHS, bIsRHSScalar);
 }
 
 Expr* InstructionSetSSE3::BlendVectors(VectorElementTypes eElementType, Expr *pMaskRef, Expr *pVectorTrue, Expr *pVectorFalse)
@@ -2974,9 +3032,9 @@ void InstructionSetSSSE3::_InitIntrinsicsMap()
   _InitIntrinsic( IntrinsicsSSSE3Enum::SignInt32, "sign_epi32" );
 }
 
-Expr* InstructionSetSSSE3::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
+Expr* InstructionSetSSSE3::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS, bool bIsRHSScalar)
 {
-  return BaseType::ArithmeticOperator(eElementType, eOpType, pExprLHS, pExprRHS);
+  return BaseType::ArithmeticOperator(eElementType, eOpType, pExprLHS, pExprRHS, bIsRHSScalar);
 }
 
 Expr* InstructionSetSSSE3::BlendVectors(VectorElementTypes eElementType, Expr *pMaskRef, Expr *pVectorTrue, Expr *pVectorFalse)
@@ -3239,7 +3297,7 @@ void InstructionSetSSE4_1::_InitIntrinsicsMap()
   _InitIntrinsic( IntrinsicsSSE4_1Enum::TestControl, "testc_si128" );
 }
 
-Expr* InstructionSetSSE4_1::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
+Expr* InstructionSetSSE4_1::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS, bool bIsRHSScalar)
 {
   if (eOpType == ArithmeticOperatorType::Multiply)
   {
@@ -3251,7 +3309,7 @@ Expr* InstructionSetSSE4_1::ArithmeticOperator(VectorElementTypes eElementType, 
   }
   else
   {
-    return BaseType::ArithmeticOperator( eElementType, eOpType, pExprLHS, pExprRHS );
+    return BaseType::ArithmeticOperator( eElementType, eOpType, pExprLHS, pExprRHS, bIsRHSScalar );
   }
 }
 
@@ -4014,7 +4072,7 @@ Expr* InstructionSetAVX::_MergeSSEVectors(VectorElementTypes eElementType, Expr 
   return _CreateFunctionCall( eFunctionID, pSSEVectorHigh, pSSEVectorLow );
 }
 
-Expr* InstructionSetAVX::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS)
+Expr* InstructionSetAVX::ArithmeticOperator(VectorElementTypes eElementType, ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS, bool bIsRHSScalar)
 {
   IntrinsicsAVXEnum eFunctionID = IntrinsicsAVXEnum::AddDouble;
 
@@ -4087,9 +4145,19 @@ Expr* InstructionSetAVX::ArithmeticOperator(VectorElementTypes eElementType, Ari
         const bool cbLowHalf = (uiIdx == 0);
 
         Expr *pExprLHS_SSE = _ExtractSSEVector( eElementType, pExprLHS, cbLowHalf );
-        Expr *pExprRHS_SSE = _ExtractSSEVector( eElementType, pExprRHS, cbLowHalf );
+        Expr *pExprRHS_SSE = nullptr;
 
-        vecSSEArithOps.push_back( _GetFallback()->ArithmeticOperator( eElementType, eOpType, pExprLHS_SSE, pExprRHS_SSE ) );
+        if (bIsRHSScalar && (eOpType == ArithmeticOperatorType::ShiftLeft ||
+                             eOpType == ArithmeticOperatorType::ShiftRight))
+        {
+          pExprRHS_SSE = pExprRHS;
+        }
+        else
+        {
+          pExprRHS_SSE = _ExtractSSEVector( eElementType, pExprRHS, cbLowHalf );
+        }
+
+        vecSSEArithOps.push_back( _GetFallback()->ArithmeticOperator( eElementType, eOpType, pExprLHS_SSE, pExprRHS_SSE, bIsRHSScalar ) );
       }
 
       return _MergeSSEVectors( eElementType, vecSSEArithOps[0], vecSSEArithOps[1] );
@@ -5403,8 +5471,8 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
 }
 
 Expr* InstructionSetAVX2::ArithmeticOperator(
-    VectorElementTypes eElementType,
-    ArithmeticOperatorType eOpType, Expr *pExprLHS, Expr *pExprRHS) {
+    VectorElementTypes eElementType, ArithmeticOperatorType eOpType,
+    Expr *pExprLHS, Expr *pExprRHS, bool bIsRHSScalar) {
   IntrinsicsAVX2Enum eFunctionID = IntrinsicsAVX2Enum::AddInt8;
 
   switch (eElementType) {
@@ -5598,14 +5666,14 @@ Expr* InstructionSetAVX2::ArithmeticOperator(
           "Unsupported arithmetic operation detected!");
     }
     return BaseType::ArithmeticOperator(eElementType, eOpType,
-                                        pExprLHS, pExprRHS);
+                                        pExprLHS, pExprRHS, bIsRHSScalar);
     break;
 
    case VectorElementTypes::Double:
    case VectorElementTypes::Float:
    default:
     return BaseType::ArithmeticOperator(eElementType, eOpType,
-                                        pExprLHS, pExprRHS);
+                                        pExprLHS, pExprRHS, bIsRHSScalar);
   }
 
 }

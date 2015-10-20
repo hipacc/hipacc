@@ -1833,10 +1833,26 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
     {
       if (spBinaryOp->IsType< AST::Expressions::ArithmeticOperator >())
       {
-        Expr *pExprLHS = _BuildVectorExpression( spLHS, crVectorIndex );
-        Expr *pExprRHS = _BuildVectorExpression( spRHS, crVectorIndex );
+        ArithmeticOperatorType eOpType = spBinaryOp->CastToType<AST::Expressions::ArithmeticOperator>()->GetOperatorType();
 
-        pReturnExpr = _spInstructionSet->ArithmeticOperator( eElementType, spBinaryOp->CastToType<AST::Expressions::ArithmeticOperator>()->GetOperatorType(), pExprLHS, pExprRHS );
+        Expr *pExprLHS = _BuildVectorExpression( spLHS, crVectorIndex );
+        Expr *pExprRHS = nullptr;
+        bool bIsScalar = false;
+
+        // FIXME: This introduces some kind of cross dependencies. We know that
+        // current instruction sets (SSE, AVX) require scalar arguments for
+        // shift operations. Therefore, remove broadcast expression introduced
+        // previously.
+        if (spRHS->IsType<AST::VectorSupport::BroadCast>() &&
+            (eOpType == ArithmeticOperatorType::ShiftLeft ||
+             eOpType == ArithmeticOperatorType::ShiftRight)) {
+          pExprRHS = _BuildScalarExpression(spRHS->CastToType<AST::VectorSupport::BroadCast>()->GetSubExpression());
+          bIsScalar = true;
+        } else {
+          pExprRHS = _BuildVectorExpression( spRHS, crVectorIndex );
+        }
+
+        pReturnExpr = _spInstructionSet->ArithmeticOperator( eElementType, eOpType, pExprLHS, pExprRHS, bIsScalar);
       }
       else if (spBinaryOp->IsType< AST::Expressions::RelationalOperator >())
       {
