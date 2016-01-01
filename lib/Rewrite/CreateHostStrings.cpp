@@ -271,9 +271,8 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
 }
 
 
-void CreateHostStrings::writeMemoryTransfer(
-    HipaccPyramid *Pyr, std::string idx, std::string mem,
-    MemoryTransferDirection direction, std::string &resultStr) {
+void CreateHostStrings::writeMemoryTransfer(HipaccPyramid *Pyr, std::string idx,
+    std::string mem, MemoryTransferDirection direction, std::string &resultStr) {
   switch (direction) {
     case HOST_TO_DEVICE:
       resultStr += "hipaccWriteMemory(";
