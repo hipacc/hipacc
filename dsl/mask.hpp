@@ -215,7 +215,7 @@ class Domain : public MaskBase {
             }
         }
 
-        void setDI(DomainIterator *di) { DI = di; }
+        void set_iterator(DomainIterator *di) { DI = di; }
         DomainIterator begin() const {
             return DomainIterator(size_x_, size_y_, &iteration_space,
                                   domain_space);
@@ -294,7 +294,7 @@ class Mask : public MaskBase {
             return array[(D.y()+D.size_y()/2)*size_x_ + D.x()+D.size_x()/2];
         }
 
-        void setEI(ElementIterator *ei) { EI = ei; }
+        void set_iterator(ElementIterator *ei) { EI = ei; }
         ElementIterator begin() const {
             return ElementIterator(size_x_, size_y_, 0, 0, &iteration_space);
         }

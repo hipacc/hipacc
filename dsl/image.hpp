@@ -434,7 +434,7 @@ class AccessorBase {
         const int offset_x_, offset_y_;
         ElementIterator *EI;
 
-        void setEI(ElementIterator *ei) { EI = ei; }
+        void set_iterator(ElementIterator *ei) { EI = ei; }
 
     public:
         AccessorBase(const int width, const int height, const int offset_x, const int offset_y) :
