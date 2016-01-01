@@ -470,7 +470,8 @@ int main(int argc, const char **argv) {
         imshow("Optical Flow", frameRGB);
 
         // exit when key is pressed
-        if (waitKey(1) >= 0) break;
+        if (waitKey(1) >= 0)
+            break;
     }
     #else
     // convert to grayscale
@@ -527,4 +528,3 @@ int main(int argc, const char **argv) {
 
     return EXIT_SUCCESS;
 }
-
