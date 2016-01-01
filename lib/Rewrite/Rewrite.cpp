@@ -370,20 +370,16 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   }
 
   // insert initialization before first statement
-  auto BI = CS->body_begin();
-  Stmt *S = *BI;
-  TextRewriter.InsertTextBefore(S->getLocStart(), initStr);
+  TextRewriter.InsertTextBefore((*CS->body_begin())->getLocStart(), initStr);
 
   // insert memory release calls before last statement (return-statement)
-  auto RBI = CS->body_rbegin();
-  S = *RBI;
   // release all images
   for (auto map : ImgDeclMap) {
     auto img = map.second;
     std::string releaseStr;
 
     stringCreator.writeMemoryRelease(img, releaseStr);
-    TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
+    TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
   }
   // release all non-const masks
   for (auto map : MaskDeclMap) {
@@ -392,7 +388,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
     if (!compilerOptions.emitCUDA() && !mask->isConstant()) {
       stringCreator.writeMemoryRelease(mask, releaseStr);
-      TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
+      TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
     }
   }
   // release all pyramids
@@ -401,7 +397,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
     std::string releaseStr;
 
     stringCreator.writeMemoryRelease(pyramid, releaseStr, true);
-    TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
+    TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
   }
 
   // get buffer of main file id. If we haven't changed it, then we are done.
@@ -1199,6 +1195,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         if (!Buf->isConstant() && !compilerOptions.emitCUDA()) {
           // create Buffer for Mask
           stringCreator.writeMemoryAllocationConstant(Buf, newStr);
+          newStr += "\n" + stringCreator.getIndent();
 
           if (Buf->hasCopyMask()) {
             // create Domain from Mask and upload to Buffer

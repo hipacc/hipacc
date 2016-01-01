@@ -413,9 +413,11 @@ int main(int argc, const char **argv) {
     std::cerr << "Reference: " << time << " ms, " << (width/time)/1000 << " Mpixel/s" << std::endl;
 
 
-    std::cerr << "Comparing results ..." << std::endl
-              << "Warning: The CPU, OCL, and CUDA modules in OpenCV use different implementations and yield inconsistent results." << std::endl
+    std::cerr << "Comparing results ..." << std::endl;
+    #ifdef OPENCV
+    std::cerr << "Warning: The CPU, OCL, and CUDA modules in OpenCV use different implementations and yield inconsistent results." << std::endl
               << "         This is the case even for different filter sizes within the same module!" << std::endl;
+    #endif
     for (int x=offset_x; x<width-offset_x; ++x) {
         if (reference_out[x].x != output[x].x ||
             reference_out[x].y != output[x].y ||

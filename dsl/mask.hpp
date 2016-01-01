@@ -47,7 +47,7 @@ class MaskBase {
             assert(size_x>0 && size_y>0 && "Size for Domain must be positive!");
             // initialize full domain
             for (int i=0; i<size_x*size_y; ++i) {
-              domain_space[i] = 1;
+                domain_space[i] = 1;
             }
         }
 
@@ -58,16 +58,16 @@ class MaskBase {
             iteration_space(mask.size_x_, mask.size_y_)
         {
             for (int y=0; y<size_y_; ++y) {
-              for (int x=0; x<size_x_; ++x) {
-                domain_space[y * size_x_ + x] = mask.domain_space[y * size_x_ + x];
-              }
+                for (int x=0; x<size_x_; ++x) {
+                    domain_space[y * size_x_ + x] = mask.domain_space[y * size_x_ + x];
+                }
             }
         }
 
         ~MaskBase() {
             if (domain_space != nullptr) {
-              delete[] domain_space;
-              domain_space = nullptr;
+                delete[] domain_space;
+                domain_space = nullptr;
             }
         }
 
@@ -158,7 +158,13 @@ class Domain : public MaskBase {
         template <int size_y, int size_x>
         Domain(const uchar (&domain)[size_y][size_x]) :
             MaskBase(size_x, size_y),
-            DI(nullptr) {}
+            DI(nullptr) {
+                for (int y=0; y<size_y_; ++y) {
+                    for (int x=0; x<size_x_; ++x) {
+                        domain_space[y * size_x + x] = domain[y][x];
+                    }
+                }
+            }
 
         Domain(const MaskBase &mask) :
             MaskBase(mask),
@@ -215,7 +221,7 @@ class Domain : public MaskBase {
             }
         }
 
-        void setDI(DomainIterator *di) { DI = di; }
+        void set_iterator(DomainIterator *di) { DI = di; }
         DomainIterator begin() const {
             return DomainIterator(size_x_, size_y_, &iteration_space,
                                   domain_space);
@@ -294,7 +300,7 @@ class Mask : public MaskBase {
             return array[(D.y()+D.size_y()/2)*size_x_ + D.x()+D.size_x()/2];
         }
 
-        void setEI(ElementIterator *ei) { EI = ei; }
+        void set_iterator(ElementIterator *ei) { EI = ei; }
         ElementIterator begin() const {
             return ElementIterator(size_x_, size_y_, 0, 0, &iteration_space);
         }

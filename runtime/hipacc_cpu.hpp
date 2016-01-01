@@ -93,9 +93,10 @@ HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height) {
 
 
 // Release memory
+template<typename T>
 void hipaccReleaseMemory(HipaccImage &img) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    delete[] img.mem;
+    delete[] (T*)img.mem;
     Ctx.del_image(img);
 }
 

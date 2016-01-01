@@ -321,6 +321,7 @@ HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t hei
 
 
 // Release memory
+template<typename T>
 void hipaccReleaseMemory(HipaccImage &img) {
     if (img.mem_type >= Array2D) {
         cudaError_t err = cudaFreeArray((cudaArray *)img.mem);
@@ -404,20 +405,17 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
 // Copy from memory region to memory region
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
     if (src.img.mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst.img.mem,
-                dst.offset_x*dst.img.pixel_size, dst.offset_y,
-                (cudaArray *)src.img.mem, src.offset_x*src.img.pixel_size,
-                src.offset_y, src.width*src.img.pixel_size, src.height,
-                cudaMemcpyDeviceToDevice);
+        cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst.img.mem, dst.offset_x*dst.img.pixel_size, dst.offset_y,
+                                                   (cudaArray *)src.img.mem, src.offset_x*src.img.pixel_size, src.offset_y, 
+                                                   src.width*src.img.pixel_size, src.height, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpy2DArrayToArray()");
     } else {
         void *dst_start = (char *)dst.img.mem + dst.offset_x*dst.img.pixel_size + (dst.offset_y*dst.img.stride*dst.img.pixel_size);
         void *src_start = (char *)src.img.mem + src.offset_x*src.img.pixel_size + (src.offset_y*src.img.stride*src.img.pixel_size);
 
         cudaError_t err = cudaMemcpy2D(dst_start, dst.img.stride*dst.img.pixel_size,
-                           src_start, src.img.stride*src.img.pixel_size,
-                           src.width*src.img.pixel_size, src.height,
-                           cudaMemcpyDeviceToDevice);
+                                       src_start, src.img.stride*src.img.pixel_size,
+                                       src.width*src.img.pixel_size, src.height, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpy2D()");
     }
 }
@@ -432,14 +430,12 @@ void hipaccBindTexture(hipaccMemoryType mem_type, const struct textureReference 
     switch (mem_type) {
         case Linear1D:
             assert(img.mem_type<=Linear2D && "expected linear memory");
-            err = cudaBindTexture(NULL, tex, img.mem, &channelDesc,
-                    sizeof(T)*img.stride*img.height);
+            err = cudaBindTexture(NULL, tex, img.mem, &channelDesc, sizeof(T)*img.stride*img.height);
             checkErr(err, "cudaBindTexture()");
             break;
         case Linear2D:
             assert(img.mem_type<=Linear2D && "expected linear memory");
-            err = cudaBindTexture2D(NULL, tex, img.mem, &channelDesc, img.width,
-                    img.height, img.stride*sizeof(T));
+            err = cudaBindTexture2D(NULL, tex, img.mem, &channelDesc, img.width, img.height, img.stride*sizeof(T));
             checkErr(err, "cudaBindTexture2D()");
             break;
         case Array2D:

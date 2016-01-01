@@ -299,6 +299,7 @@ class HipaccPyramid {
 // forward declarations
 template<typename T>
 HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t height);
+template<typename T>
 void hipaccReleaseMemory(HipaccImage &Img);
 
 template<typename data_t>
@@ -318,10 +319,11 @@ HipaccPyramid hipaccCreatePyramid(HipaccImage &img, size_t depth) {
 }
 
 
+template<typename T>
 void hipaccReleasePyramid(HipaccPyramid &pyr) {
     // Do not remove the first one, it was created outside this context
     while (pyr.imgs_.size() > 1) {
-        hipaccReleaseMemory(pyr.imgs_.back());
+        hipaccReleaseMemory<T>(pyr.imgs_.back());
         pyr.imgs_.pop_back();
     }
 }
