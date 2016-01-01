@@ -773,9 +773,7 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
         const size_t src_origin[] = { (size_t)src.offset_x, (size_t)src.offset_y, 0 };
         const size_t region[]     = { dst.width, dst.height, 1 };
 
-        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device],
-                (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin,
-                region, 0, NULL, NULL);
+        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin, region, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyImage()");
     } else {
@@ -783,10 +781,8 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
         const size_t src_origin[] = { src.offset_x*src.img.pixel_size, (size_t)src.offset_y, 0 };
         const size_t region[]     = { dst.width*dst.img.pixel_size, dst.height, 1 };
 
-        err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device],
-                (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin,
-                region, src.img.stride*src.img.pixel_size, 0,
-                dst.img.stride*dst.img.pixel_size, 0, 0, NULL, NULL);
+        err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device], (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin, region,
+                                      src.img.stride*src.img.pixel_size, 0, dst.img.stride*dst.img.pixel_size, 0, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyBufferRect()");
     }

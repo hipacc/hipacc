@@ -377,9 +377,8 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
 
 // Copy from allocation region to allocation region
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
-    ((Allocation *)dst.img.mem)->copy2DRangeFrom(dst.offset_x, dst.offset_y,
-        src.width, src.height, (Allocation *)src.img.mem, src.offset_x,
-        src.offset_y);
+    ((Allocation *)dst.img.mem)->copy2DRangeFrom(dst.offset_x, dst.offset_y, src.width, src.height,
+                      (Allocation *)src.img.mem, src.offset_x, src.offset_y);
 }
 
 
