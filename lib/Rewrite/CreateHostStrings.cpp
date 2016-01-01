@@ -381,16 +381,11 @@ void CreateHostStrings::writeMemoryTransferDomainFromMask(
 }
 
 
-void CreateHostStrings::writeMemoryRelease(HipaccMemory *Mem,
-    std::string &resultStr, bool isPyramid) {
-  // The same runtime call for all targets, just distinguish between Pyramids
-  // and 'normal' memory like Images and Masks.
-  if (isPyramid) {
-    resultStr += "hipaccReleasePyramid(";
-  } else {
-    resultStr += "hipaccReleaseMemory(";
-  }
-  resultStr += Mem->getName() + ");\n";
+void CreateHostStrings::writeMemoryRelease(HipaccMemory *mem, std::string
+    &resultStr, bool is_pyramid) {
+  resultStr += is_pyramid ? "hipaccReleasePyramid" : "hipaccReleaseMemory";
+  resultStr += "<" + mem->getTypeStr() + ">";
+  resultStr += "(" + mem->getName() + ");\n";
   resultStr += indent;
 }
 

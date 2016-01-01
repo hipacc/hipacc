@@ -641,6 +641,7 @@ cl_sampler hipaccCreateSampler(cl_bool normalized_coords, cl_addressing_mode add
 
 
 // Release buffer or image
+template<typename T>
 void hipaccReleaseMemory(HipaccImage &img) {
     cl_int err = clReleaseMemObject((cl_mem)img.mem);
     checkErr(err, "clReleaseMemObject()");

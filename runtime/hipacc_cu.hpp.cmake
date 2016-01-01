@@ -321,6 +321,7 @@ HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t hei
 
 
 // Release memory
+template<typename T>
 void hipaccReleaseMemory(HipaccImage &img) {
     if (img.mem_type >= Array2D) {
         cudaError_t err = cudaFreeArray((cudaArray *)img.mem);
