@@ -370,7 +370,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   }
 
   // insert initialization before first statement
-  TextRewriter.InsertTextBefore((*CS->body_begin())->getLocStart(), initStr);
+  TextRewriter.InsertTextBefore(CS->body_front()->getLocStart(), initStr);
 
   // insert memory release calls before last statement (return-statement)
   // release all images
