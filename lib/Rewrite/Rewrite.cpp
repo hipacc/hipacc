@@ -1195,6 +1195,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         if (!Buf->isConstant() && !compilerOptions.emitCUDA()) {
           // create Buffer for Mask
           stringCreator.writeMemoryAllocationConstant(Buf, newStr);
+          newStr += "\n" + stringCreator.getIndent();
 
           if (Buf->hasCopyMask()) {
             // create Domain from Mask and upload to Buffer
