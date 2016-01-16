@@ -561,7 +561,8 @@ Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
 
 Expr *ASTTranslate::VisitVAArgExpr(VAArgExpr *E) {
   Expr *result = new (Ctx) VAArgExpr(E->getBuiltinLoc(), Clone(E->getSubExpr()),
-      E->getWrittenTypeInfo(), E->getRParenLoc(), E->getType());
+      E->getWrittenTypeInfo(), E->getRParenLoc(), E->getType(),
+      E->isMicrosoftABI());
 
   setExprPropsClone(E, result);
 

@@ -1522,7 +1522,7 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
     }
   }
 
-  result->setStmts(Ctx, body.data(), body.size());
+  result->setStmts(Ctx, body);
 
   return result;
 }

@@ -1,7 +1,7 @@
 INCLUDE_DIRECTORIES(${LLVM_INCLUDE_DIRS})
 ADD_DEFINITIONS(${LLVM_DEFINITIONS})
 
-llvm_map_components_to_libnames(LLVM_LIBS analysis core instcombine instrumentation ipa ipo option scalaropts support target transformutils vectorize)
+llvm_map_components_to_libnames(LLVM_LIBS analysis core instcombine instrumentation ipo option scalaropts support target transformutils vectorize)
 clang_map_components_to_libnames(CLANG_LIBS)
 
 SET(HIPACC_LIBS

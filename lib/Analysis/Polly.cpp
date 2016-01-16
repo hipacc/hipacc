@@ -40,6 +40,7 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/ADT/Statistic.h>
 #include <llvm/ADT/Triple.h>
+#include <llvm/Analysis/BasicAliasAnalysis.h>
 #include <llvm/Analysis/Passes.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
 #include <llvm/Transforms/IPO.h>
@@ -83,7 +84,6 @@ void Polly::analyzeKernel() {
   initializeVectorization(Registry);
   initializeIPO(Registry);
   initializeAnalysis(Registry);
-  initializeIPA(Registry);
   initializeTransformUtils(Registry);
   initializeInstCombine(Registry);
   initializeInstrumentation(Registry);
@@ -111,7 +111,7 @@ void Polly::analyzeKernel() {
   Passes.add(llvm::createIndVarSimplifyPass());
   Passes.add(llvm::createLoopDeletionPass());
   Passes.add(llvm::createInstructionCombiningPass());
-  Passes.add(llvm::createBasicAliasAnalysisPass());
+  Passes.add(llvm::createBasicAAWrapperPass());
 
   Passes.add(polly::createCodePreparationPass());
   Passes.add(polly::createScopInfoPass());
