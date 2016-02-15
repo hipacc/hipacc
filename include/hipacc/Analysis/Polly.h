@@ -37,7 +37,6 @@
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/DeclGroup.h>
 #include <clang/Frontend/CompilerInstance.h>
-#include <clang/CodeGen/ModuleBuilder.h>
 
 namespace clang {
 namespace hipacc {
