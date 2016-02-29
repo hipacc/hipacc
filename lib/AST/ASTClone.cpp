@@ -537,8 +537,26 @@ Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
   return result;
 }
 
+Expr *ASTTranslate::VisitDesignatedInitUpdateExpr(DesignatedInitUpdateExpr *E) {
+  DesignatedInitUpdateExpr *result = new (Ctx) DesignatedInitUpdateExpr(Ctx,
+      E->getLocStart(), E->getBase(), E->getLocEnd());
+  result->setUpdater(E->getUpdater());
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
 Expr *ASTTranslate::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
   Expr *result = new (Ctx) ImplicitValueInitExpr(E->getType());
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
+Expr *ASTTranslate::VisitNoInitExpr(NoInitExpr *E) {
+  Expr *result = new (Ctx) NoInitExpr(E->getType());
 
   setExprPropsClone(E, result);
 
