@@ -55,7 +55,7 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
     case Reduce::MIN:
       // red = min(red, val);
       fun = lookup<FunctionDecl>(std::string("min"), tmp_var->getType(),
-          hipaccMathNS);
+          hipacc_math_ns);
       assert(fun && "could not lookup 'min'");
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
             CK_LValueToRValue, tmp_var, nullptr, VK_RValue));
@@ -66,7 +66,7 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
     case Reduce::MAX:
       // red = max(red, val);
       fun = lookup<FunctionDecl>(std::string("max"), tmp_var->getType(),
-          hipaccMathNS);
+          hipacc_math_ns);
       assert(fun && "could not lookup 'max'");
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
             CK_LValueToRValue, tmp_var, nullptr, VK_RValue));

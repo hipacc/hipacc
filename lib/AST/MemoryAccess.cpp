@@ -483,7 +483,7 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool isVecType) {
   }
 
   FunctionDecl *result = lookup<FunctionDecl>(name, simdTypes.getSIMDType(QT,
-        QT.getAsString(), SIMD4), hipaccNS);
+        QT.getAsString(), SIMD4), hipacc_ns);
   assert(result && "could not lookup convert function");
 
   return result;

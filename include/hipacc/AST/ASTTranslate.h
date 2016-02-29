@@ -106,7 +106,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     DeclRefExpr *outputImage;
     DeclRefExpr *retValRef;
     Expr *writeImageRHS;
-    NamespaceDecl *hipaccNS, *hipaccMathNS;
+    NamespaceDecl *hipacc_ns, *hipacc_math_ns;
     TypedefDecl *samplerTy;
     DeclRefExpr *kernelSamplerRef;
 
@@ -329,17 +329,15 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       gidYRef(nullptr) {
         // get 'hipacc' namespace context for lookups
         auto hipacc_ident = &Ctx.Idents.get("hipacc");
-        for (auto *decl : Ctx.getTranslationUnitDecl()->lookup(hipacc_ident)) {
-          if ((hipaccNS = cast_or_null<NamespaceDecl>(decl))) break;
-        }
-        assert(hipaccNS && "could not lookup 'hipacc' namespace");
+        for (auto *decl : Ctx.getTranslationUnitDecl()->lookup(hipacc_ident))
+          if ((hipacc_ns = cast_or_null<NamespaceDecl>(decl))) break;
+        assert(hipacc_ns && "could not lookup 'hipacc' namespace");
 
         // get 'hipacc::math' namespace context for lookups
         auto math_ident = &Ctx.Idents.get("math");
-        for (auto *decl : hipaccNS->lookup(math_ident)) {
-          if ((hipaccMathNS = cast_or_null<NamespaceDecl>(decl))) break;
-        }
-        assert(hipaccMathNS && "could not lookup 'hipacc::math' namespace");
+        for (auto *decl : hipacc_ns->lookup(math_ident))
+          if ((hipacc_math_ns = cast_or_null<NamespaceDecl>(decl))) break;
+        assert(hipacc_math_ns && "could not lookup 'hipacc::math' namespace");
 
         // typedef unsigned sampler_t;
         TypeSourceInfo *TInfosampler =

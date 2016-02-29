@@ -1576,13 +1576,13 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
               // require convert function ulong -> long
               convert = lookup<FunctionDecl>(std::string("convert_long4"),
                   simdTypes.getSIMDType(Ctx.LongTy, std::string("long"), SIMD4),
-                  hipaccNS);
+                  hipacc_ns);
               assert(convert && "could not lookup 'convert_long4'");
             } else if (name=="abs") {
               // require convert function uint -> int
               convert = lookup<FunctionDecl>(std::string("convert_int4"),
                   simdTypes.getSIMDType(Ctx.IntTy, std::string("int"), SIMD4),
-                  hipaccNS);
+                  hipacc_ns);
               assert(convert && "could not lookup 'convert_int4'");
             }
 
