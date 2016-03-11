@@ -1721,9 +1721,7 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   bool isMask = false;
   for (auto mask : KernelClass->getMaskFields()) {
     if (paramDecl->getName().equals(mask->getName())) {
-      HipaccMask *Mask = Kernel->getMaskFromMapping(mask);
-
-      if (Mask) {
+      if (auto Mask = Kernel->getMaskFromMapping(mask)) {
         isMask = true;
         if (Mask->isConstant() || compilerOptions.emitC99() ||
             compilerOptions.emitCUDA()) {
@@ -1759,8 +1757,6 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
 
 
 Expr *ASTTranslate::VisitBinaryOperatorTranslate(BinaryOperator *E) {
-  Expr *result;
-
   // remember the current CompoundStmt, which has to be the same for the LHS and
   // the RHS (the current CompoundStmt might change during cloning LHS or RHS)
   CompoundStmt *CStmt = curCStmt;
@@ -1782,6 +1778,7 @@ Expr *ASTTranslate::VisitBinaryOperatorTranslate(BinaryOperator *E) {
     QT = E->getType();
   }
 
+  Expr *result;
   // writeImageRHS has changed, use LHS
   if (E->getOpcode() == BO_Assign && writeImageRHS && writeImageRHS!=RHS) {
     // TODO: insert checks +=, -=, /=, and *= are not supported on Image objects
@@ -2208,7 +2205,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         result = accessMem2DAt(LHS, idx_x, idx_y);
         break;
       case Language::CUDA:
-        if (Kernel->useTextureMemory(acc)!=Texture::None) {
+        if (Kernel->useTextureMemory(acc) != Texture::None) {
           result = accessMemTexAt(LHS, acc, mem_acc, idx_x, idx_y);
         } else {
           result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
@@ -2217,7 +2214,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:
-        if (Kernel->useTextureMemory(acc)!=Texture::None) {
+        if (Kernel->useTextureMemory(acc) != Texture::None) {
           result = accessMemImgAt(LHS, acc, mem_acc, idx_x, idx_y);
         } else {
           result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);

@@ -190,7 +190,7 @@ void CreateHostStrings::writeMemoryAllocation(HipaccImage *Img, std::string
     case Language::CUDA:
       // texture is bound at kernel launch
       if (options.useTextureMemory() &&
-          options.getTextureType()==Texture::Array2D) {
+          options.getTextureType() == Texture::Array2D) {
         resultStr += "hipaccCreateArray2D<" + Img->getTypeStr() + ">(";
       } else {
         resultStr += "hipaccCreateMemory<" + Img->getTypeStr() + ">(";
@@ -212,7 +212,7 @@ void CreateHostStrings::writeMemoryAllocation(HipaccImage *Img, std::string
   }
   resultStr += host + ", " + width + ", " + height;
   if (options.useTextureMemory() &&
-      options.getTextureType()==Texture::Array2D) {
+      options.getTextureType() == Texture::Array2D) {
     // OpenCL Image objects and CUDA Arrays don't support padding
   } else {
     if (options.emitPadding()) {
@@ -548,7 +548,8 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     size_t i = num_arg++;
 
     // skip unused variables
-    if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
+    if (!K->getUsed(K->getDeviceArgNames()[i]))
+      continue;
 
     HipaccAccessor *Acc = K->getImgFromMapping(arg);
     if (Acc) {
@@ -556,15 +557,14 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
           // no texture required for __ldg() intrinsic
           !(K->useTextureMemory(Acc) == Texture::Ldg)) {
         std::string tex_type = "Texture", hipacc_type = "Array2D";
-        if (K->getKernelClass()->getMemAccess(arg)==WRITE_ONLY) {
+        if (K->getKernelClass()->getMemAccess(arg) == WRITE_ONLY)
           tex_type = hipacc_type = "Surface";
-        }
         // bind texture and surface
         if (options.exploreConfig()) {
           std::string lit(std::to_string(literal_count++));
           resultStr += "hipacc_tex_info tex_info" + lit;
           resultStr += "(std::string(\"_tex" + deviceArgNames[i] + K->getName() + "\"), ";
-          resultStr += K->getImgFromMapping(arg)->getImage()->getTextureType() + ", ";
+          resultStr += Acc->getImage()->getTextureType() + ", ";
           resultStr += hostArgNames[i] + ", ";
           switch (K->useTextureMemory(Acc)) {
             case Texture::Linear1D: resultStr += "Linear1D";  break;
@@ -626,7 +626,8 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     size_t i = num_arg++;
 
     // skip unused variables
-    if (!K->getUsed(K->getDeviceArgNames()[i])) continue;
+    if (!K->getUsed(K->getDeviceArgNames()[i]))
+      continue;
 
     HipaccMask *Mask = K->getMaskFromMapping(arg);
     if (Mask) {
@@ -634,7 +635,8 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
         Mask->addKernel(K);
         continue;
       } else {
-        if (Mask->isConstant()) continue;
+        if (Mask->isConstant())
+          continue;
       }
     }
 
@@ -936,7 +938,7 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
       resultStr += "\"), " + K->getIterationSpace()->getImage()->getTextureType() + ", ";
       resultStr += K->getIterationSpace()->getImage()->getName() + ", ";
       if (options.useTextureMemory() &&
-          options.getTextureType()==Texture::Array2D) {
+          options.getTextureType() == Texture::Array2D) {
         resultStr += "Array2D";
       } else {
         resultStr += "Global";

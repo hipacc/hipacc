@@ -1932,14 +1932,14 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
       if (compilerOptions.useTextureMemory() &&
-          compilerOptions.getTextureType()==Texture::Array2D) {
+          compilerOptions.getTextureType() == Texture::Array2D) {
         *OS << "#define USE_ARRAY_2D\n";
       }
       *OS << "#include \"hipacc_cl_red.hpp\"\n\n";
       break;
     case Language::CUDA:
       if (compilerOptions.useTextureMemory() &&
-          compilerOptions.getTextureType()==Texture::Array2D) {
+          compilerOptions.getTextureType() == Texture::Array2D) {
         *OS << "#define USE_ARRAY_2D\n";
       }
       *OS << "#include \"hipacc_cu_red.hpp\"\n\n";
@@ -2232,8 +2232,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (!K->getUsed(K->getDeviceArgNames()[cur_arg])) continue;
 
     // global image declarations
-    HipaccAccessor *Acc = K->getImgFromMapping(arg);
-    if (Acc) {
+    if (auto Acc = K->getImgFromMapping(arg)) {
       QualType T = Acc->getImage()->getType();
 
       switch (compilerOptions.getTargetLang()) {
@@ -2276,8 +2275,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
 
     // constant memory declarations
-    HipaccMask *Mask = K->getMaskFromMapping(arg);
-    if (Mask) {
+    if (auto Mask = K->getMaskFromMapping(arg)) {
       if (Mask->isConstant()) {
         switch (compilerOptions.getTargetLang()) {
           case Language::OpenCLACC:
@@ -2388,7 +2386,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
       if (compilerOptions.useTextureMemory() &&
-          compilerOptions.getTextureType()==Texture::Array2D) {
+          compilerOptions.getTextureType() == Texture::Array2D) {
         *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
             << "Sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | "
             << " CLK_FILTER_NEAREST; \n\n";
@@ -2438,8 +2436,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (!K->getUsed(Name)) continue;
 
     // check if we have a Mask or Domain
-    HipaccMask *Mask = K->getMaskFromMapping(FD);
-    if (Mask) {
+    if (auto Mask = K->getMaskFromMapping(FD)) {
       if (Mask->isConstant()) continue;
       switch (compilerOptions.getTargetLang()) {
         case Language::C99:
@@ -2470,8 +2467,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     }
 
     // check if we have an Accessor
-    HipaccAccessor *Acc = K->getImgFromMapping(FD);
-    if (Acc) {
+    if (auto Acc = K->getImgFromMapping(FD)) {
       MemoryAccess mem_acc = KC->getMemAccess(FD);
       switch (compilerOptions.getTargetLang()) {
         case Language::C99:
@@ -2503,7 +2499,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         case Language::OpenCLGPU:
           // __global keyword to specify memory location is only needed for OpenCL
           if (comma++) *OS << ", ";
-          if (K->useTextureMemory(Acc)!=Texture::None) {
+          if (K->useTextureMemory(Acc) != Texture::None) {
             if (mem_acc==WRITE_ONLY) {
               *OS << "__write_only image2d_t ";
             } else {
