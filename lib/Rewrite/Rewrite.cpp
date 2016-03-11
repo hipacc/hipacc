@@ -2239,10 +2239,13 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         default: break;
         case Language::CUDA:
           // texture and surface declarations
-          if (K->useTextureMemory(Acc)!=Texture::None &&
-              // no texture declaration for __ldg() intrinsic
-              !(K->useTextureMemory(Acc) == Texture::Ldg)) {
-            if (KC->getMemAccess(arg) == READ_ONLY) {
+          if (KC->getMemAccess(arg) == WRITE_ONLY) {
+            if (K->useTextureMemory(Acc) == Texture::Array2D)
+              *OS << "surface<void, cudaSurfaceType2D> _tex"
+                  << arg->getNameAsString() << K->getName() << ";\n";
+          } else {
+            if (K->useTextureMemory(Acc) != Texture::None &&
+                K->useTextureMemory(Acc) != Texture::Ldg) {
               *OS << "texture<";
               *OS << T.getAsString();
               switch (K->useTextureMemory(Acc)) {
@@ -2256,9 +2259,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                   break;
               }
               *OS << arg->getNameAsString() << K->getName() << ";\n";
-            } else {
-              *OS << "surface<void, cudaSurfaceType2D> _tex"
-                  << arg->getNameAsString() << K->getName() << ";\n";
             }
           }
           break;
@@ -2481,12 +2481,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           // *OS << "[static const restrict 2048][4096]";
           break;
         case Language::CUDA:
-          if (K->useTextureMemory(Acc)!=Texture::None &&
-              // parameter required for __ldg() intrinsic
-              !(K->useTextureMemory(Acc) == Texture::Ldg)) {
-            // no parameter is emitted for textures
+          if (K->useTextureMemory(Acc) != Texture::None &&
+              K->useTextureMemory(Acc) != Texture::Ldg) // no parameter is emitted for textures
             continue;
-          } else {
+          else {
             if (comma++) *OS << ", ";
             if (mem_acc==READ_ONLY) *OS << "const ";
             *OS << T->getPointeeType().getAsString();

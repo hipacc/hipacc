@@ -551,11 +551,9 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     if (!K->getUsed(K->getDeviceArgNames()[i]))
       continue;
 
-    HipaccAccessor *Acc = K->getImgFromMapping(arg);
-    if (Acc) {
-      if (options.emitCUDA() && K->useTextureMemory(Acc)!=Texture::None &&
-          // no texture required for __ldg() intrinsic
-          !(K->useTextureMemory(Acc) == Texture::Ldg)) {
+    if (auto Acc = K->getImgFromMapping(arg)) {
+      if (options.emitCUDA() && K->useTextureMemory(Acc) != Texture::None &&
+                                K->useTextureMemory(Acc) != Texture::Ldg) {
         std::string tex_type = "Texture", hipacc_type = "Array2D";
         if (K->getKernelClass()->getMemAccess(arg) == WRITE_ONLY)
           tex_type = hipacc_type = "Surface";
@@ -641,12 +639,10 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     }
 
     HipaccAccessor *Acc = K->getImgFromMapping(arg);
-    if (options.emitCUDA() && Acc && K->useTextureMemory(Acc)!=Texture::None &&
-        // no texture required for __ldg() intrinsic
-        !(K->useTextureMemory(Acc) == Texture::Ldg)) {
-      // textures are handled separately
-      continue;
-    }
+    if (options.emitCUDA() && Acc && K->useTextureMemory(Acc) != Texture::None &&
+                                     K->useTextureMemory(Acc) != Texture::Ldg)
+      continue; // textures are handled separately
+
     std::string img_mem;
     if (Acc || Mask) img_mem = ".mem";
 

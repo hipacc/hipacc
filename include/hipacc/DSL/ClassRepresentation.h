@@ -482,6 +482,7 @@ class HipaccKernelFeatures : public HipaccDevice {
     void calcImgFeature(FieldDecl *decl, HipaccAccessor *acc) {
       MemoryType mem_type = Global;
       Texture tex_type = Texture::None;
+      MemoryAccess mem_access = KC->getMemAccess(decl);
       MemoryPattern mem_pattern = KC->getMemPattern(decl);
 
       if (options.useTextureMemory() &&
@@ -512,6 +513,11 @@ class HipaccKernelFeatures : public HipaccDevice {
               mem_type = Texture_;
               tex_type = require_textures[LocalOperator];
             }
+          }
+
+          if (mem_access == WRITE_ONLY && tex_type != Texture::Array2D) {
+            mem_type = Global;
+            tex_type = Texture::None;
           }
         }
       }
@@ -740,10 +746,19 @@ class HipaccKernel : public HipaccKernelFeatures {
 
       for (auto map : memMap) {
         llvm::errs() << "  Image '" << map.first->getName() << "': ";
-        if (map.second & Global)   llvm::errs() << "global ";
-        if (map.second & Constant) llvm::errs() << "constant ";
-        if (map.second & Texture_) llvm::errs() << "texture ";
-        if (map.second & Local)    llvm::errs() << "local ";
+        if (map.second & Global)    llvm::errs() << "global";
+        if (map.second & Constant)  llvm::errs() << "constant";
+        if (map.second & Local)     llvm::errs() << "local";
+        if (map.second & Texture_) {
+          llvm::errs() << "texture ";
+          switch (texMap[map.first]) {
+            case Texture::None:     llvm::errs() << "(None)";     break;
+            case Texture::Linear1D: llvm::errs() << "(Linear1D)"; break;
+            case Texture::Linear2D: llvm::errs() << "(Linear2D)"; break;
+            case Texture::Array2D:  llvm::errs() << "(Array2D)";  break;
+            case Texture::Ldg:      llvm::errs() << "(Ldg)";      break;
+          }
+        }
         llvm::errs() << "\n";
       }
     }
