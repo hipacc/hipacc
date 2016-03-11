@@ -2256,14 +2256,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                   *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
                   break;
               }
-              *OS << arg->getNameAsString() << K->getName() << ";\n"
-                  << "const textureReference *_tex"
-                  << arg->getNameAsString() << K->getName() << "Ref;\n";
+              *OS << arg->getNameAsString() << K->getName() << ";\n";
             } else {
-              *OS << "surface<void, cudaSurfaceType2D> _surf"
-                  << arg->getNameAsString() << K->getName() << ";\n"
-                  << "const struct surfaceReference *_surf"
-                  << arg->getNameAsString() << K->getName() << "Ref;\n\n";
+              *OS << "surface<void, cudaSurfaceType2D> _tex"
+                  << arg->getNameAsString() << K->getName() << ";\n";
             }
           }
           break;

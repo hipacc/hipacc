@@ -423,7 +423,7 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
 
 // Bind memory to texture
 template<typename T>
-void hipaccBindTexture(hipaccMemoryType mem_type, const struct textureReference *tex, HipaccImage &img) {
+void hipaccBindTexture(hipaccMemoryType mem_type, const textureReference *tex, HipaccImage &img) {
     cudaError_t err = cudaSuccess;
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
 
@@ -451,7 +451,7 @@ void hipaccBindTexture(hipaccMemoryType mem_type, const struct textureReference 
 
 // Bind 2D array to surface
 template<typename T>
-void hipaccBindSurface(hipaccMemoryType mem_type, const struct surfaceReference *surf, HipaccImage &img) {
+void hipaccBindSurface(hipaccMemoryType mem_type, const surfaceReference *surf, HipaccImage &img) {
     assert(mem_type==Surface && "wrong texture type");
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
     cudaError_t err = cudaBindSurfaceToArray(surf, (cudaArray *)img.mem, &channelDesc);
@@ -460,7 +460,7 @@ void hipaccBindSurface(hipaccMemoryType mem_type, const struct surfaceReference 
 
 
 // Unbind texture
-void hipaccUnbindTexture(const struct textureReference *tex) {
+void hipaccUnbindTexture(const textureReference *tex) {
     cudaError_t err = cudaUnbindTexture(tex);
     checkErr(err, "cudaUnbindTexture()");
 }
@@ -840,10 +840,8 @@ void hipaccBindSurfaceDrv(CUsurfref &surface, HipaccImage &img) {
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
-        void *kernel1D, std::string kernel1D_name, HipaccAccessor &acc, unsigned
-        int max_threads, unsigned int pixels_per_thread, const struct
-        textureReference *tex) {
+T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const void *kernel1D, std::string kernel1D_name,
+                       HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
@@ -932,21 +930,17 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
 }
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
-        void *kernel1D, std::string kernel1D_name, HipaccImage &img, unsigned
-        int max_threads, unsigned int pixels_per_thread, const struct
-        textureReference *tex) {
+T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const void *kernel1D, std::string kernel1D_name,
+                       HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     HipaccAccessor acc(img);
-    return hipaccApplyReduction<T>(kernel2D, kernel2D_name, kernel1D,
-            kernel1D_name, acc, max_threads, pixels_per_thread, tex);
+    return hipaccApplyReduction<T>(kernel2D, kernel2D_name, kernel1D, kernel1D_name, acc, max_threads, pixels_per_thread, tex);
 }
 
 
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
-        kernel2D_name, HipaccAccessor &acc, unsigned int max_threads, unsigned
-        int pixels_per_thread, const struct textureReference *tex) {
+T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_name,
+                                  HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
@@ -1012,20 +1006,17 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
 }
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
-        kernel2D_name, HipaccImage &img, unsigned int max_threads, unsigned int
-        pixels_per_thread, const struct textureReference *tex) {
+T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_name,
+                                  HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     HipaccAccessor acc(img);
-    return hipaccApplyReductionThreadFence<T>(kernel2D, kernel2D_name, acc,
-            max_threads, pixels_per_thread, tex);
+    return hipaccApplyReductionThreadFence<T>(kernel2D, kernel2D_name, acc, max_threads, pixels_per_thread, tex);
 }
 
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-        std::string kernel1D, HipaccAccessor &acc, unsigned int max_threads,
-        unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D,
+                                  HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
@@ -1172,22 +1163,17 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
     return result;
 }
 template<typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-        std::string kernel1D, HipaccImage &img, unsigned int max_threads,
-        unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D,
+                                  HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     HipaccAccessor acc(img);
-    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc,
-            max_threads, pixels_per_thread, tex_info, cc);
+    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc, max_threads, pixels_per_thread, tex_info, cc);
 }
 
 
 // Perform configuration exploration for a kernel call
-void hipaccKernelExploration(std::string filename, std::string kernel,
-        std::vector<void *> args, std::vector<hipacc_smem_info> smems,
-        std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info*>
-        texs, hipacc_launch_info &info, size_t warp_size, size_t
-        max_threads_per_block, size_t max_threads_for_kernel, size_t
-        max_smem_per_block, size_t heu_tx, size_t heu_ty, int cc) {
+void hipaccKernelExploration(std::string filename, std::string kernel, std::vector<void *> args,
+                             std::vector<hipacc_smem_info> smems, std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info*> texs,
+                             hipacc_launch_info &info, size_t warp_size, size_t max_threads_per_block, size_t max_threads_for_kernel, size_t max_smem_per_block, size_t heu_tx, size_t heu_ty, int cc) {
     CUresult err = CUDA_SUCCESS;
     size_t opt_tx=warp_size, opt_ty=1;
     float opt_time = FLT_MAX;
