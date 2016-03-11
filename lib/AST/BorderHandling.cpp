@@ -260,7 +260,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
           RHS = accessMem2DAt(LHS, idx_x, idx_y);
           break;
       case Language::CUDA:
-        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
+        if (Kernel->useTextureMemory(Acc) != Texture::None) {
           RHS = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
@@ -268,7 +268,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:
-        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
+        if (Kernel->useTextureMemory(Acc) != Texture::None) {
           RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
@@ -346,7 +346,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
           result = accessMem2DAt(LHS, idx_x, idx_y);
           break;
       case Language::CUDA:
-        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
+        if (Kernel->useTextureMemory(Acc) != Texture::None) {
           result = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
@@ -354,7 +354,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:
-        if (Kernel->useTextureMemory(Acc)!=Texture::None) {
+        if (Kernel->useTextureMemory(Acc) != Texture::None) {
           result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }

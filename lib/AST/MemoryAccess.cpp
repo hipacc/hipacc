@@ -146,15 +146,14 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     case WRITE_ONLY:
       switch (compilerOptions.getTargetLang()) {
         default: break;
-        case Language::Renderscript: {
-            if (Kernel->getKernelClass()->getMembers()[0].name.compare(
-                  LHS->getNameInfo().getAsString()) != 0) {
-              // access allocation by using local pointer type kernel argument
-              return accessMemAllocPtr(LHS);
-            }
-            // fall through to READ_ONLY for global allocation
-          }
-          break;
+        case Language::CUDA:
+          if (Kernel->useTextureMemory(Acc) == Texture::Array2D)
+            return accessMemTexAt(LHS, Acc, mem_acc, idx_x, idx_y);
+          return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        case Language::Renderscript:
+          if (KernelClass->getMembers()[0].name.compare(LHS->getNameInfo().getAsString()) != 0)
+            return accessMemAllocPtr(LHS); // access allocation by using local pointer type kernel argument
+          return accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
         case Language::Filterscript:
           assert(0 && "Filterscript does not support write access for allocations.");
       }
@@ -163,17 +162,15 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
         case Language::C99:
           return accessMem2DAt(LHS, idx_x, idx_y);
         case Language::CUDA:
-          if (Kernel->useTextureMemory(Acc)!=Texture::None) {
-            return accessMemTexAt(LHS, Acc, mem_acc, idx_x, idx_y);
-          }
-          // fall through
+          if (Kernel->useTextureMemory(Acc) == Texture::None)
+            return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+          return accessMemTexAt(LHS, Acc, mem_acc, idx_x, idx_y);
         case Language::OpenCLACC:
         case Language::OpenCLCPU:
         case Language::OpenCLGPU:
-          if (Kernel->useTextureMemory(Acc)!=Texture::None) {
-            return accessMemImgAt(LHS, Acc, mem_acc, idx_x, idx_y);
-          }
-          return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+          if (Kernel->useTextureMemory(Acc) == Texture::None)
+            return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+          return accessMemImgAt(LHS, Acc, mem_acc, idx_x, idx_y);
         case Language::Renderscript:
         case Language::Filterscript:
           return accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
@@ -510,7 +507,7 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   DeclRefExpr *LHStex = DeclRefExpr::Create(Ctx,
       LHS->getQualifierLoc(),
       LHS->getTemplateKeywordLoc(),
-      CloneDeclTex(PVD, (mem_acc==READ_ONLY)?"_tex":"_surf"),
+      CloneDeclTex(PVD, "_tex"),
       LHS->refersToEnclosingVariableOrCapture(),
       LHS->getLocation(),
       LHS->getType(), LHS->getValueKind(),

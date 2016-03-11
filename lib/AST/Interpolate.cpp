@@ -191,9 +191,8 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
 
   // parameters for interpolate function call
   SmallVector<Expr *, 16> args;
-  if (compilerOptions.emitCUDA() && Kernel->useTextureMemory(Acc)!=Texture::None
-      // no texture declaration for __ldg() intrinsic
-      && !(Kernel->useTextureMemory(Acc) == Texture::Ldg)) {
+  if (compilerOptions.emitCUDA() &&
+      Kernel->useTextureMemory(Acc) != Texture::None) {
     assert(isa<ParmVarDecl>(LHS->getDecl()) && "texture variable must be a ParmVarDecl!");
     ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());
     args.push_back(createDeclRefExpr(Ctx, CloneDeclTex(PVD, "_tex")));
