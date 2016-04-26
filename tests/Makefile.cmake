@@ -4,9 +4,9 @@ COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
 COMMON_INC     ?= -I@OPENCV_INCLUDE_DIRS@ \
                   -I$(TEST_CASE)
 COMPILER_INC   ?= -std=c++11 $(COMMON_INC) \
-                  -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                   -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
                   -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1 \
+                  -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
                   -I$(HIPACC_DIR)/include/dsl
 TEST_CASE      ?= ./tests/opencv_blur_8uc1
 MYFLAGS        ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
