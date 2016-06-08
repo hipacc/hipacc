@@ -37,7 +37,8 @@
 #ifdef NVML_FOUND
 #include <nvml.h>
 #endif
-#if CUDA_VERSION >= 7000
+#cmakedefine NVRTC_FOUND
+#ifdef NVRTC_FOUND
 #include <nvrtc.h>
 #endif
 
@@ -191,7 +192,7 @@ inline void checkErrNVML(nvmlReturn_t err, std::string name) {
 #endif
 #endif
 
-#if CUDA_VERSION >= 7000
+#ifdef NVRTC_FOUND
 #if 1
 #define checkErrNVRTC(err, name) \
     if (err != NVRTC_SUCCESS ) { \
@@ -226,7 +227,7 @@ void hipaccInitCUDA() {
     std::cerr << "CUDA Driver/Runtime Version " << driver_version/1000 << "." << (driver_version%100)/10
               << "/" << runtime_version/1000 << "." << (runtime_version%100)/10 << std::endl;
 
-    #if CUDA_VERSION >= 7000
+    #ifdef NVRTC_FOUND
     int nvrtc_major = 0, nvrtc_minor = 0;
     nvrtcResult errNvrtc = nvrtcVersion(&nvrtc_major, &nvrtc_minor);
     checkErrNVRTC(errNvrtc, "nvrtcVersion()");
@@ -599,7 +600,7 @@ void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
 
 
 // Compile CUDA source file and create module
-#if CUDA_VERSION >= 7000
+#ifdef NVRTC_FOUND
 void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
     nvrtcResult err;
     nvrtcProgram program;
