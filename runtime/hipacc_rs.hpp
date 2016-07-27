@@ -55,8 +55,6 @@ ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText);
 void hipaccInitRenderScript(std::string rs_directory);
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst);
-template<typename T>
-void hipaccReleaseMemory(HipaccImage &img);
 #define CREATE_ALLOCATION_DECL(T) \
   HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height, size_t alignment); \
   HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height);
