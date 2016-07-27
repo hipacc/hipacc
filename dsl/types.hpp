@@ -82,12 +82,28 @@ _Pragma("pack(pop)")
 
 
 // make function
+template<typename T> T convert(float);
+template<typename T> T convert(float4);
+static float4 make_float4(float, float, float, float);
 #define MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
 static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE x, BASIC_TYPE y, BASIC_TYPE z, BASIC_TYPE w) { \
     NEW_TYPE t; t.x = x; t.y = y; t.z = z; t.w = w; return t; \
 } \
 static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) { \
     return make_##NEW_TYPE(s, s, s, s); \
+} \
+ \
+template<> ATTRIBUTES BASIC_TYPE convert<BASIC_TYPE>(float s) { \
+    return s; \
+} \
+template<> ATTRIBUTES NEW_TYPE convert<NEW_TYPE>(float4 v) { \
+    return make_##NEW_TYPE(v.x, v.y, v.z, v.w); \
+} \
+ATTRIBUTES float as_float(BASIC_TYPE s) { \
+    return s; \
+} \
+ATTRIBUTES float4 as_float(NEW_TYPE v) { \
+    return make_float4(v.x, v.y, v.z, v.w); \
 }
 
 

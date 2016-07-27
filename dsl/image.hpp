@@ -246,10 +246,10 @@ class Interpolation {
         virtual data_t &pixel_bh(int x, int y) = 0;
 
         data_t bicubic(float t, data_t a, data_t b, data_t c, data_t d) {
-            return 0.5f* (c - a + (2.0f * a - 5.0f * b + 4.0f * c - d + (3.0f * (b - c) + d -a) * t) * t) * t + b;
+            return convert<data_t>(0.5f * (as_float(c - a) + (2.0f * as_float(a) - 5.0f * as_float(b) + 4.0f * as_float(c) - as_float(d) + (3.0f * as_float(b - c) + as_float(d - a)) * t) * t) * t + as_float(b));
         }
 
-        data_t bicubic_spline(float diff) {
+        float bicubic_spline(float diff) {
             // Cubic Convolution Interpolation for Digital Image Processing
             // Robert G. Keys
             //
@@ -267,28 +267,30 @@ class Interpolation {
                 return (a + 2.0f) *diff*diff*diff - (a + 3.0f)*diff*diff + 1;
             } else if (diff < 2.0f) {
                 return a * diff*diff*diff - 5.0f * a * diff*diff + 8.0f * a * diff - 4.0f * a;
-            } else return (data_t)0;
+            } else {
+                return 0.0f;
+            }
         }
 
         constexpr double pi() const { return std::atan(1)*4; }
 
-        data_t lanczos(float diff) {
+        float lanczos(float diff) {
             // Digital image processing: an algorithmic introduction using Java
             // Wilhelm Burger, Mark Burge
             //
             // Lanczos interpolation
-            //          1                                        |x| = 0
-            // wL3(x) = 3 * sin(pi()*x/3)*sin(pi()*x)       0 <  |x| < 3
-            //          0                                   3 <= |x|
+            //          1                                                    |x| = 0
+            // wL3(x) = 3 * (sin(pi()*x/3) * sin(pi()*x)) / (pi^2*x^2)  0 <  |x| < 3
+            //          0                                               3 <= |x|
             diff = std::abs(diff);
             float l = 3.0f;
 
             if (diff==0.0f) {
-                return (data_t)1;
+                return 1.0f;
             } else if (diff < l) {
                 return l * (std::sin(pi()*diff/l) * std::sin(pi()*diff)) / (pi()*pi()*diff*diff);
             } else {
-                return (data_t)0;
+                return 0.0f;
             }
         }
 
@@ -315,116 +317,114 @@ class Interpolation {
             // do the interpolation
             switch (imode) {
                 case Interpolate::NO:
-                    return pixel_bh(EI->x() - EI->offset_x() + offset_x + xf,
-                                    EI->y() - EI->offset_y() + offset_y + yf);
+                    interpol_val = pixel_bh(EI->x() - EI->offset_x() + offset_x + xf, EI->y() - EI->offset_y() + offset_y + yf);
+                    break;
                 case Interpolate::NN:
-                    return pixel_bh(x_mapped, y_mapped);
+                    interpol_val = pixel_bh(x_mapped, y_mapped);
+                    break;
                 case Interpolate::LF:
-                    interpol_val =
-                        (1.0f-x_frac) * (1.0f-y_frac) * pixel_bh(x_int  , y_int) +
-                              x_frac  * (1.0f-y_frac) * pixel_bh(x_int+1, y_int) +
-                        (1.0f-x_frac) *       y_frac  * pixel_bh(x_int  , y_int+1) +
-                              x_frac  *       y_frac  * pixel_bh(x_int+1, y_int+1);
-
-                    return interpol_val;
+                    interpol_val = convert<data_t>(
+                        (1.0f - x_frac) * (1.0f - y_frac) * as_float(pixel_bh(x_int    , y_int)) +
+                                x_frac  * (1.0f - y_frac) * as_float(pixel_bh(x_int + 1, y_int)) +
+                        (1.0f - x_frac) *         y_frac  * as_float(pixel_bh(x_int    , y_int + 1)) +
+                                x_frac  *         y_frac  * as_float(pixel_bh(x_int + 1, y_int + 1)));
+                    break;
                 case Interpolate::CF: {
                     #if 1
-                    data_t y0 = pixel_bh(x_int - 1 + 0, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 0) +
-                                pixel_bh(x_int - 1 + 1, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 1) +
-                                pixel_bh(x_int - 1 + 2, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 2) +
-                                pixel_bh(x_int - 1 + 3, y_int - 1 + 0) * bicubic_spline(x_frac - 1 + 3);
-                    data_t y1 = pixel_bh(x_int - 1 + 0, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 0) +
-                                pixel_bh(x_int - 1 + 1, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 1) +
-                                pixel_bh(x_int - 1 + 2, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 2) +
-                                pixel_bh(x_int - 1 + 3, y_int - 1 + 1) * bicubic_spline(x_frac - 1 + 3);
-                    data_t y2 = pixel_bh(x_int - 1 + 0, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 0) +
-                                pixel_bh(x_int - 1 + 1, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 1) +
-                                pixel_bh(x_int - 1 + 2, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 2) +
-                                pixel_bh(x_int - 1 + 3, y_int - 1 + 2) * bicubic_spline(x_frac - 1 + 3);
-                    data_t y3 = pixel_bh(x_int - 1 + 0, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 0) +
-                                pixel_bh(x_int - 1 + 1, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 1) +
-                                pixel_bh(x_int - 1 + 2, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 2) +
-                                pixel_bh(x_int - 1 + 3, y_int - 1 + 3) * bicubic_spline(x_frac - 1 + 3);
+                    auto y0 = as_float(pixel_bh(x_int - 1 + 0, y_int - 1 + 0)) * bicubic_spline(x_frac - 1 + 0) +
+                              as_float(pixel_bh(x_int - 1 + 1, y_int - 1 + 0)) * bicubic_spline(x_frac - 1 + 1) +
+                              as_float(pixel_bh(x_int - 1 + 2, y_int - 1 + 0)) * bicubic_spline(x_frac - 1 + 2) +
+                              as_float(pixel_bh(x_int - 1 + 3, y_int - 1 + 0)) * bicubic_spline(x_frac - 1 + 3);
+                    auto y1 = as_float(pixel_bh(x_int - 1 + 0, y_int - 1 + 1)) * bicubic_spline(x_frac - 1 + 0) +
+                              as_float(pixel_bh(x_int - 1 + 1, y_int - 1 + 1)) * bicubic_spline(x_frac - 1 + 1) +
+                              as_float(pixel_bh(x_int - 1 + 2, y_int - 1 + 1)) * bicubic_spline(x_frac - 1 + 2) +
+                              as_float(pixel_bh(x_int - 1 + 3, y_int - 1 + 1)) * bicubic_spline(x_frac - 1 + 3);
+                    auto y2 = as_float(pixel_bh(x_int - 1 + 0, y_int - 1 + 2)) * bicubic_spline(x_frac - 1 + 0) +
+                              as_float(pixel_bh(x_int - 1 + 1, y_int - 1 + 2)) * bicubic_spline(x_frac - 1 + 1) +
+                              as_float(pixel_bh(x_int - 1 + 2, y_int - 1 + 2)) * bicubic_spline(x_frac - 1 + 2) +
+                              as_float(pixel_bh(x_int - 1 + 3, y_int - 1 + 2)) * bicubic_spline(x_frac - 1 + 3);
+                    auto y3 = as_float(pixel_bh(x_int - 1 + 0, y_int - 1 + 3)) * bicubic_spline(x_frac - 1 + 0) +
+                              as_float(pixel_bh(x_int - 1 + 1, y_int - 1 + 3)) * bicubic_spline(x_frac - 1 + 1) +
+                              as_float(pixel_bh(x_int - 1 + 2, y_int - 1 + 3)) * bicubic_spline(x_frac - 1 + 2) +
+                              as_float(pixel_bh(x_int - 1 + 3, y_int - 1 + 3)) * bicubic_spline(x_frac - 1 + 3);
 
-                    interpol_val = y0*bicubic_spline(y_frac - 1 + 0) +
-                                   y1*bicubic_spline(y_frac - 1 + 1) +
-                                   y2*bicubic_spline(y_frac - 1 + 2) +
-                                   y3*bicubic_spline(y_frac - 1 + 3);
+                    interpol_val = convert<data_t>(
+                            y0 * bicubic_spline(y_frac - 1 + 0) +
+                            y1 * bicubic_spline(y_frac - 1 + 1) +
+                            y2 * bicubic_spline(y_frac - 1 + 2) +
+                            y3 * bicubic_spline(y_frac - 1 + 3));
                     #else
-                    data_t y0 = bicubic(x_frac,
-                            pixel_bh(x_int - 1 + 0, y_int - 1 + 0),
-                            pixel_bh(x_int - 1 + 1, y_int - 1 + 0),
-                            pixel_bh(x_int - 1 + 2, y_int - 1 + 0),
-                            pixel_bh(x_int - 1 + 3, y_int - 1 + 0));
-                    data_t y1 = bicubic(x_frac,
-                            pixel_bh(x_int - 1 + 0, y_int - 1 + 1),
-                            pixel_bh(x_int - 1 + 1, y_int - 1 + 1),
-                            pixel_bh(x_int - 1 + 2, y_int - 1 + 1),
-                            pixel_bh(x_int - 1 + 3, y_int - 1 + 1));
-                    data_t y2 = bicubic(x_frac,
-                            pixel_bh(x_int - 1 + 0, y_int - 1 + 2),
-                            pixel_bh(x_int - 1 + 1, y_int - 1 + 2),
-                            pixel_bh(x_int - 1 + 2, y_int - 1 + 2),
-                            pixel_bh(x_int - 1 + 3, y_int - 1 + 2));
-                    data_t y3 = bicubic(x_frac,
-                            pixel_bh(x_int - 1 + 0, y_int - 1 + 3),
-                            pixel_bh(x_int - 1 + 1, y_int - 1 + 3),
-                            pixel_bh(x_int - 1 + 2, y_int - 1 + 3),
-                            pixel_bh(x_int - 1 + 3, y_int - 1 + 3));
+                    data_t y0 = bicubic(x_frac, pixel_bh(x_int - 1 + 0, y_int - 1 + 0),
+                                                pixel_bh(x_int - 1 + 1, y_int - 1 + 0),
+                                                pixel_bh(x_int - 1 + 2, y_int - 1 + 0),
+                                                pixel_bh(x_int - 1 + 3, y_int - 1 + 0));
+                    data_t y1 = bicubic(x_frac, pixel_bh(x_int - 1 + 0, y_int - 1 + 1),
+                                                pixel_bh(x_int - 1 + 1, y_int - 1 + 1),
+                                                pixel_bh(x_int - 1 + 2, y_int - 1 + 1),
+                                                pixel_bh(x_int - 1 + 3, y_int - 1 + 1));
+                    data_t y2 = bicubic(x_frac, pixel_bh(x_int - 1 + 0, y_int - 1 + 2),
+                                                pixel_bh(x_int - 1 + 1, y_int - 1 + 2),
+                                                pixel_bh(x_int - 1 + 2, y_int - 1 + 2),
+                                                pixel_bh(x_int - 1 + 3, y_int - 1 + 2));
+                    data_t y3 = bicubic(x_frac, pixel_bh(x_int - 1 + 0, y_int - 1 + 3),
+                                                pixel_bh(x_int - 1 + 1, y_int - 1 + 3),
+                                                pixel_bh(x_int - 1 + 2, y_int - 1 + 3),
+                                                pixel_bh(x_int - 1 + 3, y_int - 1 + 3));
 
                     interpol_val = bicubic(y_frac, y0, y1, y2, y3);
                     #endif
-
-                    return interpol_val;
-                    }
+                    break;
+                }
                 case Interpolate::L3: {
-                    data_t y0 = pixel_bh(x_int - 2 + 0, y_int - 1 + 0) * lanczos(x_frac - 2 + 0) +
-                                pixel_bh(x_int - 2 + 1, y_int - 1 + 0) * lanczos(x_frac - 2 + 1) +
-                                pixel_bh(x_int - 2 + 2, y_int - 1 + 0) * lanczos(x_frac - 2 + 2) +
-                                pixel_bh(x_int - 2 + 3, y_int - 1 + 0) * lanczos(x_frac - 2 + 3) +
-                                pixel_bh(x_int - 2 + 4, y_int - 1 + 0) * lanczos(x_frac - 2 + 4) +
-                                pixel_bh(x_int - 2 + 5, y_int - 1 + 0) * lanczos(x_frac - 2 + 5);
-                    data_t y1 = pixel_bh(x_int - 2 + 0, y_int - 1 + 1) * lanczos(x_frac - 2 + 0) +
-                                pixel_bh(x_int - 2 + 1, y_int - 1 + 1) * lanczos(x_frac - 2 + 1) +
-                                pixel_bh(x_int - 2 + 2, y_int - 1 + 1) * lanczos(x_frac - 2 + 2) +
-                                pixel_bh(x_int - 2 + 3, y_int - 1 + 1) * lanczos(x_frac - 2 + 3) +
-                                pixel_bh(x_int - 2 + 4, y_int - 1 + 1) * lanczos(x_frac - 2 + 5) +
-                                pixel_bh(x_int - 2 + 5, y_int - 1 + 1) * lanczos(x_frac - 2 + 5);
-                    data_t y2 = pixel_bh(x_int - 2 + 0, y_int - 1 + 2) * lanczos(x_frac - 2 + 0) +
-                                pixel_bh(x_int - 2 + 1, y_int - 1 + 2) * lanczos(x_frac - 2 + 1) +
-                                pixel_bh(x_int - 2 + 2, y_int - 1 + 2) * lanczos(x_frac - 2 + 2) +
-                                pixel_bh(x_int - 2 + 3, y_int - 1 + 2) * lanczos(x_frac - 2 + 3) +
-                                pixel_bh(x_int - 2 + 4, y_int - 1 + 2) * lanczos(x_frac - 2 + 4) +
-                                pixel_bh(x_int - 2 + 5, y_int - 1 + 2) * lanczos(x_frac - 2 + 5);
-                    data_t y3 = pixel_bh(x_int - 2 + 0, y_int - 1 + 3) * lanczos(x_frac - 2 + 0) +
-                                pixel_bh(x_int - 2 + 1, y_int - 1 + 3) * lanczos(x_frac - 2 + 1) +
-                                pixel_bh(x_int - 2 + 2, y_int - 1 + 3) * lanczos(x_frac - 2 + 2) +
-                                pixel_bh(x_int - 2 + 3, y_int - 1 + 3) * lanczos(x_frac - 2 + 3) +
-                                pixel_bh(x_int - 2 + 4, y_int - 1 + 3) * lanczos(x_frac - 2 + 4) +
-                                pixel_bh(x_int - 2 + 5, y_int - 1 + 3) * lanczos(x_frac - 2 + 5);
-                    data_t y4 = pixel_bh(x_int - 2 + 0, y_int - 1 + 4) * lanczos(x_frac - 2 + 0) +
-                                pixel_bh(x_int - 2 + 1, y_int - 1 + 4) * lanczos(x_frac - 2 + 1) +
-                                pixel_bh(x_int - 2 + 2, y_int - 1 + 4) * lanczos(x_frac - 2 + 2) +
-                                pixel_bh(x_int - 2 + 3, y_int - 1 + 4) * lanczos(x_frac - 2 + 3) +
-                                pixel_bh(x_int - 2 + 4, y_int - 1 + 4) * lanczos(x_frac - 2 + 4) +
-                                pixel_bh(x_int - 2 + 5, y_int - 1 + 4) * lanczos(x_frac - 2 + 5);
-                    data_t y5 = pixel_bh(x_int - 2 + 0, y_int - 1 + 5) * lanczos(x_frac - 2 + 0) +
-                                pixel_bh(x_int - 2 + 1, y_int - 1 + 5) * lanczos(x_frac - 2 + 1) +
-                                pixel_bh(x_int - 2 + 2, y_int - 1 + 5) * lanczos(x_frac - 2 + 2) +
-                                pixel_bh(x_int - 2 + 3, y_int - 1 + 5) * lanczos(x_frac - 2 + 3) +
-                                pixel_bh(x_int - 2 + 4, y_int - 1 + 5) * lanczos(x_frac - 2 + 4) +
-                                pixel_bh(x_int - 2 + 5, y_int - 1 + 5) * lanczos(x_frac - 2 + 5);
+                    auto y0 = as_float(pixel_bh(x_int - 2 + 0, y_int - 1 + 0)) * lanczos(x_frac - 2 + 0) +
+                              as_float(pixel_bh(x_int - 2 + 1, y_int - 1 + 0)) * lanczos(x_frac - 2 + 1) +
+                              as_float(pixel_bh(x_int - 2 + 2, y_int - 1 + 0)) * lanczos(x_frac - 2 + 2) +
+                              as_float(pixel_bh(x_int - 2 + 3, y_int - 1 + 0)) * lanczos(x_frac - 2 + 3) +
+                              as_float(pixel_bh(x_int - 2 + 4, y_int - 1 + 0)) * lanczos(x_frac - 2 + 4) +
+                              as_float(pixel_bh(x_int - 2 + 5, y_int - 1 + 0)) * lanczos(x_frac - 2 + 5);
+                    auto y1 = as_float(pixel_bh(x_int - 2 + 0, y_int - 1 + 1)) * lanczos(x_frac - 2 + 0) +
+                              as_float(pixel_bh(x_int - 2 + 1, y_int - 1 + 1)) * lanczos(x_frac - 2 + 1) +
+                              as_float(pixel_bh(x_int - 2 + 2, y_int - 1 + 1)) * lanczos(x_frac - 2 + 2) +
+                              as_float(pixel_bh(x_int - 2 + 3, y_int - 1 + 1)) * lanczos(x_frac - 2 + 3) +
+                              as_float(pixel_bh(x_int - 2 + 4, y_int - 1 + 1)) * lanczos(x_frac - 2 + 5) +
+                              as_float(pixel_bh(x_int - 2 + 5, y_int - 1 + 1)) * lanczos(x_frac - 2 + 5);
+                    auto y2 = as_float(pixel_bh(x_int - 2 + 0, y_int - 1 + 2)) * lanczos(x_frac - 2 + 0) +
+                              as_float(pixel_bh(x_int - 2 + 1, y_int - 1 + 2)) * lanczos(x_frac - 2 + 1) +
+                              as_float(pixel_bh(x_int - 2 + 2, y_int - 1 + 2)) * lanczos(x_frac - 2 + 2) +
+                              as_float(pixel_bh(x_int - 2 + 3, y_int - 1 + 2)) * lanczos(x_frac - 2 + 3) +
+                              as_float(pixel_bh(x_int - 2 + 4, y_int - 1 + 2)) * lanczos(x_frac - 2 + 4) +
+                              as_float(pixel_bh(x_int - 2 + 5, y_int - 1 + 2)) * lanczos(x_frac - 2 + 5);
+                    auto y3 = as_float(pixel_bh(x_int - 2 + 0, y_int - 1 + 3)) * lanczos(x_frac - 2 + 0) +
+                              as_float(pixel_bh(x_int - 2 + 1, y_int - 1 + 3)) * lanczos(x_frac - 2 + 1) +
+                              as_float(pixel_bh(x_int - 2 + 2, y_int - 1 + 3)) * lanczos(x_frac - 2 + 2) +
+                              as_float(pixel_bh(x_int - 2 + 3, y_int - 1 + 3)) * lanczos(x_frac - 2 + 3) +
+                              as_float(pixel_bh(x_int - 2 + 4, y_int - 1 + 3)) * lanczos(x_frac - 2 + 4) +
+                              as_float(pixel_bh(x_int - 2 + 5, y_int - 1 + 3)) * lanczos(x_frac - 2 + 5);
+                    auto y4 = as_float(pixel_bh(x_int - 2 + 0, y_int - 1 + 4)) * lanczos(x_frac - 2 + 0) +
+                              as_float(pixel_bh(x_int - 2 + 1, y_int - 1 + 4)) * lanczos(x_frac - 2 + 1) +
+                              as_float(pixel_bh(x_int - 2 + 2, y_int - 1 + 4)) * lanczos(x_frac - 2 + 2) +
+                              as_float(pixel_bh(x_int - 2 + 3, y_int - 1 + 4)) * lanczos(x_frac - 2 + 3) +
+                              as_float(pixel_bh(x_int - 2 + 4, y_int - 1 + 4)) * lanczos(x_frac - 2 + 4) +
+                              as_float(pixel_bh(x_int - 2 + 5, y_int - 1 + 4)) * lanczos(x_frac - 2 + 5);
+                    auto y5 = as_float(pixel_bh(x_int - 2 + 0, y_int - 1 + 5)) * lanczos(x_frac - 2 + 0) +
+                              as_float(pixel_bh(x_int - 2 + 1, y_int - 1 + 5)) * lanczos(x_frac - 2 + 1) +
+                              as_float(pixel_bh(x_int - 2 + 2, y_int - 1 + 5)) * lanczos(x_frac - 2 + 2) +
+                              as_float(pixel_bh(x_int - 2 + 3, y_int - 1 + 5)) * lanczos(x_frac - 2 + 3) +
+                              as_float(pixel_bh(x_int - 2 + 4, y_int - 1 + 5)) * lanczos(x_frac - 2 + 4) +
+                              as_float(pixel_bh(x_int - 2 + 5, y_int - 1 + 5)) * lanczos(x_frac - 2 + 5);
 
-                    interpol_val = y0*lanczos(y_frac - 2 + 0) +
-                                   y1*lanczos(y_frac - 2 + 1) +
-                                   y2*lanczos(y_frac - 2 + 2) +
-                                   y3*lanczos(y_frac - 2 + 3) +
-                                   y4*lanczos(y_frac - 2 + 4) +
-                                   y5*lanczos(y_frac - 2 + 5);
-
-                    return interpol_val;
-                    }
+                    interpol_val = convert<data_t>(
+                            y0 * lanczos(y_frac - 2 + 0) +
+                            y1 * lanczos(y_frac - 2 + 1) +
+                            y2 * lanczos(y_frac - 2 + 2) +
+                            y3 * lanczos(y_frac - 2 + 3) +
+                            y4 * lanczos(y_frac - 2 + 4) +
+                            y5 * lanczos(y_frac - 2 + 5));
+                    break;
+                }
             }
+
+            return interpol_val;
         }
 };
 
