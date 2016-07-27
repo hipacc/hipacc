@@ -441,6 +441,8 @@ CREATE_ALLOCATION(int4,     Element::I32_4(rs))
 CREATE_ALLOCATION(float4,   Element::F32_4(rs))
 CREATE_ALLOCATION(double4,  Element::F64_4(rs))
 
+#endif // EXCLUDE_IMPL
+
 
 // Release memory
 template<typename T>
@@ -448,8 +450,6 @@ void hipaccReleaseMemory(HipaccImage &img) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     Ctx.del_image(img);
 }
-
-#endif // EXCLUDE_IMPL
 
 // Set a single argument of script
 template<typename F, typename T>
