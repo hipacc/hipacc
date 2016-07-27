@@ -35,6 +35,7 @@
 #include "mask.hpp"
 
 namespace hipacc {
+
 // forward declaration
 template<typename data_t> class Accessor;
 

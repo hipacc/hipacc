@@ -32,13 +32,19 @@
 
 #include "iterationspace.hpp"
 
-
 namespace hipacc {
-// get time in microseconds
+
 int64_t hipacc_time_micro() {
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 
+enum class Reduce : uint8_t {
+    SUM = 0,
+    MIN,
+    MAX,
+    PROD,
+    MEDIAN
+};
 
 template<typename data_t>
 class Kernel {
