@@ -317,8 +317,7 @@ class Interpolation {
             // do the interpolation
             switch (imode) {
                 case Interpolate::NO:
-                    interpol_val = pixel_bh(EI->x() - EI->offset_x() + offset_x + xf, EI->y() - EI->offset_y() + offset_y + yf);
-                    break;
+                    return pixel_bh(EI->x() - EI->offset_x() + offset_x + xf, EI->y() - EI->offset_y() + offset_y + yf);
                 case Interpolate::NN:
                     interpol_val = pixel_bh(x_mapped, y_mapped);
                     break;
