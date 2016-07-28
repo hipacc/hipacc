@@ -296,7 +296,7 @@ class Interpolation {
 
     public:
         Interpolation(Interpolate imode) :
-            imode(imode), interpol_init(0), interpol_val(interpol_init) {}
+            imode(imode), interpol_init(), interpol_val(interpol_init) {}
         Interpolation() : Interpolation(Interpolate::NO) {}
 
         data_t &interpolate(ElementIterator *EI, const int offset_x, const int offset_y, const int width, const int height,
