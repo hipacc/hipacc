@@ -959,7 +959,7 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
     HipaccAccessor *Acc, std::string function_name, std::string type_suffix,
     Interpolate ip_mode, Boundary bh_mode, std::string &resultStr) {
   // interpolation macro
-  switch (Acc->getInterpolationMode()) {
+  switch (ip_mode) {
     case Interpolate::NO:
     case Interpolate::NN:
       resultStr += "DEFINE_BH_VARIANT_NO_BH(INTERPOLATE_LINEAR_FILTERING";
@@ -994,7 +994,7 @@ void CreateHostStrings::writeInterpolationDefinition(HipaccKernel *K,
   // boundary handling name + function (upper & lower)
   std::string const_parameter("NO_PARM");
   std::string const_suffix;
-  switch (Acc->getBoundaryMode()) {
+  switch (bh_mode) {
     case Boundary::UNDEFINED:
       resultStr += ", NO_BH, NO_BH, "; break;
     case Boundary::CLAMP:

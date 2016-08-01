@@ -245,10 +245,6 @@ class Interpolation {
 
         virtual data_t &pixel_bh(int x, int y) = 0;
 
-        data_t bicubic(float t, data_t a, data_t b, data_t c, data_t d) {
-            return convert<data_t>(0.5f * (as_float(c - a) + (2.0f * as_float(a) - 5.0f * as_float(b) + 4.0f * as_float(c) - as_float(d) + (3.0f * as_float(b - c) + as_float(d - a)) * t) * t) * t + as_float(b));
-        }
-
         float bicubic_spline(float diff) {
             // Cubic Convolution Interpolation for Digital Image Processing
             // Robert G. Keys
@@ -329,7 +325,6 @@ class Interpolation {
                                 x_frac  *         y_frac  * as_float(pixel_bh(x_int + 1, y_int + 1)));
                     break;
                 case Interpolate::CF: {
-                    #if 1
                     auto y0 = as_float(pixel_bh(x_int - 1 + 0, y_int - 1 + 0)) * bicubic_spline(x_frac - 1 + 0) +
                               as_float(pixel_bh(x_int - 1 + 1, y_int - 1 + 0)) * bicubic_spline(x_frac - 1 + 1) +
                               as_float(pixel_bh(x_int - 1 + 2, y_int - 1 + 0)) * bicubic_spline(x_frac - 1 + 2) +
@@ -352,26 +347,6 @@ class Interpolation {
                             y1 * bicubic_spline(y_frac - 1 + 1) +
                             y2 * bicubic_spline(y_frac - 1 + 2) +
                             y3 * bicubic_spline(y_frac - 1 + 3));
-                    #else
-                    data_t y0 = bicubic(x_frac, pixel_bh(x_int - 1 + 0, y_int - 1 + 0),
-                                                pixel_bh(x_int - 1 + 1, y_int - 1 + 0),
-                                                pixel_bh(x_int - 1 + 2, y_int - 1 + 0),
-                                                pixel_bh(x_int - 1 + 3, y_int - 1 + 0));
-                    data_t y1 = bicubic(x_frac, pixel_bh(x_int - 1 + 0, y_int - 1 + 1),
-                                                pixel_bh(x_int - 1 + 1, y_int - 1 + 1),
-                                                pixel_bh(x_int - 1 + 2, y_int - 1 + 1),
-                                                pixel_bh(x_int - 1 + 3, y_int - 1 + 1));
-                    data_t y2 = bicubic(x_frac, pixel_bh(x_int - 1 + 0, y_int - 1 + 2),
-                                                pixel_bh(x_int - 1 + 1, y_int - 1 + 2),
-                                                pixel_bh(x_int - 1 + 2, y_int - 1 + 2),
-                                                pixel_bh(x_int - 1 + 3, y_int - 1 + 2));
-                    data_t y3 = bicubic(x_frac, pixel_bh(x_int - 1 + 0, y_int - 1 + 3),
-                                                pixel_bh(x_int - 1 + 1, y_int - 1 + 3),
-                                                pixel_bh(x_int - 1 + 2, y_int - 1 + 3),
-                                                pixel_bh(x_int - 1 + 3, y_int - 1 + 3));
-
-                    interpol_val = bicubic(y_frac, y0, y1, y2, y3);
-                    #endif
                     break;
                 }
                 case Interpolate::L3: {
