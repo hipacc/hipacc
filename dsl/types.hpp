@@ -40,10 +40,10 @@ typedef char            char4   __attribute__ ((ext_vector_type(4)));
 typedef short int       short4  __attribute__ ((ext_vector_type(4)));
 typedef int             int4    __attribute__ ((ext_vector_type(4)));
 typedef long int        long4   __attribute__ ((ext_vector_type(4)));
-typedef uchar           uchar4  __attribute__ ((ext_vector_type(4)));
-typedef ushort          ushort4 __attribute__ ((ext_vector_type(4)));
-typedef uint            uint4   __attribute__ ((ext_vector_type(4)));
-typedef ulong           ulong4  __attribute__ ((ext_vector_type(4)));
+typedef unsigned char   uchar4  __attribute__ ((ext_vector_type(4)));
+typedef unsigned short  ushort4 __attribute__ ((ext_vector_type(4)));
+typedef unsigned int    uint4   __attribute__ ((ext_vector_type(4)));
+typedef unsigned long   ulong4  __attribute__ ((ext_vector_type(4)));
 typedef float           float4  __attribute__ ((ext_vector_type(4)));
 typedef double          double4 __attribute__ ((ext_vector_type(4)));
 #define ATTRIBUTES inline

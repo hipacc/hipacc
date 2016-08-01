@@ -129,28 +129,35 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
 
 template <typename T>
 T *ASTTranslate::lookup(std::string name, QualType QT, NamespaceDecl *NS) {
-  DeclContext *DC = Ctx.getTranslationUnitDecl();
-  if (NS) DC = Decl::castToDeclContext(NS);
+  QT = QT.getDesugaredType(Ctx);
 
-  for (auto *decl : DC->lookup(&Ctx.Idents.get(name))) {
-    if (auto result = cast_or_null<T>(decl)) {
-      if (auto fun = dyn_cast<FunctionDecl>(result)) {
-        if (fun->getReturnType().getDesugaredType(Ctx) ==
-            QT.getDesugaredType(Ctx)) return result;
-        continue;
-      }
-      if (auto var = dyn_cast<VarDecl>(result)) {
-        if (var->getType().getDesugaredType(Ctx) == QT.getDesugaredType(Ctx))
-          return result;
-        continue;
-      }
+  auto lookup_dc = [&] (DeclContext *DC) -> T * {
+    for (auto *decl : DC->lookup(&Ctx.Idents.get(name))) {
+      if (auto result = cast_or_null<T>(decl)) {
+        if (auto fun = dyn_cast<FunctionDecl>(result)) {
+          if (fun->getReturnType().getDesugaredType(Ctx) == QT)
+            return result;
+          continue;
+        }
+        if (auto var = dyn_cast<VarDecl>(result)) {
+          if (var->getType().getDesugaredType(Ctx) == QT)
+            return result;
+          continue;
+        }
 
-      // default case
-      return result;
+        // default case
+        return result;
+      }
     }
-  }
 
-  return nullptr;
+    return nullptr;
+  };
+
+  if (NS)
+    for (auto ns_decl : NS->redecls())
+      if (auto result = lookup_dc(Decl::castToDeclContext(ns_decl)))
+        return result;
+  return lookup_dc(Ctx.getTranslationUnitDecl());
 }
 
 
