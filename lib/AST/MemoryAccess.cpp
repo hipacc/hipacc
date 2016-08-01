@@ -362,8 +362,15 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
 
 
 // get rsGetElementAt_<type>/rsSetElementAt_<type> functions for given Accessor
-FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT, bool
-    isVecType, MemoryAccess mem_acc) {
+FunctionDecl *ASTTranslate::getAllocationFunction(QualType QT, MemoryAccess
+    mem_acc) {
+  bool isVecType = QT->isVectorType();
+
+  if (isVecType) {
+    QT = QT->getAs<VectorType>()->getElementType();
+  }
+  const BuiltinType *BT = QT->getAs<BuiltinType>();
+
   switch (BT->getKind()) {
     case BuiltinType::WChar_U:
     case BuiltinType::WChar_S:
@@ -414,11 +421,10 @@ FunctionDecl *ASTTranslate::getAllocationFunction(const BuiltinType *BT, bool
 
 
 // get convert_<type> function for given type
-FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool isVecType) {
+FunctionDecl *ASTTranslate::getConvertFunction(QualType VQT) {
+  bool isVecType = VQT->isVectorType();
   assert(isVecType && "Only vector types are supported yet.");
-  if (isVecType) {
-    QT = QT->getAs<VectorType>()->getElementType();
-  }
+  QualType QT = VQT->getAs<VectorType>()->getElementType();
   std::string name = "convert_";
 
   switch (QT->getAs<BuiltinType>()->getKind()) {
@@ -479,8 +485,8 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType QT, bool isVecType) {
       break;
   }
 
-  FunctionDecl *result = lookup<FunctionDecl>(name, simdTypes.getSIMDType(QT,
-        QT.getAsString(), SIMD4), hipacc_ns);
+  auto simd_type = simdTypes.getSIMDType(QT, QT.getAsString(), SIMD4);
+  FunctionDecl *result = lookup<FunctionDecl>(name, simd_type, hipacc_ns);
   assert(result && "could not lookup convert function");
 
   return result;
@@ -603,7 +609,7 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
     if (QT->isVectorType()) {
       SmallVector<Expr *, 16> args;
       args.push_back(result);
-      result = createFunctionCall(Ctx, getConvertFunction(QT, true), args);
+      result = createFunctionCall(Ctx, getConvertFunction(QT), args);
     } else {
       result = createExtVectorElementExpr(Ctx, QT, result, "x");
     }
@@ -638,8 +644,7 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
       // convert to proper vector type
       SmallVector<Expr *, 16> args;
       args.push_back(writeImageRHS);
-      writeImageRHS = createFunctionCall(Ctx, getConvertFunction(QT, true),
-          args);
+      writeImageRHS = createFunctionCall(Ctx, getConvertFunction(QT), args);
     }
 
     // parameters for write_image
@@ -660,18 +665,7 @@ Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess mem_acc,
                                      Expr *idx_x, Expr *idx_y) {
   // mark image as being used within the kernel
   Kernel->setUsed(LHS->getNameInfo().getAsString());
-
   QualType QT = LHS->getType()->getPointeeType();
-  bool isVec = QT->isVectorType();
-
-  if (isVec) {
-    QT = QT->getAs<VectorType>()->getElementType();
-  }
-  const BuiltinType *BT = QT->getAs<BuiltinType>();
-  FunctionDecl *element_function = getAllocationFunction(BT, isVec, mem_acc);
-
-  //const BuiltinType *BT = LHS->getType()->getPointeeType()->getAs<BuiltinType>();
-  //FunctionDecl *get_element_function = getAllocationFunction(BT, false, mem_acc);
 
   // parameters for rsGetElementAt_<type>
   SmallVector<Expr *, 16> args;
@@ -684,7 +678,7 @@ Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess mem_acc,
   args.push_back(idx_x);
   args.push_back(idx_y);
 
-  return createFunctionCall(Ctx, element_function, args);
+  return createFunctionCall(Ctx, getAllocationFunction(QT, mem_acc), args);
 }
 
 

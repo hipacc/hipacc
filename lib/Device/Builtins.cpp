@@ -71,13 +71,26 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
         break;
       case 'U':
         assert(!Signed && "Can't use both 'S' and 'U' modifiers!");
-        assert(!Unsigned && "Can't use 'S' modifier multiple times!");
+        assert(!Unsigned && "Can't use 'U' modifier multiple times!");
         Unsigned = true;
         break;
       case 'L':
         assert(HowLong <= 2 && "Can't have LLLL modifier");
         ++HowLong;
         break;
+      case 'W':
+        // This modifier represents int64 type.
+        assert(HowLong == 0 && "Can't use both 'L' and 'W' modifiers!");
+        switch (Ctx.getTargetInfo().getInt64Type()) {
+          default:
+            assert(0 && "Unexpected integer type");
+          case TargetInfo::SignedLong:
+            HowLong = 1;
+            break;
+          case TargetInfo::SignedLongLong:
+            HowLong = 2;
+            break;
+        }
     }
   }
 
@@ -205,44 +218,41 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
 // that is compatible with DecodeTypeFromStr.
 std::string hipacc::Builtin::Context::EncodeTypeIntoStr(QualType QT, const
     ASTContext &Ctx) {
+  if (QT->isVectorType()) {
+    auto vec_string = QT->isExtVectorType() ? "E" : "V";
+    auto vec_type = QT->getAs<VectorType>();
+    auto lanes = vec_type->getNumElements();
+    return vec_string + std::to_string(lanes) +
+      EncodeTypeIntoStr(vec_type->getElementType(), Ctx);
+  }
+
   const BuiltinType *BT = QT->getAs<BuiltinType>();
 
   switch (BT->getKind()) {
     case BuiltinType::WChar_S:
     case BuiltinType::WChar_U:
-    case BuiltinType::ULongLong:
-    case BuiltinType::UInt128:
-    case BuiltinType::LongLong:
-    case BuiltinType::Int128:
     case BuiltinType::LongDouble:
     case BuiltinType::Void:
     case BuiltinType::Bool:
-    default:
-      assert(0 && "BuiltinType for Boundary handling constant not supported.");
+    default: assert(0 && "BuiltinType for Boundary handling constant not supported.");
     case BuiltinType::Char_S:
-    case BuiltinType::SChar:
-      return "Sc";
+    case BuiltinType::SChar:      return "Sc";
     case BuiltinType::Char_U:
-    case BuiltinType::UChar:
-      return "Uc";
-    case BuiltinType::Short:
-      return "s";
+    case BuiltinType::UChar:      return "Uc";
+    case BuiltinType::Short:      return "s";
     case BuiltinType::Char16:
-    case BuiltinType::UShort:
-      return "Us";
-    case BuiltinType::Int:
-      return "i";
+    case BuiltinType::UShort:     return "Us";
+    case BuiltinType::Int:        return "i";
     case BuiltinType::Char32:
-    case BuiltinType::UInt:
-      return "Ui";
-    case BuiltinType::Long:
-      return "Li";
-    case BuiltinType::ULong:
-      return "ULi";
-    case BuiltinType::Float:
-      return "f";
-    case BuiltinType::Double:
-      return "d";
+    case BuiltinType::UInt:       return "Ui";
+    case BuiltinType::Long:       return "Li";
+    case BuiltinType::ULong:      return "ULi";
+    case BuiltinType::LongLong:   return "LLi";
+    case BuiltinType::ULongLong:  return "ULLi";
+    case BuiltinType::UInt128:    return "LLLi";
+    case BuiltinType::Int128:     return "ULLLi";
+    case BuiltinType::Float:      return "f";
+    case BuiltinType::Double:     return "d";
   }
 }
 

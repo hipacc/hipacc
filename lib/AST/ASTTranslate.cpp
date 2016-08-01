@@ -1779,7 +1779,7 @@ Expr *ASTTranslate::VisitBinaryOperatorTranslate(BinaryOperator *E) {
 
   QualType QT;
   // use the type of LHS in case of vectorization
-  if (!E->getType()->isExtVectorType() && LHS->getType()->isVectorType()) {
+  if (!E->getType()->isVectorType() && LHS->getType()->isVectorType()) {
     QT = LHS->getType();
   } else {
     QT = E->getType();

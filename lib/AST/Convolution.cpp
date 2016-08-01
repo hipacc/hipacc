@@ -170,9 +170,9 @@ Expr *ASTTranslate::getInitExpr(Reduce mode, QualType QT) {
 
   if (isVecType) {
     SmallVector<Expr *, 16> initExprs;
-    size_t lanes = QT->getAs<VectorType>()->getNumElements();
+    unsigned lanes = QT->getAs<VectorType>()->getNumElements();
 
-    for (size_t I=0, N=lanes; I!=N; ++I) {
+    for (unsigned i=0, e=lanes; i!=e; ++i) {
       initExprs.push_back(initExpr);
     }
 
