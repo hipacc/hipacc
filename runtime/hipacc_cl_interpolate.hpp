@@ -115,8 +115,8 @@ METHOD(NAME##_tblr##TS, DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_A
 DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
     int lower_x = global_offset_x, lower_y = global_offset_y; \
     int upper_x = lower_x + rwidth, upper_y = lower_x + rheight; \
-    float xb = x_mapped - 0.5; \
-    float yb = y_mapped - 0.5; \
+    float xb = x_mapped - 0.5f; \
+    float yb = y_mapped - 0.5f; \
     int x_int = xb; \
     int y_int = yb; \
     float x_frac = xb - x_int; \
@@ -135,12 +135,12 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
 // Cubic Interpolation
 float bicubic_spline(float diff) {
     diff = fabs(diff);
-    float a = -0.5;
+    float a = -0.5f;
 
-    if (diff < 1.0) {
-        return (a + 2.0) *diff*diff*diff - (a + 3.0)*diff*diff + 1;
-    } else if (diff < 2.0) {
-        return a * diff*diff*diff - 5.0 * a * diff*diff + 8.0 * a * diff - 4.0 * a;
+    if (diff < 1.0f) {
+        return (a + 2.0f) *diff*diff*diff - (a + 3.0f)*diff*diff + 1.0f;
+    } else if (diff < 2.0f) {
+        return a * diff*diff*diff - 5.0f * a * diff*diff + 8.0f * a * diff - 4.0f * a;
     } else {
         return 0.0f;
     }
@@ -150,8 +150,8 @@ float bicubic_spline(float diff) {
 DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
     int lower_x = global_offset_x, lower_y = global_offset_y; \
     int upper_x = lower_x + rwidth, upper_y = lower_x + rheight; \
-    float xb = x_mapped - 0.5; \
-    float yb = y_mapped - 0.5; \
+    float xb = x_mapped - 0.5f; \
+    float yb = y_mapped - 0.5f; \
     int x_int = xb; \
     int y_int = yb; \
     float x_frac = xb - x_int; \
@@ -186,14 +186,14 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
 // Lanczos3 Interpolation
 float lanczos(float diff) {
     diff = fabs(diff);
-    float l = 3.0;
+    float l = 3.0f;
 
-    if (diff==0.0) {
-        return 1.0;
+    if (diff==0.0f) {
+        return 1.0f;
     } else if (diff < l) {
-        return l * (sin(M_PI*diff/l) * sin(M_PI*diff)) / (M_PI*M_PI*diff*diff);
+        return l * (sin(M_PI_F*diff/l) * sin(M_PI_F*diff)) / (M_PI_F*M_PI_F*diff*diff);
     } else {
-        return 0.0;
+        return 0.0f;
     }
 }
 
@@ -201,8 +201,8 @@ float lanczos(float diff) {
 DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
     int lower_x = global_offset_x, lower_y = global_offset_y; \
     int upper_x = lower_x + rwidth, upper_y = lower_x + rheight; \
-    float xb = x_mapped - 0.5; \
-    float yb = y_mapped - 0.5; \
+    float xb = x_mapped - 0.5f; \
+    float yb = y_mapped - 0.5f; \
     int x_int = xb; \
     int y_int = yb; \
     float x_frac = xb - x_int; \

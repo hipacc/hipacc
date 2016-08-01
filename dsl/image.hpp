@@ -260,7 +260,7 @@ class Interpolation {
             float a = -0.5f;
 
             if (diff < 1.0f) {
-                return (a + 2.0f) *diff*diff*diff - (a + 3.0f)*diff*diff + 1;
+                return (a + 2.0f) *diff*diff*diff - (a + 3.0f)*diff*diff + 1.0f;
             } else if (diff < 2.0f) {
                 return a * diff*diff*diff - 5.0f * a * diff*diff + 8.0f * a * diff - 4.0f * a;
             } else {
