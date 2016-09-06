@@ -1860,14 +1860,25 @@ void Vectorizer::Transformations::FlattenMemoryAccesses::Execute(AST::Expression
       AST::ScopePosition  ScopePos        = spMemoryAccess->GetScopePosition();
       AST::ScopePtr       spCurrentScope  = ScopePos.GetScope();
 
-      // Create a name for a new tempory index variable
+      // Create a name for a new temporary index variable
       string strIndexVariableName = VASTBuilder::GetNextFreeVariableName(spCurrentScope, VASTBuilder::GetTemporaryIndexName());
 
       // Create the new index variable declaration
       spCurrentScope->AddVariableDeclaration( AST::BaseClasses::VariableInfo::Create(strIndexVariableName, spIndexExpr->GetResultType(), spIndexExpr->IsVectorized()) );
 
+
+      if (spIndexExpr->IsVectorized()) {
+        // The index is a vector, and therefore leads to a gather load.
+        typedef AST::Expressions::ArithmeticOperator::ArithmeticOperatorType ArithmeticOperatorType;
+
+        // The index contains relative positions, e.g., (0, -1, -1, -1).
+        // Add thread index vector (0, 1, 2, 3) to obtain absolute positions (starting from first instance), e.g., (0, 0, 1, 2).
+        spIndexExpr = AST::Expressions::ArithmeticOperator::Create( ArithmeticOperatorType::Add, spIndexExpr, AST::VectorSupport::VectorIndex::Create(spIndexExpr->GetResultType().GetType() ) );
+      }
+
       // Create the assignment expression for the new index variable
       spCurrentScope->InsertChild( ScopePos.GetChildIndex(), AST::Expressions::AssignmentOperator::Create( AST::Expressions::Identifier::Create(strIndexVariableName), spIndexExpr ) );
+
 
       // Set the new index variable as index expression for the memory access
       spMemoryAccess->SetIndexExpression( AST::Expressions::Identifier::Create( strIndexVariableName ) );

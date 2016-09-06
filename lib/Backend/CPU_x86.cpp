@@ -3301,14 +3301,6 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
             Vectorization::AST::Expressions::ArithmeticOperatorPtr  spAddOperator = Vectorization::AST::Expressions::ArithmeticOperator::Create( OperatorType::Add, spBaseBroadCast, spVectorIndex );
 
             spAssignment->SetRHS(spAddOperator);
-
-            typedef Vectorization::Vectorizer::VASTHelper Helper;
-
-            // Replace all occurrences of gid_x by gid_x_base for all temporary index (_temp_index*) variables
-            std::vector<Vectorization::AST::Expressions::AssignmentOperatorPtr> vecAssignments = Helper::FindVariableAssignments(spVecFunctionBody, Helper::GetTemporaryIndexName());
-            for (auto spAssignment : vecAssignments) {
-              Helper::ReplaceIdentifierByExpression(spAssignment->GetRHS(), HipaccHelper::GlobalIdX(), spBaseBroadCast);
-            }
           }
           else
           {
