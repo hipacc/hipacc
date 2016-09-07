@@ -5093,7 +5093,16 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
 
     switch (eTargetType) {
      case VectorElementTypes::Int8:
-     case VectorElementTypes::UInt8:
+     case VectorElementTypes::UInt8: {
+
+      IntrinsicsAVX2Enum ePack16Bit =
+          eTargetType == VectorElementTypes::Int8 ?
+            IntrinsicsAVX2Enum::PackInt16ToInt8 :
+            IntrinsicsAVX2Enum::PackInt16ToUInt8;
+
+      Expr* pClamp = BroadCast(eSourceType,
+          _GetASTHelper().CreateIntegerLiteral(static_cast<uint8_t>(-1)));
+
       switch (eSourceType) {
        case VectorElementTypes::Int16:
        case VectorElementTypes::UInt16: {
@@ -5102,11 +5111,6 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
           throw InternalErrorException(
               "Element count mismatch for conversion.");
         }
-
-        IntrinsicsAVX2Enum ePack16Bit =
-            eTargetType == VectorElementTypes::Int8 ?
-              IntrinsicsAVX2Enum::PackInt16ToInt8 :
-              IntrinsicsAVX2Enum::PackInt16ToUInt8;
 
         ClangASTHelper::ExpressionVectorType vecPermutationElements;
         vecPermutationElements.push_back(
@@ -5127,8 +5131,9 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
           _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(0)));
 
         return _CreateFunctionCall(IntrinsicsAVX2Enum::PermuteCrossInt32,
-            _CreateFunctionCall(ePack16Bit, crvecVectorRefs[0],
-                                            crvecVectorRefs[1]),
+            _CreateFunctionCall(ePack16Bit,
+              _CreateFunctionCall(IntrinsicsAVX2Enum::AndInteger, crvecVectorRefs[0], pClamp),
+              _CreateFunctionCall(IntrinsicsAVX2Enum::AndInteger, crvecVectorRefs[1], pClamp)),
             CreateVector(VectorElementTypes::Int32, vecPermutationElements,
                          true));
        }
@@ -5140,16 +5145,6 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
           throw InternalErrorException(
               "Element count mismatch for conversion.");
         }
-
-        IntrinsicsAVX2Enum ePack16Bit =
-            eTargetType == VectorElementTypes::Int8 ?
-              IntrinsicsAVX2Enum::PackInt16ToInt8 :
-              IntrinsicsAVX2Enum::PackInt16ToUInt8;
-
-        IntrinsicsAVX2Enum ePack32Bit =
-            eTargetType == VectorElementTypes::Int8 ?
-              IntrinsicsAVX2Enum::PackInt32ToInt16 :
-              IntrinsicsAVX2Enum::PackInt32ToUInt16;
 
         ClangASTHelper::ExpressionVectorType vecPermutationElements;
         vecPermutationElements.push_back(
@@ -5171,10 +5166,12 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
 
         return _CreateFunctionCall(IntrinsicsAVX2Enum::PermuteCrossInt32,
             _CreateFunctionCall(ePack16Bit,
-              _CreateFunctionCall(ePack32Bit, crvecVectorRefs[0],
-                                              crvecVectorRefs[1]),
-              _CreateFunctionCall(ePack32Bit, crvecVectorRefs[2],
-                                              crvecVectorRefs[3])),
+              _CreateFunctionCall(ePack16Bit,
+                _CreateFunctionCall(IntrinsicsAVX2Enum::AndInteger, crvecVectorRefs[0], pClamp),
+                _CreateFunctionCall(IntrinsicsAVX2Enum::AndInteger, crvecVectorRefs[1], pClamp)),
+              _CreateFunctionCall(ePack16Bit,
+                _CreateFunctionCall(IntrinsicsAVX2Enum::AndInteger, crvecVectorRefs[2], pClamp),
+                _CreateFunctionCall(IntrinsicsAVX2Enum::AndInteger, crvecVectorRefs[3], pClamp))),
             CreateVector(VectorElementTypes::Int32, vecPermutationElements,
                          true));
        }
@@ -5215,6 +5212,7 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
         bHandleConversion = false;
       }
       break;
+     }
 
      case VectorElementTypes::Int16:
      case VectorElementTypes::UInt16:
@@ -5240,6 +5238,9 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
               IntrinsicsAVX2Enum::PackInt32ToInt16 :
               IntrinsicsAVX2Enum::PackInt32ToUInt16;
 
+        Expr* pClamp = BroadCast(eSourceType,
+            _GetASTHelper().CreateIntegerLiteral(static_cast<uint16_t>(-1)));
+
         ClangASTHelper::ExpressionVectorType vecPermutationElements;
         vecPermutationElements.push_back(
           _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(7)));
@@ -5259,8 +5260,9 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
           _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(0)));
 
         return _CreateFunctionCall(IntrinsicsAVX2Enum::PermuteCrossInt32,
-            _CreateFunctionCall(ePack32Bit, crvecVectorRefs[0],
-                                            crvecVectorRefs[1]),
+            _CreateFunctionCall(ePack32Bit,
+              _CreateFunctionCall(IntrinsicsAVX2Enum::AndInteger, crvecVectorRefs[0], pClamp),
+              _CreateFunctionCall(IntrinsicsAVX2Enum::AndInteger, crvecVectorRefs[1], pClamp)),
             CreateVector(VectorElementTypes::Int32, vecPermutationElements,
                          true));
        }
