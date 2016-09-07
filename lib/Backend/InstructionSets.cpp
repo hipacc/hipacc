@@ -5944,16 +5944,17 @@ bool InstructionSetAVX2::IsBuiltinFunctionSupported(
     qtTarget.addConst();
     QualType qtTargetPointer = _GetASTHelper().GetPointerType(qtTarget);
 
-    for (auto idxExpr : crvecIndexExprs) {
-      vecLoads.push_back(_CreateFunctionCall(IntrinsicsAVX2Enum::GatherInt32,
-          _CreatePointerCast(pPointerRef, qtTargetPointer), idxExpr,
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(1))));
-    }
-
     const size_t cszElementSize =
       AST::BaseClasses::TypeInfo::GetTypeSize(eElementType);
     const size_t cszIntermediateSize =
       AST::BaseClasses::TypeInfo::GetTypeSize(eIntermediateType);
+
+    for (auto idxExpr : crvecIndexExprs) {
+      vecLoads.push_back(_CreateFunctionCall(IntrinsicsAVX2Enum::GatherInt32,
+          _CreatePointerCast(pPointerRef, qtTargetPointer), idxExpr,
+          _GetASTHelper().CreateIntegerLiteral(
+            static_cast<int32_t>(cszElementSize))));
+    }
 
     if (cszElementSize < cszIntermediateSize) {
       // Zero out superfluous bits for Int8, UInt8, Int16, and UInt16
