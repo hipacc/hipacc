@@ -34,7 +34,7 @@
 #define _CONFIG_H_
 
 #cmakedefine CUDA_FOUND
-#cmakedefine OPENCL_FOUND
+#cmakedefine OpenCL_FOUND
 #cmakedefine USE_POLLY
 #cmakedefine USE_JIT_ESTIMATE
 

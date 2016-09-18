@@ -1,14 +1,14 @@
 # Find the native Clang binary and libraries
 #
-#  CLANG_EXECUTABLE       - clang binary
-#  LLVM_CONFIG_EXECUTABLE - llvm-config binary
-#  CLANG_FOUND            - True if clang is found
+#  Clang_EXECUTABLE             - clang binary
+#  Clang_llvm_config_EXECUTABLE - llvm-config binary
+#  Clang_FOUND                  - True if clang is found
 
 FIND_PACKAGE(LLVM REQUIRED CONFIG)
 FIND_PACKAGE(PackageHandleStandardArgs)
 
-FIND_PROGRAM(LLVM_CONFIG_EXECUTABLE CACHE NAMES llvm-config DOC "llvm-config executable")
-FIND_PROGRAM(CLANG_EXECUTABLE CACHE NAMES clang DOC "clang executable")
+FIND_PROGRAM(Clang_llvm_config_EXECUTABLE CACHE NAMES llvm-config DOC "llvm-config executable")
+FIND_PROGRAM(Clang_EXECUTABLE CACHE NAMES clang DOC "clang executable")
 
 SET(CLANG_LIBS
     clangFrontendTool
@@ -37,5 +37,4 @@ FUNCTION(clang_map_components_to_libnames out_libs)
     SET(${out_libs} ${clang_libs} PARENT_SCOPE)
 ENDFUNCTION()
 
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(Clang DEFAULT_MSG CLANG_EXECUTABLE LLVM_CONFIG_EXECUTABLE)
-
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(Clang DEFAULT_MSG Clang_EXECUTABLE Clang_llvm_config_EXECUTABLE)

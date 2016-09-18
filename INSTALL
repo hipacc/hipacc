@@ -28,12 +28,12 @@ CMAKE_INSTALL_PREFIX    - Installation prefix (this must be an absolute path)
 CMAKE_BUILD_TYPE        - Build type (Debug or Release)
 
 For OpenCL and OpenCV, the installation location can be specified:
-OPENCL_INC_DIR          - OpenCL include path
-                          e.g. -DOPENCL_INC_DIR=/usr/local/cuda/include
-OPENCL_LIB_DIR          - OpenCL library path
-                          e.g. -DOPENCL_LIB_DIR=/usr/lib64
-OPENCV_DIR              - OpenCV installation path
-                          e.g. -DOPENCV_DIR=/opt/local
+OpenCL_INC_DIR          - OpenCL include path
+                          e.g. -DOpenCL_INC_DIR=/usr/local/cuda/include
+OpenCL_LIB_DIR          - OpenCL library path
+                          e.g. -DOpenCL_LIB_DIR=/usr/lib64
+OpenCV_DIR              - OpenCV installation path
+                          e.g. -DOpenCV_DIR=/opt/local
 
 For Android, the Android NDK and API level have to be specified:
 NDK_DIR                 - Android NDK directory
