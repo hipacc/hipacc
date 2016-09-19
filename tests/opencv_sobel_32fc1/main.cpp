@@ -601,38 +601,7 @@ int main(int argc, const char **argv) {
     double scale = 1.0;
     double delta = 0.0;
 
-    // OpenCV - CPU
-    cv::ocl::setUseOpenCL(false);
-    std::cerr << std::endl
-              << "Calculating OpenCV-CPU Sobel filter" << std::endl;
-
-    cv::UMat dev_src, dev_dst;
-    opencv_bench(
-        [&] (int) {
-            cv_data_src.copyTo(dev_src);
-        },
-        [&] (int brd_type) {
-            #ifdef YORDER
-            cv::Sobel(cv_data_src, cv_data_dst, ddepth, 0, 1, size_y, scale, delta, brd_type);
-            #else
-            cv::Sobel(cv_data_src, cv_data_dst, ddepth, 1, 0, size_x, scale, delta, brd_type);
-            #endif
-        },
-        [&] (float timing) {
-            timings_cpu.push_back(timing);
-            dev_dst.copyTo(cv_data_dst);
-        }
-    );
-
-    // OpenCV - OpenCL
-    if (cv::ocl::haveOpenCL()) {
-        cv::ocl::setUseOpenCL(true);
-        std::cerr << std::endl
-                  << "Calculating OpenCV-OCL Sobel filter on "
-                  << cv::ocl::Device::getDefault().vendorName().c_str()
-                  << " "  << cv::ocl::Device::getDefault().name().c_str()
-                  << std::endl;
-
+    auto compute_tapi = [&] (std::vector<float> &timings) {
         cv::UMat dev_src, dev_dst;
         opencv_bench(
             [&] (int) {
@@ -644,20 +613,36 @@ int main(int argc, const char **argv) {
                 #else
                 cv::Sobel(dev_src, dev_dst, ddepth, 1, 0, size_x, scale, delta, brd_type);
                 #endif
-                cv::ocl::finish();
+                if (cv::ocl::useOpenCL())
+                    cv::ocl::finish();
             },
             [&] (float timing) {
-                timings_ocl.push_back(timing);
+                timings.push_back(timing);
                 dev_dst.copyTo(cv_data_dst);
             }
         );
+    };
+
+    // OpenCV - CPU
+    cv::ocl::setUseOpenCL(false);
+    std::cerr << std::endl
+              << "Calculating OpenCV-CPU Sobel filter on CPU" << std::endl;
+    compute_tapi(timings_cpu);
+
+    // OpenCV - OpenCL
+    if (cv::ocl::haveOpenCL()) {
+        cv::ocl::setUseOpenCL(true);
+        std::cerr << std::endl
+                  << "Calculating OpenCV-OCL Sobel filter on "
+                  << cv::ocl::Device::getDefault().name() << std::endl;
+        compute_tapi(timings_ocl);
     }
 
     // OpenCV - CUDA
     if (cv::cuda::getCudaEnabledDeviceCount()) {
         #ifdef OPENCV_CUDA_FOUND
         std::cerr << std::endl
-                  << "Calculating OpenCV-CUDA Gaussian filter" << std::endl;
+                  << "Calculating OpenCV-CUDA Sobel filter" << std::endl;
         cv::cuda::printShortCudaDeviceInfo(cv::cuda::getDevice());
 
         cv::cuda::GpuMat dev_src, dev_dst;
