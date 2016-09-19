@@ -16,10 +16,10 @@ OFLAGS          = -O3
 
 CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 @THREADS_ARG@ -Wall -Wunused
 CL_CC           = $(CC_CC) -I@OpenCL_INCLUDE_DIRS@
-CU_CC           = @NVCC@ @NVCC_COMP@ -Xcompiler -Wall -Xcompiler -Wunused $(NVCC_FLAGS)
+CU_CC           = @NVCC@ -std=c++11 @NVCC_COMP@ -Xcompiler -Wall -Xcompiler -Wunused -I@CUDA_INCLUDE_DIRS@ $(NVCC_FLAGS)
 CC_LINK         = -lm -ldl -lstdc++ @THREADS_LINK@ @RT_LIBRARIES@ @OpenCV_LIBRARIES@
 CL_LINK         = $(CC_LINK) @OpenCL_LIBRARIES@
-CU_LINK         = $(CC_LINK) @CUDA_LINK@
+CU_LINK         = $(CC_LINK) @NVCC_LINK@
 
 
 # Source-to-source compiler configuration
