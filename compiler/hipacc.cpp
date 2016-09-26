@@ -39,7 +39,6 @@
 
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
-#include <clang/Driver/Tool.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/CompilerInvocation.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
@@ -417,7 +416,7 @@ int main(int argc, char *argv[]) {
   compilerOptions.printSummary(targetDevice.getTargetDeviceName());
 
 
-  // use the Driver
+  // use the Driver (from Tooling.cpp)
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
   TextDiagnosticPrinter DiagnosticPrinter(llvm::errs(), &*DiagOpts);
   DiagnosticsEngine Diagnostics(
@@ -429,7 +428,7 @@ int main(int argc, char *argv[]) {
   Driver.setCheckInputsExist(false);
   Driver.setTitle("hipacc");
 
-  std::unique_ptr<driver::Compilation> Compilation(
+  const std::unique_ptr<driver::Compilation> Compilation(
       Driver.BuildCompilation(args));
 
   // use the flags from the first job
