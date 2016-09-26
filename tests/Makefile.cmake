@@ -3,7 +3,7 @@ HIPACC_DIR     ?= @CMAKE_INSTALL_PREFIX@
 COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
 COMMON_INC     ?= -I@OpenCV_INCLUDE_DIRS@ \
                   -I$(TEST_CASE)
-COMPILER_INC   ?= -std=c++11 $(COMMON_INC) \
+COMPILER_INC   ?= -std=c++11 -stdlib=libc++ $(COMMON_INC) \
                   -I`@Clang_llvm_config_EXECUTABLE@ --includedir` \
                   -I`@Clang_llvm_config_EXECUTABLE@ --includedir`/c++/v1 \
                   -I`@Clang_EXECUTABLE@ -print-file-name=include` \
