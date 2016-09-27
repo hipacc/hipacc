@@ -1740,24 +1740,13 @@ bool Rewrite::VisitCallExpr (CallExpr *E) {
 
 void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   #ifdef USE_JIT_ESTIMATE
-  bool jit_compile = false;
   switch (compilerOptions.getTargetLang()) {
-    default:
-      jit_compile = false;
-      break;
+    default: break;
     case Language::CUDA:
     case Language::OpenCLGPU:
-      if (targetDevice.isARMGPU()) {
-        jit_compile = false;
-      } else {
-        jit_compile = true;
-      }
-      break;
-  }
-
-  if (!jit_compile) {
-    K->setDefaultConfig();
-    return;
+      if (targetDevice.isARMGPU())
+        break;
+      return K->setDefaultConfig();
   }
 
   // write kernel file to estimate resource usage
@@ -1790,97 +1779,70 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   }
 
   std::string info;
-  if (compilerOptions.emitCUDA()) {
+  if (targetDevice.isNVIDIAGPU()) {
     info = "ptxas info : Used %d registers";
-  } else {
-    if (targetDevice.isAMDGPU()) {
-      info = "isa info : Used %d gprs, %d bytes lds";
-    } else {
-      info = "ptxas info : Used %d registers";
-    }
+  } else if (targetDevice.isAMDGPU()) {
+    info = "isa info : Used %d gprs, %d bytes lds";
   }
 
   while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
     lines.push_back(std::string(line));
-    if (targetDevice.isAMDGPU()) {
-      sscanf(line, info.c_str(), &reg, &smem);
-    } else {
+
+    if (targetDevice.isNVIDIAGPU()) {
       char *ptr = line;
-      int num_read = 0, val1 = 0, val2 = 0;
       char mem_type = 'x';
+      int val1 = 0, val2 = 0;
 
       if (compilerOptions.getTargetDevice() >= Device::Fermi_20) {
         // scan for stack size (shared memory)
-        num_read = sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type);
-
-        if (num_read == 2 && mem_type == 's') {
-          smem = val1;
-          continue;
+        if (sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type) == 2) {
+          if (mem_type == 's') {
+            smem = val1;
+            continue;
+          }
         }
       }
 
-      num_read = sscanf(line, info.c_str(), &reg);
-      if (!num_read) continue;
+      if (sscanf(line, info.c_str(), &reg) == 0)
+        continue;
 
       while ((ptr = strchr(ptr, ','))) {
         ptr++;
 
-        num_read = sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type);
-        if (num_read == 3) {
+        if (sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type) == 3) {
           switch (mem_type) {
-            default:
-              llvm::errs() << "wrong memory specifier '" << mem_type
-                           << "': " << ptr;
-              break;
-            case 'c':
-              cmem += val1 + val2;
-              break;
-            case 'l':
-              lmem += val1 + val2;
-              break;
-            case 's':
-              smem += val1 + val2;
-              break;
+            default: llvm::errs() << "wrong memory specifier '" << mem_type
+                                  << "': " << ptr; break;
+            case 'c': cmem += val1 + val2; break;
+            case 'l': lmem += val1 + val2; break;
+            case 's': smem += val1 + val2; break;
           }
           continue;
         }
 
-        num_read = sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type);
-        if (num_read == 2) {
+        if (sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type) == 2) {
           switch (mem_type) {
-            default:
-              llvm::errs() << "wrong memory specifier '" << mem_type
-                           << "': " << ptr;
-              break;
-            case 'c':
-              cmem += val1;
-              break;
-            case 'l':
-              lmem += val1;
-              break;
-            case 's':
-              smem += val1;
-              break;
+            default: llvm::errs() << "wrong memory specifier '" << mem_type
+                                  << "': " << ptr; break;
+            case 'c': cmem += val1; break;
+            case 'l': lmem += val1; break;
+            case 's': smem += val1; break;
           }
           continue;
         }
 
-        num_read = sscanf(ptr, "%d texture %1c", &val1, &mem_type);
-        if (num_read == 2) {
+        if (sscanf(ptr, "%d texture %1c", &val1, &mem_type) == 2)
           continue;
-        }
-        num_read = sscanf(ptr, "%d sampler %1c", &val1, &mem_type);
-        if (num_read == 2) {
+        if (sscanf(ptr, "%d sampler %1c", &val1, &mem_type) == 2)
           continue;
-        }
-        num_read = sscanf(ptr, "%d surface %1c", &val1, &mem_type);
-        if (num_read == 2) {
+        if (sscanf(ptr, "%d surface %1c", &val1, &mem_type) == 2)
           continue;
-        }
 
         // no match found
         llvm::errs() << "Unexpected memory usage specification: '" << ptr;
       }
+    } else if (targetDevice.isAMDGPU()) {
+      sscanf(line, info.c_str(), &reg, &smem);
     }
   }
   pclose(fpipe);
@@ -1894,16 +1856,16 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
     for (auto line : lines)
       llvm::errs() << line;
   } else {
-    if (targetDevice.isAMDGPU()) {
-      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
-                   << ": " << reg << " gprs, "
-                   << smem << " bytes lds\n";
-    } else {
+    if (targetDevice.isNVIDIAGPU()) {
       llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
                    << ": " << reg << " registers, "
                    << lmem << " bytes lmem, "
                    << smem << " bytes smem, "
                    << cmem << " bytes cmem\n";
+    } else if (targetDevice.isAMDGPU()) {
+      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
+                   << ": " << reg << " gprs, "
+                   << smem << " bytes lds\n";
     }
   }
 
