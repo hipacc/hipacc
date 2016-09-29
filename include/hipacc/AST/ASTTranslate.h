@@ -130,12 +130,14 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
 
     template<class T> T *Clone(T *S) {
-      if (S==nullptr) return nullptr;
+      if (S==nullptr)
+        return nullptr;
 
       return static_cast<T *>(Visit(S));
     }
     template<class T> T *CloneDecl(T *D) {
-      if (D==nullptr) return nullptr;
+      if (D==nullptr)
+        return nullptr;
 
       switch (D->getKind()) {
         default:
