@@ -5,8 +5,7 @@
 #  NVML_LIBRARIES       - where to find NVML libs
 #  NVML_FOUND           - True if NVML is found
 
-SET(NVML_INC_PATHS /usr/include/nvidia/gdk/ /usr/include)
-FIND_PATH(NVML_INCLUDE_DIR nvml.h PATHS ${NVML_INC_PATHS})
+FIND_PATH(NVML_INCLUDE_DIR nvml.h PATHS ${CUDA_INCLUDE_DIRS} /usr/include/nvidia/gdk /usr/include)
 FIND_LIBRARY(NVML_LIBRARY nvidia-ml)
 
 INCLUDE(FindPackageHandleStandardArgs)
