@@ -29,8 +29,8 @@
 
 #include <cuda.h>
 
-#if CUDA_VERSION < 6050
-    #error "CUDA 6.5 or higher required!"
+#if CUDA_VERSION < 7000
+    #error "CUDA 7.0 or higher required!"
 #endif
 
 #cmakedefine NVML_FOUND
