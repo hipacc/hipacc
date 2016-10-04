@@ -66,41 +66,6 @@ class HipaccDeviceOptions {
       default_num_threads_y(1)
     {
       switch (options.getTargetDevice()) {
-        case Device::Tesla_10:
-        case Device::Tesla_11:
-          alignment = 512;  // Quadro FX 1800
-          alignment = 1024; // GeForce GTS 8800
-          local_memory_threshold = 9999,
-          pixels_per_thread[PointOperator] = 8;
-          if (options.emitCUDA()) {
-            pixels_per_thread[LocalOperator] = 8;
-          } else {
-            pixels_per_thread[LocalOperator] = 1;
-          }
-          pixels_per_thread[GlobalOperator] = 31;
-          require_textures[PointOperator] = Texture::None;
-          require_textures[LocalOperator] = Texture::Linear2D;
-          require_textures[GlobalOperator] = Texture::None;
-          require_textures[UserOperator] = Texture::Linear2D;
-          vectorization = false;
-          break;
-        case Device::Tesla_12:
-        case Device::Tesla_13:
-          alignment = 512;
-          local_memory_threshold = 9999;
-          pixels_per_thread[PointOperator] = 8;
-          if (options.emitCUDA()) {
-            pixels_per_thread[LocalOperator] = 4;
-          } else {
-            pixels_per_thread[LocalOperator] = 1;
-          }
-          pixels_per_thread[GlobalOperator] = 31;
-          require_textures[PointOperator] = Texture::None;
-          require_textures[LocalOperator] = Texture::Linear2D;
-          require_textures[GlobalOperator] = Texture::None;
-          require_textures[UserOperator] = Texture::Linear2D;
-          vectorization = false;
-          break;
         case Device::Fermi_20:
         case Device::Fermi_21:
         case Device::Kepler_30:
@@ -249,28 +214,6 @@ class HipaccDevice : public HipaccDeviceOptions {
       num_sfus(0)
     {
       switch (target_device) {
-        case Device::Tesla_10:
-        case Device::Tesla_11:
-          max_threads_per_block = 512;
-          max_warps_per_multiprocessor = 24;
-          max_threads_per_multiprocessor = 768;
-          max_total_registers = 8192;
-          max_total_shared_memory = 16384;
-          max_register_per_thread = 124;
-          num_alus = 8;
-          num_sfus = 2;
-          break;
-        case Device::Tesla_12:
-        case Device::Tesla_13:
-          max_threads_per_block = 512;
-          max_warps_per_multiprocessor = 32;
-          max_threads_per_multiprocessor = 1024;
-          max_total_registers = 16384;
-          max_total_shared_memory = 16384;
-          max_register_per_thread = 124;
-          num_alus = 8;
-          num_sfus = 2;
-          break;
         case Device::Fermi_20:
           max_threads_per_block = 1024;
           max_warps_per_multiprocessor = 48;
@@ -393,17 +336,13 @@ class HipaccDevice : public HipaccDeviceOptions {
     }
 
     bool isNVIDIAGPU() {
-      return target_device >= Device::Tesla_10 &&
+      return target_device >= Device::Fermi_20 &&
              target_device <= Device::Maxwell_53;
     }
 
     std::string getTargetDeviceName() {
       switch (target_device) {
         //case Device::CPU:             return "x86_64 CPU";
-        case Device::Tesla_10:        return "NVIDIA Tesla (10)";
-        case Device::Tesla_11:        return "NVIDIA Tesla (11)";
-        case Device::Tesla_12:        return "NVIDIA Tesla (12)";
-        case Device::Tesla_13:        return "NVIDIA Tesla (13)";
         case Device::Fermi_20:        return "NVIDIA Fermi (20)";
         case Device::Fermi_21:        return "NVIDIA Fermi (21)";
         case Device::Kepler_30:       return "NVIDIA Kepler (30)";
@@ -435,8 +374,8 @@ class HipaccDevice : public HipaccDeviceOptions {
       if (emitCUDA) {
         return std::string(CU_COMPILER) +
           " -I " + std::string(RUNTIME_INCLUDES) +
-          " -arch=sm_" + std::to_string(getTargetCC()) + " -cubin -Xptxas -v " +
-          file + ".cu 2>&1";
+          " -arch=sm_" + std::to_string(getTargetCC()) +
+          " -cubin -res-usage " + file + ".cu 2>&1";
       }
       std::string command = std::string(CL_COMPILER) +
         " -i " + std::string(RUNTIME_INCLUDES) +

@@ -109,7 +109,7 @@ class CompilerOptions {
   public:
     CompilerOptions() :
       target_lang(Language::OpenCLGPU),
-      target_device(Device::Fermi_20),
+      target_device(Device::Kepler_30),
       explore_config(OFF),
       time_kernels(OFF),
       kernel_config(AUTO),

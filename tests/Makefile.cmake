@@ -10,8 +10,7 @@ COMPILER_INC   ?= -std=c++11 -stdlib=libc++ $(COMMON_INC) \
                   -I$(HIPACC_DIR)/include/dsl
 TEST_CASE      ?= ./tests/opencv_blur_8uc1
 MYFLAGS        ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
-NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" \
-                  -Xptxas -v #-keep
+NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" -res-usage #-keep
 OFLAGS          = -O3
 
 CC_CC           = @CMAKE_CXX_COMPILER@ -std=c++11 @THREADS_ARG@ -Wall -Wunused
@@ -38,7 +37,7 @@ HIPACC_PPT?=1
 HIPACC_CONFIG?=128x1
 HIPACC_EXPLORE?=off
 HIPACC_TIMING?=off
-HIPACC_TARGET?=Fermi-20
+HIPACC_TARGET?=Kepler-30
 
 
 HIPACC_OPTS=-target $(HIPACC_TARGET)

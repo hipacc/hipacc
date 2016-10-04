@@ -863,22 +863,22 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
         resultStr += indent;
       }
       resultStr += red_decl;
-      if (options.getTargetDevice() >= Device::Fermi_20 && !options.exploreConfig()) {
-        resultStr += "hipaccApplyReductionThreadFence<" + typeStr + ">(";
-        resultStr += "(const void *)&" + K->getReduceName() + "2D, ";
+      if (options.exploreConfig()) {
+        resultStr += "hipaccApplyReductionExploration<" + typeStr + ">(";
+        resultStr += "\"" + K->getFileName() + ".cu\", ";
         resultStr += "\"" + K->getReduceName() + "2D\", ";
+        resultStr += "\"" + K->getReduceName() + "1D\", ";
       } else {
         if (options.exploreConfig()) {
-          resultStr += "hipaccApplyReductionExploration<" + typeStr + ">(";
-          resultStr += "\"" + K->getFileName() + ".cu\", ";
-          resultStr += "\"" + K->getReduceName() + "2D\", ";
-          resultStr += "\"" + K->getReduceName() + "1D\", ";
-        } else {
           resultStr += "hipaccApplyReduction<" + typeStr + ">(";
           resultStr += "(const void *)&" + K->getReduceName() + "2D, ";
           resultStr += "\"" + K->getReduceName() + "2D\", ";
           resultStr += "(const void *)&" + K->getReduceName() + "1D, ";
           resultStr += "\"" + K->getReduceName() + "1D\", ";
+        } else {
+          resultStr += "hipaccApplyReductionThreadFence<" + typeStr + ">(";
+          resultStr += "(const void *)&" + K->getReduceName() + "2D, ";
+          resultStr += "\"" + K->getReduceName() + "2D\", ";
         }
       }
       break;

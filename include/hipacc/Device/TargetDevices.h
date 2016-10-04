@@ -39,10 +39,6 @@ namespace clang {
 namespace hipacc {
 // supported target devices
 enum class Device {
-  Tesla_10          = 10,
-  Tesla_11          = 11,
-  Tesla_12          = 12,
-  Tesla_13          = 13,
   Fermi_20          = 20,
   Fermi_21          = 21,
   Kepler_30         = 30,

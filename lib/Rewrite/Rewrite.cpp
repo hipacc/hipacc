@@ -1789,13 +1789,6 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
     exit(EXIT_FAILURE);
   }
 
-  std::string info;
-  if (targetDevice.isNVIDIAGPU()) {
-    info = "ptxas info : Used %d registers";
-  } else if (targetDevice.isAMDGPU()) {
-    info = "isa info : Used %d gprs, %d bytes lds";
-  }
-
   while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
     lines.push_back(std::string(line));
 
@@ -1804,17 +1797,14 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
       char mem_type = 'x';
       int val1 = 0, val2 = 0;
 
-      if (compilerOptions.getTargetDevice() >= Device::Fermi_20) {
-        // scan for stack size (shared memory)
-        if (sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type) == 2) {
-          if (mem_type == 's') {
-            smem = val1;
-            continue;
-          }
+      if (sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type) == 2) {
+        if (mem_type == 's') {
+          lmem = val1;
+          continue;
         }
       }
 
-      if (sscanf(line, info.c_str(), &reg) == 0)
+      if (sscanf(line, "ptxas info : Used %d registers", &reg) == 0)
         continue;
 
       while ((ptr = strchr(ptr, ','))) {
@@ -1853,7 +1843,7 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
         llvm::errs() << "Unexpected memory usage specification: '" << ptr;
       }
     } else if (targetDevice.isAMDGPU()) {
-      sscanf(line, info.c_str(), &reg, &smem);
+      sscanf(line, "isa info : Used %d gprs, %d bytes lds", &reg, &smem);
     }
   }
   pclose(fpipe);
@@ -1994,8 +1984,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << K->getReduceName() << ")\n";
       break;
     case Language::CUDA:
-      // print 2D CUDA array definition - this is only required on Fermi and if
-      // Array2D is selected, but doesn't harm otherwise
+      // 2D CUDA array definition - only required if Array2D is selected
       OS << "texture<" << fun->getReturnType().getAsString()
          << ", cudaTextureType2D, cudaReadModeElementType> _tex"
          << K->getIterationSpace()->getImage()->getName() + K->getName()
@@ -2003,23 +1992,19 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << K->getIterationSpace()->getImage()->getName() + K->getName()
          << "Ref;\n\n";
       // 2D reduction
-      if (compilerOptions.getTargetDevice()>=Device::Fermi_20 &&
-          !compilerOptions.exploreConfig()) {
+      if (compilerOptions.exploreConfig()) {
+        OS << "REDUCTION_CUDA_2D(";
+      } else {
         OS << "__device__ unsigned finished_blocks_" << K->getReduceName()
            << "2D = 0;\n\n";
         OS << "REDUCTION_CUDA_2D_THREAD_FENCE(";
-      } else {
-        OS << "REDUCTION_CUDA_2D(";
       }
       OS << K->getReduceName() << "2D, "
          << fun->getReturnType().getAsString() << ", "
          << K->getReduceName() << ", _tex"
          << K->getIterationSpace()->getImage()->getName() + K->getName() << ")\n";
       // 1D reduction
-      if (compilerOptions.getTargetDevice() >= Device::Fermi_20 &&
-          !compilerOptions.exploreConfig()) {
-        // no second step required
-      } else {
+      if (compilerOptions.exploreConfig()) {
         OS << "REDUCTION_CUDA_1D(" << K->getReduceName() << "1D, "
            << fun->getReturnType().getAsString() << ", "
            << K->getReduceName() << ")\n";

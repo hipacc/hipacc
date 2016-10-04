@@ -534,9 +534,8 @@ void ASTTranslate::updateTileVars() {
       tileVars.block_id_y = addCastToInt(tileVars.block_id_y);
       // select fastest method for accessing blockDim.[x|y]
       // TODO: define this in HipaccDeviceOptions
-      if (compilerOptions.getTargetDevice()>=Device::Fermi_20 &&
-          compilerOptions.getTargetDevice()<=Device::Kepler_30 &&
-          compilerOptions.getTargetLang()==Language::CUDA) {
+      if (compilerOptions.getTargetLang()==Language::CUDA &&
+          compilerOptions.getTargetDevice()<=Device::Kepler_30) {
         if (compilerOptions.exploreConfig() && !emitEstimation) {
           tileVars.local_size_x = createDeclRefExpr(Ctx, createVarDecl(Ctx,
                 kernelDecl, "BSX_EXPLORE", Ctx.IntTy, nullptr));
@@ -1002,15 +1001,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         break;
       case 9:
         LD = createLabelDecl(Ctx, kernelDecl, "BH_NO");
-
-        if (compilerOptions.getTargetDevice()<=Device::Tesla_13 &&
-            compilerOptions.getTargetLang()==Language::CUDA) {
-          // TODO: remove this once CUDA 7 is widespread and Tesla architecture
-          // is discontinued
-          // CUDA: if (blockDim.x >= 16) goto BH_NO;
-          if_goto = createBinaryOperator(Ctx, tileVars.local_size_x,
-              createIntegerLiteral(Ctx, 16), BO_GE, Ctx.BoolTy);
-        }
         break;
     }
     LDS.push_back(LD);
