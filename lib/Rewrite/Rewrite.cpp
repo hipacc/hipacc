@@ -1753,12 +1753,11 @@ bool Rewrite::VisitCallExpr (CallExpr *E) {
 void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   #ifdef USE_JIT_ESTIMATE
   switch (compilerOptions.getTargetLang()) {
-    default: break;
+    default: return K->setDefaultConfig();
     case Language::CUDA:
     case Language::OpenCLGPU:
-      if (targetDevice.isARMGPU())
+      if (!targetDevice.isARMGPU())
         break;
-      return K->setDefaultConfig();
   }
 
   // write kernel file to estimate resource usage
