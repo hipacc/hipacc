@@ -13,7 +13,10 @@ The revision of the Clang/LLVM (and Polly) have to match in order to compile the
 Hipacc sources successfully. The file 'dependencies.sh' lists the revisions and
 repositories of each dependency known to work with the latest version of Hipacc.
 Use 'git checkout <revision>' in order to switch to the required revision.
-  
+
+On Windows, use msys2 to build Hipacc. The generated source files by Hipacc can
+then be compiled in Visual Studio.
+
 
 Installation:
 =============
