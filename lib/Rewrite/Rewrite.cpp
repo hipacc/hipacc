@@ -2135,11 +2135,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           break;
         case Language::Renderscript:
         case Language::Filterscript:
-          if (cur_arg == 0) { // TODO: check required?
-            OS << "rs_allocation " << K->getDeviceArgNames()[cur_arg] << ";\n";
-          } else {
-            OS << "rs_allocation " << arg->getNameAsString() << ";\n";
-          }
+          OS << "rs_allocation " << arg->getNameAsString() << ";\n";
           break;
       }
 
