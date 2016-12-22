@@ -267,7 +267,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
     // sort definitions and remove duplicate definitions
     std::sort(InterpolationDefinitionsGlobal.begin(),
-              InterpolationDefinitionsGlobal.end());
+              InterpolationDefinitionsGlobal.end(), std::greater<std::string>());
     InterpolationDefinitionsGlobal.erase(
         std::unique(InterpolationDefinitionsGlobal.begin(),
                     InterpolationDefinitionsGlobal.end()),
@@ -2133,34 +2133,42 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           Acc->getBoundaryMode());
       auto no_bh_def = stringCreator.getInterpolationDefinition(K, Acc,
           function_name, suffix, Interpolate::NO, Boundary::UNDEFINED);
+      auto vec_conv = Acc->getImage()->getType()->isVectorType() ?
+        "VECTOR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n" :
+        "SCALAR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n";
 
       switch (compilerOptions.getTargetLang()) {
         default: InterpolationDefinitionsLocal.push_back(bh_def);
                  InterpolationDefinitionsLocal.push_back(no_bh_def);
+                 InterpolationDefinitionsLocal.push_back(vec_conv);
                  break;
         case Language::C99: break;
       }
     }
   }
 
-  // sort definitions and remove duplicate definitions
-  std::sort(InterpolationDefinitionsLocal.begin(),
-            InterpolationDefinitionsLocal.end());
-  InterpolationDefinitionsLocal.erase(
-      std::unique(InterpolationDefinitionsLocal.begin(),
-                  InterpolationDefinitionsLocal.end()),
-      InterpolationDefinitionsLocal.end());
+  if (InterpolationDefinitionsLocal.size()) {
+    // sort definitions and remove duplicate definitions
+    std::sort(InterpolationDefinitionsLocal.begin(),
+              InterpolationDefinitionsLocal.end(), std::greater<std::string>());
+    InterpolationDefinitionsLocal.erase(
+        std::unique(InterpolationDefinitionsLocal.begin(),
+                    InterpolationDefinitionsLocal.end()),
+        InterpolationDefinitionsLocal.end());
 
-  if (compilerOptions.emitCUDA() &&
-      !compilerOptions.exploreConfig() && emitHints) {
-    // emit interpolation definitions at the beginning of main file
-    for (auto str : InterpolationDefinitionsLocal)
-      InterpolationDefinitionsGlobal.push_back(str);
-  } else {
-    // add interpolation definitions to kernel file
-    for (auto str : InterpolationDefinitionsLocal)
-      OS << str;
+    if (compilerOptions.emitCUDA() &&
+        !compilerOptions.exploreConfig() && emitHints) {
+      // emit interpolation definitions at the beginning of main file
+      for (auto str : InterpolationDefinitionsLocal)
+        InterpolationDefinitionsGlobal.push_back(str);
+    } else {
+      // add interpolation definitions to kernel file
+      for (auto str : InterpolationDefinitionsLocal)
+        OS << str;
+      OS << "\n";
+    }
   }
+
 
   // declarations of textures, surfaces, variables, etc.
   num_arg = 0;

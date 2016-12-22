@@ -109,6 +109,24 @@ METHOD(NAME##_bl##TS,   DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_A
 METHOD(NAME##_br##TS,   DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, NO_BH, BH_UPPER, NO_BH, BH_UPPER) \
 METHOD(NAME##_tblr##TS, DATA_TYPE, PARM(DATA_TYPE), CPARM(DATA_TYPE), ACC, ACC_ARR, BH_LOWER, BH_UPPER, BH_LOWER, BH_UPPER)
 
+#define SCALAR_TYPE_FUNS(TYPE) \
+typedef float float##TYPE; \
+inline TYPE float_to_##TYPE(float s) { \
+    return s; \
+} \
+inline float TYPE##_to_float(TYPE s) { \
+    return s; \
+}
+
+#define VECTOR_TYPE_FUNS(TYPE) \
+typedef float4 float##TYPE; \
+inline TYPE float_to_##TYPE(float4 v) { \
+    TYPE t; t.x = v.x; t.y = v.y; t.z = v.z; t.w = v.w; return t; \
+} \
+inline float4 TYPE##_to_float(TYPE v) { \
+    float4 t; t.x = v.x; t.y = v.y; t.z = v.z; t.w = v.w; return t; \
+}
+
 
 // Bilinear Interpolation
 #define INTERPOLATE_LINEAR_FILTERING_OPENCL(NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_ARR, BHXL, BHXU, BHYL, BHYU) \
@@ -124,11 +142,11 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
     x_int += global_offset_x; \
     y_int += global_offset_y; \
  \
-    return \
-        (1.0f - x_frac) * (1.0f - y_frac) * ACCESS(BHXU(BHXL(x_int    , lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int    , lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) + \
-                x_frac  * (1.0f - y_frac) * ACCESS(BHXU(BHXL(x_int + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int    , lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) + \
-        (1.0f - x_frac) *         y_frac  * ACCESS(BHXU(BHXL(x_int    , lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) + \
-                x_frac  *         y_frac  * ACCESS(BHXU(BHXL(x_int + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR); \
+    return float_to_##DATA_TYPE( \
+        (1.0f - x_frac) * (1.0f - y_frac) * DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int    , lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int    , lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) + \
+                x_frac  * (1.0f - y_frac) * DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int    , lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) + \
+        (1.0f - x_frac) *         y_frac  * DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int    , lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) + \
+                x_frac  *         y_frac  * DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR))); \
 }
 
 
@@ -159,27 +177,28 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
     x_int += global_offset_x; \
     y_int += global_offset_y; \
  \
-    float y0 = ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 3); \
-    float y1 = ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 3); \
-    float y2 = ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 3); \
-    float y3 = ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * bicubic_spline(x_frac - 1 + 3); \
+    float##DATA_TYPE y0 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 3); \
+    float##DATA_TYPE y1 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 3); \
+    float##DATA_TYPE y2 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 3); \
+    float##DATA_TYPE y3 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * bicubic_spline(x_frac - 1 + 3); \
  \
-    return y0 * bicubic_spline(y_frac - 1 + 0) + \
-           y1 * bicubic_spline(y_frac - 1 + 1) + \
-           y2 * bicubic_spline(y_frac - 1 + 2) + \
-           y3 * bicubic_spline(y_frac - 1 + 3); \
+    return float_to_##DATA_TYPE( \
+            y0 * bicubic_spline(y_frac - 1 + 0) + \
+            y1 * bicubic_spline(y_frac - 1 + 1) + \
+            y2 * bicubic_spline(y_frac - 1 + 2) + \
+            y3 * bicubic_spline(y_frac - 1 + 3)); \
 }
 
 
@@ -210,49 +229,50 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
     x_int += global_offset_x; \
     y_int += global_offset_y; \
  \
-    float y0 = ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
-    float y1 = ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
-    float y2 = ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
-    float y3 = ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
-    float y4 = ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
-    float y5 = ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 0) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 1) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 2) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 3) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 4) + \
-               ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * lanczos(x_frac - 2 + 5); \
+    float##DATA_TYPE y0 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 3) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 4) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 5); \
+    float##DATA_TYPE y1 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 3) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 5) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 5); \
+    float##DATA_TYPE y2 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 3) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 4) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 5); \
+    float##DATA_TYPE y3 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 3) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 4) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 5); \
+    float##DATA_TYPE y4 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 3) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 4) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 4, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 5); \
+    float##DATA_TYPE y5 = DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 0) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 1) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 2) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 3) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 4, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 4) + \
+                          DATA_TYPE##_to_float(ACCESS(BHXU(BHXL(x_int - 2 + 5, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 5, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR)) * lanczos(x_frac - 2 + 5); \
  \
-    return y0 * lanczos(y_frac - 2 + 0) + \
-           y1 * lanczos(y_frac - 2 + 1) + \
-           y2 * lanczos(y_frac - 2 + 2) + \
-           y3 * lanczos(y_frac - 2 + 3) + \
-           y4 * lanczos(y_frac - 2 + 4) + \
-           y5 * lanczos(y_frac - 2 + 5); \
+    return float_to_##DATA_TYPE( \
+            y0 * lanczos(y_frac - 2 + 0) + \
+            y1 * lanczos(y_frac - 2 + 1) + \
+            y2 * lanczos(y_frac - 2 + 2) + \
+            y3 * lanczos(y_frac - 2 + 3) + \
+            y4 * lanczos(y_frac - 2 + 4) + \
+            y5 * lanczos(y_frac - 2 + 5)); \
 }
 
 #endif  // __HIPACC_CL_INTERPOLATE_HPP__
