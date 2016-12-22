@@ -188,7 +188,9 @@ __device__ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped
 
 
 // Lanczos3 Interpolation
+#ifndef M_PI
 #define M_PI 3.141592654f
+#endif
 __device__ float lanczos(float diff) {
     diff = fabsf(diff);
     float l = 3.0f;
