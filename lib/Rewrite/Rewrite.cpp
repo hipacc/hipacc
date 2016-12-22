@@ -2128,22 +2128,16 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       std::string suffix("_" +
           builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context));
 
-      std::string resultStr;
-      stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-          suffix, Acc->getInterpolationMode(), Acc->getBoundaryMode(),
-          resultStr);
+      auto bh_def = stringCreator.getInterpolationDefinition(K, Acc,
+          function_name, suffix, Acc->getInterpolationMode(),
+          Acc->getBoundaryMode());
+      auto no_bh_def = stringCreator.getInterpolationDefinition(K, Acc,
+          function_name, suffix, Interpolate::NO, Boundary::UNDEFINED);
 
       switch (compilerOptions.getTargetLang()) {
-        default: InterpolationDefinitionsLocal.push_back(resultStr); break;
-        case Language::C99: break;
-      }
-
-      resultStr.erase();
-      stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-          suffix, Interpolate::NO, Boundary::UNDEFINED, resultStr);
-
-      switch (compilerOptions.getTargetLang()) {
-        default: InterpolationDefinitionsLocal.push_back(resultStr); break;
+        default: InterpolationDefinitionsLocal.push_back(bh_def);
+                 InterpolationDefinitionsLocal.push_back(no_bh_def);
+                 break;
         case Language::C99: break;
       }
     }
