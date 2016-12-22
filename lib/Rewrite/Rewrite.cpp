@@ -267,10 +267,10 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
     // sort definitions and remove duplicate definitions
     std::sort(InterpolationDefinitionsGlobal.begin(),
-        InterpolationDefinitionsGlobal.end());
+              InterpolationDefinitionsGlobal.end());
     InterpolationDefinitionsGlobal.erase(
         std::unique(InterpolationDefinitionsGlobal.begin(),
-          InterpolationDefinitionsGlobal.end()),
+                    InterpolationDefinitionsGlobal.end()),
         InterpolationDefinitionsGlobal.end());
 
     // add interpolation definitions
@@ -2096,7 +2096,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
 
   // interpolation includes & definitions
-  bool inc=false;
   SmallVector<std::string, 16> InterpolationDefinitionsLocal;
   size_t num_arg = 0;
   for (auto arg : K->getDeviceArgFields()) {
@@ -2106,80 +2105,68 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (!Acc || !K->getUsed(K->getDeviceArgNames()[i]))
       continue;
 
-    if (Acc->getInterpolationMode() != Interpolate::NO) {
-      if (!inc) {
-        inc = true;
-        switch (compilerOptions.getTargetLang()) {
-          case Language::C99: break;
-          case Language::CUDA:
-            OS << "#include \"hipacc_cu_interpolate.hpp\"\n\n";
-            break;
-          case Language::OpenCLACC:
-          case Language::OpenCLCPU:
-          case Language::OpenCLGPU:
-            OS << "#include \"hipacc_cl_interpolate.hpp\"\n\n";
-            break;
-          case Language::Renderscript:
-          case Language::Filterscript:
-            OS << "#include \"hipacc_rs_interpolate.hpp\"\n\n";
-            break;
-        }
+    if (Acc->getInterpolationMode() > Interpolate::NN) {
+      switch (compilerOptions.getTargetLang()) {
+        case Language::C99: break;
+        case Language::CUDA:
+          OS << "#include \"hipacc_cu_interpolate.hpp\"\n\n";
+          break;
+        case Language::OpenCLACC:
+        case Language::OpenCLCPU:
+        case Language::OpenCLGPU:
+          OS << "#include \"hipacc_cl_interpolate.hpp\"\n\n";
+          break;
+        case Language::Renderscript:
+        case Language::Filterscript:
+          OS << "#include \"hipacc_rs_interpolate.hpp\"\n\n";
+          break;
       }
 
       // define required interpolation mode
-      if (inc && Acc->getInterpolationMode() > Interpolate::NN) {
-        std::string function_name(ASTTranslate::getInterpolationName(Context,
-              builtins, compilerOptions, K, Acc, border_variant()));
-        std::string suffix("_" +
-            builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context));
+      std::string function_name(ASTTranslate::getInterpolationName(Context,
+            builtins, compilerOptions, K, Acc, border_variant()));
+      std::string suffix("_" +
+          builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context));
 
-        std::string resultStr;
-        stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-            suffix, Acc->getInterpolationMode(), Acc->getBoundaryMode(),
-            resultStr);
+      std::string resultStr;
+      stringCreator.writeInterpolationDefinition(K, Acc, function_name,
+          suffix, Acc->getInterpolationMode(), Acc->getBoundaryMode(),
+          resultStr);
 
-        switch (compilerOptions.getTargetLang()) {
-          default: InterpolationDefinitionsLocal.push_back(resultStr); break;
-          case Language::C99: break;
-        }
+      switch (compilerOptions.getTargetLang()) {
+        default: InterpolationDefinitionsLocal.push_back(resultStr); break;
+        case Language::C99: break;
+      }
 
-        resultStr.erase();
-        stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-            suffix, Interpolate::NO, Boundary::UNDEFINED, resultStr);
+      resultStr.erase();
+      stringCreator.writeInterpolationDefinition(K, Acc, function_name,
+          suffix, Interpolate::NO, Boundary::UNDEFINED, resultStr);
 
-        switch (compilerOptions.getTargetLang()) {
-          default: InterpolationDefinitionsLocal.push_back(resultStr); break;
-          case Language::C99: break;
-        }
+      switch (compilerOptions.getTargetLang()) {
+        default: InterpolationDefinitionsLocal.push_back(resultStr); break;
+        case Language::C99: break;
       }
     }
   }
 
-  if (((compilerOptions.emitCUDA() && // CUDA, but no exploration or no hints
-          (compilerOptions.exploreConfig() || !emitHints)) ||
-        !compilerOptions.emitCUDA())  // or other targets
-      && inc && InterpolationDefinitionsLocal.size()) {
-    // sort definitions and remove duplicate definitions
-    std::sort(InterpolationDefinitionsLocal.begin(),
-        InterpolationDefinitionsLocal.end());
-    InterpolationDefinitionsLocal.erase(std::unique(
-          InterpolationDefinitionsLocal.begin(),
-          InterpolationDefinitionsLocal.end()),
-        InterpolationDefinitionsLocal.end());
+  // sort definitions and remove duplicate definitions
+  std::sort(InterpolationDefinitionsLocal.begin(),
+            InterpolationDefinitionsLocal.end());
+  InterpolationDefinitionsLocal.erase(
+      std::unique(InterpolationDefinitionsLocal.begin(),
+                  InterpolationDefinitionsLocal.end()),
+      InterpolationDefinitionsLocal.end());
 
+  if ((compilerOptions.emitCUDA() && // CUDA, but no exploration or no hints
+       (compilerOptions.exploreConfig() || !emitHints)) ||
+      !compilerOptions.emitCUDA()) {  // or other targets
     // add interpolation definitions
-    while (InterpolationDefinitionsLocal.size()) {
-      OS << InterpolationDefinitionsLocal.pop_back_val();
-    }
-    OS << "\n";
+    for (auto str : InterpolationDefinitionsLocal)
+      OS << str;
   } else {
     // emit interpolation definitions at the beginning at the file
-    if (InterpolationDefinitionsLocal.size()) {
-      while (InterpolationDefinitionsLocal.size()) {
-        InterpolationDefinitionsGlobal.push_back(
-            InterpolationDefinitionsLocal.pop_back_val());
-      }
-    }
+    for (auto str : InterpolationDefinitionsLocal)
+      InterpolationDefinitionsGlobal.push_back(str);
   }
 
   // declarations of textures, surfaces, variables, etc.
