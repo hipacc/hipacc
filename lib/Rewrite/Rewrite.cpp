@@ -2094,90 +2094,15 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       break;
   }
 
-
-  // interpolation includes & definitions
+  // declarations of textures, surfaces, variables, includes, definitions etc.
   SmallVector<std::string, 16> InterpolationDefinitionsLocal;
   size_t num_arg = 0;
-  for (auto arg : K->getDeviceArgFields()) {
-    HipaccAccessor *Acc = K->getImgFromMapping(arg);
-    size_t i = num_arg++;
-
-    if (!Acc || !K->getUsed(K->getDeviceArgNames()[i]))
-      continue;
-
-    if (Acc->getInterpolationMode() > Interpolate::NN) {
-      switch (compilerOptions.getTargetLang()) {
-        case Language::C99: break;
-        case Language::CUDA:
-          OS << "#include \"hipacc_cu_interpolate.hpp\"\n\n";
-          break;
-        case Language::OpenCLACC:
-        case Language::OpenCLCPU:
-        case Language::OpenCLGPU:
-          OS << "#include \"hipacc_cl_interpolate.hpp\"\n\n";
-          break;
-        case Language::Renderscript:
-        case Language::Filterscript:
-          OS << "#include \"hipacc_rs_interpolate.hpp\"\n\n";
-          break;
-      }
-
-      // define required interpolation mode
-      std::string function_name(ASTTranslate::getInterpolationName(Context,
-            builtins, compilerOptions, K, Acc, border_variant()));
-      std::string suffix("_" +
-          builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context));
-
-      auto bh_def = stringCreator.getInterpolationDefinition(K, Acc,
-          function_name, suffix, Acc->getInterpolationMode(),
-          Acc->getBoundaryMode());
-      auto no_bh_def = stringCreator.getInterpolationDefinition(K, Acc,
-          function_name, suffix, Interpolate::NO, Boundary::UNDEFINED);
-      auto vec_conv = Acc->getImage()->getType()->isVectorType() ?
-        "VECTOR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n" :
-        "SCALAR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n";
-
-      switch (compilerOptions.getTargetLang()) {
-        default: InterpolationDefinitionsLocal.push_back(bh_def);
-                 InterpolationDefinitionsLocal.push_back(no_bh_def);
-                 InterpolationDefinitionsLocal.push_back(vec_conv);
-                 break;
-        case Language::C99: break;
-      }
-    }
-  }
-
-  if (InterpolationDefinitionsLocal.size()) {
-    // sort definitions and remove duplicate definitions
-    std::sort(InterpolationDefinitionsLocal.begin(),
-              InterpolationDefinitionsLocal.end(), std::greater<std::string>());
-    InterpolationDefinitionsLocal.erase(
-        std::unique(InterpolationDefinitionsLocal.begin(),
-                    InterpolationDefinitionsLocal.end()),
-        InterpolationDefinitionsLocal.end());
-
-    if (compilerOptions.emitCUDA() &&
-        !compilerOptions.exploreConfig() && emitHints) {
-      // emit interpolation definitions at the beginning of main file
-      for (auto str : InterpolationDefinitionsLocal)
-        InterpolationDefinitionsGlobal.push_back(str);
-    } else {
-      // add interpolation definitions to kernel file
-      for (auto str : InterpolationDefinitionsLocal)
-        OS << str;
-      OS << "\n";
-    }
-  }
-
-
-  // declarations of textures, surfaces, variables, etc.
-  num_arg = 0;
   for (auto arg : K->getDeviceArgFields()) {
     auto cur_arg = num_arg++;
     if (!K->getUsed(K->getDeviceArgNames()[cur_arg]))
       continue;
 
-    // global image declarations
+    // global image declarations and interpolation definitions
     if (auto Acc = K->getImgFromMapping(arg)) {
       QualType T = Acc->getImage()->getType();
 
@@ -2216,6 +2141,47 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             OS << "rs_allocation " << arg->getNameAsString() << ";\n";
           }
           break;
+      }
+
+      if (Acc->getInterpolationMode() > Interpolate::NN) {
+        switch (compilerOptions.getTargetLang()) {
+          case Language::C99: break;
+          case Language::CUDA:
+            OS << "#include \"hipacc_cu_interpolate.hpp\"\n\n";
+            break;
+          case Language::OpenCLACC:
+          case Language::OpenCLCPU:
+          case Language::OpenCLGPU:
+            OS << "#include \"hipacc_cl_interpolate.hpp\"\n\n";
+            break;
+          case Language::Renderscript:
+          case Language::Filterscript:
+            OS << "#include \"hipacc_rs_interpolate.hpp\"\n\n";
+            break;
+        }
+
+        // define required interpolation mode
+        std::string function_name(ASTTranslate::getInterpolationName(Context,
+              builtins, compilerOptions, K, Acc, border_variant()));
+        std::string suffix("_" +
+            builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context));
+
+        auto bh_def = stringCreator.getInterpolationDefinition(K, Acc,
+            function_name, suffix, Acc->getInterpolationMode(),
+            Acc->getBoundaryMode());
+        auto no_bh_def = stringCreator.getInterpolationDefinition(K, Acc,
+            function_name, suffix, Interpolate::NO, Boundary::UNDEFINED);
+        auto vec_conv = Acc->getImage()->getType()->isVectorType() ?
+          "VECTOR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n" :
+          "SCALAR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n";
+
+        switch (compilerOptions.getTargetLang()) {
+          default: InterpolationDefinitionsLocal.push_back(bh_def);
+                   InterpolationDefinitionsLocal.push_back(no_bh_def);
+                   InterpolationDefinitionsLocal.push_back(vec_conv);
+                   break;
+          case Language::C99: break;
+        }
       }
       continue;
     }
@@ -2287,6 +2253,29 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       QT.removeLocalConst();
       OS << QT.getAsString() << " " << K->getDeviceArgNames()[cur_arg] << ";\n";
       continue;
+    }
+  }
+
+  // interpolation definitions
+  if (InterpolationDefinitionsLocal.size()) {
+    // sort definitions and remove duplicate definitions
+    std::sort(InterpolationDefinitionsLocal.begin(),
+              InterpolationDefinitionsLocal.end(), std::greater<std::string>());
+    InterpolationDefinitionsLocal.erase(
+        std::unique(InterpolationDefinitionsLocal.begin(),
+                    InterpolationDefinitionsLocal.end()),
+        InterpolationDefinitionsLocal.end());
+
+    if (compilerOptions.emitCUDA() &&
+        !compilerOptions.exploreConfig() && emitHints) {
+      // emit interpolation definitions at the beginning of main file
+      for (auto str : InterpolationDefinitionsLocal)
+        InterpolationDefinitionsGlobal.push_back(str);
+    } else {
+      // add interpolation definitions to kernel file
+      for (auto str : InterpolationDefinitionsLocal)
+        OS << str;
+      OS << "\n";
     }
   }
 
