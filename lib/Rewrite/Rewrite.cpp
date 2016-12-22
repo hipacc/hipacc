@@ -2157,16 +2157,15 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                   InterpolationDefinitionsLocal.end()),
       InterpolationDefinitionsLocal.end());
 
-  if ((compilerOptions.emitCUDA() && // CUDA, but no exploration or no hints
-       (compilerOptions.exploreConfig() || !emitHints)) ||
-      !compilerOptions.emitCUDA()) {  // or other targets
-    // add interpolation definitions
-    for (auto str : InterpolationDefinitionsLocal)
-      OS << str;
-  } else {
-    // emit interpolation definitions at the beginning at the file
+  if (compilerOptions.emitCUDA() &&
+      !compilerOptions.exploreConfig() && emitHints) {
+    // emit interpolation definitions at the beginning of main file
     for (auto str : InterpolationDefinitionsLocal)
       InterpolationDefinitionsGlobal.push_back(str);
+  } else {
+    // add interpolation definitions to kernel file
+    for (auto str : InterpolationDefinitionsLocal)
+      OS << str;
   }
 
   // declarations of textures, surfaces, variables, etc.
