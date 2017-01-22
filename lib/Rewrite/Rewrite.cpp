@@ -1516,13 +1516,14 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // Img1 = Pyr2(x2).data();
         // Pyr1(x1) = Img2.data();
         // Pyr1(x1) = Pyr2(x2).data();
-        if (auto mcall = dyn_cast<CXXMemberCallExpr>(E->getArg(1))) {
+        if (auto mcall =
+            dyn_cast<CXXMemberCallExpr>(E->getArg(1)->IgnoreParenCasts())) {
           // match only data() calls to Image instances
           if (mcall->getDirectCallee()->getNameAsString() == "data") {
             // side effect ! do not handle the next call to data()
             skipTransfer = true;
             if (auto DRE =
-                dyn_cast<DeclRefExpr>(mcall->getImplicitObjectArgument())) {
+                dyn_cast<DeclRefExpr>(mcall->getImplicitObjectArgument()->IgnoreParenCasts())) {
               // check if we have an Image
               if (ImgDeclMap.count(DRE->getDecl())) {
                 HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
@@ -1537,7 +1538,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                 write_pointer = false;
               }
             } else if (auto call = dyn_cast<CXXOperatorCallExpr>(
-                                   mcall->getImplicitObjectArgument())) {
+                                   mcall->getImplicitObjectArgument()->IgnoreParenCasts())) {
               // check if we have an Pyramid call
               if (auto DRE = dyn_cast<DeclRefExpr>(call->getArg(0))) {
                 // get the Pyramid from the DRE if we have one
