@@ -71,23 +71,23 @@ class PyramidBase {
     }
 
   public:
-    PyramidBase(const int depth)
+    explicit PyramidBase(const int depth)
         : depth_(depth), level_(0), bound_(false) {
     }
 
-    int depth() {
+    int depth() const {
       return depth_;
     }
 
-    int level() {
+    int level() const {
       return level_;
     }
 
-    bool is_top_level() {
+    bool is_top_level() const {
       return level_ == 0;
     }
 
-    bool is_bottom_level() {
+    bool is_bottom_level() const {
       return level_ == depth_-1;
     }
 };
@@ -138,7 +138,7 @@ class Traversal {
     std::vector<PyramidBase*> pyrs_;
 
   public:
-    Traversal(const std::function<void()> &func)
+    explicit Traversal(const std::function<void()> &func)
         : func_(func) {
     }
 
@@ -147,7 +147,8 @@ class Traversal {
     }
 
     void add(PyramidBase &p) {
-      assert(p.bind() && "Pyramid already bound to another traversal.");
+      bool bound = p.bind();
+      assert(bound && "Pyramid already bound to another traversal.");
       pyrs_.push_back(&p);
     }
 
@@ -168,7 +169,7 @@ class Recursion {
     const std::function<void()> &func_;
 
   public:
-    Recursion(const std::function<void()> &func)
+    explicit Recursion(const std::function<void()> &func)
         : func_(func) {
       std::vector<PyramidBase*> pyrs = gPyramids.back();
       for (auto pyr : pyrs) pyr->increment();
@@ -180,8 +181,7 @@ class Recursion {
     }
 
     void run(const int loop) {
-      std::vector<PyramidBase*> pyrs = gPyramids.back();
-      for (int i=0; i<loop; i++) {
+      for (int i=0; i<loop; ++i) {
         (*gTraverse.back())();
         if (i < loop-1) {
           func_();
@@ -259,13 +259,11 @@ void traverse(PyramidBase &p0, PyramidBase &p1, PyramidBase &p2,
 }
 
 
-void traverse(std::vector<PyramidBase*> pyrs,
-              const std::function<void()> &func) {
+void traverse(std::vector<PyramidBase*> pyrs, const std::function<void()> &func) {
     Traversal t(func);
     for (size_t i=0; i<pyrs.size(); ++i) {
       if (i < pyrs.size() - 1) {
-        assert(pyrs[i]->depth() == pyrs[i+1]->depth() &&
-               "Pyramid depths do not match.");
+        assert(pyrs[i]->depth() == pyrs[i+1]->depth() && "Pyramid depths do not match.");
       }
       t.add(*(pyrs[i]));
     }
@@ -275,8 +273,7 @@ void traverse(std::vector<PyramidBase*> pyrs,
 
 
 void traverse(size_t loop=1, const std::function<void()> &func=[]{}) {
-  assert(!gPyramids.empty() &&
-         "Traverse recursion called outside of traverse.");
+  assert(!gPyramids.empty() && "Traverse recursion called outside of traverse.");
 
   std::vector<PyramidBase*> pyrs = gPyramids.back();
 

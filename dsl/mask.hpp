@@ -74,8 +74,8 @@ class MaskBase {
         int size_x() const { return size_x_; }
         int size_y() const { return size_y_; }
 
-        virtual int x() = 0;
-        virtual int y() = 0;
+        virtual int x() const = 0;
+        virtual int y() const = 0;
 
     friend class Domain;
     template<typename> friend class Mask;
@@ -89,9 +89,7 @@ class Domain : public MaskBase {
                 uchar *domain_space;
 
             public:
-                DomainIterator(const int width=0, const int height=0,
-                               const IterationSpaceBase *iterspace=nullptr,
-                               uchar *domain_space=nullptr) :
+                DomainIterator(const int width=0, const int height=0, const IterationSpaceBase *iterspace=nullptr, uchar *domain_space=nullptr) :
                     ElementIterator(width, height, 0, 0, iterspace),
                     domain_space(domain_space)
                 {
@@ -120,10 +118,7 @@ class Domain : public MaskBase {
                                 }
                             }
                         }
-                    } while (nullptr != iteration_space &&
-                             (nullptr == domain_space ||
-                              0 == domain_space[(coord.y-min_y) * (max_x-min_x)
-                                                + (coord.x-min_x)]));
+                    } while (iteration_space && (!domain_space || domain_space[(coord.y-min_y) * (max_x-min_x) + (coord.x-min_x)] == 0));
                     return *this;
                 }
             };
@@ -135,8 +130,8 @@ class Domain : public MaskBase {
             friend class Domain;
             private:
                 uchar *domain_space;
-                size_t pos;
-                DomainSetter(uchar *domain_space, size_t pos) :
+                const int pos;
+                DomainSetter(uchar *domain_space, const int pos) :
                     domain_space(domain_space), pos(pos)
                 {}
 
@@ -156,7 +151,7 @@ class Domain : public MaskBase {
             DI(nullptr) {}
 
         template <int size_y, int size_x>
-        Domain(const uchar (&domain)[size_y][size_x]) :
+        explicit Domain(const uchar (&domain)[size_y][size_x]) :
             MaskBase(size_x, size_y),
             DI(nullptr) {
                 for (int y=0; y<size_y_; ++y) {
@@ -166,28 +161,27 @@ class Domain : public MaskBase {
                 }
             }
 
-        Domain(const MaskBase &mask) :
+        explicit Domain(const MaskBase &mask) :
             MaskBase(mask),
             DI(nullptr) {}
 
-        Domain(const Domain &domain) :
+        explicit Domain(const Domain &domain) :
             MaskBase(domain),
             DI(domain.DI) {}
 
         ~Domain() {}
 
-        virtual int x() override {
+        virtual int x() const override {
             assert(DI && "DomainIterator for Domain not set!");
             return DI->x() - size_x_/2;
         }
-        virtual int y() override {
+        virtual int y() const override {
             assert(DI && "DomainIterator for Domain not set!");
             return DI->y() - size_y_/2;
         }
 
         DomainSetter operator()(const int xf, const int yf) {
-            assert(xf < size_x_/2 && yf < size_y_ &&
-                    "out of bounds Domain access.");
+            assert(xf < size_x_/2 && yf < size_y_ && "out of bounds Domain access.");
             return DomainSetter(domain_space, (yf+size_x_/2)*size_x_ + xf+size_x_/2);
         }
 
@@ -201,30 +195,31 @@ class Domain : public MaskBase {
             return *this;
         }
 
-        void operator=(const Domain &dom) {
-            assert(size_x_==dom.size_x() && size_y_==dom.size_y() &&
-                    "Domain sizes must be equal.");
+        Domain &operator=(const Domain &dom) {
+            assert(size_x_==dom.size_x() && size_y_==dom.size_y() && "Domain sizes must be equal.");
             for (int y=0; y<size_y_; ++y) {
                 for (int x=0; x<size_x_; ++x) {
                     domain_space[y * size_x_ + x] = dom.domain_space[y * size_x_ + x];
                 }
             }
+
+            return *this;
         }
 
-        void operator=(const MaskBase &mask) {
-            assert(size_x_==mask.size_x() && size_y_==mask.size_y() &&
-                    "Domain and Mask size must be equal.");
+        Domain &operator=(const MaskBase &mask) {
+            assert(size_x_==mask.size_x() && size_y_==mask.size_y() && "Domain and Mask size must be equal.");
             for (int y=0; y<size_y_; ++y) {
                 for (int x=0; x<size_x_; ++x) {
                     domain_space[y * size_x_ + x] = mask.domain_space[y * size_x_ + x];
                 }
             }
+
+            return *this;
         }
 
         void set_iterator(DomainIterator *di) { DI = di; }
         DomainIterator begin() const {
-            return DomainIterator(size_x_, size_y_, &iteration_space,
-                                  domain_space);
+            return DomainIterator(size_x_, size_y_, &iteration_space, domain_space);
         }
         DomainIterator end() const { return DomainIterator(); }
 };
@@ -254,7 +249,7 @@ class Mask : public MaskBase {
 
     public:
         template <int size_y, int size_x>
-        Mask(const data_t (&mask)[size_y][size_x]) :
+        explicit Mask(const data_t (&mask)[size_y][size_x]) :
             MaskBase(size_x, size_y),
             EI(nullptr),
             array(new data_t[size_x*size_y])
@@ -262,8 +257,9 @@ class Mask : public MaskBase {
             init(mask);
         }
 
-        Mask(const Mask &mask) :
+        explicit Mask(const Mask &mask) :
             MaskBase(mask.size_x, mask.size_y),
+            EI(nullptr),
             array(new data_t[mask.size_x*mask.size_y])
         {
             init(mask.array);
@@ -276,27 +272,25 @@ class Mask : public MaskBase {
             }
         }
 
-        int x() {
+        int x() const {
             assert(EI && "ElementIterator for Mask not set!");
             return EI->x() - size_x_/2;
         }
-        int y() {
+        int y() const {
             assert(EI && "ElementIterator for Mask not set!");
             return EI->y() - size_y_/2;
         }
 
-        data_t &operator()(void) {
+        data_t &operator()() {
             assert(EI && "ElementIterator for Mask not set!");
             return array[EI->y()*size_x_ + EI->x()];
         }
         data_t &operator()(const int xf, const int yf) {
-            assert(xf < size_x_/2 && yf < size_y_/2 &&
-                    "out of bounds Mask access.");
+            assert(xf < size_x_/2 && yf < size_y_/2 && "out of bounds Mask access.");
             return array[(yf+size_y_/2)*size_x_ + xf+size_x_/2];
         }
         data_t &operator()(Domain &D) {
-            assert(D.size_x()==size_x_ && D.size_y()==size_y_ &&
-                    "Domain and Mask size must be equal.");
+            assert(D.size_x()==size_x_ && D.size_y()==size_y_ && "Domain and Mask size must be equal.");
             return array[(D.y()+D.size_y()/2)*size_x_ + D.x()+D.size_x()/2];
         }
 

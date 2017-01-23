@@ -55,7 +55,7 @@ class Kernel {
         data_t reduction_result_;
 
     public:
-        Kernel(IterationSpace<data_t> &iteration_space) :
+        explicit Kernel(IterationSpace<data_t> &iteration_space) :
             iteration_space_(iteration_space),
             output_(iteration_space.img,
                     iteration_space.width(), iteration_space.height(),
@@ -64,7 +64,7 @@ class Kernel {
 
         virtual ~Kernel() {}
         virtual void kernel() = 0;
-        virtual data_t reduce(data_t left, data_t right) { return left; }
+        virtual data_t reduce(data_t left, data_t right) const { return left; }
 
         void add_accessor(AccessorBase *acc) { inputs_.push_back(acc); }
 
@@ -94,7 +94,7 @@ class Kernel {
             reduce();
         }
 
-        void reduce(void) {
+        void reduce() {
             auto end  = iteration_space_.end();
             auto iter = iteration_space_.begin();
 
@@ -115,13 +115,13 @@ class Kernel {
             reduction_result_ = result;
         }
 
-        data_t reduced_data() {
+        data_t reduced_data() const {
             return reduction_result_;
         }
 
 
         // access output image
-        data_t &output(void) {
+        data_t &output() {
             return output_();
         }
 
@@ -131,12 +131,12 @@ class Kernel {
             return output_.pixel_at(xf, yf);
         }
 
-        int x(void) {
+        int x() const {
             assert(output_.EI!=ElementIterator() && "ElementIterator not set!");
             return output_.x();
         }
 
-        int y(void) {
+        int y() const {
             assert(output_.EI!=ElementIterator() && "ElementIterator not set!");
             return output_.y();
         }

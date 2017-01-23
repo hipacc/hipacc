@@ -117,7 +117,7 @@ class MinReductionInt : public Kernel<int> {
             output() = in();
         }
 
-        int reduce(int left, int right) {
+        int reduce(int left, int right) const {
             return min(left, right);
         }
 };
@@ -135,7 +135,7 @@ class MinReductionFloat : public Kernel<float> {
             output() = in();
         }
 
-        float reduce(float left, float right) {
+        float reduce(float left, float right) const {
             return min(left, right);
         }
 };
@@ -153,7 +153,7 @@ class MaxReductionInt : public Kernel<int> {
             output() = in();
         }
 
-        int reduce(int left, int right) {
+        int reduce(int left, int right) const {
             return max(left, right);
         }
 };
@@ -171,7 +171,7 @@ class MaxReductionFloat : public Kernel<float> {
             output() = in();
         }
 
-        float reduce(float left, float right) {
+        float reduce(float left, float right) const {
             return max(left, right);
         }
 };
@@ -189,7 +189,7 @@ class SumReductionInt : public Kernel<int> {
             output() = in();
         }
 
-        int reduce(int left, int right) {
+        int reduce(int left, int right) const {
             return left + right;
         }
 };
@@ -207,7 +207,7 @@ class SumReductionFloat : public Kernel<float> {
             output() = in();
         }
 
-        float reduce(float left, float right) {
+        float reduce(float left, float right) const {
             return left + right;
         }
 };

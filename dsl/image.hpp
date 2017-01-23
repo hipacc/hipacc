@@ -105,9 +105,9 @@ class Image {
         int width() const { return width_; }
         int height() const { return height_; }
 
-        data_t *data() { return array; }
+        data_t *data() const { return array; }
 
-        Image &operator=(data_t *other) {
+        Image &operator=(const data_t *other) {
             for (int y=0; y<height_; ++y) {
                 for (int x=0; x<width_; ++x) {
                     array[y*width_ + x] = other[y*width_ + x];
@@ -116,7 +116,7 @@ class Image {
 
             return *this;
         }
-        void operator=(Image &other) {
+        Image &operator=(Image &other) {
             assert(width_ == other.width() && height_ == other.height() &&
                     "Image sizes have to be the same!");
             for (int y=0; y<height_; ++y) {
@@ -124,16 +124,19 @@ class Image {
                     pixel(x, y) = other.pixel(x, y);
                 }
             }
+
+            return *this;
         }
-        void operator=(Accessor<data_t> &other) {
+        Image &operator=(const Accessor<data_t> &other) {
             assert(width_ == other.width_ && height_ == other.height_ &&
                     "Size of Image and Accessor have to be the same!");
             for (int y=0; y<height_; ++y) {
                 for (int x=0; x<width_; ++x) {
-                    pixel(x, y) = other.img.pixel(x + other.offset_x_,
-                                                  y + other.offset_y_);
+                    pixel(x, y) = other.img.pixel(x + other.offset_x_, y + other.offset_y_);
                 }
             }
+
+            return *this;
         }
 
     template<typename> friend class Accessor;
@@ -145,13 +148,13 @@ class BoundaryCondition {
     private:
         Image<data_t> &img;
         const int size_x_, size_y_;
-        Boundary bmode;
+        const Boundary bmode;
         // dummy reference to return a reference for constants
         data_t const_val;
         data_t &dummy;
 
     public:
-        BoundaryCondition(Image<data_t> &Img, const int size_x, const int size_y, Boundary bmode) :
+        BoundaryCondition(Image<data_t> &Img, const int size_x, const int size_y, const Boundary bmode) :
             img(Img),
             size_x_(size_x),
             size_y_(size_y),
@@ -162,7 +165,7 @@ class BoundaryCondition {
             assert(bmode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, const int size, Boundary bmode) :
+        BoundaryCondition(Image<data_t> &Img, const int size, const Boundary bmode) :
             img(Img),
             size_x_(size),
             size_y_(size),
@@ -173,7 +176,7 @@ class BoundaryCondition {
             assert(bmode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, Boundary bmode) :
+        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, const Boundary bmode) :
             img(Img),
             size_x_(Mask.size_x()),
             size_y_(Mask.size_y()),
@@ -184,7 +187,7 @@ class BoundaryCondition {
             assert(bmode != Boundary::CONSTANT && "Boundary handling set to Constant, but no Constant specified.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, const int size_x, const int size_y, Boundary bmode, data_t val) :
+        BoundaryCondition(Image<data_t> &Img, const int size_x, const int size_y, const Boundary bmode, const data_t val) :
             img(Img),
             size_x_(size_x),
             size_y_(size_y),
@@ -195,7 +198,7 @@ class BoundaryCondition {
             assert(bmode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, const int size, Boundary bmode, data_t val) :
+        BoundaryCondition(Image<data_t> &Img, const int size, const Boundary bmode, const data_t val) :
             img(Img),
             size_x_(size),
             size_y_(size),
@@ -206,7 +209,7 @@ class BoundaryCondition {
             assert(bmode == Boundary::CONSTANT && "Constant for boundary handling specified, but boundary mode is different.");
         }
 
-        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, Boundary bmode, data_t val) :
+        BoundaryCondition(Image<data_t> &Img, MaskBase &Mask, const Boundary bmode, const data_t val) :
             img(Img),
             size_x_(Mask.size_x()),
             size_y_(Mask.size_y()),
@@ -238,14 +241,14 @@ class BoundaryCondition {
 template<typename data_t>
 class Interpolation {
     protected:
-        Interpolate imode;
+        const Interpolate imode;
         // dummy reference to return a reference for interpolation
         data_t interpol_init;
         data_t &interpol_val;
 
         virtual data_t &pixel_bh(int x, int y) = 0;
 
-        float bicubic_spline(float diff) {
+        float bicubic_spline(float diff) const {
             // Cubic Convolution Interpolation for Digital Image Processing
             // Robert G. Keys
             //
@@ -270,7 +273,7 @@ class Interpolation {
 
         constexpr double pi() const { return std::atan(1)*4; }
 
-        float lanczos(float diff) {
+        float lanczos(float diff) const {
             // Digital image processing: an algorithmic introduction using Java
             // Wilhelm Burger, Mark Burge
             //
@@ -291,7 +294,7 @@ class Interpolation {
         }
 
     public:
-        Interpolation(Interpolate imode) :
+        explicit Interpolation(const Interpolate imode) :
             imode(imode), interpol_init(), interpol_val(interpol_init) {}
         Interpolation() : Interpolation(Interpolate::NO) {}
 
@@ -483,31 +486,31 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
 
 
     public:
-        Accessor(Image<data_t> &Img, Interpolate imode = Interpolate::NO) :
+        Accessor(Image<data_t> &Img, const Interpolate imode = Interpolate::NO) :
             AccessorBase(Img.width(), Img.height(), 0, 0),
             BoundaryCondition<data_t>(BoundaryCondition<data_t>(Img, 0, 0, Boundary::CLAMP)),
             Interpolation<data_t>(imode)
         {}
 
-        Accessor(Image<data_t> &Img, const int width, const int height, const int xf, const int yf, Interpolate imode = Interpolate::NO) :
+        Accessor(Image<data_t> &Img, const int width, const int height, const int xf, const int yf, const Interpolate imode = Interpolate::NO) :
             AccessorBase(width, height, xf, yf),
             BoundaryCondition<data_t>(BoundaryCondition<data_t>(Img, 0, 0, Boundary::CLAMP)),
             Interpolation<data_t>(imode)
         {}
 
-        Accessor(BoundaryCondition<data_t> &BC, Interpolate imode = Interpolate::NO) :
+        Accessor(const BoundaryCondition<data_t> &BC, const Interpolate imode = Interpolate::NO) :
             AccessorBase(BC.img.width(), BC.img.height(), 0, 0),
             BoundaryCondition<data_t>(BC),
             Interpolation<data_t>(imode)
         {}
 
-        Accessor(BoundaryCondition<data_t> &BC, const int width, const int height, const int xf, const int yf, Interpolate imode = Interpolate::NO) :
+        Accessor(const BoundaryCondition<data_t> &BC, const int width, const int height, const int xf, const int yf, const Interpolate imode = Interpolate::NO) :
             AccessorBase(width, height, xf, yf),
             BoundaryCondition<data_t>(BC),
             Interpolation<data_t>(imode)
         {}
 
-        data_t &operator()(void) {
+        data_t &operator()() {
             assert(EI && "ElementIterator not set!");
             return interpolate(EI->x(), EI->y());
         }
@@ -523,7 +526,7 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
         }
 
 
-        void operator=(Image<data_t> &other) {
+        Accessor<data_t> &operator=(Image<data_t> &other) {
             assert(width_ == other.width() && height_ == other.height() &&
                     "Size of Accessor and Image have to be the same!");
             for (int y=offset_y_; y<offset_y_+height_; ++y) {
@@ -531,16 +534,19 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
                     img.pixel(x, y) = other.pixel(x - offset_x_, y - offset_y_);
                 }
             }
+
+            return *this;
         }
-        void operator=(Accessor<data_t> &other) {
+        Accessor<data_t> &operator=(Accessor<data_t> &other) {
             assert(width_ == other.width_ && height_ == other.height_ &&
                     "Accessor sizes have to be the same!");
             for (int y=offset_y_; y<offset_y_+height_; ++y) {
                 for (int x=offset_x_; x<offset_x_+width_; ++x) {
-                    img.pixel(x, y) = other.img.pixel(x - offset_x_ + other.offset_x_,
-                                                      y - offset_y_ + other.offset_y_);
+                    img.pixel(x, y) = other.img.pixel(x - offset_x_ + other.offset_x_, y - offset_y_ + other.offset_y_);
                 }
             }
+
+            return *this;
         }
 
         // low-level access methods
@@ -550,21 +556,19 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
             return img.pixel(x + offset_x_, y + offset_y_);
         }
 
-        int x(void) {
+        int x() const {
             assert(EI && "ElementIterator not set!");
             switch (imode) {
                 case Interpolate::NO: return  EI->x() - EI->offset_x();
-                default:              return (EI->x() - EI->offset_x()) *
-                                              width_/(float)EI->width();
+                default:              return (EI->x() - EI->offset_x()) * width_/(float)EI->width();
             }
         }
 
-        int y(void) {
+        int y() const {
             assert(EI && "ElementIterator not set!");
             switch (imode) {
                 case Interpolate::NO: return  EI->y() - EI->offset_y();
-                default:              return (EI->y() - EI->offset_y()) *
-                                              height_/(float)EI->height();
+                default:              return (EI->y() - EI->offset_y()) * height_/(float)EI->height();
             }
         }
 
