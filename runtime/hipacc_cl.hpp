@@ -225,7 +225,6 @@ inline void __checkOpenCLErrors(cl_int err, std::string name, std::string file, 
 void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name platform_name=ALL) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024];
-    cl_uint num_platforms, num_devices, num_devices_type;
 
     // Set environment variable to tell AMD/ATI platform to dump kernel
     // this has to be done before platform initialization
@@ -239,6 +238,7 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
     }
 
     // Get OpenCL platform count
+    cl_uint num_platforms = 0;
     cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
@@ -260,6 +260,7 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
             err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, 1024, &pv2Buffer, NULL);
             checkErr(err, "clGetPlatformInfo()");
 
+            cl_uint num_devices = 0, num_devices_type = 0;
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
             err |= clGetDeviceIDs(platforms[i], dev_type, 0, NULL, &num_devices_type);
 
