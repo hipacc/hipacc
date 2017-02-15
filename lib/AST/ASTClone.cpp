@@ -88,13 +88,14 @@ Stmt *ASTTranslate::VisitAttributedStmt(AttributedStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitIfStmt(IfStmt *S) {
-  return new (Ctx) IfStmt(Ctx, S->getIfLoc(),
-      CloneDecl(S->getConditionVariable()), Clone(S->getCond()),
-      Clone(S->getThen()), S->getElseLoc(), Clone(S->getElse()));
+  return new (Ctx) IfStmt(Ctx, S->getIfLoc(), S->isConstexpr(),
+      Clone(S->getInit()), CloneDecl(S->getConditionVariable()),
+      Clone(S->getCond()), Clone(S->getThen()), S->getElseLoc(),
+      Clone(S->getElse()));
 }
 
 Stmt *ASTTranslate::VisitSwitchStmt(SwitchStmt *S) {
-  SwitchStmt *result = new (Ctx) SwitchStmt(Ctx,
+  SwitchStmt *result = new (Ctx) SwitchStmt(Ctx, Clone(S->getInit()),
       CloneDecl(S->getConditionVariable()), Clone(S->getCond()));
 
   result->setBody(Clone(S->getBody()));
@@ -528,9 +529,8 @@ Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
   for (size_t i=0; i<numIndexExprs; ++i)
     index_exprs.push_back(Clone(E->getSubExpr(i+1)));
 
-  Expr *result = DesignatedInitExpr::Create(Ctx, E->getDesignator(0), E->size(),
-      index_exprs, E->getEqualOrColonLoc(), E->usesGNUSyntax(),
-      Clone(E->getInit()));
+  Expr *result = DesignatedInitExpr::Create(Ctx, E->designators(), index_exprs,
+      E->getEqualOrColonLoc(), E->usesGNUSyntax(), Clone(E->getInit()));
 
   setExprPropsClone(E, result);
 
@@ -809,37 +809,14 @@ Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
   SmallVector<LambdaCapture, 16> captures;
   SmallVector<Expr *, 16> capture_inits;
 
-  SmallVector<VarDecl *, 4> array_index_vars;
-  SmallVector<unsigned, 4> array_index_starts;
-
   // Captures
   for (auto capture : E->captures())
     captures.push_back(capture);
-  // CaptureInits
-  auto field = E->getLambdaClass()->field_begin();
-  for (auto init : E->capture_inits()) {
-    capture_inits.push_back(init);
-
-    // ArrayIndex[Vars|Starts]
-    if (field->getType()->isArrayType()) {
-      array_index_starts.push_back(array_index_vars.size());
-
-      auto cur_array_index_vars = E->getCaptureInitIndexVars(&init);
-      unsigned num_var = 0;
-      QualType BaseType = field->getType();
-      while (auto array = Ctx.getAsConstantArrayType(BaseType)) {
-        array_index_vars.push_back(cur_array_index_vars[num_var++]);
-        BaseType = array->getElementType();
-      }
-    }
-    field++;
-  }
 
   LambdaExpr *result = LambdaExpr::Create(Ctx, E->getLambdaClass(),
       E->getIntroducerRange(), E->getCaptureDefault(),
       E->getCaptureDefaultLoc(), captures, E->hasExplicitParameters(),
-      E->hasExplicitResultType(), capture_inits, array_index_vars,
-      array_index_starts, E->getBody()->getLocEnd(),
+      E->hasExplicitResultType(), capture_inits, E->getBody()->getLocEnd(),
       E->containsUnexpandedParameterPack());
 
   setExprPropsClone(E, result);

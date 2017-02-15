@@ -80,7 +80,7 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
     SmallVector<QualType, 16> argTypes;
     SmallVector<std::string, 16> argNames;
 
-    for (auto param : FD->params()) {
+    for (auto param : FD->parameters()) {
       QualType QT = param->getType();
 
       // allow reference types for CUDA only
@@ -562,7 +562,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   if (S==nullptr) return nullptr;
 
   // search for image width and height parameters
-  for (auto param : kernelDecl->params()) {
+  for (auto param : kernelDecl->parameters()) {
     auto parm_ref = createDeclRefExpr(Ctx, param);
     // the first parameter is the output image; create association between them.
     if (param == *kernelDecl->param_begin()) {
@@ -711,7 +711,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   // add vector pointer declarations for images
   if (Kernel->vectorize() && !compilerOptions.emitC99()) {
     // search for member name in kernel parameter list
-    for (auto param : kernelDecl->params()) {
+    for (auto param : kernelDecl->parameters()) {
       // output image - iteration space
       if (param->getName().equals((*kernelDecl->param_begin())->getName())) {
         // <type>4 *Output4 = (<type>4 *) Output;
@@ -732,7 +732,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       StringRef name = img->getName();
 
       // search for member name in kernel parameter list
-      for (auto param : kernelDecl->params()) {
+      for (auto param : kernelDecl->parameters()) {
         // parameter name matches
         if (param->getName().equals(name)) {
           // <type>4 *Input4 = (<type>4 *) Input;
@@ -853,7 +853,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       }
 
       // search for member name in kernel parameter list
-      for (auto param : kernelDecl->params()) {
+      for (auto param : kernelDecl->parameters()) {
         // parameter name matches
         if (param->getName().equals(img->getName())) {
           // store mapping between ParmVarDecl and shared memory VarDecl
@@ -1587,7 +1587,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
               SmallVector<QualType, 16> argTypes;
               SmallVector<std::string, 16> argNames;
 
-              for (auto param : targetFD->params()) {
+              for (auto param : targetFD->parameters()) {
                 argTypes.push_back(param->getType());
                 argNames.push_back(param->getName());
               }
@@ -1688,7 +1688,7 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   ValueDecl *paramDecl = nullptr;
 
   // search for member name in kernel parameter list
-  for (auto param : kernelDecl->params()) {
+  for (auto param : kernelDecl->parameters()) {
     // parameter name matches
     if (param->getName().equals(VD->getName())) {
       paramDecl = param;

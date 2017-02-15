@@ -65,7 +65,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     ASTContext &Context;
     DiagnosticsEngine &Diags;
     SourceManager &SM;
-    llvm::raw_ostream &Out;
+    llvm::raw_pwrite_stream &Out;
     Rewriter TextRewriter;
     Rewriter::RewriteOptions TextRewriteOptions;
 
@@ -98,8 +98,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     bool skipTransfer;
 
   public:
-    Rewrite(CompilerInstance &CI, CompilerOptions &options, llvm::raw_ostream*
-        Out) :
+    Rewrite(CompilerInstance &CI, CompilerOptions &options,
+        std::unique_ptr<llvm::raw_pwrite_stream> Out) :
       CI(CI),
       Context(CI.getASTContext()),
       Diags(CI.getASTContext().getDiagnostics()),
@@ -132,6 +132,15 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       mainFileID = SM.getMainFileID();
       TextRewriter.setSourceMgr(SM, Context.getLangOpts());
       TextRewriteOptions.RemoveLineIfEmpty = true;
+      switch (compilerOptions.getTargetLang()) {
+        default: break;
+        case Language::CUDA:
+          CI.getLangOpts().CUDA = 1; break;
+        case Language::OpenCLACC:
+        case Language::OpenCLCPU:
+        case Language::OpenCLGPU:
+          CI.getLangOpts().OpenCL = 1; break;
+      }
     }
 
     // Rewrite
@@ -164,10 +173,11 @@ HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI, StringRef file) {
     out = abs_path.str();
   }
 
-  llvm::raw_ostream *OS = CI.createOutputFile(out, false, true, "", "", false);
+  std::unique_ptr<llvm::raw_pwrite_stream> OS =
+    CI.createOutputFile(out, false, true, "", "", false);
   assert(OS && "Cannot create output stream.");
 
-  return llvm::make_unique<Rewrite>(CI, options, OS);
+  return llvm::make_unique<Rewrite>(CI, options, std::move(OS));
 }
 
 
@@ -511,7 +521,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
 
     // iterate over constructor initializers
-    for (auto param : CCD->params()) {
+    for (auto param : CCD->parameters()) {
       // constructor initializer represent the parameters for the kernel. Match
       // constructor parameter with constructor initializer since the order may
       // differ, e.g.
@@ -1951,7 +1961,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
      << K->getReduceName() << "(";
   // write kernel parameters
   size_t comma = 0;
-  for (auto param : fun->params()) {
+  for (auto param : fun->parameters()) {
     std::string Name(param->getNameAsString());
     QualType T = param->getType();
     // normal arguments
@@ -2035,21 +2045,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   PrintingPolicy Policy = Context.getPrintingPolicy();
   Policy.Indentation = 2;
   Policy.SuppressSpecifiers = false;
-  Policy.SuppressTag = false;
+  Policy.SuppressTagKeyword = false;
   Policy.SuppressScope = false;
   Policy.ConstantArraySizeAsWritten = false;
   Policy.AnonymousTagLocations = true;
   Policy.PolishForDeclaration = false;
-
-  switch (compilerOptions.getTargetLang()) {
-    default: break;
-    case Language::CUDA:
-      Policy.LangOpts.CUDA = 1; break;
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
-      Policy.LangOpts.OpenCL = 1; break;
-  }
 
   int fd;
   std::string filename(file);
@@ -2342,7 +2342,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   // write kernel parameters
   size_t comma = 0; num_arg = 0;
-  for (auto param : D->params()) {
+  for (auto param : D->parameters()) {
     // print default parameters for Renderscript and Filterscript only
     if (compilerOptions.emitFilterscript()) {
       OS << "uint32_t x, uint32_t y";

@@ -427,7 +427,7 @@ int main(int argc, char *argv[]) {
 
   // create a compiler instance to handle the actual work
   CompilerInstance Compiler;
-  Compiler.setInvocation(Invocation.release());
+  Compiler.setInvocation(std::move(Invocation));
 
   // create the action for Hipacc
   std::unique_ptr<ASTFrontendAction> HipaccAction(
