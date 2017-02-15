@@ -78,7 +78,7 @@ Stmt *ASTTranslate::VisitCompoundStmtClone(CompoundStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitLabelStmt(LabelStmt *S) {
-  return new (Ctx) LabelStmt(S->getIdentLoc(), S->getDecl(),
+  return new (Ctx) LabelStmt(S->getIdentLoc(), CloneDecl(S->getDecl()),
       Clone(S->getSubStmt()));
 }
 
@@ -143,21 +143,21 @@ Stmt *ASTTranslate::VisitReturnStmtClone(ReturnStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
-  DeclGroupRef clonedDecls;
+  DeclGroupRef decls;
 
   if (S->isSingleDecl()) {
-    clonedDecls = DeclGroupRef(CloneDecl(S->getSingleDecl()));
+    decls = DeclGroupRef(CloneDecl(S->getSingleDecl()));
   } else if (S->getDeclGroup().isDeclGroup()) {
-    SmallVector<Decl *, 16> clonedDeclGroup;
+    SmallVector<Decl *, 16> decl_group;
 
     for (auto decl : S->getDeclGroup())
-      clonedDeclGroup.push_back(CloneDecl(decl));
+      decl_group.push_back(CloneDecl(decl));
 
-    clonedDecls = DeclGroupRef(DeclGroup::Create(Ctx,
-          clonedDeclGroup.data(), clonedDeclGroup.size()));
+    decls = DeclGroupRef(DeclGroup::Create(Ctx, decl_group.data(),
+          decl_group.size()));
   }
 
-  return new (Ctx) DeclStmt(clonedDecls, S->getStartLoc(), S->getEndLoc());
+  return new (Ctx) DeclStmt(decls, S->getStartLoc(), S->getEndLoc());
 }
 
 Stmt *ASTTranslate::VisitCaseStmt(CaseStmt *S) {
@@ -188,7 +188,8 @@ Stmt *ASTTranslate::VisitCapturedStmt(CapturedStmt *S) {
           capture.getCaptureKind(), CloneDecl(capture.getCapturedVar())));
 
   return CapturedStmt::Create(Ctx, Clone(S->getCapturedStmt()),
-      S->getCapturedRegionKind(), captures, capture_inits, S->getCapturedDecl(),
+      S->getCapturedRegionKind(), captures, capture_inits,
+      CloneDecl(S->getCapturedDecl()),
       (RecordDecl *)S->getCapturedRecordDecl());
 }
 
@@ -269,7 +270,7 @@ Expr *ASTTranslate::VisitDeclRefExpr(DeclRefExpr *E) {
 
   DeclRefExpr *result = DeclRefExpr::Create(Ctx, E->getQualifierLoc(),
       E->getTemplateKeywordLoc(), VD, enclosing,
-      E->getLocation(), QT, E->getValueKind(), E->getFoundDecl(),
+      E->getLocation(), QT, E->getValueKind(), CloneDecl(E->getFoundDecl()),
       E->getNumTemplateArgs()?&templateArgs:0);
 
   setExprPropsClone(E, result);
@@ -563,6 +564,23 @@ Expr *ASTTranslate::VisitNoInitExpr(NoInitExpr *E) {
   return result;
 }
 
+Expr *ASTTranslate::VisitArrayInitLoopExpr(ArrayInitLoopExpr *E) {
+  Expr *result = new (Ctx) ArrayInitLoopExpr(E->getType(),
+      Clone(E->getCommonExpr()), Clone(E->getSubExpr()));
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
+Expr *ASTTranslate::VisitArrayInitIndexExpr(ArrayInitIndexExpr *E) {
+  Expr *result = new (Ctx) ArrayInitIndexExpr(E->getType());
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
 Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
   SmallVector<Expr *, 16> exprs;
 
@@ -789,6 +807,37 @@ Expr *ASTTranslate::VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E) {
 Expr *ASTTranslate::VisitCXXStdInitializerListExpr(CXXStdInitializerListExpr *E) {
   Expr *result = new (Ctx) CXXStdInitializerListExpr(E->getType(),
       Clone(E->getSubExpr()));
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
+Expr *ASTTranslate::VisitCXXConstructExpr(CXXConstructExpr *E) {
+  SmallVector<Expr *, 16> args;
+
+  for (auto arg : E->arguments())
+    args.push_back(Clone(arg));
+
+  Expr *result = CXXConstructExpr::Create(Ctx, E->getType(), E->getLocation(),
+      CloneDecl(E->getConstructor()), E->isElidable(), args,
+      E->hadMultipleCandidates(), E->isListInitialization(),
+      E->isStdInitListInitialization(), E->requiresZeroInitialization(),
+      E->getConstructionKind(), E->getParenOrBraceRange());
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
+Expr *ASTTranslate::VisitExprWithCleanups(ExprWithCleanups *E) {
+  SmallVector<ExprWithCleanups::CleanupObject, 16> objs;
+
+  for (auto obj : E->getObjects())
+    objs.push_back(CloneDecl(obj));
+
+  Expr *result = ExprWithCleanups::Create(Ctx, Clone(E->getSubExpr()),
+      E->cleanupsHaveSideEffects(), objs);
 
   setExprPropsClone(E, result);
 

@@ -187,10 +187,8 @@ void KernelStatsImpl::runOnBlock(const CFGBlock *block) {
   if (const Stmt *term = block->getTerminator()) {
     llvm::errs() << "Successors: \n";
 
-    for (auto it=block->succ_begin(), ei=block->succ_end(); it!=ei; ++it) {
-      const CFGBlock *block = *it;
-      llvm::errs() << block->getBlockID() << "\n";
-    }
+    for (auto succ : block->succs())
+      llvm::errs() << suck->getBlockID() << "\n";
 
     switch (term->getStmtClass()) {
       case Stmt::BinaryOperatorClass:
