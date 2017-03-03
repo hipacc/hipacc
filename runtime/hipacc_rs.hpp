@@ -47,11 +47,11 @@ using namespace android::RSC;
 
 #include "hipacc_base.hpp"
 
-const sp<Allocation> *hipaccGetAllocation(HipaccImage &img);
+const sp<const Allocation> *hipaccGetAllocation(HipaccImage &img);
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);
-long getMicroTime();
+int64_t hipacc_time_micro();
 std::string getRSErrorCodeStr(int errorNum);
-ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText);
+void errorHandler(uint32_t errorNum, const char *errorText);
 void hipaccInitRenderScript(std::string rs_directory);
 void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst);
@@ -82,7 +82,7 @@ CREATE_ALLOCATION_DECL(double4)
 class HipaccContext : public HipaccContextBase {
     private:
         sp<RS> context;
-        std::list<std::pair<sp<Allocation>, HipaccImage> > allocs;
+        std::list<std::pair<sp<const Allocation>, HipaccImage> > allocs;
 
         HipaccContext() {
           context = new RS();
@@ -94,13 +94,13 @@ class HipaccContext : public HipaccContextBase {
 
             return instance;
         }
-        void add_image(HipaccImage &img, sp<Allocation> id) {
+        void add_image(HipaccImage &img, sp<const Allocation> id) {
             HipaccContextBase::add_image(img);
             allocs.push_back(std::make_pair(id, img));
         }
         void del_image(HipaccImage &img) {
             size_t num=0;
-            std::list<std::pair<sp<Allocation>, HipaccImage> >::iterator i;
+            std::list<std::pair<sp<const Allocation>, HipaccImage> >::iterator i;
             for (i=allocs.begin(); i!=allocs.end(); ++i, ++num) {
                 if (i->second == img) {
                     allocs.erase(i);
@@ -113,8 +113,8 @@ class HipaccContext : public HipaccContextBase {
                       << img.mem << std::endl;
             exit(EXIT_FAILURE);
         }
-        const sp<Allocation> *get_allocation(HipaccImage &img) {
-            std::list<std::pair<sp<Allocation>, HipaccImage> >::const_iterator i;
+        const sp<const Allocation> *get_allocation(HipaccImage &img) {
+            std::list<std::pair<sp<const Allocation>, HipaccImage> >::const_iterator i;
             for (i=allocs.begin(); i!=allocs.end(); ++i) {
                 if (i->second == img) {
                     return &i->first;
@@ -130,8 +130,8 @@ template<typename F>
 class hipacc_script_arg {
   private:
     int id;
-    void *valptr;
     void(F::*memptr)();
+    void *valptr;
 
   public:
     int getId() const { return id; }
@@ -209,7 +209,7 @@ class hipacc_script_arg {
 
 #ifndef EXCLUDE_IMPL
 
-const sp<Allocation> *hipaccGetAllocation(HipaccImage &img) {
+const sp<const Allocation> *hipaccGetAllocation(HipaccImage &img) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     return Ctx.get_allocation(img);
 }
@@ -271,7 +271,7 @@ std::string getRSErrorCodeStr(int errorNum) {
 }
 
 
-ErrorHandlerFunc_t errorHandler(uint32_t errorNum, const char *errorText) {
+void errorHandler(uint32_t errorNum, const char *errorText) {
     std::cerr << "ERROR: " << getRSErrorCodeStr(errorNum)
               << " (" << errorNum << ")" << std::endl
               << "    " << errorText << std::endl;
@@ -286,7 +286,7 @@ void hipaccInitRenderScript(std::string rs_directory) {
     rs->setErrorHandler((ErrorHandlerFunc_t)&errorHandler);
 
     // Create context
-    if (!rs->init(rs_directory)) {
+    if (!rs->init(rs_directory.c_str())) {
         std::cerr << "ERROR: RenderScript initialization failed!" << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -389,7 +389,7 @@ HipaccImage createImage(T *host_mem, size_t width, size_t height, size_t stride,
     type.setX(stride); \
     type.setY(height); \
 \
-    sp<Allocation> allocation = Allocation::createTyped(rs, type.create()); \
+    sp<const Allocation> allocation = Allocation::createTyped(rs, type.create()); \
 \
     HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), (void *)allocation.get()); \
     Ctx.add_image(img, allocation); \
@@ -460,18 +460,17 @@ void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
-    void(F::*kernel)(sp<const Allocation>),
+    void(F::*kernel)(sp<Allocation>),
     HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
-    long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
     sp<RS> rs = Ctx.get_context();
 
     rs->finish();
-    start = getMicroTime();
+    auto start = hipacc_time_micro();
     (script->*kernel)((Allocation *)out.mem);
     rs->finish();
-    end = getMicroTime();
+    auto end = hipacc_time_micro();
     last_gpu_timing = (end - start) * 1.0e-3f;
 
     if (print_timing) {
@@ -486,18 +485,17 @@ void hipaccLaunchScriptKernel(
 template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
-    void(F::*kernel)(sp<const Allocation>, sp<const Allocation>),
+    void(F::*kernel)(sp<Allocation>, sp<Allocation>),
     HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
-    long end, start;
     HipaccContext &Ctx = HipaccContext::getInstance();
     sp<RS> rs = Ctx.get_context();
 
     rs->finish();
-    start = getMicroTime();
+    auto start = hipacc_time_micro();
     (script->*kernel)((Allocation *)in.mem, (Allocation *)out.mem);
     rs->finish();
-    end = getMicroTime();
+    auto end = hipacc_time_micro();
     last_gpu_timing = (end - start) * 1.0e-3f;
 
     if (print_timing) {
@@ -513,7 +511,7 @@ template<typename F>
 void hipaccLaunchScriptKernelBenchmark(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
-    void(F::*kernel)(sp<const Allocation>),
+    void(F::*kernel)(sp<Allocation>),
     HipaccImage &out, size_t *work_size,
     bool print_timing=true
 ) {
@@ -549,10 +547,10 @@ template<typename F, typename T>
 void hipaccLaunchScriptKernelExploration(
     F* script,
     std::vector<hipacc_script_arg<F> > args,
-    void(F::*kernel)(sp<const Allocation>),
-    std::vector<hipacc_smem_info> smems, hipacc_launch_info &info,
-    int warp_size, int max_threads_per_block, int max_threads_for_kernel,
-    int max_smem_per_block, int heu_tx, int heu_ty,
+    void(F::*kernel)(sp<Allocation>),
+    std::vector<hipacc_smem_info>, hipacc_launch_info &info,
+    int warp_size, int, int max_threads_for_kernel,
+    int, int, int,
     HipaccImage &iter_space
 ) {
     int opt_ws=1;
@@ -561,10 +559,11 @@ void hipaccLaunchScriptKernelExploration(
     std::cerr << "<HIPACC:> Exploring configurations for kernel"
               << " '" << kernel << "':" << std::endl;
 
-    for (size_t curr_warp_size = 1; curr_warp_size <= (int)ceilf((float)info.is_width/3);
+    for (int curr_warp_size = 1; curr_warp_size <= (int)ceilf((float)info.is_width/3);
          curr_warp_size += (curr_warp_size < warp_size ? 1 : warp_size)) {
         // check if we exceed maximum number of threads
-        if (curr_warp_size > max_threads_for_kernel) continue;
+        if (curr_warp_size > max_threads_for_kernel)
+            continue;
 
         size_t work_size[2];
         work_size[0] = curr_warp_size;
@@ -612,15 +611,14 @@ void hipaccLaunchScriptKernelExploration(
 template<typename F, typename T>
 T hipaccApplyReduction(
     F *script,
-    void(F::*kernel2D)(sp<const Allocation>),
-    void(F::*kernel1D)(sp<const Allocation>),
+    void(F::*kernel2D)(sp<Allocation>),
+    void(F::*kernel1D)(sp<Allocation>),
     void(F::*setter)(sp<const Allocation>),
     std::vector<hipacc_script_arg<F> > args,
     int is_width, bool print_timing=true
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     sp<RS> rs = Ctx.get_context();
-    long end, start;
 
     // allocate temporary memory
     HipaccImage out_img = hipaccCreateAllocation((T*)NULL, is_width, 1);
@@ -641,11 +639,11 @@ T hipaccApplyReduction(
     }
 
     rs->finish();
-    start = getMicroTime();
+    auto start = hipacc_time_micro();
     (script->*kernel2D)(is1);   // first step: reduce image (region) into linear memory
     (script->*kernel1D)(is2);   // second step: reduce linear memory
     rs->finish();
-    end = getMicroTime();
+    auto end = hipacc_time_micro();
     last_gpu_timing = (end - start) * 1.0e-3f;
 
     if (print_timing) {
@@ -671,4 +669,3 @@ HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t hei
 }
 
 #endif  // __HIPACC_RS_HPP__
-

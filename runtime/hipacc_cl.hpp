@@ -818,10 +818,10 @@ double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_dev
         end *= 1e-3;
         #else
         clFinish(Ctx.get_command_queues()[num_device]);
-        start = getMicroTime();
+        start = hipacc_time_micro();
         err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
-        end = getMicroTime();
+        end = hipacc_time_micro();
         checkErr(err, "clEnqueueCopyBuffer()");
         #endif
 
@@ -878,10 +878,10 @@ void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *loc
     checkErr(err, "clReleaseEvent()");
     #else
     clFinish(Ctx.get_command_queues()[0]);
-    start = getMicroTime();
+    start = hipacc_time_micro();
     err = clEnqueueNDRangeKernel(Ctx.get_command_queues()[0], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
     err |= clFinish(Ctx.get_command_queues()[0]);
-    end = getMicroTime();
+    end = hipacc_time_micro();
     checkErr(err, "clEnqueueNDRangeKernel()");
     #endif
 
