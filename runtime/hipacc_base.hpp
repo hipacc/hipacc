@@ -26,20 +26,13 @@
 #ifndef __HIPACC_BASE_HPP__
 #define __HIPACC_BASE_HPP__
 
-#include <stdint.h>
-#include <time.h>
-#ifdef __APPLE__
-#include <mach/clock.h>
-#include <mach/mach.h>
-#endif
-
 #include <algorithm>
 #include <cassert>
+#include <chrono>
+#include <cstdint>
+#include <functional>
 #include <list>
 #include <vector>
-#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
-#include <functional>
-#endif // defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
 
 #include "hipacc_math_functions.hpp"
 
@@ -56,21 +49,8 @@ float hipacc_last_kernel_timing() {
     return last_gpu_timing;
 }
 
-long getMicroTime() {
-    struct timespec ts;
-
-    #ifdef __APPLE__ // OS X does not have clock_gettime, use clock_get_time
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    ts.tv_sec = mts.tv_sec;
-    ts.tv_nsec = mts.tv_nsec;
-    #else
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    #endif
-    return ts.tv_sec*1000000LL + ts.tv_nsec / 1000LL;
+int64_t hipacc_time_micro() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 #endif // EXCLUDE_IMPL
 
@@ -234,8 +214,6 @@ unsigned int nextPow2(unsigned int x) {
 #endif // EXCLUDE_IMPL
 
 
-#if defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
-
 class HipaccPyramid {
   public:
     const int depth_;
@@ -258,19 +236,19 @@ class HipaccPyramid {
         return imgs_.at(level_+relative);
     }
 
-    int depth() {
+    int depth() const {
         return depth_;
     }
 
-    int level() {
+    int level() const {
         return level_;
     }
 
-    bool is_top_level() {
+    bool is_top_level() const {
         return level_ == 0;
     }
 
-    bool is_bottom_level() {
+    bool is_bottom_level() const {
         return level_ == depth_-1;
     }
 
@@ -328,6 +306,8 @@ void hipaccReleasePyramid(HipaccPyramid &pyr) {
     }
 }
 
+
+#ifndef EXCLUDE_IMPL
 
 std::vector<const std::function<void()>*> hipaccTraverseFunc;
 std::vector<std::vector<HipaccPyramid*> > hipaccPyramids;
@@ -493,7 +473,8 @@ void hipaccTraverse(std::vector<HipaccPyramid*> pyrs,
     hipaccTraverseFunc.pop_back();
     hipaccPyramids.pop_back();
 
-    for (auto pyr : pyrs) pyr->unbind();
+    for (auto pyr : pyrs)
+        pyr->unbind();
 }
 
 
@@ -504,7 +485,8 @@ void hipaccTraverse(unsigned int loop=1,
     std::vector<HipaccPyramid*> pyrs = hipaccPyramids.back();
 
     if (!pyrs.at(0)->is_bottom_level()) {
-        for (auto pyr : pyrs) ++pyr->level_;
+        for (auto pyr : pyrs)
+            ++pyr->level_;
 
         for (size_t i=0; i<loop; i++) {
             (*hipaccTraverseFunc.back())();
@@ -513,11 +495,12 @@ void hipaccTraverse(unsigned int loop=1,
             }
         }
 
-        for (auto pyr : pyrs) --pyr->level_;
+        for (auto pyr : pyrs)
+            --pyr->level_;
     }
 }
 
-#endif // defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L
+#endif // EXCLUDE_IMPL
 
 #endif // __HIPACC_BASE_HPP__
 

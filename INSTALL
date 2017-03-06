@@ -40,7 +40,7 @@ OpenCV_DIR              - OpenCV installation path
 
 For Android, the Android NDK and API level have to be specified:
 NDK_DIR                 - Android NDK directory
-                          e.g. -DNDK_DIR=/opt/android/android-ndk-r10e
+                          e.g. -DNDK_DIR=/opt/android/android-ndk-r14
 ANDROID_API             - Android API level
                           e.g. -DANDROID_API=19
 

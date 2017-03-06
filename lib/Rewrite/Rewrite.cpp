@@ -70,7 +70,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     Rewriter::RewriteOptions TextRewriteOptions;
     PrintingPolicy Policy;
 
-    // HIPACC instances
+    // Hipacc instances
     CompilerOptions &compilerOptions;
     HipaccDevice targetDevice;
     hipacc::Builtin::Context builtins;
@@ -771,8 +771,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               "Constant value for BoundaryCondition %0 required.");
         unsigned IDConstSize = Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Constant expression for size argument of BoundaryCondition %1 required.");
-        unsigned IDConstPyrIdx = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-              "Missing integer literal in Pyramid %0 call expression.");
         unsigned IDMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Boundary handling constant for BoundaryCondition %0 required.");
         HipaccBoundaryCondition *BC = nullptr;
@@ -813,13 +811,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
               // add call expression to pyramid argument
               auto call = dyn_cast<CXXOperatorCallExpr>(arg);
-              auto index = call->getArg(1);
-              if (!index->isEvaluatable(Context)) {
-                Diags.Report(index->getExprLoc(), IDConstPyrIdx)
-                  << Pyr->getName();
-              }
-              BC->setPyramidIndex(
-                  index->EvaluateKnownConstInt(Context).toString(10));
+              BC->setPyramidIndex(convertToString(call->getArg(1)));
               continue;
             }
 
@@ -892,7 +884,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccBoundaryCondition *BC = nullptr;
         HipaccPyramid *Pyr = nullptr;
         Interpolate mode = Interpolate::NO;
-        std::string Parms;
+        std::string parms;
         size_t roi_args = 0;
 
         for (auto arg : CCE->arguments()) {
@@ -912,10 +904,10 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             if (BCDeclMap.count(DRE->getDecl())) {
               BC = BCDeclMap[DRE->getDecl()];
 
-              Parms = BC->getImage()->getName();
+              parms = BC->getImage()->getName();
               if (BC->isPyramid()) {
                 // add call expression to pyramid argument
-                Parms += "(" + BC->getPyramidIndex() + ")";
+                parms += "(" + BC->getPyramidIndex() + ")";
               }
               continue;
             }
@@ -929,7 +921,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               BC->setBoundaryMode(Boundary::CLAMP);
               BCDeclMap[VD] = BC; // Fixme: store BoundaryCondition???
 
-              Parms = BC->getImage()->getName();
+              parms = BC->getImage()->getName();
               continue;
             }
 
@@ -943,7 +935,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               BCDeclMap[VD] = BC; // Fixme: store BoundaryCondition???
 
               // add call expression to pyramid argument
-              Parms = convertToString(arg);
+              parms = convertToString(arg);
               continue;
             }
 
@@ -963,7 +955,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get text string for arguments, argument order is:
           // img|bc|pyramid-call
           // img|bc|pyramid-call, width, height, xf, yf
-          Parms += ", " + convertToString(arg);
+          parms += ", " + convertToString(arg);
           roi_args++;
         }
 
@@ -973,7 +965,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         Acc = new HipaccAccessor(VD, BC, mode, roi_args == 4);
 
         std::string newStr;
-        newStr = "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";
+        newStr = "HipaccAccessor " + Acc->getName() + "(" + parms + ");";
 
         // replace Accessor decl by variables for width/height and offsets
         // get the start location and compute the semi location.
@@ -998,7 +990,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccIterationSpace *IS = nullptr;
         HipaccImage *Img = nullptr;
         HipaccPyramid *Pyr = nullptr;
-        std::string Parms;
+        std::string parms;
+        std::string pyr_idx;
         size_t roi_args = 0;
 
         for (auto arg : CCE->arguments()) {
@@ -1013,7 +1006,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             // check if the argument is an image
             if (ImgDeclMap.count(DRE->getDecl())) {
               Img = ImgDeclMap[DRE->getDecl()];
-              Parms = Img->getName();
+              parms = Img->getName();
               continue;
             }
 
@@ -1021,14 +1014,16 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             if (PyrDeclMap.count(DRE->getDecl())) {
               Pyr = PyrDeclMap[DRE->getDecl()];
               // add call expression to pyramid argument
-              Parms = convertToString(arg);
+              auto call = dyn_cast<CXXOperatorCallExpr>(arg);
+              pyr_idx = convertToString(call->getArg(1));
+              parms = Pyr->getName() + "(" + pyr_idx + ")";
               continue;
             }
           }
 
           // get text string for arguments, argument order is:
           // img[, is_width, is_height[, offset_x, offset_y]]
-          Parms += ", " + convertToString(arg);
+          parms += ", " + convertToString(arg);
           roi_args++;
         }
 
@@ -1036,10 +1031,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                                "be Image or Pyramid call.");
 
         IS = new HipaccIterationSpace(VD, Img ? Img : Pyr, roi_args == 4);
+        if (Pyr)
+          IS->getBC()->setPyramidIndex(pyr_idx);
         ISDeclMap[VD] = IS; // store IterationSpace
 
         std::string newStr;
-        newStr = "HipaccAccessor " + IS->getName() + "(" + Parms + ");";
+        newStr = "HipaccAccessor " + IS->getName() + "(" + parms + ");";
 
         // replace iteration space decl by variables for width/height, and
         // offset
@@ -1402,17 +1399,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // get the Pyramid from the DRE if we have one
         if (PyrDeclMap.count(DRE->getDecl())) {
           PyrLHS = PyrDeclMap[DRE->getDecl()];
-
-          // add call expression to pyramid argument
-          unsigned DiagIDConstant =
-            Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Missing integer literal in Pyramid %0 call expression.");
-          if (!call->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
-              << PyrLHS->getName();
-          }
-          PyrIdxLHS =
-            call->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
+          PyrIdxLHS = convertToString(call->getArg(1));
         } else if (MaskDeclMap.count(DRE->getDecl())) {
           DomLHS = MaskDeclMap[DRE->getDecl()];
 
@@ -1452,17 +1439,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // get the Pyramid from the DRE if we have one
         if (PyrDeclMap.count(DRE->getDecl())) {
           PyrRHS = PyrDeclMap[DRE->getDecl()];
-
-          // add call expression to pyramid argument
-          unsigned DiagIDConstant =
-            Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Missing integer literal in Pyramid %0 call expression.");
-          if (!call->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
-              << PyrRHS->getName();
-          }
-          PyrIdxRHS =
-            call->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
+          PyrIdxRHS = convertToString(call->getArg(1));
         }
       }
     } else if (DomLHS) {
@@ -1564,15 +1541,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                   HipaccPyramid *Pyr = PyrDeclMap[DRE->getDecl()];
 
                   // add call expression to pyramid argument
-                  unsigned DiagIDConstant =
-                    Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                        "Missing integer literal in Pyramid %0 call expression.");
-                  if (!call->getArg(1)->isEvaluatable(Context)) {
-                    Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
-                      << Pyr->getName();
-                  }
-                  std::string index =
-                    call->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
+                  std::string index = convertToString(call->getArg(1));
 
                   if (PyrLHS) {
                     stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS,
