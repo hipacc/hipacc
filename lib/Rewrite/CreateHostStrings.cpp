@@ -411,6 +411,9 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     case Language::Filterscript:
       blockStr = "work_size" + lit;
       gridStr = K->getIterationSpace()->getImage()->getName();
+      if (K->getIterationSpace()->getBC()->isPyramid()) {
+        gridStr += "(" + K->getIterationSpace()->getBC()->getPyramidIndex() + ")";
+      }
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
