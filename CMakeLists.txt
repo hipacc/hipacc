@@ -1,184 +1,162 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.8.12)
 
-#SET(CMAKE_VERBOSE_MAKEFILE ON)
-SET(CMAKE_SKIP_BUILD_RPATH FALSE)
-SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/bin")
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+project(hipacc)
+
+set(HIPACC_MAJOR_VERSION 0)
+set(HIPACC_MINOR_VERSION 8)
+set(HIPACC_PATCH_VERSION 1)
+set(HIPACC_VERSION ${HIPACC_MAJOR_VERSION}.${HIPACC_MINOR_VERSION}.${HIPACC_PATCH_VERSION})
+
+#set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/bin)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # provide only Debug and Release configurations
-SET(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "build config types" FORCE)
-IF(NOT CMAKE_BUILD_TYPE)
-    SET(CMAKE_BUILD_TYPE Debug CACHE STRING "build type: Debug or Release" FORCE)
-ENDIF(NOT CMAKE_BUILD_TYPE)
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "build config types" FORCE)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "build type: Debug or Release" FORCE)
+endif()
 
-IF(NOT IS_ABSOLUTE ${CMAKE_INSTALL_PREFIX})
-    MESSAGE(FATAL_ERROR "CMAKE_INSTALL_PREFIX has to be an absolute path!")
-ENDIF(NOT IS_ABSOLUTE ${CMAKE_INSTALL_PREFIX})
+# debug and release builds
+string(TOUPPER ${CMAKE_BUILD_TYPE} build)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti")
+if(build STREQUAL "RELEASE")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wunused")
+endif()
 
 
-PROJECT(HIPACC)
-SET(HIPACC_MAJOR_VERSION 0)
-SET(HIPACC_MINOR_VERSION 8)
-SET(HIPACC_PATCH_VERSION 1)
-SET(HIPACC_VERSION ${HIPACC_MAJOR_VERSION}.${HIPACC_MINOR_VERSION}.${HIPACC_PATCH_VERSION})
-SET(HIPACC_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-SET(HIPACC_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
+if(NOT IS_ABSOLUTE ${CMAKE_INSTALL_PREFIX})
+    message(FATAL_ERROR "CMAKE_INSTALL_PREFIX has to be an absolute path!")
+endif()
 
-OPTION(USE_POLLY "Use Polly for analysis" OFF)
-INCLUDE(CMakeDependentOption)
-CMAKE_DEPENDENT_OPTION(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
+option(USE_POLLY "Use Polly for analysis" OFF)
+include(CMakeDependentOption)
+cmake_dependent_option(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
 
 # get repository and revision
-EXECUTE_PROCESS(COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_repository_path.sh
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+execute_process(COMMAND sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_repository_path.sh
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     TIMEOUT 5
     RESULT_VARIABLE git_result
     OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
-STRING(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
+string(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
 
-EXECUTE_PROCESS(COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/get_source_version.sh
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+execute_process(COMMAND sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_source_version.sh
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     TIMEOUT 5
     RESULT_VARIABLE git_result
     OUTPUT_VARIABLE HIPACC_GIT_VERSION)
-STRING(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
+string(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
 
 
 # add path for custom modules
-LIST(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
-FIND_LIBRARY(RT_LIBRARIES rt)
-IF(NOT RT_LIBRARIES)
-    SET(RT_LIBRARIES "")
-ENDIF()
-FIND_PACKAGE(Clang REQUIRED)
-FIND_PACKAGE(CUDA)
-FIND_PACKAGE(NVML)
-FIND_PACKAGE(OpenCL)
-FIND_PACKAGE(RenderScript)
-FIND_PACKAGE(OpenCV)
-FIND_PACKAGE(Threads)
-IF(THREADS_HAVE_PTHREAD_ARG)
-    SET(THREADS_ARG "-pthread")
-ENDIF()
-IF(CMAKE_THREAD_LIBS_INIT)
-    SET(THREADS_LINK "${CMAKE_THREAD_LIBS_INIT}")
-ENDIF()
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
+find_library(RT_LIBRARIES rt)
+if(NOT RT_LIBRARIES)
+    set(RT_LIBRARIES "")
+endif()
+find_package(Clang REQUIRED)
+find_package(CUDA)
+find_package(NVML)
+find_package(OpenCL)
+find_package(RenderScript)
+find_package(OpenCV)
+find_package(Threads)
+if(THREADS_HAVE_PTHREAD_ARG)
+    set(THREADS_ARG "-pthread")
+endif()
+if(CMAKE_THREAD_LIBS_INIT)
+    set(THREADS_LINK "${CMAKE_THREAD_LIBS_INIT}")
+endif()
 
-IF(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "7.0")
-    MESSAGE(WARNING "At least CUDA version 7.0 required, but found CUDA version ${CUDA_VERSION}.")
-    SET(CUDA_FOUND FALSE)
-ENDIF(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "7.0")
+if(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "7.0")
+    message(WARNING "At least CUDA version 7.0 required, but found CUDA version ${CUDA_VERSION}.")
+    set(CUDA_FOUND FALSE)
+endif()
 
-IF(CUDA_FOUND)
-    SET(NVCC "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
-    INCLUDE_DIRECTORIES(${CUDA_INCLUDE_DIRS})
-    IF(APPLE)
-        SET(NVCC_LINK "-Xlinker -lnvrtc -Xlinker -framework,CUDA")
-        SET(NVCC_COMP "-ccbin ${Clang_EXECUTABLE}")
-    ELSE(APPLE)
-        SET(NVCC_LINK "${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} ${NVML_LIBRARIES}")
-        FIND_LIBRARY(CUDA_NVRTC_LIBRARY nvrtc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
-        IF(CUDA_NVRTC_LIBRARY)
-            SET(NVCC_LINK "${NVCC_LINK} ${CUDA_NVRTC_LIBRARY}")
-            SET(NVRTC_FOUND TRUE)
-        ENDIF()
-        SET(NVCC_COMP "-I${NVML_INCLUDE_DIRS}")
-    ENDIF(APPLE)
-ELSE(CUDA_FOUND)
-    SET(USE_JIT_ESTIMATE OFF)
-ENDIF(CUDA_FOUND)
+if(CUDA_FOUND)
+    set(NVCC "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
+    include_directories(${CUDA_INCLUDE_DIRS})
+    if(APPLE)
+        set(NVCC_LINK "-Xlinker -lnvrtc -Xlinker -framework,CUDA")
+        set(NVCC_COMP "-ccbin ${Clang_EXECUTABLE}")
+    else()
+        set(NVCC_LINK "${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} ${NVML_LIBRARIES}")
+        find_library(CUDA_NVRTC_LIBRARY nvrtc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
+        if(CUDA_NVRTC_LIBRARY)
+            set(NVCC_LINK "${NVCC_LINK} ${CUDA_NVRTC_LIBRARY}")
+            set(NVRTC_FOUND TRUE)
+        endif()
+        set(NVCC_COMP "-I${NVML_INCLUDE_DIRS}")
+    endif()
+else()
+    set(USE_JIT_ESTIMATE OFF)
+endif()
 
-IF(OpenCL_FOUND)
-    SET(CL_COMPILER "${CMAKE_INSTALL_PREFIX}/bin/cl_compile")
-ENDIF(OpenCL_FOUND)
+if(OpenCL_FOUND)
+    set(CL_COMPILER "${CMAKE_INSTALL_PREFIX}/bin/cl_compile")
+endif()
 
-MESSAGE(STATUS "Configuration summary:")
-MESSAGE(STATUS "===")
-MESSAGE(STATUS "CUDA support: ${CUDA_FOUND}")
-MESSAGE(STATUS "OpenCL support: ${OpenCL_FOUND}")
-MESSAGE(STATUS "Renderscript support: ${Renderscript_FOUND}")
-MESSAGE(STATUS "OpenCV support: ${OpenCV_FOUND}")
-MESSAGE(STATUS "Polly support: ${USE_POLLY}")
-MESSAGE(STATUS "JIT estimates: ${USE_JIT_ESTIMATE}")
-MESSAGE(STATUS "===")
-
-
-# debug and release builds
-STRING(TOUPPER "${CMAKE_BUILD_TYPE}" build)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti")
-IF(build STREQUAL "RELEASE")
-    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-ELSE()
-    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wunused")
-ENDIF()
+message(STATUS "Configuration summary:")
+message(STATUS "===")
+message(STATUS "CUDA support: ${CUDA_FOUND}")
+message(STATUS "OpenCL support: ${OpenCL_FOUND}")
+message(STATUS "Renderscript support: ${Renderscript_FOUND}")
+message(STATUS "OpenCV support: ${OpenCV_FOUND}")
+message(STATUS "Polly support: ${USE_POLLY}")
+message(STATUS "JIT estimates: ${USE_JIT_ESTIMATE}")
+message(STATUS "===")
 
 
 # set include directory, add src directories
-INCLUDE_DIRECTORIES(
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_BINARY_DIR}/include)
-ADD_SUBDIRECTORY(lib)
-ADD_SUBDIRECTORY(compiler)
-ADD_SUBDIRECTORY(tools)
-
+include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/include)
+add_subdirectory(lib)
+add_subdirectory(compiler)
+add_subdirectory(tools)
 
 
 # configure header files to pass some of the CMake settings to the source code
-CONFIGURE_FILE(
-    "${HIPACC_SOURCE_DIR}/include/hipacc/Config/config.h.cmake"
-    "${HIPACC_BINARY_DIR}/include/hipacc/Config/config.h")
-CONFIGURE_FILE(
-    "${HIPACC_SOURCE_DIR}/runtime/hipacc_cu.hpp.cmake"
-    "${HIPACC_BINARY_DIR}/runtime/hipacc_cu.hpp")
-CONFIGURE_FILE(
-    "${HIPACC_SOURCE_DIR}/tests/Android.mk.cmake"
-    "${HIPACC_BINARY_DIR}/tests/Android.mk")
-CONFIGURE_FILE(
-    "${HIPACC_SOURCE_DIR}/tests/Application.mk.cmake"
-    "${HIPACC_BINARY_DIR}/tests/Application.mk")
-CONFIGURE_FILE(
-    "${HIPACC_SOURCE_DIR}/tests/Makefile.cmake"
-    "${HIPACC_BINARY_DIR}/tests/Makefile")
-CONFIGURE_FILE(
-    "${HIPACC_SOURCE_DIR}/tests/Makefile_test.cmake"
-    "${HIPACC_BINARY_DIR}/tests/Makefile_test")
-CONFIGURE_FILE(
-    "${HIPACC_SOURCE_DIR}/tests/Makefile_test_opencv.cmake"
-    "${HIPACC_BINARY_DIR}/tests/Makefile_test_opencv")
-CONFIGURE_FILE(
-    "${HIPACC_SOURCE_DIR}/tests/CMakeLists.txt.cmake"
-    "${HIPACC_BINARY_DIR}/tests/CMakeLists.txt"
-    @ONLY)
+configure_file(include/hipacc/Config/config.h.cmake ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
+configure_file(runtime/hipacc_cu.hpp.cmake          ${CMAKE_BINARY_DIR}/runtime/hipacc_cu.hpp)
+configure_file(tests/Android.mk.cmake               ${CMAKE_BINARY_DIR}/tests/Android.mk)
+configure_file(tests/Application.mk.cmake           ${CMAKE_BINARY_DIR}/tests/Application.mk)
+configure_file(tests/Makefile.cmake                 ${CMAKE_BINARY_DIR}/tests/Makefile)
+configure_file(tests/Makefile_test.cmake            ${CMAKE_BINARY_DIR}/tests/Makefile_test)
+configure_file(tests/Makefile_test_opencv.cmake     ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv)
+configure_file(tests/CMakeLists.txt.cmake           ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
 
 
 # install dsl and runtime header files
-FILE(GLOB dsl_headers "${CMAKE_CURRENT_SOURCE_DIR}/dsl/*.hpp")
-FILE(GLOB runtime_headers "${CMAKE_CURRENT_SOURCE_DIR}/runtime/*.hpp" "${HIPACC_BINARY_DIR}/runtime/*.hpp")
-INSTALL(FILES ${runtime_headers} DESTINATION include)
-INSTALL(FILES ${dsl_headers} DESTINATION include/dsl)
+file(GLOB DSL_HEADERS ${CMAKE_SOURCE_DIR}/dsl/*.hpp)
+file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp ${CMAKE_BINARY_DIR}/runtime/*.hpp)
+install(FILES ${RUNTIME_HEADERS} DESTINATION include)
+install(FILES ${DSL_HEADERS} DESTINATION include/dsl)
+
 # install tests
-INSTALL(DIRECTORY tests
+install(DIRECTORY tests
     DESTINATION ${CMAKE_INSTALL_PREFIX}
     PATTERN "*.cmake" EXCLUDE)
-INSTALL(DIRECTORY ${HIPACC_BINARY_DIR}/tests/
+install(DIRECTORY ${CMAKE_BINARY_DIR}/tests/
     DESTINATION ${CMAKE_INSTALL_PREFIX}
     PATTERN "*Makefile_test*" EXCLUDE)
 
 # install Makefiles for test cases
-FILE(GLOB TEST_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/tests ${CMAKE_CURRENT_SOURCE_DIR}/tests/*)
-FOREACH(DIR IN LISTS TEST_DIRS)
-    IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/${DIR})
-        IF(${DIR} MATCHES "opencv_*")
-            INSTALL(FILES ${HIPACC_BINARY_DIR}/tests/Makefile_test_opencv
+file(GLOB TEST_DIRS RELATIVE ${CMAKE_SOURCE_DIR}/tests ${CMAKE_SOURCE_DIR}/tests/*)
+foreach(DIR IN LISTS TEST_DIRS)
+    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/${DIR})
+        if(${DIR} MATCHES "opencv_*")
+            install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv
                 DESTINATION tests/${DIR}
                 RENAME Makefile)
-        ELSE(${DIR} MATCHES "opencv_*")
-            INSTALL(FILES ${HIPACC_BINARY_DIR}/tests/Makefile_test
+        else()
+            install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test
                 DESTINATION tests/${DIR}
                 RENAME Makefile)
-        ENDIF(${DIR} MATCHES "opencv_*")
-    ENDIF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/${DIR})
-ENDFOREACH(DIR IN LISTS TEST_DIRS)
-
+        endif()
+    endif()
+endforeach()

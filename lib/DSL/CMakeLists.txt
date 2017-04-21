@@ -1,4 +1,3 @@
-SET(ClassRepresentation_SOURCES ClassRepresentation.cpp)
+set(ClassRepresentation_SOURCES ClassRepresentation.cpp)
 
-ADD_LIBRARY(hipaccClassRepresentation ${ClassRepresentation_SOURCES})
-
+add_library(hipaccClassRepresentation ${ClassRepresentation_SOURCES})
