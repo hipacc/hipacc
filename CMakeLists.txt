@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.1)
 
 project(hipacc)
 
@@ -12,22 +12,16 @@ set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/bin)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_definitions("-Wall -Wunused")
 
 # provide only Debug and Release configurations
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "build config types" FORCE)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "build type: Debug or Release" FORCE)
 endif()
-
-# debug and release builds
-string(TOUPPER ${CMAKE_BUILD_TYPE} build)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti")
-if(build STREQUAL "RELEASE")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-else()
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wunused")
-endif()
-
 
 if(NOT IS_ABSOLUTE ${CMAKE_INSTALL_PREFIX})
     message(FATAL_ERROR "CMAKE_INSTALL_PREFIX has to be an absolute path!")
