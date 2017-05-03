@@ -1,23 +1,23 @@
-CC = clang++
-CC = g++
+CC = @CMAKE_CXX_COMPILER@
+
+#OPENCV_OPENCL_DEVICE= <Platform>:<CPU|GPU|ACCELERATOR|nothing=GPU/CPU>:<DeviceName or ID>
 
 HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
 
-MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5 -D OpenCV
+MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5 @OpenCV_DEFINITIONS@
 CFLAGS        = $(MYFLAGS) -std=c++11 @THREADS_ARG@ -Wall -Wunused \
                 -I$(HIPACC_DIR)/include/dsl \
-                -I@OPENCV_INCLUDE_DIRS@
-LDFLAGS       = -lm @RT_LIBRARIES@ @THREADS_LINK@ \
-                -L@OPENCV_LIBRARY_DIRS@ -lopencv_core -lopencv_gpu -lopencv_highgui -lopencv_imgproc
+                -I@OpenCV_INCLUDE_DIRS@
+LDFLAGS       = -lm @RT_LIBRARIES@ @THREADS_LINK@ @OpenCV_LIBRARIES@
 OFLAGS        = -O3
 
 ifeq ($(notdir $(CC)),clang++)
     # use libc++ for clang++
     CFLAGS   += -stdlib=libc++ \
-                -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
-                -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
-                -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1
-    LDFLAGS  += -L`@LLVM_CONFIG_EXECUTABLE@ --libdir` -lc++ -lc++abi
+                -I`@Clang_EXECUTABLE@ -print-file-name=include` \
+                -I`@Clang_llvm_config_EXECUTABLE@ --includedir` \
+                -I`@Clang_llvm_config_EXECUTABLE@ --includedir`/c++/v1
+    LDFLAGS  += -L`@Clang_llvm_config_EXECUTABLE@ --libdir` -lc++ -lc++abi
 else
     LDFLAGS  += -lstdc++
 endif

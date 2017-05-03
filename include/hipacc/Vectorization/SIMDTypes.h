@@ -81,8 +81,8 @@ class SIMDTypes {
     QualType createSIMDType(QualType QT, StringRef base, SIMDWidth simd_width);
     Expr *propagate(VarDecl *VD, Expr *E);
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _SIMDTYPES_H_
 

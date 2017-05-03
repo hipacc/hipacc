@@ -31,103 +31,52 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <polly/LinkAllPasses.h>
-#include <polly/ScopDetection.h>
-
-#include <llvm/IR/DataLayout.h>
+#include <clang/CodeGen/ModuleBuilder.h>
+#include <llvm/ADT/Statistic.h>
+#include <llvm/Analysis/Passes.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
-#include <llvm/PassManager.h>
-#include <llvm/ADT/Statistic.h>
-#include <llvm/ADT/Triple.h>
-#include <llvm/Analysis/Passes.h>
-#include <llvm/Target/TargetLibraryInfo.h>
-#include <llvm/Transforms/IPO.h>
-#include <llvm/Transforms/Scalar.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/PassRegistry.h>
+#include <polly/Canonicalization.h>
+#include <polly/RegisterPasses.h>
 
 #include "hipacc/Analysis/Polly.h"
 
-namespace polly {
-void initializePollyPasses(llvm::PassRegistry &Registry);
-}
-
 using namespace clang;
 using namespace hipacc;
-
 
 void Polly::analyzeKernel() {
   // enable statistics for LLVM passes
   llvm::EnableStatistics();
 
   // code generation for Polly
-  llvm::LLVMContext *LLVMCtx = new llvm::LLVMContext;
-  clang::CodeGenerator *llvm_ir_cg =
-    clang::CreateLLVMCodeGen(Clang.getDiagnostics(), func->getNameAsString(),
-        Clang.getCodeGenOpts(), Clang.getTargetOpts(), *LLVMCtx);
+  clang::CodeGenerator *llvm_ir_cg = clang::CreateLLVMCodeGen(
+      Clang.getDiagnostics(), func->getNameAsString(),
+      Clang.getHeaderSearchOpts(), Clang.getPreprocessorOpts(),
+      Clang.getCodeGenOpts(), llvm::getGlobalContext());
 
   DeclGroupRef DG = DeclGroupRef(func);
   llvm_ir_cg->Initialize(Ctx);
   llvm_ir_cg->HandleTopLevelDecl(DG);
 
   // get module
-  llvm::Module *irModule = llvm_ir_cg->GetModule();
-  assert(irModule && "Module is unavailable");
+  llvm::Module *ir_module = llvm_ir_cg->GetModule();
+  assert(ir_module && "Module is unavailable");
   llvm_ir_cg->ReleaseModule();
   delete llvm_ir_cg;
 
   // initialize passes
-  PassRegistry &Registry = *PassRegistry::getPassRegistry();
-  initializeCore(Registry);
-  initializeScalarOpts(Registry);
-  initializeVectorization(Registry);
-  initializeIPO(Registry);
-  initializeAnalysis(Registry);
-  initializeIPA(Registry);
-  initializeTransformUtils(Registry);
-  initializeInstCombine(Registry);
-  initializeInstrumentation(Registry);
-  initializeTarget(Registry);
-
+  llvm::PassRegistry &Registry = *llvm::PassRegistry::getPassRegistry();
   polly::initializePollyPasses(Registry);
 
-  // create a PassManager to hold and optimize the collection of passes we are
-  // about to build
-  llvm::PassManager Passes;
-
-  // add an appropriate TargetLibraryInfo pass for the module's triple
-  Passes.add(new llvm::TargetLibraryInfo(Triple(irModule->getTargetTriple())));
-
-  // add an appropriate DataLayout instance for this module.
-  if (irModule->getDataLayout())
-    Passes.add(new DataLayoutPass());
-
-  Passes.add(llvm::createPromoteMemoryToRegisterPass());
-  Passes.add(llvm::createFunctionInliningPass());
-  Passes.add(llvm::createCFGSimplificationPass());
-  Passes.add(llvm::createInstructionCombiningPass());
-  Passes.add(llvm::createTailCallEliminationPass());
-  Passes.add(llvm::createLoopSimplifyPass());
-  Passes.add(llvm::createLCSSAPass());
-  Passes.add(llvm::createLoopRotatePass());
-  Passes.add(llvm::createLCSSAPass());
-  Passes.add(llvm::createLoopUnswitchPass());
-  Passes.add(llvm::createInstructionCombiningPass());
-  Passes.add(llvm::createLoopSimplifyPass());
-  Passes.add(llvm::createLCSSAPass());
-  Passes.add(llvm::createIndVarSimplifyPass());
-  Passes.add(llvm::createLoopDeletionPass());
-  Passes.add(llvm::createInstructionCombiningPass());
-  Passes.add(llvm::createBasicAliasAnalysisPass());
-
-  Passes.add(polly::createCodePreparationPass());
-  Passes.add(polly::createScopInfoPass());
-  Passes.add(new polly::ScopDetection());
-  Passes.add(polly::createJSONExporterPass());
-
   // run optimization passes
-  Passes.run(*irModule);
+  llvm::legacy::PassManager Passes;
+  polly::registerCanonicalicationPasses(Passes);
+  polly::registerPollyPasses(Passes);
+  Passes.run(*ir_module);
 
-  // print Stats
+  // print stats
   llvm::PrintStatistics();
 }
 

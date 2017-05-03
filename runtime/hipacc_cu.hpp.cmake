@@ -29,14 +29,19 @@
 
 #include <cuda.h>
 
-#if CUDA_VERSION < 5000
-    #error "CUDA 5.0 or higher required!"
+#if CUDA_VERSION < 7000
+    #error "CUDA 7.0 or higher required!"
 #endif
 
 #cmakedefine NVML_FOUND
 #ifdef NVML_FOUND
 #include <nvml.h>
 #endif
+#cmakedefine NVRTC_FOUND
+#ifdef NVRTC_FOUND
+#include <nvrtc.h>
+#endif
+
 
 #include <float.h>
 #include <math.h>
@@ -123,122 +128,15 @@ dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
 }
 
 
-#if CUDA_VERSION >= 6000
 std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
-    const char *errorName;
-    const char *errorString;
-    cuGetErrorName(errorCode, &errorName);
-    cuGetErrorString(errorCode, &errorString);
-    return std::string(errorName) + ": " + std::string(errorString);
+    const char *error_name;
+    const char *error_string;
+    cuGetErrorName(errorCode, &error_name);
+    cuGetErrorString(errorCode, &error_string);
+    return std::string(error_name) + ": " + std::string(error_string);
 }
-#else
-std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
-    switch (errorCode) {
-        case CUDA_SUCCESS:
-            return "CUDA_SUCCESS";
-        case CUDA_ERROR_INVALID_VALUE:
-            return "CUDA_ERROR_INVALID_VALUE";
-        case CUDA_ERROR_OUT_OF_MEMORY:
-            return "CUDA_ERROR_OUT_OF_MEMORY";
-        case CUDA_ERROR_NOT_INITIALIZED:
-            return "CUDA_ERROR_NOT_INITIALIZED";
-        case CUDA_ERROR_DEINITIALIZED:
-            return "CUDA_ERROR_DEINITIALIZED";
-        case CUDA_ERROR_PROFILER_DISABLED:
-            return "CUDA_ERROR_PROFILER_DISABLED";
-        case CUDA_ERROR_PROFILER_NOT_INITIALIZED:
-            return "CUDA_ERROR_PROFILER_NOT_INITIALIZED";
-        case CUDA_ERROR_PROFILER_ALREADY_STARTED:
-            return "CUDA_ERROR_PROFILER_ALREADY_STARTED";
-        case CUDA_ERROR_PROFILER_ALREADY_STOPPED:
-            return "CUDA_ERROR_PROFILER_ALREADY_STOPPED";
-        case CUDA_ERROR_NO_DEVICE:
-            return "CUDA_ERROR_NO_DEVICE";
-        case CUDA_ERROR_INVALID_DEVICE:
-            return "CUDA_ERROR_INVALID_DEVICE";
-        case CUDA_ERROR_INVALID_IMAGE:
-            return "CUDA_ERROR_INVALID_IMAGE";
-        case CUDA_ERROR_INVALID_CONTEXT:
-            return "CUDA_ERROR_INVALID_CONTEXT";
-        case CUDA_ERROR_CONTEXT_ALREADY_CURRENT:
-            return "CUDA_ERROR_CONTEXT_ALREADY_CURRENT";
-        case CUDA_ERROR_MAP_FAILED:
-            return "CUDA_ERROR_MAP_FAILED";
-        case CUDA_ERROR_UNMAP_FAILED:
-            return "CUDA_ERROR_UNMAP_FAILED";
-        case CUDA_ERROR_ARRAY_IS_MAPPED:
-            return "CUDA_ERROR_ARRAY_IS_MAPPED";
-        case CUDA_ERROR_ALREADY_MAPPED:
-            return "CUDA_ERROR_ALREADY_MAPPED";
-        case CUDA_ERROR_NO_BINARY_FOR_GPU:
-            return "CUDA_ERROR_NO_BINARY_FOR_GPU";
-        case CUDA_ERROR_ALREADY_ACQUIRED:
-            return "CUDA_ERROR_ALREADY_ACQUIRED";
-        case CUDA_ERROR_NOT_MAPPED:
-            return "CUDA_ERROR_NOT_MAPPED";
-        case CUDA_ERROR_NOT_MAPPED_AS_ARRAY:
-            return "CUDA_ERROR_NOT_MAPPED_AS_ARRAY";
-        case CUDA_ERROR_NOT_MAPPED_AS_POINTER:
-            return "CUDA_ERROR_NOT_MAPPED_AS_POINTER";
-        case CUDA_ERROR_ECC_UNCORRECTABLE:
-            return "CUDA_ERROR_ECC_UNCORRECTABLE";
-        case CUDA_ERROR_UNSUPPORTED_LIMIT:
-            return "CUDA_ERROR_UNSUPPORTED_LIMIT";
-        case CUDA_ERROR_CONTEXT_ALREADY_IN_USE:
-            return "CUDA_ERROR_CONTEXT_ALREADY_IN_USE";
-        case CUDA_ERROR_PEER_ACCESS_UNSUPPORTED:
-            return "CUDA_ERROR_PEER_ACCESS_UNSUPPORTED";
-        case CUDA_ERROR_INVALID_SOURCE:
-            return "CUDA_ERROR_INVALID_SOURCE";
-        case CUDA_ERROR_FILE_NOT_FOUND:
-            return "CUDA_ERROR_FILE_NOT_FOUND";
-        case CUDA_ERROR_SHARED_OBJECT_SYMBOL_NOT_FOUND:
-            return "CUDA_ERROR_SHARED_OBJECT_SYMBOL_NOT_FOUND";
-        case CUDA_ERROR_SHARED_OBJECT_INIT_FAILED:
-            return "CUDA_ERROR_SHARED_OBJECT_INIT_FAILED";
-        case CUDA_ERROR_OPERATING_SYSTEM:
-            return "CUDA_ERROR_OPERATING_SYSTEM";
-        case CUDA_ERROR_INVALID_HANDLE:
-            return "CUDA_ERROR_INVALID_HANDLE";
-        case CUDA_ERROR_NOT_FOUND:
-            return "CUDA_ERROR_NOT_FOUND";
-        case CUDA_ERROR_NOT_READY:
-            return "CUDA_ERROR_NOT_READY";
-        case CUDA_ERROR_LAUNCH_FAILED:
-            return "CUDA_ERROR_LAUNCH_FAILED";
-        case CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES:
-            return "CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES";
-        case CUDA_ERROR_LAUNCH_TIMEOUT:
-            return "CUDA_ERROR_LAUNCH_TIMEOUT";
-        case CUDA_ERROR_LAUNCH_INCOMPATIBLE_TEXTURING:
-            return "CUDA_ERROR_LAUNCH_INCOMPATIBLE_TEXTURING";
-        case CUDA_ERROR_PEER_ACCESS_ALREADY_ENABLED:
-            return "CUDA_ERROR_PEER_ACCESS_ALREADY_ENABLED";
-        case CUDA_ERROR_PEER_ACCESS_NOT_ENABLED:
-            return "CUDA_ERROR_PEER_ACCESS_NOT_ENABLED";
-        case CUDA_ERROR_PRIMARY_CONTEXT_ACTIVE:
-            return "CUDA_ERROR_PRIMARY_CONTEXT_ACTIVE";
-        case CUDA_ERROR_CONTEXT_IS_DESTROYED:
-            return "CUDA_ERROR_CONTEXT_IS_DESTROYED";
-        case CUDA_ERROR_ASSERT:
-            return "CUDA_ERROR_ASSERT";
-        case CUDA_ERROR_TOO_MANY_PEERS:
-            return "CUDA_ERROR_TOO_MANY_PEERS";
-        case CUDA_ERROR_HOST_MEMORY_ALREADY_REGISTERED:
-            return "CUDA_ERROR_HOST_MEMORY_ALREADY_REGISTERED";
-        case CUDA_ERROR_HOST_MEMORY_NOT_REGISTERED:
-            return "CUDA_ERROR_HOST_MEMORY_NOT_REGISTERED";
-        case CUDA_ERROR_NOT_PERMITTED:
-            return "CUDA_ERROR_NOT_PERMITTED";
-        case CUDA_ERROR_NOT_SUPPORTED:
-            return "CUDA_ERROR_NOT_SUPPORTED";
-        case CUDA_ERROR_UNKNOWN:
-            return "CUDA_ERROR_UNKNOWN";
-        default:
-            return "unknown error code";
-    }
-}
-#endif
+
+
 // Macro for error checking device driver
 #if 1
 #define checkErrDrv(err, name) \
@@ -294,6 +192,25 @@ inline void checkErrNVML(nvmlReturn_t err, std::string name) {
 #endif
 #endif
 
+#ifdef NVRTC_FOUND
+#if 1
+#define checkErrNVRTC(err, name) \
+    if (err != NVRTC_SUCCESS ) { \
+        std::cerr << "ERROR: " << name << " (" << (err) << ")" << " [file " << __FILE__ << ", line " << __LINE__ << "]: "; \
+        std::cerr << nvrtcGetErrorString(err) << std::endl; \
+        exit(EXIT_FAILURE); \
+    }
+#else
+inline void checkErrNVRTC(nvrtcResult err, std::string name) {
+    if (err != NVRTC_SUCCESS ) {
+        std::cerr << "ERROR: " << name << " (" << (err) << "): ";
+        std::cerr << nvrtcGetErrorString(err) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+#endif
+#endif
+
 
 // Initialize CUDA devices
 void hipaccInitCUDA() {
@@ -308,7 +225,14 @@ void hipaccInitCUDA() {
     checkErr(err, "cudaRuntimeGetVersion()");
 
     std::cerr << "CUDA Driver/Runtime Version " << driver_version/1000 << "." << (driver_version%100)/10
-        << "/" << runtime_version/1000 << "." << (runtime_version%100)/10 << std::endl;
+              << "/" << runtime_version/1000 << "." << (runtime_version%100)/10 << std::endl;
+
+    #ifdef NVRTC_FOUND
+    int nvrtc_major = 0, nvrtc_minor = 0;
+    nvrtcResult errNvrtc = nvrtcVersion(&nvrtc_major, &nvrtc_minor);
+    checkErrNVRTC(errNvrtc, "nvrtcVersion()");
+    std::cerr << "NVRTC Version " << nvrtc_major << "." << nvrtc_minor << std::endl;
+    #endif
 
     for (size_t i=0; i<(size_t)device_count; ++i) {
         cudaDeviceProp device_prop;
@@ -318,8 +242,8 @@ void hipaccInitCUDA() {
         err = cudaGetDeviceProperties(&device_prop, i);
         checkErr(err, "cudaGetDeviceProperties()");
 
-        if (i==0) std::cerr << "  [*] ";
-        else std::cerr << "  [ ] ";
+        if (i) std::cerr << "  [ ] ";
+        else   std::cerr << "  [*] ";
         std::cerr << "Name: " << device_prop.name << std::endl;
         std::cerr << "      Compute capability: " << device_prop.major << "." << device_prop.minor << std::endl;
     }
@@ -398,6 +322,7 @@ HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t hei
 
 
 // Release memory
+template<typename T>
 void hipaccReleaseMemory(HipaccImage &img) {
     if (img.mem_type >= Array2D) {
         cudaError_t err = cudaFreeArray((cudaArray *)img.mem);
@@ -481,20 +406,17 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
 // Copy from memory region to memory region
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
     if (src.img.mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst.img.mem,
-                dst.offset_x*dst.img.pixel_size, dst.offset_y,
-                (cudaArray *)src.img.mem, src.offset_x*src.img.pixel_size,
-                src.offset_y, src.width*src.img.pixel_size, src.height,
-                cudaMemcpyDeviceToDevice);
+        cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst.img.mem, dst.offset_x*dst.img.pixel_size, dst.offset_y,
+                                                   (cudaArray *)src.img.mem, src.offset_x*src.img.pixel_size, src.offset_y, 
+                                                   src.width*src.img.pixel_size, src.height, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpy2DArrayToArray()");
     } else {
         void *dst_start = (char *)dst.img.mem + dst.offset_x*dst.img.pixel_size + (dst.offset_y*dst.img.stride*dst.img.pixel_size);
         void *src_start = (char *)src.img.mem + src.offset_x*src.img.pixel_size + (src.offset_y*src.img.stride*src.img.pixel_size);
 
         cudaError_t err = cudaMemcpy2D(dst_start, dst.img.stride*dst.img.pixel_size,
-                           src_start, src.img.stride*src.img.pixel_size,
-                           src.width*src.img.pixel_size, src.height,
-                           cudaMemcpyDeviceToDevice);
+                                       src_start, src.img.stride*src.img.pixel_size,
+                                       src.width*src.img.pixel_size, src.height, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpy2D()");
     }
 }
@@ -502,21 +424,19 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
 
 // Bind memory to texture
 template<typename T>
-void hipaccBindTexture(hipaccMemoryType mem_type, const struct textureReference *tex, HipaccImage &img) {
+void hipaccBindTexture(hipaccMemoryType mem_type, const textureReference *tex, HipaccImage &img) {
     cudaError_t err = cudaSuccess;
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
 
     switch (mem_type) {
         case Linear1D:
             assert(img.mem_type<=Linear2D && "expected linear memory");
-            err = cudaBindTexture(NULL, tex, img.mem, &channelDesc,
-                    sizeof(T)*img.stride*img.height);
+            err = cudaBindTexture(NULL, tex, img.mem, &channelDesc, sizeof(T)*img.stride*img.height);
             checkErr(err, "cudaBindTexture()");
             break;
         case Linear2D:
             assert(img.mem_type<=Linear2D && "expected linear memory");
-            err = cudaBindTexture2D(NULL, tex, img.mem, &channelDesc, img.width,
-                    img.height, img.stride*sizeof(T));
+            err = cudaBindTexture2D(NULL, tex, img.mem, &channelDesc, img.width, img.height, img.stride*sizeof(T));
             checkErr(err, "cudaBindTexture2D()");
             break;
         case Array2D:
@@ -532,7 +452,7 @@ void hipaccBindTexture(hipaccMemoryType mem_type, const struct textureReference 
 
 // Bind 2D array to surface
 template<typename T>
-void hipaccBindSurface(hipaccMemoryType mem_type, const struct surfaceReference *surf, HipaccImage &img) {
+void hipaccBindSurface(hipaccMemoryType mem_type, const surfaceReference *surf, HipaccImage &img) {
     assert(mem_type==Surface && "wrong texture type");
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
     cudaError_t err = cudaBindSurfaceToArray(surf, (cudaArray *)img.mem, &channelDesc);
@@ -541,7 +461,7 @@ void hipaccBindSurface(hipaccMemoryType mem_type, const struct surfaceReference 
 
 
 // Unbind texture
-void hipaccUnbindTexture(const struct textureReference *tex) {
+void hipaccUnbindTexture(const textureReference *tex) {
     cudaError_t err = cudaUnbindTexture(tex);
     checkErr(err, "cudaUnbindTexture()");
 }
@@ -660,65 +580,100 @@ void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, st
 // Create a module from ptx assembly
 void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
     CUresult err = CUDA_SUCCESS;
-    CUjit_target target_cc;
+    CUjit_target target_cc = (CUjit_target) cc;
+    const unsigned opt_level = 3;
+    const int error_log_size = 10240;
+    const int num_options = 4;
+    char error_log_buffer[error_log_size] = { 0 };
 
-    #if CUDA_VERSION >= 6000
-    target_cc = (CUjit_target) cc;
-    #else
-    switch (cc) {
-        default:
-            std::cerr << "ERROR: Specified compute capability '" << cc << "' is not supported!" << std::endl;
-            exit(EXIT_FAILURE);
-        case 10: target_cc = CU_TARGET_COMPUTE_10; break;
-        case 11: target_cc = CU_TARGET_COMPUTE_11; break;
-        case 12: target_cc = CU_TARGET_COMPUTE_12; break;
-        case 13: target_cc = CU_TARGET_COMPUTE_13; break;
-        case 20: target_cc = CU_TARGET_COMPUTE_20; break;
-        case 21: target_cc = CU_TARGET_COMPUTE_21; break;
-        case 30: target_cc = CU_TARGET_COMPUTE_30; break;
-        case 35: target_cc = CU_TARGET_COMPUTE_35; break;
-    }
-    #endif
-
-
-    const int errorLogSize = 10240;
-    char errorLogBuffer[errorLogSize] = {0};
-
-    int num_options = 2;
-    CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET };
-    void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize, (void *)target_cc };
+    CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET, CU_JIT_OPTIMIZATION_LEVEL };
+    void *option_values[]  = { (void *)error_log_buffer, (void *)(size_t)error_log_size, (void *)target_cc, (void*)(size_t)opt_level };
 
     // load ptx source
-    err = cuModuleLoadDataEx(&module, ptx, num_options, options, optionValues);
+    err = cuModuleLoadDataEx(&module, ptx, num_options, options, option_values);
 
     if (err != CUDA_SUCCESS) {
-        std::cerr << "Error log: " << errorLogBuffer << std::endl;
+        std::cerr << "Error log: " << error_log_buffer << std::endl;
     }
     checkErrDrv(err, "cuModuleLoadDataEx()");
 }
 
 
 // Compile CUDA source file and create module
+#ifdef NVRTC_FOUND
 void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
-    char line[FILENAME_MAX];
-    FILE *fpipe;
+    nvrtcResult err;
+    nvrtcProgram program;
+    CUjit_target target_cc = (CUjit_target) cc;
 
-    std::stringstream ss;
-    ss << cc;
-
-    std::string command = "${NVCC} -ptx -arch=compute_" + ss.str() + " ";
-    for (auto option : build_options) command += option + " ";
-    command += file_name + " -o " + file_name + ".ptx 2>&1";
-
-    if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
-        perror("Problems with pipe");
+    std::ifstream cu_file(file_name);
+    if (!cu_file.is_open()) {
+        std::cerr << "ERROR: Can't open CU source file '" << file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
-        std::cerr << line;
+    std::string cu_string = std::string(std::istreambuf_iterator<char>(cu_file), (std::istreambuf_iterator<char>()));
+
+    err = nvrtcCreateProgram(&program, cu_string.c_str(), file_name.c_str(), 0, NULL, NULL);
+    checkErrNVRTC(err, "nvrtcCreateProgram()");
+
+    size_t offset = 2;
+    size_t num_options = build_options.size() + offset;
+    const char *options[num_options];
+    std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
+    options[0] = compute_arch.c_str();
+    options[1] = "-std=c++11";
+    //options[2] = "-G";
+    //options[3] = "-lineinfo";
+    for (size_t i=offset; i<num_options; ++i) options[i] = build_options[i-offset].c_str();
+
+    err = nvrtcCompileProgram(program, num_options, options);
+    if (err != NVRTC_SUCCESS) {
+        size_t log_size;
+        nvrtcGetProgramLogSize(program, &log_size);
+        char *error_log = new char[log_size];
+        nvrtcGetProgramLog(program, error_log);
+        std::cerr << "Error log: " << error_log << std::endl;
+        delete[] error_log;
     }
-    pclose(fpipe);
+    checkErrNVRTC(err, "nvrtcCompileProgram()");
+
+    size_t ptx_size;
+    err = nvrtcGetPTXSize(program, &ptx_size);
+    checkErrNVRTC(err, "nvrtcGetPTXSize()");
+
+    char *ptx = new char[ptx_size];
+    err = nvrtcGetPTX(program, ptx);
+    checkErrNVRTC(err, "nvrtcGetPTX()");
+
+    err = nvrtcDestroyProgram(&program);
+    checkErrNVRTC(err, "nvrtcDestroyProgram()");
+
+    // compile ptx
+    hipaccCreateModule(module, ptx, cc);
+    delete[] ptx;
+}
+#else
+void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
+    std::string command = "${NVCC} -O4 -ptx -arch=compute_" + std::to_string(cc) + " ";
+    for (auto option : build_options) command += option + " ";
+    command += file_name + " -o " + file_name + ".ptx 2>&1";
+
+    if (auto stream = popen(command.c_str(), "r")) {
+        char line[FILENAME_MAX];
+
+        while (fgets(line, sizeof(char) * FILENAME_MAX, stream)) {
+            std::cerr << line;
+        }
+
+        int exit_status = pclose(stream);
+        if (WEXITSTATUS(exit_status)) {
+            exit(EXIT_FAILURE);
+        }
+    } else {
+        perror("Problems with pipe");
+        exit(EXIT_FAILURE);
+    }
 
     std::string ptx_filename = file_name + ".ptx";
     std::ifstream ptx_file(ptx_filename);
@@ -728,11 +683,12 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
     }
 
     std::string ptx_string(std::istreambuf_iterator<char>(ptx_file), (std::istreambuf_iterator<char>()));
-
     const char *ptx = (const char *)ptx_string.c_str();
+
     // compile ptx
     hipaccCreateModule(module, ptx, cc);
 }
+#endif
 
 
 // Get kernel from a module
@@ -746,22 +702,20 @@ void hipaccGetKernel(CUfunction &function, CUmodule &module, std::string kernel_
 // Computes occupancy for kernel function
 size_t blockSizeToSmemSize(int blockSize) { return 0; } // TODO: provide proper function to estimate smem usage
 void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y) {
-    #if CUDA_VERSION >= 6050
     CUresult err = CUDA_SUCCESS;
     CUdevice dev = 0;
-
     int warp_size;
-    err = cuDeviceGetAttribute(&warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, dev);
-    checkErrDrv(err, "cuDeviceGetAttribute()");
     int block_size = tile_size_x*tile_size_y;
     size_t dynamic_smem_bytes = 0;
     int block_size_limit = 0;
+
+    err = cuDeviceGetAttribute(&warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, dev);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
 
     int active_blocks;
     int min_grid_size, opt_block_size;
     err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&active_blocks, fun, block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
-
     err = cuOccupancyMaxPotentialBlockSize(&min_grid_size, &opt_block_size, fun, &blockSizeToSmemSize, dynamic_smem_bytes, block_size_limit);
     checkErrDrv(err, "cuOccupancyMaxPotentialBlockSize()");
 
@@ -769,6 +723,8 @@ void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y
     int max_blocks;
     err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&max_blocks, fun, opt_block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
+
+    block_size = ((block_size + warp_size - 1) / warp_size) * warp_size;
     int max_warps = max_blocks * (opt_block_size/warp_size);
     int active_warps = active_blocks * (block_size/warp_size);
     float occupancy = (float)active_warps/(float)max_warps;
@@ -777,9 +733,6 @@ void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y
               << active_warps << " out of " << max_warps << " warps"
               //<< "; optimal block size: " << opt_block_size
               << ")" << std::endl;
-    #else
-    std::cerr << std::endl;
-    #endif
 }
 
 
@@ -888,10 +841,8 @@ void hipaccBindSurfaceDrv(CUsurfref &surface, HipaccImage &img) {
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
-        void *kernel1D, std::string kernel1D_name, HipaccAccessor &acc, unsigned
-        int max_threads, unsigned int pixels_per_thread, const struct
-        textureReference *tex) {
+T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const void *kernel1D, std::string kernel1D_name,
+                       HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
@@ -980,21 +931,17 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
 }
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const
-        void *kernel1D, std::string kernel1D_name, HipaccImage &img, unsigned
-        int max_threads, unsigned int pixels_per_thread, const struct
-        textureReference *tex) {
+T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const void *kernel1D, std::string kernel1D_name,
+                       HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     HipaccAccessor acc(img);
-    return hipaccApplyReduction<T>(kernel2D, kernel2D_name, kernel1D,
-            kernel1D_name, acc, max_threads, pixels_per_thread, tex);
+    return hipaccApplyReduction<T>(kernel2D, kernel2D_name, kernel1D, kernel1D_name, acc, max_threads, pixels_per_thread, tex);
 }
 
 
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
-        kernel2D_name, HipaccAccessor &acc, unsigned int max_threads, unsigned
-        int pixels_per_thread, const struct textureReference *tex) {
+T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_name,
+                                  HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
@@ -1060,20 +1007,17 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
 }
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReductionThreadFence(const void *kernel2D, std::string
-        kernel2D_name, HipaccImage &img, unsigned int max_threads, unsigned int
-        pixels_per_thread, const struct textureReference *tex) {
+T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_name,
+                                  HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     HipaccAccessor acc(img);
-    return hipaccApplyReductionThreadFence<T>(kernel2D, kernel2D_name, acc,
-            max_threads, pixels_per_thread, tex);
+    return hipaccApplyReductionThreadFence<T>(kernel2D, kernel2D_name, acc, max_threads, pixels_per_thread, tex);
 }
 
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-        std::string kernel1D, HipaccAccessor &acc, unsigned int max_threads,
-        unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D,
+                                  HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
@@ -1220,22 +1164,17 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
     return result;
 }
 template<typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-        std::string kernel1D, HipaccImage &img, unsigned int max_threads,
-        unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D,
+                                  HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     HipaccAccessor acc(img);
-    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc,
-            max_threads, pixels_per_thread, tex_info, cc);
+    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc, max_threads, pixels_per_thread, tex_info, cc);
 }
 
 
 // Perform configuration exploration for a kernel call
-void hipaccKernelExploration(std::string filename, std::string kernel,
-        std::vector<void *> args, std::vector<hipacc_smem_info> smems,
-        std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info*>
-        texs, hipacc_launch_info &info, size_t warp_size, size_t
-        max_threads_per_block, size_t max_threads_for_kernel, size_t
-        max_smem_per_block, size_t heu_tx, size_t heu_ty, int cc) {
+void hipaccKernelExploration(std::string filename, std::string kernel, std::vector<void *> args,
+                             std::vector<hipacc_smem_info> smems, std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info*> texs,
+                             hipacc_launch_info &info, size_t warp_size, size_t max_threads_per_block, size_t max_threads_for_kernel, size_t max_smem_per_block, size_t heu_tx, size_t heu_ty, int cc) {
     CUresult err = CUDA_SUCCESS;
     size_t opt_tx=warp_size, opt_ty=1;
     float opt_time = FLT_MAX;

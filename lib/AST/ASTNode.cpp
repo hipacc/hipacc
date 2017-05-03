@@ -205,8 +205,8 @@ RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
 
 MemberExpr *createMemberExpr(ASTContext &Ctx, Expr *base, bool isArrow,
     ValueDecl *memberdecl, QualType T) {
-  return new (Ctx) MemberExpr(base, isArrow, memberdecl, SourceLocation(), T,
-      VK_LValue, OK_Ordinary);
+  return new (Ctx) MemberExpr(base, isArrow, SourceLocation(), memberdecl,
+      SourceLocation(), T, VK_LValue, OK_Ordinary);
 }
 
 
@@ -346,9 +346,9 @@ GotoStmt *createGotoStmt(ASTContext &Ctx, LabelDecl *LD) {
   return new (Ctx) GotoStmt(LD, SourceLocation(), SourceLocation());
 }
 
-} // end ASTNode namespace
-} // end hipacc namespace
-} // end clang namespace
+} // namespace ASTNode
+} // namespace hipacc
+} // namespace clang
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

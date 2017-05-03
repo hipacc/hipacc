@@ -56,11 +56,11 @@ long start_time = 0L;
 long end_time = 0L;
 
 void hipaccStartTiming() {
-    start_time = getMicroTime();
+    start_time = hipacc_time_micro();
 }
 
 void hipaccStopTiming() {
-    end_time = getMicroTime();
+    end_time = hipacc_time_micro();
     last_gpu_timing = (end_time - start_time) * 1.0e-3f;
 
     std::cerr << "<HIPACC:> Kernel timing: "
@@ -100,9 +100,10 @@ HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height) {
 
 
 // Release memory
+template<typename T>
 void hipaccReleaseMemory(HipaccImage &img) {
     HipaccContext &Ctx = HipaccContext::getInstance();
-    delete[] img.mem;
+    delete[] (T*)img.mem;
     Ctx.del_image(img);
 }
 

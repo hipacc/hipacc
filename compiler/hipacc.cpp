@@ -40,7 +40,6 @@
 
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
-#include <clang/Driver/Tool.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/CompilerInvocation.h>
 #include <clang/Frontend/FrontendDiagnostic.h>
@@ -101,9 +100,9 @@ void printUsage() {
     << "  -emit-padding <n>       Emit CUDA/OpenCL/Renderscript image padding, using alignment of <n> bytes for GPU devices\n"
     << "  -target <n>             Generate code for GPUs with code name <n>.\n"
     << "                          Code names for CUDA/OpenCL on NVIDIA devices are:\n"
-    << "                            'Tesla-10', 'Tesla-11', 'Tesla-12', and 'Tesla-13' for Tesla architecture.\n"
     << "                            'Fermi-20' and 'Fermi-21' for Fermi architecture.\n"
-    << "                            'Kepler-30' and 'Kepler-35' for Kepler architecture.\n"
+    << "                            'Kepler-30', 'Kepler-32', 'Kepler-35', and 'Kepler-37' for Kepler architecture.\n"
+    << "                            'Maxwell-50', 'Maxwell-52', and 'Maxwell-53' for Maxwell architecture.\n"
     << "                          Code names for for OpenCL on AMD devices are:\n"
     << "                            'Evergreen'      for Evergreen architecture (Radeon HD5xxx).\n"
     << "                            'NorthernIsland' for Northern Island architecture (Radeon HD6xxx).\n"

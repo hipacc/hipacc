@@ -27,11 +27,12 @@
 #ifndef __HIPACC_TYPES_HPP__
 #define __HIPACC_TYPES_HPP__
 
+typedef unsigned char   uchar;
+typedef unsigned short  ushort;
+typedef unsigned int    uint;
+typedef unsigned long   ulong;
+
 #if defined __CUDACC__
-typedef unsigned char       uchar;
-typedef unsigned short      ushort;
-typedef unsigned int        uint;
-typedef unsigned long       ulong;
 #define ATTRIBUTES __inline__ __host__ __device__
 #define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_MOP(NEW_TYPE, BASIC_TYPE) \
@@ -40,47 +41,23 @@ typedef unsigned long       ulong;
     MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)
 #elif defined __clang__
-typedef char                char4   __attribute__ ((ext_vector_type(4)));
-typedef short int           short4  __attribute__ ((ext_vector_type(4)));
-typedef int                 int4    __attribute__ ((ext_vector_type(4)));
-typedef long int            long4   __attribute__ ((ext_vector_type(4)));
-typedef unsigned char       uchar4  __attribute__ ((ext_vector_type(4)));
-typedef unsigned short int  ushort4 __attribute__ ((ext_vector_type(4)));
-typedef unsigned int        uint4   __attribute__ ((ext_vector_type(4)));
-typedef unsigned long int   ulong4  __attribute__ ((ext_vector_type(4)));
-typedef float               float4  __attribute__ ((ext_vector_type(4)));
-typedef double              double4 __attribute__ ((ext_vector_type(4)));
-typedef unsigned char       uchar;
-typedef unsigned short      ushort;
-typedef unsigned int        uint;
-typedef unsigned long       ulong;
+typedef char            char4   __attribute__ ((ext_vector_type(4)));
+typedef short int       short4  __attribute__ ((ext_vector_type(4)));
+typedef int             int4    __attribute__ ((ext_vector_type(4)));
+typedef long int        long4   __attribute__ ((ext_vector_type(4)));
+typedef uchar           uchar4  __attribute__ ((ext_vector_type(4)));
+typedef ushort          ushort4 __attribute__ ((ext_vector_type(4)));
+typedef uint            uint4   __attribute__ ((ext_vector_type(4)));
+typedef ulong           ulong4  __attribute__ ((ext_vector_type(4)));
+typedef float           float4  __attribute__ ((ext_vector_type(4)));
+typedef double          double4 __attribute__ ((ext_vector_type(4)));
 #define ATTRIBUTES inline
 #define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
-    MAKE_VMOP(NEW_TYPE, BASIC_TYPE) \
-    MAKE_MOP(NEW_TYPE, BASIC_TYPE)
+    MAKE_TYPE(NEW_TYPE, BASIC_TYPE)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)
 #elif defined __GNUC__
-typedef unsigned char       uchar;
-typedef unsigned short      ushort;
-typedef unsigned int        uint;
-typedef unsigned long       ulong;
-#define ATTRIBUTES inline
-#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
-    MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
-    MAKE_VMOP(NEW_TYPE, BASIC_TYPE) \
-    MAKE_MOP(NEW_TYPE, BASIC_TYPE) \
-    MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE, RET_TYPE)
-#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
-    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
-    MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)
-#else
-#error "Only Clang, nvcc, and gcc compilers supported!"
-#endif
-
-
-// vector type definition
-#define MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
+#define MAKE_TYPEDEF(NEW_TYPE, BASIC_TYPE) \
 _Pragma("pack(push, 1)") \
 struct NEW_TYPE { \
     BASIC_TYPE x, y, z, w; \
@@ -90,17 +67,40 @@ struct NEW_TYPE { \
 }; \
 typedef struct NEW_TYPE NEW_TYPE; \
 _Pragma("pack(pop)")
+MAKE_TYPEDEF(char4,     char)
+MAKE_TYPEDEF(uchar4,    uchar)
+MAKE_TYPEDEF(short4,    short)
+MAKE_TYPEDEF(ushort4,   ushort)
+MAKE_TYPEDEF(int4,      int)
+MAKE_TYPEDEF(uint4,     uint)
+MAKE_TYPEDEF(long4,     long)
+MAKE_TYPEDEF(ulong4,    ulong)
+MAKE_TYPEDEF(float4,    float)
+MAKE_TYPEDEF(double4,   double)
+#define ATTRIBUTES inline
+#define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VOPS_A(NEW_TYPE, BASIC_TYPE, RET_TYPE)
+#define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
+    MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)
+#else
+#error "Only Clang, nvcc, and gcc compilers supported!"
+#endif
 
 
 // make function
+#define MAKE_TYPE(NEW_TYPE, BASIC_TYPE) \
+    MAKE_VMOP(NEW_TYPE, BASIC_TYPE) \
+    MAKE_MOP(NEW_TYPE, BASIC_TYPE)
+
 #define MAKE_VMOP(NEW_TYPE, BASIC_TYPE) \
 static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE x, BASIC_TYPE y, BASIC_TYPE z, BASIC_TYPE w) { \
     NEW_TYPE t; t.x = x; t.y = y; t.z = z; t.w = w; return t; \
 }
 
 #define MAKE_MOP(NEW_TYPE, BASIC_TYPE) \
-static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) \
-{ \
+static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) { \
     return make_##NEW_TYPE(s, s, s, s); \
 }
 

@@ -225,7 +225,6 @@ inline void __checkOpenCLErrors(cl_int err, std::string name, std::string file, 
 void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name platform_name=ALL) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024];
-    cl_uint num_platforms, num_devices, num_devices_type;
 
     // Set environment variable to tell AMD/ATI platform to dump kernel
     // this has to be done before platform initialization
@@ -239,6 +238,7 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
     }
 
     // Get OpenCL platform count
+    cl_uint num_platforms = 0;
     cl_int err = clGetPlatformIDs(0, NULL, &num_platforms);
     checkErr(err, "clGetPlatformIDs()");
 
@@ -260,6 +260,7 @@ void hipaccInitPlatformsAndDevices(cl_device_type dev_type, cl_platform_name pla
             err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, 1024, &pv2Buffer, NULL);
             checkErr(err, "clGetPlatformInfo()");
 
+            cl_uint num_devices = 0, num_devices_type = 0;
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
             err |= clGetDeviceIDs(platforms[i], dev_type, 0, NULL, &num_devices_type);
 
@@ -641,6 +642,7 @@ cl_sampler hipaccCreateSampler(cl_bool normalized_coords, cl_addressing_mode add
 
 
 // Release buffer or image
+template<typename T>
 void hipaccReleaseMemory(HipaccImage &img) {
     cl_int err = clReleaseMemObject((cl_mem)img.mem);
     checkErr(err, "clReleaseMemObject()");
@@ -755,7 +757,7 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst, int num_device=0) {
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyImage()");
     } else {
-        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, NULL);
+        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.stride*src.height*src.pixel_size, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyBuffer()");
     }
@@ -772,9 +774,7 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
         const size_t src_origin[] = { (size_t)src.offset_x, (size_t)src.offset_y, 0 };
         const size_t region[]     = { dst.width, dst.height, 1 };
 
-        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device],
-                (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin,
-                region, 0, NULL, NULL);
+        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin, region, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyImage()");
     } else {
@@ -782,10 +782,8 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
         const size_t src_origin[] = { src.offset_x*src.img.pixel_size, (size_t)src.offset_y, 0 };
         const size_t region[]     = { dst.width*dst.img.pixel_size, dst.height, 1 };
 
-        err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device],
-                (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin,
-                region, src.img.stride*src.img.pixel_size, 0,
-                dst.img.stride*dst.img.pixel_size, 0, 0, NULL, NULL);
+        err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device], (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin, region,
+                                      src.img.stride*src.img.pixel_size, 0, dst.img.stride*dst.img.pixel_size, 0, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyBufferRect()");
     }
@@ -820,10 +818,10 @@ double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_dev
         end *= 1e-3;
         #else
         clFinish(Ctx.get_command_queues()[num_device]);
-        start = getMicroTime();
+        start = hipacc_time_micro();
         err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
-        end = getMicroTime();
+        end = hipacc_time_micro();
         checkErr(err, "clEnqueueCopyBuffer()");
         #endif
 
@@ -880,10 +878,10 @@ void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *loc
     checkErr(err, "clReleaseEvent()");
     #else
     clFinish(Ctx.get_command_queues()[0]);
-    start = getMicroTime();
+    start = hipacc_time_micro();
     err = clEnqueueNDRangeKernel(Ctx.get_command_queues()[0], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, NULL);
     err |= clFinish(Ctx.get_command_queues()[0]);
-    end = getMicroTime();
+    end = hipacc_time_micro();
     checkErr(err, "clEnqueueNDRangeKernel()");
     #endif
 

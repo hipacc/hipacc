@@ -24,17 +24,20 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
 
 #include <sys/time.h>
 
-//#define CPU
-#ifdef OpenCV
+#ifdef OPENCV
 #include <opencv2/opencv.hpp>
-#ifndef CPU
-#include <opencv2/gpu/gpu.hpp>
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/core/ocl.hpp>
+#ifdef OPENCV_CUDA_FOUND
+#include <opencv2/cudafilters.hpp>
 #endif
 #endif
 
@@ -45,6 +48,8 @@
 //#define SIZE_Y 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
+
+// code variants
 #define CONST_MASK
 #define USE_LAMBDA
 
@@ -62,24 +67,18 @@ double time_ms () {
 
 
 // Erode filter reference
-void erode_filter(uchar *in, uchar *out, int size_x, int size_y, int width, int
-        height) {
+void erode_filter(uchar *in, uchar *out, int size_x, int size_y, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-    #ifdef OpenCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
             uchar min_val = 255;
 
-            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
                     min_val = min(min_val, in[(y + yf)*width + x + xf]);
                 }
             }
@@ -118,8 +117,8 @@ class ErodeFilter : public Kernel<uchar> {
             int anchor_y = size_y >> 1;
             uchar min_val = 255;
 
-            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
                     min_val = min(min_val, in(xf, yf));
                 }
             }
@@ -134,7 +133,6 @@ class ErodeFilter : public Kernel<uchar> {
  * Main function                                                         *
  *************************************************************************/
 int main(int argc, const char **argv) {
-    double time0, time1, dt, min_dt;
     const int width = WIDTH;
     const int height = HEIGHT;
     const int size_x = SIZE_X;
@@ -148,7 +146,7 @@ int main(int argc, const char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    // domain for Erode filter
+    // domain for erode filter
     #ifdef CONST_MASK
     const
     #endif
@@ -186,111 +184,181 @@ int main(int argc, const char **argv) {
     Image<uchar> in(width, height, input);
     Image<uchar> out(width, height);
 
-    // define Domain for Erode filter
+    // define Domain for erode filter
     Domain dom(domain);
 
-    // use undefined boundary handling to access image pixels beyond region
-    // defined by Accessor
-    BoundaryCondition<uchar> bound(in, size_x, size_y, Boundary::UNDEFINED);
-    Accessor<uchar> acc(bound, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    #ifndef OPENCV
+    std::cerr << "Calculating Hipacc erode filter ..." << std::endl;
+    std::vector<float> timings_hipacc;
+    float timing = 0;
 
-    IterationSpace<uchar> iter(out, width-2*offset_x, height-2*offset_y, offset_x, offset_y);
+    BoundaryCondition<uchar> bound(in, dom, Boundary::CLAMP);
+    Accessor<uchar> acc(bound);
+
+    IterationSpace<uchar> iter(out);
     ErodeFilter filter(iter, acc, dom, size_x, size_y);
-
-    std::cerr << "Calculating Hipacc Erode filter ..." << std::endl;
-    float timing = 0.0f;
 
     filter.execute();
     timing = hipacc_last_kernel_timing();
+    timings_hipacc.push_back(timing);
+    std::cerr << "Hipacc (CLAMP): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
     // get pointer to result data
     uchar *output = out.data();
 
-    std::cerr << "Hipacc: " << timing << " ms, " << ((width-2*offset_x)*(height-2*offset_y)/timing)/1000 << " Mpixel/s" << std::endl;
-
-
-    #ifdef OpenCV
-    // OpenCV uses NPP library for filtering
-    // image: 4096x4096
-    // kernel size: 3x3
-    // offset 3x3 shifted by 1 -> 1x1
-    // output: 4096x4096 - 3x3 -> 4093x4093; start: 1,1; end: 4094,4094
-    //
-    // image: 4096x4096
-    // kernel size: 4x4
-    // offset 4x4 shifted by 1 -> 2x2
-    // output: 4096x4096 - 4x4 -> 4092x4092; start: 2,2; end: 4094,4094
-    #ifdef CPU
-    std::cerr << std::endl << "Calculating OpenCV Erode filter on the CPU ..." << std::endl;
-    #else
-    std::cerr << std::endl << "Calculating OpenCV Erode filter on the GPU ..." << std::endl;
+    if (timings_hipacc.size()) {
+        std::cerr << "Hipacc:";
+        for (std::vector<float>::const_iterator it = timings_hipacc.begin(); it != timings_hipacc.end(); ++it)
+            std::cerr << "\t" << *it;
+        std::cerr << std::endl;
+    }
     #endif
 
 
-    cv::Mat cv_data_in(height, width, CV_8UC1, input);
-    cv::Mat cv_data_out(height, width, CV_8UC1, cv::Scalar(0));
+    #ifdef OPENCV
+    auto opencv_bench = [] (std::function<void(int)> init, std::function<void(int)> launch, std::function<void(float)> finish) {
+        for (int brd_type=0; brd_type<5; ++brd_type) {
+            init(brd_type);
+
+            std::vector<float> timings;
+            try {
+                for (int nt=0; nt<10; ++nt) {
+                    auto start = time_ms();
+                    launch(brd_type);
+                    auto end = time_ms();
+                    timings.push_back(end - start);
+                }
+            } catch (const cv::Exception &ex) {
+                std::cerr << ex.what();
+                timings.push_back(0);
+            }
+
+            std::cerr << "OpenCV (";
+            switch (brd_type) {
+                case IPL_BORDER_CONSTANT:    std::cerr << "CONSTANT";   break;
+                case IPL_BORDER_REPLICATE:   std::cerr << "CLAMP";      break;
+                case IPL_BORDER_REFLECT:     std::cerr << "MIRROR";     break;
+                case IPL_BORDER_WRAP:        std::cerr << "REPEAT";     break;
+                case IPL_BORDER_REFLECT_101: std::cerr << "MIRROR_101"; break;
+                default: break;
+            }
+            std::sort(timings.begin(), timings.end());
+            float time = timings[timings.size()/2];
+            std::cerr << "): " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
+
+            finish(time);
+        }
+    };
+
+    cv::Mat cv_data_src(height, width, CV_8UC1, input);
+    cv::Mat cv_data_dst(height, width, CV_8UC1, cv::Scalar(0));
     cv::Mat kernel(cv::Mat::ones(size_x, size_y, CV_8U));
+    cv::Point anchor = cv::Point(-1,-1);
+    std::vector<float> timings_cpu;
+    std::vector<float> timings_ocl;
+    std::vector<float> timings_cuda;
 
-    #ifdef CPU
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
+    auto compute_tapi = [&] (std::vector<float> &timings) {
+        cv::UMat dev_src, dev_dst;
+        opencv_bench(
+            [&] (int) {
+                cv_data_src.copyTo(dev_src);
+            },
+            [&] (int brd_type) {
+                cv::erode(dev_src, dev_dst, kernel, anchor, 1, brd_type);
+                if (cv::ocl::useOpenCL())
+                    cv::ocl::finish();
+            },
+            [&] (float timing) {
+                timings.push_back(timing);
+                dev_dst.copyTo(cv_data_dst);
+            }
+        );
+    };
 
-        cv::erode(cv_data_in, cv_data_out, kernel);
+    // OpenCV - CPU
+    cv::ocl::setUseOpenCL(false);
+    std::cerr << std::endl
+              << "Calculating OpenCV-CPU erode filter on CPU" << std::endl;
+    compute_tapi(timings_cpu);
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+    // OpenCV - OpenCL
+    if (cv::ocl::haveOpenCL()) {
+        cv::ocl::setUseOpenCL(true);
+        std::cerr << std::endl
+                  << "Calculating OpenCV-OCL erode filter on "
+                  << cv::ocl::Device::getDefault().name() << std::endl;
+        compute_tapi(timings_ocl);
     }
-    #else
-    cv::gpu::GpuMat gpu_in, gpu_out;
-    gpu_in.upload(cv_data_in);
 
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<10; nt++) {
-        time0 = time_ms();
+    // OpenCV - CUDA
+    if (cv::cuda::getCudaEnabledDeviceCount()) {
+        #ifdef OPENCV_CUDA_FOUND
+        std::cerr << std::endl
+                  << "Calculating OpenCV-CUDA erode filter" << std::endl;
+        cv::cuda::printShortCudaDeviceInfo(cv::cuda::getDevice());
 
-        cv::gpu::erode(gpu_in, gpu_out, kernel);
+        cv::cuda::GpuMat dev_src, dev_dst;
+        cv::Ptr<cv::cuda::Filter> erode;
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+        opencv_bench(
+            [&] (int brd_type) {
+                dev_src.upload(cv_data_src);
+                erode = cv::cuda::createMorphologyFilter(cv::MORPH_ERODE, cv_data_src.type(), kernel, anchor, 1);
+            },
+            [&] (int) {
+                erode->apply(dev_src, dev_dst);
+            },
+            [&] (float timing) {
+                timings_cuda.push_back(timing);
+                dev_dst.download(cv_data_dst);
+            }
+        );
+        #endif
     }
-
-    gpu_out.download(cv_data_out);
-    #endif
-    std::cerr << "OpenCV: " << min_dt << " ms, " << ((width-size_x)*(height-size_y)/min_dt)/1000 << " Mpixel/s" << std::endl;
 
     // get pointer to result data
-    output = (uchar *)cv_data_out.data;
+    uchar *output = (uchar *)cv_data_dst.data;
+
+    if (timings_cpu.size()) {
+        std::cerr << "CV-CPU: ";
+        for (auto time : timings_cpu)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
+    if (timings_ocl.size()) {
+        std::cerr << "CV-OCL: ";
+        for (auto time : timings_ocl)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
+    if (timings_cuda.size()) {
+        std::cerr << "CV-CUDA:";
+        for (auto time : timings_cuda)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
     #endif
 
 
-    std::cerr << std::endl << "Calculating reference ..." << std::endl;
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<3; nt++) {
-        time0 = time_ms();
+    std::cerr << "Calculating reference ..." << std::endl;
+    std::vector<float> timings_reference;
+    for (int nt=0; nt<3; ++nt) {
+        double start = time_ms();
 
-        // calculate reference
         erode_filter(reference_in, reference_out, size_x, size_y, width, height);
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+        double end = time_ms();
+        timings_reference.push_back(end - start);
     }
-    std::cerr << "Reference: " << min_dt << " ms, " << ((width-2*offset_x)*(height-2*offset_y)/min_dt)/1000 << " Mpixel/s" << std::endl;
+    std::sort(timings_reference.begin(), timings_reference.end());
+    float time = timings_reference[timings_reference.size()/2];
+    std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
-    std::cerr << std::endl << "Comparing results ..." << std::endl;
-    #ifdef OpenCV
-    int upper_y = height-size_y+offset_y;
-    int upper_x = width-size_x+offset_x;
-    #else
-    int upper_y = height-offset_y;
-    int upper_x = width-offset_x;
-    #endif
-    // compare results
-    for (int y=offset_y; y<upper_y; y++) {
-        for (int x=offset_x; x<upper_x; x++) {
+
+    std::cerr << "Comparing results ..." << std::endl;
+    for (int y=offset_y; y<height-offset_y; ++y) {
+        for (int x=offset_x; x<width-offset_x; ++x) {
             if (reference_out[y*width + x] != output[y*width + x]) {
                 std::cerr << "Test FAILED, at (" << x << "," << y << "): "
                           << (int)reference_out[y*width + x] << " vs. "
@@ -301,7 +369,7 @@ int main(int argc, const char **argv) {
     }
     std::cerr << "Test PASSED" << std::endl;
 
-    // memory cleanup
+    // free memory
     delete[] input;
     delete[] reference_in;
     delete[] reference_out;

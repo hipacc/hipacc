@@ -48,6 +48,7 @@
 #include "hipacc/DSL/ClassRepresentation.h"
 #include "hipacc/Vectorization/SIMDTypes.h"
 
+#include <functional>
 
 //===----------------------------------------------------------------------===//
 // Statement/expression transformations
@@ -105,7 +106,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     DeclRefExpr *outputImage;
     DeclRefExpr *retValRef;
     Expr *writeImageRHS;
-    NamespaceDecl *hipaccNS, *hipaccMathNS;
+    NamespaceDecl *hipacc_ns, *hipacc_math_ns;
     TypedefDecl *samplerTy;
     DeclRefExpr *kernelSamplerRef;
 
@@ -129,12 +130,14 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
 
     template<class T> T *Clone(T *S) {
-      if (S==nullptr) return nullptr;
+      if (S==nullptr)
+        return nullptr;
 
       return static_cast<T *>(Visit(S));
     }
     template<class T> T *CloneDecl(T *D) {
-      if (D==nullptr) return nullptr;
+      if (D==nullptr)
+        return nullptr;
 
       switch (D->getKind()) {
         default:
@@ -227,16 +230,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
         *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
         SmallVector<CompoundStmt *, 16> &bhCStmt);
-    Stmt *addClampUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, bool);
-    Stmt *addClampLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, bool);
-    Stmt *addRepeatUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, bool);
-    Stmt *addRepeatLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, bool);
-    Stmt *addMirrorUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, bool);
-    Stmt *addMirrorLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, bool);
-    Expr *addConstantUpper(HipaccAccessor *Acc, Expr *idx, Expr *upper, Expr
-        *cond);
-    Expr *addConstantLower(HipaccAccessor *Acc, Expr *idx, Expr *lower, Expr
-        *cond);
 
     // Convolution.cpp
     Stmt *getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var, Expr *ret_val);
@@ -251,9 +244,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
     FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess mem_acc);
     FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess mem_acc);
-    FunctionDecl *getAllocationFunction(const BuiltinType *BT, bool isVecType,
-                                        MemoryAccess mem_acc);
-    FunctionDecl *getConvertFunction(QualType QT, bool isVecType);
+    FunctionDecl *getAllocationFunction(QualType QT, MemoryAccess mem_acc);
+    FunctionDecl *getConvertFunction(QualType QT);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
 
@@ -340,17 +332,17 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       gidYRef(nullptr) {
         // get 'hipacc' namespace context for lookups
         auto hipacc_ident = &Ctx.Idents.get("hipacc");
-        for (auto *decl : Ctx.getTranslationUnitDecl()->lookup(hipacc_ident)) {
-          if ((hipaccNS = cast_or_null<NamespaceDecl>(decl))) break;
-        }
-        assert(hipaccNS && "could not lookup 'hipacc' namespace");
+        for (auto *decl : Ctx.getTranslationUnitDecl()->lookup(hipacc_ident))
+          if ((hipacc_ns = cast_or_null<NamespaceDecl>(decl)))
+            break;
+        assert(hipacc_ns && "could not lookup 'hipacc' namespace");
 
         // get 'hipacc::math' namespace context for lookups
         auto math_ident = &Ctx.Idents.get("math");
-        for (auto *decl : hipaccNS->lookup(math_ident)) {
-          if ((hipaccMathNS = cast_or_null<NamespaceDecl>(decl))) break;
-        }
-        assert(hipaccMathNS && "could not lookup 'hipacc::math' namespace");
+        for (auto *decl : hipacc_ns->lookup(math_ident))
+          if ((hipacc_math_ns = cast_or_null<NamespaceDecl>(decl)))
+            break;
+        assert(hipacc_math_ns && "could not lookup 'hipacc::math' namespace");
 
         // typedef unsigned sampler_t;
         TypeSourceInfo *TInfosampler =
@@ -389,7 +381,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         hipacc::Builtin::Context &builtins, CompilerOptions &compilerOptions,
         HipaccKernel *Kernel, HipaccAccessor *Acc, border_variant bh_variant);
 
-    // the following list ist ordered according to
+    // the following list is ordered according to
     // include/clang/Basic/StmtNodes.td
 
     // implementation of Visitors is split into two files:
@@ -445,6 +437,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Stmt *VisitCXXTryStmt(CXXTryStmt *S);
     HIPACC_UNSUPPORTED_STMT( CXXForRangeStmt )
 
+    // C++ Coroutines TS statements
+    HIPACC_UNSUPPORTED_STMT( CoroutineBodyStmt )
+    HIPACC_UNSUPPORTED_STMT( CoreturnStmt )
+
     // Expressions
     HIPACC_UNSUPPORTED_EXPR_BASE_CLASS( Expr )
     Expr *VisitPredefinedExpr(PredefinedExpr *E);
@@ -459,6 +455,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitOffsetOfExpr(OffsetOfExpr *E);
     Expr *VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E);
     Expr *VisitArraySubscriptExpr(ArraySubscriptExpr *E);
+    HIPACC_UNSUPPORTED_EXPR( OMPArraySectionExpr )
     VISIT_MODE(Expr, CallExpr)
     VISIT_MODE(Expr, MemberExpr)
     HIPACC_UNSUPPORTED_EXPR_BASE_CLASS( CastExpr )
@@ -474,7 +471,9 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitExtVectorElementExpr(ExtVectorElementExpr *E);
     Expr *VisitInitListExpr(InitListExpr *E);
     Expr *VisitDesignatedInitExpr(DesignatedInitExpr *E);
+    Expr *VisitDesignatedInitUpdateExpr(DesignatedInitUpdateExpr *E);
     Expr *VisitImplicitValueInitExpr(ImplicitValueInitExpr *E);
+    Expr *VisitNoInitExpr(NoInitExpr *E);
     Expr *VisitParenListExpr(ParenListExpr *E);
     Expr *VisitVAArgExpr(VAArgExpr *E);
     HIPACC_UNSUPPORTED_EXPR( GenericSelectionExpr )
@@ -534,6 +533,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitLambdaExpr(LambdaExpr *E);
     HIPACC_UNSUPPORTED_EXPR( CXXFoldExpr )
 
+    // C++ Coroutines TS expressions
+    HIPACC_UNSUPPORTED_EXPR( CoroutineSuspendExpr )
+    HIPACC_UNSUPPORTED_EXPR( CoawaitExpr )
+    HIPACC_UNSUPPORTED_EXPR( CoyieldExpr )
+
     // Obj-C Expressions
     HIPACC_UNSUPPORTED_EXPR( ObjCStringLiteral )
     HIPACC_UNSUPPORTED_EXPR( ObjCBoxedExpr )
@@ -565,6 +569,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // Microsoft Extensions
     HIPACC_UNSUPPORTED_EXPR( MSPropertyRefExpr )
+    HIPACC_UNSUPPORTED_EXPR( MSPropertySubscriptExpr )
     HIPACC_UNSUPPORTED_EXPR( CXXUuidofExpr )
     HIPACC_UNSUPPORTED_STMT( SEHTryStmt )
     HIPACC_UNSUPPORTED_STMT( SEHExceptStmt )
@@ -594,14 +599,21 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_STMT( OMPTaskyieldDirective )
     HIPACC_UNSUPPORTED_STMT( OMPBarrierDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTaskwaitDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTaskgroupDirective )
     HIPACC_UNSUPPORTED_STMT( OMPFlushDirective )
     HIPACC_UNSUPPORTED_STMT( OMPOrderedDirective )
     HIPACC_UNSUPPORTED_STMT( OMPAtomicDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTargetDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetDataDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTeamsDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPCancellationPointDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPCancelDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTaskLoopDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTaskLoopSimdDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPDistributeDirective )
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _ASTTRANSLATE_H_
 

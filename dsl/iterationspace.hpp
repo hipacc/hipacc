@@ -38,7 +38,7 @@ class Coordinate {
     public:
         int x, y;
         Coordinate() : x(0), y(0) {}
-        Coordinate(int x, int y) : x(x), y(y) {}
+        Coordinate(const int x, const int y) : x(x), y(y) {}
 };
 
 class IterationSpaceBase {
@@ -47,8 +47,7 @@ class IterationSpaceBase {
         const int offset_x_, offset_y_;
 
     public:
-        IterationSpaceBase(int width, int height, int offset_x=0, int
-                offset_y=0) :
+        IterationSpaceBase(const int width, const int height, const int offset_x=0, const int offset_y=0) :
             width_(width),
             height_(height),
             offset_x_(offset_x),
@@ -65,9 +64,7 @@ class IterationSpaceBase {
                 Coordinate coord;
 
             public:
-                ElementIterator(const int width=0, const int height=0,
-                                const int offset_x=0, const int offset_y=0,
-                                const IterationSpaceBase *iteration_space=nullptr) :
+                ElementIterator(const int width=0, const int height=0, const int offset_x=0, const int offset_y=0, const IterationSpaceBase *iteration_space=nullptr) :
                     min_x(offset_x),
                     min_y(offset_y),
                     max_x(offset_x+width),
@@ -119,7 +116,7 @@ class IterationSpace : public IterationSpaceBase {
         Image<data_t> &img;
 
     public:
-        IterationSpace(Image<data_t> &img) :
+        explicit IterationSpace(Image<data_t> &img) :
             IterationSpaceBase(img.width(), img.height()),
             img(img)
         {}

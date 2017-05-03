@@ -32,13 +32,19 @@
 
 #include "iterationspace.hpp"
 
-
 namespace hipacc {
-// get time in microseconds
+
 int64_t hipacc_time_micro() {
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 
+enum class Reduce : uint8_t {
+    SUM = 0,
+    MIN,
+    MAX,
+    PROD,
+    MEDIAN
+};
 
 template<typename data_t>
 class Kernel {
@@ -49,7 +55,7 @@ class Kernel {
         data_t reduction_result_;
 
     public:
-        Kernel(IterationSpace<data_t> &iteration_space) :
+        explicit Kernel(IterationSpace<data_t> &iteration_space) :
             iteration_space_(iteration_space),
             output_(iteration_space.img,
                     iteration_space.width(), iteration_space.height(),
@@ -58,7 +64,7 @@ class Kernel {
 
         virtual ~Kernel() {}
         virtual void kernel() = 0;
-        virtual data_t reduce(data_t left, data_t right) { return left; }
+        virtual data_t reduce(data_t left, data_t right) const { return left; }
 
         void add_accessor(AccessorBase *acc) { inputs_.push_back(acc); }
 
@@ -66,8 +72,9 @@ class Kernel {
             auto end  = iteration_space_.end();
             auto iter = iteration_space_.begin();
             // register input & output accessors
-            for (auto acc : inputs_) acc->setEI(&iter);
-            output_.setEI(&iter);
+            for (auto acc : inputs_)
+                acc->set_iterator(&iter);
+            output_.set_iterator(&iter);
 
             // advance iterator and apply kernel to whole iteration space
             auto start_time = hipacc_time_micro();
@@ -79,19 +86,20 @@ class Kernel {
             hipacc_last_timing = (float)(end_time - start_time)/1000.0f;
 
             // de-register input & output accessors
-            for (auto acc : inputs_) acc->setEI(nullptr);
-            output_.setEI(nullptr);
+            for (auto acc : inputs_)
+                acc->set_iterator(nullptr);
+            output_.set_iterator(nullptr);
 
             // apply reduction
             reduce();
         }
 
-        void reduce(void) {
+        void reduce() {
             auto end  = iteration_space_.end();
             auto iter = iteration_space_.begin();
 
             // register output accessor
-            output_.setEI(&iter);
+            output_.set_iterator(&iter);
 
             // first element
             data_t result = output_();
@@ -102,18 +110,18 @@ class Kernel {
             }
 
             // de-register output accessor
-            output_.setEI(nullptr);
+            output_.set_iterator(nullptr);
 
             reduction_result_ = result;
         }
 
-        data_t reduced_data() {
+        data_t reduced_data() const {
             return reduction_result_;
         }
 
 
         // access output image
-        data_t &output(void) {
+        data_t &output() {
             return output_();
         }
 
@@ -123,12 +131,12 @@ class Kernel {
             return output_.pixel_at(xf, yf);
         }
 
-        int x(void) {
+        int x() const {
             assert(output_.EI!=ElementIterator() && "ElementIterator not set!");
             return output_.x();
         }
 
-        int y(void) {
+        int y() const {
             assert(output_.EI!=ElementIterator() && "ElementIterator not set!");
             return output_.y();
         }
@@ -149,7 +157,7 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, Reduce mode, const Function& f
     auto iter = mask.begin();
 
     // register mask
-    mask.setEI(&iter);
+    mask.set_iterator(&iter);
 
     // initialize result - calculate first iteration
     auto result = fun();
@@ -166,7 +174,7 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, Reduce mode, const Function& f
     }
 
     // de-register mask
-    mask.setEI(nullptr);
+    mask.set_iterator(nullptr);
 
     return result;
 }
@@ -178,7 +186,7 @@ auto Kernel<data_t>::reduce(Domain &domain, Reduce mode, const Function &fun) ->
     auto iter = domain.begin();
 
     // register domain
-    domain.setDI(&iter);
+    domain.set_iterator(&iter);
 
     // initialize result - calculate first iteration
     auto result = fun();
@@ -195,7 +203,7 @@ auto Kernel<data_t>::reduce(Domain &domain, Reduce mode, const Function &fun) ->
     }
 
     // de-register domain
-    domain.setDI(nullptr);
+    domain.set_iterator(nullptr);
 
     return result;
 }
@@ -207,7 +215,7 @@ void Kernel<data_t>::iterate(Domain &domain, const Function &fun) {
     auto iter = domain.begin();
 
     // register domain
-    domain.setDI(&iter);
+    domain.set_iterator(&iter);
 
     // advance iterator and apply kernel to iteration space
     while (iter != end) {
@@ -216,7 +224,7 @@ void Kernel<data_t>::iterate(Domain &domain, const Function &fun) {
     }
 
     // de-register domain
-    domain.setDI(nullptr);
+    domain.set_iterator(nullptr);
 }
 } // end namespace hipacc
 

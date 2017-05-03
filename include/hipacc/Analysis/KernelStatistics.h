@@ -71,7 +71,7 @@ enum VectorInfo {
 
 class KernelStatistics : public ManagedAnalysis {
   private:
-    KernelStatistics(void *impl);
+    explicit KernelStatistics(void *impl);
     void *impl;
 
   public:
@@ -80,7 +80,7 @@ class KernelStatistics : public ManagedAnalysis {
     VectorInfo getVectorizeInfo(const VarDecl *VD);
     KernelType getKernelType();
 
-    virtual ~KernelStatistics();
+    ~KernelStatistics() override;
 
     static KernelStatistics *computeKernelStatistics(AnalysisDeclContext
         &analysisContext, StringRef name, FieldDecl *output_image,
@@ -128,8 +128,8 @@ class KernelStatistics : public ManagedAnalysis {
       //.setAlwaysAdd(Stmt::ImplicitCastExprClass)
     }
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _KERNELSTATISTICS_H_
 

@@ -203,7 +203,7 @@ QualType SIMDTypes::getSIMDType(VarDecl *VD, SIMDWidth simd_width) {
 
 Expr *SIMDTypes::propagate(VarDecl *VD, Expr *E) {
   // vector types do not need further widening
-  if (E->getType()->isVectorType() || E->getType()->isExtVectorType())
+  if (E->getType()->isVectorType())
     return E;
 
   // only propagate scalars for CUDA back end

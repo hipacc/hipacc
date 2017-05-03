@@ -305,12 +305,10 @@ class HipaccMask : public HipaccMemory {
     {}
 
     ~HipaccMask() {
-      if (domain_space) {
+      if (domain_space)
         delete[] domain_space;
-      }
-      if (copy_mask) {
+      if (copy_mask)
         delete copy_mask;
-      }
     }
 
     void setIsConstant(bool c) { is_constant = c; }
@@ -328,11 +326,13 @@ class HipaccMask : public HipaccMemory {
     std::string getHostMemName() { return hostMemName; }
     void setSizeX(unsigned x) {
       HipaccMemory::setSizeX(x);
-      if (isDomain()) { setDomainSize(size_x*size_y); }
+      if (isDomain())
+        setDomainSize(size_x*size_y);
     }
     void setSizeY(unsigned y) {
       HipaccMemory::setSizeY(y);
-      if (isDomain()) { setDomainSize(size_x*size_y); }
+      if (isDomain())
+        setDomainSize(size_x*size_y);
     }
     void setDomainSize(unsigned size) {
       if (domain_space) {
@@ -347,7 +347,8 @@ class HipaccMask : public HipaccMemory {
       }
     }
     void setDomainDefined(unsigned pos, bool def) {
-      if (domain_space) { domain_space[pos] = def; }
+      if (domain_space)
+        domain_space[pos] = def;
     }
     void setDomainDefined(unsigned x, unsigned y, bool def) {
       unsigned pos = (y * size_x) + x;
@@ -396,7 +397,7 @@ class HipaccKernelClass {
     FieldDecl *output_image;
 
   public:
-    HipaccKernelClass(std::string name) :
+    explicit HipaccKernelClass(std::string name) :
       name(name),
       kernelFunction(nullptr),
       reduceFunction(nullptr),
@@ -459,8 +460,8 @@ class HipaccKernelClass {
     }
 
     ArrayRef<KernelMemberInfo> getMembers() { return members; }
-    ArrayRef<FieldDecl *>  getImgFields() { return imgFields; }
-    ArrayRef<FieldDecl *>  getMaskFields() { return maskFields; }
+    ArrayRef<FieldDecl *> getImgFields() { return imgFields; }
+    ArrayRef<FieldDecl *> getMaskFields() { return maskFields; }
     FieldDecl *getOutField() { return output_image; }
 
     friend class HipaccKernel;
@@ -485,10 +486,11 @@ class HipaccKernelFeatures : public HipaccDevice {
     void calcImgFeature(FieldDecl *decl, HipaccAccessor *acc) {
       MemoryType mem_type = Global;
       Texture tex_type = Texture::None;
+      MemoryAccess mem_access = KC->getMemAccess(decl);
       MemoryPattern mem_pattern = KC->getMemPattern(decl);
 
       if (options.useTextureMemory() &&
-          options.getTextureType()==Texture::Array2D) {
+          options.getTextureType() == Texture::Array2D) {
         mem_type = Texture_;
         tex_type = Texture::Array2D;
       } else {
@@ -497,7 +499,7 @@ class HipaccKernelFeatures : public HipaccDevice {
         // image is accessed with an offset to the x-coordinate
         if (options.emitCUDA()) {
           if (mem_pattern & NO_STRIDE) {
-            if (require_textures[PointOperator]!=Texture::None) {
+            if (require_textures[PointOperator] != Texture::None) {
               mem_type = Texture_;
               tex_type = require_textures[PointOperator];
             }
@@ -506,22 +508,26 @@ class HipaccKernelFeatures : public HipaccDevice {
               (mem_pattern & STRIDE_Y) ||
               (mem_pattern & STRIDE_XY)) {
             // possibly use textures only for stride_x ?
-            if (require_textures[LocalOperator]!=Texture::None) {
+            if (require_textures[LocalOperator] != Texture::None) {
               mem_type = Texture_;
               tex_type = require_textures[LocalOperator];
             }
           } else if (mem_pattern & USER_XY) {
-            if (require_textures[UserOperator]!=Texture::None) {
+            if (require_textures[UserOperator] != Texture::None) {
               mem_type = Texture_;
               tex_type = require_textures[LocalOperator];
             }
           }
+
+          if (mem_access == WRITE_ONLY && tex_type != Texture::Array2D) {
+            mem_type = Global;
+            tex_type = Texture::None;
+          }
         }
       }
 
-      if (acc->getSizeX() * acc->getSizeY() >= local_memory_threshold) {
-        mem_type = (MemoryType) (mem_type|Local);
-      }
+      if (acc->getSizeX() * acc->getSizeY() >= local_memory_threshold)
+        mem_type = static_cast<MemoryType>(mem_type|Local);
 
       memMap[acc] = mem_type;
       texMap[acc] = tex_type;
@@ -535,18 +541,14 @@ class HipaccKernelFeatures : public HipaccDevice {
     {}
 
     bool useLocalMemory(HipaccAccessor *acc) {
-      if (memMap.count(acc)) {
-        if (memMap[acc] & Local) return true;
-      }
-
+      if (memMap.count(acc) && (memMap[acc] & Local))
+        return true;
       return false;
     }
 
     Texture useTextureMemory(HipaccAccessor *acc) {
-      if (memMap.count(acc)) {
-        if (memMap[acc] & Texture_) return texMap[acc];
-      }
-
+      if (memMap.count(acc) && (memMap[acc] & Texture_))
+        return texMap[acc];
       return Texture::None;
     }
 
@@ -656,8 +658,7 @@ class HipaccKernel : public HipaccKernelFeatures {
         map.second->resetDecls();
     }
     bool getUsed(std::string name) {
-      if (usedVars.find(name) != usedVars.end()) return true;
-      else return false;
+      return usedVars.find(name) != usedVars.end();
     }
 
     // keep track of functions called within kernel
@@ -682,15 +683,15 @@ class HipaccKernel : public HipaccKernelFeatures {
 
     HipaccAccessor *getImgFromMapping(FieldDecl *decl) {
       auto iter = imgMap.find(decl);
-
-      if (iter == imgMap.end()) return nullptr;
-      else return iter->second;
+      if (iter == imgMap.end())
+        return nullptr;
+      return iter->second;
     }
     HipaccMask *getMaskFromMapping(FieldDecl *decl) {
       auto iter = maskMap.find(decl);
-
-      if (iter == maskMap.end()) return nullptr;
-      else return iter->second;
+      if (iter == maskMap.end())
+        return nullptr;
+      return iter->second;
     }
 
     ArrayRef<QualType> getArgTypes() {
@@ -725,12 +726,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     void setResourceUsage(int reg, int lmem, int smem, int cmem) {
       num_reg = reg;
       num_lmem = lmem;
-      if (isAMDGPU()) {
-        // only 1/4th of the actual usage is reported
-        num_smem = 4 * smem;
-      } else {
-        num_smem = smem;
-      }
+      num_smem = isAMDGPU() ? 4 * smem : smem; // only 1/4th of the actual usage is reported for AMD
       num_cmem = cmem;
       // calculate new configuration
       calcConfig();
@@ -754,10 +750,19 @@ class HipaccKernel : public HipaccKernelFeatures {
 
       for (auto map : memMap) {
         llvm::errs() << "  Image '" << map.first->getName() << "': ";
-        if (map.second & Global) llvm::errs() << "global ";
-        if (map.second & Constant) llvm::errs() << "constant ";
-        if (map.second & Texture_) llvm::errs() << "texture ";
-        if (map.second & Local) llvm::errs() << "local ";
+        if (map.second & Global)    llvm::errs() << "global";
+        if (map.second & Constant)  llvm::errs() << "constant";
+        if (map.second & Local)     llvm::errs() << "local";
+        if (map.second & Texture_) {
+          llvm::errs() << "texture ";
+          switch (texMap[map.first]) {
+            case Texture::None:     llvm::errs() << "(None)";     break;
+            case Texture::Linear1D: llvm::errs() << "(Linear1D)"; break;
+            case Texture::Linear2D: llvm::errs() << "(Linear2D)"; break;
+            case Texture::Array2D:  llvm::errs() << "(Array2D)";  break;
+            case Texture::Ldg:      llvm::errs() << "(Ldg)";      break;
+          }
+        }
         llvm::errs() << "\n";
       }
     }
@@ -783,8 +788,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       return pixels_per_thread[GlobalOperator];
     }
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _CLASS_REPRESENTATION_H_
 

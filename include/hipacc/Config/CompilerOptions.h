@@ -118,7 +118,7 @@ class CompilerOptions {
   public:
     CompilerOptions() :
       target_lang(Language::OpenCLGPU),
-      target_device(Device::Fermi_20),
+      target_device(Device::Kepler_30),
       explore_config(OFF),
       time_kernels(OFF),
       kernel_config(AUTO),
@@ -153,47 +153,39 @@ class CompilerOptions {
     Language getTargetLang() { return target_lang; }
     Device getTargetDevice() { return target_device; }
 
-    bool exploreConfig(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
-      if (explore_config & option) return true;
-      return false;
+    static const auto option_ou  = static_cast<CompilerOption>(     ON|USER_ON);
+    static const auto option_aou = static_cast<CompilerOption>(AUTO|ON|USER_ON);
+
+    bool exploreConfig(CompilerOption option=option_ou) {
+      return explore_config & option;
     }
-    bool timeKernels(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
-      if (time_kernels & option) return true;
-      return false;
+    bool timeKernels(CompilerOption option=option_ou) {
+      return time_kernels & option;
     }
-    bool useKernelConfig(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
-      if (kernel_config & option) return true;
-      return false;
+    bool useKernelConfig(CompilerOption option=option_ou) {
+      return kernel_config & option;
     }
     int getKernelConfigX() { return kernel_config_x; }
     int getKernelConfigY() { return kernel_config_y; }
 
-    bool emitPadding(CompilerOption option=(CompilerOption)(AUTO|ON|USER_ON)) {
-      if (align_memory & option) return true;
-      return false;
+    bool emitPadding(CompilerOption option=option_aou) {
+      return align_memory & option;
     }
     int getAlignment() { return align_bytes; }
 
-    bool useTextureMemory(CompilerOption option=(CompilerOption)(ON|USER_ON))
-    {
-      if (texture_memory & option) return true;
-      return false;
+    bool useTextureMemory(CompilerOption option=option_ou) {
+      return texture_memory & option;
     }
     Texture getTextureType() { return texture_type; }
 
-    bool useLocalMemory(CompilerOption option=(CompilerOption)(ON|USER_ON)) {
-      if (local_memory & option) return true;
-      return false;
+    bool useLocalMemory(CompilerOption option=option_ou) {
+      return local_memory & option;
     }
-    bool vectorizeKernels(CompilerOption option=(CompilerOption)(ON|USER_ON))
-    {
-      if (vectorize_kernels & option) return true;
-      return false;
+    bool vectorizeKernels(CompilerOption option=option_ou) {
+      return vectorize_kernels & option;
     }
-    bool multiplePixelsPerThread(CompilerOption
-        option=(CompilerOption)(ON|USER_ON)) {
-      if (multiple_pixels & option) return true;
-      return false;
+    bool multiplePixelsPerThread(CompilerOption option=option_ou) {
+      return multiple_pixels & option;
     }
     int getPixelsPerThread() { return pixels_per_thread; }
     std::string getRSPackageName() { return rs_package_name; }
@@ -296,8 +288,8 @@ class CompilerOptions {
       llvm::errs() << "\n\n";
     }
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _COMPILER_OPTIONS_H_
 

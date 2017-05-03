@@ -39,14 +39,15 @@ namespace clang {
 namespace hipacc {
 // supported target devices
 enum class Device {
-  Tesla_10          = 10,
-  Tesla_11          = 11,
-  Tesla_12          = 12,
-  Tesla_13          = 13,
   Fermi_20          = 20,
   Fermi_21          = 21,
   Kepler_30         = 30,
+  Kepler_32         = 32,
   Kepler_35         = 35,
+  Kepler_37         = 37,
+  Maxwell_50        = 50,
+  Maxwell_52        = 52,
+  Maxwell_53        = 53,
   Evergreen         = 58,
   NorthernIsland    = 69,
   //SouthernIsland    = 79
@@ -62,8 +63,8 @@ enum class Texture : uint8_t {
   Array2D,
   Ldg
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _TARGET_DEVICES_H
 

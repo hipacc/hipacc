@@ -24,7 +24,6 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -51,9 +50,8 @@ double time_ms () {
 
 // reference
 template<typename data_t>
-void access_nn(data_t *in, data_t *out, int in_width, int in_height, int in_ox,
-        int in_oy, int in_roi_width, int in_roi_height, int out_width, int
-        out_height, int is_ox, int is_oy, int is_width, int is_height) {
+void access_nn(data_t *in, data_t *out, int in_width, int in_height, int in_ox, int in_oy, int in_roi_width, int in_roi_height,
+               int out_width, int out_height, int is_ox, int is_oy, int is_width, int is_height) {
     float stride_x = (in_roi_width)/(float)is_width;
     float stride_y = (in_roi_height)/(float)is_height;
 
@@ -67,8 +65,7 @@ void access_nn(data_t *in, data_t *out, int in_width, int in_height, int in_ox,
     }
 }
 template<typename data_t>
-void access_nn(data_t *in, data_t *out, int in_width, int in_height, int
-        out_width, int out_height) {
+void access_nn(data_t *in, data_t *out, int in_width, int in_height, int out_width, int out_height) {
     return access_nn<data_t>(in, out, in_width, in_height, 0, 0, in_width,
             in_height, out_width, out_height, 0, 0, out_width, out_height);
 }
@@ -92,7 +89,6 @@ class CopyKernel : public Kernel<int> {
 
 
 int main(int argc, const char **argv) {
-    double time0, time1, dt;
     const int width = WIDTH;
     const int height = HEIGHT;
     const int offset_x = 5;
@@ -101,11 +97,9 @@ int main(int argc, const char **argv) {
     const int is_height = HEIGHT/2;
     const int is_offset_x = 2;
     const int is_offset_y = 2;
-    float timing = 0.0f;
 
     // host memory for image of width x height pixels
     int *input = new int[width*height];
-    int *out_init = new int[is_width*is_height];
     int *reference_in = new int[width*height];
     int *reference_out = new int[is_width*is_height];
 
@@ -118,30 +112,29 @@ int main(int argc, const char **argv) {
     }
     for (int y=0; y<is_height; ++y) {
         for (int x=0; x<is_width; ++x) {
-            out_init[y*is_width + x] = 23;
             reference_out[y*is_width + x] = 23;
         }
     }
 
     // input and output image of width x height pixels
     Image<int> IN(width, height, input);
-    Image<int> OUT(is_width, is_height, out_init);
+    Image<int> OUT(is_width, is_height, reference_out);
 
     // use nearest neighbor interpolation
     Accessor<int> AccInNN(IN, Interpolate::NN);
     // use linear filtering interpolation
     Accessor<int> AccInLF(IN, Interpolate::LF);
 
-    IterationSpace<int> CIS(OUT);
+    IterationSpace<int> IS(OUT);
 
     // copy kernel using NN
-    CopyKernel copy_nn(CIS, AccInNN);
-    CopyKernel copy_lf(CIS, AccInLF);
+    CopyKernel copy_nn(IS, AccInNN);
+    CopyKernel copy_lf(IS, AccInLF);
 
     std::cerr << "Executing copy (NN) kernel ..." << std::endl;
 
     copy_nn.execute();
-    timing = hipacc_last_kernel_timing();
+    float timing = hipacc_last_kernel_timing();
 
 
     // get pointer to result data
@@ -150,23 +143,22 @@ int main(int argc, const char **argv) {
     std::cerr << "Hipacc: " << timing << " ms, " << (is_width*is_height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
-    std::cerr << std::endl << "Calculating reference ..." << std::endl;
-    time0 = time_ms();
+    std::cerr << "Calculating reference ..." << std::endl;
+    double start = time_ms();
 
     // calculate reference
     access_nn(reference_in, reference_out, width, height, 0, 0, width, height,
-            is_width, is_height, 0, 0, is_width, is_height);
+              is_width, is_height, 0, 0, is_width, is_height);
     //access_nn(reference_in, reference_out, width, height, offset_x, offset_y, width-2*offset_x, height-2*offset_y,
     //        is_width, is_height, is_offset_x, is_offset_y, is_width-2*is_offset_x, is_height-2*is_offset_y);
 
-    time1 = time_ms();
-    dt = time1 - time0;
-    std::cerr << "Reference: " << dt << " ms, " << (is_width*is_height/dt)/1000 << " Mpixel/s" << std::endl;
+    double end = time_ms();
+    float time = end - start;
+    std::cerr << "Reference: " << time << " ms, " << (is_width*is_height/time)/1000 << " Mpixel/s" << std::endl;
 
     std::cerr << std::endl << "Comparing results ..." << std::endl;
-    // compare results
-    for (int y=0; y<is_height; y++) {
-        for (int x=0; x<is_width; x++) {
+    for (int y=0; y<is_height; ++y) {
+        for (int x=0; x<is_width; ++x) {
             if (reference_out[y*is_width + x] != output[y*is_width + x]) {
                 std::cerr << "Test FAILED, at (" << x << "," << y << "): "
                           << reference_out[y*width + x] << " vs. "
@@ -177,9 +169,8 @@ int main(int argc, const char **argv) {
     }
     std::cerr << "Test PASSED" << std::endl;
 
-    // memory cleanup
+    // free memory
     delete[] input;
-    delete[] out_init;
     delete[] reference_in;
     delete[] reference_out;
 

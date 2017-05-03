@@ -55,7 +55,7 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
     case Reduce::MIN:
       // red = min(red, val);
       fun = lookup<FunctionDecl>(std::string("min"), tmp_var->getType(),
-          hipaccMathNS);
+          hipacc_math_ns);
       assert(fun && "could not lookup 'min'");
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
             CK_LValueToRValue, tmp_var, nullptr, VK_RValue));
@@ -66,7 +66,7 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
     case Reduce::MAX:
       // red = max(red, val);
       fun = lookup<FunctionDecl>(std::string("max"), tmp_var->getType(),
-          hipaccMathNS);
+          hipacc_math_ns);
       assert(fun && "could not lookup 'max'");
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
             CK_LValueToRValue, tmp_var, nullptr, VK_RValue));
@@ -170,9 +170,9 @@ Expr *ASTTranslate::getInitExpr(Reduce mode, QualType QT) {
 
   if (isVecType) {
     SmallVector<Expr *, 16> initExprs;
-    size_t lanes = QT->getAs<VectorType>()->getNumElements();
+    unsigned lanes = QT->getAs<VectorType>()->getNumElements();
 
-    for (size_t I=0, N=lanes; I!=N; ++I) {
+    for (unsigned i=0, e=lanes; i!=e; ++i) {
       initExprs.push_back(initExpr);
     }
 
@@ -205,8 +205,8 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
     case Language::OpenCLGPU:
       // array subscript: Domain[y*width + x]
       dom_acc = accessMemArrAt(domain_var, createIntegerLiteral(Ctx,
-            (int)Domain->getSizeX()), createIntegerLiteral(Ctx, redIdxX.back()),
-          createIntegerLiteral(Ctx, redIdxY.back()));
+            static_cast<int>(Domain->getSizeX())), createIntegerLiteral(Ctx,
+            redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
       break;
     case Language::Renderscript:
     case Language::Filterscript:

@@ -1,16 +1,14 @@
-INCLUDE_DIRECTORIES(${LLVM_INCLUDE_DIRS})
-ADD_DEFINITIONS(${LLVM_DEFINITIONS})
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
 
-IF (MSVC)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LLVM_CXXFLAGS}")
-ELSE()
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti ${LLVM_CXXFLAGS}")
-ENDIF()
+if (MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${LLVM_CXXFLAGS}")
+endif()
 
-llvm_map_components_to_libnames(LLVM_LIBS analysis core instcombine instrumentation ipa ipo option scalaropts support target transformutils vectorize)
-clang_map_components_to_libnames(CLANG_LIBS)
+llvm_map_components_to_libnames(LLVM_LIBRARIES analysis core instcombine instrumentation ipo option scalaropts support target transformutils vectorize)
+clang_map_components_to_libnames(Clang_LIBRARIES)
 
-SET(HIPACC_LIBS
+set(HIPACC_LIBS
     hipaccRewrite
     hipaccBackend
     hipaccCreateHostStrings
@@ -18,37 +16,32 @@ SET(HIPACC_LIBS
     hipaccASTTranslate
     hipaccSIMDTypes)
 
-IF(USE_POLLY)
-    LIST(APPEND HIPACC_LIBS hipaccPolly)
-    FIND_LIBRARY(POLLY_LIB NAMES Polly HINTS ${LLVM_LIBRARY_DIRS})
-    MARK_AS_ADVANCED(POLLY_LIB)
-    LIST(APPEND LLVM_LIBS ${POLLY_LIB})
-ENDIF(USE_POLLY)
+if(USE_POLLY)
+    list(APPEND HIPACC_LIBS hipaccPolly)
+    find_library(Polly_LIBRARY NAMES Polly HINTS ${LLVM_LIBRARY_DIRS})
+    mark_as_advanced(Polly_LIBRARY)
+    list(APPEND LLVM_LIBRARIES ${Polly_LIBRARY})
+endif()
 
-LIST(APPEND HIPACC_LIBS
+list(APPEND HIPACC_LIBS
     hipaccKernelStatistics
     hipaccBuiltins
     hipaccASTNode)
 
-LINK_DIRECTORIES(${LLVM_LIBRARY_DIR})
+set(hipacc_SOURCES hipacc.cpp)
+add_executable(hipacc ${hipacc_SOURCES})
 
-SET(hipacc_SOURCES hipacc.cpp)
-SET(hipacc_HEADERS hipacc.h "../include/hipacc/Config/CompilerOptions.h"
-                            "${HIPACC_BINARY_DIR}/include/hipacc/Config/config.h")
-ADD_EXECUTABLE(hipacc ${hipacc_SOURCES} ${hipacc_HEADERS})
-
-TARGET_LINK_LIBRARIES(hipacc ${HIPACC_LIBS} ${CLANG_LIBS} ${LLVM_LIBS})
-ADD_DEPENDENCIES(hipacc ${HIPACC_LIBS})
+target_link_libraries(hipacc ${HIPACC_LIBS} ${Clang_LIBRARIES} ${LLVM_LIBRARIES})
+add_dependencies(hipacc ${HIPACC_LIBS})
 
 
-SET_TARGET_PROPERTIES(hipacc
+set_target_properties(hipacc
     PROPERTIES
     LINKER_LANGUAGE CXX
     PREFIX "")
 
-SET_TARGET_PROPERTIES(hipacc
+set_target_properties(hipacc
     PROPERTIES
     VERSION ${HIPACC_VERSION})
 
-INSTALL(TARGETS hipacc RUNTIME DESTINATION bin)
-
+install(TARGETS hipacc RUNTIME DESTINATION bin)

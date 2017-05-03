@@ -226,7 +226,7 @@ WhileStmt* ClangASTHelper::CreateLoopWhile(Expr *pCondition, Stmt *pBody)
 
 Stmt* ClangASTHelper::CreateOpenMPDirectiveParallelFor()
 {
-  return OMPParallelForDirective::Create( GetASTContext(), SourceLocation(), SourceLocation(), 0, std::vector< OMPClause* >(), nullptr, OMPLoopDirective::HelperExprs() );
+  return OMPParallelForDirective::Create( GetASTContext(), SourceLocation(), SourceLocation(), 0, std::vector< OMPClause* >(), nullptr, OMPLoopDirective::HelperExprs(), false);
 }
 
 ParenExpr* ClangASTHelper::CreateParenthesisExpression(Expr *pSubExpression)

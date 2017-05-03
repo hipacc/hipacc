@@ -24,20 +24,20 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <vector>
 
 #include <sys/time.h>
 
-//#define CPU
-#ifdef OpenCV
+#ifdef OPENCV
 #include <opencv2/opencv.hpp>
-#ifndef CPU
-#include <opencv2/gpu/gpu.hpp>
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/core/ocl.hpp>
+#ifdef OPENCV_CUDA_FOUND
+#include <opencv2/cudafilters.hpp>
 #endif
 #endif
 
@@ -48,11 +48,13 @@
 //#define SIZE_Y 5
 //#define WIDTH 4096
 //#define HEIGHT 4096
-//#define YORDER
+
+// code variants
 #define CONST_MASK
 #define USE_LAMBDA
 //#define RUN_UNDEF
 //#define NO_SEP
+//#define YORDER
 
 using namespace hipacc;
 
@@ -67,64 +69,47 @@ double time_ms () {
 
 
 // Sobel filter reference
-void sobel_filter(float *in, float *out, int *filter, int size_x, int size_y,
-        int width, int height) {
+void sobel_filter(float *in, float *out, int *filter, int size_x, int size_y, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
-    #ifdef OpenCV
-    int upper_x = width-size_x+anchor_x;
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_x = width-anchor_x;
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
             int sum = 0;
 
-            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
-                for (int xf = -anchor_x; xf<=anchor_x; xf++) {
-                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x] *
-                           in[(y+yf)*width + x + xf];
+            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
+                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x] * in[(y+yf)*width + x + xf];
                 }
             }
             out[y*width + x] = sum;
         }
     }
 }
-void sobel_filter_row(float *in, float *out, int *filter, int size_x, int width,
-        int height) {
+void sobel_filter_row(float *in, float *out, int *filter, int size_x, int width, int height) {
     int anchor_x = size_x >> 1;
-    #ifdef OpenCV
-    int upper_x = width-size_x+anchor_x;
-    #else
-    int upper_x = width-anchor_x;
-    #endif
+    int upper_x = width - anchor_x;
 
     for (int y=0; y<height; ++y) {
-        //for (int x=0; x<anchor_x; x++) out[y*width + x] = in[y*width + x];
+        //for (int x=0; x<anchor_x; ++x) out[y*width + x] = in[y*width + x];
         for (int x=anchor_x; x<upper_x; ++x) {
             int sum = 0;
 
-            for (int xf = -anchor_x; xf<=anchor_x; xf++) {
+            for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
                 sum += filter[xf+anchor_x] * in[(y)*width + x + xf];
             }
             out[y*width + x] = sum;
         }
-        //for (int x=upper_x; x<width; x++) out[y*width + x] = in[y*width + x];
+        //for (int x=upper_x; x<width; ++x) out[y*width + x] = in[y*width + x];
     }
 }
-void sobel_filter_column(float *in, float *out, int *filter, int size_y,
-        int width, int height) {
+void sobel_filter_column(float *in, float *out, int *filter, int size_y, int width, int height) {
     int anchor_y = size_y >> 1;
-    #ifdef OpenCV
-    int upper_y = height-size_y+anchor_y;
-    #else
-    int upper_y = height-anchor_y;
-    #endif
+    int upper_y = height - anchor_y;
 
-    //for (int y=0; y<anchor_y; y++) {
+    //for (int y=0; y<anchor_y; ++y) {
     //    for (int x=0; x<width; ++x) {
     //        out[y*width + x] = in[y*width + x];
     //    }
@@ -133,13 +118,13 @@ void sobel_filter_column(float *in, float *out, int *filter, int size_y,
         for (int x=0; x<width; ++x) {
             int sum = 0;
 
-            for (int yf = -anchor_y; yf<=anchor_y; yf++) {
+            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
                 sum += filter[yf + anchor_y] * in[(y + yf)*width + x];
             }
             out[y*width + x] = sum;
         }
     }
-    //for (int y=upper_y; y<height; y++) {
+    //for (int y=upper_y; y<height; ++y) {
     //    for (int x=0; x<width; ++x) {
     //        out[y*width + x] = in[y*width + x];
     //    }
@@ -177,9 +162,9 @@ class SobelFilterMask : public Kernel<float> {
             const int anchor = size >> 1;
             float sum = 0;
 
-            for (int yf = -anchor; yf<=anchor; yf++) {
-                for (int xf = -anchor; xf<=anchor; xf++) {
-                    sum += mask(xf, yf)*input(xf, yf);
+            for (int yf = -anchor; yf<=anchor; ++yf) {
+                for (int xf = -anchor; xf<=anchor; ++xf) {
+                    sum += mask(xf, yf) * input(xf, yf);
                 }
             }
 
@@ -214,8 +199,8 @@ class SobelFilterMaskRow : public Kernel<float> {
             const int anchor = size >> 1;
             float sum = 0;
 
-            for (int xf = -anchor; xf<=anchor; xf++) {
-                sum += mask(xf, 0)*input(xf, 0);
+            for (int xf = -anchor; xf<=anchor; ++xf) {
+                sum += mask(xf, 0) * input(xf, 0);
             }
 
             output() = sum;
@@ -248,8 +233,8 @@ class SobelFilterMaskColumn : public Kernel<float> {
             const int anchor = size >> 1;
             float sum = 0;
 
-            for (int yf = -anchor; yf<=anchor; yf++) {
-                sum += mask(0, yf)*input(0, yf);
+            for (int yf = -anchor; yf<=anchor; ++yf) {
+                sum += mask(0, yf) * input(0, yf);
             }
 
             output() = sum;
@@ -263,14 +248,12 @@ class SobelFilterMaskColumn : public Kernel<float> {
  * Main function                                                         *
  *************************************************************************/
 int main(int argc, const char **argv) {
-    double time0, time1, dt, min_dt;
     const int width = WIDTH;
     const int height = HEIGHT;
     const int size_x = SIZE_X;
     const int size_y = SIZE_Y;
     const int offset_x = size_x >> 1;
     const int offset_y = size_y >> 1;
-    std::vector<float> timings;
 
     // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
     if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
@@ -425,9 +408,10 @@ int main(int argc, const char **argv) {
     IterationSpace<float> IsTmp(TMP);
 
 
-    #ifndef OpenCV
+    #ifndef OPENCV
     std::cerr << "Calculating Hipacc Sobel filter ..." << std::endl;
-    float timing = 0.0f;
+    std::vector<float> timings_hipacc;
+    float timing = 0;
 
     // UNDEFINED
     #ifdef RUN_UNDEF
@@ -453,7 +437,7 @@ int main(int argc, const char **argv) {
     timing += hipacc_last_kernel_timing();
     #endif
     #endif
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (UNDEFINED): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
@@ -479,7 +463,7 @@ int main(int argc, const char **argv) {
     SFCC.execute();
     timing += hipacc_last_kernel_timing();
     #endif
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (CLAMP): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
@@ -505,7 +489,7 @@ int main(int argc, const char **argv) {
     SFCR.execute();
     timing += hipacc_last_kernel_timing();
     #endif
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (REPEAT): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
@@ -531,7 +515,7 @@ int main(int argc, const char **argv) {
     SFCM.execute();
     timing += hipacc_last_kernel_timing();
     #endif
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (MIRROR): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
@@ -557,103 +541,162 @@ int main(int argc, const char **argv) {
     SFCConst.execute();
     timing += hipacc_last_kernel_timing();
     #endif
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (CONSTANT): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // get pointer to result data
     float *output = OUT.data();
+
+    if (timings_hipacc.size()) {
+        std::cerr << "Hipacc:";
+        for (std::vector<float>::const_iterator it = timings_hipacc.begin(); it != timings_hipacc.end(); ++it)
+            std::cerr << "\t" << *it;
+        std::cerr << std::endl;
+    }
     #endif
 
 
+    #ifdef OPENCV
+    auto opencv_bench = [] (std::function<void(int)> init, std::function<void(int)> launch, std::function<void(float)> finish) {
+        for (int brd_type=0; brd_type<5; ++brd_type) {
+            init(brd_type);
 
-    #ifdef OpenCV
-    #ifdef CPU
-    std::cerr << std::endl << "Calculating OpenCV Sobel filter on the CPU ..." << std::endl;
-    #else
-    std::cerr << std::endl << "Calculating OpenCV Sobel filter on the GPU ..." << std::endl;
-    #endif
+            std::vector<float> timings;
+            try {
+                for (int nt=0; nt<10; ++nt) {
+                    auto start = time_ms();
+                    launch(brd_type);
+                    auto end = time_ms();
+                    timings.push_back(end - start);
+                }
+            } catch (const cv::Exception &ex) {
+                std::cerr << ex.what();
+                timings.push_back(0);
+            }
 
+            std::cerr << "OpenCV (";
+            switch (brd_type) {
+                case IPL_BORDER_CONSTANT:    std::cerr << "CONSTANT";   break;
+                case IPL_BORDER_REPLICATE:   std::cerr << "CLAMP";      break;
+                case IPL_BORDER_REFLECT:     std::cerr << "MIRROR";     break;
+                case IPL_BORDER_WRAP:        std::cerr << "REPEAT";     break;
+                case IPL_BORDER_REFLECT_101: std::cerr << "MIRROR_101"; break;
+                default: break;
+            }
+            std::sort(timings.begin(), timings.end());
+            float time = timings[timings.size()/2];
+            std::cerr << "): " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
-    cv::Mat cv_data_in(height, width, CV_32FC1, input);
-    cv::Mat cv_data_out(height, width, CV_32FC1, cv::Scalar(0));
+            finish(time);
+        }
+    };
+
+    cv::Mat cv_data_src(height, width, CV_32FC1, input);
+    cv::Mat cv_data_dst(height, width, CV_32FC1, cv::Scalar(0));
+    std::vector<float> timings_cpu;
+    std::vector<float> timings_ocl;
+    std::vector<float> timings_cuda;
     int ddepth = CV_32F;
-    double scale = 1.0f;
-    double delta = 0.0f;
+    double scale = 1.0;
+    double delta = 0.0;
 
-    for (int brd_type=0; brd_type<5; brd_type++) {
-        #ifdef CPU
-        if (brd_type==cv::BORDER_WRAP) {
-            // BORDER_WRAP is not supported on the CPU by OpenCV
-            timings.push_back(0.0f);
-            continue;
-        }
-        min_dt = DBL_MAX;
-        for (int nt=0; nt<10; nt++) {
-            time0 = time_ms();
+    auto compute_tapi = [&] (std::vector<float> &timings) {
+        cv::UMat dev_src, dev_dst;
+        opencv_bench(
+            [&] (int) {
+                cv_data_src.copyTo(dev_src);
+            },
+            [&] (int brd_type) {
+                #ifdef YORDER
+                cv::Sobel(dev_src, dev_dst, ddepth, 0, 1, size_y, scale, delta, brd_type);
+                #else
+                cv::Sobel(dev_src, dev_dst, ddepth, 1, 0, size_x, scale, delta, brd_type);
+                #endif
+                if (cv::ocl::useOpenCL())
+                    cv::ocl::finish();
+            },
+            [&] (float timing) {
+                timings.push_back(timing);
+                dev_dst.copyTo(cv_data_dst);
+            }
+        );
+    };
 
-            #ifdef YORDER
-            cv::Sobel(cv_data_in, cv_data_out, ddepth, 0, 1, size_y, scale, delta, brd_type);
-            #else
-            cv::Sobel(cv_data_in, cv_data_out, ddepth, 1, 0, size_x, scale, delta, brd_type);
-            #endif
+    // OpenCV - CPU
+    cv::ocl::setUseOpenCL(false);
+    std::cerr << std::endl
+              << "Calculating OpenCV-CPU Sobel filter on CPU" << std::endl;
+    compute_tapi(timings_cpu);
 
-            time1 = time_ms();
-            dt = time1 - time0;
-            if (dt < min_dt) min_dt = dt;
-        }
-        #else
-        cv::gpu::GpuMat gpu_in, gpu_out;
-        gpu_in.upload(cv_data_in);
+    // OpenCV - OpenCL
+    if (cv::ocl::haveOpenCL()) {
+        cv::ocl::setUseOpenCL(true);
+        std::cerr << std::endl
+                  << "Calculating OpenCV-OCL Sobel filter on "
+                  << cv::ocl::Device::getDefault().name() << std::endl;
+        compute_tapi(timings_ocl);
+    }
 
-        min_dt = DBL_MAX;
-        for (int nt=0; nt<10; nt++) {
-            time0 = time_ms();
+    // OpenCV - CUDA
+    if (cv::cuda::getCudaEnabledDeviceCount()) {
+        #ifdef OPENCV_CUDA_FOUND
+        std::cerr << std::endl
+                  << "Calculating OpenCV-CUDA Sobel filter" << std::endl;
+        cv::cuda::printShortCudaDeviceInfo(cv::cuda::getDevice());
 
-            #ifdef YORDER
-            cv::gpu::Sobel(gpu_in, gpu_out, -1, 0, 1, size_y, scale, brd_type);
-            #else
-            cv::gpu::Sobel(gpu_in, gpu_out, -1, 1, 0, size_x, scale, brd_type);
-            #endif
+        cv::cuda::GpuMat dev_src, dev_dst;
+        cv::Ptr<cv::cuda::Filter> sobel;
 
-            time1 = time_ms();
-            dt = time1 - time0;
-            if (dt < min_dt) min_dt = dt;
-        }
-
-        gpu_out.download(cv_data_out);
+        opencv_bench(
+            [&] (int brd_type) {
+                dev_src.upload(cv_data_src);
+                #ifdef YORDER
+                sobel = cv::cuda::createSobelFilter(dev_src.type(), -1, 0, 1, size_y, scale, brd_type);
+                #else
+                sobel = cv::cuda::createSobelFilter(dev_src.type(), -1, 1, 0, size_x, scale, brd_type);
+                #endif
+            },
+            [&] (int) {
+                sobel->apply(dev_src, dev_dst);
+            },
+            [&] (float timing) {
+                timings_cuda.push_back(timing);
+                dev_dst.download(cv_data_dst);
+            }
+        );
         #endif
-
-        std::cerr << "OpenCV (";
-        switch (brd_type) {
-            case IPL_BORDER_CONSTANT:    std::cerr << "CONSTANT";   break;
-            case IPL_BORDER_REPLICATE:   std::cerr << "CLAMP";      break;
-            case IPL_BORDER_REFLECT:     std::cerr << "MIRROR";     break;
-            case IPL_BORDER_WRAP:        std::cerr << "REPEAT";     break;
-            case IPL_BORDER_REFLECT_101: std::cerr << "MIRROR_101"; break;
-            default: break;
-        }
-        std::cerr << "): " << min_dt << " ms, " << (width*height/min_dt)/1000 << " Mpixel/s" << std::endl;
-        timings.push_back(min_dt);
     }
 
     // get pointer to result data
-    float *output = (float *)cv_data_out.data;
-    #endif
+    float *output = (float *)cv_data_dst.data;
 
-    // print statistics
-    for (std::vector<float>::const_iterator it = timings.begin(); it != timings.end(); ++it) {
-        std::cerr << "\t" << *it;
+    if (timings_cpu.size()) {
+        std::cerr << "CV-CPU: ";
+        for (auto time : timings_cpu)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
     }
-    std::cerr << std::endl << std::endl;
+    if (timings_ocl.size()) {
+        std::cerr << "CV-OCL: ";
+        for (auto time : timings_ocl)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
+    if (timings_cuda.size()) {
+        std::cerr << "CV-CUDA:";
+        for (auto time : timings_cuda)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
+    #endif
 
 
     std::cerr << "Calculating reference ..." << std::endl;
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<3; nt++) {
-        time0 = time_ms();
+    std::vector<float> timings_reference;
+    for (int nt=0; nt<3; ++nt) {
+        double start = time_ms();
 
-        // calculate reference
         #ifdef NO_SEP
         sobel_filter(reference_in, reference_out, (int *)mask, size_x, size_y, width, height);
         #else
@@ -661,23 +704,21 @@ int main(int argc, const char **argv) {
         sobel_filter_column(reference_tmp, reference_out, (int *)mask_y, size_y, width, height);
         #endif
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+        double end = time_ms();
+        timings_reference.push_back(end - start);
     }
-    std::cerr << "Reference: " << min_dt << " ms, " << (width*height/min_dt)/1000 << " Mpixel/s" << std::endl;
+    std::sort(timings_reference.begin(), timings_reference.end());
+    float time = timings_reference[timings_reference.size()/2];
+    std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
 
-    std::cerr << std::endl << "Comparing results ..." << std::endl;
-    #ifdef OpenCV
-    int upper_y = height-size_y+offset_y;
-    int upper_x = width-size_x+offset_x;
-    #else
-    int upper_y = height-offset_y;
-    int upper_x = width-offset_x;
+
+    std::cerr << "Comparing results ..." << std::endl;
+    #ifdef OPENCV
+    std::cerr << "Warning: The CPU, OCL, and CUDA modules in OpenCV use different implementations and yield inconsistent results." << std::endl
+              << "         This is the case even for different filter sizes within the same module!" << std::endl;
     #endif
-    // compare results
-    for (int y=offset_y; y<upper_y; y++) {
-        for (int x=offset_x; x<upper_x; x++) {
+    for (int y=offset_y; y<height-offset_y; ++y) {
+        for (int x=offset_x; x<width-offset_x; ++x) {
             if (reference_out[y*width + x] != output[y*width + x]) {
                 std::cerr << "Test FAILED, at (" << x << "," << y << "): "
                           << reference_out[y*width + x] << " vs. "
@@ -688,7 +729,7 @@ int main(int argc, const char **argv) {
     }
     std::cerr << "Test PASSED" << std::endl;
 
-    // memory cleanup
+    // free memory
     delete[] input;
     delete[] reference_in;
     delete[] reference_tmp;

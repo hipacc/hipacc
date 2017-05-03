@@ -352,7 +352,7 @@ AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clan
       std::string strFunctionName = ClangASTHelper::GetFullyQualifiedFunctionName( pCalleeDecl );
 
       // Convert the return type
-      AST::BaseClasses::TypeInfo  ReturnType = _ConvertTypeInfo( pCallExpr->getCallReturnType() );
+      AST::BaseClasses::TypeInfo  ReturnType = _ConvertTypeInfo( pCallExpr->getCallReturnType(_rASTContext) );
       if (ReturnType.IsSingleValue())
       {
         ReturnType.SetConst(true);
@@ -2236,7 +2236,7 @@ AST::BaseClasses::VariableInfoPtr Vectorizer::_GetAssigneeInfo(AST::Expressions:
 
 AST::FunctionDeclarationPtr Vectorizer::ConvertClangFunctionDecl(::clang::FunctionDecl *pFunctionDeclaration)
 {
-  return VASTBuilder().BuildFunctionDecl(pFunctionDeclaration);
+  return VASTBuilder(pFunctionDeclaration->getASTContext()).BuildFunctionDecl(pFunctionDeclaration);
 }
 
 ::clang::FunctionDecl* Vectorizer::ConvertVASTFunctionDecl(AST::FunctionDeclarationPtr spVASTFunction, const size_t cszVectorWidth, ::clang::ASTContext &rASTContext, bool bUnrollVectorLoops)

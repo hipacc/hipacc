@@ -88,18 +88,18 @@ class CreateHostStrings {
         MemoryTransferDirection direction, std::string &resultStr);
     void writeMemoryTransferDomainFromMask(HipaccMask *Domain,
         HipaccMask *Mask, std::string &resultStr);
-    void writeMemoryRelease(HipaccMemory *Mem, std::string &resultStr,
-        bool isPyramid=false);
+    void writeMemoryRelease(HipaccMemory *mem, std::string &resultStr, bool
+        is_pyramid=false);
     void writeKernelCall(HipaccKernel *K, std::string &resultStr);
     void writeReduceCall(HipaccKernel *K, std::string &resultStr);
-    void writeInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,
+    std::string getInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,
         std::string function_name, std::string type_suffix, Interpolate ip_mode,
-        Boundary bh_mode, std::string &resultStr);
+        Boundary bh_mode);
     void writePyramidAllocation(std::string pyrName, std::string type,
         std::string img, std::string depth, std::string &resultStr);
 };
-} // end namespace hipacc
-} // end namespace clang
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _CREATE_HOST_STRINGS_H_
 

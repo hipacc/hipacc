@@ -1,16 +1,16 @@
 # Find the native Clang binary and libraries
 #
-#  CLANG_EXECUTABLE       - clang binary
-#  LLVM_CONFIG_EXECUTABLE - llvm-config binary
-#  CLANG_FOUND            - True if clang is found
+#  Clang_EXECUTABLE             - clang binary
+#  Clang_llvm_config_EXECUTABLE - llvm-config binary
+#  Clang_FOUND                  - True if clang is found
 
-FIND_PACKAGE(LLVM REQUIRED CONFIG)
-FIND_PACKAGE(PackageHandleStandardArgs)
+find_package(LLVM REQUIRED CONFIG)
+find_package(PackageHandleStandardArgs)
 
-FIND_PROGRAM(LLVM_CONFIG_EXECUTABLE CACHE NAMES llvm-config DOC "llvm-config executable")
-FIND_PROGRAM(CLANG_EXECUTABLE CACHE NAMES clang DOC "clang executable")
+find_program(Clang_llvm_config_EXECUTABLE CACHE NAMES llvm-config DOC "llvm-config executable")
+find_program(Clang_EXECUTABLE CACHE NAMES clang DOC "clang executable")
 
-SET(CLANG_LIBS
+set(CLANG_LIBS
     clangFrontendTool
     clangFrontend
     clangDriver
@@ -28,24 +28,23 @@ SET(CLANG_LIBS
 )
 
 # Overwrite the LLVM library dir with the correct value
-IF(MSVC)
+if (MSVC)
     # This step is required, because the variable LLVM_LIBRARY_DIRS contains a Visual Studio macro, which cannot be resolved by the OS
-    EXECUTE_PROCESS(
+    execute_process(
         COMMAND ${LLVM_CONFIG_EXECUTABLE} --libdir
         OUTPUT_VARIABLE LLVM_LIBRARY_DIRS
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-ENDIF(MSVC)
+endif(MSVC)
 
-FUNCTION(clang_map_components_to_libnames out_libs)
-    FOREACH(l ${CLANG_LIBS})
-        FIND_LIBRARY(LIB_${l} NAMES ${l} HINTS ${LLVM_LIBRARY_DIRS} )
-        MARK_AS_ADVANCED(LIB_${l})
-        LIST(APPEND clang_libs ${LIB_${l}})
-    ENDFOREACH(l)
+function(clang_map_components_to_libnames out_libs)
+    foreach(l ${CLANG_LIBS})
+        find_library(LIB_${l} NAMES ${l} HINTS ${LLVM_LIBRARY_DIRS} )
+        mark_as_advanced(LIB_${l})
+        list(APPEND clang_libs ${LIB_${l}})
+    endforeach()
 
-    SET(${out_libs} ${clang_libs} PARENT_SCOPE)
-ENDFUNCTION()
+    set(${out_libs} ${clang_libs} PARENT_SCOPE)
+endfunction()
 
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(Clang DEFAULT_MSG CLANG_EXECUTABLE LLVM_CONFIG_EXECUTABLE)
-
+find_package_handle_standard_args(Clang DEFAULT_MSG Clang_EXECUTABLE Clang_llvm_config_EXECUTABLE)

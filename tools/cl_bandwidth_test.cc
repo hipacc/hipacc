@@ -129,8 +129,8 @@ int main(int argc, char *argv[]) {
     delete[] host_idata;
 
     // clean up memory on device
-    hipaccReleaseMemory(dev_idata);
-    hipaccReleaseMemory(dev_odata);
+    hipaccReleaseMemory<uchar>(dev_idata);
+    hipaccReleaseMemory<uchar>(dev_odata);
 
     return EXIT_SUCCESS;
 }

@@ -86,7 +86,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     Rewriter TextRewriter;
     Rewriter::RewriteOptions TextRewriteOptions;
 
-    // HIPACC instances
+    // Hipacc instances
     CompilerOptions &compilerOptions;
     HipaccDevice targetDevice;
     hipacc::Builtin::Context builtins;
@@ -116,12 +116,12 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
   public:
     Rewrite(CompilerInstance &CI, CompilerOptions &options, llvm::raw_ostream*
-        o=nullptr) :
+        Out) :
       CI(CI),
       Context(CI.getASTContext()),
       Diags(CI.getASTContext().getDiagnostics()),
       SM(CI.getASTContext().getSourceManager()),
-      Out(o? *o : llvm::outs()),
+      Out(*Out),
       compilerOptions(options),
       targetDevice(options),
       builtins(CI.getASTContext()),
@@ -132,9 +132,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       skipTransfer(false)
     {}
 
-    void HandleTranslationUnit(ASTContext &Context);
-    bool HandleTopLevelDecl(DeclGroupRef D);
-
+    // RecursiveASTVisitor
     bool VisitCXXRecordDecl(CXXRecordDecl *D);
     bool VisitDeclStmt(DeclStmt *D);
     bool VisitFunctionDecl(FunctionDecl *D);
@@ -142,16 +140,18 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     bool VisitCXXMemberCallExpr(CXXMemberCallExpr *E);
     bool VisitCallExpr (CallExpr *E);
 
-    //bool shouldVisitTemplateInstantiations() const { return true; }
-
   private:
-    void Initialize(ASTContext &Context) {
+    // ASTConsumer
+    void HandleTranslationUnit(ASTContext &Context) override;
+    bool HandleTopLevelDecl(DeclGroupRef D) override;
+    void Initialize(ASTContext &Context) override {
       // get the ID and start/end of the main file.
       mainFileID = SM.getMainFileID();
       TextRewriter.setSourceMgr(SM, Context.getLangOpts());
       TextRewriteOptions.RemoveLineIfEmpty = true;
     }
 
+    // Rewrite
     std::string convertToString(Stmt *from) {
       assert(from != nullptr && "Expected non-null Stmt");
       std::string SS;
@@ -162,7 +162,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
     void setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K);
     void printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
-        PrintingPolicy Policy, llvm::raw_ostream *OS);
+        PrintingPolicy Policy, llvm::raw_fd_ostream &OS);
     void printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         HipaccKernel *K, std::string file, bool emitHints);
 };
@@ -284,10 +284,10 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
     // sort definitions and remove duplicate definitions
     std::sort(InterpolationDefinitionsGlobal.begin(),
-        InterpolationDefinitionsGlobal.end());
+              InterpolationDefinitionsGlobal.end(), std::greater<std::string>());
     InterpolationDefinitionsGlobal.erase(
         std::unique(InterpolationDefinitionsGlobal.begin(),
-          InterpolationDefinitionsGlobal.end()),
+                    InterpolationDefinitionsGlobal.end()),
         InterpolationDefinitionsGlobal.end());
 
     // add interpolation definitions
@@ -330,11 +330,13 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   if (compilerOptions.emitCUDA()) {
     for (auto map : MaskDeclMap) {
       auto mask = map.second;
-      if (mask->isPrinted()) continue;
+      if (mask->isPrinted())
+        continue;
 
       size_t i = 0;
       for (auto kernel : mask->getKernels()) {
-        if (i++) newStr += "\n" + stringCreator.getIndent();
+        if (i++)
+          newStr += "\n" + stringCreator.getIndent();
 
         newStr += "__device__ __constant__ ";
         newStr += mask->getTypeStr();
@@ -387,20 +389,16 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
   }
 
   // insert initialization before first statement
-  auto BI = CS->body_begin();
-  Stmt *S = *BI;
-  TextRewriter.InsertTextBefore(S->getLocStart(), initStr);
+  TextRewriter.InsertTextBefore(CS->body_front()->getLocStart(), initStr);
 
   // insert memory release calls before last statement (return-statement)
-  auto RBI = CS->body_rbegin();
-  S = *RBI;
   // release all images
   for (auto map : ImgDeclMap) {
     auto img = map.second;
     std::string releaseStr;
 
     stringCreator.writeMemoryRelease(img, releaseStr);
-    TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
+    TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
   }
   // release all non-const masks
   for (auto map : MaskDeclMap) {
@@ -409,7 +407,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
 
     if (!compilerOptions.emitCUDA() && !mask->isConstant()) {
       stringCreator.writeMemoryRelease(mask, releaseStr);
-      TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
+      TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
     }
   }
   // release all pyramids
@@ -418,16 +416,16 @@ void Rewrite::HandleTranslationUnit(ASTContext &Context) {
     std::string releaseStr;
 
     stringCreator.writeMemoryRelease(pyramid, releaseStr, true);
-    TextRewriter.InsertTextBefore(S->getLocStart(), releaseStr);
+    TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
   }
 
   // get buffer of main file id. If we haven't changed it, then we are done.
   if (auto RewriteBuf = TextRewriter.getRewriteBufferFor(mainFileID)) {
     Out << std::string(RewriteBuf->begin(), RewriteBuf->end());
+    Out.flush();
   } else {
     llvm::errs() << "No changes to input file, something went wrong!\n";
   }
-  Out.flush();
 }
 
 
@@ -449,7 +447,8 @@ bool Rewrite::HandleTopLevelDecl(DeclGroupRef DGR) {
 
 bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
   // return if this is no Class definition
-  if (!D->hasDefinition()) return true;
+  if (!D->hasDefinition())
+    return true;
 
   // a) look for compiler known classes and remember them
   // b) look for user defined kernel classes derived from those stored in
@@ -465,27 +464,35 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
       if (NS->getNameAsString() == "hipacc") {
         if (D->getNameAsString() == "Coordinate")
           compilerClasses.Coordinate = D;
-        if (D->getNameAsString() == "Image") compilerClasses.Image = D;
-        if (D->getNameAsString() == "BoundaryCondition")
+        else if (D->getNameAsString() == "Image")
+          compilerClasses.Image = D;
+        else if (D->getNameAsString() == "BoundaryCondition")
           compilerClasses.BoundaryCondition = D;
-        if (D->getNameAsString() == "AccessorBase")
+        else if (D->getNameAsString() == "AccessorBase")
           compilerClasses.AccessorBase = D;
-        if (D->getNameAsString() == "Accessor") compilerClasses.Accessor = D;
-        if (D->getNameAsString() == "IterationSpaceBase")
+        else if (D->getNameAsString() == "Accessor")
+          compilerClasses.Accessor = D;
+        else if (D->getNameAsString() == "IterationSpaceBase")
           compilerClasses.IterationSpaceBase = D;
-        if (D->getNameAsString() == "IterationSpace")
+        else if (D->getNameAsString() == "IterationSpace")
           compilerClasses.IterationSpace = D;
-        if (D->getNameAsString() == "ElementIterator")
+        else if (D->getNameAsString() == "ElementIterator")
           compilerClasses.ElementIterator = D;
-        if (D->getNameAsString() == "Kernel") compilerClasses.Kernel = D;
-        if (D->getNameAsString() == "Mask") compilerClasses.Mask = D;
-        if (D->getNameAsString() == "Domain") compilerClasses.Domain = D;
-        if (D->getNameAsString() == "Pyramid") compilerClasses.Pyramid = D;
-        if (D->getNameAsString() == "HipaccEoP") compilerClasses.HipaccEoP = D;
+        else if (D->getNameAsString() == "Kernel")
+          compilerClasses.Kernel = D;
+        else if (D->getNameAsString() == "Mask")
+          compilerClasses.Mask = D;
+        else if (D->getNameAsString() == "Domain")
+          compilerClasses.Domain = D;
+        else if (D->getNameAsString() == "Pyramid")
+          compilerClasses.Pyramid = D;
+        else if (D->getNameAsString() == "HipaccEoP")
+          compilerClasses.HipaccEoP = D;
       }
     }
 
-    if (!compilerClasses.HipaccEoP) return true;
+    if (!compilerClasses.HipaccEoP)
+      return true;
 
     HipaccKernelClass *KC = nullptr;
 
@@ -507,12 +514,14 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
       }
     }
 
-    if (!KC) return true;
+    if (!KC)
+      return true;
 
     // find constructor
     CXXConstructorDecl *CCD = nullptr;
     for (auto ctor : D->ctors()) {
-      if (ctor->isCopyOrMoveConstructor()) continue;
+      if (ctor->isCopyOrMoveConstructor())
+        continue;
       CCD = ctor;
     }
     assert(CCD && "Couldn't find user kernel class constructor!");
@@ -630,7 +639,8 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
 
 bool Rewrite::VisitDeclStmt(DeclStmt *D) {
-  if (!compilerClasses.HipaccEoP) return true;
+  if (!compilerClasses.HipaccEoP)
+    return true;
 
   // a) convert Image declarations into memory allocations, e.g.
   //    Image<int> IN(width, height, data);
@@ -695,9 +705,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         // host memory
         std::string init_str = "NULL";
-        if (CCE->getNumArgs() == 3) {
+        if (CCE->getNumArgs() == 3)
           init_str = convertToString(CCE->getArg(2));
-        }
 
         // create memory allocation string
         std::string newStr;
@@ -761,8 +770,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               "Constant value for BoundaryCondition %0 required.");
         unsigned IDConstSize = Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Constant expression for size argument of BoundaryCondition %1 required.");
-        unsigned IDConstPyrIdx = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-              "Missing integer literal in Pyramid %0 call expression.");
         unsigned IDMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
               "Boundary handling constant for BoundaryCondition %0 required.");
         HipaccBoundaryCondition *BC = nullptr;
@@ -803,13 +810,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
               // add call expression to pyramid argument
               auto call = dyn_cast<CXXOperatorCallExpr>(arg);
-              auto index = call->getArg(1);
-              if (!index->isEvaluatable(Context)) {
-                Diags.Report(index->getExprLoc(), IDConstPyrIdx)
-                  << Pyr->getName();
-              }
-              BC->setPyramidIndex(
-                  index->EvaluateKnownConstInt(Context).toString(10));
+              BC->setPyramidIndex(convertToString(call->getArg(1)));
               continue;
             }
 
@@ -833,9 +834,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               BC->setBoundaryMode(mode);
 
               if (mode == Boundary::CONSTANT) {
-                  if (i+2 != e) {
+                  if (i+2 != e)
                     Diags.Report(arg->getExprLoc(), IDMode) << VD->getName();
-                  }
                   // check if the parameter can be resolved to a constant
                   auto const_arg = CCE->getArg(++i);
                   if (!const_arg->isEvaluatable(Context)) {
@@ -851,9 +851,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             }
 
             // check if the argument can be resolved to a constant
-            if (!arg->isEvaluatable(Context)) {
+            if (!arg->isEvaluatable(Context))
               Diags.Report(arg->getExprLoc(), IDConstSize) << VD->getName();
-            }
             if (size_args++ == 0) {
               BC->setSizeX(arg->EvaluateKnownConstInt(Context).getSExtValue());
               BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
@@ -884,7 +883,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccBoundaryCondition *BC = nullptr;
         HipaccPyramid *Pyr = nullptr;
         Interpolate mode = Interpolate::NO;
-        std::string Parms;
+        std::string parms;
         size_t roi_args = 0;
 
         for (auto arg : CCE->arguments()) {
@@ -904,10 +903,10 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             if (BCDeclMap.count(DRE->getDecl())) {
               BC = BCDeclMap[DRE->getDecl()];
 
-              Parms = BC->getImage()->getName();
+              parms = BC->getImage()->getName();
               if (BC->isPyramid()) {
                 // add call expression to pyramid argument
-                Parms += "(" + BC->getPyramidIndex() + ")";
+                parms += "(" + BC->getPyramidIndex() + ")";
               }
               continue;
             }
@@ -921,7 +920,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               BC->setBoundaryMode(Boundary::CLAMP);
               BCDeclMap[VD] = BC; // Fixme: store BoundaryCondition???
 
-              Parms = BC->getImage()->getName();
+              parms = BC->getImage()->getName();
               continue;
             }
 
@@ -935,7 +934,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               BCDeclMap[VD] = BC; // Fixme: store BoundaryCondition???
 
               // add call expression to pyramid argument
-              Parms = convertToString(arg);
+              parms = convertToString(arg);
               continue;
             }
 
@@ -955,7 +954,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // get text string for arguments, argument order is:
           // img|bc|pyramid-call
           // img|bc|pyramid-call, width, height, xf, yf
-          Parms += ", " + convertToString(arg);
+          parms += ", " + convertToString(arg);
           roi_args++;
         }
 
@@ -965,7 +964,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         Acc = new HipaccAccessor(VD, BC, mode, roi_args == 4);
 
         std::string newStr;
-        newStr = "HipaccAccessor " + Acc->getName() + "(" + Parms + ");";
+        newStr = "HipaccAccessor " + Acc->getName() + "(" + parms + ");";
 
         // replace Accessor decl by variables for width/height and offsets
         // get the start location and compute the semi location.
@@ -990,7 +989,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         HipaccIterationSpace *IS = nullptr;
         HipaccImage *Img = nullptr;
         HipaccPyramid *Pyr = nullptr;
-        std::string Parms;
+        std::string parms;
+        std::string pyr_idx;
         size_t roi_args = 0;
 
         for (auto arg : CCE->arguments()) {
@@ -1005,7 +1005,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             // check if the argument is an image
             if (ImgDeclMap.count(DRE->getDecl())) {
               Img = ImgDeclMap[DRE->getDecl()];
-              Parms = Img->getName();
+              parms = Img->getName();
               continue;
             }
 
@@ -1013,14 +1013,16 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             if (PyrDeclMap.count(DRE->getDecl())) {
               Pyr = PyrDeclMap[DRE->getDecl()];
               // add call expression to pyramid argument
-              Parms = convertToString(arg);
+              auto call = dyn_cast<CXXOperatorCallExpr>(arg);
+              pyr_idx = convertToString(call->getArg(1));
+              parms = Pyr->getName() + "(" + pyr_idx + ")";
               continue;
             }
           }
 
           // get text string for arguments, argument order is:
           // img[, is_width, is_height[, offset_x, offset_y]]
-          Parms += ", " + convertToString(arg);
+          parms += ", " + convertToString(arg);
           roi_args++;
         }
 
@@ -1028,10 +1030,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                                "be Image or Pyramid call.");
 
         IS = new HipaccIterationSpace(VD, Img ? Img : Pyr, roi_args == 4);
+        if (Pyr)
+          IS->getBC()->setPyramidIndex(pyr_idx);
         ISDeclMap[VD] = IS; // store IterationSpace
 
         std::string newStr;
-        newStr = "HipaccAccessor " + IS->getName() + "(" + Parms + ");";
+        newStr = "HipaccAccessor " + IS->getName() + "(" + parms + ");";
 
         // replace iteration space decl by variables for width/height, and
         // offset
@@ -1216,6 +1220,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         if (!Buf->isConstant() && !compilerOptions.emitCUDA()) {
           // create Buffer for Mask
           stringCreator.writeMemoryAllocationConstant(Buf, newStr);
+          newStr += "\n" + stringCreator.getIndent();
 
           if (Buf->hasCopyMask()) {
             // create Domain from Mask and upload to Buffer
@@ -1350,7 +1355,8 @@ bool Rewrite::VisitFunctionDecl(FunctionDecl *D) {
 
 
 bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
-  if (!compilerClasses.HipaccEoP) return true;
+  if (!compilerClasses.HipaccEoP)
+    return true;
 
   // convert overloaded operator 'operator=' function into memory transfer,
   // a) Img = host_array;
@@ -1366,7 +1372,8 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   // k) Pyr(x) = Pyr(x);
   // l) Domain(x, y) = literal; (return type of ()-operator is DomainSetter)
   if (E->getOperator() == OO_Equal) {
-    if (E->getNumArgs() != 2) return true;
+    if (E->getNumArgs() != 2)
+      return true;
 
     HipaccImage *ImgLHS = nullptr, *ImgRHS = nullptr;
     HipaccAccessor *AccLHS = nullptr, *AccRHS = nullptr;
@@ -1391,17 +1398,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // get the Pyramid from the DRE if we have one
         if (PyrDeclMap.count(DRE->getDecl())) {
           PyrLHS = PyrDeclMap[DRE->getDecl()];
-
-          // add call expression to pyramid argument
-          unsigned DiagIDConstant =
-            Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Missing integer literal in Pyramid %0 call expression.");
-          if (!call->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
-              << PyrLHS->getName();
-          }
-          PyrIdxLHS =
-            call->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
+          PyrIdxLHS = convertToString(call->getArg(1));
         } else if (MaskDeclMap.count(DRE->getDecl())) {
           DomLHS = MaskDeclMap[DRE->getDecl()];
 
@@ -1430,30 +1427,18 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
     // check second parameter
     if (auto DRE = dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts())) {
       // check if we have an Image at the RHS
-      if (ImgDeclMap.count(DRE->getDecl())) {
+      if (ImgDeclMap.count(DRE->getDecl()))
         ImgRHS = ImgDeclMap[DRE->getDecl()];
-      }
       // check if we have an Accessor at the RHS
-      if (AccDeclMap.count(DRE->getDecl())) {
+      if (AccDeclMap.count(DRE->getDecl()))
         AccRHS = AccDeclMap[DRE->getDecl()];
-      }
     } else if (auto call = dyn_cast<CXXOperatorCallExpr>(E->getArg(1))) {
       // check if we have an Pyramid call at the RHS
       if (auto DRE = dyn_cast<DeclRefExpr>(call->getArg(0))) {
         // get the Pyramid from the DRE if we have one
         if (PyrDeclMap.count(DRE->getDecl())) {
           PyrRHS = PyrDeclMap[DRE->getDecl()];
-
-          // add call expression to pyramid argument
-          unsigned DiagIDConstant =
-            Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Missing integer literal in Pyramid %0 call expression.");
-          if (!call->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
-              << PyrRHS->getName();
-          }
-          PyrIdxRHS =
-            call->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
+          PyrIdxRHS = convertToString(call->getArg(1));
         }
       }
     } else if (DomLHS) {
@@ -1525,13 +1510,14 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         // Img1 = Pyr2(x2).data();
         // Pyr1(x1) = Img2.data();
         // Pyr1(x1) = Pyr2(x2).data();
-        if (auto mcall = dyn_cast<CXXMemberCallExpr>(E->getArg(1))) {
+        if (auto mcall =
+            dyn_cast<CXXMemberCallExpr>(E->getArg(1)->IgnoreParenCasts())) {
           // match only data() calls to Image instances
           if (mcall->getDirectCallee()->getNameAsString() == "data") {
             // side effect ! do not handle the next call to data()
             skipTransfer = true;
             if (auto DRE =
-                dyn_cast<DeclRefExpr>(mcall->getImplicitObjectArgument())) {
+                dyn_cast<DeclRefExpr>(mcall->getImplicitObjectArgument()->IgnoreParenCasts())) {
               // check if we have an Image
               if (ImgDeclMap.count(DRE->getDecl())) {
                 HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
@@ -1546,7 +1532,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                 write_pointer = false;
               }
             } else if (auto call = dyn_cast<CXXOperatorCallExpr>(
-                                   mcall->getImplicitObjectArgument())) {
+                                   mcall->getImplicitObjectArgument()->IgnoreParenCasts())) {
               // check if we have an Pyramid call
               if (auto DRE = dyn_cast<DeclRefExpr>(call->getArg(0))) {
                 // get the Pyramid from the DRE if we have one
@@ -1554,15 +1540,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
                   HipaccPyramid *Pyr = PyrDeclMap[DRE->getDecl()];
 
                   // add call expression to pyramid argument
-                  unsigned DiagIDConstant =
-                    Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                        "Missing integer literal in Pyramid %0 call expression.");
-                  if (!call->getArg(1)->isEvaluatable(Context)) {
-                    Diags.Report(call->getArg(1)->getExprLoc(), DiagIDConstant)
-                      << Pyr->getName();
-                  }
-                  std::string index =
-                    call->getArg(1)->EvaluateKnownConstInt(Context).toString(10);
+                  std::string index = convertToString(call->getArg(1));
 
                   if (PyrLHS) {
                     stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS,
@@ -1610,7 +1588,8 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
 
 bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
-  if (!compilerClasses.HipaccEoP) return true;
+  if (!compilerClasses.HipaccEoP)
+    return true;
 
   // a) convert invocation of 'execute' member function into kernel launch, e.g.
   //    K.execute()
@@ -1639,7 +1618,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
         // this was checked before, when the user class was parsed
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert(CCE->getNumArgs()==K->getKernelClass()->getMembers().size() &&
+        assert(CCE->getNumArgs() == K->getKernelClass()->getMembers().size() &&
             "number of arguments doesn't match!");
 
         // set host argument names and retrieve literals stored to temporaries
@@ -1711,7 +1690,9 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
 
           return true;
-        } else if (ME->getMemberNameInfo().getAsString() == "width") {
+        }
+
+        if (ME->getMemberNameInfo().getAsString() == "width") {
           newStr = "width";
         } else if (ME->getMemberNameInfo().getAsString() == "height") {
           newStr = "height";
@@ -1758,24 +1739,12 @@ bool Rewrite::VisitCallExpr (CallExpr *E) {
 
 void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
   #ifdef USE_JIT_ESTIMATE
-  bool jit_compile = false;
   switch (compilerOptions.getTargetLang()) {
-    default:
-      jit_compile = false;
-      break;
+    default: return K->setDefaultConfig();
     case Language::CUDA:
     case Language::OpenCLGPU:
-      if (targetDevice.isARMGPU()) {
-        jit_compile = false;
-      } else {
-        jit_compile = true;
-      }
-      break;
-  }
-
-  if (!jit_compile) {
-    K->setDefaultConfig();
-    return;
+      if (!targetDevice.isARMGPU())
+        break;
   }
 
   // write kernel file to estimate resource usage
@@ -1807,98 +1776,61 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
     exit(EXIT_FAILURE);
   }
 
-  std::string info;
-  if (compilerOptions.emitCUDA()) {
-    info = "ptxas info : Used %d registers";
-  } else {
-    if (targetDevice.isAMDGPU()) {
-      info = "isa info : Used %d gprs, %d bytes lds";
-    } else {
-      info = "ptxas info : Used %d registers";
-    }
-  }
-
   while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
     lines.push_back(std::string(line));
-    if (targetDevice.isAMDGPU()) {
-      sscanf(line, info.c_str(), &reg, &smem);
-    } else {
+
+    if (targetDevice.isNVIDIAGPU()) {
       char *ptr = line;
-      int num_read = 0, val1 = 0, val2 = 0;
       char mem_type = 'x';
+      int val1 = 0, val2 = 0;
 
-      if (compilerOptions.getTargetDevice() >= Device::Fermi_20) {
-        // scan for stack size (shared memory)
-        num_read = sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type);
-
-        if (num_read == 2 && mem_type == 's') {
-          smem = val1;
+      if (sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type) == 2) {
+        if (mem_type == 's') {
+          lmem = val1;
           continue;
         }
       }
 
-      num_read = sscanf(line, info.c_str(), &reg);
-      if (!num_read) continue;
+      if (sscanf(line, "ptxas info : Used %d registers", &reg) == 0)
+        continue;
 
       while ((ptr = strchr(ptr, ','))) {
         ptr++;
 
-        num_read = sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type);
-        if (num_read == 3) {
+        if (sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type) == 3) {
           switch (mem_type) {
-            default:
-              llvm::errs() << "wrong memory specifier '" << mem_type
-                           << "': " << ptr;
-              break;
-            case 'c':
-              cmem += val1 + val2;
-              break;
-            case 'l':
-              lmem += val1 + val2;
-              break;
-            case 's':
-              smem += val1 + val2;
-              break;
+            default: llvm::errs() << "wrong memory specifier '" << mem_type
+                                  << "': " << ptr; break;
+            case 'c': cmem += val1 + val2; break;
+            case 'l': lmem += val1 + val2; break;
+            case 's': smem += val1 + val2; break;
           }
           continue;
         }
 
-        num_read = sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type);
-        if (num_read == 2) {
+        if (sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type) == 2) {
           switch (mem_type) {
-            default:
-              llvm::errs() << "wrong memory specifier '" << mem_type
-                           << "': " << ptr;
-              break;
-            case 'c':
-              cmem += val1;
-              break;
-            case 'l':
-              lmem += val1;
-              break;
-            case 's':
-              smem += val1;
-              break;
+            default: llvm::errs() << "wrong memory specifier '" << mem_type
+                                  << "': " << ptr; break;
+            case 'c': cmem += val1; break;
+            case 'l': lmem += val1; break;
+            case 's': smem += val1; break;
           }
           continue;
         }
 
-        num_read = sscanf(ptr, "%d texture %1c", &val1, &mem_type);
-        if (num_read == 2) {
+        if (sscanf(ptr, "%d texture %1c", &val1, &mem_type) == 2)
           continue;
-        }
-        num_read = sscanf(ptr, "%d sampler %1c", &val1, &mem_type);
-        if (num_read == 2) {
+        if (sscanf(ptr, "%d sampler %1c", &val1, &mem_type) == 2)
           continue;
-        }
-        num_read = sscanf(ptr, "%d surface %1c", &val1, &mem_type);
-        if (num_read == 2) {
+        if (sscanf(ptr, "%d surface %1c", &val1, &mem_type) == 2)
           continue;
-        }
 
         // no match found
         llvm::errs() << "Unexpected memory usage specification: '" << ptr;
       }
+    } else if (targetDevice.isAMDGPU()) {
+      sscanf(line, "isa info : Used %d gprs, %d bytes lds", &reg, &smem);
     }
   }
   pclose(fpipe);
@@ -1912,16 +1844,16 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
     for (auto line : lines)
       llvm::errs() << line;
   } else {
-    if (targetDevice.isAMDGPU()) {
-      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
-                   << ": " << reg << " gprs, "
-                   << smem << " bytes lds\n";
-    } else {
+    if (targetDevice.isNVIDIAGPU()) {
       llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
                    << ": " << reg << " registers, "
                    << lmem << " bytes lmem, "
                    << smem << " bytes smem, "
                    << cmem << " bytes cmem\n";
+    } else if (targetDevice.isAMDGPU()) {
+      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
+                   << ": " << reg << " gprs, "
+                   << smem << " bytes lds\n";
     }
   }
 
@@ -1933,16 +1865,16 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
 
 
 void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
-    PrintingPolicy Policy, llvm::raw_ostream *OS) {
+    PrintingPolicy Policy, llvm::raw_fd_ostream &OS) {
   FunctionDecl *fun = KC->getReduceFunction();
 
   // preprocessor defines
   if (!compilerOptions.exploreConfig()) {
-    *OS << "#define BS " << K->getNumThreadsReduce() << "\n"
-        << "#define PPT " << K->getPixelsPerThreadReduce() << "\n";
+    OS << "#define BS " << K->getNumThreadsReduce() << "\n"
+       << "#define PPT " << K->getPixelsPerThreadReduce() << "\n";
   }
   if (K->getIterationSpace()->isCrop()) {
-    *OS << "#define USE_OFFSETS\n";
+    OS << "#define USE_OFFSETS\n";
   }
   switch (compilerOptions.getTargetLang()) {
     case Language::C99: break;
@@ -1950,41 +1882,41 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
       if (compilerOptions.useTextureMemory() &&
-          compilerOptions.getTextureType()==Texture::Array2D) {
-        *OS << "#define USE_ARRAY_2D\n";
+          compilerOptions.getTextureType() == Texture::Array2D) {
+        OS << "#define USE_ARRAY_2D\n";
       }
-      *OS << "#include \"hipacc_cl_red.hpp\"\n\n";
+      OS << "#include \"hipacc_cl_red.hpp\"\n\n";
       break;
     case Language::CUDA:
       if (compilerOptions.useTextureMemory() &&
-          compilerOptions.getTextureType()==Texture::Array2D) {
-        *OS << "#define USE_ARRAY_2D\n";
+          compilerOptions.getTextureType() == Texture::Array2D) {
+        OS << "#define USE_ARRAY_2D\n";
       }
-      *OS << "#include \"hipacc_cu_red.hpp\"\n\n";
+      OS << "#include \"hipacc_cu_red.hpp\"\n\n";
       break;
     case Language::Renderscript:
     case Language::Filterscript:
-      *OS << "#pragma version(1)\n"
-          << "#pragma rs java_package_name("
-          << compilerOptions.getRSPackageName()
-          << ")\n\n";
+      OS << "#pragma version(1)\n"
+         << "#pragma rs java_package_name("
+         << compilerOptions.getRSPackageName()
+         << ")\n\n";
       if (compilerOptions.emitFilterscript()) {
-        *OS << "#define FS\n";
+        OS << "#define FS\n";
       }
-      *OS << "#define DATA_TYPE "
-          << K->getIterationSpace()->getImage()->getTypeStr() << "\n"
-          << "#include \"hipacc_rs_red.hpp\"\n\n";
+      OS << "#define DATA_TYPE "
+         << K->getIterationSpace()->getImage()->getTypeStr() << "\n"
+         << "#include \"hipacc_rs_red.hpp\"\n\n";
       // input/output allocation definitions
-      *OS << "rs_allocation _red_Input;\n";
-      *OS << "rs_allocation _red_Output;\n";
+      OS << "rs_allocation _red_Input;\n";
+      OS << "rs_allocation _red_Output;\n";
       // offset specification
       if (K->getIterationSpace()->isCrop()) {
-        *OS << "int _red_offset_x;\n";
-        *OS << "int _red_offset_y;\n";
+        OS << "int _red_offset_x;\n";
+        OS << "int _red_offset_y;\n";
       }
-      *OS << "int _red_stride;\n";
-      *OS << "int _red_is_height;\n";
-      *OS << "int _red_num_elements;\n";
+      OS << "int _red_stride;\n";
+      OS << "int _red_is_height;\n";
+      OS << "int _red_num_elements;\n";
       break;
   }
 
@@ -1993,32 +1925,33 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   switch (compilerOptions.getTargetLang()) {
     default: break;
     case Language::CUDA:
-      *OS << "extern \"C\" {\n";
-      *OS << "__device__ ";
+      OS << "extern \"C\" {\n";
+      OS << "__device__ ";
       break;
     case Language::Renderscript:
     case Language::Filterscript:
-      *OS << "static ";
+      OS << "static ";
       break;
   }
-  *OS << "inline " << fun->getReturnType().getAsString() << " "
-      << K->getReduceName() << "(";
+  OS << "inline " << fun->getReturnType().getAsString() << " "
+     << K->getReduceName() << "(";
   // write kernel parameters
   size_t comma = 0;
   for (auto param : fun->params()) {
     std::string Name(param->getNameAsString());
     QualType T = param->getType();
     // normal arguments
-    if (comma++) *OS << ", ";
+    if (comma++)
+      OS << ", ";
     if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(fun))
       T = Parm->getOriginalType();
     T.getAsStringInternal(Name, Policy);
-    *OS << Name;
+    OS << Name;
   }
-  *OS << ") ";
+  OS << ") ";
 
   // print kernel body
-  fun->getBody()->printPretty(*OS, 0, Policy, 0);
+  fun->getBody()->printPretty(OS, 0, Policy, 0);
 
   // instantiate reduction
   switch (compilerOptions.getTargetLang()) {
@@ -2027,66 +1960,59 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
       // 2D reduction
-      *OS << "REDUCTION_CL_2D(" << K->getReduceName() << "2D, "
-          << fun->getReturnType().getAsString() << ", "
-          << K->getReduceName() << ", "
-          << K->getIterationSpace()->getImage()->getImageReadFunction()
-          << ")\n";
+      OS << "REDUCTION_CL_2D(" << K->getReduceName() << "2D, "
+         << fun->getReturnType().getAsString() << ", "
+         << K->getReduceName() << ", "
+         << K->getIterationSpace()->getImage()->getImageReadFunction()
+         << ")\n";
       // 1D reduction
-      *OS << "REDUCTION_CL_1D(" << K->getReduceName() << "1D, "
-          << fun->getReturnType().getAsString() << ", "
-          << K->getReduceName() << ")\n";
+      OS << "REDUCTION_CL_1D(" << K->getReduceName() << "1D, "
+         << fun->getReturnType().getAsString() << ", "
+         << K->getReduceName() << ")\n";
       break;
     case Language::CUDA:
-      // print 2D CUDA array definition - this is only required on Fermi and if
-      // Array2D is selected, but doesn't harm otherwise
-      *OS << "texture<" << fun->getReturnType().getAsString()
-          << ", cudaTextureType2D, cudaReadModeElementType> _tex"
-          << K->getIterationSpace()->getImage()->getName() + K->getName()
-          << ";\nconst textureReference *_tex"
-          << K->getIterationSpace()->getImage()->getName() + K->getName()
-          << "Ref;\n\n";
+      // 2D CUDA array definition - only required if Array2D is selected
+      OS << "texture<" << fun->getReturnType().getAsString()
+         << ", cudaTextureType2D, cudaReadModeElementType> _tex"
+         << K->getIterationSpace()->getImage()->getName() + K->getName()
+         << ";\nconst textureReference *_tex"
+         << K->getIterationSpace()->getImage()->getName() + K->getName()
+         << "Ref;\n\n";
       // 2D reduction
-      if (compilerOptions.getTargetDevice()>=Device::Fermi_20 &&
-          !compilerOptions.exploreConfig()) {
-        *OS << "__device__ unsigned finished_blocks_" << K->getReduceName()
-            << "2D = 0;\n\n";
-        *OS << "REDUCTION_CUDA_2D_THREAD_FENCE(";
+      if (compilerOptions.exploreConfig()) {
+        OS << "REDUCTION_CUDA_2D(";
       } else {
-        *OS << "REDUCTION_CUDA_2D(";
+        OS << "__device__ unsigned finished_blocks_" << K->getReduceName()
+           << "2D = 0;\n\n";
+        OS << "REDUCTION_CUDA_2D_THREAD_FENCE(";
       }
-      *OS << K->getReduceName() << "2D, "
-          << fun->getReturnType().getAsString() << ", "
-          << K->getReduceName() << ", _tex"
-          << K->getIterationSpace()->getImage()->getName() + K->getName() << ")\n";
+      OS << K->getReduceName() << "2D, "
+         << fun->getReturnType().getAsString() << ", "
+         << K->getReduceName() << ", _tex"
+         << K->getIterationSpace()->getImage()->getName() + K->getName() << ")\n";
       // 1D reduction
-      if (compilerOptions.getTargetDevice() >= Device::Fermi_20 &&
-          !compilerOptions.exploreConfig()) {
-        // no second step required
-      } else {
-        *OS << "REDUCTION_CUDA_1D(" << K->getReduceName() << "1D, "
-            << fun->getReturnType().getAsString() << ", "
-            << K->getReduceName() << ")\n";
+      if (compilerOptions.exploreConfig()) {
+        OS << "REDUCTION_CUDA_1D(" << K->getReduceName() << "1D, "
+           << fun->getReturnType().getAsString() << ", "
+           << K->getReduceName() << ")\n";
       }
       break;
     case Language::Renderscript:
     case Language::Filterscript:
-      *OS << "REDUCTION_RS_2D(" << K->getReduceName() << "2D, "
-          << fun->getReturnType().getAsString() << ", ALL, "
-          << K->getReduceName() << ")\n";
+      OS << "REDUCTION_RS_2D(" << K->getReduceName() << "2D, "
+         << fun->getReturnType().getAsString() << ", ALL, "
+         << K->getReduceName() << ")\n";
       // 1D reduction
-      *OS << "REDUCTION_RS_1D(" << K->getReduceName() << "1D, "
-          << fun->getReturnType().getAsString() << ", ALL, "
-          << K->getReduceName() << ")\n";
+      OS << "REDUCTION_RS_1D(" << K->getReduceName() << "1D, "
+         << fun->getReturnType().getAsString() << ", ALL, "
+         << K->getReduceName() << ")\n";
       break;
   }
 
-  if (compilerOptions.emitCUDA()) {
-    *OS << "}\n";
-  }
-  *OS << "#include \"hipacc_undef.hpp\"\n";
-
-  *OS << "\n";
+  if (compilerOptions.emitCUDA())
+    OS << "}\n";
+  OS << "#include \"hipacc_undef.hpp\"\n";
+  OS << "\n";
 }
 
 
@@ -2126,215 +2052,160 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   // open file stream using own file descriptor. We need to call fsync() to
   // compile the generated code using nvcc afterwards.
-  llvm::raw_ostream *OS = &llvm::errs();
   while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
     if (errno != EINTR) {
       std::string errorInfo("Error opening output file '" + filename + "'");
       perror(errorInfo.c_str());
     }
   }
-  OS = new llvm::raw_fd_ostream(fd, false);
+  llvm::raw_fd_ostream OS(fd, false);
 
   // write ifndef, ifdef
   std::transform(ifdef.begin(), ifdef.end(), ifdef.begin(), ::toupper);
-  *OS << "#ifndef " + ifdef + "\n";
-  *OS << "#define " + ifdef + "\n\n";
+  OS << "#ifndef " + ifdef + "\n";
+  OS << "#define " + ifdef + "\n\n";
 
   // preprocessor defines
   switch (compilerOptions.getTargetLang()) {
     default: break;
     case Language::CUDA:
-      *OS << "#include \"hipacc_types.hpp\"\n"
-          << "#include \"hipacc_math_functions.hpp\"\n\n";
+      OS << "#include \"hipacc_types.hpp\"\n"
+         << "#include \"hipacc_math_functions.hpp\"\n\n";
       break;
     case Language::Renderscript:
     case Language::Filterscript:
-      *OS << "#pragma version(1)\n"
-          << "#pragma rs java_package_name("
-          << compilerOptions.getRSPackageName()
-          << ")\n\n";
+      OS << "#pragma version(1)\n"
+         << "#pragma rs java_package_name("
+         << compilerOptions.getRSPackageName()
+         << ")\n\n";
       break;
   }
 
-
-  // interpolation includes & definitions
-  bool inc=false;
+  // declarations of textures, surfaces, variables, includes, definitions etc.
   SmallVector<std::string, 16> InterpolationDefinitionsLocal;
   size_t num_arg = 0;
   for (auto arg : K->getDeviceArgFields()) {
-    HipaccAccessor *Acc = K->getImgFromMapping(arg);
-    size_t i = num_arg++;
-
-    if (!Acc || !K->getUsed(K->getDeviceArgNames()[i])) continue;
-
-    if (Acc->getInterpolationMode() != Interpolate::NO) {
-      if (!inc) {
-        inc = true;
-        switch (compilerOptions.getTargetLang()) {
-          case Language::C99: break;
-          case Language::CUDA:
-            *OS << "#include \"hipacc_cu_interpolate.hpp\"\n\n";
-            break;
-          case Language::OpenCLACC:
-          case Language::OpenCLCPU:
-          case Language::OpenCLGPU:
-            *OS << "#include \"hipacc_cl_interpolate.hpp\"\n\n";
-            break;
-          case Language::Renderscript:
-          case Language::Filterscript:
-              *OS << "#include \"hipacc_rs_interpolate.hpp\"\n\n";
-            break;
-        }
-      }
-
-      // define required interpolation mode
-      if (inc && Acc->getInterpolationMode() > Interpolate::NN) {
-        std::string function_name(ASTTranslate::getInterpolationName(Context,
-              builtins, compilerOptions, K, Acc, border_variant()));
-        std::string suffix("_" +
-            builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context));
-
-        std::string resultStr;
-        stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-            suffix, Acc->getInterpolationMode(), Acc->getBoundaryMode(),
-            resultStr);
-
-        switch (compilerOptions.getTargetLang()) {
-          default: InterpolationDefinitionsLocal.push_back(resultStr); break;
-          case Language::C99: break;
-        }
-
-        resultStr.erase();
-        stringCreator.writeInterpolationDefinition(K, Acc, function_name,
-            suffix, Interpolate::NO, Boundary::UNDEFINED, resultStr);
-
-        switch (compilerOptions.getTargetLang()) {
-          default: InterpolationDefinitionsLocal.push_back(resultStr); break;
-          case Language::C99: break;
-        }
-      }
-    }
-  }
-
-  if (((compilerOptions.emitCUDA() && // CUDA, but no exploration or no hints
-          (compilerOptions.exploreConfig() || !emitHints)) ||
-        !compilerOptions.emitCUDA())  // or other targets
-      && inc && InterpolationDefinitionsLocal.size()) {
-    // sort definitions and remove duplicate definitions
-    std::sort(InterpolationDefinitionsLocal.begin(),
-        InterpolationDefinitionsLocal.end());
-    InterpolationDefinitionsLocal.erase(std::unique(
-          InterpolationDefinitionsLocal.begin(),
-          InterpolationDefinitionsLocal.end()),
-        InterpolationDefinitionsLocal.end());
-
-    // add interpolation definitions
-    while (InterpolationDefinitionsLocal.size()) {
-      *OS << InterpolationDefinitionsLocal.pop_back_val();
-    }
-    *OS << "\n";
-  } else {
-    // emit interpolation definitions at the beginning at the file
-    if (InterpolationDefinitionsLocal.size()) {
-      while (InterpolationDefinitionsLocal.size()) {
-        InterpolationDefinitionsGlobal.push_back(
-            InterpolationDefinitionsLocal.pop_back_val());
-      }
-    }
-  }
-
-  // declarations of textures, surfaces, variables, etc.
-  num_arg = 0;
-  for (auto arg : K->getDeviceArgFields()) {
     auto cur_arg = num_arg++;
-    if (!K->getUsed(K->getDeviceArgNames()[cur_arg])) continue;
+    if (!K->getUsed(K->getDeviceArgNames()[cur_arg]))
+      continue;
 
-    // global image declarations
-    HipaccAccessor *Acc = K->getImgFromMapping(arg);
-    if (Acc) {
+    // global image declarations and interpolation definitions
+    if (auto Acc = K->getImgFromMapping(arg)) {
       QualType T = Acc->getImage()->getType();
 
       switch (compilerOptions.getTargetLang()) {
         default: break;
         case Language::CUDA:
           // texture and surface declarations
-          if (K->useTextureMemory(Acc)!=Texture::None &&
-              // no texture declaration for __ldg() intrinsic
-              !(K->useTextureMemory(Acc) == Texture::Ldg)) {
-            if (KC->getMemAccess(arg) == READ_ONLY) {
-              *OS << "texture<";
-              *OS << T.getAsString();
+          if (KC->getMemAccess(arg) == WRITE_ONLY) {
+            if (K->useTextureMemory(Acc) == Texture::Array2D)
+              OS << "surface<void, cudaSurfaceType2D> _tex"
+                 << arg->getNameAsString() << K->getName() << ";\n";
+          } else {
+            if (K->useTextureMemory(Acc) != Texture::None &&
+                K->useTextureMemory(Acc) != Texture::Ldg) {
+              OS << "texture<";
+              OS << T.getAsString();
               switch (K->useTextureMemory(Acc)) {
                 default: assert(0 && "texture expected.");
                 case Texture::Linear1D:
-                  *OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
+                  OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
                   break;
                 case Texture::Linear2D:
                 case Texture::Array2D:
-                  *OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
+                  OS << ", cudaTextureType2D, cudaReadModeElementType> _tex";
                   break;
               }
-              *OS << arg->getNameAsString() << K->getName() << ";\n"
-                  << "const textureReference *_tex"
-                  << arg->getNameAsString() << K->getName() << "Ref;\n";
-            } else {
-              *OS << "surface<void, cudaSurfaceType2D> _surf"
-                  << arg->getNameAsString() << K->getName() << ";\n"
-                  << "const struct surfaceReference *_surf"
-                  << arg->getNameAsString() << K->getName() << "Ref;\n\n";
+              OS << arg->getNameAsString() << K->getName() << ";\n";
             }
           }
           break;
         case Language::Renderscript:
         case Language::Filterscript:
-          if (cur_arg==0) { // TODO: check required?
-            *OS << "rs_allocation " << K->getDeviceArgNames()[cur_arg] << ";\n";
-          } else {
-            *OS << "rs_allocation " << arg->getNameAsString() << ";\n";
-          }
+          OS << "rs_allocation " << arg->getNameAsString() << ";\n";
           break;
+      }
+
+      if (Acc->getInterpolationMode() > Interpolate::NN) {
+        switch (compilerOptions.getTargetLang()) {
+          case Language::C99: break;
+          case Language::CUDA:
+            OS << "#include \"hipacc_cu_interpolate.hpp\"\n\n";
+            break;
+          case Language::OpenCLACC:
+          case Language::OpenCLCPU:
+          case Language::OpenCLGPU:
+            OS << "#include \"hipacc_cl_interpolate.hpp\"\n\n";
+            break;
+          case Language::Renderscript:
+          case Language::Filterscript:
+            OS << "#include \"hipacc_rs_interpolate.hpp\"\n\n";
+            break;
+        }
+
+        // define required interpolation mode
+        std::string function_name(ASTTranslate::getInterpolationName(Context,
+              builtins, compilerOptions, K, Acc, border_variant()));
+        std::string suffix("_" +
+            builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context));
+
+        auto bh_def = stringCreator.getInterpolationDefinition(K, Acc,
+            function_name, suffix, Acc->getInterpolationMode(),
+            Acc->getBoundaryMode());
+        auto no_bh_def = stringCreator.getInterpolationDefinition(K, Acc,
+            function_name, suffix, Interpolate::NO, Boundary::UNDEFINED);
+        auto vec_conv = Acc->getImage()->getType()->isVectorType() ?
+          "VECTOR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n" :
+          "SCALAR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n";
+
+        switch (compilerOptions.getTargetLang()) {
+          default: InterpolationDefinitionsLocal.push_back(bh_def);
+                   InterpolationDefinitionsLocal.push_back(no_bh_def);
+                   InterpolationDefinitionsLocal.push_back(vec_conv);
+                   break;
+          case Language::C99: break;
+        }
       }
       continue;
     }
 
     // constant memory declarations
-    HipaccMask *Mask = K->getMaskFromMapping(arg);
-    if (Mask) {
+    if (auto Mask = K->getMaskFromMapping(arg)) {
       if (Mask->isConstant()) {
         switch (compilerOptions.getTargetLang()) {
           case Language::OpenCLACC:
           case Language::OpenCLCPU:
           case Language::OpenCLGPU:
-            *OS << "__constant ";
+            OS << "__constant ";
             break;
           case Language::CUDA:
-            *OS << "__device__ __constant__ ";
+            OS << "__device__ __constant__ ";
             break;
           case Language::C99:
           case Language::Renderscript:
           case Language::Filterscript:
-            *OS << "static const ";
+            OS << "static const ";
             break;
         }
-        *OS << Mask->getTypeStr() << " " << Mask->getName() << K->getName() << "["
-            << Mask->getSizeYStr() << "][" << Mask->getSizeXStr() << "] = {\n";
+        OS << Mask->getTypeStr() << " " << Mask->getName() << K->getName() << "["
+           << Mask->getSizeYStr() << "][" << Mask->getSizeXStr() << "] = {\n";
 
         // print Mask constant literals to 2D array
         for (size_t y=0; y<Mask->getSizeY(); ++y) {
-          *OS << "        {";
+          OS << "        {";
           for (size_t x=0; x<Mask->getSizeX(); ++x) {
-            Mask->getInitExpr(x, y)->printPretty(*OS, 0, Policy, 0);
-            if (x<Mask->getSizeX()-1) {
-              *OS << ", ";
+            Mask->getInitExpr(x, y)->printPretty(OS, 0, Policy, 0);
+            if (x < Mask->getSizeX()-1) {
+              OS << ", ";
             }
           }
-          if (y<Mask->getSizeY()-1) {
-            *OS << "},\n";
+          if (y < Mask->getSizeY()-1) {
+            OS << "},\n";
           } else {
-            *OS << "}\n";
+            OS << "}\n";
           }
         }
-        *OS << "    };\n\n";
+        OS << "    };\n\n";
         Mask->setIsPrinted(true);
       } else {
         // emit declaration in CUDA and Renderscript
@@ -2342,15 +2213,15 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         switch (compilerOptions.getTargetLang()) {
           default: break;
           case Language::CUDA:
-            *OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
-                << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
-                << "][" << Mask->getSizeXStr() << "];\n\n";
+            OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
+               << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
+               << "][" << Mask->getSizeXStr() << "];\n\n";
             Mask->setIsPrinted(true);
             break;
           case Language::Renderscript:
           case Language::Filterscript:
-            *OS << "rs_allocation " << K->getDeviceArgNames()[cur_arg]
-                << ";\n\n";
+            OS << "rs_allocation " << K->getDeviceArgNames()[cur_arg]
+               << ";\n\n";
             Mask->setIsPrinted(true);
             break;
         }
@@ -2363,17 +2234,38 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         compilerOptions.emitFilterscript()) {
       QualType QT = K->getArgTypes()[cur_arg];
       QT.removeLocalConst();
-      *OS << QT.getAsString() << " " << K->getDeviceArgNames()[cur_arg]
-          << ";\n";
+      OS << QT.getAsString() << " " << K->getDeviceArgNames()[cur_arg] << ";\n";
       continue;
     }
   }
 
-  // extern scope for CUDA
-  *OS << "\n";
-  if (compilerOptions.emitCUDA()) {
-    *OS << "extern \"C\" {\n";
+  // interpolation definitions
+  if (InterpolationDefinitionsLocal.size()) {
+    // sort definitions and remove duplicate definitions
+    std::sort(InterpolationDefinitionsLocal.begin(),
+              InterpolationDefinitionsLocal.end(), std::greater<std::string>());
+    InterpolationDefinitionsLocal.erase(
+        std::unique(InterpolationDefinitionsLocal.begin(),
+                    InterpolationDefinitionsLocal.end()),
+        InterpolationDefinitionsLocal.end());
+
+    if (compilerOptions.emitCUDA() &&
+        !compilerOptions.exploreConfig() && emitHints) {
+      // emit interpolation definitions at the beginning of main file
+      for (auto str : InterpolationDefinitionsLocal)
+        InterpolationDefinitionsGlobal.push_back(str);
+    } else {
+      // add interpolation definitions to kernel file
+      for (auto str : InterpolationDefinitionsLocal)
+        OS << str;
+      OS << "\n";
+    }
   }
+
+  // extern scope for CUDA
+  OS << "\n";
+  if (compilerOptions.emitCUDA())
+    OS << "extern \"C\" {\n";
 
   // function definitions
   for (auto fun : K->getFunctionCalls()) {
@@ -2382,109 +2274,111 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:
-        *OS << "inline "; break;
+        OS << "inline "; break;
       case Language::CUDA:
-        *OS << "__inline__ __device__ "; break;
+        OS << "__inline__ __device__ "; break;
       case Language::Renderscript:
       case Language::Filterscript:
-        *OS << "inline static "; break;
+        OS << "inline static "; break;
     }
-    fun->print(*OS, Policy);
+    fun->print(OS, Policy);
   }
 
   // Launch the print method of the code generator
   compilerOptions.getCodeGenerator()->SetPrintingPolicy(&Policy);
-  bool bKernelPrinted = compilerOptions.getCodeGenerator()->PrintKernelFunction(D, K, *OS);
+  bool bKernelPrinted = compilerOptions.getCodeGenerator()->PrintKernelFunction(D, K, OS);
 
   // Check if the code generator handled the printing of the kernel function
-  if (!bKernelPrinted)
-  {
+  if (!bKernelPrinted) {
     // write kernel name and qualifiers
     switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
+      case Language::Renderscript:
+        break;
       case Language::CUDA:
-        *OS << "__global__ ";
+        OS << "__global__ ";
         if (compilerOptions.exploreConfig() && emitHints) {
-          *OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";
+          OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";
         } else {
-          *OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
-              << K->getNumThreadsY() << ") ";
+          OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
+             << K->getNumThreadsY() << ") ";
         }
         break;
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:
         if (compilerOptions.useTextureMemory() &&
-            compilerOptions.getTextureType()==Texture::Array2D) {
-          *OS << "__constant sampler_t " << D->getNameInfo().getAsString()
-              << "Sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | "
-              << " CLK_FILTER_NEAREST; \n\n";
+            compilerOptions.getTextureType() == Texture::Array2D) {
+          OS << "__constant sampler_t " << D->getNameInfo().getAsString()
+             << "Sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | "
+             << " CLK_FILTER_NEAREST; \n\n";
         }
-        *OS << "__kernel ";
+        OS << "__kernel ";
         if (compilerOptions.exploreConfig() && emitHints) {
-          *OS << "__attribute__((reqd_work_group_size(BSX_EXPLORE, BSY_EXPLORE, "
-              << "1))) ";
+          OS << "__attribute__((reqd_work_group_size(BSX_EXPLORE, BSY_EXPLORE, "
+             << "1))) ";
         } else {
-          *OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
-              << ", " << K->getNumThreadsY() << ", 1))) ";
+          OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
+             << ", " << K->getNumThreadsY() << ", 1))) ";
         }
-        break;
-      case Language::C99:
-      case Language::Renderscript:
         break;
       case Language::Filterscript:
-        *OS << K->getIterationSpace()->getImage()->getTypeStr()
-            << " __attribute__((kernel)) ";
+        OS << K->getIterationSpace()->getImage()->getTypeStr()
+           << " __attribute__((kernel)) ";
         break;
     }
-    if (!compilerOptions.emitFilterscript()) {
-      *OS << "void ";
-    }
-    *OS << K->getKernelName();
-    *OS << "(";
+    if (!compilerOptions.emitFilterscript())
+      OS << "void ";
+    OS << K->getKernelName();
+    OS << "(";
 
     // write kernel parameters
-    size_t comma = 0;
-    for (size_t i=0, e=D->getNumParams(); i!=e; ++i) {
-      std::string Name(D->getParamDecl(i)->getNameAsString());
-      FieldDecl *FD = K->getDeviceArgFields()[i];
-
-      if (!K->getUsed(Name) &&
-          !compilerOptions.emitFilterscript() &&
-          !compilerOptions.emitRenderscript()) {
-          // Proceed for Filterscript, because output image is never explicitly used
-          continue;
+    size_t comma = 0; num_arg = 0;
+    for (auto param : D->params()) {
+      // print default parameters for Renderscript and Filterscript only
+      if (compilerOptions.emitFilterscript()) {
+        OS << "uint32_t x, uint32_t y";
+        break;
+      }
+      if (compilerOptions.emitRenderscript()) {
+        OS << K->getIterationSpace()->getImage()->getTypeStr()
+           << " *_iter, uint32_t x, uint32_t y";
+        break;
       }
 
-      QualType T = D->getParamDecl(i)->getType();
+      size_t i = num_arg++;
+      FieldDecl *FD = K->getDeviceArgFields()[i];
+
+      QualType T = param->getType();
       T.removeLocalConst();
       T.removeLocalRestrict();
 
+      std::string Name(param->getNameAsString());
+      if (!K->getUsed(Name))
+        continue;
+
       // check if we have a Mask or Domain
-      HipaccMask *Mask = K->getMaskFromMapping(FD);
-      if (Mask) {
+      if (auto Mask = K->getMaskFromMapping(FD)) {
+        if (Mask->isConstant())
+          continue;
         switch (compilerOptions.getTargetLang()) {
+          case Language::C99:
+            if (comma++)
+              OS << ", ";
+            OS << "const "
+               << Mask->getTypeStr()
+               << " " << Mask->getName() << K->getName()
+               << "[" << Mask->getSizeYStr() << "]"
+               << "[" << Mask->getSizeXStr() << "]";
+            break;
           case Language::OpenCLACC:
           case Language::OpenCLCPU:
           case Language::OpenCLGPU:
-            if (!Mask->isConstant()) {
-              if (comma++) *OS << ", ";
-              *OS << "__constant ";
-              T.getAsStringInternal(Name, Policy);
-              *OS << Name;
-              *OS << " __attribute__ ((max_constant_size (" << Mask->getSizeXStr()
-                  << "*" << Mask->getSizeYStr() << "*sizeof("
-                  << Mask->getTypeStr() << "))))";
-              }
-            break;
-          case Language::C99:
-            if (!Mask->isConstant()) {
-              if (comma++) *OS << ", ";
-              *OS << "const "
-                  << Mask->getTypeStr()
-                  << " " << Mask->getName() << K->getName()
-                  << "[" << Mask->getSizeYStr() << "]"
-                  << "[" << Mask->getSizeXStr() << "]";
-            }
+            if (comma++)
+              OS << ", ";
+            OS << "__constant ";
+            T.getAsStringInternal(Name, Policy);
+            OS << Name;
             break;
           case Language::CUDA:
             // mask/domain is declared as constant memory
@@ -2498,85 +2392,54 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       }
 
       // check if we have an Accessor
-      HipaccAccessor *Acc = K->getImgFromMapping(FD);
-      MemoryAccess memAcc = UNDEFINED;
-      if (i==0) { // first argument is always the output image
-        bool doBreak = false;
+      if (auto Acc = K->getImgFromMapping(FD)) {
+        MemoryAccess mem_acc = KC->getMemAccess(FD);
         switch (compilerOptions.getTargetLang()) {
           case Language::C99:
-          case Language::OpenCLACC:
-          case Language::OpenCLCPU:
-          case Language::OpenCLGPU:
+            if (comma++)
+              OS << ", ";
+            if (mem_acc == READ_ONLY)
+              OS << "const ";
+            OS << Acc->getImage()->getTypeStr()
+               << " " << Name
+               << "[" << Acc->getImage()->getSizeYStr() << "]"
+               << "[" << Acc->getImage()->getSizeXStr() << "]";
+            // alternative for Pencil:
+            // OS << "[static const restrict 2048][4096]";
             break;
           case Language::CUDA:
-            if (compilerOptions.useTextureMemory() &&
-                compilerOptions.getTextureType()==Texture::Array2D) {
-                continue;
+            if (K->useTextureMemory(Acc) != Texture::None &&
+                K->useTextureMemory(Acc) != Texture::Ldg) // no parameter is emitted for textures
+              continue;
+            else {
+              if (comma++)
+                OS << ", ";
+              if (mem_acc == READ_ONLY)
+                OS << "const ";
+              OS << T->getPointeeType().getAsString();
+              OS << " * __restrict__ ";
+              OS << Name;
             }
             break;
-          case Language::Renderscript:
-            // parameters are set separately for Renderscript
-            // add parameters for dummy allocation and indices
-            *OS << K->getIterationSpace()->getImage()->getTypeStr()
-                << " *_IS, uint32_t x, uint32_t y";
-            doBreak = true;
-            break;
-          case Language::Filterscript:
-            *OS << "uint32_t x, uint32_t y";
-            doBreak = true;
-            break;
-        }
-        if (doBreak) break;
-        Acc = K->getIterationSpace();
-        memAcc = WRITE_ONLY;
-      } else if (Acc) {
-        memAcc = KC->getMemAccess(FD);
-      }
-
-      if (Acc) {
-        switch (compilerOptions.getTargetLang()) {
           case Language::OpenCLACC:
           case Language::OpenCLCPU:
           case Language::OpenCLGPU:
             // __global keyword to specify memory location is only needed for OpenCL
-            if (comma++) *OS << ", ";
+            if (comma++)
+              OS << ", ";
             if (K->useTextureMemory(Acc) != Texture::None) {
-              if (memAcc==WRITE_ONLY) {
-                *OS << "__write_only image2d_t ";
-              } else {
-                *OS << "__read_only image2d_t ";
-              }
+              if (mem_acc == WRITE_ONLY)
+                OS << "__write_only image2d_t ";
+              else
+                OS << "__read_only image2d_t ";
             } else {
-              *OS << "__global ";
-              if (memAcc==READ_ONLY) *OS << "const ";
-              *OS << T->getPointeeType().getAsString();
-              *OS << " * restrict ";
+              OS << "__global ";
+              if (mem_acc == READ_ONLY)
+                OS << "const ";
+              OS << T->getPointeeType().getAsString();
+              OS << " * restrict ";
             }
-            *OS << Name;
-            break;
-          case Language::CUDA:
-            if (K->useTextureMemory(Acc) != Texture::None && memAcc==READ_ONLY &&
-                // parameter required for __ldg() intrinsic
-                !(K->useTextureMemory(Acc) == Texture::Ldg)) {
-              // no parameter is emitted for textures
-              continue;
-            } else {
-              if (comma++) *OS << ", ";
-              if (memAcc==READ_ONLY) *OS << "const ";
-              *OS << T->getPointeeType().getAsString();
-              *OS << " * __restrict__ ";
-              *OS << Name;
-            }
-            break;
-          case Language::C99:
-            if (comma++) *OS << ", ";
-            if (memAcc==READ_ONLY) *OS << "const ";
-            *OS << Acc->getImage()->getTypeStr()
-                << " " << Name
-                << "[" << Acc->getImage()->getSizeXStr() << "]"
-                << "[" << Acc->getImage()->getSizeYStr() << "]";
-            // alternative for Pencil:
-            // *OS << "[static const restrict 2048][4096]";
+            OS << Name;
             break;
           case Language::Renderscript:
           case Language::Filterscript:
@@ -2586,37 +2449,34 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       }
 
       // normal arguments
-      if (comma++) *OS << ", ";
+      if (comma++)
+        OS << ", ";
       T.getAsStringInternal(Name, Policy);
-      *OS << Name;
+      OS << Name;
 
       // default arguments ...
-      if (Expr *Init = D->getParamDecl(i)->getInit()) {
+      if (Expr *Init = param->getInit()) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(Init);
-        if (!CCE || CCE->getConstructor()->isCopyConstructor()) {
-          *OS << " = ";
-        }
-        Init->printPretty(*OS, 0, Policy, 0);
+        if (!CCE || CCE->getConstructor()->isCopyConstructor())
+          OS << " = ";
+        Init->printPretty(OS, 0, Policy, 0);
       }
     }
-    *OS << ") ";
+    OS << ") ";
 
     // print kernel body
-    D->getBody()->printPretty(*OS, 0, Policy, 0);
-    if (compilerOptions.emitCUDA()) {
-      *OS << "}\n";
-    }
+    D->getBody()->printPretty(OS, 0, Policy, 0);
+    if (compilerOptions.emitCUDA())
+      OS << "}\n";
   }
+  OS << "\n";
 
-  *OS << "\n";
-
-  if (KC->getReduceFunction()) {
+  if (KC->getReduceFunction())
     printReductionFunction(KC, K, Policy, OS);
-  }
 
-  *OS << "#endif //" + ifdef + "\n";
-  *OS << "\n";
-  OS->flush();
+  OS << "#endif //" + ifdef + "\n";
+  OS << "\n";
+  OS.flush();
   fsync(fd);
   close(fd);
 }

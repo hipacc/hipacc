@@ -407,8 +407,9 @@ Expr *ASTTranslate::VisitCallExprClone(CallExpr *E) {
 
 Expr *ASTTranslate::VisitMemberExprClone(MemberExpr *E) {
   MemberExpr *result = new (Ctx) MemberExpr(Clone(E->getBase()), E->isArrow(),
-      CloneDecl(E->getMemberDecl()), E->getMemberNameInfo(), E->getType(),
-      E->getValueKind(), E->getObjectKind());
+      E->getOperatorLoc(), CloneDecl(E->getMemberDecl()),
+      E->getMemberNameInfo(), E->getType(), E->getValueKind(),
+      E->getObjectKind());
 
   setExprPropsClone(E, result);
 
@@ -536,8 +537,26 @@ Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
   return result;
 }
 
+Expr *ASTTranslate::VisitDesignatedInitUpdateExpr(DesignatedInitUpdateExpr *E) {
+  DesignatedInitUpdateExpr *result = new (Ctx) DesignatedInitUpdateExpr(Ctx,
+      E->getLocStart(), E->getBase(), E->getLocEnd());
+  result->setUpdater(E->getUpdater());
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
 Expr *ASTTranslate::VisitImplicitValueInitExpr(ImplicitValueInitExpr *E) {
   Expr *result = new (Ctx) ImplicitValueInitExpr(E->getType());
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
+Expr *ASTTranslate::VisitNoInitExpr(NoInitExpr *E) {
+  Expr *result = new (Ctx) NoInitExpr(E->getType());
 
   setExprPropsClone(E, result);
 
@@ -560,7 +579,8 @@ Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
 
 Expr *ASTTranslate::VisitVAArgExpr(VAArgExpr *E) {
   Expr *result = new (Ctx) VAArgExpr(E->getBuiltinLoc(), Clone(E->getSubExpr()),
-      E->getWrittenTypeInfo(), E->getRParenLoc(), E->getType());
+      E->getWrittenTypeInfo(), E->getRParenLoc(), E->getType(),
+      E->isMicrosoftABI());
 
   setExprPropsClone(E, result);
 

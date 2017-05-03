@@ -31,6 +31,7 @@
 //
 
 #include <iostream>
+#include <vector>
 
 #include <opencv2/opencv.hpp>
 
@@ -246,8 +247,7 @@ static void generateSignature(Mat& inputImage, Mat& signature) {
     }
 }
 
-static void generateVectors(Mat& signature1, Mat& signature2,
-        vector<Point2i>& v0, vector< Point2i>& v1) {
+static void generateVectors(Mat& signature1, Mat& signature2, std::vector<Point2i>& v0, std::vector<Point2i>& v1) {
     uint *referenceBuffer = (uint *) signature1.data;
     uint *checkBuffer = (uint *) signature2.data;
     int width = signature1.cols;
@@ -443,7 +443,7 @@ int main(int argc, const char **argv) {
         std::cerr << "Hipacc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
         int *vecs = img_vec.data();
-        vector<Point2i> v0, v1;
+        std::vector<Point2i> v0, v1;
         for (int y=0; y<img_vec.height(); y++) {
             for (int x=0; x<img_vec.width(); x++) {
                 if (vecs[x + y*img_vec.width()]!=0) {
@@ -470,7 +470,8 @@ int main(int argc, const char **argv) {
         imshow("Optical Flow", frameRGB);
 
         // exit when key is pressed
-        if (waitKey(1) >= 0) break;
+        if (waitKey(1) >= 0)
+            break;
     }
     #else
     // convert to grayscale
@@ -498,7 +499,7 @@ int main(int argc, const char **argv) {
     std::cerr << "Hipacc optical flow: " << fps_timing << " ms, " << 1000.0f/fps_timing << " fps" << std::endl;
 
     int *vecs = img_vec.data();
-    vector<Point2i> v0, v1;
+    std::vector<Point2i> v0, v1;
     for (int y=0; y<img_vec.height(); y++) {
         for (int x=0; x<img_vec.width(); x++) {
             if (vecs[x + y*img_vec.width()]!=0) {
@@ -527,4 +528,3 @@ int main(int argc, const char **argv) {
 
     return EXIT_SUCCESS;
 }
-

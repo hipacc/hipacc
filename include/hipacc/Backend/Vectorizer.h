@@ -345,8 +345,13 @@ namespace Vectorization
 
       VariableNameTranslator  _VarTranslator;
 
+      ::clang::ASTContext &_rASTContext;
+
 
     public:
+      VASTBuilder(::clang::ASTContext &rASTContext)
+          : _rASTContext(rASTContext) {
+      }
 
       /** \brief  Converts a Clang function declaration object into a VAST function declaration node. 
        *  \param  pFunctionDeclaration  A pointer to the Clang function declaration object, whicc shall be converted. */

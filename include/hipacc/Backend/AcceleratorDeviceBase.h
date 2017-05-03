@@ -142,14 +142,15 @@ namespace Backend
            *  \return If successful, the internal ID of the selected target device. */
           inline static ReturnType Parse(std::string strOption)
           {
-            if      (strOption == "Tesla-10")         return ::clang::hipacc::Device::Tesla_10;
-            else if (strOption == "Tesla-11")         return ::clang::hipacc::Device::Tesla_11;
-            else if (strOption == "Tesla-12")         return ::clang::hipacc::Device::Tesla_12;
-            else if (strOption == "Tesla-13")         return ::clang::hipacc::Device::Tesla_13;
-            else if (strOption == "Fermi-20")         return ::clang::hipacc::Device::Fermi_20;
+            if (strOption == "Fermi-20")              return ::clang::hipacc::Device::Fermi_20;
             else if (strOption == "Fermi-21")         return ::clang::hipacc::Device::Fermi_21;
             else if (strOption == "Kepler-30")        return ::clang::hipacc::Device::Kepler_30;
+            else if (strOption == "Kepler-32")        return ::clang::hipacc::Device::Kepler_32;
             else if (strOption == "Kepler-35")        return ::clang::hipacc::Device::Kepler_35;
+            else if (strOption == "Kepler-37")        return ::clang::hipacc::Device::Kepler_37;
+            else if (strOption == "Maxwell-50")       return ::clang::hipacc::Device::Maxwell_50;
+            else if (strOption == "Maxwell-52")       return ::clang::hipacc::Device::Maxwell_52;
+            else if (strOption == "Maxwell-53")       return ::clang::hipacc::Device::Maxwell_53;
             else if (strOption == "Evergreen")        return ::clang::hipacc::Device::Evergreen;
             else if (strOption == "NorthernIsland")   return ::clang::hipacc::Device::NorthernIsland;
             //else if (strOption == "SouthernIsland")   return ::clang::hipacc::Device::SouthernIsland;

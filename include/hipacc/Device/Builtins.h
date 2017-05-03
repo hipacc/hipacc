@@ -41,7 +41,6 @@
 
 namespace clang {
 namespace hipacc {
-
 namespace Builtin {
 enum ID {
   FirstBuiltin = clang::Builtin::FirstTSBuiltin-1,
@@ -72,7 +71,7 @@ class Context {
     const Info &getRecord(unsigned ID) const;
 
   public:
-    Context(ASTContext &Ctx) :
+    explicit Context(ASTContext &Ctx) :
       Ctx(Ctx),
       initialized(false)
     {}
@@ -97,9 +96,9 @@ class Context {
     const char *getName(unsigned ID) const { return getRecord(ID).Name; }
     const char *getTypeString(unsigned ID) const { return getRecord(ID).Type; }
 };
-}
-} // end namespace hipacc
-} // end namespace clang
+} // namespace Builtin
+} // namespace hipacc
+} // namespace clang
 
 #endif  // _BUILTINS_H_
 

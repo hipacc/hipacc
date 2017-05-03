@@ -1,5 +1,4 @@
-CC = clang++
-CC = g++
+CC = @CMAKE_CXX_COMPILER@
 
 HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
 
@@ -12,10 +11,10 @@ OFLAGS        = -O3
 ifeq ($(notdir $(CC)),clang++)
     # use libc++ for clang++
     CFLAGS   += -stdlib=libc++ \
-                -I`@CLANG_EXECUTABLE@ -print-file-name=include` \
-                -I`@LLVM_CONFIG_EXECUTABLE@ --includedir` \
-                -I`@LLVM_CONFIG_EXECUTABLE@ --includedir`/c++/v1
-    LDFLAGS  += -L`@LLVM_CONFIG_EXECUTABLE@ --libdir` -lc++ -lc++abi
+                -I`@Clang_EXECUTABLE@ -print-file-name=include` \
+                -I`@Clang_llvm_config_EXECUTABLE@ --includedir` \
+                -I`@Clang_llvm_config_EXECUTABLE@ --includedir`/c++/v1
+    LDFLAGS  += -L`@Clang_llvm_config_EXECUTABLE@ --libdir` -lc++ -lc++abi
 else
     LDFLAGS  += -lstdc++
 endif

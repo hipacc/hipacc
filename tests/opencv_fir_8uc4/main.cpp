@@ -23,20 +23,20 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include <cfloat>
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <vector>
 
 #include <sys/time.h>
 
-//#define CPU
-#ifdef OpenCV
+#ifdef OPENCV
 #include <opencv2/opencv.hpp>
-#ifndef CPU
-#include <opencv2/gpu/gpu.hpp>
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/core/ocl.hpp>
+#ifdef OPENCV_CUDA_FOUND
+#include <opencv2/cudafilters.hpp>
 #endif
 #endif
 
@@ -45,6 +45,8 @@
 // variables set by Makefile
 #define SIZE_X 32
 #define WIDTH 1048576
+
+// code variants
 #define CONST_MASK
 #define USE_LAMBDA
 //#define RUN_UNDEF
@@ -62,16 +64,16 @@ double time_ms () {
 
 
 // FIR filter reference
-void fir_filter(uchar4 *in, uchar4 *out, float *filter, int
-        size_x, int width) {
+void fir_filter(uchar4 *in, uchar4 *out, float *filter, int size_x, int width) {
     int anchor_x = size_x >> 1;
+    int upper_x = width - anchor_x;
 
-    for (int x=anchor_x; x<width-anchor_x; ++x) {
+    for (int x=anchor_x; x<upper_x; ++x) {
         float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
         // size_x is even => -size_x/2 .. +size_x/2 - 1
-        for (int xf = -anchor_x; xf<anchor_x; xf++) {
-            sum += filter[xf + anchor_x]*convert_float4(in[x + xf]);
+        for (int xf = -anchor_x; xf<anchor_x; ++xf) {
+            sum += filter[xf + anchor_x] * convert_float4(in[x + xf]);
         }
 
         out[x] = convert_uchar4(sum);
@@ -99,7 +101,7 @@ class FIRFilterMask : public Kernel<uchar4> {
         void kernel() {
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
             sum += convolve(mask, Reduce::SUM, [&] () -> float4 {
-                    return mask()*convert_float4(input(mask));
+                    return mask() * convert_float4(input(mask));
                     });
 
             output() = convert_uchar4(sum);
@@ -110,8 +112,8 @@ class FIRFilterMask : public Kernel<uchar4> {
             float4 sum = { 0.5f, 0.5f, 0.5f, 0.5f };
 
             // size_x is even => -size_x/2 .. +size_x/2 - 1
-            for (int xf = -anchor_x; xf<anchor_x; xf++) {
-                sum += mask(xf, 0)*convert_float4(input(xf, 0));
+            for (int xf = -anchor_x; xf<anchor_x; ++xf) {
+                sum += mask(xf, 0) * convert_float4(input(xf, 0));
             }
 
             output() = convert_uchar4(sum);
@@ -124,11 +126,9 @@ class FIRFilterMask : public Kernel<uchar4> {
  * Main function                                                         *
  *************************************************************************/
 int main(int argc, const char **argv) {
-    double time0, time1, dt, min_dt;
     const int width = WIDTH;
     const int size_x = SIZE_X;
     const int offset_x = size_x >> 1;
-    std::vector<float> timings;
 
     // filter coefficients
     #ifdef CONST_MASK
@@ -173,14 +173,15 @@ int main(int argc, const char **argv) {
     Image<uchar4> OUT(width, 1);
 
 
-    #ifndef OpenCV
+    #ifndef OPENCV
+    std::cerr << "Calculating Hipacc FIR filter ..." << std::endl;
+    std::vector<float> timings_hipacc;
+    float timing = 0;
+
     // filter mask
     Mask<float> MX(filter_x);
 
     IterationSpace<uchar4> IsOut(OUT);
-
-    std::cerr << "Calculating Hipacc FIR filter ..." << std::endl;
-    float timing = 0.0f;
 
     // UNDEFINED
     #ifdef RUN_UNDEF
@@ -191,7 +192,7 @@ int main(int argc, const char **argv) {
     FFU.execute();
     timing = hipacc_last_kernel_timing();
     #endif
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (UNDEFINED): " << timing << " ms, " << (width/timing)/1000 << " Mpixel/s" << std::endl;
 
 
@@ -202,7 +203,7 @@ int main(int argc, const char **argv) {
 
     FFC.execute();
     timing = hipacc_last_kernel_timing();
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (CLAMP): " << timing << " ms, " << (width/timing)/1000 << " Mpixel/s" << std::endl;
 
 
@@ -213,7 +214,7 @@ int main(int argc, const char **argv) {
 
     FFR.execute();
     timing = hipacc_last_kernel_timing();
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (REPEAT): " << timing << " ms, " << (width/timing)/1000 << " Mpixel/s" << std::endl;
 
 
@@ -224,7 +225,7 @@ int main(int argc, const char **argv) {
 
     FFM.execute();
     timing = hipacc_last_kernel_timing();
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (MIRROR): " << timing << " ms, " << (width/timing)/1000 << " Mpixel/s" << std::endl;
 
 
@@ -235,128 +236,178 @@ int main(int argc, const char **argv) {
 
     FFConst.execute();
     timing = hipacc_last_kernel_timing();
-    timings.push_back(timing);
+    timings_hipacc.push_back(timing);
     std::cerr << "Hipacc (CONSTANT): " << timing << " ms, " << (width/timing)/1000 << " Mpixel/s" << std::endl;
 
 
     // get pointer to result data
     uchar4 *output = OUT.data();
+
+    if (timings_hipacc.size()) {
+        std::cerr << "Hipacc:";
+        for (std::vector<float>::const_iterator it = timings_hipacc.begin(); it != timings_hipacc.end(); ++it)
+            std::cerr << "\t" << *it;
+        std::cerr << "\t"
+        #ifdef CONST_MASK
+                  << "+ConstMask\t"
+        #endif
+        #ifdef USE_LAMBDA
+                  << "+Lambda\t"
+        #endif
+                  << std::endl;
+    }
     #endif
 
 
-    #ifdef OpenCV
-    #ifdef CPU
-    std::cerr << std::endl << "Calculating OpenCV FIR filter on the CPU ..." << std::endl;
-    #else
-    std::cerr << std::endl << "Calculating OpenCV FIR filter on the GPU ..." << std::endl;
-    #endif
+    #ifdef OPENCV
+    auto opencv_bench = [] (std::function<void(int)> init, std::function<void(int)> launch, std::function<void(float)> finish) {
+        for (int brd_type=0; brd_type<5; ++brd_type) {
+            init(brd_type);
 
+            std::vector<float> timings;
+            try {
+                for (int nt=0; nt<10; ++nt) {
+                    auto start = time_ms();
+                    launch(brd_type);
+                    auto end = time_ms();
+                    timings.push_back(end - start);
+                }
+            } catch (const cv::Exception &ex) {
+                std::cerr << ex.what();
+                timings.push_back(0);
+            }
 
-    cv::Mat cv_data_in(1, width, CV_8UC4, input);
-    cv::Mat cv_data_out(1, width, CV_8UC4, cv::Scalar(0));
+            std::cerr << "OpenCV (";
+            switch (brd_type) {
+                case IPL_BORDER_CONSTANT:    std::cerr << "CONSTANT";   break;
+                case IPL_BORDER_REPLICATE:   std::cerr << "CLAMP";      break;
+                case IPL_BORDER_REFLECT:     std::cerr << "MIRROR";     break;
+                case IPL_BORDER_WRAP:        std::cerr << "REPEAT";     break;
+                case IPL_BORDER_REFLECT_101: std::cerr << "MIRROR_101"; break;
+                default: break;
+            }
+            std::sort(timings.begin(), timings.end());
+            float time = timings[timings.size()/2];
+            std::cerr << "): " << time << " ms, " << (width/time)/1000 << " Mpixel/s" << std::endl;
 
+            finish(time);
+        }
+    };
+
+    cv::Mat cv_data_src(1, width, CV_8UC4, input);
+    cv::Mat cv_data_dst(1, width, CV_8UC4, cv::Scalar(0));
     cv::Mat kernel = cv::Mat::ones(size_x, 1, CV_32F ) / (float)(size_x);
     cv::Point anchor = cv::Point(-1,-1);
+    std::vector<float> timings_cpu;
+    std::vector<float> timings_ocl;
+    std::vector<float> timings_cuda;
     double delta = 0;
     int ddepth = -1;
 
-    for (int brd_type=0; brd_type<5; brd_type++) {
-        #ifdef CPU
-        if (brd_type==cv::BORDER_WRAP) {
-            // BORDER_WRAP is not supported on the CPU by OpenCV
-            timings.push_back(0.0f);
-            continue;
-        }
-        min_dt = DBL_MAX;
-        std::vector<double> times;
-        for (int nt=0; nt<10; nt++) {
-            time0 = time_ms();
+    auto compute_tapi = [&] (std::vector<float> &timings) {
+        cv::UMat dev_src, dev_dst;
+        opencv_bench(
+            [&] (int) {
+                cv_data_src.copyTo(dev_src);
+            },
+            [&] (int brd_type) {
+                cv::filter2D(dev_src, dev_dst, ddepth, kernel, anchor, delta, brd_type);
+                if (cv::ocl::useOpenCL())
+                    cv::ocl::finish();
+            },
+            [&] (float timing) {
+                timings.push_back(timing);
+                dev_dst.copyTo(cv_data_dst);
+            }
+        );
+    };
 
-            cv::filter2D(cv_data_in, cv_data_out, ddepth, kernel, anchor, delta, brd_type);
+    // OpenCV - CPU
+    cv::ocl::setUseOpenCL(false);
+    std::cerr << std::endl
+              << "Calculating OpenCV-CPU FIR filter on CPU" << std::endl;
+    compute_tapi(timings_cpu);
 
-            time1 = time_ms();
-            dt = time1 - time0;
-            times.push_back(dt);
-            if (dt < min_dt) min_dt = dt;
-        }
-        std::sort(times.begin(), times.end());
-        min_dt = times.at(5);
-        #else
-        cv::gpu::GpuMat gpu_in, gpu_out;
-        gpu_in.upload(cv_data_in);
+    // OpenCV - OpenCL
+    if (cv::ocl::haveOpenCL()) {
+        cv::ocl::setUseOpenCL(true);
+        std::cerr << std::endl
+                  << "Calculating OpenCV-OCL FIR filter on "
+                  << cv::ocl::Device::getDefault().name() << std::endl;
+        compute_tapi(timings_ocl);
+    }
 
-        min_dt = DBL_MAX;
-        std::vector<double> times;
-        for (int nt=0; nt<10; nt++) {
-            time0 = time_ms();
+    // OpenCV - CUDA
+    if (cv::cuda::getCudaEnabledDeviceCount()) {
+        #ifdef OPENCV_CUDA_FOUND
+        std::cerr << std::endl
+                  << "Calculating OpenCV-CUDA FIR filter" << std::endl;
+        cv::cuda::printShortCudaDeviceInfo(cv::cuda::getDevice());
 
-            cv::gpu::filter2D(gpu_in, gpu_out, ddepth, kernel, anchor, brd_type);
+        cv::cuda::GpuMat dev_src, dev_dst;
+        cv::Ptr<cv::cuda::Filter> fir;
 
-            time1 = time_ms();
-            dt = time1 - time0;
-            times.push_back(dt);
-            if (dt < min_dt) min_dt = dt;
-        }
-        std::sort(times.begin(), times.end());
-        min_dt = times.at(5);
-
-        gpu_out.download(cv_data_out);
+        opencv_bench(
+            [&] (int brd_type) {
+                dev_src.upload(cv_data_src);
+                fir = cv::cuda::createLinearFilter(cv_data_src.type(), cv_data_dst.type(), kernel, anchor, brd_type);
+            },
+            [&] (int) {
+                fir->apply(dev_src, dev_dst);
+            },
+            [&] (float timing) {
+                timings_cuda.push_back(timing);
+                dev_dst.download(cv_data_dst);
+            }
+        );
         #endif
-
-        std::cerr << "OpenCV (";
-        switch (brd_type) {
-            case IPL_BORDER_CONSTANT:    std::cerr << "CONSTANT";   break;
-            case IPL_BORDER_REPLICATE:   std::cerr << "CLAMP";      break;
-            case IPL_BORDER_REFLECT:     std::cerr << "MIRROR";     break;
-            case IPL_BORDER_WRAP:        std::cerr << "REPEAT";     break;
-            case IPL_BORDER_REFLECT_101: std::cerr << "MIRROR_101"; break;
-            default: break;
-        }
-        std::cerr << "): " << min_dt << " ms, " << (width/min_dt)/1000 << " Mpixel/s" << std::endl;
-        timings.push_back(min_dt);
     }
 
     // get pointer to result data
-    uchar4 *output = (uchar4 *)cv_data_out.data;
-    #endif
+    uchar4 *output = (uchar4 *)cv_data_dst.data;
 
-    // print statistics
-    std::cerr << "Hipacc: ";
-    for (std::vector<float>::const_iterator it = timings.begin(); it != timings.end(); ++it) {
-        std::cerr << "\t" << *it;
+    if (timings_cpu.size()) {
+        std::cerr << "CV-CPU: ";
+        for (auto time : timings_cpu)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
     }
-    std::cerr << "\t"
-    #ifdef CONST_MASK
-              << "+ConstMask\t"
+    if (timings_ocl.size()) {
+        std::cerr << "CV-OCL: ";
+        for (auto time : timings_ocl)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
+    if (timings_cuda.size()) {
+        std::cerr << "CV-CUDA:";
+        for (auto time : timings_cuda)
+            std::cerr << "\t" << time;
+        std::cerr << std::endl;
+    }
     #endif
-    #ifdef USE_LAMBDA
-              << "+Lambda\t"
-    #endif
-              << std::endl << std::endl;
 
 
     std::cerr << "Calculating reference ..." << std::endl;
-    min_dt = DBL_MAX;
-    for (int nt=0; nt<3; nt++) {
-        time0 = time_ms();
+    std::vector<float> timings_reference;
+    for (int nt=0; nt<3; ++nt) {
+        double start = time_ms();
 
-        // calculate reference
         fir_filter(reference_in, reference_out, (float *)filter_x[0], size_x, width);
 
-        time1 = time_ms();
-        dt = time1 - time0;
-        if (dt < min_dt) min_dt = dt;
+        double end = time_ms();
+        timings_reference.push_back(end - start);
     }
-    std::cerr << "Reference: " << min_dt << " ms, " << (width/min_dt)/1000 << " Mpixel/s" << std::endl;
+    std::sort(timings_reference.begin(), timings_reference.end());
+    float time = timings_reference[timings_reference.size()/2];
+    std::cerr << "Reference: " << time << " ms, " << (width/time)/1000 << " Mpixel/s" << std::endl;
 
-    std::cerr << std::endl << "Comparing results ..." << std::endl;
-    #ifdef OpenCV
-    int upper_x = width-size_x+offset_x;
-    #else
-    int upper_x = width-offset_x;
+
+    std::cerr << "Comparing results ..." << std::endl;
+    #ifdef OPENCV
+    std::cerr << "Warning: The CPU, OCL, and CUDA modules in OpenCV use different implementations and yield inconsistent results." << std::endl
+              << "         This is the case even for different filter sizes within the same module!" << std::endl;
     #endif
-    // compare results
-    for (int x=offset_x; x<upper_x; x++) {
+    for (int x=offset_x; x<width-offset_x; ++x) {
         if (reference_out[x].x != output[x].x ||
             reference_out[x].y != output[x].y ||
             reference_out[x].z != output[x].z ||
@@ -375,7 +426,7 @@ int main(int argc, const char **argv) {
     }
     std::cerr << "Test PASSED" << std::endl;
 
-    // memory cleanup
+    // free memory
     delete[] input;
     delete[] reference_in;
     delete[] reference_out;

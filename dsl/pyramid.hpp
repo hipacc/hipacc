@@ -40,91 +40,91 @@ class Traversal;
 class Recursion;
 
 class PyramidBase {
-  friend class Traversal;
-  friend class Recursion;
+    friend class Traversal;
+    friend class Recursion;
 
-  private:
-    const int depth_;
-    int level_;
-    bool bound_;
+    private:
+        const int depth_;
+        int level_;
+        bool bound_;
 
-    void increment() {
-      ++level_;
-    }
+        void increment() {
+            ++level_;
+        }
 
-    void decrement() {
-      --level_;
-    }
+        void decrement() {
+            --level_;
+        }
 
-    bool bind() {
-      if (!bound_) {
-        bound_ = true;
-        level_ = 0;
-        return true;
-      } else {
-        return false;
-      }
-    }
+        bool bind() {
+            if (!bound_) {
+                bound_ = true;
+                level_ = 0;
+                return true;
+            } else {
+                return false;
+            }
+        }
 
-    void unbind() {
-      bound_ = false;
-    }
+        void unbind() {
+            bound_ = false;
+        }
 
-  public:
-    PyramidBase(const int depth)
-        : depth_(depth), level_(0), bound_(false) {
-    }
+    public:
+        explicit PyramidBase(const int depth)
+            : depth_(depth), level_(0), bound_(false) {
+        }
 
-    int depth() {
-      return depth_;
-    }
+        int depth() const {
+            return depth_;
+        }
 
-    int level() {
-      return level_;
-    }
+        int level() const {
+            return level_;
+        }
 
-    bool is_top_level() {
-      return level_ == 0;
-    }
+        bool is_top_level() const {
+            return level_ == 0;
+        }
 
-    bool is_bottom_level() {
-      return level_ == depth_-1;
-    }
+        bool is_bottom_level() const {
+            return level_ == depth_-1;
+        }
 };
 
 
 template<typename data_t>
 class Pyramid : public PyramidBase {
-  private:
-    std::vector<Image<data_t>> imgs_;
+    private:
+        std::vector<Image<data_t>> imgs_;
 
-  public:
-    Pyramid(Image<data_t> &img, const int depth)
-        : PyramidBase(depth) {
-      imgs_.push_back(img);
-      int height = img.height()/2;
-      int width = img.width()/2;
-      for (int i=1; i<depth; ++i) {
-        assert(width * height > 0 && "Pyramid stages too deep for image size.");
-        Image<data_t> img(width, height);
-        imgs_.push_back(img);
-        height /= 2;
-        width /= 2;
-      }
-    }
+    public:
+        Pyramid(Image<data_t> &img, const int depth)
+            : PyramidBase(depth) {
+            imgs_.push_back(img);
+            int height = img.height()/2;
+            int width = img.width()/2;
+            for (int i=1; i<depth; ++i) {
+                assert(width * height > 0 && "Pyramid stages too deep for image size.");
+                Image<data_t> img(width, height);
+                imgs_.push_back(img);
+                height /= 2;
+                width /= 2;
+            }
+        }
 
-    Image<data_t> &operator()(const int relative) {
-      assert(level() + relative >= 0 &&
-             level() + relative < (int)imgs_.size() &&
-             "Accessed pyramid stage is out of bounds.");
-      return imgs_.at(level() + relative);
-    }
+        Image<data_t> &operator()(const int relative) {
+            assert(level() + relative >= 0 &&
+                   level() + relative < (int)imgs_.size() &&
+                   "Accessed pyramid stage is out of bounds.");
+            return imgs_.at(level() + relative);
+        }
 
-    void swap(Pyramid<data_t> &other) {
-      std::vector<Image<data_t>> tmp = other.imgs_;
-      other.imgs_ = this->imgs_;
-      this->imgs_ = tmp;
-    }
+        void swap(Pyramid<data_t> &other) {
+            std::vector<Image<data_t>> tmp = other.imgs_;
+            other.imgs_ = this->imgs_;
+            this->imgs_ = tmp;
+        }
 };
 
 
@@ -133,61 +133,63 @@ std::vector<std::vector<PyramidBase*>> gPyramids;
 
 
 class Traversal {
-  private:
-    const std::function<void()> &func_;
-    std::vector<PyramidBase*> pyrs_;
+    private:
+        const std::function<void()> &func_;
+        std::vector<PyramidBase*> pyrs_;
 
-  public:
-    Traversal(const std::function<void()> &func)
-        : func_(func) {
-    }
+    public:
+        explicit Traversal(const std::function<void()> &func)
+            : func_(func) {
+        }
 
-    ~Traversal() {
-      for (auto pyr : pyrs_) pyr->unbind();
-    }
+        ~Traversal() {
+            for (auto pyr : pyrs_) pyr->unbind();
+        }
 
-    void add(PyramidBase &p) {
-      assert(p.bind() && "Pyramid already bound to another traversal.");
-      pyrs_.push_back(&p);
-    }
+        void add(PyramidBase &p) {
+            bool bound = p.bind();
+            assert(bound && "Pyramid already bound to another traversal.");
+            pyrs_.push_back(&p);
+        }
 
-    void run() {
-      gPyramids.push_back(pyrs_);
-      gTraverse.push_back(&func_);
+        void run() {
+            gPyramids.push_back(pyrs_);
+            gTraverse.push_back(&func_);
 
-      (*gTraverse.back())();
+            (*gTraverse.back())();
 
-      gTraverse.pop_back();
-      gPyramids.pop_back();
-    }
+            gTraverse.pop_back();
+            gPyramids.pop_back();
+        }
 };
 
 
 class Recursion {
-  private:
-    const std::function<void()> &func_;
+    private:
+        const std::function<void()> &func_;
 
-  public:
-    Recursion(const std::function<void()> &func)
-        : func_(func) {
-      std::vector<PyramidBase*> pyrs = gPyramids.back();
-      for (auto pyr : pyrs) pyr->increment();
-    }
-
-    ~Recursion() {
-      std::vector<PyramidBase*> pyrs = gPyramids.back();
-      for (auto pyr : pyrs) pyr->decrement();
-    }
-
-    void run(const int loop) {
-      std::vector<PyramidBase*> pyrs = gPyramids.back();
-      for (int i=0; i<loop; i++) {
-        (*gTraverse.back())();
-        if (i < loop-1) {
-          func_();
+    public:
+        explicit Recursion(const std::function<void()> &func)
+            : func_(func) {
+            std::vector<PyramidBase*> pyrs = gPyramids.back();
+            for (auto pyr : pyrs)
+                pyr->increment();
         }
-      }
-    }
+
+        ~Recursion() {
+            std::vector<PyramidBase*> pyrs = gPyramids.back();
+            for (auto pyr : pyrs)
+                pyr->decrement();
+        }
+
+        void run(const int loop) {
+            for (int i=0; i<loop; ++i) {
+                (*gTraverse.back())();
+                if (i < loop-1) {
+                    func_();
+                }
+            }
+        }
 };
 
 
@@ -259,15 +261,13 @@ void traverse(PyramidBase &p0, PyramidBase &p1, PyramidBase &p2,
 }
 
 
-void traverse(std::vector<PyramidBase*> pyrs,
-              const std::function<void()> &func) {
+void traverse(std::vector<PyramidBase*> pyrs, const std::function<void()> &func) {
     Traversal t(func);
     for (size_t i=0; i<pyrs.size(); ++i) {
-      if (i < pyrs.size() - 1) {
-        assert(pyrs[i]->depth() == pyrs[i+1]->depth() &&
-               "Pyramid depths do not match.");
-      }
-      t.add(*(pyrs[i]));
+        if (i < pyrs.size() - 1) {
+            assert(pyrs[i]->depth() == pyrs[i+1]->depth() && "Pyramid depths do not match.");
+        }
+        t.add(*(pyrs[i]));
     }
 
     t.run();
@@ -275,15 +275,14 @@ void traverse(std::vector<PyramidBase*> pyrs,
 
 
 void traverse(size_t loop=1, const std::function<void()> &func=[]{}) {
-  assert(!gPyramids.empty() &&
-         "Traverse recursion called outside of traverse.");
+    assert(!gPyramids.empty() && "Traverse recursion called outside of traverse.");
 
-  std::vector<PyramidBase*> pyrs = gPyramids.back();
+    std::vector<PyramidBase*> pyrs = gPyramids.back();
 
-  if (!pyrs.at(0)->is_bottom_level()) {
-    Recursion r(func);
-    r.run(loop);
-  }
+    if (!pyrs.at(0)->is_bottom_level()) {
+        Recursion r(func);
+        r.run(loop);
+    }
 }
 
 } // end namespace hipacc
