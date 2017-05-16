@@ -1920,7 +1920,7 @@ namespace Vectorization
         //@{
         virtual BaseClasses::TypeInfo GetResultType() const final override    { return GetReturnType(); }
 
-        virtual ExpressionPtr   GetSubExpression(IndexType SubExprIndex)                                          { return GetCallParameter(SubExprIndex); }
+        virtual ExpressionPtr   GetSubExpression(IndexType SubExprIndex) final override                           { return GetCallParameter(SubExprIndex); }
         virtual IndexType       GetSubExpressionCount() const final override                                      { return GetCallParameterCount(); }
         virtual void            SetSubExpression(IndexType SubExprIndex, ExpressionPtr spSubExpr) final override  { SetCallParameter(SubExprIndex, spSubExpr); }
         //@}
