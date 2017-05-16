@@ -1194,7 +1194,7 @@ Vectorizer::VASTExporterBase::FunctionDeclVectorType Vectorizer::VASTExporterBas
 
   vecFunctionDecls.insert( vecFunctionDecls.begin(), rvecKnownFunctionDecls.begin(), rvecKnownFunctionDecls.end() );
 
-  return std::move( vecFunctionDecls );
+  return vecFunctionDecls;
 }
 
 ::clang::QualType Vectorizer::VASTExporterBase::_GetVariableType(AST::BaseClasses::VariableInfoPtr spVariableInfo)

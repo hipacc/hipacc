@@ -1821,7 +1821,7 @@ AST::Scope::VariableDeclarationVectorType AST::Scope::GetVariableDeclarations() 
     vecDeclarations.push_back(spVariable);
   }
 
-  return std::move( vecDeclarations );
+  return vecDeclarations;
 }
 
 AST::BaseClasses::VariableInfoPtr AST::Scope::GetVariableInfo(std::string strVariableName)
@@ -2028,7 +2028,7 @@ vector< string > AST::FunctionDeclaration::GetKnownVariableNames() const
     vecVariableNames.push_back( itKnownVariable.first );
   }
 
-  return move( vecVariableNames );
+  return vecVariableNames;
 }
 
 AST::Expressions::IdentifierPtr AST::FunctionDeclaration::GetParameter(IndexType iParamIndex)

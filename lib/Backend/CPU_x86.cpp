@@ -3428,7 +3428,7 @@ CommonDefines::ArgumentVectorType CPU_x86::CodeGenerator::GetAdditionalClangArgu
   default:                            break;    // Useless default branch avoiding GCC compiler warnings
   }
 
-  return std::move( vecArguments );
+  return vecArguments;
 }
 
 bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, HipaccKernel *pKernel, llvm::raw_ostream &rOutputStream)
