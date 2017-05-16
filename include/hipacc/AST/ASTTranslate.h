@@ -280,11 +280,11 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // default error message for unsupported expressions and statements.
     #define HIPACC_UNSUPPORTED_EXPR(EXPR) \
-    Expr *Visit##EXPR(EXPR *) { \
+    [[noreturn]] Expr *Visit##EXPR(EXPR *) { \
       assert(0 && "Hipacc: Stumbled upon unsupported expression: " #EXPR); \
     }
     #define HIPACC_UNSUPPORTED_STMT(STMT) \
-    Stmt *Visit##STMT(STMT *) { \
+    [[noreturn]] Stmt *Visit##STMT(STMT *) { \
       assert(0 && "Hipacc: Stumbled upon unsupported statement: " #STMT); \
     }
     #define HIPACC_UNSUPPORTED_EXPR_BASE_CLASS(EXPR) \
