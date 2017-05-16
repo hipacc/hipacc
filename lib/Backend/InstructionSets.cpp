@@ -639,7 +639,7 @@ Expr* InstructionSetSSE::CheckSingleMaskElement(VectorElementTypes eMaskElementT
   }
 
   CallExpr        *pMoveMask      = _CreateFunctionCall(IntrinsicsSSEEnum::MoveMaskFloat, pMaskExpr);
-  IntegerLiteral  *pTestConstant  = _GetASTHelper().CreateIntegerLiteral( static_cast< int32_t >( 1 << uiIndex ) );
+  IntegerLiteral  *pTestConstant  = _GetASTHelper().CreateIntegerLiteral<int32_t>(1 << uiIndex);
 
   return _GetASTHelper().CreateBinaryOperator( pMoveMask, pTestConstant, BO_And, pMoveMask->getType() );
 }
@@ -1600,8 +1600,8 @@ Expr* InstructionSetSSE2::_CompareInt64(VectorElementTypes eElementType, Expr *p
 
 
     // Conditional set the correct mask value for each element
-    pElement = _GetASTHelper().CreateConditionalOperator( _GetASTHelper().CreateParenthesisExpression(pElement), _GetASTHelper().CreateIntegerLiteral(-1L),
-                                                          _GetASTHelper().CreateIntegerLiteral(0L), pElement->getType() );
+    pElement = _GetASTHelper().CreateConditionalOperator( _GetASTHelper().CreateParenthesisExpression(pElement), _GetASTHelper().CreateIntegerLiteral<int64_t>(-1LL),
+                                                          _GetASTHelper().CreateIntegerLiteral<int64_t>(0LL), pElement->getType() );
 
     vecArgs.push_back( pElement );
   }
@@ -1835,11 +1835,11 @@ Expr* InstructionSetSSE2::_RelationalOpInteger(VectorElementTypes eElementType, 
 
     switch (eElementType)
     {
-    case VectorElementTypes::UInt8:    pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x80U                );  break;
-    case VectorElementTypes::UInt16:   pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x8000U              );  break;
-    case VectorElementTypes::UInt32:   pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x80000000U          );  break;
-    case VectorElementTypes::UInt64:   pSignMask = _GetASTHelper().CreateIntegerLiteral( 0x8000000000000000UL );  break;
-    default:                          throw InternalErrorException("Unexpected vector element type detected!");
+    case VectorElementTypes::UInt8:  pSignMask = _GetASTHelper().CreateIntegerLiteral<uint8_t> (0x80U                ); break;
+    case VectorElementTypes::UInt16: pSignMask = _GetASTHelper().CreateIntegerLiteral<uint16_t>(0x8000U              ); break;
+    case VectorElementTypes::UInt32: pSignMask = _GetASTHelper().CreateIntegerLiteral<uint32_t>(0x80000000U          ); break;
+    case VectorElementTypes::UInt64: pSignMask = _GetASTHelper().CreateIntegerLiteral<uint64_t>(0x8000000000000000ULL); break;
+    default:                         throw InternalErrorException("Unexpected vector element type detected!");
     }
 
     Expr *pConvLHS = ArithmeticOperator( eElementType, ArithmeticOperatorType::BitwiseXOr, pExprLHS, BroadCast(eElementType, pSignMask) );
@@ -1917,7 +1917,7 @@ Expr* InstructionSetSSE2::_ShiftIntegerVectorBytes(Expr *pVectorRef, uint32_t ui
   {
     const IntrinsicsSSE2Enum eShiftID = bShiftLeft ? IntrinsicsSSE2Enum::ShiftLeftVectorBytes : IntrinsicsSSE2Enum::ShiftRightVectorBytes;
 
-    return _CreateFunctionCall( eShiftID, pVectorRef, _GetASTHelper().CreateIntegerLiteral( static_cast<int32_t>(uiByteCount) ) );
+    return _CreateFunctionCall( eShiftID, pVectorRef, _GetASTHelper().CreateIntegerLiteral<int32_t>(uiByteCount) );
   }
 }
 
@@ -2156,7 +2156,7 @@ Expr* InstructionSetSSE2::CheckSingleMaskElement(VectorElementTypes eMaskElement
   }
 
   CallExpr        *pMoveMask      = _CreateFunctionCall(eMoveMaskType, pMaskExpr);
-  IntegerLiteral  *pTestConstant  = _GetASTHelper().CreateIntegerLiteral( iTestValue << iShiftValue );
+  IntegerLiteral  *pTestConstant  = _GetASTHelper().CreateIntegerLiteral(iTestValue << iShiftValue);
 
   return _GetASTHelper().CreateBinaryOperator( pMoveMask, pTestConstant, BO_And, pMoveMask->getType() );
 }
@@ -2165,11 +2165,11 @@ Expr* InstructionSetSSE2::CreateOnesVector(VectorElementTypes eElementType, bool
 {
   switch (eElementType)
   {
-  case VectorElementTypes::Double:                                  return BroadCast( eElementType, _GetASTHelper().CreateLiteral( bNegative ? -1.0 : 1.0 ) );
+  case VectorElementTypes::Double:                                  return BroadCast( eElementType, _GetASTHelper().CreateLiteral(bNegative ? -1.0 : 1.0) );
   case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
   case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
   case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
-  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  return BroadCast( eElementType, _GetASTHelper().CreateIntegerLiteral( bNegative ? -1 : 1 ) );
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  return BroadCast( eElementType, _GetASTHelper().CreateIntegerLiteral(bNegative ? -1 : 1) );
   default:                                                          return BaseType::CreateOnesVector( eElementType, bNegative );
   }
 }
@@ -2573,7 +2573,7 @@ Expr* InstructionSetSSE2::ShiftElements(VectorElementTypes eElementType, Expr *p
     return pVectorRef;  // Nothing to do
   }
 
-  IntegerLiteral *pShiftCount = _GetASTHelper().CreateIntegerLiteral( static_cast<int32_t>(uiCount) );
+  IntegerLiteral *pShiftCount = _GetASTHelper().CreateIntegerLiteral<int32_t>(uiCount);
 
   if (bShiftLeft)
   {
@@ -3392,7 +3392,7 @@ Expr* InstructionSetSSE4_1::ExtractElement(VectorElementTypes eElementType, Expr
   }
 
   // Perform the actual extraction
-  Expr *pExtractExpr = _CreateFunctionCall( eIntrinID, pVectorRef, _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(uiIndex)) );
+  Expr *pExtractExpr = _CreateFunctionCall( eIntrinID, pVectorRef, _GetASTHelper().CreateIntegerLiteral<int32_t>(uiIndex) );
 
   QualType qtReturnType = _GetClangType(eElementType);
   if (qtReturnType != pExtractExpr->getType())
@@ -3427,7 +3427,7 @@ Expr* InstructionSetSSE4_1::InsertElement(VectorElementTypes eElementType, Expr 
   }
 
   // Perform the actual insertion
-  return _CreateFunctionCall( eIntrinID, pVectorRef, pElementValue, _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(uiIndex)) );
+  return _CreateFunctionCall( eIntrinID, pVectorRef, pElementValue, _GetASTHelper().CreateIntegerLiteral<int32_t>(uiIndex) );
 }
 
 bool InstructionSetSSE4_1::IsBuiltinFunctionSupported(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, uint32_t uiParamCount) const
@@ -3533,8 +3533,8 @@ Expr* InstructionSetAVX::_ConvertVector(VectorElementTypes eSourceType, VectorEl
 
             for (auto itSourceVec : crvecVectorRefs)
             {
-              Expr *pLaneSwapConstant = _GetASTHelper().CreateLiteral( static_cast< int32_t >( 0x01 ) );
-              Expr *pShuffleContant   = _GetASTHelper().CreateLiteral( static_cast< int32_t >( 0x88 ) );
+              Expr *pLaneSwapConstant = _GetASTHelper().CreateLiteral<int32_t>(0x01);
+              Expr *pShuffleContant   = _GetASTHelper().CreateLiteral<int32_t>(0x88);
 
               Expr *pCastedVec   = _CreateFunctionCall( IntrinsicsAVXEnum::CastDoubleToFloat, itSourceVec );
               Expr *pSwappedLane = _CreateFunctionCall( IntrinsicsAVXEnum::PermuteLanesFloat, pCastedVec, CreateZeroVector(eTargetType), pLaneSwapConstant );
@@ -3542,7 +3542,7 @@ Expr* InstructionSetAVX::_ConvertVector(VectorElementTypes eSourceType, VectorEl
               vecMergedLanes.push_back( _CreateFunctionCall( IntrinsicsAVXEnum::ShuffleFloat, pCastedVec, pSwappedLane, pShuffleContant ) );
             }
 
-            return _CreateFunctionCall( IntrinsicsAVXEnum::PermuteLanesFloat, vecMergedLanes[0], vecMergedLanes[1], _GetASTHelper().CreateLiteral( static_cast<int32_t>(0x20) ) );
+            return _CreateFunctionCall( IntrinsicsAVXEnum::PermuteLanesFloat, vecMergedLanes[0], vecMergedLanes[1], _GetASTHelper().CreateLiteral<int32_t>(0x20) );
           }
         case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
           {
@@ -3561,13 +3561,13 @@ Expr* InstructionSetAVX::_ConvertVector(VectorElementTypes eSourceType, VectorEl
         {
         case VectorElementTypes::Double:
           {
-            Expr *pLaneSelectConstant = _GetASTHelper().CreateLiteral( static_cast< int32_t >( (uiGroupIndex == 0) ? 0x00 : 0x11 ) );
+            Expr *pLaneSelectConstant = _GetASTHelper().CreateLiteral<int32_t>((uiGroupIndex == 0) ? 0x00 : 0x11);
             Expr *pSelectedLane       = _CreateFunctionCall( IntrinsicsAVXEnum::PermuteLanesFloat, crvecVectorRefs.front(), CreateZeroVector(eSourceType), pLaneSelectConstant );
 
             Expr *pElementsEven = _CreateFunctionCall( IntrinsicsAVXEnum::CastFloatToDouble, _CreateFunctionCall(IntrinsicsAVXEnum::DuplicateEvenFloat, pSelectedLane) );
             Expr *pElementsOdd  = _CreateFunctionCall( IntrinsicsAVXEnum::CastFloatToDouble, _CreateFunctionCall(IntrinsicsAVXEnum::DuplicateOddFloat,  pSelectedLane) );
 
-            return _CreateFunctionCall( IntrinsicsAVXEnum::ShuffleDouble, pElementsEven, pElementsOdd, _GetASTHelper().CreateLiteral(static_cast<int32_t>(0x0C)) );
+            return _CreateFunctionCall( IntrinsicsAVXEnum::ShuffleDouble, pElementsEven, pElementsOdd, _GetASTHelper().CreateLiteral<int32_t>(0x0C) );
         }
         case VectorElementTypes::Float:                                   return crvecVectorRefs.front();   // Same type => nothing to do
         case VectorElementTypes::Int32: case VectorElementTypes::UInt32:  return _CreateFunctionCall( IntrinsicsAVXEnum::CastFloatToInteger, crvecVectorRefs.front() );
@@ -4033,7 +4033,7 @@ Expr* InstructionSetAVX::_ExtractSSEVector(VectorElementTypes eElementType, Expr
   default:                                                          _ThrowUnsupportedType( eElementType );
   }
 
-  return _CreateFunctionCall( eFunctionID, pAVXVector, _GetASTHelper().CreateIntegerLiteral( bLowHalf ? 0 : 1 ) );
+  return _CreateFunctionCall( eFunctionID, pAVXVector, _GetASTHelper().CreateIntegerLiteral(bLowHalf ? 0 : 1) );
 }
 
 Expr* InstructionSetAVX::_InsertSSEVector(VectorElementTypes eElementType, Expr *pAVXVector, Expr *pSSEVector, bool bLowHalf)
@@ -4051,7 +4051,7 @@ Expr* InstructionSetAVX::_InsertSSEVector(VectorElementTypes eElementType, Expr 
   default:                                                          _ThrowUnsupportedType( eElementType );
   }
 
-  return _CreateFunctionCall( eFunctionID, pAVXVector, pSSEVector, _GetASTHelper().CreateIntegerLiteral( bLowHalf ? 0 : 1 ) );
+  return _CreateFunctionCall( eFunctionID, pAVXVector, pSSEVector, _GetASTHelper().CreateIntegerLiteral(bLowHalf ? 0 : 1) );
 }
 
 Expr* InstructionSetAVX::_MergeSSEVectors(VectorElementTypes eElementType, Expr *pSSEVectorLow, Expr *pSSEVectorHigh)
@@ -4337,7 +4337,7 @@ Expr* InstructionSetAVX::CheckActiveElements(VectorElementTypes eMaskElementType
       const IntrinsicsAVXEnum   ceFunctionID  = (eMaskElementType == VectorElementTypes::Double)    ? IntrinsicsAVXEnum::MoveMaskDouble : IntrinsicsAVXEnum::MoveMaskFloat;
       const BinaryOperatorKind  ceCompareOp   = (eCheckType       == ActiveElementsCheckType::Any)  ? BO_NE : BO_EQ;
 
-      return _GetASTHelper().CreateBinaryOperator( _CreateFunctionCall( ceFunctionID, pMaskExpr ), _GetASTHelper().CreateLiteral( iTestConstant ), ceCompareOp, cqtBool );
+      return _GetASTHelper().CreateBinaryOperator( _CreateFunctionCall( ceFunctionID, pMaskExpr ), _GetASTHelper().CreateLiteral(iTestConstant), ceCompareOp, cqtBool );
     }
   case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
     {
@@ -4394,7 +4394,7 @@ Expr* InstructionSetAVX::CheckSingleMaskElement(VectorElementTypes eMaskElementT
 
   Expr *pMoveMask = _CreateFunctionCall( eFunctionID, pMaskExpr );
 
-  return _GetASTHelper().CreateBinaryOperator( pMoveMask, _GetASTHelper().CreateLiteral( static_cast<int32_t>(1 << uiIndex) ), BO_And, pMoveMask->getType() );
+  return _GetASTHelper().CreateBinaryOperator( pMoveMask, _GetASTHelper().CreateLiteral<int32_t>(1 << uiIndex), BO_And, pMoveMask->getType() );
 }
 
 Expr* InstructionSetAVX::CreateOnesVector(VectorElementTypes eElementType, bool bNegative)
@@ -4403,12 +4403,12 @@ Expr* InstructionSetAVX::CreateOnesVector(VectorElementTypes eElementType, bool 
 
   switch (eElementType)
   {
-  case VectorElementTypes::Double:                                  pBroadCastValue = _GetASTHelper().CreateLiteral( bNegative ? -1.0  : 1.0  );  break;
-  case VectorElementTypes::Float:                                   pBroadCastValue = _GetASTHelper().CreateLiteral( bNegative ? -1.0f : 1.0f );  break;
+  case VectorElementTypes::Double:                                  pBroadCastValue = _GetASTHelper().CreateLiteral(bNegative ? -1.0  : 1.0 ); break;
+  case VectorElementTypes::Float:                                   pBroadCastValue = _GetASTHelper().CreateLiteral(bNegative ? -1.0f : 1.0f); break;
   case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
   case VectorElementTypes::Int16: case VectorElementTypes::UInt16:
   case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
-  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  pBroadCastValue = _GetASTHelper().CreateLiteral( bNegative ? -1    : 1    );  break;
+  case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  pBroadCastValue = _GetASTHelper().CreateLiteral(bNegative ? -1    : 1   ); break;
   default:                                                          _ThrowUnsupportedType( eElementType );
   }
 
@@ -4490,7 +4490,7 @@ Expr* InstructionSetAVX::ExtractElement(VectorElementTypes eElementType, Expr *p
     }
   }
 
-  return _CreateFunctionCall( eFunctionID, pVectorRef, _GetASTHelper().CreateIntegerLiteral( uiIndex ));
+  return _CreateFunctionCall( eFunctionID, pVectorRef, _GetASTHelper().CreateIntegerLiteral(uiIndex));
 }
 
 QualType InstructionSetAVX::GetVectorType(VectorElementTypes eElementType)
@@ -4687,7 +4687,7 @@ Expr* InstructionSetAVX::RelationalOperator(VectorElementTypes eElementType, Rel
       default:                                    throw InternalErrorException("Unsupported relational operation detected!");
       }
 
-      return _CreateFunctionCall( ceFunctionID, pExprLHS, pExprRHS, _GetASTHelper().CreateIntegerLiteral( iOpCode ) );
+      return _CreateFunctionCall( ceFunctionID, pExprLHS, pExprRHS, _GetASTHelper().CreateIntegerLiteral(iOpCode) );
     }
   default:
     {
@@ -4775,7 +4775,7 @@ Expr* InstructionSetAVX::StoreVectorMasked(VectorElementTypes eElementType, Expr
 
         if (! cbLowHalf)
         {
-          Expr *pOffset = _GetASTHelper().CreateIntegerLiteral( static_cast<int32_t>( _GetFallback()->GetVectorElementCount(eElementType) ) );
+          Expr *pOffset = _GetASTHelper().CreateIntegerLiteral<int32_t>(_GetFallback()->GetVectorElementCount(eElementType) );
           pPointerRef   = _GetASTHelper().CreateBinaryOperator( pPointerRef, pOffset, BO_Add, pPointerRef->getType() );
         }
 
@@ -4990,8 +4990,7 @@ Expr* InstructionSetAVX2::_ShiftIntegerVectorBytes(Expr *pVectorRef,
       IntrinsicsAVX2Enum::ShiftRightVectorBytes;
 
     return _CreateFunctionCall(eShiftID, pVectorRef,
-        _GetASTHelper().CreateIntegerLiteral(
-          static_cast<int32_t>(uiByteCount)));
+        _GetASTHelper().CreateIntegerLiteral<int32_t>(uiByteCount));
   }
 }
 
@@ -5101,7 +5100,7 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
             IntrinsicsAVX2Enum::PackInt16ToUInt8;
 
       Expr* pClamp = BroadCast(eSourceType,
-          _GetASTHelper().CreateIntegerLiteral(static_cast<uint8_t>(-1)));
+          _GetASTHelper().CreateIntegerLiteral<uint8_t>(-1));
 
       switch (eSourceType) {
        case VectorElementTypes::Int16:
@@ -5114,21 +5113,21 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
 
         ClangASTHelper::ExpressionVectorType vecPermutationElements;
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(7)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(7));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(6)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(6));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(3)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(3));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(2)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(2));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(5)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(5));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(4)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(4));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(1)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(1));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(0)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(0));
 
         return _CreateFunctionCall(IntrinsicsAVX2Enum::PermuteCrossInt32,
             _CreateFunctionCall(ePack16Bit,
@@ -5148,21 +5147,21 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
 
         ClangASTHelper::ExpressionVectorType vecPermutationElements;
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(7)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(7));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(3)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(3));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(6)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(6));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(2)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(2));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(5)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(5));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(1)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(1));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(4)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(4));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(0)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(0));
 
         return _CreateFunctionCall(IntrinsicsAVX2Enum::PermuteCrossInt32,
             _CreateFunctionCall(ePack16Bit,
@@ -5239,25 +5238,25 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
               IntrinsicsAVX2Enum::PackInt32ToUInt16;
 
         Expr* pClamp = BroadCast(eSourceType,
-            _GetASTHelper().CreateIntegerLiteral(static_cast<uint16_t>(-1)));
+            _GetASTHelper().CreateIntegerLiteral<uint16_t>(-1));
 
         ClangASTHelper::ExpressionVectorType vecPermutationElements;
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(7)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(7));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(6)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(6));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(3)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(3));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(2)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(2));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(5)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(5));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(4)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(4));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(1)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(1));
         vecPermutationElements.push_back(
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(0)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(0));
 
         return _CreateFunctionCall(IntrinsicsAVX2Enum::PermuteCrossInt32,
             _CreateFunctionCall(ePack32Bit,
@@ -5860,7 +5859,7 @@ Expr* InstructionSetAVX2::CheckSingleMaskElement(
   Expr *pMoveMask = _CreateFunctionCall(eFunctionID, pMaskExpr);
 
   return _GetASTHelper().CreateBinaryOperator(pMoveMask,
-      _GetASTHelper().CreateLiteral(static_cast<int32_t>(1 << uiIndex)),
+      _GetASTHelper().CreateLiteral<int32_t>(1 << uiIndex),
       BO_And, pMoveMask->getType());
 }
 
@@ -5952,8 +5951,7 @@ bool InstructionSetAVX2::IsBuiltinFunctionSupported(
     for (auto idxExpr : crvecIndexExprs) {
       vecLoads.push_back(_CreateFunctionCall(IntrinsicsAVX2Enum::GatherInt32,
           _CreatePointerCast(pPointerRef, qtTargetPointer), idxExpr,
-          _GetASTHelper().CreateIntegerLiteral(
-            static_cast<int32_t>(cszElementSize))));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(cszElementSize)));
     }
 
     if (cszElementSize < cszIntermediateSize) {
@@ -5962,8 +5960,8 @@ bool InstructionSetAVX2::IsBuiltinFunctionSupported(
       for (auto loadExpr : vecLoads) {
         vecZeroed.push_back(_CreateFunctionCall(IntrinsicsAVX2Enum::AndInteger,
               loadExpr, BroadCast(eIntermediateType,
-                _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(
-                  0xffffffff >> ((cszIntermediateSize-cszElementSize)*8))))));
+                _GetASTHelper().CreateIntegerLiteral<int32_t>(
+                  0xffffffff >> ((cszIntermediateSize-cszElementSize)*8)))));
       }
 
       if (AST::BaseClasses::TypeInfo::IsSigned(eElementType)) {
@@ -5989,20 +5987,20 @@ bool InstructionSetAVX2::IsBuiltinFunctionSupported(
     return _CreateFunctionCall(IntrinsicsAVX2Enum::GatherInt64,
           _CreatePointerCast(pPointerRef, qtTargetPointer),
           crvecIndexExprs.front(),
-          _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(1)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(1));
    }
 
    case VectorElementTypes::Float:
     return _CreateFunctionCall(IntrinsicsAVX2Enum::GatherFloat,
         pPointerRef, crvecIndexExprs.front(),
-        _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(4)));
+        _GetASTHelper().CreateIntegerLiteral<int32_t>(4));
 
    case VectorElementTypes::Double:
     // TODO: Determine whether to extract upper or lower half from SSE vector
     return _CreateFunctionCall(IntrinsicsAVX2Enum::GatherDouble,
         pPointerRef,
         _ExtractSSEVector(eIndexElementType, crvecIndexExprs.front(), true),
-        _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(8)));
+        _GetASTHelper().CreateIntegerLiteral<int32_t>(8));
 
    default:
     break;
@@ -6103,7 +6101,7 @@ Expr* InstructionSetAVX2::RelationalOperator(VectorElementTypes eElementType,
     if (bFlipAll) {
       exprOperator = _CreateFunctionCall(IntrinsicsAVX2Enum::XorInteger,
           exprOperator, BroadCast(VectorElementTypes::Int8,
-            _GetASTHelper().CreateIntegerLiteral(static_cast<int8_t>(-1))));
+            _GetASTHelper().CreateIntegerLiteral<int8_t>(-1)));
     }
 
     if (bFlipEqual) {
@@ -6126,7 +6124,7 @@ Expr* InstructionSetAVX2::ShiftElements(VectorElementTypes eElementType,
   }
 
   IntegerLiteral *pShiftCount =
-    _GetASTHelper().CreateIntegerLiteral(static_cast<int32_t>(uiCount));
+    _GetASTHelper().CreateIntegerLiteral<int32_t>(uiCount);
 
   if (bShiftLeft) {
     switch (eElementType) {
