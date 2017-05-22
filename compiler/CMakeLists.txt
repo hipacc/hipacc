@@ -2,7 +2,7 @@ include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 llvm_map_components_to_libnames(LLVM_LIBRARIES analysis core instcombine instrumentation ipo option scalaropts support target transformutils vectorize)
-clang_map_components_to_libnames(Clang_LIBRARIES)
+set(CLANG_LIBRARIES clangFrontendTool clangFrontend clangDriver clangSerialization clangCodeGen clangParse clangSema clangRewriteFrontend clangRewrite clangAnalysis clangEdit clangAST clangLex clangBasic)
 
 set(HIPACC_LIBS
     hipaccRewrite
@@ -26,7 +26,7 @@ list(APPEND HIPACC_LIBS
 set(hipacc_SOURCES hipacc.cpp)
 add_executable(hipacc ${hipacc_SOURCES})
 
-target_link_libraries(hipacc ${HIPACC_LIBS} ${Clang_LIBRARIES} ${LLVM_LIBRARIES})
+target_link_libraries(hipacc ${HIPACC_LIBS} ${CLANG_LIBRARIES} ${LLVM_LIBRARIES})
 add_dependencies(hipacc ${HIPACC_LIBS})
 
 
