@@ -14,10 +14,10 @@ OFLAGS        = -O3
 ifeq ($(notdir $(CC)),clang++)
     # use libc++ for clang++
     CFLAGS   += -stdlib=libc++ \
-                -I`@Clang_EXECUTABLE@ -print-file-name=include` \
-                -I`@Clang_llvm_config_EXECUTABLE@ --includedir` \
-                -I`@Clang_llvm_config_EXECUTABLE@ --includedir`/c++/v1
-    LDFLAGS  += -L`@Clang_llvm_config_EXECUTABLE@ --libdir` -lc++ -lc++abi
+                -I`@clang@ -print-file-name=include` \
+                -I`@llvm-config@ --includedir` \
+                -I`@llvm-config@ --includedir`/c++/v1
+    LDFLAGS  += -L`@llvm-config@ --libdir` -lc++ -lc++abi
 else
     LDFLAGS  += -lstdc++
 endif
