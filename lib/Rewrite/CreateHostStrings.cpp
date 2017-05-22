@@ -578,7 +578,7 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
           resultStr += "_texs" + kernel_name + ".push_back(&tex_info" + lit + ");\n";
         } else {
           std::string tex_reference = tex_type;
-          tex_reference[0] = std::tolower(tex_reference[0]);
+          tex_reference[0] = std::tolower(tex_reference[0], std::locale());
           resultStr += "const " + tex_reference + "Reference *_tex" + deviceArgNames[i] + K->getName() + "Ref;\n";
           resultStr += indent;
           resultStr += "cudaGet" + tex_type + "Reference(&";
