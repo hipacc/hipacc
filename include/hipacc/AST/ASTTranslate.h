@@ -280,20 +280,24 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // default error message for unsupported expressions and statements.
     #define HIPACC_UNSUPPORTED_EXPR(EXPR) \
-    [[noreturn]] Expr *Visit##EXPR(EXPR *) { \
-      assert(0 && "Hipacc: Stumbled upon unsupported expression: " #EXPR); \
+    Expr *Visit##EXPR(EXPR *) { \
+      llvm::errs() << "Hipacc: Stumbled upon unsupported expression: " #EXPR "\n"; \
+      std::abort(); \
     }
     #define HIPACC_UNSUPPORTED_STMT(STMT) \
-    [[noreturn]] Stmt *Visit##STMT(STMT *) { \
-      assert(0 && "Hipacc: Stumbled upon unsupported statement: " #STMT); \
+    Stmt *Visit##STMT(STMT *) { \
+      llvm::errs() << "Hipacc: Stumbled upon unsupported statement: " #STMT "\n"; \
+      std::abort(); \
     }
     #define HIPACC_UNSUPPORTED_EXPR_BASE_CLASS(EXPR) \
     Expr *Visit##EXPR(EXPR *) { \
-      assert(0 && "Hipacc: Stumbled upon expression base class, implementation of any derived class missing? Base class was: " #EXPR); \
+      llvm::errs() << "Hipacc: Stumbled upon expression base class, implementation of any derived class missing? Base class was: " #EXPR "\n"; \
+      std::abort(); \
     }
     #define HIPACC_UNSUPPORTED_STMT_BASE_CLASS(STMT) \
     Stmt *Visit##STMT(STMT *) { \
-      assert(0 && "Hipacc: Stumbled upon statement base class, implementation of any derived class missing? Base class was: " #STMT); \
+      llvm::errs() << "Hipacc: Stumbled upon statement base class, implementation of any derived class missing? Base class was: " #STMT "\n"; \
+      std::abort(); \
     }
 
   public:
