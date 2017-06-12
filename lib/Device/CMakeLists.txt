@@ -1,4 +1,3 @@
-SET(Builtins_SOURCES Builtins.cpp)
+set(Builtins_SOURCES Builtins.cpp)
 
-ADD_LIBRARY(hipaccBuiltins ${Builtins_SOURCES})
-
+add_library(hipaccBuiltins ${Builtins_SOURCES})

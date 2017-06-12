@@ -1,4 +1,3 @@
-SET(SIMDTypes_SOURCES SIMDTypes.cpp)
+set(SIMDTypes_SOURCES SIMDTypes.cpp)
 
-ADD_LIBRARY(hipaccSIMDTypes ${SIMDTypes_SOURCES})
-
+add_library(hipaccSIMDTypes ${SIMDTypes_SOURCES})

@@ -1,6 +1,5 @@
-SET(Rewrite_SOURCES Rewrite.cpp)
-SET(CreateHostStrings_SOURCES CreateHostStrings.cpp)
+set(Rewrite_SOURCES Rewrite.cpp)
+set(CreateHostStrings_SOURCES CreateHostStrings.cpp)
 
-ADD_LIBRARY(hipaccRewrite ${Rewrite_SOURCES})
-ADD_LIBRARY(hipaccCreateHostStrings ${CreateHostStrings_SOURCES})
-
+add_library(hipaccRewrite ${Rewrite_SOURCES})
+add_library(hipaccCreateHostStrings ${CreateHostStrings_SOURCES})

@@ -1,42 +1,42 @@
-INCLUDE_DIRECTORIES(${LLVM_INCLUDE_DIRS})
-ADD_DEFINITIONS(${LLVM_DEFINITIONS})
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
 
 llvm_map_components_to_libnames(LLVM_LIBRARIES analysis core instcombine instrumentation ipo option scalaropts support target transformutils vectorize)
-clang_map_components_to_libnames(Clang_LIBRARIES)
+set(CLANG_LIBRARIES clangFrontendTool clangFrontend clangDriver clangSerialization clangCodeGen clangParse clangSema clangRewriteFrontend clangRewrite clangAnalysis clangEdit clangAST clangLex clangBasic)
 
-SET(HIPACC_LIBS
+set(HIPACC_LIBS
     hipaccRewrite
     hipaccCreateHostStrings
     hipaccClassRepresentation
     hipaccASTTranslate
     hipaccSIMDTypes)
 
-IF(USE_POLLY)
-    LIST(APPEND HIPACC_LIBS hipaccPolly)
-    FIND_LIBRARY(Polly_LIBRARY NAMES Polly HINTS ${LLVM_LIBRARY_DIRS})
-    MARK_AS_ADVANCED(Polly_LIBRARY)
-    LIST(APPEND LLVM_LIBRARIES ${Polly_LIBRARY})
-ENDIF(USE_POLLY)
+if(USE_POLLY)
+    list(APPEND HIPACC_LIBS hipaccPolly)
+    find_library(Polly_LIBRARY NAMES Polly HINTS ${LLVM_LIBRARY_DIRS})
+    mark_as_advanced(Polly_LIBRARY)
+    list(APPEND LLVM_LIBRARIES ${Polly_LIBRARY})
+endif()
 
-LIST(APPEND HIPACC_LIBS
+list(APPEND HIPACC_LIBS
     hipaccKernelStatistics
     hipaccBuiltins
     hipaccASTNode)
 
-SET(hipacc_SOURCES hipacc.cpp)
-ADD_EXECUTABLE(hipacc ${hipacc_SOURCES})
+set(hipacc_SOURCES hipacc.cpp)
+add_executable(hipacc ${hipacc_SOURCES})
 
-TARGET_LINK_LIBRARIES(hipacc ${HIPACC_LIBS} ${Clang_LIBRARIES} ${LLVM_LIBRARIES})
-ADD_DEPENDENCIES(hipacc ${HIPACC_LIBS})
+target_link_libraries(hipacc ${HIPACC_LIBS} ${CLANG_LIBRARIES} ${LLVM_LIBRARIES})
+add_dependencies(hipacc ${HIPACC_LIBS})
 
 
-SET_TARGET_PROPERTIES(hipacc
+set_target_properties(hipacc
     PROPERTIES
     LINKER_LANGUAGE CXX
     PREFIX "")
 
-SET_TARGET_PROPERTIES(hipacc
+set_target_properties(hipacc
     PROPERTIES
     VERSION ${HIPACC_VERSION})
 
-INSTALL(TARGETS hipacc RUNTIME DESTINATION bin)
+install(TARGETS hipacc RUNTIME DESTINATION bin)

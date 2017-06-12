@@ -1,10 +1,9 @@
-INCLUDE_DIRECTORIES(${LLVM_INCLUDE_DIRS})
-ADD_DEFINITIONS(${LLVM_DEFINITIONS})
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
 
-ADD_SUBDIRECTORY(Analysis)
-ADD_SUBDIRECTORY(AST)
-ADD_SUBDIRECTORY(Device)
-ADD_SUBDIRECTORY(DSL)
-ADD_SUBDIRECTORY(Rewrite)
-ADD_SUBDIRECTORY(Vectorization)
-
+add_subdirectory(Analysis)
+add_subdirectory(AST)
+add_subdirectory(Device)
+add_subdirectory(DSL)
+add_subdirectory(Rewrite)
+add_subdirectory(Vectorization)
