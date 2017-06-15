@@ -579,22 +579,18 @@ void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, st
 
 // Create a module from ptx assembly
 void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
-    CUresult err = CUDA_SUCCESS;
     CUjit_target target_cc = (CUjit_target) cc;
-    const unsigned opt_level = 3;
-    const int error_log_size = 10240;
-    const int num_options = 4;
+    const unsigned int opt_level = 4;
+    const unsigned int error_log_size = 10240;
+    const unsigned int num_options = 4;
     char error_log_buffer[error_log_size] = { 0 };
 
     CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET, CU_JIT_OPTIMIZATION_LEVEL };
-    void *option_values[]  = { (void *)error_log_buffer, (void *)(size_t)error_log_size, (void *)target_cc, (void*)(size_t)opt_level };
+    void *option_values[]  = { (void *)error_log_buffer, (void *)error_log_size, (void *)target_cc, (void*)opt_level };
 
-    // load ptx source
-    err = cuModuleLoadDataEx(&module, ptx, num_options, options, option_values);
-
-    if (err != CUDA_SUCCESS) {
+    CUresult err = cuModuleLoadDataEx(&module, ptx, num_options, options, option_values);
+    if (err != CUDA_SUCCESS)
         std::cerr << "Error log: " << error_log_buffer << std::endl;
-    }
     checkErrDrv(err, "cuModuleLoadDataEx()");
 }
 
@@ -617,24 +613,24 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
     err = nvrtcCreateProgram(&program, cu_string.c_str(), file_name.c_str(), 0, NULL, NULL);
     checkErrNVRTC(err, "nvrtcCreateProgram()");
 
-    size_t offset = 2;
-    size_t num_options = build_options.size() + offset;
+    int offset = 2;
+    int num_options = build_options.size() + offset;
     const char *options[num_options];
     std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
     options[0] = compute_arch.c_str();
     options[1] = "-std=c++11";
     //options[2] = "-G";
     //options[3] = "-lineinfo";
-    for (size_t i=offset; i<num_options; ++i) options[i] = build_options[i-offset].c_str();
+    for (int i=offset; i<num_options; ++i)
+        options[i] = build_options[i-offset].c_str();
 
     err = nvrtcCompileProgram(program, num_options, options);
     if (err != NVRTC_SUCCESS) {
         size_t log_size;
         nvrtcGetProgramLogSize(program, &log_size);
-        char *error_log = new char[log_size];
-        nvrtcGetProgramLog(program, error_log);
+        std::string error_log(log_size, '\0');
+        nvrtcGetProgramLog(program, &error_log[0]);
         std::cerr << "Error log: " << error_log << std::endl;
-        delete[] error_log;
     }
     checkErrNVRTC(err, "nvrtcCompileProgram()");
 
@@ -642,29 +638,27 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
     err = nvrtcGetPTXSize(program, &ptx_size);
     checkErrNVRTC(err, "nvrtcGetPTXSize()");
 
-    char *ptx = new char[ptx_size];
-    err = nvrtcGetPTX(program, ptx);
+    std::string ptx(ptx_size, '\0');
+    err = nvrtcGetPTX(program, &ptx[0]);
     checkErrNVRTC(err, "nvrtcGetPTX()");
 
     err = nvrtcDestroyProgram(&program);
     checkErrNVRTC(err, "nvrtcDestroyProgram()");
 
-    // compile ptx
-    hipaccCreateModule(module, ptx, cc);
-    delete[] ptx;
+    hipaccCreateModule(module, ptx.c_str(), cc);
 }
 #else
 void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
     std::string command = "${NVCC} -O4 -ptx -arch=compute_" + std::to_string(cc) + " ";
-    for (auto option : build_options) command += option + " ";
+    for (auto option : build_options)
+        command += option + " ";
     command += file_name + " -o " + file_name + ".ptx 2>&1";
 
     if (auto stream = popen(command.c_str(), "r")) {
         char line[FILENAME_MAX];
 
-        while (fgets(line, sizeof(char) * FILENAME_MAX, stream)) {
+        while (fgets(line, sizeof(char) * FILENAME_MAX, stream))
             std::cerr << line;
-        }
 
         int exit_status = pclose(stream);
         if (WEXITSTATUS(exit_status)) {
@@ -682,11 +676,9 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
         exit(EXIT_FAILURE);
     }
 
-    std::string ptx_string(std::istreambuf_iterator<char>(ptx_file), (std::istreambuf_iterator<char>()));
-    const char *ptx = (const char *)ptx_string.c_str();
+    std::string ptx(std::istreambuf_iterator<char>(ptx_file), (std::istreambuf_iterator<char>()));
 
-    // compile ptx
-    hipaccCreateModule(module, ptx, cc);
+    hipaccCreateModule(module, ptx.c_str(), cc);
 }
 #endif
 
