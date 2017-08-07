@@ -194,12 +194,12 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
 
   Expr *dom_acc = nullptr;
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
     case Language::CUDA:
       // array subscript: Domain[y][x]
       dom_acc = accessMem2DAt(domain_var, createIntegerLiteral(Ctx,
             redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
       break;
+    case Language::C99:
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:

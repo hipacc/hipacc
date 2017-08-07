@@ -1748,13 +1748,19 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
         isMask = true;
         if (Mask->isConstant() || compilerOptions.emitC99() ||
             compilerOptions.emitCUDA()) {
+
+          std::string maskName = Mask->getName();
+
+          if (compilerOptions.emitCUDA()) {
+            maskName += Kernel->getName();
+          }
+
           // get Mask/Domain reference
-          VarDecl *maskVar = lookup<VarDecl>(Mask->getName() +
-              Kernel->getName(), Mask->getType());
+          VarDecl *maskVar = lookup<VarDecl>(maskName, Mask->getType());
 
           if (!maskVar) {
             maskVar = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-                Mask->getName()+Kernel->getName(), paramDecl->getType());
+                maskName, paramDecl->getType());
 
             DeclContext *DC =
               TranslationUnitDecl::castToDeclContext(Ctx.getTranslationUnitDecl());
@@ -1943,11 +1949,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
           // set Mask as being used within Kernel
           Kernel->setUsed(FD->getNameAsString());
           switch (compilerOptions.getTargetLang()) {
-            case Language::C99:
             case Language::CUDA:
               // array subscript: Mask[conv_y][conv_x]
               result = accessMem2DAt(LHS, midx_x, midx_y);
               break;
+            case Language::C99:
             case Language::OpenCLACC:
             case Language::OpenCLCPU:
             case Language::OpenCLGPU:
@@ -1994,11 +2000,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
           // set Mask as being used within Kernel
           Kernel->setUsed(FD->getNameAsString());
           switch (compilerOptions.getTargetLang()) {
-            case Language::C99:
             case Language::CUDA:
               // array subscript: Mask[conv_y][conv_x]
               result = accessMem2DAt(LHS, midx_x, midx_y);
               break;
+            case Language::C99:
             case Language::OpenCLACC:
             case Language::OpenCLCPU:
             case Language::OpenCLGPU:
@@ -2023,7 +2029,6 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         // set Mask as being used within Kernel
         Kernel->setUsed(FD->getNameAsString());
         switch (compilerOptions.getTargetLang()) {
-          case Language::C99:
           case Language::CUDA:
             // array subscript: Mask[y+size_y/2][x+size_x/2]
             result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
@@ -2033,6 +2038,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
                   createIntegerLiteral(Ctx,
                     static_cast<int>(mask->getSizeY()/2)), BO_Add, Ctx.IntTy));
             break;
+          case Language::C99:
           case Language::OpenCLACC:
           case Language::OpenCLCPU:
           case Language::OpenCLGPU:
@@ -2224,9 +2230,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     Expr *result = nullptr;
 
     switch (compilerOptions.getTargetLang()) {
-      case Language::C99:
-        result = accessMem2DAt(LHS, idx_x, idx_y);
-        break;
       case Language::CUDA:
         if (Kernel->useTextureMemory(acc) != Texture::None) {
           result = accessMemTexAt(LHS, acc, mem_acc, idx_x, idx_y);
@@ -2234,6 +2237,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
         }
         break;
+      case Language::C99:
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:

@@ -159,12 +159,11 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       }
     case READ_ONLY:
       switch (compilerOptions.getTargetLang()) {
-        case Language::C99:
-          return accessMem2DAt(LHS, idx_x, idx_y);
         case Language::CUDA:
           if (Kernel->useTextureMemory(Acc) == Texture::None)
             return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
           return accessMemTexAt(LHS, Acc, mem_acc, idx_x, idx_y);
+        case Language::C99:
         case Language::OpenCLACC:
         case Language::OpenCLCPU:
         case Language::OpenCLGPU:
