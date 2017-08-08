@@ -1,0 +1,1 @@
+SIZEX=31; SIZEY=31 MASK=($(cat mask.pgm | tail -n $(echo $SIZEX*$SIZEY | bc))); for y in $(seq 0 $(echo $SIZEY-1 | bc)); do echo -n "{ "; for x in $(seq 0 $(echo $SIZEX-1 | bc)); do echo -n "$(echo ${MASK[$y*$SIZEX+$x]}/255 | awk '{printf "%.3f", $1}')f, "; done; echo "},"; done
