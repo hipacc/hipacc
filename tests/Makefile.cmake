@@ -1,9 +1,10 @@
 # Configuration
 HIPACC_DIR     ?= @CMAKE_INSTALL_PREFIX@
 COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
-COMMON_INC     ?= -I@OpenCV_INCLUDE_DIRS@ \
+COMMON_INC     ?= -I/usr/include \
+                  -I@OpenCV_INCLUDE_DIRS@ \
                   -I$(TEST_CASE)
-COMPILER_INC   ?= -std=c++11 -stdlib=libc++ $(COMMON_INC) \
+COMPILER_INC   ?= $(COMMON_INC) \
                   -I`@llvm-config@ --includedir` \
                   -I`@llvm-config@ --includedir`/c++/v1 \
                   -I`@clang@ -print-file-name=include` \
@@ -38,8 +39,8 @@ HIPACC_CONFIG?=128x1
 HIPACC_EXPLORE?=off
 HIPACC_TIMING?=off
 HIPACC_TARGET?=Kepler-30
-HIPACC_VEC_WIDTH?=16
-HIPACC_VEC_IS?=sse2
+HIPACC_VEC_IS?=sse4.2
+HIPACC_OMP?=off
 
 
 HIPACC_OPTS=-target $(HIPACC_TARGET)
@@ -57,7 +58,10 @@ ifdef HIPACC_PPT
 endif
 ifeq ($(HIPACC_VEC),on)
     HIPACC_OPTS+= -vectorize $(HIPACC_VEC)
-    HIPACC_WFV+= -v -v-w $(HIPACC_VEC_WIDTH) -i-s $(HIPACC_VEC_IS)
+    HIPACC_CPU_OPTS+= -v -i-s $(HIPACC_VEC_IS)
+ifdef HIPACC_VEC_WIDTH
+    HIPACC_CPU_OPTS+= -v-w $(HIPACC_VEC_WIDTH)
+endif
 endif
 ifdef HIPACC_CONFIG
     HIPACC_OPTS+= -use-config $(HIPACC_CONFIG)
@@ -67,6 +71,10 @@ ifeq ($(HIPACC_EXPLORE),on)
 endif
 ifeq ($(HIPACC_TIMING),on)
     HIPACC_OPTS+= -time-kernels
+endif
+ifeq ($(HIPACC_OMP),on)
+    HIPACC_CPU_OPTS+= -omp
+    CC_LINK+= -fopenmp
 endif
 
 # set target GPU architecture to the compute capability encoded in target
@@ -79,7 +87,7 @@ run:
 
 cpu:
 	@echo 'Executing Hipacc Compiler for C++:'
-	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-cpu $(HIPACC_WFV) -o main.cc $(TEST_CASE)/main.cpp
+	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-cpu $(HIPACC_CPU_OPTS) -o main.cc $(TEST_CASE)/main.cpp
 	@echo 'Compiling C++ file using c++:'
 	$(CC_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -m$(HIPACC_VEC_IS) -o main_cpu main.cc $(CC_LINK)
 	@echo 'Executing C++ binary'
