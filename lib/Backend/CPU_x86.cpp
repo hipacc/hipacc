@@ -2923,6 +2923,7 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
     break;
   case CompilerSwitchTypeEnum::VectorizeKernel:
     _bVectorizeKernel = true;
+    GetCompilerOptions().setVectorizeKernels(USER_ON);
     break;
   case CompilerSwitchTypeEnum::VectorWidth:
     {
@@ -3624,7 +3625,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
           if (!pSubFuncCallVectorizedNoBH) {
             vecInnerLoopBody.push_back(pSubFuncCallVectorized);
           } else {
-            vecInnerLoopBody.push_back(_CreateBoundaryBranching(ASTHelper, hipaccHelper, gid_x_ref, gid_y_ref, (pKernel->getMaxSizeX() & ~(2*_szVectorWidth-1)) + _szVectorWidth, pKernel->getMaxSizeY(), pSubFuncCallVectorizedNoBH, pSubFuncCallVectorized));
+            vecInnerLoopBody.push_back(_CreateBoundaryBranching(ASTHelper, hipaccHelper, gid_x_ref, gid_y_ref, (pKernel->getMaxSizeX() + _szVectorWidth-1) / _szVectorWidth * _szVectorWidth, pKernel->getMaxSizeY(), pSubFuncCallVectorizedNoBH, pSubFuncCallVectorized));
           }
           vecOuterLoopBody.push_back( _CreateIterationSpaceLoop(ASTHelper, pNewGidXRef, hipaccHelper.GetIterationSpaceLimitX(), ASTHelper.CreateCompoundStatement(vecInnerLoopBody), _szVectorWidth) );
         }
