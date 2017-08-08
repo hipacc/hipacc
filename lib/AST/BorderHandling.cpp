@@ -256,13 +256,15 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     }
 
     switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
+        RHS = accessMem(LHS, Acc, READ_ONLY, idx_x, idx_y);
+        break;
       case Language::CUDA:
         if (Kernel->useTextureMemory(Acc) != Texture::None) {
           RHS = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
         // fall through
-      case Language::C99:
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:
@@ -340,13 +342,15 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
 
     // get data
     switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
+        result = accessMem(LHS, Acc, READ_ONLY, idx_x, idx_y);
+        break;
       case Language::CUDA:
         if (Kernel->useTextureMemory(Acc) != Texture::None) {
           result = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
           break;
         }
         // fall through
-      case Language::C99:
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:
