@@ -146,16 +146,12 @@ IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint64_t val) {
 
 
 FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, float val) {
-  FloatingLiteral *E = FloatingLiteral::Create(Ctx, llvm::APFloat(val), false,
-      Ctx.FloatTy, SourceLocation());
-
-  return E;
+  return FloatingLiteral::Create(Ctx, llvm::APFloat(val), false, Ctx.FloatTy,
+      SourceLocation());
 }
 FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, double val) {
-  FloatingLiteral *E = FloatingLiteral::Create(Ctx, llvm::APFloat(val), false,
-      Ctx.DoubleTy, SourceLocation());
-
-  return E;
+  return FloatingLiteral::Create(Ctx, llvm::APFloat(val), false, Ctx.DoubleTy,
+      SourceLocation());
 }
 
 
