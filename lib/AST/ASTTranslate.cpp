@@ -210,20 +210,20 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
       // check if we need border handling
       if (Acc->getBoundaryMode() != Boundary::UNDEFINED) {
         if (Acc->getSizeX() > 1) {
-            bh_variant.borders.left = 1;
-            bh_variant.borders.right = 1;
+          bh_variant.borders.left = 1;
+          bh_variant.borders.right = 1;
         }
         if (Acc->getSizeY() > 1) {
-            bh_variant.borders.top = 1;
-            bh_variant.borders.bottom = 1;
+          bh_variant.borders.top = 1;
+          bh_variant.borders.bottom = 1;
         }
       }
     }
   }
 
   // convert the function body to kernel syntax
-  Stmt *clonedStmt = Clone(S);
-  assert(isa<CompoundStmt>(clonedStmt) && "CompoundStmt for kernel function body expected!");
+  Stmt *new_body = Clone(S);
+  assert(isa<CompoundStmt>(new_body) && "CompoundStmt for kernel function body expected!");
 
   //
   // for (int gid_y=offset_y; gid_y<is_height+offset_y; gid_y++) {
@@ -242,16 +242,16 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
     upper_y = createBinaryOperator(Ctx, upper_y,
         getOffsetYDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy);
   }
-  ForStmt *innerLoop = createForStmt(Ctx, gid_x_stmt, createBinaryOperator(Ctx,
+  ForStmt *inner_loop = createForStmt(Ctx, gid_x_stmt, createBinaryOperator(Ctx,
         tileVars.global_id_x, upper_x, BO_LT, Ctx.BoolTy),
       createUnaryOperator(Ctx, tileVars.global_id_x, UO_PostInc,
-        tileVars.global_id_x->getType()), clonedStmt);
-  ForStmt *outerLoop = createForStmt(Ctx, gid_y_stmt, createBinaryOperator(Ctx,
+        tileVars.global_id_x->getType()), new_body);
+  ForStmt *outer_loop = createForStmt(Ctx, gid_y_stmt, createBinaryOperator(Ctx,
         tileVars.global_id_y, upper_y, BO_LT, Ctx.BoolTy),
       createUnaryOperator(Ctx, tileVars.global_id_y, UO_PostInc,
-        tileVars.global_id_y->getType()), innerLoop);
+        tileVars.global_id_y->getType()), inner_loop);
 
-  kernelBody.push_back(outerLoop);
+  kernelBody.push_back(outer_loop);
 }
 
 
@@ -1270,8 +1270,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       }
 
       // convert kernel function body to CUDA/OpenCL kernel syntax
-      Stmt *clonedStmt = Clone(S);
-      assert(isa<CompoundStmt>(clonedStmt) && "CompoundStmt for kernel function body expected!");
+      Stmt *new_body = Clone(S);
+      assert(isa<CompoundStmt>(new_body) && "CompoundStmt for kernel function body expected!");
 
       // add iteration space check when calculating multiple pixels per thread,
       // having a tiling with multiple threads in the y-dimension, or in case
@@ -1299,10 +1299,10 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         BinaryOperator *inner_check_bop = createBinaryOperator(Ctx, gidYRef,
             getHeightDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
         IfStmt *inner_ispace_check = createIfStmt(Ctx, inner_check_bop,
-            clonedStmt);
+            new_body);
         pptBody.push_back(inner_ispace_check);
       } else {
-        pptBody.push_back(clonedStmt);
+        pptBody.push_back(new_body);
       }
 
 
@@ -1347,9 +1347,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     kernelBody.push_back(createReturnStmt(Ctx, result));
   }
 
-  CompoundStmt *CS = createCompoundStmt(Ctx, kernelBody);
-
-  return CS;
+  return createCompoundStmt(Ctx, kernelBody);
 }
 
 
