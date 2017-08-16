@@ -1,24 +1,24 @@
 CC = @CMAKE_CXX_COMPILER@
 
-HIPACC_DIR   ?= @CMAKE_INSTALL_PREFIX@
-
-MYFLAGS      ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5
-CFLAGS        = $(MYFLAGS) -std=c++11 @THREADS_ARG@ -Wall -Wunused \
-                -I$(HIPACC_DIR)/include/dsl
-LDFLAGS       = -lm @RT_LIBRARIES@ @THREADS_LINK@
-OFLAGS        = -O3
+HIPACC_DIR ?= @CMAKE_INSTALL_PREFIX@
 
 ifeq ($(notdir $(CC)),clang++)
     # use libc++ for clang++
-    CFLAGS   += -stdlib=libc++ \
-                -I`@clang@ -print-file-name=include` \
-                -I`@llvm-config@ --includedir` \
-                -I`@llvm-config@ --includedir`/c++/v1
-    LDFLAGS  += -L`@llvm-config@ --libdir` -lc++ -lc++abi
+    CFLAGS  = -std=c++11 -stdlib=libc++ \
+              -I`@llvm-config@ --includedir` \
+              -I`@llvm-config@ --includedir`/c++/v1 \
+              -I`@clang@ -print-file-name=include`
+    LDFLAGS = -L`@llvm-config@ --libdir` -lc++ -lc++abi
 else
-    LDFLAGS  += -lstdc++
+    CFLAGS  = -std=c++11
+    LDFLAGS = -lstdc++
 endif
 
+MYFLAGS    ?= -D WIDTH=2048 -D HEIGHT=2048 -D SIZE_X=5 -D SIZE_Y=5
+CFLAGS     += -I$(HIPACC_DIR)/include/dsl \
+              $(MYFLAGS) @THREADS_ARG@ -Wall -Wunused
+LDFLAGS    += -lm @RT_LIBRARIES@ @THREADS_LINK@
+OFLAGS      = -O3
 
 BINARY = test
 BINDIR = bin

@@ -4,11 +4,12 @@ COMPILER       ?= $(HIPACC_DIR)/bin/hipacc
 COMMON_INC     ?= -I/usr/include \
                   -I@OpenCV_INCLUDE_DIRS@ \
                   -I$(TEST_CASE)
-COMPILER_INC   ?= $(COMMON_INC) \
+COMPILER_INC   ?= -std=c++11 -stdlib=libc++ \
                   -I`@llvm-config@ --includedir` \
                   -I`@llvm-config@ --includedir`/c++/v1 \
                   -I`@clang@ -print-file-name=include` \
-                  -I$(HIPACC_DIR)/include/dsl
+                  -I$(HIPACC_DIR)/include/dsl \
+                  $(COMMON_INC)
 TEST_CASE      ?= ./tests/opencv_blur_8uc1
 MYFLAGS        ?= -DWIDTH=2048 -DHEIGHT=2048 -DSIZE_X=5 -DSIZE_Y=5
 NVCC_FLAGS      = -gencode=arch=compute_$(GPU_ARCH),code=\"sm_$(GPU_ARCH),compute_$(GPU_ARCH)\" -res-usage #-keep
