@@ -1,6 +1,30 @@
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
+# from LLVM CMake to enable / disable RTTI
+if(NOT DEFINED LLVM_COMPILER_IS_GCC_COMPATIBLE)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE ON)
+    elseif(MSVC)
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE OFF)
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE ON)
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE ON)
+    endif()
+endif()
+
+if(NOT LLVM_ENABLE_RTTI)
+    if(LLVM_COMPILER_IS_GCC_COMPATIBLE)
+        list(APPEND LLVM_COMPILE_FLAGS "-fno-rtti")
+    elseif(MSVC)
+        list(APPEND LLVM_COMPILE_FLAGS "/GR-")
+    endif()
+elseif(MSVC)
+    list(APPEND LLVM_COMPILE_FLAGS "/GR")
+endif()
+# from LLVM CMake to enable / disable RTTI
+
 llvm_map_components_to_libnames(LLVM_LIBRARIES analysis core instcombine instrumentation ipo option scalaropts support target transformutils vectorize)
 set(CLANG_LIBRARIES clangFrontendTool clangFrontend clangDriver clangSerialization clangCodeGen clangParse clangSema clangRewriteFrontend clangRewrite clangAnalysis clangEdit clangAST clangLex clangBasic)
 
@@ -35,6 +59,10 @@ set_target_properties(hipacc
     PROPERTIES
     LINKER_LANGUAGE CXX
     PREFIX "")
+
+set_target_properties(hipacc
+    PROPERTIES
+    LINK_FLAGS "${LLVM_COMPILE_FLAGS}")
 
 set_target_properties(hipacc
     PROPERTIES
