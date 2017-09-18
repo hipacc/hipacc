@@ -34,7 +34,6 @@
 
 using namespace clang::hipacc::Backend;
 using namespace clang::hipacc;
-using namespace std;
 
 OpenCL_CPU::CodeGenerator::Descriptor::Descriptor()
 {
@@ -54,7 +53,7 @@ OpenCL_CPU::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pComp
 
 size_t OpenCL_CPU::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, CommonDefines::ArgumentVectorType &rvecArguments, size_t szCurrentIndex)
 {
-  string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
+  std::string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
   size_t  szReturnIndex     = szCurrentIndex;
 
   switch (eSwitch)

@@ -37,28 +37,27 @@
 using namespace clang::hipacc::Backend::Vectorization;
 using namespace clang::hipacc::Backend;
 using namespace clang;
-using namespace std;
 
 
 // Implementation of class InstructionSetExceptions
-string InstructionSetExceptions::IndexOutOfRange::_ConvertLimit(uint32_t uiUpperLimit)
+std::string InstructionSetExceptions::IndexOutOfRange::_ConvertLimit(uint32_t uiUpperLimit)
 {
-  stringstream streamOutput;
+  std::stringstream streamOutput;
 
   streamOutput << uiUpperLimit;
 
   return streamOutput.str();
 }
 
-InstructionSetExceptions::IndexOutOfRange::IndexOutOfRange(string strMethodType, VectorElementTypes eElementType, uint32_t uiUpperLimit) :
-      BaseType( string("The index for a \"") + AST::BaseClasses::TypeInfo::GetTypeString(eElementType) + string("\" element ") +
-                strMethodType + string(" must be in the range of [0; ") + _ConvertLimit(uiUpperLimit) + string("] !"))
+InstructionSetExceptions::IndexOutOfRange::IndexOutOfRange(std::string strMethodType, VectorElementTypes eElementType, uint32_t uiUpperLimit) :
+      BaseType( std::string("The index for a \"") + AST::BaseClasses::TypeInfo::GetTypeString(eElementType) + std::string("\" element ") +
+                strMethodType + std::string(" must be in the range of [0; ") + _ConvertLimit(uiUpperLimit) + std::string("] !"))
 {
 }
 
-string InstructionSetExceptions::UnsupportedBuiltinFunctionType::_ConvertParamCount(uint32_t uiParamCount)
+std::string InstructionSetExceptions::UnsupportedBuiltinFunctionType::_ConvertParamCount(uint32_t uiParamCount)
 {
-  stringstream streamOutput;
+  std::stringstream streamOutput;
 
   streamOutput << uiParamCount;
 
@@ -66,31 +65,31 @@ string InstructionSetExceptions::UnsupportedBuiltinFunctionType::_ConvertParamCo
 }
 
 InstructionSetExceptions::UnsupportedBuiltinFunctionType::UnsupportedBuiltinFunctionType( VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType,
-                                                                                          uint32_t uiParamCount, string strInstructionSetName ) :
-      BaseType( string("The built-in function \"") + GetBuiltinFunctionTypeString(eFunctionType) + string("(") + _ConvertParamCount(uiParamCount) +
-                string(")\" is not supported for element type \"") + AST::BaseClasses::TypeInfo::GetTypeString(eElementType) + string("\" in the instruction set \"") +
-                strInstructionSetName + string("\" !") )
+                                                                                          uint32_t uiParamCount, std::string strInstructionSetName ) :
+      BaseType( std::string("The built-in function \"") + GetBuiltinFunctionTypeString(eFunctionType) + std::string("(") + _ConvertParamCount(uiParamCount) +
+                std::string(")\" is not supported for element type \"") + AST::BaseClasses::TypeInfo::GetTypeString(eElementType) + std::string("\" in the instruction set \"") +
+                strInstructionSetName + std::string("\" !") )
 {
 }
 
-InstructionSetExceptions::UnsupportedConversion::UnsupportedConversion(VectorElementTypes eSourceType, VectorElementTypes eTargetType, string strInstructionSetName) :
-      BaseType( string("A conversion from type \"") + AST::BaseClasses::TypeInfo::GetTypeString(eSourceType) + string("\" to type \"") +
-                AST::BaseClasses::TypeInfo::GetTypeString(eTargetType) + string("\" is not supported in the instruction set \"") + 
-                strInstructionSetName + string("\" !") )
+InstructionSetExceptions::UnsupportedConversion::UnsupportedConversion(VectorElementTypes eSourceType, VectorElementTypes eTargetType, std::string strInstructionSetName) :
+      BaseType( std::string("A conversion from type \"") + AST::BaseClasses::TypeInfo::GetTypeString(eSourceType) + std::string("\" to type \"") +
+                AST::BaseClasses::TypeInfo::GetTypeString(eTargetType) + std::string("\" is not supported in the instruction set \"") + 
+                strInstructionSetName + std::string("\" !") )
 {
 }
 
 
 
 // Implementation of class InstructionSetBase
-InstructionSetBase::InstructionSetBase(ASTContext &rAstContext, string strFunctionNamePrefix) : _ASTHelper(rAstContext), _strIntrinsicPrefix(strFunctionNamePrefix)
+InstructionSetBase::InstructionSetBase(ASTContext &rAstContext, std::string strFunctionNamePrefix) : _ASTHelper(rAstContext), _strIntrinsicPrefix(strFunctionNamePrefix)
 {
   const size_t cszPrefixLength = strFunctionNamePrefix.size();
   ClangASTHelper::FunctionDeclarationVectorType vecFunctionDecls = _ASTHelper.GetKnownFunctionDeclarations();
 
   for (auto itFuncDecl : vecFunctionDecls)
   {
-    string strFuncName = ClangASTHelper::GetFullyQualifiedFunctionName(itFuncDecl);
+    std::string strFuncName = ClangASTHelper::GetFullyQualifiedFunctionName(itFuncDecl);
 
     bool bAddFuncDecl = true;
     if (! strFunctionNamePrefix.empty())
@@ -167,7 +166,7 @@ Expr* InstructionSetBase::_ConvertUp(VectorElementTypes eSourceType, VectorEleme
   return _ConvertVector( eSourceType, eTargetType, vecVectorRefs, uiGroupIndex, bMaskConversion );
 }
 
-void InstructionSetBase::_CreateIntrinsicDeclaration(string strFunctionName, const QualType &crReturnType, const ClangASTHelper::QualTypeVectorType &crvecArgTypes, const ClangASTHelper::StringVectorType &crvecArgNames)
+void InstructionSetBase::_CreateIntrinsicDeclaration(std::string strFunctionName, const QualType &crReturnType, const ClangASTHelper::QualTypeVectorType &crvecArgTypes, const ClangASTHelper::StringVectorType &crvecArgNames)
 {
   if (_mapKnownFuncDecls.find(strFunctionName) == _mapKnownFuncDecls.end())
   {
@@ -175,7 +174,7 @@ void InstructionSetBase::_CreateIntrinsicDeclaration(string strFunctionName, con
   }
 }
 
-void InstructionSetBase::_CreateIntrinsicDeclaration(string strFunctionName, const QualType &crReturnType, const QualType &crArgType1, string strArgName1)
+void InstructionSetBase::_CreateIntrinsicDeclaration(std::string strFunctionName, const QualType &crReturnType, const QualType &crArgType1, std::string strArgName1)
 {
   ClangASTHelper::QualTypeVectorType  vecArgTypes;
   ClangASTHelper::StringVectorType    vecArgNames;
@@ -186,7 +185,7 @@ void InstructionSetBase::_CreateIntrinsicDeclaration(string strFunctionName, con
   _CreateIntrinsicDeclaration(strFunctionName, crReturnType, vecArgTypes, vecArgNames);
 }
 
-void InstructionSetBase::_CreateIntrinsicDeclaration(string strFunctionName, const QualType &crReturnType, const QualType &crArgType1, string strArgName1, const QualType &crArgType2, string strArgName2)
+void InstructionSetBase::_CreateIntrinsicDeclaration(std::string strFunctionName, const QualType &crReturnType, const QualType &crArgType1, std::string strArgName1, const QualType &crArgType2, std::string strArgName2)
 {
   ClangASTHelper::QualTypeVectorType  vecArgTypes;
   ClangASTHelper::StringVectorType    vecArgNames;
@@ -200,7 +199,7 @@ void InstructionSetBase::_CreateIntrinsicDeclaration(string strFunctionName, con
   _CreateIntrinsicDeclaration(strFunctionName, crReturnType, vecArgTypes, vecArgNames);
 }
 
-void InstructionSetBase::_CreateIntrinsicDeclaration(string strFunctionName, const QualType &crReturnType, const QualType &crArgType1, string strArgName1, const QualType &crArgType2, string strArgName2, const QualType &crArgType3, string strArgName3)
+void InstructionSetBase::_CreateIntrinsicDeclaration(std::string strFunctionName, const QualType &crReturnType, const QualType &crArgType1, std::string strArgName1, const QualType &crArgType2, std::string strArgName2, const QualType &crArgType3, std::string strArgName3)
 {
   ClangASTHelper::QualTypeVectorType  vecArgTypes;
   ClangASTHelper::StringVectorType    vecArgNames;
@@ -402,7 +401,7 @@ QualType InstructionSetBase::_GetClangType(VectorElementTypes eType)
   }
 }
 
-ClangASTHelper::FunctionDeclarationVectorType InstructionSetBase::_GetFunctionDecl(string strFunctionName)
+ClangASTHelper::FunctionDeclarationVectorType InstructionSetBase::_GetFunctionDecl(std::string strFunctionName)
 {
   auto itFunctionDecl = _mapKnownFuncDecls.find(strFunctionName);
 
@@ -412,11 +411,11 @@ ClangASTHelper::FunctionDeclarationVectorType InstructionSetBase::_GetFunctionDe
   }
   else
   {
-    throw InternalErrorException(string("Cannot find function \"") + strFunctionName + string("\" !"));
+    throw InternalErrorException(std::string("Cannot find function \"") + strFunctionName + std::string("\" !"));
   }
 }
 
-QualType InstructionSetBase::_GetFunctionReturnType(string strFunctionName)
+QualType InstructionSetBase::_GetFunctionReturnType(std::string strFunctionName)
 {
   auto vecFunctionDecls = _GetFunctionDecl(strFunctionName);
 
@@ -426,7 +425,7 @@ QualType InstructionSetBase::_GetFunctionReturnType(string strFunctionName)
   }
   else
   {
-    throw InternalErrorException(string("The function declaration \"") + strFunctionName + string("\" is ambiguous!"));
+    throw InternalErrorException(std::string("The function declaration \"") + strFunctionName + std::string("\" is ambiguous!"));
   }
 }
 
@@ -470,7 +469,7 @@ void InstructionSetSSE::_CheckElementType(VectorElementTypes eElementType) const
 {
   if (eElementType != VectorElementTypes::Float)
   {
-    throw RuntimeErrorException(string("The element type \"") + AST::BaseClasses::TypeInfo::GetTypeString(eElementType) + string("\" is not supported in instruction set \"SSE\"!"));
+    throw RuntimeErrorException(std::string("The element type \"") + AST::BaseClasses::TypeInfo::GetTypeString(eElementType) + std::string("\" is not supported in instruction set \"SSE\"!"));
   }
 }
 
@@ -2529,7 +2528,7 @@ Expr* InstructionSetSSE2::LoadVectorGathered(VectorElementTypes eElementType, Ve
   switch (eIndexElementType)
   {
   case VectorElementTypes::Int32: case VectorElementTypes::Int64:   break;
-  default:  throw RuntimeErrorException( string("Only index element types \"") + AST::BaseClasses::TypeInfo::GetTypeString( VectorElementTypes::Int32 ) + ("\" and \"") +
+  default:  throw RuntimeErrorException( std::string("Only index element types \"") + AST::BaseClasses::TypeInfo::GetTypeString( VectorElementTypes::Int32 ) + ("\" and \"") +
                                          AST::BaseClasses::TypeInfo::GetTypeString( VectorElementTypes::Int64 ) + ("\" supported for gathered vector loads!") );
   }
 
@@ -4621,7 +4620,7 @@ Expr* InstructionSetAVX::LoadVectorGathered(VectorElementTypes eElementType, Vec
   switch (eIndexElementType)
   {
   case VectorElementTypes::Int32: case VectorElementTypes::Int64:   break;
-  default:  throw RuntimeErrorException( string("Only index element types \"") + AST::BaseClasses::TypeInfo::GetTypeString( VectorElementTypes::Int32 ) + ("\" and \"") +
+  default:  throw RuntimeErrorException( std::string("Only index element types \"") + AST::BaseClasses::TypeInfo::GetTypeString( VectorElementTypes::Int32 ) + ("\" and \"") +
                                          AST::BaseClasses::TypeInfo::GetTypeString( VectorElementTypes::Int64 ) + ("\" supported for gathered vector loads!") );
   }
 
@@ -5922,7 +5921,7 @@ bool InstructionSetAVX2::IsBuiltinFunctionSupported(
     break;
 
    default:
-    throw RuntimeErrorException(string("Only index element types \"")
+    throw RuntimeErrorException(std::string("Only index element types \"")
         + AST::BaseClasses::TypeInfo::GetTypeString(VectorElementTypes::Int32)
         //+ ("\" and \"")
         //+ AST::BaseClasses::TypeInfo::GetTypeString( VectorElementTypes::Int64)

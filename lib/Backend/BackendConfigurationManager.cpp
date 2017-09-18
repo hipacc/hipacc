@@ -45,12 +45,11 @@
 
 using namespace clang::hipacc::Backend;
 using namespace clang::hipacc;
-using namespace std;
 
 // Implementation of class BackendConfigurationManager::ConsoleOutput
-string BackendConfigurationManager::ConsoleOutput::_GetPadString(size_t szPadSize)
+std::string BackendConfigurationManager::ConsoleOutput::_GetPadString(size_t szPadSize)
 {
-  string strPadString("");
+  std::string strPadString("");
   strPadString.resize(szPadSize, ' ');
   return strPadString;
 }
@@ -83,21 +82,21 @@ void BackendConfigurationManager::ConsoleOutput::_PrintSwitches(const CommonDefi
   for (auto itCurrentSwitch : crvecSwitches)
   {
     // Pad the switch key
-    string strPrintString  = _GetPadString(_cszPadLeft) + itCurrentSwitch.first;
+    std::string strPrintString  = _GetPadString(_cszPadLeft) + itCurrentSwitch.first;
     strPrintString        += _GetPadString(szMaxSwitchWidth - strPrintString.length());
 
     // Break the description into pieces
-    vector<string> vecDescriptionSubStrings;
-    string strDescription = itCurrentSwitch.second;
+    std::vector<std::string> vecDescriptionSubStrings;
+    std::string strDescription = itCurrentSwitch.second;
 
     // Find all new-line characters
-    vector<int> vecNewLinePositions;
+    std::vector<int> vecNewLinePositions;
     vecNewLinePositions.push_back(-1);
     while (true)
     {
-      string::size_type szNextNewLinePos = strDescription.find_first_of('\n', static_cast<string::size_type>(vecNewLinePositions.back() + 1));
+      std::string::size_type szNextNewLinePos = strDescription.find_first_of('\n', static_cast<std::string::size_type>(vecNewLinePositions.back() + 1));
 
-      if (szNextNewLinePos != string::npos)
+      if (szNextNewLinePos != std::string::npos)
       {
         vecNewLinePositions.push_back(static_cast<int>(szNextNewLinePos));
       }
@@ -113,10 +112,10 @@ void BackendConfigurationManager::ConsoleOutput::_PrintSwitches(const CommonDefi
     for (size_t i = static_cast<size_t>(0); i < vecNewLinePositions.size() - 1; ++i)
     {
       // Fetch the current section between two new-line characters
-      string::size_type szSectionOffset = static_cast<string::size_type>(vecNewLinePositions[i] + 1);
-      string::size_type szSectionLength = static_cast<string::size_type>(vecNewLinePositions[i + 1]) - szSectionOffset;
+      std::string::size_type szSectionOffset = static_cast<std::string::size_type>(vecNewLinePositions[i] + 1);
+      std::string::size_type szSectionLength = static_cast<std::string::size_type>(vecNewLinePositions[i + 1]) - szSectionOffset;
 
-      string strCurrentSection = strDescription.substr(szSectionOffset, szSectionLength);
+      std::string strCurrentSection = strDescription.substr(szSectionOffset, szSectionLength);
 
       // Break the current section into pieces of the maximum display width
       for (size_t szPieceOffset = static_cast<size_t>(0); szPieceOffset < strCurrentSection.length();)
@@ -132,11 +131,11 @@ void BackendConfigurationManager::ConsoleOutput::_PrintSwitches(const CommonDefi
         else
         {
           // The rest of the description still needs to be broken into several lines
-          string strCurrentPiece = strCurrentSection.substr(szPieceOffset, szPieceLength);
+          std::string strCurrentPiece = strCurrentSection.substr(szPieceOffset, szPieceLength);
 
-          string::size_type szLastWhiteSpace = strCurrentPiece.find_last_of(' ');
+          std::string::size_type szLastWhiteSpace = strCurrentPiece.find_last_of(' ');
 
-          if (szLastWhiteSpace == string::npos)
+          if (szLastWhiteSpace == std::string::npos)
           {
             vecDescriptionSubStrings.push_back(strCurrentPiece);
             szPieceOffset += szPieceLength;
@@ -152,10 +151,10 @@ void BackendConfigurationManager::ConsoleOutput::_PrintSwitches(const CommonDefi
     }
 
     // Build the final print-string and print it
-    strPrintString += vecDescriptionSubStrings[0] + string("\n");
+    strPrintString += vecDescriptionSubStrings[0] + std::string("\n");
     for (size_t i = static_cast<size_t>(1); i < vecDescriptionSubStrings.size(); ++i)
     {
-      strPrintString += _GetPadString(szMaxSwitchWidth) + vecDescriptionSubStrings[i] + string("\n");
+      strPrintString += _GetPadString(szMaxSwitchWidth) + vecDescriptionSubStrings[i] + std::string("\n");
     }
 
     llvm::errs() << strPrintString;
@@ -295,7 +294,7 @@ size_t BackendConfigurationManager::_HandleSwitch(std::string strSwitch, CommonD
   case CompilerSwitchTypeEnum::IncludeDir:
   case CompilerSwitchTypeEnum::Define:
     {
-      string include = rvecArguments[szCurIndex];
+      std::string include = rvecArguments[szCurIndex];
       if (strlen(rvecArguments[szCurIndex].c_str()) == 2) {
         if (szCurIndex >= rvecArguments.size()-2) {
           throw RuntimeErrors::MissingOptionException(strSwitch);
@@ -312,7 +311,7 @@ size_t BackendConfigurationManager::_HandleSwitch(std::string strSwitch, CommonD
   return szReturnIndex;
 }
 
-string BackendConfigurationManager::_TranslateSwitchAlias(string strSwitch)
+std::string BackendConfigurationManager::_TranslateSwitchAlias(std::string strSwitch)
 {
   // Check whether the current switch is a known alias
   auto itTranslatedSwitch = _mapSwitchAliases.find(strSwitch);
@@ -347,7 +346,7 @@ void BackendConfigurationManager::Configure(CommonDefines::ArgumentVectorType & 
       else
       {
         // Try to parse the current switch and pass unknown switches to the code generator
-        string strArgument = _TranslateSwitchAlias(rvecArguments[i]);
+        std::string strArgument = _TranslateSwitchAlias(rvecArguments[i]);
 
         if (strncmp(strArgument.c_str(), "-I", 2) == 0) {
           strArgument = "-I";
@@ -375,7 +374,7 @@ void BackendConfigurationManager::Configure(CommonDefines::ArgumentVectorType & 
     }
     else if (_strOutputFile == "")
     {
-      throw RuntimeErrorException(string("No output file has been specified! Did you forget the \"") + KnownSwitches::OutputFile::Key() + string("\" switch?"));
+      throw RuntimeErrorException(std::string("No output file has been specified! Did you forget the \"") + KnownSwitches::OutputFile::Key() + std::string("\" switch?"));
     }
 
     // Configure the selected code generator
@@ -385,7 +384,7 @@ void BackendConfigurationManager::Configure(CommonDefines::ArgumentVectorType & 
     }
     else
     {
-      throw RuntimeErrorException(string("No code generator has been selected! Did you forget the \"") + KnownSwitches::EmissionSwitchBase() + string("<X>\" switch?"));
+      throw RuntimeErrorException(std::string("No code generator has been selected! Did you forget the \"") + KnownSwitches::EmissionSwitchBase() + std::string("<X>\" switch?"));
     }
 
     // Set the selected code generator in the compiler options
@@ -402,8 +401,8 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
   CommonDefines::ArgumentVectorType vecClangArguments;
 
   // Add HIPAcc runtime include paths
-  vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES));
-  vecClangArguments.push_back(string("-I") + string(RUNTIME_INCLUDES) + string("/dsl"));
+  vecClangArguments.push_back(std::string("-I") + std::string(RUNTIME_INCLUDES));
+  vecClangArguments.push_back(std::string("-I") + std::string(RUNTIME_INCLUDES) + std::string("/dsl"));
 
   // Add additional clang arguments
   if (!_vecClangArguments.empty()) {
@@ -422,14 +421,14 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
 #ifdef _MSC_VER
   // Add Visual Studio system include paths
   vecClangArguments.push_back("-isystem");
-  vecClangArguments.push_back(string(HOST_COMPILER_INSTALL_PREFIX) + string("VC/include"));
+  vecClangArguments.push_back(std::string(HOST_COMPILER_INSTALL_PREFIX) + std::string("VC/include"));
 
   // Set required Clang compiler options to ensure compatibility with the Visual Studio headers
   vecClangArguments.push_back("-fms-extensions");
   vecClangArguments.push_back("-fms-compatibility");
 #else
   // Add Clang library include path (required for e.g. intrinsics)
-  vecClangArguments.push_back(string("-I") + string(CLANG_LIB_INCLUDE_DIR));
+  vecClangArguments.push_back(std::string("-I") + std::string(CLANG_LIB_INCLUDE_DIR));
 #endif // _MSC_VER
 
 
@@ -449,7 +448,7 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
   return vecClangArguments;
 }
 
-string BackendConfigurationManager::GetOutputFile() {
+std::string BackendConfigurationManager::GetOutputFile() {
   return _strOutputFile;
 }
 

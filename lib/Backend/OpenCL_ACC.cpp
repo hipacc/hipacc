@@ -34,7 +34,6 @@
 #include "hipacc/Device/TargetDescription.h"
 
 using namespace clang::hipacc::Backend;
-using namespace std;
 
 OpenCL_ACC::CodeGenerator::Descriptor::Descriptor()
 {
@@ -59,7 +58,7 @@ OpenCL_ACC::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pComp
 
 size_t OpenCL_ACC::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, CommonDefines::ArgumentVectorType &rvecArguments, size_t szCurrentIndex)
 {
-  string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
+  std::string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
   size_t  szReturnIndex     = szCurrentIndex;
 
   switch (eSwitch)

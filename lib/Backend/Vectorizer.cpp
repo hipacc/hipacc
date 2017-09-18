@@ -36,10 +36,9 @@
 #include <string>
 #include <sstream>
 using namespace clang::hipacc::Backend::Vectorization;
-using namespace std;
 
 
-void  Vectorizer::VASTBuilder::VariableNameTranslator::AddRenameEntry(string strOriginalName, string strNewName)
+void  Vectorizer::VASTBuilder::VariableNameTranslator::AddRenameEntry(std::string strOriginalName, std::string strNewName)
 {
   if (_lstRenameStack.empty())
   {
@@ -53,13 +52,13 @@ void  Vectorizer::VASTBuilder::VariableNameTranslator::AddRenameEntry(string str
   RenameMapType &rCurrentMap = _lstRenameStack.front();
   if (rCurrentMap.find(strOriginalName) != rCurrentMap.end())
   {
-    throw InternalErrorException(string("The variable name \"") + strOriginalName + string("\" is already known at this layer!"));
+    throw InternalErrorException(std::string("The variable name \"") + strOriginalName + std::string("\" is already known at this layer!"));
   }
 
   rCurrentMap[strOriginalName] = strNewName;
 }
 
-string Vectorizer::VASTBuilder::VariableNameTranslator::TranslateName(string strOriginalName) const
+std::string Vectorizer::VASTBuilder::VariableNameTranslator::TranslateName(std::string strOriginalName) const
 {
   for (auto itMap = _lstRenameStack.begin(); itMap != _lstRenameStack.end(); itMap++)
   {
@@ -383,7 +382,7 @@ AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clan
   return spReturnExpression;
 }
 
-AST::Expressions::IdentifierPtr Vectorizer::VASTBuilder::_BuildIdentifier(string strIdentifierName)
+AST::Expressions::IdentifierPtr Vectorizer::VASTBuilder::_BuildIdentifier(std::string strIdentifierName)
 {
   return AST::Expressions::Identifier::Create( _VarTranslator.TranslateName(strIdentifierName) );
 }
@@ -594,11 +593,11 @@ AST::Expressions::UnaryOperatorPtr Vectorizer::VASTBuilder::_BuildUnaryOperatorE
 
 AST::BaseClasses::VariableInfoPtr Vectorizer::VASTBuilder::_BuildVariableInfo(::clang::VarDecl *pVarDecl, AST::IVariableContainerPtr spVariableContainer)
 {
-  string strVariableName = pVarDecl->getNameAsString();
+  std::string strVariableName = pVarDecl->getNameAsString();
 
   if ( spVariableContainer->IsVariableUsed(strVariableName) )
   {
-    string strNewName = GetNextFreeVariableName( spVariableContainer, strVariableName );
+    std::string strNewName = GetNextFreeVariableName( spVariableContainer, strVariableName );
 
     _VarTranslator.AddRenameEntry(strVariableName, strNewName);
 
@@ -734,7 +733,7 @@ AST::FunctionDeclarationPtr Vectorizer::VASTBuilder::BuildFunctionDecl(::clang::
 }
 
 
-string Vectorizer::VASTBuilder::GetNextFreeVariableName(AST::IVariableContainerPtr spVariableContainer, string strRootName)
+std::string Vectorizer::VASTBuilder::GetNextFreeVariableName(AST::IVariableContainerPtr spVariableContainer, std::string strRootName)
 {
   if (!spVariableContainer)
   {
@@ -747,11 +746,11 @@ string Vectorizer::VASTBuilder::GetNextFreeVariableName(AST::IVariableContainerP
 
   for (int iVarSuffix = 0; true; ++iVarSuffix)
   {
-    stringstream VarNameStream;
+    std::stringstream VarNameStream;
 
     VarNameStream << strRootName << "_" << iVarSuffix;
 
-    string strCurrentName = VarNameStream.str();
+    std::string strCurrentName = VarNameStream.str();
 
     if (!spVariableContainer->IsVariableUsed(strCurrentName))
     {
@@ -775,7 +774,7 @@ Vectorizer::VASTExporterBase::VASTExporterBase(::clang::ASTContext &rAstContext)
 
 void Vectorizer::VASTExporterBase::_AddKnownFunctionDeclaration(::clang::FunctionDecl *pFunctionDecl)
 {
-  string strFunctionName = ClangASTHelper::GetFullyQualifiedFunctionName( pFunctionDecl );
+  std::string strFunctionName = ClangASTHelper::GetFullyQualifiedFunctionName( pFunctionDecl );
 
   _mapKnownFunctions[ strFunctionName ][ pFunctionDecl->getNumParams() ].push_back( pFunctionDecl );
 }
@@ -814,7 +813,7 @@ void Vectorizer::VASTExporterBase::_AddKnownFunctionDeclaration(::clang::Functio
     throw InternalErrors::NullPointerException("spFunction");
   }
 
-  string strFunctionName = spFunction->GetName();
+  std::string strFunctionName = spFunction->GetName();
 
   // Convert the function parameters
   ClangASTHelper::StringVectorType    vecArgumentNames;
@@ -902,7 +901,7 @@ void Vectorizer::VASTExporterBase::_AddKnownFunctionDeclaration(::clang::Functio
     throw InternalErrorException( "The declaration context is not set! Run \"\" first." );
   }
 
-  string strVariableName = spIdentifier->GetName();
+  std::string strVariableName = spIdentifier->GetName();
 
   ::clang::ValueDecl *pVarDecl = _GetASTHelper().CreateVariableDeclaration( _pDeclContext, strVariableName, _GetVariableType( spIdentifier->LookupVariableInfo() ), pInitExpression );
 
@@ -1128,7 +1127,7 @@ void Vectorizer::VASTExporterBase::_AddKnownFunctionDeclaration(::clang::Functio
 {
   if (! _HasValueDeclaration(strValueName))
   {
-    throw InternalErrorException(string("The identifier \"") + strValueName + string("\" has not been declared yet!"));
+    throw InternalErrorException(std::string("The identifier \"") + strValueName + std::string("\" has not been declared yet!"));
   }
 
   return _GetASTHelper().CreateDeclarationReferenceExpression( _mapKnownDeclarations[strValueName] );
@@ -1140,7 +1139,7 @@ void Vectorizer::VASTExporterBase::_AddKnownFunctionDeclaration(::clang::Functio
 }
 
 
-::clang::FunctionDecl* Vectorizer::VASTExporterBase::_GetFirstMatchingFunctionDeclaration(string strFunctionName, const QualTypeVectorType &crvecArgTypes)
+::clang::FunctionDecl* Vectorizer::VASTExporterBase::_GetFirstMatchingFunctionDeclaration(std::string strFunctionName, const QualTypeVectorType &crvecArgTypes)
 {
   const unsigned int cuiArgumentCount = static_cast< unsigned int >( crvecArgTypes.size() );
 
@@ -1172,7 +1171,7 @@ void Vectorizer::VASTExporterBase::_AddKnownFunctionDeclaration(::clang::Functio
   return nullptr;
 }
 
-Vectorizer::VASTExporterBase::FunctionDeclVectorType Vectorizer::VASTExporterBase::_GetMatchingFunctionDeclarations(string strFunctionName, unsigned int uiParamCount)
+Vectorizer::VASTExporterBase::FunctionDeclVectorType Vectorizer::VASTExporterBase::_GetMatchingFunctionDeclarations(std::string strFunctionName, unsigned int uiParamCount)
 {
   FunctionDeclVectorType vecFunctionDecls;
 
@@ -1209,7 +1208,7 @@ Vectorizer::VASTExporterBase::FunctionDeclVectorType Vectorizer::VASTExporterBas
   }
 }
 
-bool Vectorizer::VASTExporterBase::_HasValueDeclaration(string strDeclName)
+bool Vectorizer::VASTExporterBase::_HasValueDeclaration(std::string strDeclName)
 {
   return (_mapKnownDeclarations.find(strDeclName) != _mapKnownDeclarations.end());
 }
@@ -1387,11 +1386,11 @@ Vectorizer::VASTExportArray::VASTExportArray(IndexType VectorWidth, ::clang::AST
       AST::BaseClasses::VariableInfoPtr spIdentifierInfo  = spIdentifier->LookupVariableInfo();
       AST::BaseClasses::TypeInfo        IdentifierType    = spIdentifierInfo->GetTypeInfo();
 
-      string strIdentifierName = spIdentifier->GetName();
+      std::string strIdentifierName = spIdentifier->GetName();
 
       if (! _HasValueDeclaration(strIdentifierName))
       {
-        throw InternalErrorException( string("The referenced identifier \"") + strIdentifierName + string("\" has not been declared!") );
+        throw InternalErrorException( std::string("The referenced identifier \"") + strIdentifierName + std::string("\" has not been declared!") );
       }
 
       ::clang::DeclRefExpr *pDeclRef = _CreateDeclarationReference( strIdentifierName );
@@ -1619,7 +1618,7 @@ Vectorizer::VASTExportArray::VASTExportArray(IndexType VectorWidth, ::clang::AST
 
 ::clang::Expr* Vectorizer::VASTExportArray::_BuildFunctionCall(AST::Expressions::FunctionCallPtr spFunctionCall, const VectorIndex &crVectorIndex)
 {
-  string          strFunctionName = spFunctionCall->GetName();
+  std::string          strFunctionName = spFunctionCall->GetName();
   const IndexType ciArgumentCount = spFunctionCall->GetCallParameterCount();
 
   // Build the argument expressions
@@ -1640,7 +1639,7 @@ Vectorizer::VASTExportArray::VASTExportArray(IndexType VectorWidth, ::clang::AST
   ::clang::FunctionDecl *pCalleeDecl = _GetFirstMatchingFunctionDeclaration( strFunctionName, vecArgumentTypes );
   if (pCalleeDecl == nullptr)
   {
-    throw RuntimeErrorException(string("Could not find matching FunctionDecl object for function call \"") + strFunctionName + string("\"!"));
+    throw RuntimeErrorException(std::string("Could not find matching FunctionDecl object for function call \"") + strFunctionName + std::string("\"!"));
   }
 
   return _GetASTHelper().CreateFunctionCall( pCalleeDecl, vecArguments );
@@ -1768,7 +1767,7 @@ void Vectorizer::Transformations::CheckInternalDeclaration::Execute(AST::ScopePt
 
 void Vectorizer::Transformations::FindBranchingInternalAssignments::Execute(AST::ControlFlow::BranchingStatementPtr spBranchingStmt)
 {
-  list< AST::BaseClasses::ExpressionPtr > lstConditions;
+  std::list< AST::BaseClasses::ExpressionPtr > lstConditions;
 
   // Find all assignments in every conditional branch => each branch depends on its condition as well as on the conditions of the preceding branches
   for (IndexType iBranchIdx = static_cast<IndexType>(0); iBranchIdx < spBranchingStmt->GetConditionalBranchesCount(); ++iBranchIdx)
@@ -1861,7 +1860,7 @@ void Vectorizer::Transformations::FlattenMemoryAccesses::Execute(AST::Expression
       AST::ScopePtr       spCurrentScope  = ScopePos.GetScope();
 
       // Create a name for a new temporary index variable
-      string strIndexVariableName = VASTBuilder::GetNextFreeVariableName(spCurrentScope, VASTBuilder::GetTemporaryIndexName());
+      std::string strIndexVariableName = VASTBuilder::GetNextFreeVariableName(spCurrentScope, VASTBuilder::GetTemporaryIndexName());
 
       // Create the new index variable declaration
       spCurrentScope->AddVariableDeclaration( AST::BaseClasses::VariableInfo::Create(strIndexVariableName, spIndexExpr->GetResultType(), spIndexExpr->IsVectorized()) );
@@ -2129,7 +2128,7 @@ void Vectorizer::Transformations::SeparateBranchingStatements::Execute(AST::Cont
 }
 
 
-void Vectorizer::_CreateLocalMaskComputation(AST::ScopePtr spParentScope, AST::BaseClasses::ExpressionPtr spCondition, string strLocalMaskName, string strGlobalMaskName, bool bExclusiveBranches)
+void Vectorizer::_CreateLocalMaskComputation(AST::ScopePtr spParentScope, AST::BaseClasses::ExpressionPtr spCondition, std::string strLocalMaskName, std::string strGlobalMaskName, bool bExclusiveBranches)
 {
   typedef AST::Expressions::ArithmeticOperator::ArithmeticOperatorType  ArithmeticOperatorType;
 
@@ -2154,7 +2153,7 @@ void Vectorizer::_CreateLocalMaskComputation(AST::ScopePtr spParentScope, AST::B
   spParentScope->AddChild( AST::Expressions::AssignmentOperator::Create( AST::Expressions::Identifier::Create(strGlobalMaskName), spGlobalUpdate ) );
 }
 
-void Vectorizer::_CreateVectorizedConditionalBranch(AST::ScopePtr spParentScope, AST::ScopePtr spBranchScope, string strMaskName)
+void Vectorizer::_CreateVectorizedConditionalBranch(AST::ScopePtr spParentScope, AST::ScopePtr spBranchScope, std::string strMaskName)
 {
   typedef AST::VectorSupport::CheckActiveElements::CheckType  VectorCheckType;
 
@@ -2173,7 +2172,7 @@ void Vectorizer::_CreateVectorizedConditionalBranch(AST::ScopePtr spParentScope,
   }
 }
 
-void Vectorizer::_FlattenSubExpression(const string &crstrTempVarNameRoot, AST::BaseClasses::ExpressionPtr spSubExpression)
+void Vectorizer::_FlattenSubExpression(const std::string &crstrTempVarNameRoot, AST::BaseClasses::ExpressionPtr spSubExpression)
 {
   if (! spSubExpression->IsSubExpression())
   {
@@ -2183,7 +2182,7 @@ void Vectorizer::_FlattenSubExpression(const string &crstrTempVarNameRoot, AST::
   AST::BaseClasses::ExpressionPtr spParentExpr  = spSubExpression->GetParent()->CastToType<AST::BaseClasses::Expression>();
   AST::ScopePosition              SubExprPos    = spSubExpression->GetScopePosition();
 
-  string strTempVarName = VASTBuilder::GetNextFreeVariableName( SubExprPos.GetScope(), crstrTempVarNameRoot );
+  std::string strTempVarName = VASTBuilder::GetNextFreeVariableName( SubExprPos.GetScope(), crstrTempVarNameRoot );
 
   AST::BaseClasses::TypeInfo VarInfo = spSubExpression->GetResultType();
   VarInfo.SetConst(true);
@@ -2221,7 +2220,7 @@ AST::BaseClasses::VariableInfoPtr Vectorizer::_GetAssigneeInfo(AST::Expressions:
 
     if (! spVariableInfo)
     {
-      throw InternalErrorException(string("Could not find variable info for identifier: ") + spIdentifier->GetName());
+      throw InternalErrorException(std::string("Could not find variable info for identifier: ") + spIdentifier->GetName());
     }
 
     return spVariableInfo;
@@ -2248,7 +2247,7 @@ AST::FunctionDeclarationPtr Vectorizer::ConvertClangFunctionDecl(::clang::Functi
 
 
 
-void Vectorizer::DumpVASTNodeToXML(AST::BaseClasses::NodePtr spVastNode, string strXmlFilename)
+void Vectorizer::DumpVASTNodeToXML(AST::BaseClasses::NodePtr spVastNode, std::string strXmlFilename)
 {
   if (! spVastNode)
   {
@@ -2267,7 +2266,7 @@ void Vectorizer::DumpVASTNodeToXML(AST::BaseClasses::NodePtr spVastNode, string 
 
 void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 {
-  typedef map< AST::BaseClasses::NodePtr, list< string > >      ControlMaskMapType;
+  typedef std::map< AST::BaseClasses::NodePtr, std::list< std::string > >      ControlMaskMapType;
 
   const AST::BaseClasses::TypeInfo  MaskTypeInfo(AST::BaseClasses::TypeInfo::KnownTypes::Bool, false, false);
   ControlMaskMapType                mapControlMasks;
@@ -2287,7 +2286,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
       if (itReturnStmt->IsVectorized())
       {
         // Found a return statement in a vectorized context => Create a function control mask
-        string strFunctionMaskName = VASTBuilder::GetNextFreeVariableName(spFunction, "_mask_function");
+        std::string strFunctionMaskName = VASTBuilder::GetNextFreeVariableName(spFunction, "_mask_function");
 
         spFunction->GetBody()->AddVariableDeclaration( AST::BaseClasses::VariableInfo::Create( strFunctionMaskName, MaskTypeInfo, true ) );
         mapControlMasks[spFunction].push_front(strFunctionMaskName);
@@ -2334,7 +2333,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
 
   // Find all vectorized loops and branching statements in hierarchical order
-  list< AST::BaseClasses::ControlFlowStatementPtr >  lstControlFlowStatements;
+  std::list< AST::BaseClasses::ControlFlowStatementPtr >  lstControlFlowStatements;
   {
     Transformations::FindNodes< AST::BaseClasses::ControlFlowStatement >  ControlFlowFinder( Transformations::DirectionType::TopDown );
 
@@ -2396,8 +2395,8 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
 
       // Definitions for the latter assignment masking
-      string                                          strCurrentMaskName;
-      list< AST::Expressions::AssignmentOperatorPtr > lstInternalAssignments;
+      std::string                                          strCurrentMaskName;
+      std::list< AST::Expressions::AssignmentOperatorPtr > lstInternalAssignments;
 
 
       // Rebuild the corresponding control flow statement
@@ -2421,7 +2420,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
         }
 
         // Create the control masks
-        string strGlobalMaskName, strLocalMaskName;
+        std::string strGlobalMaskName, strLocalMaskName;
         {
           AST::ScopePosition  LoopScopePos      = spLoop->GetScopePosition();
           AST::ScopePtr       spLoopParentScope = LoopScopePos.GetScope();
@@ -2547,7 +2546,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
         bool bSingleBranchStatement = ( (spBranchingStatement->GetConditionalBranchesCount() == 1) && spBranchingStatement->GetDefaultBranch()->IsEmpty() );
 
         // Create the control masks
-        string strGlobalMaskName, strLocalMaskName;
+        std::string strGlobalMaskName, strLocalMaskName;
         AST::ScopePtr spBranchingScope = AST::Scope::Create();
         {
           AST::ScopePosition BranchingScopePos = spBranchingStatement->GetScopePosition();
@@ -2637,7 +2636,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
       AST::ControlFlow::LoopPtr spControlledLoop = itLoopControl->GetControlledLoop();
 
       // Find the affected control masks of this loop control statement
-      list< string >  lstAffectedControlMasks;
+      std::list< std::string >  lstAffectedControlMasks;
       {
         AST::BaseClasses::NodePtr spCurrentNode = itLoopControl;
         while (true)
@@ -2695,7 +2694,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
           LoopControlPos.GetScope()->RemoveChild(iCurrentIdx);
 
           // Add the mask updates
-          string strConditionMask = lstAffectedControlMasks.front();
+          std::string strConditionMask = lstAffectedControlMasks.front();
           for (auto itMaskName : lstAffectedControlMasks)
           {
             typedef AST::Expressions::ArithmeticOperator::ArithmeticOperatorType  ArithmeticOperatorType;
@@ -2720,7 +2719,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
     for (auto itReturnStmt : ReturnStmtFinder.lstFoundNodes)
     {
       // Find the affected control masks of this loop control statement
-      list< string >  lstAffectedControlMasks;
+      std::list< std::string >  lstAffectedControlMasks;
       {
         AST::BaseClasses::NodePtr spCurrentNode = itReturnStmt;
         while (true)
@@ -2754,7 +2753,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
         ReturnPos.GetScope()->RemoveChild(iCurrentIdx);
 
         // Add the mask updates
-        string strConditionMask = lstAffectedControlMasks.front();
+        std::string strConditionMask = lstAffectedControlMasks.front();
         for (auto itMaskName : lstAffectedControlMasks)
         {
           typedef AST::Expressions::ArithmeticOperator::ArithmeticOperatorType  ArithmeticOperatorType;
@@ -2796,14 +2795,14 @@ void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bE
           // Extract conversion into an own assignment to a temporary variable if it not already an assignment value
           if (! itConversion->GetParent()->IsType<AST::Expressions::AssignmentOperator>())
           {
-            _FlattenSubExpression( VASTBuilder::GetTemporaryNamePrefix() + string("_conv"), itConversion );
+            _FlattenSubExpression( VASTBuilder::GetTemporaryNamePrefix() + std::string("_conv"), itConversion );
           }
 
           // If the sub-expression of the conversion is not a leaf expression (i.e. identifier, constant etc.) extract it too
           AST::BaseClasses::ExpressionPtr spSubExpression = itConversion->GetSubExpression();
           if ( spSubExpression && (! spSubExpression->IsLeafNode()) )
           {
-            _FlattenSubExpression( VASTBuilder::GetTemporaryNamePrefix() + string("_conv_sub"), spSubExpression );
+            _FlattenSubExpression( VASTBuilder::GetTemporaryNamePrefix() + std::string("_conv_sub"), spSubExpression );
           }
         }
       }
@@ -2819,7 +2818,7 @@ void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bE
         AST::BaseClasses::ExpressionPtr spSubExpression = itBroadCast->GetSubExpression();
         if ( spSubExpression && (! spSubExpression->IsLeafNode()) )
         {
-          _FlattenSubExpression(VASTBuilder::GetTemporaryNamePrefix() + string("_broadcast"), spSubExpression);
+          _FlattenSubExpression(VASTBuilder::GetTemporaryNamePrefix() + std::string("_broadcast"), spSubExpression);
         }
       }
     }
@@ -2829,7 +2828,7 @@ void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bE
 
 void Vectorizer::VectorizeFunction(AST::FunctionDeclarationPtr spFunction)
 {
-  typedef map< AST::BaseClasses::VariableInfoPtr, std::list< AST::BaseClasses::ExpressionPtr > >   VariableDependencyMapType;
+  typedef std::map< AST::BaseClasses::VariableInfoPtr, std::list< AST::BaseClasses::ExpressionPtr > >   VariableDependencyMapType;
 
   if (! spFunction)
   {

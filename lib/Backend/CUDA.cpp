@@ -34,7 +34,6 @@
 #include "hipacc/Device/TargetDescription.h"
 
 using namespace clang::hipacc::Backend;
-using namespace std;
 
 CUDA::CodeGenerator::Descriptor::Descriptor()
 {
@@ -60,7 +59,7 @@ CUDA::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOp
 
 size_t CUDA::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, CommonDefines::ArgumentVectorType &rvecArguments, size_t szCurrentIndex)
 {
-  string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
+  std::string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
   size_t  szReturnIndex     = szCurrentIndex;
 
   switch (eSwitch)

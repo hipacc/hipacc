@@ -35,7 +35,6 @@
 #include <sstream>
 
 using namespace clang::hipacc::Backend::Vectorization;
-using namespace std;
 
 #define CHECK_NULL_POINTER(ptr)   if (ptr == nullptr)   { throw InternalErrors::NullPointerException(#ptr); }
 
@@ -44,68 +43,68 @@ class XMLSupport
 {
 public:
 
-  typedef map< string, string >   AttributesMapType;
+  typedef std::map< std::string, std::string >   AttributesMapType;
 
 
 public:
 
-  inline static string CreateXmlTag(const size_t cszIntend, string strName)
+  inline static std::string CreateXmlTag(const size_t cszIntend, std::string strName)
   {
-    return CreateXmlTag(cszIntend, strName, string(""));
+    return CreateXmlTag(cszIntend, strName, std::string(""));
   }
 
-  inline static string CreateXmlTag(const size_t cszIntend, string strName, const AttributesMapType &crmapAttributes)
+  inline static std::string CreateXmlTag(const size_t cszIntend, std::string strName, const AttributesMapType &crmapAttributes)
   {
-    return CreateXmlTag(cszIntend, strName, string(""), crmapAttributes);
+    return CreateXmlTag(cszIntend, strName, std::string(""), crmapAttributes);
   }
 
-  inline static string CreateXmlTag(const size_t cszIntend, string strName, const string &crstrInternalText)
+  inline static std::string CreateXmlTag(const size_t cszIntend, std::string strName, const std::string &crstrInternalText)
   {
     return CreateXmlTag(cszIntend, strName, crstrInternalText, AttributesMapType());
   }
 
-  static string CreateXmlTag(const size_t cszIntend, string strName, const string &crstrInternalText, const AttributesMapType &crmapAttributes);
+  static std::string CreateXmlTag(const size_t cszIntend, std::string strName, const std::string &crstrInternalText, const AttributesMapType &crmapAttributes);
 
 
-  inline static string GetPadString(const size_t cszIntend)    { return string(cszIntend, ' '); }
+  inline static std::string GetPadString(const size_t cszIntend)    { return std::string(cszIntend, ' '); }
 
 
-  template <typename ValueType>   inline static string ToString(ValueType TValue)
+  template <typename ValueType>   inline static std::string ToString(ValueType TValue)
   {
-    stringstream OutpuStream;
+    std::stringstream OutpuStream;
     OutpuStream << TValue;
     return OutpuStream.str();
   }
 };
 
-template <> inline string XMLSupport::ToString<bool>(bool TValue)
+template <> inline std::string XMLSupport::ToString<bool>(bool TValue)
 {
   return TValue ? "true" : "false";
 }
 
 
 // Implementation of class AST::XMLSupport
-string XMLSupport::CreateXmlTag(const size_t cszIntend, string strName, const string &crstrInternalText, const AttributesMapType &crmapAttributes)
+std::string XMLSupport::CreateXmlTag(const size_t cszIntend, std::string strName, const std::string &crstrInternalText, const AttributesMapType &crmapAttributes)
 {
-  string strAttributes("");
+  std::string strAttributes("");
 
   for (auto itAttribute : crmapAttributes)
   {
-    strAttributes += string(" ") + itAttribute.first + string("=\"") + itAttribute.second + string("\"");
+    strAttributes += std::string(" ") + itAttribute.first + std::string("=\"") + itAttribute.second + std::string("\"");
   }
 
 
   if (crstrInternalText.empty())
   {
-    return GetPadString(cszIntend) + string("<") + strName + strAttributes + string(" />\n");
+    return GetPadString(cszIntend) + std::string("<") + strName + strAttributes + std::string(" />\n");
   }
   else
   {
-    string strXmlString("");
+    std::string strXmlString("");
 
-    strXmlString += GetPadString(cszIntend) + string("<") + strName + strAttributes + string(">\n");
+    strXmlString += GetPadString(cszIntend) + std::string("<") + strName + strAttributes + std::string(">\n");
     strXmlString += crstrInternalText;
-    strXmlString += GetPadString(cszIntend) + string("</") + strName + string(">\n");
+    strXmlString += GetPadString(cszIntend) + std::string("</") + strName + std::string(">\n");
 
     return strXmlString;
   }
@@ -188,7 +187,7 @@ AST::BaseClasses::TypeInfo AST::BaseClasses::TypeInfo::CreateSizedIntegerType(si
   return ReturnType;
 }
 
-string AST::BaseClasses::TypeInfo::DumpToXML(const size_t cszIntend) const
+std::string AST::BaseClasses::TypeInfo::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -199,11 +198,11 @@ string AST::BaseClasses::TypeInfo::DumpToXML(const size_t cszIntend) const
 
   if (IsArray())
   {
-    string strDim("");
+    std::string strDim("");
 
     for (auto itDim : _vecArrayDimensions)
     {
-      strDim += string("[") + XMLSupport::ToString(itDim) + string("]");
+      strDim += std::string("[") + XMLSupport::ToString(itDim) + std::string("]");
     }
 
     mapAttributes["array_dim"] = strDim;
@@ -261,7 +260,7 @@ size_t AST::BaseClasses::TypeInfo::GetTypeSize(KnownTypes eType)
   }
 }
 
-string AST::BaseClasses::TypeInfo::GetTypeString(KnownTypes eType)
+std::string AST::BaseClasses::TypeInfo::GetTypeString(KnownTypes eType)
 {
   switch (eType)
   {
@@ -343,7 +342,7 @@ bool AST::BaseClasses::TypeInfo::IsSigned(KnownTypes eType)
 
 
 // Implementation of class AST::BaseClasses::VariableInfo
-AST::BaseClasses::VariableInfoPtr AST::BaseClasses::VariableInfo::Create(string strName, const TypeInfo &crTypeInfo, bool bVectorize)
+AST::BaseClasses::VariableInfoPtr AST::BaseClasses::VariableInfo::Create(std::string strName, const TypeInfo &crTypeInfo, bool bVectorize)
 {
   AST::BaseClasses::VariableInfoPtr spVariableInfo( new AST::BaseClasses::VariableInfo );
 
@@ -354,7 +353,7 @@ AST::BaseClasses::VariableInfoPtr AST::BaseClasses::VariableInfo::Create(string 
   return spVariableInfo;
 }
 
-string AST::BaseClasses::VariableInfo::DumpToXML(const size_t cszIntend) const
+std::string AST::BaseClasses::VariableInfo::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -367,7 +366,7 @@ string AST::BaseClasses::VariableInfo::DumpToXML(const size_t cszIntend) const
 
 
 // Implementation of class AST::BaseClasses::Node
-string AST::BaseClasses::Node::_DumpChildToXml(const NodeConstPtr spChild, const size_t cszIntend)
+std::string AST::BaseClasses::Node::_DumpChildToXml(const NodeConstPtr spChild, const size_t cszIntend)
 {
   return spChild ? spChild->DumpToXML(cszIntend) : "";
 }
@@ -441,7 +440,7 @@ AST::IndexType AST::BaseClasses::Expression::_FindSubExpressionIndex(ExpressionC
   throw InternalErrorException("Could not find the specified expression in the list of sub-expressions!");
 }
 
-string AST::BaseClasses::Expression::_DumpResultTypeToXML(const size_t cszIntend) const
+std::string AST::BaseClasses::Expression::_DumpResultTypeToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -496,7 +495,7 @@ bool AST::BaseClasses::Expression::IsVectorized()
 /***********************/
 
 // Implementation of class AST::ControlFlow::Loop
-string AST::ControlFlow::Loop::_GetLoopTypeString(LoopType eType)
+std::string AST::ControlFlow::Loop::_GetLoopTypeString(LoopType eType)
 {
   switch (eType)
   {
@@ -520,7 +519,7 @@ AST::ControlFlow::LoopPtr AST::ControlFlow::Loop::Create(LoopType eType, BaseCla
   return spNewLoop;
 }
 
-string AST::ControlFlow::Loop::DumpToXML(const size_t cszIntend) const
+std::string AST::ControlFlow::Loop::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -529,7 +528,7 @@ string AST::ControlFlow::Loop::DumpToXML(const size_t cszIntend) const
   mapAttributes["vectorize"]        = XMLSupport::ToString( IsVectorized() );
   mapAttributes["force_vectorize"]  = XMLSupport::ToString( GetForcedVectorization() );
 
-  string strXmlString("");
+  std::string strXmlString("");
 
   strXmlString += XMLSupport::CreateXmlTag( cszIntend + 2, "Condition", _DumpChildToXml(GetCondition(), cszIntend + 4) );
   strXmlString += XMLSupport::CreateXmlTag( cszIntend + 2, "Increment", _DumpChildToXml(GetIncrement(), cszIntend + 4) );
@@ -582,7 +581,7 @@ bool AST::ControlFlow::Loop::IsVectorized() const
 
 
 // Implementation of class AST::ControlFlow::LoopControlStatement
-string AST::ControlFlow::LoopControlStatement::_GetLoopControlTypeString(LoopControlType eType)
+std::string AST::ControlFlow::LoopControlStatement::_GetLoopControlTypeString(LoopControlType eType)
 {
   switch (eType)
   {
@@ -601,7 +600,7 @@ AST::ControlFlow::LoopControlStatementPtr AST::ControlFlow::LoopControlStatement
   return spLoopCtrlStatement;
 }
 
-string AST::ControlFlow::LoopControlStatement::DumpToXML(const size_t cszIntend) const
+std::string AST::ControlFlow::LoopControlStatement::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -660,13 +659,13 @@ AST::ControlFlow::ConditionalBranchPtr AST::ControlFlow::ConditionalBranch::Crea
   return spCondBranch;
 }
 
-string AST::ControlFlow::ConditionalBranch::DumpToXML(const size_t cszIntend) const
+std::string AST::ControlFlow::ConditionalBranch::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
   mapAttributes["vectorize"] = XMLSupport::ToString(IsVectorized());
 
-  string strXmlString("");
+  std::string strXmlString("");
 
   strXmlString += XMLSupport::CreateXmlTag( cszIntend + 2, "Condition", _DumpChildToXml(GetCondition(), cszIntend + 4) );
   strXmlString += XMLSupport::CreateXmlTag( cszIntend + 2, "Body",      _DumpChildToXml(GetBody(), cszIntend + 4) );
@@ -731,14 +730,14 @@ AST::ControlFlow::BranchingStatementPtr AST::ControlFlow::BranchingStatement::Cr
   return spBranchingStatement;
 }
 
-string AST::ControlFlow::BranchingStatement::DumpToXML(const size_t cszIntend) const
+std::string AST::ControlFlow::BranchingStatement::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
   mapAttributes["hierarchy_level"]  = XMLSupport::ToString(GetHierarchyLevel());
   mapAttributes["vectorize"]        = XMLSupport::ToString(IsVectorized());
 
-  string strXmlString("");
+  std::string strXmlString("");
 
   // Dump conditional branches
   for (IndexType iBranchIdx = static_cast<IndexType>(0); iBranchIdx < GetConditionalBranchesCount(); ++iBranchIdx)
@@ -828,7 +827,7 @@ AST::ControlFlow::ReturnStatementPtr AST::ControlFlow::ReturnStatement::Create()
   return AST::CreateNode< ReturnStatement >();
 }
 
-string AST::ControlFlow::ReturnStatement::DumpToXML(const size_t cszIntend) const
+std::string AST::ControlFlow::ReturnStatement::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -865,7 +864,7 @@ bool AST::ControlFlow::ReturnStatement::IsVectorized() const
 /***********************/
 
 // Implementation of class AST::Expressions::Constant
-string AST::Expressions::Constant::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::Constant::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -890,11 +889,11 @@ void AST::Expressions::Constant::ChangeType(KnownTypes eNewType)
   case KnownTypes::UInt64:  _ChangeType< uint64_t >( eNewType );  break;
   case KnownTypes::Float:   _ChangeType< float    >( eNewType );  break;
   case KnownTypes::Double:  _ChangeType< double   >( eNewType );  break;
-  default:                  throw RuntimeErrorException( string("Invalid constant type: ") + BaseClasses::TypeInfo::GetTypeString(eNewType) );
+  default:                  throw RuntimeErrorException( std::string("Invalid constant type: ") + BaseClasses::TypeInfo::GetTypeString(eNewType) );
   }
 }
 
-string AST::Expressions::Constant::GetAsString() const
+std::string AST::Expressions::Constant::GetAsString() const
 {
   switch (_eType)
   {
@@ -926,7 +925,7 @@ AST::BaseClasses::TypeInfo AST::Expressions::Constant::GetResultType() const
 
 
 // Implementation of class AST::Expressions::Identifier
-AST::Expressions::IdentifierPtr AST::Expressions::Identifier::Create(string strName)
+AST::Expressions::IdentifierPtr AST::Expressions::Identifier::Create(std::string strName)
 {
   IdentifierPtr spIdentifier = AST::CreateNode<Identifier>();
 
@@ -935,7 +934,7 @@ AST::Expressions::IdentifierPtr AST::Expressions::Identifier::Create(string strN
   return spIdentifier;
 }
 
-string AST::Expressions::Identifier::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::Identifier::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -1003,9 +1002,9 @@ AST::Expressions::MemoryAccessPtr AST::Expressions::MemoryAccess::Create(Express
   return spNewMemAccess;
 }
 
-string AST::Expressions::MemoryAccess::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::MemoryAccess::DumpToXML(const size_t cszIntend) const
 {
-  string strXmlString  = _DumpResultTypeToXML(cszIntend + 2);
+  std::string strXmlString  = _DumpResultTypeToXML(cszIntend + 2);
   strXmlString        += XMLSupport::CreateXmlTag( cszIntend + 2, "MemoryRef", _DumpChildToXml(GetMemoryReference(), cszIntend + 4) );
   strXmlString        += XMLSupport::CreateXmlTag( cszIntend + 2, "Index",     _DumpChildToXml(GetIndexExpression(), cszIntend + 4) );
 
@@ -1046,9 +1045,9 @@ void AST::Expressions::MemoryAccess::SetSubExpression(IndexType SubExprIndex, Ex
 
 
 // Implementation of class AST::Expressions::UnaryExpression
-string AST::Expressions::UnaryExpression::_DumpSubExpressionToXML(const size_t cszIntend) const
+std::string AST::Expressions::UnaryExpression::_DumpSubExpressionToXML(const size_t cszIntend) const
 {
-  string strXmlString  = _DumpResultTypeToXML(cszIntend);
+  std::string strXmlString  = _DumpResultTypeToXML(cszIntend);
   strXmlString        += XMLSupport::CreateXmlTag( cszIntend, "SubExpression", _DumpChildToXml(GetSubExpression(), cszIntend + 2) );
   return strXmlString;
 }
@@ -1084,7 +1083,7 @@ AST::Expressions::ConversionPtr AST::Expressions::Conversion::Create(const BaseC
   return spNewConversion;
 }
 
-string AST::Expressions::Conversion::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::Conversion::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -1104,7 +1103,7 @@ AST::Expressions::ParenthesisPtr AST::Expressions::Parenthesis::Create(BaseClass
   return spNewParenthesis;
 }
 
-string AST::Expressions::Parenthesis::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::Parenthesis::DumpToXML(const size_t cszIntend) const
 {
   return XMLSupport::CreateXmlTag(cszIntend, "Parenthesis", _DumpSubExpressionToXML(cszIntend + 2));
 }
@@ -1133,14 +1132,14 @@ AST::Expressions::UnaryOperatorPtr AST::Expressions::UnaryOperator::Create(Unary
   return spNewUnaryOp;
 }
 
-string AST::Expressions::UnaryOperator::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::UnaryOperator::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
   mapAttributes["type"] = GetOperatorTypeString( GetOperatorType() );
   return XMLSupport::CreateXmlTag(cszIntend, "UnaryOperator", _DumpSubExpressionToXML(cszIntend + 2), mapAttributes);
 }
 
-string AST::Expressions::UnaryOperator::GetOperatorTypeString(UnaryOperatorType eType)
+std::string AST::Expressions::UnaryOperator::GetOperatorTypeString(UnaryOperatorType eType)
 {
   switch (eType)
   {
@@ -1187,9 +1186,9 @@ AST::BaseClasses::TypeInfo AST::Expressions::UnaryOperator::GetResultType() cons
 
 
 // Implementation of class AST::Expressions::BinaryOperator
-string AST::Expressions::BinaryOperator::_DumpSubExpressionsToXML(const size_t cszIntend) const
+std::string AST::Expressions::BinaryOperator::_DumpSubExpressionsToXML(const size_t cszIntend) const
 {
-  string strXmlString = _DumpResultTypeToXML(cszIntend);
+  std::string strXmlString = _DumpResultTypeToXML(cszIntend);
 
   strXmlString += XMLSupport::CreateXmlTag( cszIntend, "LHS", _DumpChildToXml(GetLHS(), cszIntend + 2) );
   strXmlString += XMLSupport::CreateXmlTag( cszIntend, "RHS", _DumpChildToXml(GetRHS(), cszIntend + 2) );
@@ -1230,7 +1229,7 @@ AST::Expressions::ArithmeticOperatorPtr AST::Expressions::ArithmeticOperator::Cr
   return spArithmeticOp;
 }
 
-string AST::Expressions::ArithmeticOperator::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::ArithmeticOperator::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
@@ -1239,7 +1238,7 @@ string AST::Expressions::ArithmeticOperator::DumpToXML(const size_t cszIntend) c
   return XMLSupport::CreateXmlTag(cszIntend, "ArithmeticOperator", _DumpSubExpressionsToXML(cszIntend + 2), mapAttributes);
 }
 
-string AST::Expressions::ArithmeticOperator::GetOperatorTypeString(ArithmeticOperatorType eType)
+std::string AST::Expressions::ArithmeticOperator::GetOperatorTypeString(ArithmeticOperatorType eType)
 {
   switch (eType)
   {
@@ -1324,11 +1323,11 @@ AST::Expressions::AssignmentOperatorPtr AST::Expressions::AssignmentOperator::Cr
   return spAssignment;
 }
 
-string AST::Expressions::AssignmentOperator::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::AssignmentOperator::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
-  string strXmlString = _DumpSubExpressionsToXML(cszIntend + 2);
+  std::string strXmlString = _DumpSubExpressionsToXML(cszIntend + 2);
 
   if (IsMasked())
   {
@@ -1429,9 +1428,9 @@ AST::Expressions::RelationalOperatorPtr AST::Expressions::RelationalOperator::Cr
   return spNewRelOp;
 }
 
-string AST::Expressions::RelationalOperator::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::RelationalOperator::DumpToXML(const size_t cszIntend) const
 {
-  string strXmlString("");
+  std::string strXmlString("");
   
   strXmlString  += XMLSupport::CreateXmlTag(cszIntend + 2, "ComparisonType", GetComparisonType().DumpToXML(cszIntend + 4));
   strXmlString  += _DumpSubExpressionsToXML(cszIntend + 2);
@@ -1469,7 +1468,7 @@ AST::BaseClasses::TypeInfo AST::Expressions::RelationalOperator::GetComparisonTy
   return BaseClasses::TypeInfo(eCompType, true, false);
 }
 
-string AST::Expressions::RelationalOperator::GetOperatorTypeString(RelationalOperatorType eType)
+std::string AST::Expressions::RelationalOperator::GetOperatorTypeString(RelationalOperatorType eType)
 {
   switch (eType)
   {
@@ -1510,10 +1509,10 @@ AST::Expressions::FunctionCallPtr AST::Expressions::FunctionCall::Create(std::st
   return spNewFunctionCall;
 }
 
-string AST::Expressions::FunctionCall::DumpToXML(const size_t cszIntend) const
+std::string AST::Expressions::FunctionCall::DumpToXML(const size_t cszIntend) const
 {
   // Dump return type
-  string strXmlString = _DumpResultTypeToXML(cszIntend + 2);
+  std::string strXmlString = _DumpResultTypeToXML(cszIntend + 2);
 
   // Dump call parameters
   for (IndexType i = 0; i < GetCallParameterCount(); ++i)
@@ -1574,9 +1573,9 @@ AST::VectorSupport::BroadCastPtr AST::VectorSupport::BroadCast::Create(Expressio
   return spBroadCast;
 }
 
-string AST::VectorSupport::BroadCast::DumpToXML(const size_t cszIntend) const
+std::string AST::VectorSupport::BroadCast::DumpToXML(const size_t cszIntend) const
 {
-  string strXmlString("");
+  std::string strXmlString("");
 
   strXmlString += _DumpResultTypeToXML(cszIntend + 2);
   strXmlString += XMLSupport::CreateXmlTag(cszIntend + 2, "SubExpression", _DumpChildToXml(GetSubExpression(), cszIntend + 4));
@@ -1626,13 +1625,13 @@ AST::VectorSupport::CheckActiveElementsPtr AST::VectorSupport::CheckActiveElemen
   return spCheckElements;
 }
 
-string AST::VectorSupport::CheckActiveElements::DumpToXML(const size_t cszIntend) const
+std::string AST::VectorSupport::CheckActiveElements::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
   mapAttributes["check_type"] = GetCheckTypeString( GetCheckType() );
 
-  string strXmlString("");
+  std::string strXmlString("");
 
   strXmlString += _DumpResultTypeToXML(cszIntend + 2);
   strXmlString += XMLSupport::CreateXmlTag( cszIntend + 2, "SubExpression", _DumpChildToXml(GetSubExpression(), cszIntend + 4) );
@@ -1640,7 +1639,7 @@ string AST::VectorSupport::CheckActiveElements::DumpToXML(const size_t cszIntend
   return XMLSupport::CreateXmlTag(cszIntend, "CheckActiveElements", strXmlString, mapAttributes);
 }
 
-string AST::VectorSupport::CheckActiveElements::GetCheckTypeString(CheckType eType)
+std::string AST::VectorSupport::CheckActiveElements::GetCheckTypeString(CheckType eType)
 {
   switch (eType)
   {
@@ -1680,7 +1679,7 @@ AST::VectorSupport::VectorIndexPtr AST::VectorSupport::VectorIndex::Create(Known
   return spNewVecIndex;
 }
 
-string AST::VectorSupport::VectorIndex::DumpToXML(const size_t cszIntend) const
+std::string AST::VectorSupport::VectorIndex::DumpToXML(const size_t cszIntend) const
 {
   return XMLSupport::CreateXmlTag(cszIntend, "VectorIndex", _DumpResultTypeToXML(cszIntend + 2));
 }
@@ -1750,14 +1749,14 @@ AST::ScopePtr AST::Scope::Create()
   return AST::CreateNode<Scope>();
 }
 
-string AST::Scope::DumpToXML(const size_t cszIntend) const
+std::string AST::Scope::DumpToXML(const size_t cszIntend) const
 {
-  string strXmlString("");
+  std::string strXmlString("");
 
   // Dump declared variables
   if (! _setDeclaredVariables.empty())
   {
-    string strDeclarations("");
+    std::string strDeclarations("");
 
     for (auto itVar : _setDeclaredVariables)
     {
@@ -1933,7 +1932,7 @@ void AST::FunctionDeclaration::AddVariable(BaseClasses::VariableInfoPtr spVariab
 {
   CHECK_NULL_POINTER(spVariableInfo);
 
-  string strVariableName = spVariableInfo->GetName();
+  std::string strVariableName = spVariableInfo->GetName();
 
   if (IsVariableUsed(strVariableName))
   {
@@ -1943,7 +1942,7 @@ void AST::FunctionDeclaration::AddVariable(BaseClasses::VariableInfoPtr spVariab
   _mapKnownVariables[strVariableName] = spVariableInfo;
 }
 
-AST::FunctionDeclarationPtr AST::FunctionDeclaration::Create(string strFunctionName)
+AST::FunctionDeclarationPtr AST::FunctionDeclaration::Create(std::string strFunctionName)
 {
   FunctionDeclarationPtr spNewFunction = AST::CreateNode<FunctionDeclaration>();
 
@@ -1955,17 +1954,17 @@ AST::FunctionDeclarationPtr AST::FunctionDeclaration::Create(string strFunctionN
   return spNewFunction;
 }
 
-string AST::FunctionDeclaration::DumpToXML(const size_t cszIntend) const
+std::string AST::FunctionDeclaration::DumpToXML(const size_t cszIntend) const
 {
   XMLSupport::AttributesMapType mapAttributes;
 
   mapAttributes["name"] = GetName();
 
-  string strXmlString("");
+  std::string strXmlString("");
 
   // Dump known variables
   {
-    string strXmlVariables("");
+    std::string strXmlVariables("");
 
     for (auto itVariable : _mapKnownVariables)
     {
@@ -1977,7 +1976,7 @@ string AST::FunctionDeclaration::DumpToXML(const size_t cszIntend) const
 
   // Dump parameters
   {
-    string strXmlParams("");
+    std::string strXmlParams("");
 
     for (auto itParameter : _Parameters)
     {
@@ -2019,9 +2018,9 @@ AST::BaseClasses::NodePtr AST::FunctionDeclaration::GetChild(IndexType ChildInde
   }
 }
 
-vector< string > AST::FunctionDeclaration::GetKnownVariableNames() const
+std::vector< std::string > AST::FunctionDeclaration::GetKnownVariableNames() const
 {
-  vector< string > vecVariableNames;
+  std::vector< std::string > vecVariableNames;
 
   for (auto itKnownVariable : _mapKnownVariables)
   {
@@ -2069,7 +2068,7 @@ void AST::FunctionDeclaration::SetParameter(IndexType iParamIndex, BaseClasses::
     throw ASTExceptions::ChildIndexOutOfRange();
   }
 
-  string strNewParamName = spVariableInfo->GetName();
+  std::string strNewParamName = spVariableInfo->GetName();
   if (IsVariableUsed(strNewParamName))
   {
     throw ASTExceptions::DuplicateVariableName(strNewParamName);

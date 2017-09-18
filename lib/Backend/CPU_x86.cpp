@@ -42,7 +42,6 @@ using namespace clang::hipacc::Backend::Vectorization;
 using namespace clang::hipacc::Backend;
 using namespace clang::hipacc;
 using namespace clang;
-using namespace std;
 
 
 //#define DUMP_INSTRUCTION_SETS 1   // Uncomment this for a complete dump of the available instruction set contents
@@ -78,13 +77,13 @@ QualType CPU_x86::DumpInstructionSet::_GetClangType(VectorElementTypes eElementT
   }
 }
 
-FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::InstructionSetBasePtr spInstructionSet, string strFunctionName)
+FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::InstructionSetBasePtr spInstructionSet, std::string strFunctionName)
 {
-  #define DUMP_INSTR(__container, __instr)  try{ __container.push_back(__instr); } catch (exception &e) { __container.push_back( _ASTHelper.CreateStringLiteral(e.what()) ); }
+  #define DUMP_INSTR(__container, __instr)  try{ __container.push_back(__instr); } catch (std::exception &e) { __container.push_back( _ASTHelper.CreateStringLiteral(e.what()) ); }
 
-  typedef map< VectorElementTypes, DeclRefExpr* >     VectorDeclRefMapType;
+  typedef std::map< VectorElementTypes, DeclRefExpr* >     VectorDeclRefMapType;
   
-  list< VectorElementTypes > lstSupportedElementTypes;
+  std::list< VectorElementTypes > lstSupportedElementTypes;
   if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Double))   lstSupportedElementTypes.push_back(VectorElementTypes::Double);
   if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Float))    lstSupportedElementTypes.push_back(VectorElementTypes::Float);
   if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Int8))     lstSupportedElementTypes.push_back(VectorElementTypes::Int8);
@@ -110,7 +109,7 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
     {
       const size_t cszArraySize = std::max( spInstructionSet->GetVectorWidthBytes() / spInstructionSet->GetVectorElementCount(itElementType), static_cast<size_t>(2) );
       QualType qtDeclType       = _ASTHelper.GetConstantArrayType( spInstructionSet->GetVectorType(itElementType), cszArraySize );
-      VarDecl *pDecl            = _ASTHelper.CreateVariableDeclaration( pFunctionDecl, string("mm") + TypeInfo::GetTypeString(itElementType), qtDeclType, nullptr );
+      VarDecl *pDecl            = _ASTHelper.CreateVariableDeclaration( pFunctionDecl, std::string("mm") + TypeInfo::GetTypeString(itElementType), qtDeclType, nullptr );
 
       mapVectorArrayDecls[itElementType] = _ASTHelper.CreateDeclarationReferenceExpression( pDecl );
 
@@ -169,7 +168,7 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
     VectorDeclRefMapType mapMaskDecls;
     for (auto itElementType : lstSupportedElementTypes)
     {
-      VarDecl *pMaskDecl = _ASTHelper.CreateVariableDeclaration( pFunctionDecl, string("mmMask") + TypeInfo::GetTypeString(itElementType), spInstructionSet->GetVectorType(itElementType), nullptr );
+      VarDecl *pMaskDecl = _ASTHelper.CreateVariableDeclaration( pFunctionDecl, std::string("mmMask") + TypeInfo::GetTypeString(itElementType), spInstructionSet->GetVectorType(itElementType), nullptr );
 
       mapMaskDecls[ itElementType ] = _ASTHelper.CreateDeclarationReferenceExpression( pMaskDecl );
 
@@ -260,7 +259,7 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
 
       for (auto itElementTypeFrom : lstSupportedElementTypes)
       {
-        vecCurrentConvertFrom.push_back( _ASTHelper.CreateStringLiteral( string("Convert ") + TypeInfo::GetTypeString(itElementTypeFrom) + string(" to ...") ) );
+        vecCurrentConvertFrom.push_back( _ASTHelper.CreateStringLiteral( std::string("Convert ") + TypeInfo::GetTypeString(itElementTypeFrom) + std::string(" to ...") ) );
 
         ClangASTHelper::StatementVectorType vecCurrentConvertTo;
 
@@ -446,7 +445,7 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
     {
       QualType qtPointerType = _ASTHelper.GetPointerType( _GetClangType(itElementType) );
 
-      VarDecl *pPointerDecl = _ASTHelper.CreateVariableDeclaration( pFunctionDecl, string("p") + TypeInfo::GetTypeString(itElementType), qtPointerType, nullptr );
+      VarDecl *pPointerDecl = _ASTHelper.CreateVariableDeclaration( pFunctionDecl, std::string("p") + TypeInfo::GetTypeString(itElementType), qtPointerType, nullptr );
 
       mapPointerDecls[ itElementType ] = _ASTHelper.CreateDeclarationReferenceExpression( pPointerDecl );
 
@@ -615,7 +614,7 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
     {
       QualType qtPointerType = _ASTHelper.GetPointerType( _GetClangType(itElementType) );
 
-      VarDecl *pPointerDecl = _ASTHelper.CreateVariableDeclaration( pFunctionDecl, string("p") + TypeInfo::GetTypeString(itElementType), qtPointerType, nullptr );
+      VarDecl *pPointerDecl = _ASTHelper.CreateVariableDeclaration( pFunctionDecl, std::string("p") + TypeInfo::GetTypeString(itElementType), qtPointerType, nullptr );
 
       mapPointerDecls[ itElementType ] = _ASTHelper.CreateDeclarationReferenceExpression( pPointerDecl );
 
@@ -644,7 +643,7 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
             continue;
           }
 
-          vecCurrentTransfer.push_back( _ASTHelper.CreateStringLiteral( TypeInfo::GetTypeString(itElementType) + string("[ ") + TypeInfo::GetTypeString(itIndexType) + string(" ]") ) );
+          vecCurrentTransfer.push_back( _ASTHelper.CreateStringLiteral( TypeInfo::GetTypeString(itElementType) + std::string("[ ") + TypeInfo::GetTypeString(itIndexType) + std::string(" ]") ) );
 
           ClangASTHelper::ExpressionVectorType vecIndexVectors;
 
@@ -657,7 +656,7 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
 
           if (i == 0)
           {
-            const uint32_t cuiMaxIndex = max( static_cast<uint32_t>(spInstructionSet->GetVectorElementCount(itIndexType) / spInstructionSet->GetVectorElementCount(itElementType)), static_cast<uint32_t>(1) );
+            const uint32_t cuiMaxIndex = std::max( static_cast<uint32_t>(spInstructionSet->GetVectorElementCount(itIndexType) / spInstructionSet->GetVectorElementCount(itElementType)), static_cast<uint32_t>(1) );
 
             for (uint32_t uiGroupIndex = 0; uiGroupIndex < cuiMaxIndex; ++uiGroupIndex)
             {
@@ -751,11 +750,11 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
   #undef DUMP_INSTR
 }
 
-CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, string strDumpfile, InstructionSetEnum eIntrSet) : _ASTHelper(rASTContext), _uiDumpFlags(0)
+CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, std::string strDumpfile, InstructionSetEnum eIntrSet) : _ASTHelper(rASTContext), _uiDumpFlags(0)
 {
-  typedef pair< string, Vectorization::InstructionSetBasePtr >  InstructionSetInfoPair;
+  typedef std::pair< std::string, Vectorization::InstructionSetBasePtr >  InstructionSetInfoPair;
   
-  list< InstructionSetInfoPair >  lstInstructionSets;
+  std::list< InstructionSetInfoPair >  lstInstructionSets;
 
   switch (eIntrSet)
   {
@@ -798,7 +797,7 @@ CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, string 
 
   if (! vecFunctionDecls.empty())
   {
-    string strErrorInfo;
+    std::string strErrorInfo;
     std::error_code errorCode;
     llvm::raw_fd_ostream outputStream(llvm::StringRef(strDumpfile.c_str()), errorCode, llvm::sys::fs::F_RW); //strErrorInfo);
 
@@ -816,7 +815,7 @@ CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, string 
 
 
 // Implementation of class CPU_x86::HipaccHelper
-int CPU_x86::HipaccHelper::_FindKernelParamIndex(const string &crstrParamName)
+int CPU_x86::HipaccHelper::_FindKernelParamIndex(const std::string &crstrParamName)
 {
   for (unsigned int i = 0; i < _pKernelFunction->getNumParams(); ++i)
   {
@@ -829,7 +828,7 @@ int CPU_x86::HipaccHelper::_FindKernelParamIndex(const string &crstrParamName)
   return -1;
 }
 
-MemoryAccess CPU_x86::HipaccHelper::GetImageAccess(const string &crstrParamName)
+MemoryAccess CPU_x86::HipaccHelper::GetImageAccess(const std::string &crstrParamName)
 {
   int iParamIndex = _FindKernelParamIndex(crstrParamName);
 
@@ -856,7 +855,7 @@ MemoryAccess CPU_x86::HipaccHelper::GetImageAccess(const string &crstrParamName)
   }
 }
 
-HipaccAccessor* CPU_x86::HipaccHelper::GetImageFromMapping(const string &crstrParamName)
+HipaccAccessor* CPU_x86::HipaccHelper::GetImageFromMapping(const std::string &crstrParamName)
 {
   int iParamIndex = _FindKernelParamIndex(crstrParamName);
 
@@ -874,7 +873,7 @@ HipaccAccessor* CPU_x86::HipaccHelper::GetImageFromMapping(const string &crstrPa
   }
 }
 
-HipaccMask* CPU_x86::HipaccHelper::GetMaskFromMapping(const string &crstrParamName)
+HipaccMask* CPU_x86::HipaccHelper::GetMaskFromMapping(const std::string &crstrParamName)
 {
   int iParamIndex = _FindKernelParamIndex(crstrParamName);
 
@@ -1338,7 +1337,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildScalarExpression(AST::BaseClasses
   return pReturnExpr;
 }
 
-CallExpr* CPU_x86::VASTExportInstructionSet::_BuildScalarFunctionCall(string strFunctionName, const ClangASTHelper::ExpressionVectorType &crVecArguments)
+CallExpr* CPU_x86::VASTExportInstructionSet::_BuildScalarFunctionCall(std::string strFunctionName, const ClangASTHelper::ExpressionVectorType &crVecArguments)
 {
   ClangASTHelper::QualTypeVectorType vecArgumentTypes;
 
@@ -1351,7 +1350,7 @@ CallExpr* CPU_x86::VASTExportInstructionSet::_BuildScalarFunctionCall(string str
   ::clang::FunctionDecl *pCalleeDecl = _GetFirstMatchingFunctionDeclaration( strFunctionName, vecArgumentTypes );
   if (pCalleeDecl == nullptr)
   {
-    throw RuntimeErrorException(string("Could not find matching FunctionDecl object for function call \"") + strFunctionName + string("\"!"));
+    throw RuntimeErrorException(std::string("Could not find matching FunctionDecl object for function call \"") + strFunctionName + std::string("\"!"));
   }
 
   return _GetASTHelper().CreateFunctionCall( pCalleeDecl, crVecArguments );
@@ -1448,8 +1447,8 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorConversion(VectorElementTyp
 
 
       // Generate a conversion helper function if required (just for cleaning up the source code a bit)
-      const string cstrConversionHelperName  = string("_ConvertVectorDown")  + AST::BaseClasses::TypeInfo::GetTypeString( ceSourceElementType ) +
-                                              string("To")                  + AST::BaseClasses::TypeInfo::GetTypeString( eTargetElementType );
+      const std::string cstrConversionHelperName  = std::string("_ConvertVectorDown")  + AST::BaseClasses::TypeInfo::GetTypeString( ceSourceElementType ) +
+                                              std::string("To")                  + AST::BaseClasses::TypeInfo::GetTypeString( eTargetElementType );
       {
         ClangASTHelper::QualTypeVectorType vecArgumentTypes;
         for (auto itSubExpr : vecSubExpressions)
@@ -1463,7 +1462,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorConversion(VectorElementTyp
         ClangASTHelper::StringVectorType vecArgumentNames;
         for (size_t szParamIdx = static_cast<size_t>(0); szParamIdx < vecArgumentTypes.size(); ++szParamIdx)
         {
-          stringstream ssParamName;
+          std::stringstream ssParamName;
           ssParamName << "value" << szParamIdx;
           vecArgumentNames.push_back( ssParamName.str() );
         }
@@ -2143,7 +2142,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_ConvertMaskDown(VectorElementTypes eSo
   default:
     {
       // Generate a conversion helper function if required (just for cleaning up the source code a bit)
-      const string cstrConversionHelperName = string("_PackMask") + AST::BaseClasses::TypeInfo::GetTypeString(eSourceElementType);
+      const std::string cstrConversionHelperName = std::string("_PackMask") + AST::BaseClasses::TypeInfo::GetTypeString(eSourceElementType);
       {
         ClangASTHelper::QualTypeVectorType vecArgumentTypes;
         for (auto itSubExpr : crvecSubExpressions)
@@ -2157,7 +2156,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_ConvertMaskDown(VectorElementTypes eSo
         ClangASTHelper::StringVectorType vecArgumentNames;
         for (size_t szParamIdx = static_cast<size_t>(0); szParamIdx < vecArgumentTypes.size(); ++szParamIdx)
         {
-          stringstream ssParamName;
+          std::stringstream ssParamName;
           ssParamName << "mask" << szParamIdx;
           vecArgumentNames.push_back( ssParamName.str() );
         }
@@ -2218,7 +2217,7 @@ CPU_x86::VASTExportInstructionSet::VectorIndex CPU_x86::VASTExportInstructionSet
   return VectorIndex( VectorIndex::IndexTypeEnum::VectorStart, static_cast<uint32_t>(szGroupIndex) * uiElementCount, uiElementCount );
 }
 
-BuiltinFunctionsEnum CPU_x86::VASTExportInstructionSet::_GetBuiltinVectorFunctionType(string strFunctionName)
+BuiltinFunctionsEnum CPU_x86::VASTExportInstructionSet::_GetBuiltinVectorFunctionType(std::string strFunctionName)
 {
   if      (strFunctionName == "abs")                return BuiltinFunctionsEnum::Abs;
   else if (strFunctionName == "ceil")               return BuiltinFunctionsEnum::Ceil;
@@ -2271,7 +2270,7 @@ VectorElementTypes CPU_x86::VASTExportInstructionSet::_GetMaskElementType()
 
 size_t CPU_x86::VASTExportInstructionSet::_GetVectorArraySize(Vectorization::VectorElementTypes eElementType)
 {
-  return max( static_cast<size_t>(1), _cVectorWidth / _spInstructionSet->GetVectorElementCount(eElementType) );
+  return std::max( static_cast<size_t>(1), _cVectorWidth / _spInstructionSet->GetVectorElementCount(eElementType) );
 }
 
 QualType CPU_x86::VASTExportInstructionSet::_GetVectorizedType(AST::BaseClasses::TypeInfo &crOriginalTypeInfo)
@@ -2477,7 +2476,7 @@ void CPU_x86::CodeGenerator::KernelSubFunctionBuilder::AddCallParameter(::clang:
   _vecCallParams.push_back(pCallParam);
 }
 
-CPU_x86::CodeGenerator::KernelSubFunctionBuilder::DeclCallPairType  CPU_x86::CodeGenerator::KernelSubFunctionBuilder::CreateFuntionDeclarationAndCall(string strFunctionName, const ::clang::QualType &crResultType)
+CPU_x86::CodeGenerator::KernelSubFunctionBuilder::DeclCallPairType  CPU_x86::CodeGenerator::KernelSubFunctionBuilder::CreateFuntionDeclarationAndCall(std::string strFunctionName, const ::clang::QualType &crResultType)
 {
   DeclCallPairType pairDeclAndCall;
 
@@ -2500,7 +2499,7 @@ void CPU_x86::CodeGenerator::KernelSubFunctionBuilder::ImportUsedParameters(::cl
   }
 }
 
-bool CPU_x86::CodeGenerator::KernelSubFunctionBuilder::IsVariableUsed(const string &crstrVariableName, ::clang::Stmt *pStatement)
+bool CPU_x86::CodeGenerator::KernelSubFunctionBuilder::IsVariableUsed(const std::string &crstrVariableName, ::clang::Stmt *pStatement)
 {
   return (ClangASTHelper::CountNumberOfReferences(pStatement, crstrVariableName) > 0);
 }
@@ -2515,9 +2514,9 @@ CPU_x86::CodeGenerator::ImageAccessTranslator::ImageAccessTranslator(HipaccHelpe
   _pDRGidY = _ASTHelper.FindDeclaration(pKernelFunction, _rHipaccHelper.GlobalIdY());
 }
 
-list< ::clang::ArraySubscriptExpr* > CPU_x86::CodeGenerator::ImageAccessTranslator::_FindImageAccesses(const string &crstrImageName, ::clang::Stmt *pStatement)
+std::list< ::clang::ArraySubscriptExpr* > CPU_x86::CodeGenerator::ImageAccessTranslator::_FindImageAccesses(const std::string &crstrImageName, ::clang::Stmt *pStatement)
 {
-  list< ::clang::ArraySubscriptExpr* > lstImageAccesses;
+  std::list< ::clang::ArraySubscriptExpr* > lstImageAccesses;
 
   if (pStatement == nullptr)
   {
@@ -2563,7 +2562,7 @@ list< ::clang::ArraySubscriptExpr* > CPU_x86::CodeGenerator::ImageAccessTranslat
   // Parse all children everytime (in case an image access is used as an index expression for another image access)
   for (auto itChild = pStatement->child_begin(); itChild != pStatement->child_end(); itChild++)
   {
-    list< ::clang::ArraySubscriptExpr* > lstImageAccessesInternal = _FindImageAccesses(crstrImageName, *itChild);
+    std::list< ::clang::ArraySubscriptExpr* > lstImageAccessesInternal = _FindImageAccesses(crstrImageName, *itChild);
 
     if (!lstImageAccessesInternal.empty())
     {
@@ -2574,7 +2573,7 @@ list< ::clang::ArraySubscriptExpr* > CPU_x86::CodeGenerator::ImageAccessTranslat
   return lstImageAccesses;
 }
 
-void CPU_x86::CodeGenerator::ImageAccessTranslator::_LinearizeImageAccess(const string &crstrImageName, ::clang::ArraySubscriptExpr *pImageAccessRoot)
+void CPU_x86::CodeGenerator::ImageAccessTranslator::_LinearizeImageAccess(const std::string &crstrImageName, ::clang::ArraySubscriptExpr *pImageAccessRoot)
 {
   // Find the horizontal and vertical index expression of the 2-dimensional image access
   ::clang::Expr *pIndexExprX = pImageAccessRoot->getRHS();
@@ -2632,7 +2631,7 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::_LinearizeImageAccess(const 
 
 ::clang::Expr* CPU_x86::CodeGenerator::ImageAccessTranslator::_SubtractReference(::clang::Expr *pExpression, ::clang::DeclRefExpr *pDRSubtrahend)
 {
-  string        strStripVarName   = pDRSubtrahend->getNameInfo().getAsString();
+  std::string        strStripVarName   = pDRSubtrahend->getNameInfo().getAsString();
   unsigned int  uiReferenceCount  = _ASTHelper.CountNumberOfReferences(pExpression, strStripVarName);
 
   ::clang::Expr *pReturnExpr = nullptr;
@@ -2660,7 +2659,7 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::_LinearizeImageAccess(const 
   return _ASTHelper.CreateParenthesisExpression(pReturnExpr);
 }
 
-bool CPU_x86::CodeGenerator::ImageAccessTranslator::_TryRemoveReference(::clang::Expr *pExpression, string strStripVarName)
+bool CPU_x86::CodeGenerator::ImageAccessTranslator::_TryRemoveReference(::clang::Expr *pExpression, std::string strStripVarName)
 {
   // Try to find the bottom-most operator referencing the stripping variable
   ::clang::Expr           *pCurrentExpression = pExpression;
@@ -2787,7 +2786,7 @@ CPU_x86::CodeGenerator::ImageAccessTranslator::ImageLinePosDeclPairType CPU_x86:
     _rHipaccHelper.MarkParamUsed(pStride->getNameInfo().getAsString());
     ::clang::BinaryOperator *pOffset          = _ASTHelper.CreateBinaryOperator(pStride, _pDRGidY, BO_Mul, _pDRGidY->getType());
     ::clang::BinaryOperator *pPointerAddition = _ASTHelper.CreateBinaryOperator(pImageDeclRef, pOffset, BO_Add, qtImagePointerType);
-    LinePosDeclPair.first                     = _ASTHelper.CreateVariableDeclaration(pKernelFunction, strImageName + string("_CurrentLine"), qtImagePointerType, pPointerAddition);
+    LinePosDeclPair.first                     = _ASTHelper.CreateVariableDeclaration(pKernelFunction, strImageName + std::string("_CurrentLine"), qtImagePointerType, pPointerAddition);
   }
 
   ::clang::DeclRefExpr *pImageLineDeclRef = _ASTHelper.CreateDeclarationReferenceExpression(LinePosDeclPair.first);
@@ -2795,7 +2794,7 @@ CPU_x86::CodeGenerator::ImageAccessTranslator::ImageLinePosDeclPairType CPU_x86:
 
   // Create the declaration of the currently processed image pixel, e.g. "float *Output_CurrentPos = Output_CurrentLine + gid_x;"
   ::clang::BinaryOperator *pPointerAddition = _ASTHelper.CreateBinaryOperator(pImageLineDeclRef, _pDRGidX, BO_Add, qtImagePointerType);
-  LinePosDeclPair.second                    = _ASTHelper.CreateVariableDeclaration(pKernelFunction, strImageName + string("_CurrentPos"), qtImagePointerType, pPointerAddition);
+  LinePosDeclPair.second                    = _ASTHelper.CreateVariableDeclaration(pKernelFunction, strImageName + std::string("_CurrentPos"), qtImagePointerType, pPointerAddition);
 
   return LinePosDeclPair;
 }
@@ -2808,7 +2807,7 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageAccesses(::cla
   for (unsigned int i = 0; i < pKernelFunction->getNumParams(); ++i)
   {
     ::clang::ParmVarDecl  *pParamDecl   = pKernelFunction->getParamDecl(i);
-    string                strParamName  = pParamDecl->getNameAsString();
+    std::string                strParamName  = pParamDecl->getNameAsString();
 
     // Skip all kernel function parameters, which are unused or do not refer to an HIPAcc image
     if ((!_rHipaccHelper.IsParamUsed(strParamName)) || (_rHipaccHelper.GetImageFromMapping(strParamName) == nullptr))
@@ -2817,7 +2816,7 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageAccesses(::cla
     }
 
     // Find all access to the current image
-    list< ::clang::ArraySubscriptExpr* >  lstImageAccesses = _FindImageAccesses(strParamName, pStatement);
+    std::list< ::clang::ArraySubscriptExpr* >  lstImageAccesses = _FindImageAccesses(strParamName, pStatement);
 
     // Linearize all found image accesses
     for (auto itImageAccess : lstImageAccesses)
@@ -2833,7 +2832,7 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageDeclarations(:
   for (unsigned int i = 0; i < pFunctionDecl->getNumParams(); ++i)
   {
     ::clang::ParmVarDecl  *pParamDecl = pFunctionDecl->getParamDecl(i);
-    string                strParamName = pParamDecl->getNameAsString();
+    std::string                strParamName = pParamDecl->getNameAsString();
 
     // Skip all kernel function parameters, which are unused or do not refer to an HIPAcc image
     if ((!_rHipaccHelper.IsParamUsed(strParamName)) || (_rHipaccHelper.GetImageFromMapping(strParamName) == nullptr))
@@ -2900,7 +2899,7 @@ CPU_x86::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompile
 
 size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, CommonDefines::ArgumentVectorType &rvecArguments, size_t szCurrentIndex)
 {
-  string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
+  std::string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
   size_t  szReturnIndex     = szCurrentIndex;
 
   switch (eSwitch)
@@ -2985,9 +2984,9 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
 }
 
 
-string CPU_x86::CodeGenerator::_GetImageDeclarationString(string strName, HipaccMemory *pHipaccMemoryObject, bool bConstPointer)
+std::string CPU_x86::CodeGenerator::_GetImageDeclarationString(std::string strName, HipaccMemory *pHipaccMemoryObject, bool bConstPointer)
 {
-  stringstream FormatStream;
+  std::stringstream FormatStream;
 
   if (bConstPointer)
   {
@@ -3016,9 +3015,9 @@ InstructionSetBasePtr CPU_x86::CodeGenerator::_CreateInstructionSet(::clang::AST
   }
 }
 
-string CPU_x86::CodeGenerator::_FormatFunctionHeader(FunctionDecl *pFunctionDecl, HipaccHelper &rHipaccHelper, bool bCheckUsage, bool bPrintActualImageType)
+std::string CPU_x86::CodeGenerator::_FormatFunctionHeader(FunctionDecl *pFunctionDecl, HipaccHelper &rHipaccHelper, bool bCheckUsage, bool bPrintActualImageType)
 {
-  vector< string > vecParamStrings;
+  std::vector< std::string > vecParamStrings;
 
   // Translate function parameters to declaration strings
   for (size_t i = 0; i < pFunctionDecl->getNumParams(); ++i)
@@ -3053,7 +3052,7 @@ string CPU_x86::CodeGenerator::_FormatFunctionHeader(FunctionDecl *pFunctionDecl
     }
     else                                                                              // normal arguments
     {
-      string strParamBuffer;
+      std::string strParamBuffer;
       llvm::raw_string_ostream ParamStream(strParamBuffer);
 
       pParamDecl->getType().getAsStringInternal(strName, GetPrintingPolicy());
@@ -3077,7 +3076,7 @@ string CPU_x86::CodeGenerator::_FormatFunctionHeader(FunctionDecl *pFunctionDecl
   }
 
 
-  stringstream OutputStream;
+  std::stringstream OutputStream;
 
   // Write function name and qualifiers
   OutputStream << pFunctionDecl->getReturnType().getAsString(GetPrintingPolicy()) << " " << pFunctionDecl->getNameAsString() << "(";
@@ -3098,7 +3097,7 @@ string CPU_x86::CodeGenerator::_FormatFunctionHeader(FunctionDecl *pFunctionDecl
   return OutputStream.str();
 }
 
-string CPU_x86::CodeGenerator::_GetInstructionSetIncludeFile()
+std::string CPU_x86::CodeGenerator::_GetInstructionSetIncludeFile()
 {
   switch (_eInstructionSet)
   {
@@ -3152,7 +3151,7 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
       {
         size_t szMinTypeSize = cszMaxVecWidth;
 
-        vector< string > vecVariableNames = spVecFunction->GetKnownVariableNames();
+        std::vector< std::string > vecVariableNames = spVecFunction->GetKnownVariableNames();
 
         for (auto itVarName : vecVariableNames)
         {
@@ -3234,14 +3233,14 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
       // Mark all HIPAcc images as vectorized variables
       for (unsigned int uiParam = 0; uiParam < pSubFunction->getNumParams(); ++uiParam)
       {
-        string strParamName = pSubFunction->getParamDecl(uiParam)->getNameAsString();
+        std::string strParamName = pSubFunction->getParamDecl(uiParam)->getNameAsString();
 
         if (rHipaccHelper.GetImageFromMapping(strParamName) != nullptr)
         {
           Vectorization::AST::BaseClasses::VariableInfoPtr spVariableInfo = spVecFunction->GetVariableInfo(strParamName);
           if (! spVariableInfo)
           {
-            throw InternalErrorException(string("Missing vectorization parameter: ") + strParamName);
+            throw InternalErrorException(std::string("Missing vectorization parameter: ") + strParamName);
           }
 
           spVariableInfo->SetVectorize(true);
@@ -3280,10 +3279,10 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
         // Each vectorized single value parameter will be converted into a scalar parameter and a new vectorized variable will be created
         if (spParamInfo->GetVectorize() && spParamInfo->GetTypeInfo().IsSingleValue())
         {
-          string strParamName = spParam->GetName();
+          std::string strParamName = spParam->GetName();
 
           // Replace parameter
-          Vectorization::AST::BaseClasses::VariableInfoPtr spNewParamInfo = Vectorization::AST::BaseClasses::VariableInfo::Create( spParamInfo->GetName() + string("_base"), spParamInfo->GetTypeInfo(), false );
+          Vectorization::AST::BaseClasses::VariableInfoPtr spNewParamInfo = Vectorization::AST::BaseClasses::VariableInfo::Create( spParamInfo->GetName() + std::string("_base"), spParamInfo->GetTypeInfo(), false );
           Vectorization::AST::Expressions::IdentifierPtr   spNewParam     = Vectorization::AST::Expressions::Identifier::Create( spNewParamInfo->GetName() );
 
           spVecFunction->SetParameter(iParamIdx, spNewParamInfo);
@@ -3440,7 +3439,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
   // Print the instruction set include directive
   if (_bVectorizeKernel)
   {
-    string strIncludeFile = _GetInstructionSetIncludeFile();
+    std::string strIncludeFile = _GetInstructionSetIncludeFile();
 
     if (! strIncludeFile.empty())
     {
@@ -3486,7 +3485,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
       }
 
 
-      KernelSubFunctionBuilder::DeclCallPairType  DeclCallPair = SubFuncBuilder.CreateFuntionDeclarationAndCall(pKernelFunction->getNameAsString() + string("_Scalar"), pKernelFunction->getReturnType());
+      KernelSubFunctionBuilder::DeclCallPairType  DeclCallPair = SubFuncBuilder.CreateFuntionDeclarationAndCall(pKernelFunction->getNameAsString() + std::string("_Scalar"), pKernelFunction->getReturnType());
       ImgAccessTranslator.TranslateImageDeclarations(DeclCallPair.first, ImageAccessTranslator::ImageDeclarationTypes::NativePointer);
       DeclCallPair.first->setBody(pKernelBody);
 
@@ -3502,7 +3501,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
 
 
       // Vectorize the kernel sub-function and print it
-      ::clang::FunctionDecl *pVecSubFunction = _VectorizeKernelSubFunction(pKernelFunction->getNameAsString() + string("_Vectorized"), DeclCallPair.first, hipaccHelper, rOutputStream);
+      ::clang::FunctionDecl *pVecSubFunction = _VectorizeKernelSubFunction(pKernelFunction->getNameAsString() + std::string("_Vectorized"), DeclCallPair.first, hipaccHelper, rOutputStream);
       pSubFuncCallVectorized = ASTHelper.CreateFunctionCall(pVecSubFunction, SubFuncBuilder.GetCallParameters());
 
       rOutputStream << "inline " << _FormatFunctionHeader(pVecSubFunction, hipaccHelper, false, true);
@@ -3517,7 +3516,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
         ImgAccessTranslator.TranslateImageAccesses(pKernelFunctionNoBH->getBody());
 
 
-        KernelSubFunctionBuilder::DeclCallPairType  DeclCallPairNoBH = SubFuncBuilder.CreateFuntionDeclarationAndCall(pKernelFunctionNoBH->getNameAsString() + string("_Scalar_NoBH"), pKernelFunctionNoBH->getReturnType());
+        KernelSubFunctionBuilder::DeclCallPairType  DeclCallPairNoBH = SubFuncBuilder.CreateFuntionDeclarationAndCall(pKernelFunctionNoBH->getNameAsString() + std::string("_Scalar_NoBH"), pKernelFunctionNoBH->getReturnType());
         ImgAccessTranslator.TranslateImageDeclarations(DeclCallPairNoBH.first, ImageAccessTranslator::ImageDeclarationTypes::NativePointer);
         DeclCallPairNoBH.first->setBody(pKernelFunctionNoBH->getBody());
 
@@ -3533,7 +3532,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
 
 
         // Vectorize the kernel sub-function and print it
-        ::clang::FunctionDecl *pVecSubFunctionNoBH = _VectorizeKernelSubFunction(pKernelFunctionNoBH->getNameAsString() + string("_Vectorized_NoBH"), DeclCallPairNoBH.first, hipaccHelper, rOutputStream);
+        ::clang::FunctionDecl *pVecSubFunctionNoBH = _VectorizeKernelSubFunction(pKernelFunctionNoBH->getNameAsString() + std::string("_Vectorized_NoBH"), DeclCallPairNoBH.first, hipaccHelper, rOutputStream);
         pSubFuncCallVectorizedNoBH = ASTHelper.CreateFunctionCall(pVecSubFunctionNoBH, SubFuncBuilder.GetCallParameters());
 
         rOutputStream << "inline " << _FormatFunctionHeader(pVecSubFunctionNoBH, hipaccHelper, false, true);
@@ -3556,7 +3555,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
         for (unsigned int i = 0; i < pKernelFunction->getNumParams(); ++i)
         {
           ::clang::ParmVarDecl  *pParamDecl   = pKernelFunction->getParamDecl(i);
-          string                strParamName  = pParamDecl->getNameAsString();
+          std::string                strParamName  = pParamDecl->getNameAsString();
 
           // Skip all kernel function parameters, which are unused or to not refer to an HIPAcc image
           if ((! hipaccHelper.IsParamUsed(strParamName)) || (hipaccHelper.GetImageFromMapping(strParamName) == nullptr))

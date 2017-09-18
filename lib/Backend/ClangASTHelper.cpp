@@ -37,10 +37,9 @@
 
 using namespace clang::hipacc::Backend;
 using namespace clang;
-using namespace std;
 
 
-unsigned int ClangASTHelper::CountNumberOfReferences(Stmt *pStatement, const string &crstrReferenceName)
+unsigned int ClangASTHelper::CountNumberOfReferences(Stmt *pStatement, const std::string &crstrReferenceName)
 {
   if (pStatement == nullptr)
   {
@@ -149,10 +148,10 @@ CallExpr* ClangASTHelper::CreateFunctionCall(FunctionDecl *pFunctionDecl, const 
   return ASTNode::createFunctionCall(GetASTContext(), pFunctionDecl, crvecArguments);
 }
 
-FunctionDecl* ClangASTHelper::CreateFunctionDeclaration(string strFunctionName, const QualType &crReturnType, const StringVectorType &crvecArgumentNames, const QualTypeVectorType &crvecArgumentTypes)
+FunctionDecl* ClangASTHelper::CreateFunctionDeclaration(std::string strFunctionName, const QualType &crReturnType, const StringVectorType &crvecArgumentNames, const QualTypeVectorType &crvecArgumentTypes)
 {
   return ASTNode::createFunctionDecl( GetASTContext(), GetASTContext().getTranslationUnitDecl(), strFunctionName, crReturnType,
-                                      ArrayRef< ::clang::QualType >(crvecArgumentTypes), ArrayRef< string >(crvecArgumentNames) );
+                                      ArrayRef< ::clang::QualType >(crvecArgumentTypes), ArrayRef< std::string >(crvecArgumentNames) );
 }
 
 IfStmt* ClangASTHelper::CreateIfStatement(Expr *pCondition, Stmt *pThenBranch, Stmt *pElseBranch)
@@ -262,7 +261,7 @@ CXXStaticCastExpr* ClangASTHelper::CreateStaticCast(Expr *pOperandExpression, co
   return CXXStaticCastExpr::Create(GetASTContext(), crReturnType, eValueKind, eCastKind, pOperandExpression, &CastPath, GetASTContext().getTrivialTypeSourceInfo(crReturnType), SourceLocation(), SourceLocation(), SourceRange());
 }
 
-StringLiteral* ClangASTHelper::CreateStringLiteral(string strValue)
+StringLiteral* ClangASTHelper::CreateStringLiteral(std::string strValue)
 {
   return StringLiteral::Create( GetASTContext(), llvm::StringRef(strValue), StringLiteral::Ascii, false, GetASTContext().getPointerType( GetASTContext().CharTy ), SourceLocation() );
 }
@@ -272,7 +271,7 @@ UnaryOperator* ClangASTHelper::CreateUnaryOperator(Expr *pSubExpression, UnaryOp
   return ASTNode::createUnaryOperator(GetASTContext(), pSubExpression, eOperatorKind, crResultType);
 }
 
-VarDecl* ClangASTHelper::CreateVariableDeclaration(DeclContext *pDeclContext, const string &crstrVariableName, const QualType &crVariableType, Expr *pInitExpression)
+VarDecl* ClangASTHelper::CreateVariableDeclaration(DeclContext *pDeclContext, const std::string &crstrVariableName, const QualType &crVariableType, Expr *pInitExpression)
 {
   VarDecl *pVarDecl = ASTNode::createVarDecl(GetASTContext(), pDeclContext, crstrVariableName, crVariableType, pInitExpression);
   pDeclContext->addDecl(pVarDecl);
@@ -280,7 +279,7 @@ VarDecl* ClangASTHelper::CreateVariableDeclaration(DeclContext *pDeclContext, co
   return pVarDecl;
 }
 
-VarDecl* ClangASTHelper::CreateVariableDeclaration(FunctionDecl *pParentFunction, const string &crstrVariableName, const QualType &crVariableType, Expr *pInitExpression)
+VarDecl* ClangASTHelper::CreateVariableDeclaration(FunctionDecl *pParentFunction, const std::string &crstrVariableName, const QualType &crVariableType, Expr *pInitExpression)
 {
   return CreateVariableDeclaration(FunctionDecl::castToDeclContext(pParentFunction), crstrVariableName, crVariableType, pInitExpression);
 }
@@ -336,7 +335,7 @@ bool ClangASTHelper::AreSignaturesEqual(const FunctionDeclarationVectorType &crv
   return true;
 }
 
-DeclRefExpr* ClangASTHelper::FindDeclaration(FunctionDecl *pFunction, const string &crstrDeclName)
+DeclRefExpr* ClangASTHelper::FindDeclaration(FunctionDecl *pFunction, const std::string &crstrDeclName)
 {
   DeclContext *pDeclContext = FunctionDecl::castToDeclContext(pFunction);
 
@@ -360,9 +359,9 @@ DeclRefExpr* ClangASTHelper::FindDeclaration(FunctionDecl *pFunction, const stri
   return nullptr;
 }
 
-string ClangASTHelper::GetFullyQualifiedFunctionName(FunctionDecl *pFunctionDecl)
+std::string ClangASTHelper::GetFullyQualifiedFunctionName(FunctionDecl *pFunctionDecl)
 {
-  string strFunctionName = pFunctionDecl->getNameAsString();
+  std::string strFunctionName = pFunctionDecl->getNameAsString();
 
   // Unroll the namespaces
   DeclContext  *pNameSpaceDeclContext = pFunctionDecl->getEnclosingNamespaceContext();
@@ -376,7 +375,7 @@ string ClangASTHelper::GetFullyQualifiedFunctionName(FunctionDecl *pFunctionDecl
 
     NamespaceDecl *pNameSpace = NamespaceDecl::castFromDeclContext(pNameSpaceDeclContext);
 
-    strFunctionName = pNameSpace->getNameAsString() + string("::") + strFunctionName;
+    strFunctionName = pNameSpace->getNameAsString() + std::string("::") + strFunctionName;
 
     // Get the parent namespace
     DeclContext *pParentNameSpaceDeclContext = pNameSpaceDeclContext->getParent();
@@ -392,7 +391,7 @@ string ClangASTHelper::GetFullyQualifiedFunctionName(FunctionDecl *pFunctionDecl
   // Remove global namespace specifier if present
   if ((strFunctionName.size() > 2) && (strFunctionName.substr(0, 2) == "::"))
   {
-    strFunctionName = strFunctionName.substr(2, string::npos);
+    strFunctionName = strFunctionName.substr(2, std::string::npos);
   }
 
   return strFunctionName;
@@ -464,7 +463,7 @@ bool ClangASTHelper::IsSingleBranchStatement(Stmt *pStatement)
   }
 }
 
-void ClangASTHelper::ReplaceDeclarationReferences(Stmt* pStatement, const string &crstrDeclRefName, ValueDecl *pNewDecl)
+void ClangASTHelper::ReplaceDeclarationReferences(Stmt* pStatement, const std::string &crstrDeclRefName, ValueDecl *pNewDecl)
 {
   if (pStatement == nullptr)
   {

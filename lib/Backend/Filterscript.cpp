@@ -33,7 +33,6 @@
 #include "hipacc/Backend/Filterscript.h"
 
 using namespace clang::hipacc::Backend;
-using namespace std;
 
 Filterscript::CodeGenerator::Descriptor::Descriptor()
 {
@@ -51,7 +50,7 @@ Filterscript::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCo
 
 size_t Filterscript::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, CommonDefines::ArgumentVectorType &rvecArguments, size_t szCurrentIndex)
 {
-  string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
+  std::string  strCurrentSwitch  = rvecArguments[szCurrentIndex];
   size_t  szReturnIndex     = szCurrentIndex;
 
   switch (eSwitch)
