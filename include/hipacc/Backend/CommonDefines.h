@@ -48,15 +48,15 @@ namespace Backend
   /** \brief  Contains a set of common type definitions, classes etc. for the backend library. */
   namespace CommonDefines
   {
-    typedef std::vector< std::string >              ArgumentVectorType;           //!< Type definition for a vector of command arguments.
+    typedef std::vector<std::string>              ArgumentVectorType;           //!< Type definition for a vector of command arguments.
 
-    typedef std::pair< std::string, std::string >   SwitchDisplayInfoType;        //!< Type definition for the display information of a compiler switch (for the compiler usage).
-    typedef std::vector< SwitchDisplayInfoType >    SwitchDisplayInfoVectorType;  //!< Type definition for a vector of switch display informations.
+    typedef std::pair<std::string, std::string>   SwitchDisplayInfoType;        //!< Type definition for the display information of a compiler switch (for the compiler usage).
+    typedef std::vector<SwitchDisplayInfoType>    SwitchDisplayInfoVectorType;  //!< Type definition for a vector of switch display informations.
 
 
     /** \brief  Encapsulates the necessary information about a known compiler switch.
      *  \tparam SwitchTypeEnum  An (strongly-typed) enumeration type which specifies the known switches of a specific code generator. */
-    template < typename SwitchTypeEnum >
+    template <typename SwitchTypeEnum>
     class CompilerSwitchInfoT final
     {
     private:

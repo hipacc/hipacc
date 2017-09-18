@@ -140,9 +140,9 @@ void Vectorizer::VASTBuilder::_BuildBranchingStatement(::clang::IfStmt *pIfStmt,
 
   // Unroll the "if-else"-cascade in the clang AST
   ::clang::Stmt *pCurrentStatement = pIfStmt;
-  while ( isa< ::clang::IfStmt >(pCurrentStatement) )
+  while (isa<::clang::IfStmt>(pCurrentStatement))
   {
-    pCurrentStatement = _BuildConditionalBranch( dyn_cast< ::clang::IfStmt >(pCurrentStatement), spBranchingStmt );
+    pCurrentStatement = _BuildConditionalBranch( dyn_cast<::clang::IfStmt>(pCurrentStatement), spBranchingStmt );
     if (pCurrentStatement == nullptr)
     {
       break;
@@ -153,9 +153,9 @@ void Vectorizer::VASTBuilder::_BuildBranchingStatement(::clang::IfStmt *pIfStmt,
   AST::ScopePtr spDefaultBranch = spBranchingStmt->GetDefaultBranch();
   if (pCurrentStatement != nullptr)
   {
-    if ( isa< ::clang::CompoundStmt >(pCurrentStatement) )
+    if (isa<::clang::CompoundStmt>(pCurrentStatement))
     {
-      _ConvertScope( spDefaultBranch, dyn_cast< ::clang::CompoundStmt >(pCurrentStatement) );
+      _ConvertScope( spDefaultBranch, dyn_cast<::clang::CompoundStmt>(pCurrentStatement) );
     }
     else
     {
@@ -177,9 +177,9 @@ void Vectorizer::VASTBuilder::_BuildBranchingStatement(::clang::IfStmt *pIfStmt,
   ::clang::Stmt *pIfBody      = pIfStmt->getThen();
   if (pIfBody != nullptr)
   {
-    if ( isa< ::clang::CompoundStmt >(pIfBody) )
+    if (isa<::clang::CompoundStmt>(pIfBody))
     {
-      _ConvertScope(spBranchBody, dyn_cast< ::clang::CompoundStmt >(pIfBody));
+      _ConvertScope(spBranchBody, dyn_cast<::clang::CompoundStmt>(pIfBody));
     }
     else
     {
@@ -196,9 +196,9 @@ void Vectorizer::VASTBuilder::_BuildBranchingStatement(::clang::IfStmt *pIfStmt,
 
 AST::Expressions::ConstantPtr Vectorizer::VASTBuilder::_BuildConstantExpression(::clang::Expr *pExpression)
 {
-  if ( isa< ::clang::IntegerLiteral >(pExpression) )
+  if (isa<::clang::IntegerLiteral>(pExpression))
   {
-    ::clang::IntegerLiteral *pIntLiteral  = dyn_cast< ::clang::IntegerLiteral >(pExpression);
+    ::clang::IntegerLiteral *pIntLiteral  = dyn_cast<::clang::IntegerLiteral>(pExpression);
     llvm::APInt             llvmIntValue  = pIntLiteral->getValue();
 
     bool          bSigned     = pIntLiteral->getType()->isSignedIntegerType();
@@ -208,28 +208,28 @@ AST::Expressions::ConstantPtr Vectorizer::VASTBuilder::_BuildConstantExpression(
 
     if (uiBitWidth <= 8)
     {
-      if (bSigned)  return AST::Expressions::Constant::Create( static_cast<int8_t >(ui64Value) );
-      else          return AST::Expressions::Constant::Create( static_cast<uint8_t>(ui64Value) );
+      if (bSigned)  return AST::Expressions::Constant::Create(static_cast<int8_t >(ui64Value));
+      else          return AST::Expressions::Constant::Create(static_cast<uint8_t>(ui64Value));
     }
     else if (uiBitWidth <= 16)
     {
-      if (bSigned)  return AST::Expressions::Constant::Create( static_cast<int16_t >(ui64Value) );
-      else          return AST::Expressions::Constant::Create( static_cast<uint16_t>(ui64Value) );
+      if (bSigned)  return AST::Expressions::Constant::Create(static_cast<int16_t >(ui64Value));
+      else          return AST::Expressions::Constant::Create(static_cast<uint16_t>(ui64Value));
     }
     else if (uiBitWidth <= 32)
     {
-      if (bSigned)  return AST::Expressions::Constant::Create( static_cast<int32_t >(ui64Value) );
-      else          return AST::Expressions::Constant::Create( static_cast<uint32_t>(ui64Value) );
+      if (bSigned)  return AST::Expressions::Constant::Create(static_cast<int32_t >(ui64Value));
+      else          return AST::Expressions::Constant::Create(static_cast<uint32_t>(ui64Value));
     }
     else
     {
-      if (bSigned)  return AST::Expressions::Constant::Create( static_cast<int64_t >(ui64Value) );
-      else          return AST::Expressions::Constant::Create( static_cast<uint64_t>(ui64Value) );
+      if (bSigned)  return AST::Expressions::Constant::Create(static_cast<int64_t >(ui64Value));
+      else          return AST::Expressions::Constant::Create(static_cast<uint64_t>(ui64Value));
     }
   }
-  else if ( isa< ::clang::FloatingLiteral >(pExpression) )
+  else if (isa<::clang::FloatingLiteral>(pExpression))
   {
-    llvm::APFloat llvmFloatValue = dyn_cast< ::clang::FloatingLiteral >(pExpression)->getValue();
+    llvm::APFloat llvmFloatValue = dyn_cast<::clang::FloatingLiteral>(pExpression)->getValue();
 
     if ( (llvm::APFloat::semanticsPrecision(llvmFloatValue.getSemantics()) == llvm::APFloat::semanticsPrecision(llvm::APFloat::IEEEhalf)) ||
          (llvm::APFloat::semanticsPrecision(llvmFloatValue.getSemantics()) == llvm::APFloat::semanticsPrecision(llvm::APFloat::IEEEsingle)) )
@@ -241,9 +241,9 @@ AST::Expressions::ConstantPtr Vectorizer::VASTBuilder::_BuildConstantExpression(
       return AST::Expressions::Constant::Create( llvmFloatValue.convertToDouble() );
     }
   }
-  else if ( isa< ::clang::CXXBoolLiteralExpr >(pExpression) )
+  else if (isa<::clang::CXXBoolLiteralExpr>(pExpression))
   {
-    return AST::Expressions::Constant::Create( dyn_cast< ::clang::CXXBoolLiteralExpr >(pExpression)->getValue() );
+    return AST::Expressions::Constant::Create(dyn_cast<::clang::CXXBoolLiteralExpr>(pExpression)->getValue());
   }
   else if (isa<::clang::CharacterLiteral>(pExpression))
   {
@@ -258,7 +258,7 @@ AST::Expressions::ConstantPtr Vectorizer::VASTBuilder::_BuildConstantExpression(
 
 AST::Expressions::ConversionPtr Vectorizer::VASTBuilder::_BuildConversionExpression(::clang::CastExpr *pCastExpr)
 {
-  return AST::Expressions::Conversion::Create( _ConvertTypeInfo(pCastExpr->getType()), _BuildExpression(pCastExpr->getSubExpr()), (! isa< ::clang::ImplicitCastExpr >(pCastExpr)) );
+  return AST::Expressions::Conversion::Create( _ConvertTypeInfo(pCastExpr->getType()), _BuildExpression(pCastExpr->getSubExpr()), (!isa<::clang::ImplicitCastExpr>(pCastExpr)) );
 }
 
 AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clang::Expr *pExpression)
@@ -271,13 +271,13 @@ AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clan
       isa<::clang::CharacterLiteral>(pExpression)) {
     spReturnExpression = _BuildConstantExpression(pExpression);
   }
-  else if ( isa< ::clang::DeclRefExpr >(pExpression) )
+  else if (isa<::clang::DeclRefExpr>(pExpression))
   {
-    spReturnExpression = _BuildIdentifier( dyn_cast< ::clang::DeclRefExpr >(pExpression)->getNameInfo().getAsString() );
+    spReturnExpression = _BuildIdentifier( dyn_cast<::clang::DeclRefExpr>(pExpression)->getNameInfo().getAsString() );
   }
-  else if ( isa< ::clang::CompoundAssignOperator >(pExpression) )
+  else if (isa<::clang::CompoundAssignOperator>(pExpression))
   {
-    ::clang::CompoundAssignOperator *pCompoundAssignment  = dyn_cast< ::clang::CompoundAssignOperator >(pExpression);
+    ::clang::CompoundAssignOperator *pCompoundAssignment  = dyn_cast<::clang::CompoundAssignOperator>(pExpression);
     ::clang::Expr                   *pExprLHS             = pCompoundAssignment->getLHS();
     ::clang::Expr                   *pExprRHS             = pCompoundAssignment->getRHS();
     ::clang::BinaryOperatorKind     eOpKind               = pCompoundAssignment->getOpcode();
@@ -299,44 +299,44 @@ AST::BaseClasses::ExpressionPtr Vectorizer::VASTBuilder::_BuildExpression(::clan
 
     spReturnExpression = AST::Expressions::AssignmentOperator::Create( _BuildExpression(pExprLHS), _BuildBinaryOperatorExpression(pExprLHS, pExprRHS, eOpKind) );
   }
-  else if ( isa< ::clang::BinaryOperator >(pExpression) )
+  else if (isa<::clang::BinaryOperator>(pExpression))
   {
-    ::clang::BinaryOperator *pBinOp = dyn_cast< ::clang::BinaryOperator >(pExpression);
+    ::clang::BinaryOperator *pBinOp = dyn_cast<::clang::BinaryOperator>(pExpression);
 
     spReturnExpression = _BuildBinaryOperatorExpression( pBinOp->getLHS(), pBinOp->getRHS(), pBinOp->getOpcode() );
   }
-  else if ( isa< ::clang::CastExpr >(pExpression) )
+  else if (isa<::clang::CastExpr>(pExpression))
   {
-    spReturnExpression = _BuildConversionExpression( dyn_cast< ::clang::CastExpr >(pExpression) );
+    spReturnExpression = _BuildConversionExpression(dyn_cast<::clang::CastExpr>(pExpression));
   }
-  else if ( isa< ::clang::ParenExpr >(pExpression) )
+  else if (isa<::clang::ParenExpr>(pExpression))
   {
-    spReturnExpression = AST::Expressions::Parenthesis::Create( _BuildExpression( dyn_cast< ::clang::ParenExpr >(pExpression)->getSubExpr() ) );
+    spReturnExpression = AST::Expressions::Parenthesis::Create( _BuildExpression(dyn_cast<::clang::ParenExpr>(pExpression)->getSubExpr()) );
   }
-  else if ( isa< ::clang::ArraySubscriptExpr >(pExpression) )
+  else if (isa<::clang::ArraySubscriptExpr>(pExpression))
   {
-    ::clang::ArraySubscriptExpr *pArraySubscript = dyn_cast< ::clang::ArraySubscriptExpr >(pExpression);
+    ::clang::ArraySubscriptExpr *pArraySubscript = dyn_cast<::clang::ArraySubscriptExpr>(pExpression);
 
     spReturnExpression = AST::Expressions::MemoryAccess::Create( _BuildExpression(pArraySubscript->getLHS()), _BuildExpression(pArraySubscript->getRHS()) );
   }
-  else if ( isa< ::clang::UnaryOperator >(pExpression) )
+  else if (isa<::clang::UnaryOperator>(pExpression))
   {
-    ::clang::UnaryOperator      *pUnaryOp = dyn_cast< ::clang::UnaryOperator >(pExpression);
+    ::clang::UnaryOperator      *pUnaryOp = dyn_cast<::clang::UnaryOperator>(pExpression);
     ::clang::Expr               *pSubExpr = pUnaryOp->getSubExpr();
     ::clang::UnaryOperatorKind  eOpCode   = pUnaryOp->getOpcode();
 
     if (eOpCode == ::clang::UO_Deref)
     {
-      spReturnExpression = AST::Expressions::MemoryAccess::Create( _BuildExpression(pSubExpr), AST::Expressions::Constant::Create< int32_t >( 0 ) );
+      spReturnExpression = AST::Expressions::MemoryAccess::Create( _BuildExpression(pSubExpr), AST::Expressions::Constant::Create<int32_t>(0) );
     }
     else
     {
       spReturnExpression = _BuildUnaryOperatorExpression(pSubExpr, eOpCode);
     }
   }
-  else if ( isa< ::clang::CallExpr >(pExpression) )
+  else if (isa<::clang::CallExpr>(pExpression))
   {
-    ::clang::CallExpr *pCallExpr  = dyn_cast< ::clang::CallExpr >(pExpression);
+    ::clang::CallExpr *pCallExpr  = dyn_cast<::clang::CallExpr>(pExpression);
 
     // Build the function call node
     AST::Expressions::FunctionCallPtr spFunctionCall(nullptr);
@@ -394,11 +394,11 @@ void Vectorizer::VASTBuilder::_BuildLoop(::clang::Stmt *pLoopStatement, AST::Sco
   ::clang::Stmt   *pLoopBody  = nullptr;
   ::clang::Expr   *pCondition = nullptr;
 
-  if ( isa< ::clang::ForStmt >(pLoopStatement) )
+  if (isa<::clang::ForStmt>(pLoopStatement))
   {
     spLoop->SetLoopType(AST::ControlFlow::Loop::LoopType::TopControlled);
 
-    ::clang::ForStmt *pForLoop = dyn_cast< ::clang::ForStmt >(pLoopStatement);
+    ::clang::ForStmt *pForLoop = dyn_cast<::clang::ForStmt>(pLoopStatement);
 
     // If we have an init statement, create a container scope around the loop and add the init statement
     if (pForLoop->getInit())
@@ -432,19 +432,19 @@ void Vectorizer::VASTBuilder::_BuildLoop(::clang::Stmt *pLoopStatement, AST::Sco
   {
     spEnclosingScope->AddChild(spLoop);
 
-    if ( isa< ::clang::DoStmt >(pLoopStatement) )
+    if (isa<::clang::DoStmt>(pLoopStatement))
     {
       spLoop->SetLoopType(AST::ControlFlow::Loop::LoopType::BottomControlled);
 
-      ::clang::DoStmt *pDoWhileLoop = dyn_cast< ::clang::DoStmt >(pLoopStatement);
+      ::clang::DoStmt *pDoWhileLoop = dyn_cast<::clang::DoStmt>(pLoopStatement);
       pCondition  = pDoWhileLoop->getCond();
       pLoopBody   = pDoWhileLoop->getBody();
     }
-    else if ( isa< ::clang::WhileStmt >(pLoopStatement) )
+    else if (isa<::clang::WhileStmt>(pLoopStatement))
     {
       spLoop->SetLoopType(AST::ControlFlow::Loop::LoopType::TopControlled);
 
-      ::clang::WhileStmt *pWhileLoop = dyn_cast< ::clang::WhileStmt >(pLoopStatement);
+      ::clang::WhileStmt *pWhileLoop = dyn_cast<::clang::WhileStmt>(pLoopStatement);
       pCondition  = pWhileLoop->getCond();
       pLoopBody   = pWhileLoop->getBody();
     }
@@ -463,9 +463,9 @@ void Vectorizer::VASTBuilder::_BuildLoop(::clang::Stmt *pLoopStatement, AST::Sco
   {
     AST::ScopePtr spLoopBody = spLoop->GetBody();
 
-    if ( isa< ::clang::CompoundStmt >(pLoopBody) )
+    if (isa<::clang::CompoundStmt>(pLoopBody))
     {
-      _ConvertScope(spLoopBody, dyn_cast< ::clang::CompoundStmt >(pLoopBody));
+      _ConvertScope(spLoopBody, dyn_cast<::clang::CompoundStmt>(pLoopBody));
     }
     else
     {
@@ -482,9 +482,9 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
 {
   AST::BaseClasses::NodePtr spStatement(nullptr);
 
-  if ( isa< ::clang::CompoundStmt >(pStatement) )
+  if (isa<::clang::CompoundStmt>(pStatement))
   {
-    ::clang::CompoundStmt *pCurrentCompound = dyn_cast< ::clang::CompoundStmt >(pStatement);
+    ::clang::CompoundStmt *pCurrentCompound = dyn_cast<::clang::CompoundStmt>(pStatement);
 
     AST::ScopePtr spChildScope = AST::Scope::Create();
     spEnclosingScope->AddChild( spChildScope );
@@ -493,9 +493,9 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
 
     spStatement = nullptr;
   }
-  else if ( isa< ::clang::DeclStmt >(pStatement) )
+  else if (isa<::clang::DeclStmt>(pStatement))
   {
-    ::clang::DeclStmt     *pDeclStatement = dyn_cast< ::clang::DeclStmt >(pStatement);
+    ::clang::DeclStmt     *pDeclStatement = dyn_cast<::clang::DeclStmt>(pStatement);
     ::clang::DeclGroupRef  DeclGroup      = pDeclStatement->getDeclGroup();
 
     for (auto itDecl = DeclGroup.begin(); itDecl != DeclGroup.end(); itDecl++)
@@ -505,12 +505,12 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
       {
         continue;
       }
-      else if (! isa< ::clang::VarDecl >(pDecl))
+      else if (!isa<::clang::VarDecl>(pDecl))
       {
         continue;
       }
 
-      ::clang::VarDecl  *pVarDecl = dyn_cast< ::clang::VarDecl >(pDecl);
+      ::clang::VarDecl  *pVarDecl = dyn_cast<::clang::VarDecl>(pDecl);
       spEnclosingScope->AddVariableDeclaration( _BuildVariableInfo(pVarDecl, spEnclosingScope) );
 
       ::clang::Expr     *pInitExpr = pVarDecl->getInit();
@@ -524,9 +524,9 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
 
     spStatement = nullptr;
   }
-  else if ( isa< ::clang::Expr >(pStatement) )
+  else if (isa<::clang::Expr>(pStatement))
   {
-    AST::BaseClasses::ExpressionPtr spExpression = _BuildExpression( dyn_cast< ::clang::Expr >(pStatement) );
+    AST::BaseClasses::ExpressionPtr spExpression = _BuildExpression(dyn_cast<::clang::Expr>(pStatement));
     if (!spExpression)
     {
       throw InternalErrors::NullPointerException("spStatement");
@@ -534,25 +534,25 @@ AST::BaseClasses::NodePtr Vectorizer::VASTBuilder::_BuildStatement(::clang::Stmt
 
     spStatement = spExpression;
   }
-  else if ( isa< ::clang::DoStmt >(pStatement) || isa< ::clang::ForStmt >(pStatement) || isa< ::clang::WhileStmt >(pStatement) )
+  else if (isa<::clang::DoStmt>(pStatement) || isa<::clang::ForStmt>(pStatement) || isa<::clang::WhileStmt>(pStatement) )
   {
     _BuildLoop(pStatement, spEnclosingScope);
   }
-  else if (isa< ::clang::IfStmt >(pStatement))
+  else if (isa<::clang::IfStmt>(pStatement))
   {
-    _BuildBranchingStatement( dyn_cast< ::clang::IfStmt >(pStatement), spEnclosingScope );
+    _BuildBranchingStatement( dyn_cast<::clang::IfStmt>(pStatement), spEnclosingScope );
   }
-  else if (isa< ::clang::BreakStmt >(pStatement))
+  else if (isa<::clang::BreakStmt>(pStatement))
   {
     spStatement = AST::ControlFlow::LoopControlStatement::Create( AST::ControlFlow::LoopControlStatement::LoopControlType::Break );
   }
-  else if (isa< ::clang::ContinueStmt >(pStatement))
+  else if (isa<::clang::ContinueStmt>(pStatement))
   {
     spStatement = AST::ControlFlow::LoopControlStatement::Create( AST::ControlFlow::LoopControlStatement::LoopControlType::Continue );
   }
-  else if (isa< ::clang::ReturnStmt >(pStatement))
+  else if (isa<::clang::ReturnStmt>(pStatement))
   {
-    ::clang::ReturnStmt *pRetStmt = dyn_cast< ::clang::ReturnStmt >(pStatement);
+    ::clang::ReturnStmt *pRetStmt = dyn_cast<::clang::ReturnStmt>(pStatement);
 
     if (pRetStmt->getRetValue() != nullptr)
     {
@@ -637,9 +637,9 @@ void Vectorizer::VASTBuilder::_ConvertTypeInfo(AST::BaseClasses::TypeInfo &rType
 
     if (pArrayType->isConstantArrayType())
     {
-      const ::clang::ConstantArrayType *pConstArrayType = dyn_cast< ::clang::ConstantArrayType >(pArrayType);
+      const ::clang::ConstantArrayType *pConstArrayType = dyn_cast<::clang::ConstantArrayType>(pArrayType);
 
-      rTypeInfo.GetArrayDimensions().push_back( static_cast< size_t >( *(pConstArrayType->getSize().getRawData()) ) );
+      rTypeInfo.GetArrayDimensions().push_back( static_cast<size_t>(*(pConstArrayType->getSize().getRawData())) );
     }
     else
     {
@@ -675,24 +675,24 @@ void Vectorizer::VASTBuilder::_ConvertTypeInfo(AST::BaseClasses::TypeInfo &rType
       typedef ::clang::BuiltinType                    ClangTypes;
       typedef AST::BaseClasses::TypeInfo::KnownTypes  KnownTypes;
 
-      const ::clang::BuiltinType *pBuiltInType = qtSourceType->getAs< ::clang::BuiltinType >();
+      const ::clang::BuiltinType *pBuiltInType = qtSourceType->getAs<::clang::BuiltinType>();
 
       KnownTypes eType;
 
       switch (pBuiltInType->getKind())
       {
-      case ClangTypes::Bool:                              eType = KnownTypes::Bool;     break;
-      case ClangTypes::Char_S: case ClangTypes::SChar:    eType = KnownTypes::Int8;     break;
-      case ClangTypes::Char_U: case ClangTypes::UChar:    eType = KnownTypes::UInt8;    break;
-      case ClangTypes::Short:                             eType = KnownTypes::Int16;    break;
-      case ClangTypes::UShort:                            eType = KnownTypes::UInt16;   break;
-      case ClangTypes::Int:                               eType = KnownTypes::Int32;    break;
-      case ClangTypes::UInt:                              eType = KnownTypes::UInt32;   break;
-      case ClangTypes::Long:                              eType = KnownTypes::Int64;    break;
-      case ClangTypes::ULong:                             eType = KnownTypes::UInt64;   break;
-      case ClangTypes::Float:                             eType = KnownTypes::Float;    break;
-      case ClangTypes::Double:                            eType = KnownTypes::Double;   break;
-      default:                                            throw RuntimeErrorException("Unsupported built-in type detected!");
+      case ClangTypes::Bool:                           eType = KnownTypes::Bool;   break;
+      case ClangTypes::Char_S: case ClangTypes::SChar: eType = KnownTypes::Int8;   break;
+      case ClangTypes::Char_U: case ClangTypes::UChar: eType = KnownTypes::UInt8;  break;
+      case ClangTypes::Short:                          eType = KnownTypes::Int16;  break;
+      case ClangTypes::UShort:                         eType = KnownTypes::UInt16; break;
+      case ClangTypes::Int:                            eType = KnownTypes::Int32;  break;
+      case ClangTypes::UInt:                           eType = KnownTypes::UInt32; break;
+      case ClangTypes::Long:                           eType = KnownTypes::Int64;  break;
+      case ClangTypes::ULong:                          eType = KnownTypes::UInt64; break;
+      case ClangTypes::Float:                          eType = KnownTypes::Float;  break;
+      case ClangTypes::Double:                         eType = KnownTypes::Double; break;
+      default:                                         throw RuntimeErrorException("Unsupported built-in type detected!");
       }
 
       rTypeInfo.SetType(eType);
@@ -722,12 +722,12 @@ AST::FunctionDeclarationPtr Vectorizer::VASTBuilder::BuildFunctionDecl(::clang::
 
   ::clang::Stmt* pBody = pFunctionDeclaration->getBody();
 
-  if ((pBody == nullptr) || (! isa< ::clang::CompoundStmt >(pBody)))
+  if ((pBody == nullptr) || (!isa<::clang::CompoundStmt>(pBody)))
   {
     throw RuntimeErrorException("Invalid function body");
   }
 
-  _ConvertScope(spFunctionDecl->GetBody(), dyn_cast< ::clang::CompoundStmt >(pBody));
+  _ConvertScope(spFunctionDecl->GetBody(), dyn_cast<::clang::CompoundStmt>(pBody));
 
   return spFunctionDecl;
 }
@@ -790,19 +790,19 @@ void Vectorizer::VASTExporterBase::_AddKnownFunctionDeclaration(::clang::Functio
 
   switch (spConstant->GetValueType())
   {
-  case KnownTypes::Bool:      return _GetASTHelper().CreateLiteral( spConstant->GetValue< bool     >() );
-  case KnownTypes::Int8:      return _GetASTHelper().CreateLiteral( spConstant->GetValue< int8_t   >() );
-  case KnownTypes::UInt8:     return _GetASTHelper().CreateLiteral( spConstant->GetValue< uint8_t  >() );
-  case KnownTypes::Int16:     return _GetASTHelper().CreateLiteral( spConstant->GetValue< int16_t  >() );
-  case KnownTypes::UInt16:    return _GetASTHelper().CreateLiteral( spConstant->GetValue< uint16_t >() );
-  case KnownTypes::Int32:     return _GetASTHelper().CreateLiteral( spConstant->GetValue< int32_t  >() );
-  case KnownTypes::UInt32:    return _GetASTHelper().CreateLiteral( spConstant->GetValue< uint32_t >() );
-  case KnownTypes::Int64:     return _GetASTHelper().CreateLiteral( spConstant->GetValue< int64_t  >() );
-  case KnownTypes::UInt64:    return _GetASTHelper().CreateLiteral( spConstant->GetValue< uint64_t >() );
-  case KnownTypes::Float:     return _GetASTHelper().CreateLiteral( spConstant->GetValue< float    >() );
-  case KnownTypes::Double:    return _GetASTHelper().CreateLiteral( spConstant->GetValue< double   >() );
-  case KnownTypes::Unknown:   throw RuntimeErrorException("VAST constant type is unknown!");
-  default:                    throw InternalErrorException("Unsupported VAST constant type detected!");
+  case KnownTypes::Bool:    return _GetASTHelper().CreateLiteral(spConstant->GetValue<bool    >());
+  case KnownTypes::Int8:    return _GetASTHelper().CreateLiteral(spConstant->GetValue<int8_t  >());
+  case KnownTypes::UInt8:   return _GetASTHelper().CreateLiteral(spConstant->GetValue<uint8_t >());
+  case KnownTypes::Int16:   return _GetASTHelper().CreateLiteral(spConstant->GetValue<int16_t >());
+  case KnownTypes::UInt16:  return _GetASTHelper().CreateLiteral(spConstant->GetValue<uint16_t>());
+  case KnownTypes::Int32:   return _GetASTHelper().CreateLiteral(spConstant->GetValue<int32_t >());
+  case KnownTypes::UInt32:  return _GetASTHelper().CreateLiteral(spConstant->GetValue<uint32_t>());
+  case KnownTypes::Int64:   return _GetASTHelper().CreateLiteral(spConstant->GetValue<int64_t >());
+  case KnownTypes::UInt64:  return _GetASTHelper().CreateLiteral(spConstant->GetValue<uint64_t>());
+  case KnownTypes::Float:   return _GetASTHelper().CreateLiteral(spConstant->GetValue<float   >());
+  case KnownTypes::Double:  return _GetASTHelper().CreateLiteral(spConstant->GetValue<double  >());
+  case KnownTypes::Unknown: throw RuntimeErrorException("VAST constant type is unknown!");
+  default:                  throw InternalErrorException("Unsupported VAST constant type detected!");
   }
 }
 
@@ -1141,7 +1141,7 @@ void Vectorizer::VASTExporterBase::_AddKnownFunctionDeclaration(::clang::Functio
 
 ::clang::FunctionDecl* Vectorizer::VASTExporterBase::_GetFirstMatchingFunctionDeclaration(std::string strFunctionName, const QualTypeVectorType &crvecArgTypes)
 {
-  const unsigned int cuiArgumentCount = static_cast< unsigned int >( crvecArgTypes.size() );
+  const unsigned int cuiArgumentCount = static_cast<unsigned int>(crvecArgTypes.size());
 
   // Find the first exactly matching function
   FunctionDeclVectorType vecFunctionDecls = _GetMatchingFunctionDeclarations( strFunctionName, cuiArgumentCount );
@@ -1229,7 +1229,7 @@ void Vectorizer::VASTExporterBase::_Reset()
   switch (_ceIndexType)
   {
   case VectorIndexType::Constant:     return rASTHelper.CreateIntegerLiteral( static_cast<int32_t>(_ciVectorIndex) );
-  case VectorIndexType::Identifier:   return rASTHelper.CreateDeclarationReferenceExpression( const_cast< ::clang::ValueDecl* >( _cpIndexExprDecl ) );
+  case VectorIndexType::Identifier:   return rASTHelper.CreateDeclarationReferenceExpression( const_cast<::clang::ValueDecl*>(_cpIndexExprDecl) );
   default:                            throw InternalErrorException("Unknown vector index type!");
   }
 }
@@ -1767,7 +1767,7 @@ void Vectorizer::Transformations::CheckInternalDeclaration::Execute(AST::ScopePt
 
 void Vectorizer::Transformations::FindBranchingInternalAssignments::Execute(AST::ControlFlow::BranchingStatementPtr spBranchingStmt)
 {
-  std::list< AST::BaseClasses::ExpressionPtr > lstConditions;
+  std::list<AST::BaseClasses::ExpressionPtr> lstConditions;
 
   // Find all assignments in every conditional branch => each branch depends on its condition as well as on the conditions of the preceding branches
   for (IndexType iBranchIdx = static_cast<IndexType>(0); iBranchIdx < spBranchingStmt->GetConditionalBranchesCount(); ++iBranchIdx)
@@ -1968,13 +1968,13 @@ void Vectorizer::Transformations::InsertRequiredConversions::Execute(AST::Expres
     if (spCurrentBinOp->GetResultType().GetType() == AST::BaseClasses::TypeInfo::KnownTypes::Int32)
     {
       // Remove constant promotions to 32-bit integer type (clang-specific) beacuse they leed to undesired, expensive vector conversions
-      if (spLHS->IsType< AST::Expressions::Constant >())
+      if (spLHS->IsType<AST::Expressions::Constant>())
       {
-        spLHS->CastToType< AST::Expressions::Constant >()->ChangeType( spRHS->GetResultType().GetType() );
+        spLHS->CastToType<AST::Expressions::Constant>()->ChangeType( spRHS->GetResultType().GetType() );
       }
-      else if (spRHS->IsType< AST::Expressions::Constant >())
+      else if (spRHS->IsType<AST::Expressions::Constant>())
       {
-        spRHS->CastToType< AST::Expressions::Constant >()->ChangeType( spLHS->GetResultType().GetType() );
+        spRHS->CastToType<AST::Expressions::Constant>()->ChangeType( spLHS->GetResultType().GetType() );
       }
     }
   }
@@ -1983,7 +1983,7 @@ void Vectorizer::Transformations::InsertRequiredConversions::Execute(AST::Expres
   // Convert the sub-expressions to the corresponding type
   if (spCurrentBinOp->IsType<AST::Expressions::ArithmeticOperator>())
   {
-    AST::BaseClasses::TypeInfo ResultType = spCurrentBinOp->CastToType< AST::Expressions::ArithmeticOperator >()->GetResultType();
+    AST::BaseClasses::TypeInfo ResultType = spCurrentBinOp->CastToType<AST::Expressions::ArithmeticOperator>()->GetResultType();
 
     if (! spLHS->GetResultType().IsEqual(ResultType, true))
     {
@@ -2006,7 +2006,7 @@ void Vectorizer::Transformations::InsertRequiredConversions::Execute(AST::Expres
   }
   else if (spCurrentBinOp->IsType<AST::Expressions::RelationalOperator>())
   {
-    AST::BaseClasses::TypeInfo ComparisonType = spCurrentBinOp->CastToType< AST::Expressions::RelationalOperator >()->GetComparisonType();
+    AST::BaseClasses::TypeInfo ComparisonType = spCurrentBinOp->CastToType<AST::Expressions::RelationalOperator>()->GetComparisonType();
 
     if (! spLHS->GetResultType().IsEqual(ComparisonType, true))
     {
@@ -2086,7 +2086,7 @@ void Vectorizer::Transformations::SeparateBranchingStatements::Execute(AST::Cont
 {
   if (spBranchingStmt->IsVectorized())
   {
-    IndexType iFirstVecBranch = static_cast< IndexType >( 0 );
+    IndexType iFirstVecBranch = static_cast<IndexType>(0);
     for (IndexType iBranchIdx = static_cast<IndexType>(0); iBranchIdx < spBranchingStmt->GetConditionalBranchesCount(); ++iBranchIdx)
     {
       if (spBranchingStmt->GetConditionalBranch(iBranchIdx)->IsVectorized())
@@ -2114,7 +2114,7 @@ void Vectorizer::Transformations::SeparateBranchingStatements::Execute(AST::Cont
     AST::ScopePtr spDefaultBranch     = spBranchingStmt->GetDefaultBranch();
     AST::ScopePtr spDefaultBranchNew  = spVecBranchStatement->GetDefaultBranch();
 
-    while (spDefaultBranch->GetChildCount() > static_cast< IndexType >(0))
+    while (spDefaultBranch->GetChildCount() > static_cast<IndexType>(0))
     {
       spDefaultBranchNew->AddChild( spDefaultBranch->GetChild(0) );
 
@@ -2266,7 +2266,7 @@ void Vectorizer::DumpVASTNodeToXML(AST::BaseClasses::NodePtr spVastNode, std::st
 
 void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 {
-  typedef std::map< AST::BaseClasses::NodePtr, std::list< std::string > >      ControlMaskMapType;
+  typedef std::map<AST::BaseClasses::NodePtr, std::list<std::string>> ControlMaskMapType;
 
   const AST::BaseClasses::TypeInfo  MaskTypeInfo(AST::BaseClasses::TypeInfo::KnownTypes::Bool, false, false);
   ControlMaskMapType                mapControlMasks;
@@ -2277,7 +2277,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
 
   // Find all return statements and create a function control mask if required
-  Transformations::FindNodes< AST::ControlFlow::ReturnStatement >   ReturnStmtFinder(Transformations::DirectionType::TopDown);
+  Transformations::FindNodes<AST::ControlFlow::ReturnStatement> ReturnStmtFinder(Transformations::DirectionType::TopDown);
   {
     Transformations::Run(spFunction, ReturnStmtFinder);
 
@@ -2315,7 +2315,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
   // Find vectorized loop control statement which control a scalar loop (which must be forced to a vectorized loop)
   {
-    Transformations::FindNodes< AST::ControlFlow::LoopControlStatement >  LoopControlFinder;
+    Transformations::FindNodes<AST::ControlFlow::LoopControlStatement> LoopControlFinder;
     Transformations::Run(spFunction, LoopControlFinder);
 
     for (auto itLoopControl : LoopControlFinder.lstFoundNodes)
@@ -2333,9 +2333,9 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
 
   // Find all vectorized loops and branching statements in hierarchical order
-  std::list< AST::BaseClasses::ControlFlowStatementPtr >  lstControlFlowStatements;
+  std::list<AST::BaseClasses::ControlFlowStatementPtr> lstControlFlowStatements;
   {
-    Transformations::FindNodes< AST::BaseClasses::ControlFlowStatement >  ControlFlowFinder( Transformations::DirectionType::TopDown );
+    Transformations::FindNodes<AST::BaseClasses::ControlFlowStatement> ControlFlowFinder( Transformations::DirectionType::TopDown );
 
     Transformations::Run(spFunction, ControlFlowFinder);
 
@@ -2395,8 +2395,8 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
 
       // Definitions for the latter assignment masking
-      std::string                                          strCurrentMaskName;
-      std::list< AST::Expressions::AssignmentOperatorPtr > lstInternalAssignments;
+      std::string                                        strCurrentMaskName;
+      std::list<AST::Expressions::AssignmentOperatorPtr> lstInternalAssignments;
 
 
       // Rebuild the corresponding control flow statement
@@ -2439,7 +2439,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
           // Check if a local control mask is required
           bool bUseLocalMask = false;
           {
-            Transformations::FindNodes< AST::ControlFlow::LoopControlStatement >  LoopControlFinder( Transformations::DirectionType::TopDown );
+            Transformations::FindNodes<AST::ControlFlow::LoopControlStatement> LoopControlFinder( Transformations::DirectionType::TopDown );
             Transformations::Run(spLoopBody, LoopControlFinder);
 
             // The local control mask is only required if "continue" statements are present for this loop
@@ -2628,7 +2628,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
   // Convert loop control statements
   {
-    Transformations::FindNodes< AST::ControlFlow::LoopControlStatement >  LoopControlFinder;
+    Transformations::FindNodes<AST::ControlFlow::LoopControlStatement> LoopControlFinder;
     Transformations::Run(spFunction, LoopControlFinder);
 
     for (auto itLoopControl : LoopControlFinder.lstFoundNodes)
@@ -2636,7 +2636,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
       AST::ControlFlow::LoopPtr spControlledLoop = itLoopControl->GetControlledLoop();
 
       // Find the affected control masks of this loop control statement
-      std::list< std::string >  lstAffectedControlMasks;
+      std::list<std::string> lstAffectedControlMasks;
       {
         AST::BaseClasses::NodePtr spCurrentNode = itLoopControl;
         while (true)
@@ -2719,7 +2719,7 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
     for (auto itReturnStmt : ReturnStmtFinder.lstFoundNodes)
     {
       // Find the affected control masks of this loop control statement
-      std::list< std::string >  lstAffectedControlMasks;
+      std::list<std::string> lstAffectedControlMasks;
       {
         AST::BaseClasses::NodePtr spCurrentNode = itReturnStmt;
         while (true)
@@ -2773,19 +2773,19 @@ void Vectorizer::RebuildControlFlow(AST::FunctionDeclarationPtr spFunction)
 
 void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bEnsureMonoTypeVectorExpressions)
 {
-  Transformations::RunSimple< Transformations::RemoveImplicitConversions >( spFunction );
+  Transformations::RunSimple<Transformations::RemoveImplicitConversions>(spFunction);
 
-  Transformations::RunSimple< Transformations::InsertRequiredConversions >( spFunction );
+  Transformations::RunSimple<Transformations::InsertRequiredConversions>(spFunction);
 
-  RemoveUnnecessaryConversions( spFunction );
+  RemoveUnnecessaryConversions(spFunction);
 
-  Transformations::RunSimple< Transformations::InsertRequiredBroadcasts >( spFunction );
+  Transformations::RunSimple<Transformations::InsertRequiredBroadcasts>(spFunction);
 
   if (bEnsureMonoTypeVectorExpressions)
   {
     // Remove all vector conversion expressions from all expressions except direct assignments => All vector expressions will have only a single vector type now
     {
-      Transformations::FindNodes< AST::Expressions::Conversion >  ConversionFinder( Transformations::DirectionType::BottomUp );
+      Transformations::FindNodes<AST::Expressions::Conversion> ConversionFinder(Transformations::DirectionType::BottomUp);
       Transformations::Run( spFunction, ConversionFinder );
 
       for (auto itConversion : ConversionFinder.lstFoundNodes)
@@ -2810,7 +2810,7 @@ void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bE
 
     // Re-arrange broadcast expressions => avoid unnecessary computations
     {
-      Transformations::FindNodes< AST::VectorSupport::BroadCast >  BroadCastFinder(Transformations::DirectionType::BottomUp);
+      Transformations::FindNodes<AST::VectorSupport::BroadCast> BroadCastFinder(Transformations::DirectionType::BottomUp);
       Transformations::Run( spFunction, BroadCastFinder );
 
       for (auto itBroadCast : BroadCastFinder.lstFoundNodes)
@@ -2828,7 +2828,7 @@ void Vectorizer::RebuildDataFlow(AST::FunctionDeclarationPtr spFunction, bool bE
 
 void Vectorizer::VectorizeFunction(AST::FunctionDeclarationPtr spFunction)
 {
-  typedef std::map< AST::BaseClasses::VariableInfoPtr, std::list< AST::BaseClasses::ExpressionPtr > >   VariableDependencyMapType;
+  typedef std::map<AST::BaseClasses::VariableInfoPtr, std::list<AST::BaseClasses::ExpressionPtr>> VariableDependencyMapType;
 
   if (! spFunction)
   {

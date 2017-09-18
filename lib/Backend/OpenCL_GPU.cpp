@@ -45,15 +45,15 @@ OpenCL_GPU::CodeGenerator::Descriptor::Descriptor()
 
 OpenCL_GPU::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions)  : BaseType(pCompilerOptions, Descriptor())
 {
-  _InitSwitch< AcceleratorDeviceSwitches::EmitPadding     >(CompilerSwitchTypeEnum::EmitPadding);
-  _InitSwitch< AcceleratorDeviceSwitches::ExploreConfig   >(CompilerSwitchTypeEnum::ExploreConfig);
-  _InitSwitch< AcceleratorDeviceSwitches::PixelsPerThread >(CompilerSwitchTypeEnum::PixelsPerThread);
-  _InitSwitch< AcceleratorDeviceSwitches::Target          >(CompilerSwitchTypeEnum::Target);
-  _InitSwitch< AcceleratorDeviceSwitches::TimeKernels     >(CompilerSwitchTypeEnum::TimeKernels);
-  _InitSwitch< AcceleratorDeviceSwitches::UseConfig       >(CompilerSwitchTypeEnum::UseConfig);
-  _InitSwitch< AcceleratorDeviceSwitches::UseLocal        >(CompilerSwitchTypeEnum::UseLocal);
-  _InitSwitch< AcceleratorDeviceSwitches::UseTextures     >(CompilerSwitchTypeEnum::UseTextures);
-  _InitSwitch< AcceleratorDeviceSwitches::Vectorize       >(CompilerSwitchTypeEnum::Vectorize);
+  _InitSwitch<AcceleratorDeviceSwitches::EmitPadding    >(CompilerSwitchTypeEnum::EmitPadding);
+  _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig  >(CompilerSwitchTypeEnum::ExploreConfig);
+  _InitSwitch<AcceleratorDeviceSwitches::PixelsPerThread>(CompilerSwitchTypeEnum::PixelsPerThread);
+  _InitSwitch<AcceleratorDeviceSwitches::Target         >(CompilerSwitchTypeEnum::Target);
+  _InitSwitch<AcceleratorDeviceSwitches::TimeKernels    >(CompilerSwitchTypeEnum::TimeKernels);
+  _InitSwitch<AcceleratorDeviceSwitches::UseConfig      >(CompilerSwitchTypeEnum::UseConfig);
+  _InitSwitch<AcceleratorDeviceSwitches::UseLocal       >(CompilerSwitchTypeEnum::UseLocal);
+  _InitSwitch<AcceleratorDeviceSwitches::UseTextures    >(CompilerSwitchTypeEnum::UseTextures);
+  _InitSwitch<AcceleratorDeviceSwitches::Vectorize      >(CompilerSwitchTypeEnum::Vectorize);
 }
 
 
@@ -66,7 +66,7 @@ size_t OpenCL_GPU::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, 
   {
   case CompilerSwitchTypeEnum::EmitPadding:
     {
-      GetCompilerOptions().setPadding(_ParseOption< AcceleratorDeviceSwitches::EmitPadding >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setPadding(_ParseOption<AcceleratorDeviceSwitches::EmitPadding>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;
@@ -75,13 +75,13 @@ size_t OpenCL_GPU::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, 
     break;
   case CompilerSwitchTypeEnum::PixelsPerThread:
     {
-      GetCompilerOptions().setPixelsPerThread(_ParseOption< AcceleratorDeviceSwitches::PixelsPerThread >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setPixelsPerThread(_ParseOption<AcceleratorDeviceSwitches::PixelsPerThread>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;
   case CompilerSwitchTypeEnum::Target:
     {
-      GetCompilerOptions().setTargetDevice(_ParseOption< AcceleratorDeviceSwitches::Target >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setTargetDevice(_ParseOption<AcceleratorDeviceSwitches::Target>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;
@@ -92,7 +92,7 @@ size_t OpenCL_GPU::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, 
     {
       typedef AcceleratorDeviceSwitches::UseConfig  SwitchType;
 
-      SwitchType::OptionParser::ReturnType  Value = _ParseOption< SwitchType >(rvecArguments, szCurrentIndex);
+      SwitchType::OptionParser::ReturnType  Value = _ParseOption<SwitchType>(rvecArguments, szCurrentIndex);
 
       GetCompilerOptions().setKernelConfig(Value.first, Value.second);
       ++szReturnIndex;
@@ -100,19 +100,19 @@ size_t OpenCL_GPU::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, 
     break;
   case CompilerSwitchTypeEnum::UseLocal:
     {
-      GetCompilerOptions().setLocalMemory(_ParseOption< AcceleratorDeviceSwitches::UseLocal >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setLocalMemory(_ParseOption<AcceleratorDeviceSwitches::UseLocal>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;
   case CompilerSwitchTypeEnum::UseTextures:
     {
-      GetCompilerOptions().setTextureMemory(_ParseOption< AcceleratorDeviceSwitches::UseTextures >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setTextureMemory(_ParseOption<AcceleratorDeviceSwitches::UseTextures>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;
   case CompilerSwitchTypeEnum::Vectorize:
     {
-      GetCompilerOptions().setVectorizeKernels(_ParseOption< AcceleratorDeviceSwitches::Vectorize >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setVectorizeKernels(_ParseOption<AcceleratorDeviceSwitches::Vectorize>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;

@@ -66,12 +66,12 @@ namespace Backend
 
     /** \brief    The OpenCL code generator for accelerator cards.
      *  \extends  CodeGeneratorBaseImplT */
-    class CodeGenerator final : public CodeGeneratorBaseImplT< CompilerSwitchTypeEnum >
+    class CodeGenerator final : public CodeGeneratorBaseImplT<CompilerSwitchTypeEnum>
     {
     private:
 
-      typedef CodeGeneratorBaseImplT< CompilerSwitchTypeEnum >  BaseType;                 //!< The type of the base class.
-      typedef BaseType::CompilerSwitchInfoType                  CompilerSwitchInfoType;   //!< The type of the switch information class for this code generator.
+      typedef CodeGeneratorBaseImplT<CompilerSwitchTypeEnum> BaseType;                 //!< The type of the base class.
+      typedef BaseType::CompilerSwitchInfoType               CompilerSwitchInfoType;   //!< The type of the switch information class for this code generator.
 
       /** \brief    The specific descriptor class for this code generator.
        *  \extends  CodeGeneratorBaseImplT::CodeGeneratorDescriptorBase */

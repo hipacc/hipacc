@@ -49,13 +49,13 @@ namespace Backend
   {
   public:
 
-    template <typename ElementType>   using VectorType = ::llvm::SmallVector< ElementType, 16U >;   //!< Type alias for LLVM SmallVector type
+    template <typename ElementType>   using VectorType = ::llvm::SmallVector<ElementType, 16U>;   //!< Type alias for LLVM SmallVector type
 
-    typedef VectorType< ::clang::Expr* >          ExpressionVectorType;             //!< Type definition for a vector of expressions.
-    typedef VectorType< ::clang::FunctionDecl* >  FunctionDeclarationVectorType;    //!< Type definition for a vector of function declarations.
-    typedef VectorType< ::clang::QualType >       QualTypeVectorType;               //!< Type definition for a vector of qualified types.
-    typedef VectorType< ::clang::Stmt* >          StatementVectorType;              //!< Type definition for a vector of statements.
-    typedef VectorType< std::string >             StringVectorType;                 //!< Type definition for a vector of strings.
+    typedef VectorType<::clang::Expr*>          ExpressionVectorType;             //!< Type definition for a vector of expressions.
+    typedef VectorType<::clang::FunctionDecl*>  FunctionDeclarationVectorType;    //!< Type definition for a vector of function declarations.
+    typedef VectorType<::clang::QualType>       QualTypeVectorType;               //!< Type definition for a vector of qualified types.
+    typedef VectorType<::clang::Stmt*>          StatementVectorType;              //!< Type definition for a vector of statements.
+    typedef VectorType<std::string>             StringVectorType;                 //!< Type definition for a vector of strings.
 
   private:
 
@@ -154,7 +154,7 @@ namespace Backend
     template <typename ValueType>
     ::clang::FloatingLiteral*         CreateFloatingLiteral(ValueType TValue)
     {
-      static_assert( ! std::numeric_limits< ValueType >::is_integer, "The value type of a floating point literal cannot be of an integer type!" );
+      static_assert( ! std::numeric_limits<ValueType>::is_integer, "The value type of a floating point literal cannot be of an integer type!" );
 
       return ASTNode::createFloatingLiteral(GetASTContext(), TValue);
     }
@@ -201,7 +201,7 @@ namespace Backend
     template <typename ValueType>
     ::clang::IntegerLiteral*          CreateIntegerLiteral(ValueType TValue)
     {
-      static_assert( std::numeric_limits< ValueType >::is_integer, "The value type of an integer literal must be of an integer type!" );
+      static_assert( std::numeric_limits<ValueType>::is_integer, "The value type of an integer literal must be of an integer type!" );
 
       return ASTNode::createIntegerLiteral(GetASTContext(), TValue);
     }

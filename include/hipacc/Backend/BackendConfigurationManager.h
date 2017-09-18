@@ -71,11 +71,11 @@ namespace Backend
     };
 
 
-    typedef CommonDefines::CompilerSwitchInfoT< CompilerSwitchTypeEnum >  CompilerSwitchInfoType;   //!< Type definition for the switch information class.
+    typedef CommonDefines::CompilerSwitchInfoT<CompilerSwitchTypeEnum> CompilerSwitchInfoType;   //!< Type definition for the switch information class.
 
-    typedef std::map< std::string, CompilerSwitchInfoType >   CompilerSwitchMapType;  //!< Type definition for the dictionary of known compiler switches.
-    typedef std::map< std::string, std::string >              SwitchAliasMapType;     //!< Type definition for the dictionary of known compiler switch aliases.
-    typedef std::map< std::string, ICodeGeneratorPtr >        CodeGeneratorsMapType;  //!< Type definition for the dictionary of known code generators.
+    typedef std::map<std::string, CompilerSwitchInfoType>   CompilerSwitchMapType;  //!< Type definition for the dictionary of known compiler switches.
+    typedef std::map<std::string, std::string>              SwitchAliasMapType;     //!< Type definition for the dictionary of known compiler switch aliases.
+    typedef std::map<std::string, ICodeGeneratorPtr>        CodeGeneratorsMapType;  //!< Type definition for the dictionary of known code generators.
 
     //@}
 
@@ -90,7 +90,7 @@ namespace Backend
     {
     public:
 
-      typedef std::vector< std::string >  AliasesVectorType;  //!< Type definition for a vector of aliases for a switch
+      typedef std::vector<std::string> AliasesVectorType;  //!< Type definition for a vector of aliases for a switch
 
     public:
 
@@ -258,7 +258,7 @@ namespace Backend
     {
       typedef typename BackendType::CodeGenerator   GeneratorType;
 
-      static_assert(std::is_base_of< ICodeGenerator, GeneratorType >::value, "Code generators must be derived from \"ICodeGenerator\"");
+      static_assert(std::is_base_of<ICodeGenerator, GeneratorType>::value, "Code generators must be derived from \"ICodeGenerator\"");
 
       ICodeGeneratorPtr spCodeGenerator(new GeneratorType(_pCompilerOptions));
 

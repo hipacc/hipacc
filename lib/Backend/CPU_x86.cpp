@@ -81,19 +81,19 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
 {
   #define DUMP_INSTR(__container, __instr)  try{ __container.push_back(__instr); } catch (std::exception &e) { __container.push_back( _ASTHelper.CreateStringLiteral(e.what()) ); }
 
-  typedef std::map< VectorElementTypes, DeclRefExpr* >     VectorDeclRefMapType;
+  typedef std::map<VectorElementTypes, DeclRefExpr*> VectorDeclRefMapType;
   
-  std::list< VectorElementTypes > lstSupportedElementTypes;
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Double))   lstSupportedElementTypes.push_back(VectorElementTypes::Double);
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Float))    lstSupportedElementTypes.push_back(VectorElementTypes::Float);
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Int8))     lstSupportedElementTypes.push_back(VectorElementTypes::Int8);
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::UInt8))    lstSupportedElementTypes.push_back(VectorElementTypes::UInt8);
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Int16))    lstSupportedElementTypes.push_back(VectorElementTypes::Int16);
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::UInt16))   lstSupportedElementTypes.push_back(VectorElementTypes::UInt16);
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Int32))    lstSupportedElementTypes.push_back(VectorElementTypes::Int32);
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::UInt32))   lstSupportedElementTypes.push_back(VectorElementTypes::UInt32);
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Int64))    lstSupportedElementTypes.push_back(VectorElementTypes::Int64);
-  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::UInt64))   lstSupportedElementTypes.push_back(VectorElementTypes::UInt64);
+  std::list<VectorElementTypes> lstSupportedElementTypes;
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Double)) lstSupportedElementTypes.push_back(VectorElementTypes::Double);
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Float))  lstSupportedElementTypes.push_back(VectorElementTypes::Float);
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Int8))   lstSupportedElementTypes.push_back(VectorElementTypes::Int8);
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::UInt8))  lstSupportedElementTypes.push_back(VectorElementTypes::UInt8);
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Int16))  lstSupportedElementTypes.push_back(VectorElementTypes::Int16);
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::UInt16)) lstSupportedElementTypes.push_back(VectorElementTypes::UInt16);
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Int32))  lstSupportedElementTypes.push_back(VectorElementTypes::Int32);
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::UInt32)) lstSupportedElementTypes.push_back(VectorElementTypes::UInt32);
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::Int64))  lstSupportedElementTypes.push_back(VectorElementTypes::Int64);
+  if (spInstructionSet->IsElementTypeSupported(VectorElementTypes::UInt64)) lstSupportedElementTypes.push_back(VectorElementTypes::UInt64);
 
 
   FunctionDecl *pFunctionDecl = _ASTHelper.CreateFunctionDeclaration(strFunctionName, _ASTHelper.GetASTContext().VoidTy, ClangASTHelper::StringVectorType(), ClangASTHelper::QualTypeVectorType());
@@ -752,9 +752,9 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
 
 CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, std::string strDumpfile, InstructionSetEnum eIntrSet) : _ASTHelper(rASTContext), _uiDumpFlags(0)
 {
-  typedef std::pair< std::string, Vectorization::InstructionSetBasePtr >  InstructionSetInfoPair;
+  typedef std::pair<std::string, Vectorization::InstructionSetBasePtr> InstructionSetInfoPair;
   
-  std::list< InstructionSetInfoPair >  lstInstructionSets;
+  std::list<InstructionSetInfoPair> lstInstructionSets;
 
   switch (eIntrSet)
   {
@@ -986,21 +986,21 @@ CompoundStmt* CPU_x86::VASTExportInstructionSet::_BuildCompoundStatement(AST::Sc
 
     Stmt *pChildStmt = nullptr;
 
-    if      (spNode->IsType< AST::Scope                             >())
+    if (spNode->IsType<AST::Scope>())
     {
-      pChildStmt = _BuildCompoundStatement( spNode->CastToType< AST::Scope >() );
+      pChildStmt = _BuildCompoundStatement( spNode->CastToType<AST::Scope>() );
     }
-    else if (spNode->IsType< AST::BaseClasses::ControlFlowStatement >())
+    else if (spNode->IsType<AST::BaseClasses::ControlFlowStatement>())
     {
-      AST::BaseClasses::ControlFlowStatementPtr spControlFlow = spNode->CastToType< AST::BaseClasses::ControlFlowStatement >();
+      AST::BaseClasses::ControlFlowStatementPtr spControlFlow = spNode->CastToType<AST::BaseClasses::ControlFlowStatement>();
       if (spControlFlow->IsVectorized())
       {
         throw RuntimeErrorException("Cannot handle vectorized control flow statements => Rebuild the control flow before calling the export!");
       }
 
-      if      (spControlFlow->IsType< AST::ControlFlow::BranchingStatement   >())
+      if (spControlFlow->IsType<AST::ControlFlow::BranchingStatement>())
       {
-        AST::ControlFlow::BranchingStatementPtr spBranchingStatement = spControlFlow->CastToType< AST::ControlFlow::BranchingStatement >();
+        AST::ControlFlow::BranchingStatementPtr spBranchingStatement = spControlFlow->CastToType<AST::ControlFlow::BranchingStatement>();
 
         ClangASTHelper::ExpressionVectorType  vecConditions;
         ClangASTHelper::StatementVectorType   vecBranchBodies;
@@ -1019,9 +1019,9 @@ CompoundStmt* CPU_x86::VASTExportInstructionSet::_BuildCompoundStatement(AST::Sc
 
         pChildStmt = _GetASTHelper().CreateIfStatement( vecConditions, vecBranchBodies, pDefaultBranch );
       }
-      else if (spControlFlow->IsType< AST::ControlFlow::Loop                 >())
+      else if (spControlFlow->IsType<AST::ControlFlow::Loop>())
       {
-        AST::ControlFlow::LoopPtr spLoop = spControlFlow->CastToType< AST::ControlFlow::Loop >();
+        AST::ControlFlow::LoopPtr spLoop = spControlFlow->CastToType<AST::ControlFlow::Loop>();
 
         ::clang::CompoundStmt *pLoopBody      = _BuildCompoundStatement( spLoop->GetBody() );
         ::clang::Expr         *pConditionExpr = _BuildScalarExpression( spLoop->GetCondition() );
@@ -1059,11 +1059,11 @@ CompoundStmt* CPU_x86::VASTExportInstructionSet::_BuildCompoundStatement(AST::Sc
 
         pChildStmt = _BuildLoop( spLoop->GetLoopType(), pConditionExpr, pLoopBody, pIncrementExpr );
       }
-      else if (spControlFlow->IsType< AST::ControlFlow::LoopControlStatement >())
+      else if (spControlFlow->IsType<AST::ControlFlow::LoopControlStatement>())
       {
         pChildStmt = _BuildLoopControlStatement( spControlFlow->CastToType<AST::ControlFlow::LoopControlStatement>() );
       }
-      else if (spControlFlow->IsType< AST::ControlFlow::ReturnStatement      >())
+      else if (spControlFlow->IsType<AST::ControlFlow::ReturnStatement>())
       {
         pChildStmt = _GetASTHelper().CreateReturnStatement();
       }
@@ -1072,19 +1072,19 @@ CompoundStmt* CPU_x86::VASTExportInstructionSet::_BuildCompoundStatement(AST::Sc
         throw InternalErrorException("Unsupported VAST control flow statement detected!");
       }
     }
-    else if (spNode->IsType< AST::BaseClasses::Expression           >())
+    else if (spNode->IsType<AST::BaseClasses::Expression>())
     {
-      AST::BaseClasses::ExpressionPtr spExpression  = spNode->CastToType< AST::BaseClasses::Expression >();
+      AST::BaseClasses::ExpressionPtr spExpression  = spNode->CastToType<AST::BaseClasses::Expression>();
       bool                            bHandled      = false;
 
       // Handle all assignments to newly declared variables
-      if (spExpression->IsType< AST::Expressions::AssignmentOperator >())
+      if (spExpression->IsType<AST::Expressions::AssignmentOperator>())
       {
-        AST::Expressions::AssignmentOperatorPtr spAssignment = spExpression->CastToType< AST::Expressions::AssignmentOperator >();
+        AST::Expressions::AssignmentOperatorPtr spAssignment = spExpression->CastToType<AST::Expressions::AssignmentOperator>();
 
         if ( spAssignment->GetLHS()->IsType<AST::Expressions::Identifier>() )
         {
-          AST::Expressions::IdentifierPtr spAssignee = spAssignment->GetLHS()->CastToType< AST::Expressions::Identifier >();
+          AST::Expressions::IdentifierPtr spAssignee = spAssignment->GetLHS()->CastToType<AST::Expressions::Identifier>();
 
           if ( ! _HasValueDeclaration(spAssignee->GetName()) )
           {
@@ -1109,9 +1109,9 @@ CompoundStmt* CPU_x86::VASTExportInstructionSet::_BuildCompoundStatement(AST::Sc
                 bool bAddMasking = true;
 
                 // If the initializer is equal to zero, no masking is required
-                if (spRHS->IsType< AST::VectorSupport::BroadCast >())
+                if (spRHS->IsType<AST::VectorSupport::BroadCast>())
                 {
-                  AST::BaseClasses::ExpressionPtr spInitValue = spRHS->CastToType< AST::VectorSupport::BroadCast >()->GetSubExpression();
+                  AST::BaseClasses::ExpressionPtr spInitValue = spRHS->CastToType<AST::VectorSupport::BroadCast>()->GetSubExpression();
 
                   if ( spInitValue->IsType<AST::Expressions::Constant>() && (spInitValue->CastToType<AST::Expressions::Constant>()->GetValue<double>() == 0.) )
                   {
@@ -1182,7 +1182,7 @@ Stmt* CPU_x86::VASTExportInstructionSet::_BuildExpressionStatement(AST::BaseClas
     {
       for (size_t szElementIndex = 0; szElementIndex < _cVectorWidth; ++szElementIndex)
       {
-        vecChildStatements.push_back( _BuildUnrolledVectorExpression( spExpression, static_cast< uint32_t >( szElementIndex ) ) );
+        vecChildStatements.push_back( _BuildUnrolledVectorExpression( spExpression, static_cast<uint32_t>(szElementIndex) ) );
       }
     }
     else
@@ -1217,26 +1217,26 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildScalarExpression(AST::BaseClasses
 
   Expr *pReturnExpr = nullptr;
 
-  if      (spExpression->IsType< AST::Expressions::BinaryOperator     >())
+  if (spExpression->IsType<AST::Expressions::BinaryOperator>())
   {
-    AST::Expressions::BinaryOperatorPtr spBinaryOp = spExpression->CastToType< AST::Expressions::BinaryOperator >();
+    AST::Expressions::BinaryOperatorPtr spBinaryOp = spExpression->CastToType<AST::Expressions::BinaryOperator>();
 
     Expr *pExprLHS = _BuildScalarExpression( spBinaryOp->GetLHS() );
     Expr *pExprRHS = _BuildScalarExpression( spBinaryOp->GetRHS() );
 
     BinaryOperatorKind eOpCode = BO_Add;
 
-    if      (spBinaryOp->IsType< AST::Expressions::ArithmeticOperator >())
+    if (spBinaryOp->IsType<AST::Expressions::ArithmeticOperator>())
     {
-      eOpCode = _ConvertArithmeticOperatorType( spBinaryOp->CastToType< AST::Expressions::ArithmeticOperator >()->GetOperatorType() );
+      eOpCode = _ConvertArithmeticOperatorType( spBinaryOp->CastToType<AST::Expressions::ArithmeticOperator>()->GetOperatorType() );
     }
-    else if (spBinaryOp->IsType< AST::Expressions::AssignmentOperator >())
+    else if (spBinaryOp->IsType<AST::Expressions::AssignmentOperator>())
     {
       eOpCode = BO_Assign;
     }
-    else if (spBinaryOp->IsType< AST::Expressions::RelationalOperator >())
+    else if (spBinaryOp->IsType<AST::Expressions::RelationalOperator>())
     {
-      eOpCode = _ConvertRelationalOperatorType( spBinaryOp->CastToType< AST::Expressions::RelationalOperator >()->GetOperatorType() );
+      eOpCode = _ConvertRelationalOperatorType( spBinaryOp->CastToType<AST::Expressions::RelationalOperator>()->GetOperatorType() );
     }
     else
     {
@@ -1245,9 +1245,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildScalarExpression(AST::BaseClasses
 
     pReturnExpr = _GetASTHelper().CreateBinaryOperator( pExprLHS, pExprRHS, eOpCode, _ConvertTypeInfo( spBinaryOp->GetResultType() ) );
   }
-  else if (spExpression->IsType< AST::Expressions::FunctionCall       >())
+  else if (spExpression->IsType<AST::Expressions::FunctionCall>())
   {
-    AST::Expressions::FunctionCallPtr spFunctionCall = spExpression->CastToType< AST::Expressions::FunctionCall >();
+    AST::Expressions::FunctionCallPtr spFunctionCall = spExpression->CastToType<AST::Expressions::FunctionCall>();
 
     ClangASTHelper::ExpressionVectorType vecArguments;
 
@@ -1258,22 +1258,22 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildScalarExpression(AST::BaseClasses
 
     pReturnExpr = _BuildScalarFunctionCall( spFunctionCall->GetName(), vecArguments );
   }
-  else if (spExpression->IsType< AST::Expressions::UnaryExpression    >())
+  else if (spExpression->IsType<AST::Expressions::UnaryExpression>())
   {
-    AST::Expressions::UnaryExpressionPtr  spUnaryExpression = spExpression->CastToType< AST::Expressions::UnaryExpression >();
+    AST::Expressions::UnaryExpressionPtr  spUnaryExpression = spExpression->CastToType<AST::Expressions::UnaryExpression>();
     AST::BaseClasses::TypeInfo            ResultType        = spUnaryExpression->GetResultType();
     AST::BaseClasses::ExpressionPtr       spSubExpression   = spUnaryExpression->GetSubExpression();
     Expr                                  *pSubExpr         = _BuildScalarExpression( spSubExpression );
 
-    if      (spUnaryExpression->IsType< AST::Expressions::Conversion    >())
+    if (spUnaryExpression->IsType<AST::Expressions::Conversion>())
     {
       pReturnExpr = _CreateCast( spSubExpression->GetResultType(), ResultType, pSubExpr );
     }
-    else if (spUnaryExpression->IsType< AST::Expressions::Parenthesis   >())
+    else if (spUnaryExpression->IsType<AST::Expressions::Parenthesis>())
     {
       pReturnExpr = _CreateParenthesis( pSubExpr );
     }
-    else if (spUnaryExpression->IsType< AST::Expressions::UnaryOperator >())
+    else if (spUnaryExpression->IsType<AST::Expressions::UnaryOperator>())
     {
       ::clang::UnaryOperatorKind eOpCode = _ConvertUnaryOperatorType( spUnaryExpression->CastToType<AST::Expressions::UnaryOperator>()->GetOperatorType() );
 
@@ -1284,21 +1284,21 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildScalarExpression(AST::BaseClasses
       throw InternalErrorException("Unknown VAST unary expression node detected!");
     }
   }
-  else if (spExpression->IsType< AST::Expressions::Value              >())
+  else if (spExpression->IsType<AST::Expressions::Value>())
   {
-    AST::Expressions::ValuePtr spValue = spExpression->CastToType< AST::Expressions::Value >();
+    AST::Expressions::ValuePtr spValue = spExpression->CastToType<AST::Expressions::Value>();
 
-    if      (spValue->IsType< AST::Expressions::Constant     >())
+    if (spValue->IsType<AST::Expressions::Constant>())
     {
-      pReturnExpr = _BuildConstant( spValue->CastToType< AST::Expressions::Constant >() );
+      pReturnExpr = _BuildConstant( spValue->CastToType<AST::Expressions::Constant>() );
     }
-    else if (spValue->IsType< AST::Expressions::Identifier   >())
+    else if (spValue->IsType<AST::Expressions::Identifier>())
     {
-      pReturnExpr = _CreateDeclarationReference( spValue->CastToType< AST::Expressions::Identifier >()->GetName() );
+      pReturnExpr = _CreateDeclarationReference( spValue->CastToType<AST::Expressions::Identifier>()->GetName() );
     }
-    else if (spValue->IsType< AST::Expressions::MemoryAccess >())
+    else if (spValue->IsType<AST::Expressions::MemoryAccess>())
     {
-      AST::Expressions::MemoryAccessPtr spMemoryAccess  = spValue->CastToType< AST::Expressions::MemoryAccess >();
+      AST::Expressions::MemoryAccessPtr spMemoryAccess  = spValue->CastToType<AST::Expressions::MemoryAccess>();
       AST::BaseClasses::TypeInfo        ReturnType      = spMemoryAccess->GetResultType();
 
       Expr *pMemoryRef = _BuildScalarExpression( spMemoryAccess->GetMemoryReference() );
@@ -1311,15 +1311,15 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildScalarExpression(AST::BaseClasses
       throw InternalErrorException("Unknown VAST value node detected!");
     }
   }
-  else if (spExpression->IsType< AST::VectorSupport::VectorExpression >())
+  else if (spExpression->IsType<AST::VectorSupport::VectorExpression>())
   {
-    AST::VectorSupport::VectorExpressionPtr spVectorExpression = spExpression->CastToType< AST::VectorSupport::VectorExpression >();
+    AST::VectorSupport::VectorExpressionPtr spVectorExpression = spExpression->CastToType<AST::VectorSupport::VectorExpression>();
 
-    if (spVectorExpression->IsType< AST::VectorSupport::CheckActiveElements >())
+    if (spVectorExpression->IsType<AST::VectorSupport::CheckActiveElements>())
     {
-      AST::VectorSupport::CheckActiveElementsPtr  spCheckElements = spVectorExpression->CastToType< AST::VectorSupport::CheckActiveElements >();
-      AST::BaseClasses::ExpressionPtr             spMaskReference = spCheckElements->GetSubExpression();
-      VectorElementTypes                          eElementType    = _GetExpressionElementType( spMaskReference );
+      AST::VectorSupport::CheckActiveElementsPtr spCheckElements = spVectorExpression->CastToType<AST::VectorSupport::CheckActiveElements>();
+      AST::BaseClasses::ExpressionPtr            spMaskReference = spCheckElements->GetSubExpression();
+      VectorElementTypes                         eElementType    = _GetExpressionElementType( spMaskReference );
 
       Expr  *pMaskRef = _BuildVectorExpression( spMaskReference, _CreateVectorIndex(eElementType, 0) );
       pReturnExpr     = _spInstructionSet->CheckActiveElements( eElementType, spCheckElements->GetCheckType(), pMaskRef );
@@ -1381,7 +1381,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorConversion(VectorElementTyp
       }
       else if (cszMaskElementCount > cszTargetElementCount)
       {
-        const VectorIndex cMaskIndex            = _CreateVectorIndex( _GetMaskElementType(), static_cast< size_t >( crVectorIndex.GetElementIndex() ) / cszMaskElementCount );
+        const VectorIndex cMaskIndex            = _CreateVectorIndex( _GetMaskElementType(), static_cast<size_t>(crVectorIndex.GetElementIndex()) / cszMaskElementCount );
         const uint32_t    cuiConvertGroupIndex  = ( crVectorIndex.GetElementIndex() - cMaskIndex.GetElementIndex() ) / crVectorIndex.GetElementCount();
 
         pConvertedMask = _spInstructionSet->ConvertMaskUp( _GetMaskElementType(), eTargetElementType, _BuildVectorExpression(spSubExpression, cMaskIndex), cuiConvertGroupIndex );
@@ -1399,7 +1399,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorConversion(VectorElementTyp
   {
     const size_t cszSourceElementCount  = _spInstructionSet->GetVectorElementCount( ceSourceElementType );
     const size_t cszTargetElementCount  = _spInstructionSet->GetVectorElementCount( _GetMaskElementType() );
-    const size_t cszGroupOffset         = static_cast< size_t >(crVectorIndex.GetElementIndex()) / cszSourceElementCount;
+    const size_t cszGroupOffset         = static_cast<size_t>(crVectorIndex.GetElementIndex()) / cszSourceElementCount;
 
     ClangASTHelper::ExpressionVectorType vecComparisons;
 
@@ -1426,14 +1426,14 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorConversion(VectorElementTyp
     }
     else if (cszSourceElementCount > cszTargetElementCount)   // Upward conversion   => Select a specific group
     {
-      const VectorIndex cSourceIndex          = _CreateVectorIndex( ceSourceElementType, static_cast< size_t >( crVectorIndex.GetElementIndex() ) / cszSourceElementCount );
+      const VectorIndex cSourceIndex          = _CreateVectorIndex( ceSourceElementType, static_cast<size_t>(crVectorIndex.GetElementIndex()) / cszSourceElementCount );
       const uint32_t    cuiConvertGroupIndex  = ( crVectorIndex.GetElementIndex() - cSourceIndex.GetElementIndex() ) / crVectorIndex.GetElementCount();
 
       return _spInstructionSet->ConvertVectorUp( ceSourceElementType, eTargetElementType, _BuildVectorExpression(spSubExpression, cSourceIndex), cuiConvertGroupIndex );
     }
     else                                                      // Downward conversion => Merge multiple vectors
     {
-      const size_t cszGroupOffset = static_cast< size_t >( crVectorIndex.GetElementIndex() ) / cszSourceElementCount;
+      const size_t cszGroupOffset = static_cast<size_t>(crVectorIndex.GetElementIndex()) / cszSourceElementCount;
 
       // Build all required sub-expressions
       ClangASTHelper::ExpressionVectorType vecSubExpressions;
@@ -1508,22 +1508,22 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildUnrolledVectorExpression(AST::Bas
 
   Expr *pReturnExpr = nullptr;
 
-  if      (spExpression->IsType< AST::Expressions::BinaryOperator     >())
+  if      (spExpression->IsType<AST::Expressions::BinaryOperator>())
   {
-    AST::Expressions::BinaryOperatorPtr spBinaryOp = spExpression->CastToType< AST::Expressions::BinaryOperator >();
+    AST::Expressions::BinaryOperatorPtr spBinaryOp = spExpression->CastToType<AST::Expressions::BinaryOperator>();
 
     Expr *pExprLHS = _BuildUnrolledVectorExpression( spBinaryOp->GetLHS(), cuiElementIndex );
     Expr *pExprRHS = _BuildUnrolledVectorExpression( spBinaryOp->GetRHS(), cuiElementIndex );
 
     BinaryOperatorKind eOpCode = BO_Add;
 
-    if      (spBinaryOp->IsType< AST::Expressions::ArithmeticOperator >())
+    if      (spBinaryOp->IsType< AST::Expressions::ArithmeticOperator>())
     {
-      eOpCode = _ConvertArithmeticOperatorType( spBinaryOp->CastToType< AST::Expressions::ArithmeticOperator >()->GetOperatorType() );
+      eOpCode = _ConvertArithmeticOperatorType( spBinaryOp->CastToType<AST::Expressions::ArithmeticOperator>()->GetOperatorType() );
     }
-    else if (spBinaryOp->IsType< AST::Expressions::AssignmentOperator >())
+    else if (spBinaryOp->IsType<AST::Expressions::AssignmentOperator>())
     {
-      AST::Expressions::AssignmentOperatorPtr spAssignment = spBinaryOp->CastToType< AST::Expressions::AssignmentOperator >();
+      AST::Expressions::AssignmentOperatorPtr spAssignment = spBinaryOp->CastToType<AST::Expressions::AssignmentOperator>();
       if (spAssignment->IsMasked())
       {
         Expr *pMaskElement  = _BuildUnrolledVectorExpression( spAssignment->GetMask(), cuiElementIndex );
@@ -1533,9 +1533,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildUnrolledVectorExpression(AST::Bas
                                                                          _CreateParenthesis( pExprLHS ), pExprLHS->getType() );
       }
 
-      if (spBinaryOp->GetLHS()->IsType< AST::Expressions::Identifier >())
+      if (spBinaryOp->GetLHS()->IsType<AST::Expressions::Identifier>())
       {
-        AST::Expressions::IdentifierPtr spAssignee = spBinaryOp->GetLHS()->CastToType< AST::Expressions::Identifier >();
+        AST::Expressions::IdentifierPtr spAssignee = spBinaryOp->GetLHS()->CastToType<AST::Expressions::Identifier>();
 
         if (spAssignee->GetResultType().IsSingleValue())
         {
@@ -1549,9 +1549,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildUnrolledVectorExpression(AST::Bas
 
       eOpCode = BO_Assign;
     }
-    else if (spBinaryOp->IsType< AST::Expressions::RelationalOperator >())
+    else if (spBinaryOp->IsType<AST::Expressions::RelationalOperator>())
     {
-      eOpCode = _ConvertRelationalOperatorType( spBinaryOp->CastToType< AST::Expressions::RelationalOperator >()->GetOperatorType() );
+      eOpCode = _ConvertRelationalOperatorType( spBinaryOp->CastToType<AST::Expressions::RelationalOperator>()->GetOperatorType() );
     }
     else
     {
@@ -1560,9 +1560,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildUnrolledVectorExpression(AST::Bas
 
     pReturnExpr = _GetASTHelper().CreateBinaryOperator( pExprLHS, pExprRHS, eOpCode, _ConvertTypeInfo( spBinaryOp->GetResultType() ) );
   }
-  else if (spExpression->IsType< AST::Expressions::FunctionCall       >())
+  else if (spExpression->IsType<AST::Expressions::FunctionCall>())
   {
-    AST::Expressions::FunctionCallPtr spFunctionCall = spExpression->CastToType< AST::Expressions::FunctionCall >();
+    AST::Expressions::FunctionCallPtr spFunctionCall = spExpression->CastToType<AST::Expressions::FunctionCall>();
 
     ClangASTHelper::ExpressionVectorType vecArguments;
 
@@ -1582,22 +1582,22 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildUnrolledVectorExpression(AST::Bas
 
     pReturnExpr = _BuildScalarFunctionCall( spFunctionCall->GetName(), vecArguments );
   }
-  else if (spExpression->IsType< AST::Expressions::UnaryExpression    >())
+  else if (spExpression->IsType<AST::Expressions::UnaryExpression>())
   {
-    AST::Expressions::UnaryExpressionPtr  spUnaryExpression = spExpression->CastToType< AST::Expressions::UnaryExpression >();
+    AST::Expressions::UnaryExpressionPtr  spUnaryExpression = spExpression->CastToType<AST::Expressions::UnaryExpression>();
     AST::BaseClasses::TypeInfo            ResultType        = spUnaryExpression->GetResultType();
     AST::BaseClasses::ExpressionPtr       spSubExpression   = spUnaryExpression->GetSubExpression();
     Expr                                  *pSubExpr         = _BuildUnrolledVectorExpression( spSubExpression, cuiElementIndex );
 
-    if      (spUnaryExpression->IsType< AST::Expressions::Conversion    >())
+    if (spUnaryExpression->IsType<AST::Expressions::Conversion>())
     {
       pReturnExpr = _CreateCast( spSubExpression->GetResultType(), ResultType, pSubExpr );
     }
-    else if (spUnaryExpression->IsType< AST::Expressions::Parenthesis   >())
+    else if (spUnaryExpression->IsType<AST::Expressions::Parenthesis>())
     {
       pReturnExpr = _CreateParenthesis( pSubExpr );
     }
-    else if (spUnaryExpression->IsType< AST::Expressions::UnaryOperator >())
+    else if (spUnaryExpression->IsType<AST::Expressions::UnaryOperator>())
     {
       ::clang::UnaryOperatorKind eOpCode = _ConvertUnaryOperatorType( spUnaryExpression->CastToType<AST::Expressions::UnaryOperator>()->GetOperatorType() );
 
@@ -1608,17 +1608,17 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildUnrolledVectorExpression(AST::Bas
       throw InternalErrorException("Unknown VAST unary expression node detected!");
     }
   }
-  else if (spExpression->IsType< AST::Expressions::Value              >())
+  else if (spExpression->IsType<AST::Expressions::Value>())
   {
-    AST::Expressions::ValuePtr spValue = spExpression->CastToType< AST::Expressions::Value >();
+    AST::Expressions::ValuePtr spValue = spExpression->CastToType<AST::Expressions::Value>();
 
-    if      (spValue->IsType< AST::Expressions::Constant     >())
+    if (spValue->IsType<AST::Expressions::Constant>())
     {
-      pReturnExpr = _BuildConstant( spValue->CastToType< AST::Expressions::Constant >() );
+      pReturnExpr = _BuildConstant( spValue->CastToType<AST::Expressions::Constant>() );
     }
-    else if (spValue->IsType< AST::Expressions::Identifier   >())
+    else if (spValue->IsType<AST::Expressions::Identifier>())
     {
-      AST::Expressions::IdentifierPtr spIdentifier    = spValue->CastToType< AST::Expressions::Identifier >();
+      AST::Expressions::IdentifierPtr spIdentifier    = spValue->CastToType<AST::Expressions::Identifier>();
       const VectorElementTypes        ceElementType   = _GetExpressionElementType( spIdentifier );
       const size_t                    cszElementCount = _spInstructionSet->GetVectorElementCount( ceElementType );
 
@@ -1629,9 +1629,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildUnrolledVectorExpression(AST::Bas
         pReturnExpr = _spInstructionSet->ExtractElement( ceElementType, pReturnExpr, cuiElementIndex % static_cast<uint32_t>(cszElementCount) );
       }
     }
-    else if (spValue->IsType< AST::Expressions::MemoryAccess >())
+    else if (spValue->IsType<AST::Expressions::MemoryAccess>())
     {
-      AST::Expressions::MemoryAccessPtr spMemoryAccess    = spValue->CastToType< AST::Expressions::MemoryAccess >();
+      AST::Expressions::MemoryAccessPtr spMemoryAccess    = spValue->CastToType<AST::Expressions::MemoryAccess>();
       AST::BaseClasses::TypeInfo        ReturnType        = spMemoryAccess->GetResultType();
       AST::BaseClasses::ExpressionPtr   spMemoryReference = spMemoryAccess->GetMemoryReference();
       AST::BaseClasses::ExpressionPtr   spIndexExpression = spMemoryAccess->GetIndexExpression();
@@ -1669,21 +1669,21 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildUnrolledVectorExpression(AST::Bas
       throw InternalErrorException("Unknown VAST value node detected!");
     }
   }
-  else if (spExpression->IsType< AST::VectorSupport::VectorExpression >())
+  else if (spExpression->IsType<AST::VectorSupport::VectorExpression>())
   {
-    AST::VectorSupport::VectorExpressionPtr spVectorExpression = spExpression->CastToType< AST::VectorSupport::VectorExpression >();
+    AST::VectorSupport::VectorExpressionPtr spVectorExpression = spExpression->CastToType<AST::VectorSupport::VectorExpression>();
 
-    if      (spVectorExpression->IsType< AST::VectorSupport::BroadCast           >())
+    if (spVectorExpression->IsType<AST::VectorSupport::BroadCast>())
     {
       pReturnExpr = _BuildScalarExpression( spVectorExpression->CastToType<AST::VectorSupport::BroadCast>()->GetSubExpression() );
     }
-    else if (spVectorExpression->IsType< AST::VectorSupport::CheckActiveElements >())
+    else if (spVectorExpression->IsType<AST::VectorSupport::CheckActiveElements>())
     {
       throw InternalErrorException("The check active elements node should be handled by scalar expression builder!");
     }
-    else if (spVectorExpression->IsType< AST::VectorSupport::VectorIndex         >())
+    else if (spVectorExpression->IsType<AST::VectorSupport::VectorIndex>())
     {
-      pReturnExpr = _GetASTHelper().CreateIntegerLiteral( static_cast< int32_t >( cuiElementIndex ) );
+      pReturnExpr = _GetASTHelper().CreateIntegerLiteral( static_cast<int32_t>(cuiElementIndex) );
     }
     else
     {
@@ -1708,9 +1708,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
 
   Expr *pReturnExpr = nullptr;
 
-  if      (spExpression->IsType< AST::Expressions::BinaryOperator     >())
+  if (spExpression->IsType<AST::Expressions::BinaryOperator>())
   {
-    AST::Expressions::BinaryOperatorPtr spBinaryOp    = spExpression->CastToType< AST::Expressions::BinaryOperator >();
+    AST::Expressions::BinaryOperatorPtr spBinaryOp    = spExpression->CastToType<AST::Expressions::BinaryOperator>();
     AST::BaseClasses::ExpressionPtr     spLHS         = spBinaryOp->GetLHS();
     AST::BaseClasses::ExpressionPtr     spRHS         = spBinaryOp->GetRHS();
     VectorElementTypes                  eElementType = _GetExpressionElementType(spLHS);
@@ -1721,12 +1721,12 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
     }
 
 
-    if (spBinaryOp->IsType< AST::Expressions::AssignmentOperator >())
+    if (spBinaryOp->IsType<AST::Expressions::AssignmentOperator>())
     {
-      AST::Expressions::AssignmentOperatorPtr spAssignment  = spBinaryOp->CastToType< AST::Expressions::AssignmentOperator >();
+      AST::Expressions::AssignmentOperatorPtr spAssignment  = spBinaryOp->CastToType<AST::Expressions::AssignmentOperator>();
       AST::BaseClasses::ExpressionPtr         spAssignee    = spLHS;
 
-      if (! spAssignee->IsType< AST::Expressions::Value >())
+      if (! spAssignee->IsType<AST::Expressions::Value>())
       {
         throw InternalErrorException("Expected a VAST value node as assignee!");
       }
@@ -1747,9 +1747,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
       Expr *pExprRHS      = _BuildVectorExpression( spRHS, crVectorIndex );
       bool bHandled       = false;
 
-      if (spAssignee->IsType< AST::Expressions::MemoryAccess >())   // Vector stores
+      if (spAssignee->IsType<AST::Expressions::MemoryAccess>())   // Vector stores
       {
-        AST::Expressions::MemoryAccessPtr spMemoryAccess = spAssignee->CastToType< AST::Expressions::MemoryAccess >();
+        AST::Expressions::MemoryAccessPtr spMemoryAccess = spAssignee->CastToType<AST::Expressions::MemoryAccess>();
 
         if (! spMemoryAccess->GetMemoryReference()->GetResultType().IsArray())
         {
@@ -1830,7 +1830,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
     }
     else
     {
-      if (spBinaryOp->IsType< AST::Expressions::ArithmeticOperator >())
+      if (spBinaryOp->IsType<AST::Expressions::ArithmeticOperator>())
       {
         ArithmeticOperatorType eOpType = spBinaryOp->CastToType<AST::Expressions::ArithmeticOperator>()->GetOperatorType();
 
@@ -1853,7 +1853,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
 
         pReturnExpr = _spInstructionSet->ArithmeticOperator( eElementType, eOpType, pExprLHS, pExprRHS, bIsScalar);
       }
-      else if (spBinaryOp->IsType< AST::Expressions::RelationalOperator >())
+      else if (spBinaryOp->IsType<AST::Expressions::RelationalOperator>())
       {
         // The return type of the comparison is the ComparisonType => A mask conversion is required here
         AST::Expressions::RelationalOperator::RelationalOperatorType eOperatorType = spBinaryOp->CastToType<AST::Expressions::RelationalOperator>()->GetOperatorType();
@@ -1876,9 +1876,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
       }
     }
   }
-  else if (spExpression->IsType< AST::Expressions::FunctionCall       >())
+  else if (spExpression->IsType<AST::Expressions::FunctionCall>())
   {
-    AST::Expressions::FunctionCallPtr spFunctionCall = spExpression->CastToType< AST::Expressions::FunctionCall >();
+    AST::Expressions::FunctionCallPtr spFunctionCall = spExpression->CastToType<AST::Expressions::FunctionCall>();
 
     if (! _SupportsVectorFunctionCall(spFunctionCall))
     {
@@ -1905,14 +1905,14 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
 
     pReturnExpr = _spInstructionSet->BuiltinFunction( _GetExpressionElementType( spFunctionCall ), _GetBuiltinVectorFunctionType( spFunctionCall->GetName() ), vecArguments );
   }
-  else if (spExpression->IsType< AST::Expressions::UnaryExpression    >())
+  else if (spExpression->IsType<AST::Expressions::UnaryExpression>())
   {
-    AST::Expressions::UnaryExpressionPtr  spUnaryExpression = spExpression->CastToType< AST::Expressions::UnaryExpression >();
+    AST::Expressions::UnaryExpressionPtr  spUnaryExpression = spExpression->CastToType<AST::Expressions::UnaryExpression>();
     AST::BaseClasses::ExpressionPtr       spSubExpression   = spUnaryExpression->GetSubExpression();
     AST::BaseClasses::TypeInfo            ResultType        = spExpression->GetResultType();
     VectorElementTypes                    eSubElementType   = _GetExpressionElementType( spSubExpression );
 
-    if      (spUnaryExpression->IsType< AST::Expressions::Conversion    >())
+    if (spUnaryExpression->IsType<AST::Expressions::Conversion>())
     {
       if (ResultType.IsArray())
       {
@@ -1933,15 +1933,15 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
         pReturnExpr = _BuildVectorConversion( ResultType.GetType(), spSubExpression, crVectorIndex );
       }
     }
-    else if (spUnaryExpression->IsType< AST::Expressions::Parenthesis   >())
+    else if (spUnaryExpression->IsType<AST::Expressions::Parenthesis>())
     {
       pReturnExpr = _CreateParenthesis( _BuildVectorExpression( spSubExpression, crVectorIndex ) );
     }
-    else if (spUnaryExpression->IsType< AST::Expressions::UnaryOperator >())
+    else if (spUnaryExpression->IsType<AST::Expressions::UnaryOperator>())
     {
       typedef AST::Expressions::UnaryOperator::UnaryOperatorType  OperatorType;
 
-      OperatorType eOpType = spUnaryExpression->CastToType< AST::Expressions::UnaryOperator >()->GetOperatorType();
+      OperatorType eOpType = spUnaryExpression->CastToType<AST::Expressions::UnaryOperator>()->GetOperatorType();
 
       if (spSubExpression->GetResultType().IsSingleValue())
       {
@@ -1974,17 +1974,17 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
       throw InternalErrorException("Unknown VAST unary expression node detected!");
     }
   }
-  else if (spExpression->IsType< AST::Expressions::Value              >())
+  else if (spExpression->IsType<AST::Expressions::Value>())
   {
-    AST::Expressions::ValuePtr spValue = spExpression->CastToType< AST::Expressions::Value >();
+    AST::Expressions::ValuePtr spValue = spExpression->CastToType<AST::Expressions::Value>();
 
-    if      (spValue->IsType< AST::Expressions::Constant     >())
+    if (spValue->IsType<AST::Expressions::Constant>())
     {
       throw InternalErrorException("A constant cannot be translated into a vector expression!");
     }
-    else if (spValue->IsType< AST::Expressions::Identifier   >())
+    else if (spValue->IsType<AST::Expressions::Identifier>())
     {
-      AST::Expressions::IdentifierPtr spIdentifier = spValue->CastToType< AST::Expressions::Identifier >();
+      AST::Expressions::IdentifierPtr spIdentifier = spValue->CastToType<AST::Expressions::Identifier>();
 
       Expr *pIdentifierRef = _CreateDeclarationReference( spIdentifier->GetName() );
 
@@ -1994,7 +1994,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
 
         if (_GetVectorArraySize(eElementType) > static_cast<size_t>(1))
         {
-          IntegerLiteral  *pIndexExpr   = _GetASTHelper().CreateIntegerLiteral( static_cast< int32_t >( crVectorIndex.GetGroupIndex() ) );
+          IntegerLiteral  *pIndexExpr   = _GetASTHelper().CreateIntegerLiteral( static_cast<int32_t>(crVectorIndex.GetGroupIndex()) );
           QualType        qtReturnType  = pIdentifierRef->getType()->getAsArrayTypeUnsafe()->getElementType();
 
           pIdentifierRef = _GetASTHelper().CreateArraySubscriptExpression( pIdentifierRef, pIndexExpr, qtReturnType );
@@ -2003,9 +2003,9 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
 
       pReturnExpr = pIdentifierRef;
     }
-    else if (spValue->IsType< AST::Expressions::MemoryAccess >())
+    else if (spValue->IsType<AST::Expressions::MemoryAccess>())
     {
-      AST::Expressions::MemoryAccessPtr spMemoryAccess    = spValue->CastToType< AST::Expressions::MemoryAccess >();
+      AST::Expressions::MemoryAccessPtr spMemoryAccess    = spValue->CastToType<AST::Expressions::MemoryAccess>();
       AST::BaseClasses::ExpressionPtr   spMemoryReference = spMemoryAccess->GetMemoryReference();
       AST::BaseClasses::ExpressionPtr   spIndexExpression = spMemoryAccess->GetIndexExpression();
 
@@ -2029,8 +2029,8 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
         {
           VectorElementTypes  eIndexElementType = _GetExpressionElementType( spIndexExpression );
 
-          const uint32_t cuiElementCount       = crVectorIndex.GetElementCount();
-          const uint32_t cuiIndexElementCount  = static_cast< uint32_t >( _spInstructionSet->GetVectorElementCount( eIndexElementType ) );
+          const uint32_t cuiElementCount      = crVectorIndex.GetElementCount();
+          const uint32_t cuiIndexElementCount = static_cast<uint32_t>(_spInstructionSet->GetVectorElementCount(eIndexElementType));
 
           ClangASTHelper::ExpressionVectorType  vecIndexExpressions;
           uint32_t                              uiGroupIndex = 0;
@@ -2068,13 +2068,13 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
       throw InternalErrorException("Unknown VAST value node detected!");
     }
   }
-  else if (spExpression->IsType< AST::VectorSupport::VectorExpression >())
+  else if (spExpression->IsType<AST::VectorSupport::VectorExpression>())
   {
-    AST::VectorSupport::VectorExpressionPtr spVectorExpression = spExpression->CastToType< AST::VectorSupport::VectorExpression >();
+    AST::VectorSupport::VectorExpressionPtr spVectorExpression = spExpression->CastToType<AST::VectorSupport::VectorExpression>();
 
-    if      (spVectorExpression->IsType< AST::VectorSupport::BroadCast           >())
+    if (spVectorExpression->IsType<AST::VectorSupport::BroadCast>())
     {
-      AST::VectorSupport::BroadCastPtr  spBroadCast     = spVectorExpression->CastToType< AST::VectorSupport::BroadCast >();
+      AST::VectorSupport::BroadCastPtr  spBroadCast     = spVectorExpression->CastToType<AST::VectorSupport::BroadCast>();
       AST::BaseClasses::ExpressionPtr   spSubExpression = spBroadCast->GetSubExpression();
 
       if (spSubExpression->IsVectorized())
@@ -2104,17 +2104,17 @@ Expr* CPU_x86::VASTExportInstructionSet::_BuildVectorExpression(AST::BaseClasses
         pReturnExpr = _spInstructionSet->BroadCast( ceElementType, pBroadCastValue );
       }
     }
-    else if (spVectorExpression->IsType< AST::VectorSupport::CheckActiveElements >())
+    else if (spVectorExpression->IsType<AST::VectorSupport::CheckActiveElements>())
     {
       throw InternalErrorException("The check active elements node should be handled by scalar expression builder!");
     }
-    else if (spVectorExpression->IsType< AST::VectorSupport::VectorIndex         >())
+    else if (spVectorExpression->IsType<AST::VectorSupport::VectorIndex>())
     {
       ClangASTHelper::ExpressionVectorType vecIndices;
 
       for (uint32_t uiIndex = 0; uiIndex < crVectorIndex.GetElementCount(); ++uiIndex)
       {
-        int32_t iCurrentIndex = static_cast< int32_t >( uiIndex + crVectorIndex.GetElementIndex() );
+        int32_t iCurrentIndex = static_cast<int32_t>(uiIndex + crVectorIndex.GetElementIndex());
         vecIndices.push_back( _GetASTHelper().CreateIntegerLiteral( iCurrentIndex ) );
       }
 
@@ -2212,7 +2212,7 @@ Expr* CPU_x86::VASTExportInstructionSet::_ConvertMaskUp(Vectorization::VectorEle
 
 CPU_x86::VASTExportInstructionSet::VectorIndex CPU_x86::VASTExportInstructionSet::_CreateVectorIndex(VectorElementTypes eElementType, size_t szGroupIndex)
 {
-  uint32_t uiElementCount = static_cast< uint32_t >( _spInstructionSet->GetVectorElementCount(eElementType) );
+  uint32_t uiElementCount = static_cast<uint32_t>(_spInstructionSet->GetVectorElementCount(eElementType));
 
   return VectorIndex( VectorIndex::IndexTypeEnum::VectorStart, static_cast<uint32_t>(szGroupIndex) * uiElementCount, uiElementCount );
 }
@@ -2358,7 +2358,7 @@ bool CPU_x86::VASTExportInstructionSet::_SupportsVectorFunctionCall(AST::Express
     }
   }
 
-  return _spInstructionSet->IsBuiltinFunctionSupported( ceElementType, eFunctionType, static_cast< uint32_t >( ciParamCount ) );
+  return _spInstructionSet->IsBuiltinFunctionSupported( ceElementType, eFunctionType, static_cast<uint32_t>(ciParamCount) );
 }
 
 Expr* CPU_x86::VASTExportInstructionSet::_TranslateMemoryAccessToPointerRef(AST::Expressions::MemoryAccessPtr spMemoryAccess, const VectorIndex &crVectorIndex)
@@ -2385,15 +2385,15 @@ Expr* CPU_x86::VASTExportInstructionSet::_TranslateMemoryAccessToPointerRef(AST:
   bool bBuildIndex = true;
   if ( spIndexExpression->IsType< AST::Expressions::Constant >() )
   {
-    AST::Expressions::ConstantPtr spIndexConstant = spIndexExpression->CastToType< AST::Expressions::Constant >();
+    AST::Expressions::ConstantPtr spIndexConstant = spIndexExpression->CastToType<AST::Expressions::Constant>();
 
-    bBuildIndex = (spIndexConstant->GetValue< int32_t >() != 0);
+    bBuildIndex = (spIndexConstant->GetValue<int32_t>() != 0);
   }
 
   Expr *pIndexExpr = bBuildIndex ? _BuildScalarExpression( spIndexExpression ) : nullptr;
 
   // Check if we have a vector offset
-  int32_t iElementIndex = static_cast< int32_t >( crVectorIndex.GetElementIndex() );
+  int32_t iElementIndex = static_cast<int32_t>(crVectorIndex.GetElementIndex());
   if (iElementIndex != 0)
   {
     Expr *pOffsetExpr = _GetASTHelper().CreateIntegerLiteral( iElementIndex );
@@ -2514,42 +2514,42 @@ CPU_x86::CodeGenerator::ImageAccessTranslator::ImageAccessTranslator(HipaccHelpe
   _pDRGidY = _ASTHelper.FindDeclaration(pKernelFunction, _rHipaccHelper.GlobalIdY());
 }
 
-std::list< ::clang::ArraySubscriptExpr* > CPU_x86::CodeGenerator::ImageAccessTranslator::_FindImageAccesses(const std::string &crstrImageName, ::clang::Stmt *pStatement)
+std::list<::clang::ArraySubscriptExpr*> CPU_x86::CodeGenerator::ImageAccessTranslator::_FindImageAccesses(const std::string &crstrImageName, ::clang::Stmt *pStatement)
 {
-  std::list< ::clang::ArraySubscriptExpr* > lstImageAccesses;
+  std::list<::clang::ArraySubscriptExpr*> lstImageAccesses;
 
   if (pStatement == nullptr)
   {
     return lstImageAccesses;
   }
-  else if (isa< ::clang::ArraySubscriptExpr >(pStatement))
+  else if (isa<::clang::ArraySubscriptExpr>(pStatement))
   {
     // Found an array subscript expression => Check if the structure corresponds to an image access
-    ::clang::ArraySubscriptExpr *pRootArraySubscript = dyn_cast< ::clang::ArraySubscriptExpr >(pStatement);
+    ::clang::ArraySubscriptExpr *pRootArraySubscript = dyn_cast<::clang::ArraySubscriptExpr>(pStatement);
 
     // Look through implicit cast expressions
     ::clang::Expr *pLhs = pRootArraySubscript->getLHS();
-    while (isa< ::clang::ImplicitCastExpr >(pLhs))
+    while (isa<::clang::ImplicitCastExpr>(pLhs))
     {
-      pLhs = dyn_cast< ::clang::ImplicitCastExpr >(pLhs)->getSubExpr();
+      pLhs = dyn_cast<::clang::ImplicitCastExpr>(pLhs)->getSubExpr();
     }
 
-    if (isa< ::clang::ArraySubscriptExpr >(pLhs))
+    if (isa<::clang::ArraySubscriptExpr>(pLhs))
     {
       // At least 2-dimensional array found => Look for the declaration reference to the image
-      ::clang::ArraySubscriptExpr *pChildArraySubscript = dyn_cast< ::clang::ArraySubscriptExpr >(pLhs);
+      ::clang::ArraySubscriptExpr *pChildArraySubscript = dyn_cast<::clang::ArraySubscriptExpr>(pLhs);
 
       // Look through implicit cast expressions
       pLhs = pChildArraySubscript->getLHS();
-      while (isa< ::clang::ImplicitCastExpr >(pLhs))
+      while (isa<::clang::ImplicitCastExpr>(pLhs))
       {
-        pLhs = dyn_cast< ::clang::ImplicitCastExpr >(pLhs)->getSubExpr();
+        pLhs = dyn_cast<::clang::ImplicitCastExpr>(pLhs)->getSubExpr();
       }
 
-      if (isa< ::clang::DeclRefExpr >(pLhs))
+      if (isa<::clang::DeclRefExpr>(pLhs))
       {
         // Found a 2-dimensional array access => check if the array if the specified image
-        ::clang::DeclRefExpr* pArrayDeclRef = dyn_cast< ::clang::DeclRefExpr >(pLhs);
+        ::clang::DeclRefExpr* pArrayDeclRef = dyn_cast<::clang::DeclRefExpr>(pLhs);
 
         if (pArrayDeclRef->getNameInfo().getAsString() == crstrImageName)
         {
@@ -2562,7 +2562,7 @@ std::list< ::clang::ArraySubscriptExpr* > CPU_x86::CodeGenerator::ImageAccessTra
   // Parse all children everytime (in case an image access is used as an index expression for another image access)
   for (auto itChild = pStatement->child_begin(); itChild != pStatement->child_end(); itChild++)
   {
-    std::list< ::clang::ArraySubscriptExpr* > lstImageAccessesInternal = _FindImageAccesses(crstrImageName, *itChild);
+    std::list<::clang::ArraySubscriptExpr*> lstImageAccessesInternal = _FindImageAccesses(crstrImageName, *itChild);
 
     if (!lstImageAccessesInternal.empty())
     {
@@ -2579,12 +2579,12 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::_LinearizeImageAccess(const 
   ::clang::Expr *pIndexExprX = pImageAccessRoot->getRHS();
   ::clang::Expr *pIndexExprY = pImageAccessRoot->getLHS();
   {
-    while (! isa< ::clang::ArraySubscriptExpr >(pIndexExprY))
+    while (! isa<::clang::ArraySubscriptExpr>(pIndexExprY))
     {
-      pIndexExprY = dyn_cast< ::clang::Expr >(*pIndexExprY->child_begin());
+      pIndexExprY = dyn_cast<::clang::Expr>(*pIndexExprY->child_begin());
     }
 
-    pIndexExprY = dyn_cast< ::clang::ArraySubscriptExpr >(pIndexExprY)->getRHS();
+    pIndexExprY = dyn_cast<::clang::ArraySubscriptExpr>(pIndexExprY)->getRHS();
   }
 
   // The image pointer have been re-routed to the current pixel => strip the reference to the global pixel ID
@@ -2667,17 +2667,17 @@ bool CPU_x86::CodeGenerator::ImageAccessTranslator::_TryRemoveReference(::clang:
 
   while (true)
   {
-    if (isa< ::clang::CastExpr >(pCurrentExpression))             // Current node is a cast expression => Step to the subexpression
+    if (isa<::clang::CastExpr>(pCurrentExpression))             // Current node is a cast expression => Step to the subexpression
     {
-      pCurrentExpression = dyn_cast< ::clang::CastExpr >(pCurrentExpression)->getSubExpr();
+      pCurrentExpression = dyn_cast<::clang::CastExpr>(pCurrentExpression)->getSubExpr();
     }
-    else if (isa< ::clang::ParenExpr >(pCurrentExpression))       // Current node is a parenthesis expression => Step to the subexpression
+    else if (isa<::clang::ParenExpr>(pCurrentExpression))       // Current node is a parenthesis expression => Step to the subexpression
     {
-      pCurrentExpression = dyn_cast< ::clang::ParenExpr >(pCurrentExpression)->getSubExpr();
+      pCurrentExpression = dyn_cast<::clang::ParenExpr>(pCurrentExpression)->getSubExpr();
     }
-    else if (isa< ::clang::DeclRefExpr >(pCurrentExpression))     // Current node is a declaration reference => Check for the stripping variable
+    else if (isa<::clang::DeclRefExpr>(pCurrentExpression))     // Current node is a declaration reference => Check for the stripping variable
     {
-      if (dyn_cast< ::clang::DeclRefExpr >(pCurrentExpression)->getNameInfo().getAsString() == strStripVarName)
+      if (dyn_cast<::clang::DeclRefExpr>(pCurrentExpression)->getNameInfo().getAsString() == strStripVarName)
       {
         // Found the reference to the stripping variable => Break here and remove it
         break;
@@ -2687,9 +2687,9 @@ bool CPU_x86::CodeGenerator::ImageAccessTranslator::_TryRemoveReference(::clang:
         return false;
       }
     }
-    else if (isa< ::clang::BinaryOperator >(pCurrentExpression))  // Found a binary operator => Step into its correct branch
+    else if (isa<::clang::BinaryOperator>(pCurrentExpression))  // Found a binary operator => Step into its correct branch
     {
-      ::clang::BinaryOperator *pCurrentOperator = dyn_cast< ::clang::BinaryOperator >(pCurrentExpression);
+      ::clang::BinaryOperator *pCurrentOperator = dyn_cast<::clang::BinaryOperator>(pCurrentExpression);
 
       if (pCurrentOperator->getOpcode() == ::clang::BO_Add)       // Found an addition => Both branches are supported
       {
@@ -2816,7 +2816,7 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageAccesses(::cla
     }
 
     // Find all access to the current image
-    std::list< ::clang::ArraySubscriptExpr* >  lstImageAccesses = _FindImageAccesses(strParamName, pStatement);
+    std::list<::clang::ArraySubscriptExpr*>  lstImageAccesses = _FindImageAccesses(strParamName, pStatement);
 
     // Linearize all found image accesses
     for (auto itImageAccess : lstImageAccesses)
@@ -2831,8 +2831,8 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageDeclarations(:
   // Parse through all kernel images
   for (unsigned int i = 0; i < pFunctionDecl->getNumParams(); ++i)
   {
-    ::clang::ParmVarDecl  *pParamDecl = pFunctionDecl->getParamDecl(i);
-    std::string                strParamName = pParamDecl->getNameAsString();
+    ::clang::ParmVarDecl *pParamDecl = pFunctionDecl->getParamDecl(i);
+    std::string          strParamName = pParamDecl->getNameAsString();
 
     // Skip all kernel function parameters, which are unused or do not refer to an HIPAcc image
     if ((!_rHipaccHelper.IsParamUsed(strParamName)) || (_rHipaccHelper.GetImageFromMapping(strParamName) == nullptr))
@@ -2867,8 +2867,8 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageDeclarations(:
       {
         HipaccImage *pImage = _rHipaccHelper.GetImageFromMapping(strParamName)->getImage();
 
-        QualType qtArrayType  = _ASTHelper.GetConstantArrayType( qtElementType, static_cast< size_t >(pImage->getSizeX()) );
-        qtFinalImageType      = _ASTHelper.GetConstantArrayType( qtArrayType,   static_cast< size_t >(pImage->getSizeY()) );
+        QualType qtArrayType = _ASTHelper.GetConstantArrayType( qtElementType, static_cast<size_t>(pImage->getSizeX()) );
+        qtFinalImageType     = _ASTHelper.GetConstantArrayType( qtArrayType,   static_cast<size_t>(pImage->getSizeY()) );
       }
       break;
     default:    throw InternalErrorException("Unknown image declaration type");
@@ -2884,17 +2884,17 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageDeclarations(:
 // Implementation of class CPU_x86::CodeGenerator
 CPU_x86::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions) : BaseType(pCompilerOptions, Descriptor())
 {
-  _InitSwitch< KnownSwitches::InstructionSet    >( CompilerSwitchTypeEnum::InstructionSet );
-  _InitSwitch< KnownSwitches::Parallelize       >( CompilerSwitchTypeEnum::Parallelize );
-  _InitSwitch< KnownSwitches::UnrollVectorLoops >( CompilerSwitchTypeEnum::UnrollVectorLoops );
-  _InitSwitch< KnownSwitches::VectorizeKernel   >( CompilerSwitchTypeEnum::VectorizeKernel );
-  _InitSwitch< KnownSwitches::VectorWidth       >( CompilerSwitchTypeEnum::VectorWidth );
+  _InitSwitch<KnownSwitches::InstructionSet   >(CompilerSwitchTypeEnum::InstructionSet);
+  _InitSwitch<KnownSwitches::Parallelize      >(CompilerSwitchTypeEnum::Parallelize);
+  _InitSwitch<KnownSwitches::UnrollVectorLoops>(CompilerSwitchTypeEnum::UnrollVectorLoops);
+  _InitSwitch<KnownSwitches::VectorizeKernel  >(CompilerSwitchTypeEnum::VectorizeKernel);
+  _InitSwitch<KnownSwitches::VectorWidth      >(CompilerSwitchTypeEnum::VectorWidth);
 
   _eInstructionSet    = InstructionSetEnum::Array;
   _bUnrollVectorLoops = true;
   _bVectorizeKernel   = false;
   _bParallelize       = false;
-  _szVectorWidth      = static_cast< size_t >(0);
+  _szVectorWidth      = static_cast<size_t>(0);
 }
 
 size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, CommonDefines::ArgumentVectorType &rvecArguments, size_t szCurrentIndex)
@@ -2905,7 +2905,7 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
   switch (eSwitch)
   {
   case CompilerSwitchTypeEnum::InstructionSet:
-    _eInstructionSet = _ParseOption< KnownSwitches::InstructionSet >(rvecArguments, szCurrentIndex);
+    _eInstructionSet = _ParseOption<KnownSwitches::InstructionSet>(rvecArguments, szCurrentIndex);
     ++szReturnIndex;
     break;
   case CompilerSwitchTypeEnum::Parallelize:
@@ -2913,7 +2913,7 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
     break;
   case CompilerSwitchTypeEnum::UnrollVectorLoops:
     {
-      ::clang::hipacc::CompilerOption eOption = _ParseOption< KnownSwitches::UnrollVectorLoops >(rvecArguments, szCurrentIndex);
+      ::clang::hipacc::CompilerOption eOption = _ParseOption<KnownSwitches::UnrollVectorLoops>(rvecArguments, szCurrentIndex);
 
       _bUnrollVectorLoops = (eOption == USER_ON);
 
@@ -2926,13 +2926,13 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
     break;
   case CompilerSwitchTypeEnum::VectorWidth:
     {
-      int iRequestedVecWidth = _ParseOption< KnownSwitches::VectorWidth >(rvecArguments, szCurrentIndex);
+      int iRequestedVecWidth = _ParseOption<KnownSwitches::VectorWidth>(rvecArguments, szCurrentIndex);
       if (iRequestedVecWidth <= 0)
       {
         throw RuntimeErrors::InvalidOptionException(KnownSwitches::VectorWidth::Key(), rvecArguments[szCurrentIndex + 1]);
       }
 
-      _szVectorWidth = static_cast< size_t >( iRequestedVecWidth );
+      _szVectorWidth = static_cast<size_t>( iRequestedVecWidth );
       ++szReturnIndex;
     }
     break;
@@ -2946,7 +2946,7 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
 ::clang::ForStmt* CPU_x86::CodeGenerator::_CreateIterationSpaceLoop(ClangASTHelper &rAstHelper, ::clang::DeclRefExpr *pLoopCounter, ::clang::Expr *pUpperLimit, ::clang::Stmt *pLoopBody, const size_t szIncrement)
 {
   ::clang::Stmt* pFinalLoopBody = pLoopBody;
-  if (! isa< ::clang::CompoundStmt >(pFinalLoopBody))
+  if (! isa<::clang::CompoundStmt>(pFinalLoopBody))
   {
     pFinalLoopBody = rAstHelper.CreateCompoundStatement(pLoopBody);
   }
@@ -3003,21 +3003,21 @@ InstructionSetBasePtr CPU_x86::CodeGenerator::_CreateInstructionSet(::clang::AST
 {
   switch ( _eInstructionSet )
   {
-  case InstructionSetEnum::SSE:       return InstructionSetBase::Create< InstructionSetSSE    >( rAstContext );
-  case InstructionSetEnum::SSE_2:     return InstructionSetBase::Create< InstructionSetSSE2   >( rAstContext );
-  case InstructionSetEnum::SSE_3:     return InstructionSetBase::Create< InstructionSetSSE3   >( rAstContext );
-  case InstructionSetEnum::SSSE_3:    return InstructionSetBase::Create< InstructionSetSSSE3  >( rAstContext );
-  case InstructionSetEnum::SSE_4_1:   return InstructionSetBase::Create< InstructionSetSSE4_1 >( rAstContext );
-  case InstructionSetEnum::SSE_4_2:   return InstructionSetBase::Create< InstructionSetSSE4_2 >( rAstContext );
-  case InstructionSetEnum::AVX:       return InstructionSetBase::Create< InstructionSetAVX    >( rAstContext );
-  case InstructionSetEnum::AVX_2:     return InstructionSetBase::Create< InstructionSetAVX2   >( rAstContext );
-  default:                            throw InternalErrorException( "Unexpected instruction set selected!" );
+  case InstructionSetEnum::SSE:       return InstructionSetBase::Create<InstructionSetSSE   >(rAstContext);
+  case InstructionSetEnum::SSE_2:     return InstructionSetBase::Create<InstructionSetSSE2  >(rAstContext);
+  case InstructionSetEnum::SSE_3:     return InstructionSetBase::Create<InstructionSetSSE3  >(rAstContext);
+  case InstructionSetEnum::SSSE_3:    return InstructionSetBase::Create<InstructionSetSSSE3 >(rAstContext);
+  case InstructionSetEnum::SSE_4_1:   return InstructionSetBase::Create<InstructionSetSSE4_1>(rAstContext);
+  case InstructionSetEnum::SSE_4_2:   return InstructionSetBase::Create<InstructionSetSSE4_2>(rAstContext);
+  case InstructionSetEnum::AVX:       return InstructionSetBase::Create<InstructionSetAVX   >(rAstContext);
+  case InstructionSetEnum::AVX_2:     return InstructionSetBase::Create<InstructionSetAVX2  >(rAstContext);
+  default:                            throw InternalErrorException("Unexpected instruction set selected!");
   }
 }
 
 std::string CPU_x86::CodeGenerator::_FormatFunctionHeader(FunctionDecl *pFunctionDecl, HipaccHelper &rHipaccHelper, bool bCheckUsage, bool bPrintActualImageType)
 {
-  std::vector< std::string > vecParamStrings;
+  std::vector<std::string> vecParamStrings;
 
   // Translate function parameters to declaration strings
   for (size_t i = 0; i < pFunctionDecl->getNumParams(); ++i)
@@ -3101,14 +3101,14 @@ std::string CPU_x86::CodeGenerator::_GetInstructionSetIncludeFile()
 {
   switch (_eInstructionSet)
   {
-  case InstructionSetEnum::SSE:       return "xmmintrin.h";
-  case InstructionSetEnum::SSE_2:     return "emmintrin.h";
-  case InstructionSetEnum::SSE_3:     return "pmmintrin.h";
-  case InstructionSetEnum::SSSE_3:    return "tmmintrin.h";
-  case InstructionSetEnum::SSE_4_1:   return "smmintrin.h";
-  case InstructionSetEnum::SSE_4_2:   return "nmmintrin.h";
-  case InstructionSetEnum::AVX:       return "immintrin.h";
-  case InstructionSetEnum::AVX_2:     return "immintrin.h";
+  case InstructionSetEnum::SSE:     return "xmmintrin.h";
+  case InstructionSetEnum::SSE_2:   return "emmintrin.h";
+  case InstructionSetEnum::SSE_3:   return "pmmintrin.h";
+  case InstructionSetEnum::SSSE_3:  return "tmmintrin.h";
+  case InstructionSetEnum::SSE_4_1: return "smmintrin.h";
+  case InstructionSetEnum::SSE_4_2: return "nmmintrin.h";
+  case InstructionSetEnum::AVX:     return "immintrin.h";
+  case InstructionSetEnum::AVX_2:   return "immintrin.h";
   default:  return "";
   }
 }
@@ -3120,12 +3120,12 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
     if (_szVectorWidth == static_cast<size_t>(0))
     {
       llvm::errs() << "\nNOTE: No vector width for array export selected => Set default value \"4\"\n\n";
-      _szVectorWidth = static_cast< size_t >(4);
+      _szVectorWidth = static_cast<size_t>(4);
     }
   }
   else
   {
-    size_t cszMaxVecWidth = static_cast< size_t >( 0 );
+    size_t cszMaxVecWidth = static_cast<size_t>(0);
     switch (_eInstructionSet)
     {
     case InstructionSetEnum::SSE:
@@ -3133,9 +3133,9 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
     case InstructionSetEnum::SSE_3:
     case InstructionSetEnum::SSSE_3:
     case InstructionSetEnum::SSE_4_1:
-    case InstructionSetEnum::SSE_4_2:   cszMaxVecWidth = static_cast< size_t >(16);   break;
+    case InstructionSetEnum::SSE_4_2:   cszMaxVecWidth = static_cast<size_t>(16); break;
     case InstructionSetEnum::AVX:
-    case InstructionSetEnum::AVX_2:     cszMaxVecWidth = static_cast< size_t >(32);   break;
+    case InstructionSetEnum::AVX_2:     cszMaxVecWidth = static_cast<size_t>(32); break;
     default:                            throw InternalErrorException("Unexpected instruction set ID!");
     }
 
@@ -3151,7 +3151,7 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
       {
         size_t szMinTypeSize = cszMaxVecWidth;
 
-        std::vector< std::string > vecVariableNames = spVecFunction->GetKnownVariableNames();
+        std::vector<std::string> vecVariableNames = spVecFunction->GetKnownVariableNames();
 
         for (auto itVarName : vecVariableNames)
         {
@@ -3587,7 +3587,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
         // Compute the iteration space range, which must be handled by the scalar sub-function
         ::clang::DeclRefExpr  *pScalarRangeRef = nullptr;
         {
-          ::clang::VarDecl *pGidXDecl = dyn_cast< ::clang::VarDecl >(gid_x_ref->getDecl());
+          ::clang::VarDecl *pGidXDecl = dyn_cast<::clang::VarDecl>(gid_x_ref->getDecl());
 
           ::clang::DeclRefExpr  *pIterationSpaceWidth = hipaccHelper.GetImageParameterDecl(pKernelFunction->getParamDecl(0)->getNameAsString(), HipaccHelper::ImageParamType::Width);
           ::clang::QualType     qtReturnType          = pIterationSpaceWidth->getType();

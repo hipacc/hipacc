@@ -103,7 +103,7 @@ namespace Backend
   };
 
   /** \brief  The shared pointer type for code generators */
-  typedef std::shared_ptr< ICodeGenerator >   ICodeGeneratorPtr;
+  typedef std::shared_ptr<ICodeGenerator> ICodeGeneratorPtr;
 
 } // end namespace Backend
 } // end namespace hipacc

@@ -45,7 +45,7 @@ unsigned int ClangASTHelper::CountNumberOfReferences(Stmt *pStatement, const std
   {
     return 0;
   }
-  else if (isa< ::clang::DeclRefExpr >(pStatement))
+  else if (isa<::clang::DeclRefExpr>(pStatement))
   {
     DeclRefExpr *pCurrentDeclRef = dyn_cast<DeclRefExpr>(pStatement);
 
@@ -151,7 +151,7 @@ CallExpr* ClangASTHelper::CreateFunctionCall(FunctionDecl *pFunctionDecl, const 
 FunctionDecl* ClangASTHelper::CreateFunctionDeclaration(std::string strFunctionName, const QualType &crReturnType, const StringVectorType &crvecArgumentNames, const QualTypeVectorType &crvecArgumentTypes)
 {
   return ASTNode::createFunctionDecl( GetASTContext(), GetASTContext().getTranslationUnitDecl(), strFunctionName, crReturnType,
-                                      ArrayRef< ::clang::QualType >(crvecArgumentTypes), ArrayRef< std::string >(crvecArgumentNames) );
+                                      ArrayRef<::clang::QualType>(crvecArgumentTypes), ArrayRef<std::string>(crvecArgumentNames) );
 }
 
 IfStmt* ClangASTHelper::CreateIfStatement(Expr *pCondition, Stmt *pThenBranch, Stmt *pElseBranch)
@@ -176,7 +176,7 @@ IfStmt* ClangASTHelper::CreateIfStatement(const ExpressionVectorType &crvecCondi
   default:
 
     // Create branch statements
-    VectorType< IfStmt* > vecIfStatements;
+    VectorType<IfStmt*> vecIfStatements;
     for (size_t szIdx = static_cast<size_t>(0); szIdx < cszBranchCount; ++szIdx)
     {
       vecIfStatements.push_back( CreateIfStatement( crvecConditions[szIdx], crvecBranchBodies[szIdx], nullptr ) );
@@ -205,7 +205,7 @@ ImplicitCastExpr* ClangASTHelper::CreateImplicitCastExpression(Expr *pOperandExp
 
 InitListExpr* ClangASTHelper::CreateInitListExpression(const ExpressionVectorType &crvecExpressions)
 {
-  return new (GetASTContext()) InitListExpr( GetASTContext(), SourceLocation(), ArrayRef< Expr* >(crvecExpressions), SourceLocation() );
+  return new (GetASTContext()) InitListExpr( GetASTContext(), SourceLocation(), ArrayRef<Expr*>(crvecExpressions), SourceLocation() );
 }
 
 DoStmt* ClangASTHelper::CreateLoopDoWhile(::clang::Expr *pCondition, ::clang::Stmt *pBody)
@@ -225,7 +225,7 @@ WhileStmt* ClangASTHelper::CreateLoopWhile(Expr *pCondition, Stmt *pBody)
 
 Stmt* ClangASTHelper::CreateOpenMPDirectiveParallelFor()
 {
-  return OMPParallelForDirective::Create( GetASTContext(), SourceLocation(), SourceLocation(), 0, std::vector< OMPClause* >(), nullptr, OMPLoopDirective::HelperExprs(), false);
+  return OMPParallelForDirective::Create( GetASTContext(), SourceLocation(), SourceLocation(), 0, std::vector<OMPClause*>(), nullptr, OMPLoopDirective::HelperExprs(), false);
 }
 
 ParenExpr* ClangASTHelper::CreateParenthesisExpression(Expr *pSubExpression)
@@ -287,7 +287,7 @@ VarDecl* ClangASTHelper::CreateVariableDeclaration(FunctionDecl *pParentFunction
 
 QualType ClangASTHelper::GetConstantArrayType(const QualType &crElementType, const size_t cszDimension)
 {
-  return GetASTContext().getConstantArrayType( crElementType, llvm::APInt(32, static_cast< uint64_t >(cszDimension), false), ArrayType::Normal, 0 );
+  return GetASTContext().getConstantArrayType( crElementType, llvm::APInt(32, static_cast<uint64_t>(cszDimension), false), ArrayType::Normal, 0 );
 }
 
 
@@ -469,7 +469,7 @@ void ClangASTHelper::ReplaceDeclarationReferences(Stmt* pStatement, const std::s
   {
     return;
   }
-  else if (isa< ::clang::DeclRefExpr >(pStatement))
+  else if (isa<::clang::DeclRefExpr>(pStatement))
   {
     DeclRefExpr *pDeclRef = dyn_cast<DeclRefExpr>(pStatement);
 

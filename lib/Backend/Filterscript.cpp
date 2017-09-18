@@ -44,7 +44,7 @@ Filterscript::CodeGenerator::Descriptor::Descriptor()
 
 Filterscript::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions)  : BaseType(pCompilerOptions, Descriptor())
 {
-  _InitSwitch< AndroidSwitches::RsPackage >(CompilerSwitchTypeEnum::RsPackage);
+  _InitSwitch<AndroidSwitches::RsPackage>(CompilerSwitchTypeEnum::RsPackage);
 }
 
 
@@ -57,7 +57,7 @@ size_t Filterscript::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch
   {
   case CompilerSwitchTypeEnum::RsPackage:
     {
-      GetCompilerOptions().setRSPackageName(_ParseOption< AndroidSwitches::RsPackage >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setRSPackageName(_ParseOption<AndroidSwitches::RsPackage>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;

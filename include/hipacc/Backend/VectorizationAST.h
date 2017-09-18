@@ -133,16 +133,16 @@ namespace Vectorization
     //@{
 
     class IVariableContainer;
-    typedef std::shared_ptr< IVariableContainer       >  IVariableContainerPtr;         //!< Shared pointer type for objects of class IVariableContainer
-    typedef std::shared_ptr< const IVariableContainer >  IVariableContainerConstPtr;    //!< Shared pointer type for constant objects of class IVariableContainer
+    typedef std::shared_ptr<IVariableContainer>       IVariableContainerPtr;      //!< Shared pointer type for objects of class IVariableContainer
+    typedef std::shared_ptr<const IVariableContainer> IVariableContainerConstPtr; //!< Shared pointer type for constant objects of class IVariableContainer
 
     class FunctionDeclaration;
-    typedef std::shared_ptr< FunctionDeclaration       >  FunctionDeclarationPtr;       //!< Shared pointer type for objects of class FunctionDeclaration
-    typedef std::shared_ptr< const FunctionDeclaration >  FunctionDeclarationConstPtr;  //!< Shared pointer type for constant objects of class FunctionDeclaration
+    typedef std::shared_ptr<FunctionDeclaration>       FunctionDeclarationPtr;      //!< Shared pointer type for objects of class FunctionDeclaration
+    typedef std::shared_ptr<const FunctionDeclaration> FunctionDeclarationConstPtr; //!< Shared pointer type for constant objects of class FunctionDeclaration
 
     class Scope;
-    typedef std::shared_ptr< Scope       >  ScopePtr;       //!< Shared pointer type for objects of class Scope
-    typedef std::shared_ptr< const Scope >  ScopeConstPtr;  //!< Shared pointer type for constant objects of class Scope
+    typedef std::shared_ptr<Scope>       ScopePtr;      //!< Shared pointer type for objects of class Scope
+    typedef std::shared_ptr<const Scope> ScopeConstPtr; //!< Shared pointer type for constant objects of class Scope
 
     //@}
 
@@ -187,20 +187,20 @@ namespace Vectorization
       //@{
 
       class VariableInfo;
-      typedef std::shared_ptr< VariableInfo       >  VariableInfoPtr;       //!< Shared pointer type for objects of class VariableInfo
-      typedef std::shared_ptr< const VariableInfo >  VariableInfoConstPtr;  //!< Shared pointer type for constant objects of class VariableInfo
+      typedef std::shared_ptr<VariableInfo>       VariableInfoPtr;      //!< Shared pointer type for objects of class VariableInfo
+      typedef std::shared_ptr<const VariableInfo> VariableInfoConstPtr; //!< Shared pointer type for constant objects of class VariableInfo
 
       class Node;
-      typedef std::shared_ptr< Node       >  NodePtr;       //!< Shared pointer type for objects of class Node
-      typedef std::shared_ptr< const Node >  NodeConstPtr;  //!< Shared pointer type for constant objects of class Node
+      typedef std::shared_ptr<Node>       NodePtr;      //!< Shared pointer type for objects of class Node
+      typedef std::shared_ptr<const Node> NodeConstPtr; //!< Shared pointer type for constant objects of class Node
 
       class ControlFlowStatement;
-      typedef std::shared_ptr< ControlFlowStatement       >  ControlFlowStatementPtr;       //!< Shared pointer type for objects of class ControlFlowStatement
-      typedef std::shared_ptr< const ControlFlowStatement >  ControlFlowStatementConstPtr;  //!< Shared pointer type for constant objects of class ControlFlowStatement
+      typedef std::shared_ptr<ControlFlowStatement>       ControlFlowStatementPtr;      //!< Shared pointer type for objects of class ControlFlowStatement
+      typedef std::shared_ptr<const ControlFlowStatement> ControlFlowStatementConstPtr; //!< Shared pointer type for constant objects of class ControlFlowStatement
 
       class Expression;
-      typedef std::shared_ptr< Expression       >  ExpressionPtr;       //!< Shared pointer type for objects of class Expression
-      typedef std::shared_ptr< const Expression >  ExpressionConstPtr;  //!< Shared pointer type for constant objects of class Expression
+      typedef std::shared_ptr<Expression>       ExpressionPtr;      //!< Shared pointer type for objects of class Expression
+      typedef std::shared_ptr<const Expression> ExpressionConstPtr; //!< Shared pointer type for constant objects of class Expression
 
       //@}
 
@@ -219,7 +219,7 @@ namespace Vectorization
       {
       public:
 
-        typedef std::vector< size_t >    ArrayDimensionVectorType;  //!< Type definition for a list of array dimensions
+        typedef std::vector<size_t> ArrayDimensionVectorType; //!< Type definition for a list of array dimensions
 
         enum class KnownTypes
         {
@@ -410,8 +410,8 @@ namespace Vectorization
 
         friend class AST;
 
-        std::weak_ptr< Node >   _wpParent;
-        std::weak_ptr< Node >   _wpThis;
+        std::weak_ptr<Node> _wpParent;
+        std::weak_ptr<Node> _wpThis;
 
 
         /** \brief  Sets the parent of a VAST node.
@@ -433,7 +433,7 @@ namespace Vectorization
          *  \tparam NodeClassPtr      The shared pointer type of the child node pointers.
          *  \param  rDestinationPtr   A reference to the shared pointer of the child node, which shall be exchanged.
          *  \param  crSourcePtr       A constant reference to the shared pointer, which points to the new child node. */
-        template < typename NodeClassPtr >
+        template <typename NodeClassPtr>
         inline void _SetChildPtr(NodeClassPtr &rDestinationPtr, const NodeClassPtr &crSourcePtr)
         {
           // If the child is set, remove its parent pointer
@@ -492,23 +492,23 @@ namespace Vectorization
          *  \tparam   NodeClass   The requested target type of the cast.
          *  \remarks  If the current object is not implementing the requested type, an exception will be thrown. */
         template <class NodeClass>
-        inline std::shared_ptr< NodeClass > CastToType()
+        inline std::shared_ptr<NodeClass> CastToType()
         {
           if (! IsType<NodeClass>())
           {
             throw RuntimeErrorException("Invalid node cast type!");
           }
 
-          return std::dynamic_pointer_cast< NodeClass >( GetThis() );
+          return std::dynamic_pointer_cast<NodeClass>( GetThis() );
         }
 
         /** \brief    Cast this node into another constant node type.
          *  \tparam   NodeClass   The requested target type of the cast.
          *  \remarks  If the current object is not implementing the requested type, an exception will be thrown. */
         template <class NodeClass>
-        inline std::shared_ptr< const NodeClass > CastToType() const
+        inline std::shared_ptr<const NodeClass> CastToType() const
         {
-          return const_cast< Node* >( this )->CastToType< const NodeClass >();
+          return const_cast<Node*>( this )->CastToType<const NodeClass>();
         }
 
         /** \brief    Checks, whether this node is implementing a specific node type.
@@ -516,9 +516,9 @@ namespace Vectorization
         template <class NodeClass>
         inline bool IsType() const
         {
-          static_assert( std::is_base_of< Node, NodeClass >::value, "All VAST nodes must be derived from class \"Node\"!" );
+          static_assert( std::is_base_of<Node, NodeClass>::value, "All VAST nodes must be derived from class \"Node\"!" );
 
-          return (dynamic_cast< const NodeClass* >(this) != nullptr);
+          return (dynamic_cast<const NodeClass*>(this) != nullptr);
         }
 
 
@@ -602,7 +602,7 @@ namespace Vectorization
         virtual bool      IsVectorized();
 
         /** \brief  Returns, whether this expression is vectorized. */
-        inline  bool      IsVectorized() const  { return const_cast< Expression* >(this)->IsVectorized(); }
+        inline  bool      IsVectorized() const  { return const_cast<Expression*>(this)->IsVectorized(); }
 
 
         /** \name Abstract methods implemented by the derived expression classes. */
@@ -628,7 +628,7 @@ namespace Vectorization
 
         /** \brief  Returns a constant shared pointer to the sub-expression with the specified index.
          *  \param  SubExprIndex  The index of the requested sub-expression. */
-        inline ExpressionConstPtr GetSubExpression(IndexType SubExprIndex) const  { return const_cast< Expression* >(this)->GetSubExpression(SubExprIndex); }
+        inline ExpressionConstPtr GetSubExpression(IndexType SubExprIndex) const  { return const_cast<Expression*>(this)->GetSubExpression(SubExprIndex); }
       };
     };
 
@@ -642,24 +642,24 @@ namespace Vectorization
       //@{
 
       class Loop;
-      typedef std::shared_ptr< Loop       >  LoopPtr;       //!< Shared pointer type for objects of class Loop
-      typedef std::shared_ptr< const Loop >  LoopConstPtr;  //!< Shared pointer type for constant objects of class Loop
+      typedef std::shared_ptr<Loop>       LoopPtr;      //!< Shared pointer type for objects of class Loop
+      typedef std::shared_ptr<const Loop> LoopConstPtr; //!< Shared pointer type for constant objects of class Loop
 
       class LoopControlStatement;
-      typedef std::shared_ptr< LoopControlStatement       >  LoopControlStatementPtr;       //!< Shared pointer type for objects of class LoopControlStatement
-      typedef std::shared_ptr< const LoopControlStatement >  LoopControlStatementConstPtr;  //!< Shared pointer type for constant objects of class LoopControlStatement
+      typedef std::shared_ptr<LoopControlStatement>       LoopControlStatementPtr;      //!< Shared pointer type for objects of class LoopControlStatement
+      typedef std::shared_ptr<const LoopControlStatement> LoopControlStatementConstPtr; //!< Shared pointer type for constant objects of class LoopControlStatement
 
       class ConditionalBranch;
-      typedef std::shared_ptr< ConditionalBranch       >  ConditionalBranchPtr;       //!< Shared pointer type for objects of class ConditionalBranch
-      typedef std::shared_ptr< const ConditionalBranch >  ConditionalBranchConstPtr;  //!< Shared pointer type for constant objects of class ConditionalBranch
+      typedef std::shared_ptr<ConditionalBranch>       ConditionalBranchPtr;      //!< Shared pointer type for objects of class ConditionalBranch
+      typedef std::shared_ptr<const ConditionalBranch> ConditionalBranchConstPtr; //!< Shared pointer type for constant objects of class ConditionalBranch
 
       class BranchingStatement;
-      typedef std::shared_ptr< BranchingStatement       >  BranchingStatementPtr;       //!< Shared pointer type for objects of class BranchingStatement
-      typedef std::shared_ptr< const BranchingStatement >  BranchingStatementConstPtr;  //!< Shared pointer type for constant objects of class BranchingStatement
+      typedef std::shared_ptr<BranchingStatement>       BranchingStatementPtr;      //!< Shared pointer type for objects of class BranchingStatement
+      typedef std::shared_ptr<const BranchingStatement> BranchingStatementConstPtr; //!< Shared pointer type for constant objects of class BranchingStatement
 
       class ReturnStatement;
-      typedef std::shared_ptr< ReturnStatement       >  ReturnStatementPtr;       //!< Shared pointer type for objects of class ReturnStatement
-      typedef std::shared_ptr< const ReturnStatement >  ReturnStatementConstPtr;  //!< Shared pointer type for constant objects of class ReturnStatement
+      typedef std::shared_ptr<ReturnStatement>       ReturnStatementPtr;      //!< Shared pointer type for objects of class ReturnStatement
+      typedef std::shared_ptr<const ReturnStatement> ReturnStatementConstPtr; //!< Shared pointer type for constant objects of class ReturnStatement
 
       //@}
 
@@ -824,7 +824,7 @@ namespace Vectorization
         LoopPtr               GetControlledLoop();
 
         /** \brief  Returns a constant shared pointer to the enclosing loop of this statement. */
-        inline LoopConstPtr   GetControlledLoop() const   { return const_cast< LoopControlStatement* >(this)->GetControlledLoop(); }
+        inline LoopConstPtr   GetControlledLoop() const   { return const_cast<LoopControlStatement*>(this)->GetControlledLoop(); }
 
       public:
 
@@ -834,7 +834,7 @@ namespace Vectorization
         virtual std::string DumpToXML(const size_t cszIntend) const final override;
 
         virtual BaseClasses::NodePtr  GetChild(IndexType ChildIndex) final override   { throw ASTExceptions::ChildIndexOutOfRange(); }
-        virtual IndexType             GetChildCount() const final override            { return static_cast< IndexType >(0); }
+        virtual IndexType             GetChildCount() const final override            { return static_cast<IndexType>(0); }
 
         //@}
 
@@ -900,7 +900,7 @@ namespace Vectorization
         virtual std::string DumpToXML(const size_t cszIntend) const final override;
 
         virtual BaseClasses::NodePtr  GetChild(IndexType ChildIndex) final override;
-        virtual IndexType             GetChildCount() const final override    { return static_cast< IndexType >( 2 ); }
+        virtual IndexType             GetChildCount() const final override { return static_cast<IndexType>(2); }
 
         //@}
 
@@ -920,8 +920,8 @@ namespace Vectorization
 
         friend class AST;
 
-        std::vector< ConditionalBranchPtr >   _vecBranches;
-        ScopePtr                              _spDefaultBranch;
+        std::vector<ConditionalBranchPtr> _vecBranches;
+        ScopePtr                          _spDefaultBranch;
 
 
         inline BranchingStatement() : _spDefaultBranch(nullptr)   {}
@@ -944,7 +944,7 @@ namespace Vectorization
         ConditionalBranchPtr  GetConditionalBranch(IndexType BranchIndex);
 
         /** \brief  Returns the number of conditional branches in this statement. */
-        inline IndexType      GetConditionalBranchesCount() const   { return static_cast< IndexType >( _vecBranches.size() ); }
+        inline IndexType      GetConditionalBranchesCount() const { return static_cast<IndexType>(_vecBranches.size()); }
 
         /** \brief  Removes the conditional branch with a specified index for this statement.
          *  \param  BranchIndex   The index of the conditional branch, which shall be removed. */
@@ -962,7 +962,7 @@ namespace Vectorization
          *  \param  BranchIndex   The index of the requested conditional branch. */
         inline ConditionalBranchConstPtr  GetConditionalBranch(IndexType BranchIndex) const
         {
-          return const_cast< BranchingStatement* >( this )->GetConditionalBranch( BranchIndex );
+          return const_cast<BranchingStatement*>(this)->GetConditionalBranch(BranchIndex);
         }
 
 
@@ -974,7 +974,7 @@ namespace Vectorization
         virtual std::string DumpToXML(const size_t cszIntend) const final override;
 
         virtual BaseClasses::NodePtr  GetChild(IndexType ChildIndex) final override;
-        virtual IndexType             GetChildCount() const final override    { return GetConditionalBranchesCount() + 1; }
+        virtual IndexType             GetChildCount() const final override { return GetConditionalBranchesCount() + 1; }
 
         //@}
 
@@ -1011,8 +1011,8 @@ namespace Vectorization
 
         virtual std::string DumpToXML(const size_t cszIntend) const final override;
 
-        virtual BaseClasses::NodePtr  GetChild(IndexType ChildIndex) final override   { throw ASTExceptions::ChildIndexOutOfRange(); }
-        virtual IndexType             GetChildCount() const final override            { return static_cast< IndexType >( 0 ); }
+        virtual BaseClasses::NodePtr  GetChild(IndexType ChildIndex) final override { throw ASTExceptions::ChildIndexOutOfRange(); }
+        virtual IndexType             GetChildCount() const final override          { return static_cast<IndexType>(0); }
 
         //@}
 
@@ -1036,59 +1036,59 @@ namespace Vectorization
       //@{
 
       class Value;
-      typedef std::shared_ptr< Value       >  ValuePtr;       //!< Shared pointer type for objects of class Value
-      typedef std::shared_ptr< const Value >  ValueConstPtr;  //!< Shared pointer type for constant objects of class Value
+      typedef std::shared_ptr<Value>       ValuePtr;      //!< Shared pointer type for objects of class Value
+      typedef std::shared_ptr<const Value> ValueConstPtr; //!< Shared pointer type for constant objects of class Value
 
       class Constant;
-      typedef std::shared_ptr< Constant       >  ConstantPtr;       //!< Shared pointer type for objects of class Constant
-      typedef std::shared_ptr< const Constant >  ConstantConstPtr;  //!< Shared pointer type for constant objects of class Constant
+      typedef std::shared_ptr<Constant>       ConstantPtr;      //!< Shared pointer type for objects of class Constant
+      typedef std::shared_ptr<const Constant> ConstantConstPtr; //!< Shared pointer type for constant objects of class Constant
 
       class Identifier;
-      typedef std::shared_ptr< Identifier       >  IdentifierPtr;       //!< Shared pointer type for objects of class Identifier
-      typedef std::shared_ptr< const Identifier >  IdentifierConstPtr;  //!< Shared pointer type for constant objects of class Identifier
+      typedef std::shared_ptr<Identifier>       IdentifierPtr;      //!< Shared pointer type for objects of class Identifier
+      typedef std::shared_ptr<const Identifier> IdentifierConstPtr; //!< Shared pointer type for constant objects of class Identifier
 
       class MemoryAccess;
-      typedef std::shared_ptr< MemoryAccess       >  MemoryAccessPtr;       //!< Shared pointer type for objects of class MemoryAccess
-      typedef std::shared_ptr< const MemoryAccess >  MemoryAccessConstPtr;  //!< Shared pointer type for constant objects of class MemoryAccess
+      typedef std::shared_ptr<MemoryAccess>       MemoryAccessPtr;      //!< Shared pointer type for objects of class MemoryAccess
+      typedef std::shared_ptr<const MemoryAccess> MemoryAccessConstPtr; //!< Shared pointer type for constant objects of class MemoryAccess
 
 
       class UnaryExpression;
-      typedef std::shared_ptr< UnaryExpression       >  UnaryExpressionPtr;       //!< Shared pointer type for objects of class UnaryExpression
-      typedef std::shared_ptr< const UnaryExpression >  UnaryExpressionConstPtr;  //!< Shared pointer type for constant objects of class UnaryExpression
+      typedef std::shared_ptr<UnaryExpression>       UnaryExpressionPtr;      //!< Shared pointer type for objects of class UnaryExpression
+      typedef std::shared_ptr<const UnaryExpression> UnaryExpressionConstPtr; //!< Shared pointer type for constant objects of class UnaryExpression
 
       class Conversion;
-      typedef std::shared_ptr< Conversion       >  ConversionPtr;       //!< Shared pointer type for objects of class Conversion
-      typedef std::shared_ptr< const Conversion >  ConversionConstPtr;  //!< Shared pointer type for constant objects of class Conversion
+      typedef std::shared_ptr<Conversion>       ConversionPtr;      //!< Shared pointer type for objects of class Conversion
+      typedef std::shared_ptr<const Conversion> ConversionConstPtr; //!< Shared pointer type for constant objects of class Conversion
 
       class Parenthesis;
-      typedef std::shared_ptr< Parenthesis       >  ParenthesisPtr;       //!< Shared pointer type for objects of class Parenthesis
-      typedef std::shared_ptr< const Parenthesis >  ParenthesisConstPtr;  //!< Shared pointer type for constant objects of class Parenthesis
+      typedef std::shared_ptr<Parenthesis>       ParenthesisPtr;      //!< Shared pointer type for objects of class Parenthesis
+      typedef std::shared_ptr<const Parenthesis> ParenthesisConstPtr; //!< Shared pointer type for constant objects of class Parenthesis
 
       class UnaryOperator;
-      typedef std::shared_ptr< UnaryOperator       >  UnaryOperatorPtr;       //!< Shared pointer type for objects of class UnaryOperator
-      typedef std::shared_ptr< const UnaryOperator >  UnaryOperatorConstPtr;  //!< Shared pointer type for constant objects of class UnaryOperator
+      typedef std::shared_ptr<UnaryOperator>       UnaryOperatorPtr;      //!< Shared pointer type for objects of class UnaryOperator
+      typedef std::shared_ptr<const UnaryOperator> UnaryOperatorConstPtr; //!< Shared pointer type for constant objects of class UnaryOperator
 
 
       class BinaryOperator;
-      typedef std::shared_ptr< BinaryOperator       >  BinaryOperatorPtr;       //!< Shared pointer type for objects of class BinaryOperator
-      typedef std::shared_ptr< const BinaryOperator >  BinaryOperatorConstPtr;  //!< Shared pointer type for constant objects of class BinaryOperator
+      typedef std::shared_ptr<BinaryOperator>       BinaryOperatorPtr;      //!< Shared pointer type for objects of class BinaryOperator
+      typedef std::shared_ptr<const BinaryOperator> BinaryOperatorConstPtr; //!< Shared pointer type for constant objects of class BinaryOperator
 
       class ArithmeticOperator;
-      typedef std::shared_ptr< ArithmeticOperator       >  ArithmeticOperatorPtr;       //!< Shared pointer type for objects of class ArithmeticOperator
-      typedef std::shared_ptr< const ArithmeticOperator >  ArithmeticOperatorConstPtr;  //!< Shared pointer type for constant objects of class ArithmeticOperator
+      typedef std::shared_ptr<ArithmeticOperator>       ArithmeticOperatorPtr;      //!< Shared pointer type for objects of class ArithmeticOperator
+      typedef std::shared_ptr<const ArithmeticOperator> ArithmeticOperatorConstPtr; //!< Shared pointer type for constant objects of class ArithmeticOperator
 
       class AssignmentOperator;
-      typedef std::shared_ptr< AssignmentOperator       >  AssignmentOperatorPtr;       //!< Shared pointer type for objects of class AssignmentOperator
-      typedef std::shared_ptr< const AssignmentOperator >  AssignmentOperatorConstPtr;  //!< Shared pointer type for constant objects of class AssignmentOperator
+      typedef std::shared_ptr<AssignmentOperator>       AssignmentOperatorPtr;     //!< Shared pointer type for objects of class AssignmentOperator
+      typedef std::shared_ptr<const AssignmentOperator> AssignmentOperatorConstPtr; //!< Shared pointer type for constant objects of class AssignmentOperator
 
       class RelationalOperator;
-      typedef std::shared_ptr< RelationalOperator       >  RelationalOperatorPtr;       //!< Shared pointer type for objects of class RelationalOperator
-      typedef std::shared_ptr< const RelationalOperator >  RelationalOperatorConstPtr;  //!< Shared pointer type for constant objects of class RelationalOperator
+      typedef std::shared_ptr<RelationalOperator>       RelationalOperatorPtr;      //!< Shared pointer type for objects of class RelationalOperator
+      typedef std::shared_ptr<const RelationalOperator> RelationalOperatorConstPtr; //!< Shared pointer type for constant objects of class RelationalOperator
 
 
       class FunctionCall;
-      typedef std::shared_ptr< FunctionCall       >  FunctionCallPtr;       //!< Shared pointer type for objects of class FunctionCall
-      typedef std::shared_ptr< const FunctionCall >  FunctionCallConstPtr;  //!< Shared pointer type for constant objects of class FunctionCall
+      typedef std::shared_ptr<FunctionCall>       FunctionCallPtr;      //!< Shared pointer type for objects of class FunctionCall
+      typedef std::shared_ptr<const FunctionCall> FunctionCallConstPtr; //!< Shared pointer type for constant objects of class FunctionCall
 
       //@}
 
@@ -1114,7 +1114,7 @@ namespace Vectorization
         /** \name Public methods inherited from class BaseClasses::Expression */
         //@{
         virtual ExpressionPtr   GetSubExpression(IndexType SubExprIndex) override                           { throw ASTExceptions::ChildIndexOutOfRange(); }
-        virtual IndexType       GetSubExpressionCount() const override                                      { return static_cast< IndexType >(0); }
+        virtual IndexType       GetSubExpressionCount() const override                                      { return static_cast<IndexType>(0); }
         virtual void            SetSubExpression(IndexType SubExprIndex, ExpressionPtr spSubExpr) override  { throw ASTExceptions::ChildIndexOutOfRange(); }
         //@}
       };
@@ -1142,24 +1142,24 @@ namespace Vectorization
         /** \brief    Generic internal method, which handles changes of the numeric type of this constant.
          *  \tparam   SourceValueType   The internal numeric type of this constant before the type-changing action.
          *  \param    eNewType          The requested new element type of this constant. */
-        template < typename SourceValueType >
+        template <typename SourceValueType>
         inline void _ChangeType(KnownTypes eNewType)
         {
-          SourceValueType TValue = GetValue< SourceValueType >();
+          SourceValueType TValue = GetValue<SourceValueType>();
 
           switch (eNewType)
           {
-          case KnownTypes::Bool:    SetValue( TValue != static_cast< SourceValueType >( 0 ) );  break;
-          case KnownTypes::Int8:    SetValue( static_cast< std::int8_t   >( TValue ) );         break;
-          case KnownTypes::UInt8:   SetValue( static_cast< std::uint8_t  >( TValue ) );         break;
-          case KnownTypes::Int16:   SetValue( static_cast< std::int16_t  >( TValue ) );         break;
-          case KnownTypes::UInt16:  SetValue( static_cast< std::uint16_t >( TValue ) );         break;
-          case KnownTypes::Int32:   SetValue( static_cast< std::int32_t  >( TValue ) );         break;
-          case KnownTypes::UInt32:  SetValue( static_cast< std::uint32_t >( TValue ) );         break;
-          case KnownTypes::Int64:   SetValue( static_cast< std::int64_t  >( TValue ) );         break;
-          case KnownTypes::UInt64:  SetValue( static_cast< std::uint64_t >( TValue ) );         break;
-          case KnownTypes::Float:   SetValue( static_cast< float         >( TValue ) );         break;
-          case KnownTypes::Double:  SetValue( static_cast< double        >( TValue ) );         break;
+          case KnownTypes::Bool:    SetValue( TValue != static_cast<SourceValueType>(0) ); break;
+          case KnownTypes::Int8:    SetValue( static_cast<std::int8_t  >( TValue ) );      break;
+          case KnownTypes::UInt8:   SetValue( static_cast<std::uint8_t >( TValue ) );      break;
+          case KnownTypes::Int16:   SetValue( static_cast<std::int16_t >( TValue ) );      break;
+          case KnownTypes::UInt16:  SetValue( static_cast<std::uint16_t>( TValue ) );      break;
+          case KnownTypes::Int32:   SetValue( static_cast<std::int32_t >( TValue ) );      break;
+          case KnownTypes::UInt32:  SetValue( static_cast<std::uint32_t>( TValue ) );      break;
+          case KnownTypes::Int64:   SetValue( static_cast<std::int64_t >( TValue ) );      break;
+          case KnownTypes::UInt64:  SetValue( static_cast<std::uint64_t>( TValue ) );      break;
+          case KnownTypes::Float:   SetValue( static_cast<float        >( TValue ) );      break;
+          case KnownTypes::Double:  SetValue( static_cast<double       >( TValue ) );      break;
           default:                  throw RuntimeErrorException(std::string("Invalid constant type: ") + BaseClasses::TypeInfo::GetTypeString(eNewType));
           }
         }
@@ -1183,7 +1183,7 @@ namespace Vectorization
 
 
         /** \brief  Returns the currently set element type of this constant. */
-        inline BaseClasses::TypeInfo::KnownTypes  GetValueType() const    { return _eType; }
+        inline BaseClasses::TypeInfo::KnownTypes GetValueType() const { return _eType; }
 
 
         /** \brief    Changes the internal numeric type of this constant.
@@ -1196,14 +1196,14 @@ namespace Vectorization
          *  \remarks  If the requested output value type does not equal the internal constant type, a loss of information can occur in the return value due to truncation. */
         template <typename ValueType> inline ValueType GetValue() const
         {
-          static_assert(std::is_arithmetic< ValueType >::value, "Expected a numeric value type!");
+          static_assert(std::is_arithmetic<ValueType>::value, "Expected a numeric value type!");
 
           switch (_eType)
           {
           case KnownTypes::Float: case KnownTypes::Double:
-            return static_cast< ValueType >( _unionValues.dFloatingPointValue );
+            return static_cast<ValueType>(_unionValues.dFloatingPointValue);
           default:
-            return static_cast< ValueType >( _unionValues.ui64IntegralValue );
+            return static_cast<ValueType>(_unionValues.ui64IntegralValue);
           }
         }
 
@@ -1212,13 +1212,13 @@ namespace Vectorization
          *  \param  TValue      The requested new value, which shall be stored by this constant. */
         template <typename ValueType> inline void SetValue(ValueType TValue)
         {
-          static_assert(std::is_arithmetic< ValueType >::value, "Expected a numeric value type!");
+          static_assert(std::is_arithmetic<ValueType>::value, "Expected a numeric value type!");
 
           if (std::is_integral<ValueType>::value)
           {
-            _unionValues.ui64IntegralValue  = static_cast< std::uint64_t >( TValue );
+            _unionValues.ui64IntegralValue  = static_cast<std::uint64_t>(TValue);
 
-            bool bSigned = std::numeric_limits< ValueType >::is_signed;
+            bool bSigned = std::numeric_limits<ValueType>::is_signed;
 
             switch (sizeof(ValueType))
             {
@@ -1230,7 +1230,7 @@ namespace Vectorization
           }
           else
           {
-            _unionValues.dFloatingPointValue = static_cast< double >( TValue );
+            _unionValues.dFloatingPointValue = static_cast<double>(TValue);
 
             _eType = (sizeof(ValueType) == 4) ? KnownTypes::Float : KnownTypes::Double;
           }
@@ -1288,12 +1288,12 @@ namespace Vectorization
         /** \brief    Returns a shared pointer to the VariableInfo object, which describes the declaration of the referenced variable.
          *  \remarks  This method requires the VAST node to be correctly linked into an enclosing AST, because it retrives the variable declaration
          *            from the root <b>FunctionDeclaration</b> object. */
-        BaseClasses::VariableInfoPtr              LookupVariableInfo();
+        BaseClasses::VariableInfoPtr LookupVariableInfo();
 
         /** \brief    Returns a constant shared pointer to the VariableInfo object, which describes the declaration of the referenced variable.
          *  \remarks  This method requires the VAST node to be correctly linked into an enclosing AST, because it retrives the variable declaration
          *            from the root <b>FunctionDeclaration</b> object. */
-        inline BaseClasses::VariableInfoConstPtr  LookupVariableInfo() const
+        inline BaseClasses::VariableInfoConstPtr LookupVariableInfo() const
         {
           return const_cast< Identifier* >( this )->LookupVariableInfo();
         }
@@ -1369,7 +1369,7 @@ namespace Vectorization
         virtual BaseClasses::TypeInfo GetResultType() const final override;
 
         virtual ExpressionPtr   GetSubExpression(IndexType SubExprIndex) final override;
-        virtual IndexType       GetSubExpressionCount() const final override  { return static_cast< IndexType >(2); }
+        virtual IndexType       GetSubExpressionCount() const final override { return static_cast<IndexType>(2); }
         virtual void            SetSubExpression(IndexType SubExprIndex, ExpressionPtr spSubExpr) final override;
         //@}
 
@@ -1414,9 +1414,9 @@ namespace Vectorization
 
         /** \name Public methods inherited from class BaseClasses::Expression */
         //@{
-        virtual BaseClasses::ExpressionPtr  GetSubExpression(IndexType SubExprIndex) final override;
-        virtual IndexType                   GetSubExpressionCount() const final override  { return static_cast< IndexType >( 1 ); }
-        virtual void                        SetSubExpression(IndexType SubExprIndex, BaseClasses::ExpressionPtr spSubExpr) final override;
+        virtual BaseClasses::ExpressionPtr GetSubExpression(IndexType SubExprIndex) final override;
+        virtual IndexType                  GetSubExpressionCount() const final override { return static_cast<IndexType>(1); }
+        virtual void                       SetSubExpression(IndexType SubExprIndex, BaseClasses::ExpressionPtr spSubExpr) final override;
         //@}
       };
 
@@ -1623,7 +1623,7 @@ namespace Vectorization
         /** \name Public methods inherited from class BaseClasses::Expression */
         //@{
         virtual ExpressionPtr GetSubExpression(IndexType SubExprIndex) override;
-        virtual IndexType     GetSubExpressionCount() const override      { return static_cast< IndexType >(2); }
+        virtual IndexType     GetSubExpressionCount() const override { return static_cast<IndexType>(2); }
         virtual void          SetSubExpression(IndexType SubExprIndex, ExpressionPtr spSubExpr) override;
         //@}
       };
@@ -1739,7 +1739,7 @@ namespace Vectorization
 
 
         /** \brief  Returns, whether the assignment is conditional, i.e. whether a mask identifier has been set. */
-        inline bool IsMasked() const  { return static_cast<bool>( GetMask() ); }
+        inline bool IsMasked() const { return static_cast<bool>(GetMask()); }
 
       public:
 
@@ -1937,20 +1937,20 @@ namespace Vectorization
       //@{
 
       class VectorExpression;
-      typedef std::shared_ptr< VectorExpression       >  VectorExpressionPtr;       //!< Shared pointer type for objects of class VectorExpression
-      typedef std::shared_ptr< const VectorExpression >  VectorExpressionConstPtr;  //!< Shared pointer type for constant objects of class VectorExpression
+      typedef std::shared_ptr<VectorExpression>       VectorExpressionPtr;      //!< Shared pointer type for objects of class VectorExpression
+      typedef std::shared_ptr<const VectorExpression> VectorExpressionConstPtr; //!< Shared pointer type for constant objects of class VectorExpression
 
       class BroadCast;
-      typedef std::shared_ptr< BroadCast       >  BroadCastPtr;       //!< Shared pointer type for objects of class BroadCast
-      typedef std::shared_ptr< const BroadCast >  BroadCastConstPtr;  //!< Shared pointer type for constant objects of class BroadCast
+      typedef std::shared_ptr<BroadCast>       BroadCastPtr;      //!< Shared pointer type for objects of class BroadCast
+      typedef std::shared_ptr<const BroadCast> BroadCastConstPtr; //!< Shared pointer type for constant objects of class BroadCast
 
       class CheckActiveElements;
-      typedef std::shared_ptr< CheckActiveElements       >  CheckActiveElementsPtr;       //!< Shared pointer type for objects of class CheckActiveElements
-      typedef std::shared_ptr< const CheckActiveElements >  CheckActiveElementsConstPtr;  //!< Shared pointer type for constant objects of class CheckActiveElements
+      typedef std::shared_ptr<CheckActiveElements>       CheckActiveElementsPtr;      //!< Shared pointer type for objects of class CheckActiveElements
+      typedef std::shared_ptr<const CheckActiveElements> CheckActiveElementsConstPtr; //!< Shared pointer type for constant objects of class CheckActiveElements
 
       class VectorIndex;
-      typedef std::shared_ptr< VectorIndex       >  VectorIndexPtr;       //!< Shared pointer type for objects of class VectorIndex
-      typedef std::shared_ptr< const VectorIndex >  VectorIndexConstPtr;  //!< Shared pointer type for constant objects of class VectorIndex
+      typedef std::shared_ptr<VectorIndex>       VectorIndexPtr;      //!< Shared pointer type for objects of class VectorIndex
+      typedef std::shared_ptr<const VectorIndex> VectorIndexConstPtr; //!< Shared pointer type for constant objects of class VectorIndex
 
       //@}
 
@@ -2017,9 +2017,9 @@ namespace Vectorization
 
         virtual BaseClasses::TypeInfo  GetResultType() const final override;
 
-        virtual ExpressionPtr   GetSubExpression(IndexType SubExprIndex) final override;
-        virtual IndexType       GetSubExpressionCount() const final override      { return static_cast< IndexType >( 1 ); }
-        virtual void            SetSubExpression(IndexType SubExprIndex, ExpressionPtr spSubExpr) final override;
+        virtual ExpressionPtr GetSubExpression(IndexType SubExprIndex) final override;
+        virtual IndexType     GetSubExpressionCount() const final override { return static_cast<IndexType>(1); }
+        virtual void          SetSubExpression(IndexType SubExprIndex, ExpressionPtr spSubExpr) final override;
 
         // @}
 
@@ -2163,9 +2163,9 @@ namespace Vectorization
 
         virtual BaseClasses::TypeInfo  GetResultType() const final override;
 
-        virtual ExpressionPtr   GetSubExpression(IndexType SubExprIndex) final override                           { throw ASTExceptions::ChildIndexOutOfRange(); }
-        virtual IndexType       GetSubExpressionCount() const final override                                      { return static_cast< IndexType >(0); }
-        virtual void            SetSubExpression(IndexType SubExprIndex, ExpressionPtr spSubExpr) final override  { throw ASTExceptions::ChildIndexOutOfRange(); }
+        virtual ExpressionPtr GetSubExpression(IndexType SubExprIndex) final override                          { throw ASTExceptions::ChildIndexOutOfRange(); }
+        virtual IndexType     GetSubExpressionCount() const final override                                     { return static_cast<IndexType>(0); }
+        virtual void          SetSubExpression(IndexType SubExprIndex, ExpressionPtr spSubExpr) final override { throw ASTExceptions::ChildIndexOutOfRange(); }
 
         //@}
 
@@ -2212,7 +2212,7 @@ namespace Vectorization
        *  \remarks  If the specified variable declaration is not known, <b>nullptr</b> will be returned. */
       inline BaseClasses::VariableInfoConstPtr  GetVariableInfo(std::string strVariableName) const
       {
-        return const_cast< IVariableContainer* >( this )->GetVariableInfo( strVariableName );
+        return const_cast<IVariableContainer*>(this)->GetVariableInfo(strVariableName);
       }
     };
 
@@ -2221,30 +2221,30 @@ namespace Vectorization
     {
     public:
 
-      typedef std::vector< Expressions::IdentifierPtr >   VariableDeclarationVectorType;  //!< Type definition for a list of declared variables.
+      typedef std::vector<Expressions::IdentifierPtr> VariableDeclarationVectorType; //!< Type definition for a list of declared variables.
 
     private:
 
       friend class AST;
 
-      typedef BaseClasses::NodePtr    NodePtr;    //!< Type alias for shared pointers to class <b>BaseClasses::Node</b>.
+      typedef BaseClasses::NodePtr NodePtr; //!< Type alias for shared pointers to class <b>BaseClasses::Node</b>.
 
-      typedef std::vector< NodePtr >  ChildrenContainerType;
+      typedef std::vector<NodePtr> ChildrenContainerType;
 
 
     private:
 
-      ChildrenContainerType     _Children;
-      std::set< std::string >   _setDeclaredVariables;
+      ChildrenContainerType _Children;
+      std::set<std::string> _setDeclaredVariables;
 
-      inline Scope()  {}
+      inline Scope() {}
 
 
       /** \brief  Returns a shared pointer to the first parent VAST node, which is derived from the class IVariableContainer. */
-      IVariableContainerPtr               _GetParentVariableContainer();
+      IVariableContainerPtr             _GetParentVariableContainer();
 
       /** \brief  Returns a constant shared pointer to the first parent VAST node, which is derived from the class IVariableContainer. */
-      inline IVariableContainerConstPtr   _GetParentVariableContainer() const { return const_cast< Scope* >(this)->_GetParentVariableContainer(); }
+      inline IVariableContainerConstPtr _GetParentVariableContainer() const { return const_cast<Scope*>(this)->_GetParentVariableContainer(); }
 
 
     public:
@@ -2334,7 +2334,7 @@ namespace Vectorization
       //@{
 
       virtual NodePtr     GetChild(IndexType ChildIndex) final override;
-      virtual IndexType   GetChildCount() const final override  { return static_cast< IndexType >(_Children.size()); }
+      virtual IndexType   GetChildCount() const final override  { return static_cast<IndexType>(_Children.size()); }
 
       virtual std::string DumpToXML(const size_t cszIntend) const final override;
 
@@ -2351,8 +2351,8 @@ namespace Vectorization
 
       typedef BaseClasses::NodePtr  NodePtr;    //!< Type alias for shared pointers to class <b>BaseClasses::Node</b>.
 
-      typedef std::vector< Expressions::IdentifierPtr >              ParameterContainerType;
-      typedef std::map< std::string, BaseClasses::VariableInfoPtr >  KnownVariablesMapType;
+      typedef std::vector<Expressions::IdentifierPtr>             ParameterContainerType;
+      typedef std::map<std::string, BaseClasses::VariableInfoPtr> KnownVariablesMapType;
 
 
     private:
@@ -2387,7 +2387,7 @@ namespace Vectorization
       Expressions::IdentifierPtr  GetParameter(IndexType iParamIndex);
 
       /** \brief  Returns the number of parameters for this function declaration. */
-      inline IndexType            GetParameterCount() const   { return static_cast< IndexType >( _Parameters.size() ); }
+      inline IndexType            GetParameterCount() const   { return static_cast<IndexType>(_Parameters.size()); }
 
       /** \brief    Replaces an existing function parameter with a new one.
        *  \param    iParamIndex       The index of the function parameter, which shall be replaced.
@@ -2401,7 +2401,7 @@ namespace Vectorization
        *  \remarks  If the function parameter index is out of range, a <b>ASTExceptions::ChildIndexOutOfRange</b> exception will be thrown. */
       inline Expressions::IdentifierConstPtr  GetParameter(IndexType iParamIndex) const
       {
-        return const_cast< FunctionDeclaration* >( this )->GetParameter( iParamIndex );
+        return const_cast<FunctionDeclaration*>(this)->GetParameter(iParamIndex);
       }
 
       //@}
@@ -2424,7 +2424,7 @@ namespace Vectorization
     public:
 
       /** \brief  Returns the names of all known variable declarations inside the function, including its parameters. */
-      std::vector< std::string >  GetKnownVariableNames() const;
+      std::vector<std::string> GetKnownVariableNames() const;
 
 
       /** \name Public methods inherited from class IVariableContainer. */
@@ -2440,8 +2440,8 @@ namespace Vectorization
       /** \name Public methods inherited from class BaseClasses::Node. */
       //@{
 
-      virtual NodePtr     GetChild(IndexType ChildIndex) final override;
-      virtual IndexType   GetChildCount() const final override  { return static_cast< IndexType >(1); }
+      virtual NodePtr   GetChild(IndexType ChildIndex) final override;
+      virtual IndexType GetChildCount() const final override { return static_cast<IndexType>(1); }
 
       virtual std::string DumpToXML(const size_t cszIntend) const final override;
 
@@ -2453,12 +2453,12 @@ namespace Vectorization
     /** \brief    Generic internal method, which creates a new object of a VAST class.
      *  \tparam   NodeClass   The type of the VAST object, which shall be created. It must be derived from class <b>BaseClasses::Node</b>.
      *  \return   A shared pointer to the newly created VAST object. */
-    template < class NodeClass >
-    inline static std::shared_ptr< NodeClass > CreateNode()
+    template <class NodeClass>
+    inline static std::shared_ptr<NodeClass> CreateNode()
     {
-      static_assert(std::is_base_of< BaseClasses::Node, NodeClass >::value, "All nodes of the vectorizable AST must be derived from class \"Node\"");
+      static_assert(std::is_base_of<BaseClasses::Node, NodeClass>::value, "All nodes of the vectorizable AST must be derived from class \"Node\"");
 
-      std::shared_ptr< NodeClass > spNode( new NodeClass );
+      std::shared_ptr<NodeClass> spNode( new NodeClass );
 
       spNode->_wpThis = BaseClasses::NodePtr( spNode );
 
@@ -2474,14 +2474,14 @@ namespace Vectorization
     case KnownTypes::Float: case KnownTypes::Double:
       return (_unionValues.dFloatingPointValue != 0.);
     default:
-      return (_unionValues.ui64IntegralValue != static_cast< std::uint64_t >(0));
+      return (_unionValues.ui64IntegralValue != static_cast<std::uint64_t>(0));
     }
   }
 
   template <> inline void AST::Expressions::Constant::SetValue<bool>(bool TValue)
   {
-    _unionValues.ui64IntegralValue  = static_cast< std::uint64_t >( TValue ? 1 : 0 );
-    _eType                          = KnownTypes::Bool;
+    _unionValues.ui64IntegralValue = static_cast<std::uint64_t>(TValue ? 1 : 0);
+    _eType                         = KnownTypes::Bool;
   }
 } // end namespace Vectorization
 } // end namespace Backend

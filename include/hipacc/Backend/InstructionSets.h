@@ -169,14 +169,14 @@ namespace Vectorization
   {
   protected:
 
-    typedef std::pair< std::string, ::clang::FunctionDecl* >      IntrinsicInfoPairType;    //!< Container for the name and function declaration object of an intrinsic function.
+    typedef std::pair<std::string, ::clang::FunctionDecl*> IntrinsicInfoPairType;    //!< Container for the name and function declaration object of an intrinsic function.
 
     /** \brief  Generic type alias for the intrinsic function lookup tables of the instruction sets. */
-    template < typename IntrinsicIDType >   using IntrinsicMapTemplateType = std::map< IntrinsicIDType, IntrinsicInfoPairType >;
+    template <typename IntrinsicIDType> using IntrinsicMapTemplateType = std::map<IntrinsicIDType, IntrinsicInfoPairType>;
 
   private:
 
-    typedef std::map< std::string, ClangASTHelper::FunctionDeclarationVectorType >   FunctionDeclMapType;   //!< Internal type definition for a lookup table of function declarations.
+    typedef std::map<std::string, ClangASTHelper::FunctionDeclarationVectorType> FunctionDeclMapType; //!< Internal type definition for a lookup table of function declarations.
 
     ClangASTHelper        _ASTHelper;           //!< The ClangASTHelper object encapsulating the current Clang AST context.
     FunctionDeclMapType   _mapKnownFuncDecls;   //!< The lookup table of all known function declarations for each compilation run.
@@ -219,8 +219,8 @@ namespace Vectorization
      *  \param  crIntrinMap       A reference to the currently used intrinsic function lookup table.
      *  \param  eIntrinID         The internal ID of the requested intrinsic function.
      *  \param  crvecArguments    A vector containing the expression objects, which shall be used as arguments for the intrinsic function. */
-    template < typename IntrinsicIDType >
-    inline ::clang::CallExpr* _CreateFunctionCall(const IntrinsicMapTemplateType< IntrinsicIDType > &crIntrinMap, IntrinsicIDType eIntrinID, const ClangASTHelper::ExpressionVectorType &crvecArguments)
+    template <typename IntrinsicIDType>
+    inline ::clang::CallExpr* _CreateFunctionCall(const IntrinsicMapTemplateType<IntrinsicIDType> &crIntrinMap, IntrinsicIDType eIntrinID, const ClangASTHelper::ExpressionVectorType &crvecArguments)
     {
       auto itIntrinEntry = crIntrinMap.find(eIntrinID);
       if (itIntrinEntry == crIntrinMap.end())
@@ -243,8 +243,8 @@ namespace Vectorization
      *  \param  eIntrinID         The internal ID of the intrinsic, which represents an addition or a subtraction for the current vector element type.
      *  \param  eElementType      The element type stored in the vector.
      *  \param  pVectorRef        A pointer to a vectorized expression, which returns the vector that shall be incremented or decremented. */
-    template < typename IntrinsicIDType >
-    inline ::clang::Expr* _CreatePostfixedUnaryOp(const IntrinsicMapTemplateType< IntrinsicIDType > &crIntrinMap, IntrinsicIDType eIntrinID, VectorElementTypes eElementType, ::clang::Expr *pVectorRef)
+    template <typename IntrinsicIDType>
+    inline ::clang::Expr* _CreatePostfixedUnaryOp(const IntrinsicMapTemplateType<IntrinsicIDType> &crIntrinMap, IntrinsicIDType eIntrinID, VectorElementTypes eElementType, ::clang::Expr *pVectorRef)
     {
       // Create the assignment expression which does the computation (identical to the prefixed counterpart)
       ::clang::Expr *pAssignment = _CreatePrefixedUnaryOp( crIntrinMap, eIntrinID, eElementType, pVectorRef );
@@ -269,8 +269,8 @@ namespace Vectorization
      *  \param  eIntrinID         The internal ID of the intrinsic, which represents an addition or a subtraction for the current vector element type.
      *  \param  eElementType      The element type stored in the vector.
      *  \param  pVectorRef        A pointer to a vectorized expression, which returns the vector that shall be incremented or decremented. */
-    template < typename IntrinsicIDType >
-    inline ::clang::Expr* _CreatePrefixedUnaryOp(const IntrinsicMapTemplateType< IntrinsicIDType > &crIntrinMap, IntrinsicIDType eIntrinID, VectorElementTypes eElementType, ::clang::Expr *pVectorRef)
+    template <typename IntrinsicIDType>
+    inline ::clang::Expr* _CreatePrefixedUnaryOp(const IntrinsicMapTemplateType<IntrinsicIDType> &crIntrinMap, IntrinsicIDType eIntrinID, VectorElementTypes eElementType, ::clang::Expr *pVectorRef)
     {
       ClangASTHelper::ExpressionVectorType vecArgs;
       vecArgs.push_back( pVectorRef );
@@ -285,8 +285,8 @@ namespace Vectorization
      *  \tparam IntrinsicIDType   The type of the enumeration containing all the internal intrinsic function IDs.
      *  \param  crIntrinMap       A reference to the currently used intrinsic function lookup table.
      *  \param  eIntrinID         The internal ID of the requested intrinsic function, whose return type shall be retrieved. */
-    template < typename IntrinsicIDType >
-    inline ::clang::QualType _GetFunctionReturnType(const IntrinsicMapTemplateType< IntrinsicIDType > &crIntrinMap, IntrinsicIDType eIntrinID)
+    template <typename IntrinsicIDType>
+    inline ::clang::QualType _GetFunctionReturnType(const IntrinsicMapTemplateType<IntrinsicIDType> &crIntrinMap, IntrinsicIDType eIntrinID)
     {
       auto itIntrinEntry = crIntrinMap.find(eIntrinID);
       if (itIntrinEntry == crIntrinMap.end())
@@ -309,8 +309,8 @@ namespace Vectorization
      *  \param  rIntrinMap        A reference to the currently used intrinsic function lookup table.
      *  \param  eIntrinID         The internal ID of the intrinsic function.
      *  \param  strIntrinName     The name of the intrinsic function. */
-    template < typename IntrinsicIDType >
-    inline void _InitIntrinsic(IntrinsicMapTemplateType< IntrinsicIDType > &rIntrinMap, IntrinsicIDType eIntrinID, std::string strIntrinName)
+    template <typename IntrinsicIDType>
+    inline void _InitIntrinsic(IntrinsicMapTemplateType<IntrinsicIDType> &rIntrinMap, IntrinsicIDType eIntrinID, std::string strIntrinName)
     {
       rIntrinMap[eIntrinID] = IntrinsicInfoPairType(_strIntrinsicPrefix + strIntrinName, nullptr);
     }
@@ -319,14 +319,14 @@ namespace Vectorization
      *  \tparam IntrinsicIDType         The type of the enumeration containing all the internal intrinsic function IDs.
      *  \param  rIntrinMap              A reference to the currently used intrinsic function lookup table.
      *  \param  strInstructionSetName   The name of the currently processed instruction set. */
-    template < typename IntrinsicIDType >
-    inline void _LookupIntrinsics(IntrinsicMapTemplateType< IntrinsicIDType > &rIntrinMap, std::string strInstructionSetName)
+    template <typename IntrinsicIDType>
+    inline void _LookupIntrinsics(IntrinsicMapTemplateType<IntrinsicIDType> &rIntrinMap, std::string strInstructionSetName)
     {
       #ifdef VERBOSE_INIT_MODE
       llvm::errs() << "\n\nIntrinsic functions for instruction set \"" << strInstructionSetName << "\" (" << rIntrinMap.size() << " methods):\n";
       #endif
 
-      for (typename IntrinsicMapTemplateType< IntrinsicIDType >::iterator itIntrinsic = rIntrinMap.begin(); itIntrinsic != rIntrinMap.end(); itIntrinsic++)
+      for (typename IntrinsicMapTemplateType<IntrinsicIDType>::iterator itIntrinsic = rIntrinMap.begin(); itIntrinsic != rIntrinMap.end(); itIntrinsic++)
       {
         IntrinsicInfoPairType &rIntrinsicInfo = itIntrinsic->second;
 
@@ -446,12 +446,12 @@ namespace Vectorization
      *  \tparam   InstructionSetType  The type of the requested instruction set class.
      *  \param    rAstContext         A reference to the current Clang AST context..
      *  \return   A shared pointer to the newly created instruction set implementation object. */
-    template < class InstructionSetType >
-    inline static std::shared_ptr< InstructionSetType > Create(::clang::ASTContext &rAstContext)
+    template <class InstructionSetType>
+    inline static std::shared_ptr<InstructionSetType> Create(::clang::ASTContext &rAstContext)
     {
-      static_assert( std::is_base_of< InstructionSetBase, InstructionSetType >::value, "The requested instruction set is not derived from class \"InstructionSetBase\" !" );
+      static_assert( std::is_base_of<InstructionSetBase, InstructionSetType>::value, "The requested instruction set is not derived from class \"InstructionSetBase\" !" );
 
-      return std::shared_ptr< InstructionSetType >( new InstructionSetType(rAstContext) );
+      return std::shared_ptr<InstructionSetType>( new InstructionSetType(rAstContext) );
     }
 
 
@@ -756,7 +756,7 @@ namespace Vectorization
   };
 
   /** \brief  The shared pointer type for instruction set implementations. */
-  typedef std::shared_ptr< InstructionSetBase >   InstructionSetBasePtr;
+  typedef std::shared_ptr<InstructionSetBase> InstructionSetBasePtr;
 
 
   /** \name SSE instruction sets */
@@ -811,12 +811,12 @@ namespace Vectorization
     };
 
 
-    typedef InstructionSetBase::IntrinsicMapTemplateType< IntrinsicsSSEEnum >   IntrinsicMapType;   //!< Type definition for the lookup-table of intrinsic functions.
+    typedef InstructionSetBase::IntrinsicMapTemplateType<IntrinsicsSSEEnum> IntrinsicMapType; //!< Type definition for the lookup-table of intrinsic functions.
 
 
   private:
 
-    IntrinsicMapType    _mapIntrinsicsSSE;    //!< The internal lookup-table of intrinsic functions.
+    IntrinsicMapType _mapIntrinsicsSSE; //!< The internal lookup-table of intrinsic functions.
 
 
     /** \brief  Base function for the creation of function call expression objects to intrinsic functions.
@@ -942,12 +942,12 @@ namespace Vectorization
     /** \brief    Checks, whether a certain element index is valid for an element extraction with a specific vector element type.
      *  \param    eElementType    The vector element type, which shall be checked.
      *  \param    uiIndex         The element index, which shall be checked for correct range. */
-    inline void _CheckExtractIndex(VectorElementTypes eElementType, std::uint32_t uiIndex) const  { _CheckIndex< InstructionSetExceptions::ExtractIndexOutOfRange >(eElementType, uiIndex); }
+    inline void _CheckExtractIndex(VectorElementTypes eElementType, std::uint32_t uiIndex) const  { _CheckIndex<InstructionSetExceptions::ExtractIndexOutOfRange>(eElementType, uiIndex); }
 
     /** \brief    Checks, whether a certain element index is valid for an element insertion with a specific vector element type.
      *  \param    eElementType    The vector element type, which shall be checked.
      *  \param    uiIndex         The element index, which shall be checked for correct range. */
-    inline void _CheckInsertIndex(VectorElementTypes eElementType, std::uint32_t uiIndex) const   { _CheckIndex< InstructionSetExceptions::InsertIndexOutOfRange  >(eElementType, uiIndex); }
+    inline void _CheckInsertIndex(VectorElementTypes eElementType, std::uint32_t uiIndex) const   { _CheckIndex<InstructionSetExceptions::InsertIndexOutOfRange>(eElementType, uiIndex); }
 
 
     /** \brief  Returns the common prefix for all intrinsic functions of the AVX instruction set family. */
@@ -996,7 +996,7 @@ namespace Vectorization
     //@{
 
     virtual ::clang::QualType GetVectorType(VectorElementTypes eElementType) override;
-    virtual size_t            GetVectorWidthBytes() const final override   { return static_cast< size_t >(16); }
+    virtual size_t            GetVectorWidthBytes() const final override { return static_cast<size_t>(16); }
 
     virtual bool IsBuiltinFunctionSupported(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, std::uint32_t uiParamCount) const override;
     virtual bool IsElementTypeSupported(VectorElementTypes eElementType) const override;
@@ -1076,12 +1076,12 @@ namespace Vectorization
       XorDouble,                    XorInteger
     };
 
-    typedef InstructionSetBase::IntrinsicMapTemplateType< IntrinsicsSSE2Enum >  IntrinsicMapType;   //!< Type definition for the lookup-table of intrinsic functions.
+    typedef InstructionSetBase::IntrinsicMapTemplateType<IntrinsicsSSE2Enum> IntrinsicMapType; //!< Type definition for the lookup-table of intrinsic functions.
 
 
   private:
 
-    IntrinsicMapType    _mapIntrinsicsSSE2;    //!< The internal lookup-table of intrinsic functions.
+    IntrinsicMapType _mapIntrinsicsSSE2; //!< The internal lookup-table of intrinsic functions.
 
 
     /** \brief  Base function for the creation of function call expression objects to intrinsic functions.
@@ -1294,12 +1294,12 @@ namespace Vectorization
       LoadInteger
     };
 
-    typedef InstructionSetBase::IntrinsicMapTemplateType< IntrinsicsSSE3Enum >  IntrinsicMapType;   //!< Type definition for the lookup-table of intrinsic functions.
+    typedef InstructionSetBase::IntrinsicMapTemplateType<IntrinsicsSSE3Enum> IntrinsicMapType; //!< Type definition for the lookup-table of intrinsic functions.
 
 
   private:
 
-    IntrinsicMapType    _mapIntrinsicsSSE3;    //!< The internal lookup-table of intrinsic functions.
+    IntrinsicMapType _mapIntrinsicsSSE3; //!< The internal lookup-table of intrinsic functions.
 
 
     /** \brief  Base function for the creation of function call expression objects to intrinsic functions.
@@ -1399,12 +1399,12 @@ namespace Vectorization
       SignInt8,     SignInt16,     SignInt32
     };
 
-    typedef InstructionSetBase::IntrinsicMapTemplateType< IntrinsicsSSSE3Enum >  IntrinsicMapType;   //!< Type definition for the lookup-table of intrinsic functions.
+    typedef InstructionSetBase::IntrinsicMapTemplateType<IntrinsicsSSSE3Enum> IntrinsicMapType; //!< Type definition for the lookup-table of intrinsic functions.
 
 
   private:
 
-    IntrinsicMapType    _mapIntrinsicsSSSE3;    //!< The internal lookup-table of intrinsic functions.
+    IntrinsicMapType _mapIntrinsicsSSSE3; //!< The internal lookup-table of intrinsic functions.
 
 
     /** \brief  Base function for the creation of function call expression objects to intrinsic functions.
@@ -1520,12 +1520,12 @@ namespace Vectorization
       TestControl
     };
 
-    typedef InstructionSetBase::IntrinsicMapTemplateType< IntrinsicsSSE4_1Enum >  IntrinsicMapType;   //!< Type definition for the lookup-table of intrinsic functions.
+    typedef InstructionSetBase::IntrinsicMapTemplateType<IntrinsicsSSE4_1Enum> IntrinsicMapType; //!< Type definition for the lookup-table of intrinsic functions.
 
 
   private:
 
-    IntrinsicMapType    _mapIntrinsicsSSE4_1;    //!< The internal lookup-table of intrinsic functions.
+    IntrinsicMapType _mapIntrinsicsSSE4_1; //!< The internal lookup-table of intrinsic functions.
 
 
     /** \brief  Base function for the creation of function call expression objects to intrinsic functions.
@@ -1645,12 +1645,12 @@ namespace Vectorization
       CompareGreaterThanInt64
     };
 
-    typedef InstructionSetBase::IntrinsicMapTemplateType< IntrinsicsSSE4_2Enum >  IntrinsicMapType;   //!< Type definition for the lookup-table of intrinsic functions.
+    typedef InstructionSetBase::IntrinsicMapTemplateType<IntrinsicsSSE4_2Enum> IntrinsicMapType; //!< Type definition for the lookup-table of intrinsic functions.
 
 
   private:
 
-    IntrinsicMapType    _mapIntrinsicsSSE4_2;    //!< The internal lookup-table of intrinsic functions.
+    IntrinsicMapType _mapIntrinsicsSSE4_2; //!< The internal lookup-table of intrinsic functions.
 
 
     /** \brief  Base function for the creation of function call expression objects to intrinsic functions.
@@ -1757,7 +1757,7 @@ namespace Vectorization
     };
 
 
-    typedef InstructionSetBase::IntrinsicMapTemplateType< IntrinsicsAVXEnum >   IntrinsicMapType;   //!< Type definition for the lookup-table of intrinsic functions.
+    typedef InstructionSetBase::IntrinsicMapTemplateType<IntrinsicsAVXEnum> IntrinsicMapType; //!< Type definition for the lookup-table of intrinsic functions.
 
 
   private:
@@ -1940,7 +1940,7 @@ namespace Vectorization
     //@{
 
     virtual ::clang::QualType GetVectorType(VectorElementTypes eElementType) final override;
-    virtual size_t            GetVectorWidthBytes() const final override   { return static_cast< size_t >(32); }
+    virtual size_t            GetVectorWidthBytes() const final override   { return static_cast<size_t>(32); }
 
     virtual bool IsBuiltinFunctionSupported(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, std::uint32_t uiParamCount) const override;
     virtual bool IsElementTypeSupported(VectorElementTypes eElementType) const final override;
@@ -2007,12 +2007,12 @@ namespace Vectorization
       XorInteger
     };
 
-    typedef InstructionSetBase::IntrinsicMapTemplateType< IntrinsicsAVX2Enum >  IntrinsicMapType;   //!< Type definition for the lookup-table of intrinsic functions.
+    typedef InstructionSetBase::IntrinsicMapTemplateType<IntrinsicsAVX2Enum> IntrinsicMapType; //!< Type definition for the lookup-table of intrinsic functions.
 
 
   private:
 
-    IntrinsicMapType    _mapIntrinsicsAVX2;    //!< The internal lookup-table of intrinsic functions.
+    IntrinsicMapType _mapIntrinsicsAVX2; //!< The internal lookup-table of intrinsic functions.
 
 
     /** \brief  Establishes a link between the name and the internal ID of a specific intrinsic function.

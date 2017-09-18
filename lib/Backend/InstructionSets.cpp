@@ -589,7 +589,7 @@ Expr* InstructionSetSSE::BuiltinFunction(VectorElementTypes eElementType, Builti
 {
   _CheckElementType(eElementType);
 
-  const uint32_t cuiParamCount = static_cast< uint32_t >( crvecArguments.size() );
+  const uint32_t cuiParamCount = static_cast<uint32_t>(crvecArguments.size());
 
   if (! IsBuiltinFunctionSupported(eElementType, eFunctionType, cuiParamCount))
   {
@@ -1144,7 +1144,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
             else
             {
               // Source type must be smaller than a 32-bit integer => Duplicate the mask group by un-packing the mask
-              const uint32_t cuiSwapIndex = static_cast< uint32_t >( cszTargetSize / cszSourceSize ) >> 1;
+              const uint32_t cuiSwapIndex = static_cast<uint32_t>(cszTargetSize / cszSourceSize) >> 1;
 
               // Select the correct un-packing function by the group index
               IntrinsicsSSE2Enum eUnpackID = IntrinsicsSSE2Enum::UnpackLowInt8;
@@ -1291,7 +1291,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
         {
           // Convert into a signed / unsigned 16-bit integer intermediate type and then do the final conversion
           const VectorElementTypes  ceIntermediateType  = AST::BaseClasses::TypeInfo::CreateSizedIntegerType(2, AST::BaseClasses::TypeInfo::IsSigned(eSourceType)).GetType();
-          const uint32_t            cuiSwapIndex        = static_cast< uint32_t >( AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) / AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType) ) >> 1;
+          const uint32_t            cuiSwapIndex        = static_cast<uint32_t>(AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) / AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType)) >> 1;
 
           Expr *pConvertedVector = ConvertVectorUp( eSourceType, ceIntermediateType, crvecVectorRefs.front(), uiGroupIndex / cuiSwapIndex );
 
@@ -1319,7 +1319,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
             eIntermediateType = VectorElementTypes::Int32;
           }
 
-          const uint32_t cuiSwapIndex   = static_cast< uint32_t >( AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) / AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType) ) >> 2;
+          const uint32_t cuiSwapIndex   = static_cast<uint32_t>(AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) / AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType)) >> 2;
 
           ClangASTHelper::ExpressionVectorType vecConvertedVectors;
           vecConvertedVectors.push_back( ConvertVectorUp( eSourceType, eIntermediateType, crvecVectorRefs.front(), uiGroupIndex / cuiSwapIndex ) );
@@ -1380,7 +1380,7 @@ Expr* InstructionSetSSE2::_ConvertVector(VectorElementTypes eSourceType, VectorE
             eIntermediateType = VectorElementTypes::Int32;
           }
 
-          const uint32_t cuiSwapIndex   = static_cast< uint32_t >( AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) / AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType) ) >> 1;
+          const uint32_t cuiSwapIndex   = static_cast<uint32_t>(AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) / AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType)) >> 1;
 
           ClangASTHelper::ExpressionVectorType vecConvertedVectors;
           vecConvertedVectors.push_back( ConvertVectorUp( eSourceType, eIntermediateType, crvecVectorRefs.front(), uiGroupIndex / cuiSwapIndex ) );
@@ -2004,7 +2004,7 @@ Expr* InstructionSetSSE2::BroadCast(VectorElementTypes eElementType, Expr *pBroa
 
 Expr* InstructionSetSSE2::BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments)
 {
-  const uint32_t cuiParamCount = static_cast< uint32_t >( crvecArguments.size() );
+  const uint32_t cuiParamCount = static_cast<uint32_t>(crvecArguments.size());
 
   if (! IsBuiltinFunctionSupported(eElementType, eFunctionType, cuiParamCount))
   {
@@ -2136,7 +2136,7 @@ Expr* InstructionSetSSE2::CheckSingleMaskElement(VectorElementTypes eMaskElement
     {
       eMoveMaskType = IntrinsicsSSE2Enum::MoveMaskDouble;
       iTestValue    = 1;
-      iShiftValue   = static_cast< int32_t >( uiIndex );
+      iShiftValue   = static_cast<int32_t>(uiIndex);
       break;
     }
   case VectorElementTypes::Int8:  case VectorElementTypes::UInt8:
@@ -2144,11 +2144,11 @@ Expr* InstructionSetSSE2::CheckSingleMaskElement(VectorElementTypes eMaskElement
   case VectorElementTypes::Int32: case VectorElementTypes::UInt32:
   case VectorElementTypes::Int64: case VectorElementTypes::UInt64:
     {
-      const uint32_t cuiTypeSize = static_cast< uint32_t >( AST::BaseClasses::TypeInfo::GetTypeSize( eMaskElementType ) );
+      const uint32_t cuiTypeSize = static_cast<uint32_t>(AST::BaseClasses::TypeInfo::GetTypeSize( eMaskElementType ));
 
       eMoveMaskType = IntrinsicsSSE2Enum::MoveMaskInt8;
-      iTestValue    = static_cast< int32_t >( 0xFF % (1 << cuiTypeSize) );
-      iShiftValue   = static_cast< int32_t >( uiIndex * cuiTypeSize );
+      iTestValue    = static_cast<int32_t>(0xFF % (1 << cuiTypeSize));
+      iShiftValue   = static_cast<int32_t>(uiIndex * cuiTypeSize);
       break;
     }
   default:                                                          return BaseType::CheckSingleMaskElement( eMaskElementType, pMaskExpr, uiIndex );
@@ -3043,7 +3043,7 @@ Expr* InstructionSetSSSE3::BlendVectors(VectorElementTypes eElementType, Expr *p
 
 Expr* InstructionSetSSSE3::BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments)
 {
-  const uint32_t cuiParamCount = static_cast< uint32_t >(crvecArguments.size());
+  const uint32_t cuiParamCount = static_cast<uint32_t>(crvecArguments.size());
 
   if (! IsBuiltinFunctionSupported(eElementType, eFunctionType, cuiParamCount))
   {
@@ -3227,7 +3227,7 @@ Expr* InstructionSetSSE4_1::_ConvertVector(VectorElementTypes eSourceType, Vecto
 
     if (bHandleConversion)
     {
-      const uint32_t cuiShiftMultiplier = 16 / static_cast< uint32_t >( AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) / AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType) );
+      const uint32_t cuiShiftMultiplier = 16 / static_cast<uint32_t>(AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) / AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType));
 
       return _CreateFunctionCall( eConvertID, _ShiftIntegerVectorBytes(crvecVectorRefs.front(), uiGroupIndex * cuiShiftMultiplier, false) );
     }
@@ -3328,7 +3328,7 @@ Expr* InstructionSetSSE4_1::BlendVectors(VectorElementTypes eElementType, Expr *
 
 Expr* InstructionSetSSE4_1::BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments)
 {
-  const uint32_t cuiParamCount = static_cast< uint32_t >(crvecArguments.size());
+  const uint32_t cuiParamCount = static_cast<uint32_t>(crvecArguments.size());
 
   if (!IsBuiltinFunctionSupported(eElementType, eFunctionType, cuiParamCount))
   {
@@ -3506,7 +3506,7 @@ Expr* InstructionSetSSE4_2::RelationalOperator(VectorElementTypes eElementType, 
 // Implementation of class InstructionSetAVX
 InstructionSetAVX::InstructionSetAVX(ASTContext &rAstContext) : InstructionSetBase(rAstContext, _GetIntrinsicPrefix())
 {
-  _spFallbackInstructionSet = InstructionSetBase::Create< InstructionSetSSE4_2 >( rAstContext );
+  _spFallbackInstructionSet = InstructionSetBase::Create<InstructionSetSSE4_2>(rAstContext);
 
   _InitIntrinsicsMap();
 
@@ -3756,7 +3756,7 @@ Expr* InstructionSetAVX::_ConvertVectorWithSSE(VectorElementTypes eSourceType, V
   else
   {
     // Upward conversion
-    const uint32_t cuiSwapIndex     = static_cast< uint32_t >( (cszElementCountSource / cszElementCountTarget) >> 1 );
+    const uint32_t cuiSwapIndex     = static_cast<uint32_t>((cszElementCountSource / cszElementCountTarget) >> 1);
     const uint32_t cuiGroupIndexSSE = (uiGroupIndex % cuiSwapIndex) << 1;
 
     // Select the SSE vector lane which contains the requested group
@@ -4234,7 +4234,7 @@ Expr* InstructionSetAVX::BroadCast(VectorElementTypes eElementType, Expr *pBroad
 
 Expr* InstructionSetAVX::BuiltinFunction(VectorElementTypes eElementType, BuiltinFunctionsEnum eFunctionType, const ClangASTHelper::ExpressionVectorType &crvecArguments)
 {
-  const uint32_t cuiParamCount = static_cast< uint32_t >( crvecArguments.size() );
+  const uint32_t cuiParamCount = static_cast<uint32_t>(crvecArguments.size());
 
   if (! IsBuiltinFunctionSupported(eElementType, eFunctionType, cuiParamCount))
   {
@@ -4464,7 +4464,7 @@ Expr* InstructionSetAVX::CreateZeroVector(VectorElementTypes eElementType)
 
 Expr* InstructionSetAVX::ExtractElement(VectorElementTypes eElementType, Expr *pVectorRef, uint32_t uiIndex)
 {
-  const uint32_t cuiElementCountAVX = static_cast< uint32_t >( GetVectorElementCount(eElementType) );
+  const uint32_t cuiElementCountAVX = static_cast<uint32_t>(GetVectorElementCount(eElementType));
 
   if (uiIndex >= cuiElementCountAVX)
   {
@@ -4481,7 +4481,7 @@ Expr* InstructionSetAVX::ExtractElement(VectorElementTypes eElementType, Expr *p
   case VectorElementTypes::Int64: case VectorElementTypes::UInt64:  eFunctionID = IntrinsicsAVXEnum::ExtractInt64; break;
   default:
     {
-      const uint32_t cuiElementCountSSE = static_cast< uint32_t >( _GetFallback()->GetVectorElementCount(eElementType) );
+      const uint32_t cuiElementCountSSE = static_cast<uint32_t>(_GetFallback()->GetVectorElementCount(eElementType));
 
       Expr *pVectorSSE = _ExtractSSEVector( eElementType, pVectorRef, (uiIndex < cuiElementCountSSE) );
 
@@ -4634,7 +4634,7 @@ Expr* InstructionSetAVX::LoadVectorGathered(VectorElementTypes eElementType, Vec
   }
 
 
-  const uint32_t cuiIndexOffset = uiGroupIndex * static_cast<uint32_t>( GetVectorElementCount(eIndexElementType) / GetVectorElementCount(eElementType) );
+  const uint32_t cuiIndexOffset = uiGroupIndex * static_cast<uint32_t>(GetVectorElementCount(eIndexElementType) / GetVectorElementCount(eElementType));
 
   ClangASTHelper::ExpressionVectorType vecLoadedElements;
 
@@ -5419,7 +5419,7 @@ Expr* InstructionSetAVX2::_ConvertVector(VectorElementTypes eSourceType,
 
     if (bHandleConversion) {
       // Upward conversion
-      const uint32_t cuiShiftMultiplier = 32 / static_cast< uint32_t >(
+      const uint32_t cuiShiftMultiplier = 32 / static_cast<uint32_t>(
           AST::BaseClasses::TypeInfo::GetTypeSize(eTargetType) /
           AST::BaseClasses::TypeInfo::GetTypeSize(eSourceType));
 

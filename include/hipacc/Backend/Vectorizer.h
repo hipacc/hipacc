@@ -66,15 +66,15 @@ namespace Vectorization
 
     private:
 
-      typedef std::map< unsigned int, FunctionDeclVectorType >        FunctionDeclParamCountMapType;
-      typedef std::map< std::string, FunctionDeclParamCountMapType >  FunctionDeclNameMapType;
+      typedef std::map<unsigned int, FunctionDeclVectorType>       FunctionDeclParamCountMapType;
+      typedef std::map<std::string, FunctionDeclParamCountMapType> FunctionDeclNameMapType;
 
 
       ClangASTHelper            _ASTHelper;
       ::clang::DeclContext      *_pDeclContext;
 
-      FunctionDeclNameMapType                       _mapKnownFunctions;
-      std::map< std::string, ::clang::ValueDecl* >  _mapKnownDeclarations;
+      FunctionDeclNameMapType                    _mapKnownFunctions;
+      std::map<std::string, ::clang::ValueDecl*> _mapKnownDeclarations;
 
 
     private:
@@ -231,9 +231,9 @@ namespace Vectorization
       {
       private:
 
-        typedef std::map< std::string, std::string >  RenameMapType;
+        typedef std::map<std::string, std::string> RenameMapType;
 
-        std::list< RenameMapType >    _lstRenameStack;
+        std::list<RenameMapType> _lstRenameStack;
 
       public:
 
@@ -463,10 +463,10 @@ namespace Vectorization
        *  \param    spCurrentNode       A shared pointer to the VAST node, whose children shall be traversed.
        *  \param    rTransformation     A reference to an object of the requested transformation type.
        *  \remarks  This method relies on static polymorphism. Thus, the selected transformation must define the <b>ChildTargetType</b> type and implement the <b>ProcessChild()</b> method. */
-      template < class TransformationType >   inline static void _ParseChildren(typename TransformationType::TargetTypePtr spCurrentNode, TransformationType &rTransformation)
+      template <class TransformationType> inline static void _ParseChildren(typename TransformationType::TargetTypePtr spCurrentNode, TransformationType &rTransformation)
       {
         typedef typename TransformationType::ChildTargetType   ChildTargetType;
-        static_assert(std::is_base_of< AST::BaseClasses::Node, ChildTargetType >::value, "The child target type of the VAST transformation must be derived from class\"AST::BaseClasses::Node\"!");
+        static_assert(std::is_base_of<AST::BaseClasses::Node, ChildTargetType>::value, "The child target type of the VAST transformation must be derived from class\"AST::BaseClasses::Node\"!");
 
         for (IndexType iChildIdx = static_cast<IndexType>(0); iChildIdx < spCurrentNode->GetChildCount(); ++iChildIdx)
         {
@@ -476,7 +476,7 @@ namespace Vectorization
             continue;
           }
 
-          if (spChildNode->IsType<ChildTargetType>())
+          if (spChildNode->IsType < ChildTargetType>())
           {
             iChildIdx = rTransformation.ProcessChild(spCurrentNode, iChildIdx, spChildNode->CastToType<ChildTargetType>());
           }
@@ -502,12 +502,12 @@ namespace Vectorization
        *  \param    spCurrentNode       A shared pointer to the VAST node, which shall be traversed.
        *  \param    rTransformation     A reference to an object of the requested transformation type.
        *  \remarks  This method relies on static polymorphism. Thus, the selected transformation must define the <b>TargetType</b> type and implement the <b>Execute()</b> method. */
-      template < class TransformationType >   inline static void Run(AST::BaseClasses::NodePtr spCurrentNode, TransformationType &rTransformation)
+      template <class TransformationType> inline static void Run(AST::BaseClasses::NodePtr spCurrentNode, TransformationType &rTransformation)
       {
         typedef typename TransformationType::TargetType   TargetType;
 
-        static_assert(std::is_base_of< AST::BaseClasses::Node, TargetType >::value,     "The target type of the VAST transformation must be derived from class\"AST::BaseClasses::Node\"!");
-        static_assert(std::is_base_of< TransformationBase, TransformationType >::value, "The transformation class must be derived from class\"TransformationBase\"!");
+        static_assert(std::is_base_of<AST::BaseClasses::Node, TargetType>::value,     "The target type of the VAST transformation must be derived from class\"AST::BaseClasses::Node\"!");
+        static_assert(std::is_base_of<TransformationBase, TransformationType>::value, "The transformation class must be derived from class\"TransformationBase\"!");
 
         // Skip unset children
         if (! spCurrentNode)
@@ -550,7 +550,7 @@ namespace Vectorization
        *  \param    spCurrentNode       A shared pointer to the VAST node, which shall be traversed.
        *  \remarks  This method exists only for compatibility reasons with the <b>GCC</b> compiler (it cannot handle references to temporary objects).
        *  \sa       Run() */
-      template < class TransformationType >   inline static void RunSimple(AST::BaseClasses::NodePtr spCurrentNode)
+      template <class TransformationType> inline static void RunSimple(AST::BaseClasses::NodePtr spCurrentNode)
       {
         // Required by GCC
         TransformationType Transform;
@@ -562,20 +562,20 @@ namespace Vectorization
 
       /** \brief  Generic query transformation, which returns a list of VAST nodes with a specified type.
        *  \tparam NodeClass   The VAST node type, which shall be looked for. It must be derived from <b>AST::BaseClasses::Node</b>. */
-      template < class NodeClass >    class FindNodes final : public TransformationBase
+      template <class NodeClass> class FindNodes final : public TransformationBase
       {
       private:
 
-        static_assert( std::is_base_of< AST::BaseClasses::Node, NodeClass >::value, "The NodeClass type must be derived from class \"AST::BaseClasses::Node\" !" );
+        static_assert( std::is_base_of<AST::BaseClasses::Node, NodeClass>::value, "The NodeClass type must be derived from class \"AST::BaseClasses::Node\" !" );
 
         const DirectionType _ceSearchDirection;
 
       public:
 
-        typedef NodeClass                       TargetType;     //!< Type definition for the target node type.
-        typedef std::shared_ptr< TargetType >   TargetTypePtr;  //!< Type definition for shared pointers to the target node type.
+        typedef NodeClass                   TargetType;    //!< Type definition for the target node type.
+        typedef std::shared_ptr<TargetType> TargetTypePtr; //!< Type definition for shared pointers to the target node type.
 
-        std::list< TargetTypePtr >  lstFoundNodes;    //!< The list of found nodes with the specified type.
+        std::list<TargetTypePtr> lstFoundNodes; //!< The list of found nodes with the specified type.
 
 
         /** \brief  Constructs a new transformation object.
@@ -632,7 +632,7 @@ namespace Vectorization
         typedef AST::ControlFlow::BranchingStatement      TargetType;   //!< Type definition for the target node type.
 
         /** \brief  The dependency table of all assignments and their dependent expressions. */
-        std::map< AST::Expressions::AssignmentOperatorPtr, std::list< AST::BaseClasses::ExpressionPtr > >  mapConditionalAssignments;
+        std::map<AST::Expressions::AssignmentOperatorPtr, std::list<AST::BaseClasses::ExpressionPtr>> mapConditionalAssignments;
 
 
         /** \brief    Internal method, which is called for every detected node with the target type.
@@ -651,7 +651,7 @@ namespace Vectorization
         typedef AST::ControlFlow::Loop      TargetType;   //!< Type definition for the target node type.
 
         /** \brief  The dependency table of all assignments and their dependent expressions. */
-        std::map< AST::Expressions::AssignmentOperatorPtr, std::list< AST::BaseClasses::ExpressionPtr > >  mapConditionalAssignments;
+        std::map<AST::Expressions::AssignmentOperatorPtr, std::list<AST::BaseClasses::ExpressionPtr>> mapConditionalAssignments;
 
 
         /** \brief    Internal method, which is called for every detected node with the target type.
@@ -795,7 +795,7 @@ namespace Vectorization
 
     public:
 
-      typedef FindNodes< AST::Expressions::AssignmentOperator >   FindAssignments;  //!< Type definition for a query transformation of VAST assignment operator nodes.
+      typedef FindNodes<AST::Expressions::AssignmentOperator> FindAssignments; //!< Type definition for a query transformation of VAST assignment operator nodes.
     };
 
 
@@ -840,25 +840,25 @@ namespace Vectorization
      *  \remarks  This transformation extracts the index expressions of vectorized memory accesses into a temporary variable, if the index expression is not
                   already a leaf node. This is done as a <b>common sub-expresison elimination step</b>, because the memory accesses might get replicated depending
                   on the used virtual vector width. */
-    inline void FlattenMemoryAccesses(AST::BaseClasses::NodePtr spRootNode)         { Transformations::RunSimple< Transformations::FlattenMemoryAccesses        >( spRootNode ); }
+    inline void FlattenMemoryAccesses(AST::BaseClasses::NodePtr spRootNode) { Transformations::RunSimple<Transformations::FlattenMemoryAccesses>(spRootNode); }
 
     /** \brief    Runs a AST transformation, which flattens the scope trees present inside a VAST node.
      *  \param    spRootNode  A shared pointer to the top-level VAST node, this transformation shall be applied to.
      *  \remarks  The purpose of this transformation is only a code clean-up. Unrequired empty scopes will be removed and scope, which contain only one
                   child node, will be flushed into their parent scope. */
-    inline void FlattenScopeTrees(AST::BaseClasses::NodePtr spRootNode)             { Transformations::RunSimple< Transformations::FlattenScopes                >( spRootNode ); }
+    inline void FlattenScopeTrees(AST::BaseClasses::NodePtr spRootNode) { Transformations::RunSimple<Transformations::FlattenScopes>(spRootNode); }
 
     /** \brief    Runs a AST transformation, which removes all unnecessary conversion expressions present inside a VAST node.
      *  \param    spRootNode  A shared pointer to the top-level VAST node, this transformation shall be applied to.
      *  \remarks  This transformation executes conversions on constants (by changing their numeric type) and collapses conversion chains, where all elements
                   convert to the same type (this is a specialty of the Clang front-end). */
-    inline void RemoveUnnecessaryConversions(AST::BaseClasses::NodePtr spRootNode)  { Transformations::RunSimple< Transformations::RemoveUnnecessaryConversions >( spRootNode ); }
+    inline void RemoveUnnecessaryConversions(AST::BaseClasses::NodePtr spRootNode) { Transformations::RunSimple<Transformations::RemoveUnnecessaryConversions>(spRootNode); }
 
     /** \brief    Runs a AST transformation, which splits branching statements with mixed scalar and vectorized conditions present inside a VAST node.
      *  \param    spRootNode  A shared pointer to the top-level VAST node, this transformation shall be applied to.
      *  \remarks  If a branching statement uses only scalar conditions in the first branches, which are followed by at least one vectorized condition, it
                   will be seperated into a fully scalar branching statement and a fully vectorized branching statement in the scalar <b>else</b>-path. */
-    inline void SeparateBranchingStatements(AST::BaseClasses::NodePtr spRootNode)   { Transformations::RunSimple< Transformations::SeparateBranchingStatements  >( spRootNode ); }
+    inline void SeparateBranchingStatements(AST::BaseClasses::NodePtr spRootNode) { Transformations::RunSimple<Transformations::SeparateBranchingStatements>(spRootNode); }
 
 
     /** \brief  Rebuilds the vectorized control-flow of a function with the use of vector masks.

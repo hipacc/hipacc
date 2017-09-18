@@ -193,7 +193,7 @@ namespace Backend
         /** \brief  The option parser for this switch. */
         struct OptionParser final
         {
-          typedef std::pair< int, int >   ReturnType;   //!< The type of the parsed option.
+          typedef std::pair<int, int> ReturnType;   //!< The type of the parsed option.
 
           /** \brief  Converts the kernel configuration string <b>"NxM"</b> into a pair of integers.
            *  \param  strOption   The command line option as a string.

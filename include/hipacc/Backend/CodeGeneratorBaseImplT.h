@@ -59,7 +59,7 @@ namespace Backend
     /** \name Protected definitions for the derived classes. */
     //@{
 
-    typedef CommonDefines::CompilerSwitchInfoT< SwitchTypeEnum >  CompilerSwitchInfoType;   //!< Type definition for the specialized switch information class.
+    typedef CommonDefines::CompilerSwitchInfoT<SwitchTypeEnum>  CompilerSwitchInfoType;   //!< Type definition for the specialized switch information class.
 
     /** \brief    Helper class which encapsulates some code generator specific values.
      *  \remarks  Must be derived by each specific code generator in order to setup its base class correctly. */
@@ -128,7 +128,7 @@ namespace Backend
 
     /** \name Private members. */
     //@{
-    typedef std::map< std::string, CompilerSwitchInfoType >   CompilerSwitchMapType;  //!< Type definition for the dictionary of known compiler switches.
+    typedef std::map<std::string, CompilerSwitchInfoType>   CompilerSwitchMapType;  //!< Type definition for the dictionary of known compiler switches.
 
     ::clang::hipacc::CompilerOptions    *_pCompilerOptions;     //!< A pointer to the global compiler options object (used for the configuration).
     CompilerSwitchMapType               _mapKnownSwitches;      //!< The dictionary of known compiler switches.

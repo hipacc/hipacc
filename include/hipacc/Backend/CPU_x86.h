@@ -533,12 +533,12 @@ namespace Backend
 
     /** \brief    The code generator for x86-CPUs.
      *  \extends  CodeGeneratorBaseImplT */
-    class CodeGenerator final : public CodeGeneratorBaseImplT< CompilerSwitchTypeEnum >
+    class CodeGenerator final : public CodeGeneratorBaseImplT<CompilerSwitchTypeEnum>
     {
     private:
 
-      typedef CodeGeneratorBaseImplT< CompilerSwitchTypeEnum >  BaseType;                 //!< The type of the base class.
-      typedef BaseType::CompilerSwitchInfoType                  CompilerSwitchInfoType;   //!< The type of the switch information class for this code generator.
+      typedef CodeGeneratorBaseImplT<CompilerSwitchTypeEnum>  BaseType;                 //!< The type of the base class.
+      typedef BaseType::CompilerSwitchInfoType                CompilerSwitchInfoType;   //!< The type of the switch information class for this code generator.
 
       /** \brief    The specific descriptor class for this code generator.
        *  \extends  CodeGeneratorBaseImplT::CodeGeneratorDescriptorBase */
@@ -555,7 +555,7 @@ namespace Backend
       {
       public:
 
-        typedef std::pair< ::clang::FunctionDecl*, ::clang::CallExpr* >   DeclCallPairType;   //!< Type definition for a sub-function declaration and call expression pair.
+        typedef std::pair<::clang::FunctionDecl*, ::clang::CallExpr*>   DeclCallPairType;   //!< Type definition for a sub-function declaration and call expression pair.
 
 
       private:
@@ -610,8 +610,8 @@ namespace Backend
       {
       public:
 
-        typedef std::pair< ::clang::VarDecl*, ::clang::VarDecl* >   ImageLinePosDeclPairType;   //!< \brief   Type definition for the "current line" and "current pixel" pointer declaration pair.
-                                                                                                //!< \details The first entry is the "line" declaration and the second one is the "pixel" declaration.
+        typedef std::pair<::clang::VarDecl*, ::clang::VarDecl*> ImageLinePosDeclPairType;   //!< \brief   Type definition for the "current line" and "current pixel" pointer declaration pair.
+                                                                                            //!< \details The first entry is the "line" declaration and the second one is the "pixel" declaration.
 
         /** \brief  The supported declaration types of HIPAcc images. */
         enum class ImageDeclarationTypes
@@ -632,7 +632,7 @@ namespace Backend
         /** \brief  Returns a list of all array subscript expressions which describe an access to the specified HIPAcc image.
          *  \param  crstrImageName  The name of the image whose access shall be found.
          *  \param  pStatement      The root of the statement tree which shall be parsed for an image access. */
-        static std::list< ::clang::ArraySubscriptExpr* > _FindImageAccesses(const std::string &crstrImageName, ::clang::Stmt *pStatement);
+        static std::list<::clang::ArraySubscriptExpr*> _FindImageAccesses(const std::string &crstrImageName, ::clang::Stmt *pStatement);
 
         /** \brief  Translates one 2-dimensional global access to a HIPAcc image a into local 1-dimensional image access.
          *  \param  crstrImageName    The name of the HIPAcc image which is being accessed.

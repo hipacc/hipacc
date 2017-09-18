@@ -43,7 +43,7 @@ class XMLSupport
 {
 public:
 
-  typedef std::map< std::string, std::string >   AttributesMapType;
+  typedef std::map<std::string, std::string> AttributesMapType;
 
 
 public:
@@ -69,7 +69,7 @@ public:
   inline static std::string GetPadString(const size_t cszIntend)    { return std::string(cszIntend, ' '); }
 
 
-  template <typename ValueType>   inline static std::string ToString(ValueType TValue)
+  template <typename ValueType> inline static std::string ToString(ValueType TValue)
   {
     std::stringstream OutpuStream;
     OutpuStream << TValue;
@@ -244,18 +244,18 @@ size_t AST::BaseClasses::TypeInfo::GetTypeSize(KnownTypes eType)
 {
   switch (eType)
   {
-  case KnownTypes::Bool:    return static_cast< size_t >( 1 );
-  case KnownTypes::Int8:    return sizeof( int8_t );
-  case KnownTypes::UInt8:   return sizeof( uint8_t );
-  case KnownTypes::Int16:   return sizeof( int16_t );
-  case KnownTypes::UInt16:  return sizeof( uint16_t );
-  case KnownTypes::Int32:   return sizeof( int32_t );
-  case KnownTypes::UInt32:  return sizeof( uint32_t );
-  case KnownTypes::Int64:   return sizeof( int64_t );
-  case KnownTypes::UInt64:  return sizeof( uint64_t );
-  case KnownTypes::Float:   return sizeof( float );
-  case KnownTypes::Double:  return sizeof( double );
-  case KnownTypes::Unknown: return static_cast< size_t >( 0 );
+  case KnownTypes::Bool:    return static_cast<size_t>(1);
+  case KnownTypes::Int8:    return sizeof(int8_t);
+  case KnownTypes::UInt8:   return sizeof(uint8_t);
+  case KnownTypes::Int16:   return sizeof(int16_t);
+  case KnownTypes::UInt16:  return sizeof(uint16_t);
+  case KnownTypes::Int32:   return sizeof(int32_t);
+  case KnownTypes::UInt32:  return sizeof(uint32_t);
+  case KnownTypes::Int64:   return sizeof(int64_t);
+  case KnownTypes::UInt64:  return sizeof(uint64_t);
+  case KnownTypes::Float:   return sizeof(float);
+  case KnownTypes::Double:  return sizeof(double);
+  case KnownTypes::Unknown: return static_cast<size_t>(0);
   default:                  throw InternalErrorException("Unknown type!"); 
   }
 }
@@ -381,7 +381,7 @@ void AST::BaseClasses::Node::_SetParentToChild(NodePtr spChild) const
 
 AST::IndexType AST::BaseClasses::Node::GetHierarchyLevel() const
 {
-  IndexType iHierarchyLevel = static_cast< IndexType >( 0 );
+  IndexType iHierarchyLevel = static_cast<IndexType>(0);
 
   NodeConstPtr spCurrentNode = GetThis();
   while (true)
@@ -507,7 +507,7 @@ std::string AST::ControlFlow::Loop::_GetLoopTypeString(LoopType eType)
 
 AST::ControlFlow::LoopPtr AST::ControlFlow::Loop::Create(LoopType eType, BaseClasses::ExpressionPtr spCondition, BaseClasses::ExpressionPtr spIncrement)
 {
-  LoopPtr spNewLoop = AST::CreateNode< Loop >();
+  LoopPtr spNewLoop = AST::CreateNode<Loop>();
 
   spNewLoop->SetLoopType(eType);
   spNewLoop->SetCondition(spCondition);
@@ -878,17 +878,17 @@ void AST::Expressions::Constant::ChangeType(KnownTypes eNewType)
 {
   switch (eNewType)
   {
-  case KnownTypes::Bool:    _ChangeType< bool     >( eNewType );  break;
-  case KnownTypes::Int8:    _ChangeType< int8_t   >( eNewType );  break;
-  case KnownTypes::UInt8:   _ChangeType< uint8_t  >( eNewType );  break;
-  case KnownTypes::Int16:   _ChangeType< int16_t  >( eNewType );  break;
-  case KnownTypes::UInt16:  _ChangeType< uint16_t >( eNewType );  break;
-  case KnownTypes::Int32:   _ChangeType< int32_t  >( eNewType );  break;
-  case KnownTypes::UInt32:  _ChangeType< uint32_t >( eNewType );  break;
-  case KnownTypes::Int64:   _ChangeType< int64_t  >( eNewType );  break;
-  case KnownTypes::UInt64:  _ChangeType< uint64_t >( eNewType );  break;
-  case KnownTypes::Float:   _ChangeType< float    >( eNewType );  break;
-  case KnownTypes::Double:  _ChangeType< double   >( eNewType );  break;
+  case KnownTypes::Bool:    _ChangeType<bool    >(eNewType); break;
+  case KnownTypes::Int8:    _ChangeType<int8_t  >(eNewType); break;
+  case KnownTypes::UInt8:   _ChangeType<uint8_t >(eNewType); break;
+  case KnownTypes::Int16:   _ChangeType<int16_t >(eNewType); break;
+  case KnownTypes::UInt16:  _ChangeType<uint16_t>(eNewType); break;
+  case KnownTypes::Int32:   _ChangeType<int32_t >(eNewType); break;
+  case KnownTypes::UInt32:  _ChangeType<uint32_t>(eNewType); break;
+  case KnownTypes::Int64:   _ChangeType<int64_t >(eNewType); break;
+  case KnownTypes::UInt64:  _ChangeType<uint64_t>(eNewType); break;
+  case KnownTypes::Float:   _ChangeType<float   >(eNewType); break;
+  case KnownTypes::Double:  _ChangeType<double  >(eNewType); break;
   default:                  throw RuntimeErrorException( std::string("Invalid constant type: ") + BaseClasses::TypeInfo::GetTypeString(eNewType) );
   }
 }
@@ -897,17 +897,17 @@ std::string AST::Expressions::Constant::GetAsString() const
 {
   switch (_eType)
   {
-  case KnownTypes::Bool:    return XMLSupport::ToString( GetValue< bool     >() );
-  case KnownTypes::Int8:    return XMLSupport::ToString( GetValue< int16_t  >() );  // Avoid automatic char conversion
-  case KnownTypes::UInt8:   return XMLSupport::ToString( GetValue< uint16_t >() );  // Avoid automatic char conversion
-  case KnownTypes::Int16:   return XMLSupport::ToString( GetValue< int16_t  >() );
-  case KnownTypes::UInt16:  return XMLSupport::ToString( GetValue< uint16_t >() );
-  case KnownTypes::Int32:   return XMLSupport::ToString( GetValue< int32_t  >() );
-  case KnownTypes::UInt32:  return XMLSupport::ToString( GetValue< uint32_t >() );
-  case KnownTypes::Int64:   return XMLSupport::ToString( GetValue< int64_t  >() );
-  case KnownTypes::UInt64:  return XMLSupport::ToString( GetValue< uint64_t >() );
-  case KnownTypes::Float:   return XMLSupport::ToString( GetValue< float    >() );
-  case KnownTypes::Double:  return XMLSupport::ToString( GetValue< double   >() );
+  case KnownTypes::Bool:    return XMLSupport::ToString(GetValue<bool    >());
+  case KnownTypes::Int8:    return XMLSupport::ToString(GetValue<int16_t >());  // avoid automatic char conversion
+  case KnownTypes::UInt8:   return XMLSupport::ToString(GetValue<uint16_t>());  // avoid automatic char conversion
+  case KnownTypes::Int16:   return XMLSupport::ToString(GetValue<int16_t >());
+  case KnownTypes::UInt16:  return XMLSupport::ToString(GetValue<uint16_t>());
+  case KnownTypes::Int32:   return XMLSupport::ToString(GetValue<int32_t >());
+  case KnownTypes::UInt32:  return XMLSupport::ToString(GetValue<uint32_t>());
+  case KnownTypes::Int64:   return XMLSupport::ToString(GetValue<int64_t >());
+  case KnownTypes::UInt64:  return XMLSupport::ToString(GetValue<uint64_t>());
+  case KnownTypes::Float:   return XMLSupport::ToString(GetValue<float   >());
+  case KnownTypes::Double:  return XMLSupport::ToString(GetValue<double  >());
   default:                  throw InternalErrorException("Unexpected constant data type!");
   }
 }
@@ -979,7 +979,7 @@ AST::BaseClasses::VariableInfoPtr AST::Expressions::Identifier::LookupVariableIn
   {
     if (spParent->IsType<AST::IVariableContainer>())
     {
-      return spParent->CastToType< AST::IVariableContainer >()->GetVariableInfo(GetName());
+      return spParent->CastToType<AST::IVariableContainer>()->GetVariableInfo(GetName());
     }
     else
     {
@@ -994,7 +994,7 @@ AST::BaseClasses::VariableInfoPtr AST::Expressions::Identifier::LookupVariableIn
 // Implementation of class AST::Expressions::MemoryAccess
 AST::Expressions::MemoryAccessPtr AST::Expressions::MemoryAccess::Create(ExpressionPtr spMemoryReference, ExpressionPtr spIndexExpression)
 {
-  MemoryAccessPtr spNewMemAccess = AST::CreateNode< MemoryAccess >();
+  MemoryAccessPtr spNewMemAccess = AST::CreateNode<MemoryAccess>();
 
   spNewMemAccess->SetMemoryReference(spMemoryReference);
   spNewMemAccess->SetIndexExpression(spIndexExpression);
@@ -1419,7 +1419,7 @@ void AST::Expressions::AssignmentOperator::SetSubExpression(IndexType SubExprInd
 // Implementation of class AST::Expressions::RelationalOperator
 AST::Expressions::RelationalOperatorPtr AST::Expressions::RelationalOperator::Create(RelationalOperatorType eOpType, ExpressionPtr spLHS, ExpressionPtr spRHS)
 {
-  RelationalOperatorPtr spNewRelOp = AST::CreateNode< RelationalOperator >();
+  RelationalOperatorPtr spNewRelOp = AST::CreateNode<RelationalOperator>();
 
   spNewRelOp->SetOperatorType(eOpType);
   spNewRelOp->SetLHS(spLHS);
@@ -2018,9 +2018,9 @@ AST::BaseClasses::NodePtr AST::FunctionDeclaration::GetChild(IndexType ChildInde
   }
 }
 
-std::vector< std::string > AST::FunctionDeclaration::GetKnownVariableNames() const
+std::vector<std::string> AST::FunctionDeclaration::GetKnownVariableNames() const
 {
-  std::vector< std::string > vecVariableNames;
+  std::vector<std::string> vecVariableNames;
 
   for (auto itKnownVariable : _mapKnownVariables)
   {

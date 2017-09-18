@@ -45,9 +45,9 @@ OpenCL_CPU::CodeGenerator::Descriptor::Descriptor()
 
 OpenCL_CPU::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions)  : BaseType(pCompilerOptions, Descriptor())
 {
-  _InitSwitch< AcceleratorDeviceSwitches::ExploreConfig >(CompilerSwitchTypeEnum::ExploreConfig);
-  _InitSwitch< AcceleratorDeviceSwitches::UseLocal      >(CompilerSwitchTypeEnum::UseLocal);
-  _InitSwitch< AcceleratorDeviceSwitches::Vectorize     >(CompilerSwitchTypeEnum::Vectorize);
+  _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig>(CompilerSwitchTypeEnum::ExploreConfig);
+  _InitSwitch<AcceleratorDeviceSwitches::UseLocal     >(CompilerSwitchTypeEnum::UseLocal);
+  _InitSwitch<AcceleratorDeviceSwitches::Vectorize    >(CompilerSwitchTypeEnum::Vectorize);
 }
 
 
@@ -63,13 +63,13 @@ size_t OpenCL_CPU::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, 
     break;
   case CompilerSwitchTypeEnum::UseLocal:
     {
-      GetCompilerOptions().setLocalMemory(_ParseOption< AcceleratorDeviceSwitches::UseLocal >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setLocalMemory(_ParseOption<AcceleratorDeviceSwitches::UseLocal>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;
   case CompilerSwitchTypeEnum::Vectorize:
     {
-      GetCompilerOptions().setVectorizeKernels(_ParseOption< AcceleratorDeviceSwitches::Vectorize >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setVectorizeKernels(_ParseOption<AcceleratorDeviceSwitches::Vectorize>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;

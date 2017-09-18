@@ -210,11 +210,11 @@ BackendConfigurationManager::BackendConfigurationManager(CompilerOptions *pCompi
 
 
   // Init all known common switches
-  _InitSwitch< KnownSwitches::Help        >(CompilerSwitchTypeEnum::Help);
-  _InitSwitch< KnownSwitches::OutputFile  >(CompilerSwitchTypeEnum::OutputFile);
-  _InitSwitch< KnownSwitches::Version     >(CompilerSwitchTypeEnum::Version);
-  _InitSwitch< KnownSwitches::IncludeDir  >(CompilerSwitchTypeEnum::IncludeDir);
-  _InitSwitch< KnownSwitches::Define      >(CompilerSwitchTypeEnum::Define);
+  _InitSwitch<KnownSwitches::Help      >(CompilerSwitchTypeEnum::Help);
+  _InitSwitch<KnownSwitches::OutputFile>(CompilerSwitchTypeEnum::OutputFile);
+  _InitSwitch<KnownSwitches::Version   >(CompilerSwitchTypeEnum::Version);
+  _InitSwitch<KnownSwitches::IncludeDir>(CompilerSwitchTypeEnum::IncludeDir);
+  _InitSwitch<KnownSwitches::Define    >(CompilerSwitchTypeEnum::Define);
 
 
   // Init known backends
