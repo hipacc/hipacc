@@ -88,66 +88,64 @@ void BackendConfigurationManager::ConsoleOutput::_PrintSwitches(const CommonDefi
 
     // Break the description into pieces
     vector<string> vecDescriptionSubStrings;
+    string strDescription = itCurrentSwitch.second;
+
+    // Find all new-line characters
+    vector<int> vecNewLinePositions;
+    vecNewLinePositions.push_back(-1);
+    while (true)
     {
-      string strDescription = itCurrentSwitch.second;
+      string::size_type szNextNewLinePos = strDescription.find_first_of('\n', static_cast<string::size_type>(vecNewLinePositions.back() + 1));
 
-      // Find all new-line characters
-      vector<int> vecNewLinePositions;
-      vecNewLinePositions.push_back(-1);
-      while (true)
+      if (szNextNewLinePos != string::npos)
       {
-        string::size_type szNextNewLinePos = strDescription.find_first_of('\n', static_cast<string::size_type>(vecNewLinePositions.back() + 1));
+        vecNewLinePositions.push_back(static_cast<int>(szNextNewLinePos));
+      }
+      else
+      {
+        // Push the position behind the last character to vector
+        vecNewLinePositions.push_back(static_cast<int>(strDescription.length()));
+        break;
+      }
+    }
 
-        if (szNextNewLinePos != string::npos)
+    // Break the description into sections
+    for (size_t i = static_cast<size_t>(0); i < vecNewLinePositions.size() - 1; ++i)
+    {
+      // Fetch the current section between two new-line characters
+      string::size_type szSectionOffset = static_cast<string::size_type>(vecNewLinePositions[i] + 1);
+      string::size_type szSectionLength = static_cast<string::size_type>(vecNewLinePositions[i + 1]) - szSectionOffset;
+
+      string strCurrentSection = strDescription.substr(szSectionOffset, szSectionLength);
+
+      // Break the current section into pieces of the maximum display width
+      for (size_t szPieceOffset = static_cast<size_t>(0); szPieceOffset < strCurrentSection.length();)
+      {
+        size_t szPieceLength = szDescriptionWidth;
+
+        if (szPieceOffset + szPieceLength >= strCurrentSection.length())
         {
-          vecNewLinePositions.push_back(static_cast<int>(szNextNewLinePos));
+          // Whole rest of the description can be displayed in one line
+          vecDescriptionSubStrings.push_back(strCurrentSection.substr(szPieceOffset));
+          break;
         }
         else
         {
-          // Push the position behind the last character to vector
-          vecNewLinePositions.push_back(static_cast<int>(strDescription.length()));
-          break;
-        }
-      }
+          // The rest of the description still needs to be broken into several lines
+          string strCurrentPiece = strCurrentSection.substr(szPieceOffset, szPieceLength);
 
-      // Break the description into sections
-      for (size_t i = static_cast<size_t>(0); i < vecNewLinePositions.size() - 1; ++i)
-      {
-        // Fetch the current section between two new-line characters
-        string::size_type szSectionOffset = static_cast<string::size_type>(vecNewLinePositions[i] + 1);
-        string::size_type szSectionLength = static_cast<string::size_type>(vecNewLinePositions[i + 1]) - szSectionOffset;
+          string::size_type szLastWhiteSpace = strCurrentPiece.find_last_of(' ');
 
-        string strCurrentSection = strDescription.substr(szSectionOffset, szSectionLength);
-
-        // Break the current section into pieces of the maximum display width
-        for (size_t szPieceOffset = static_cast<size_t>(0); szPieceOffset < strCurrentSection.length();)
-        {
-          size_t szPieceLength = szDescriptionWidth;
-
-          if (szPieceOffset + szPieceLength >= strCurrentSection.length())
+          if (szLastWhiteSpace == string::npos)
           {
-            // Whole rest of the description can be displayed in one line
-            vecDescriptionSubStrings.push_back(strCurrentSection.substr(szPieceOffset));
-            break;
+            vecDescriptionSubStrings.push_back(strCurrentPiece);
+            szPieceOffset += szPieceLength;
           }
           else
           {
-            // The rest of the description still needs to be broken into several lines
-            string strCurrentPiece = strCurrentSection.substr(szPieceOffset, szPieceLength);
-
-            string::size_type szLastWhiteSpace = strCurrentPiece.find_last_of(' ');
-
-            if (szLastWhiteSpace == string::npos)
-            {
-              vecDescriptionSubStrings.push_back(strCurrentPiece);
-              szPieceOffset += szPieceLength;
-            }
-            else
-            {
-              // Whitespace found => Break at whitespace
-              vecDescriptionSubStrings.push_back(strCurrentPiece.substr(0, szLastWhiteSpace));
-              szPieceOffset += szLastWhiteSpace + 1;
-            }
+            // Whitespace found => Break at whitespace
+            vecDescriptionSubStrings.push_back(strCurrentPiece.substr(0, szLastWhiteSpace));
+            szPieceOffset += szLastWhiteSpace + 1;
           }
         }
       }
