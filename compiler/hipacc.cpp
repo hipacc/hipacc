@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
   std::string out;
 
   // Initialize the backends
-  Backend::BackendConfigurationManager	BackendConfigManager(&compilerOptions);
+  Backend::BackendConfigurationManager BackendConfigManager(&compilerOptions);
   try
   {
     // Convert the command line arguments into the backend argument vector type

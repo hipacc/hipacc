@@ -87,8 +87,8 @@ namespace Backend
       /** \name CodeGeneratorBaseImplT members */
       //@{
 
-      virtual size_t	_HandleSwitch(CompilerSwitchTypeEnum eSwitch, CommonDefines::ArgumentVectorType &rvecArguments, size_t szCurrentIndex) final override;
-      virtual void	_CheckConfiguration() final override;
+      virtual size_t _HandleSwitch(CompilerSwitchTypeEnum eSwitch, CommonDefines::ArgumentVectorType &rvecArguments, size_t szCurrentIndex) final override;
+      virtual void   _CheckConfiguration() final override;
 
       //@}
 
