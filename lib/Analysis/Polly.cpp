@@ -51,10 +51,10 @@ void Polly::analyzeKernel() {
   llvm::EnableStatistics();
 
   // code generation for Polly
-  clang::CodeGenerator *llvm_ir_cg = clang::CreateLLVMCodeGen(
-      Clang.getDiagnostics(), func->getNameAsString(),
-      Clang.getHeaderSearchOpts(), Clang.getPreprocessorOpts(),
-      Clang.getCodeGenOpts(), llvm::getGlobalContext());
+  llvm::LLVMContext llvm_context;
+  CodeGenerator *llvm_ir_cg = CreateLLVMCodeGen( Clang.getDiagnostics(),
+      func->getNameAsString(), Clang.getHeaderSearchOpts(),
+      Clang.getPreprocessorOpts(), Clang.getCodeGenOpts(), llvm_context);
 
   DeclGroupRef DG = DeclGroupRef(func);
   llvm_ir_cg->Initialize(Ctx);

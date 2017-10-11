@@ -803,7 +803,7 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
 // stage iteration p to shared memory
 void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
     &stageBody, int p) {
-  for (auto param : kernelDecl->params()) {
+  for (auto param : kernelDecl->parameters()) {
     if (KernelDeclMapShared[param]) {
       HipaccAccessor *Acc = KernelDeclMapAcc[param];
 
@@ -866,7 +866,7 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
 // stage data to shared memory for exploration
 void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
     16> &stageBody) {
-  for (auto param : kernelDecl->params()) {
+  for (auto param : kernelDecl->parameters()) {
     if (KernelDeclMapShared[param]) {
       HipaccAccessor *Acc = KernelDeclMapAcc[param];
 
