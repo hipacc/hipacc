@@ -459,7 +459,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_EXPR_BASE_CLASS( CastExpr )
     VISIT_MODE(Expr, BinaryOperator)
     Expr *VisitCompoundAssignOperator(CompoundAssignOperator *E);
-    HIPACC_UNSUPPORTED_EXPR( AbstractConditionalOperator )
+    HIPACC_UNSUPPORTED_EXPR_BASE_CLASS( AbstractConditionalOperator )
     Expr *VisitConditionalOperator(ConditionalOperator *E);
     Expr *VisitBinaryConditionalOperator(BinaryConditionalOperator *E);
     VISIT_MODE(Expr, ImplicitCastExpr)
@@ -472,6 +472,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitDesignatedInitUpdateExpr(DesignatedInitUpdateExpr *E);
     Expr *VisitImplicitValueInitExpr(ImplicitValueInitExpr *E);
     Expr *VisitNoInitExpr(NoInitExpr *E);
+    Expr *VisitArrayInitLoopExpr(ArrayInitLoopExpr *E);
+    Expr *VisitArrayInitIndexExpr(ArrayInitIndexExpr *E);
     Expr *VisitParenListExpr(ParenListExpr *E);
     Expr *VisitVAArgExpr(VAArgExpr *E);
     HIPACC_UNSUPPORTED_EXPR( GenericSelectionExpr )
@@ -512,9 +514,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_EXPR( ArrayTypeTraitExpr )
     HIPACC_UNSUPPORTED_EXPR( ExpressionTraitExpr )
     HIPACC_UNSUPPORTED_EXPR( DependentScopeDeclRefExpr )
-    HIPACC_UNSUPPORTED_EXPR( CXXConstructExpr )
+    Expr *VisitCXXConstructExpr(CXXConstructExpr *E);
+    HIPACC_UNSUPPORTED_EXPR( CXXInheritedCtorInitExpr )
     HIPACC_UNSUPPORTED_EXPR( CXXBindTemporaryExpr )
-    HIPACC_UNSUPPORTED_EXPR( ExprWithCleanups )
+    Expr *VisitExprWithCleanups(ExprWithCleanups *E);
     HIPACC_UNSUPPORTED_EXPR( CXXTemporaryObjectExpr )
     HIPACC_UNSUPPORTED_EXPR( CXXUnresolvedConstructExpr )
     HIPACC_UNSUPPORTED_EXPR( CXXDependentScopeMemberExpr )
@@ -551,6 +554,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_EXPR( ObjCIndirectCopyRestoreExpr )
     HIPACC_UNSUPPORTED_EXPR( ObjCBoolLiteralExpr )
     HIPACC_UNSUPPORTED_EXPR( ObjCSubscriptRefExpr )
+    HIPACC_UNSUPPORTED_EXPR( ObjCAvailabilityCheckExpr )
 
     // Obj-C ARC Expressions
     HIPACC_UNSUPPORTED_EXPR( ObjCBridgedCastExpr )
@@ -603,12 +607,31 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_STMT( OMPAtomicDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTargetDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTargetDataDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetEnterDataDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetExitDataDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetParallelDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetParallelForDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetUpdateDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTeamsDirective )
     HIPACC_UNSUPPORTED_STMT( OMPCancellationPointDirective )
     HIPACC_UNSUPPORTED_STMT( OMPCancelDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTaskLoopDirective )
     HIPACC_UNSUPPORTED_STMT( OMPTaskLoopSimdDirective )
     HIPACC_UNSUPPORTED_STMT( OMPDistributeDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPDistributeParallelForDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPDistributeParallelForSimdDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPDistributeSimdDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetParallelForSimdDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetSimdDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTeamsDistributeDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTeamsDistributeSimdDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTeamsDistributeParallelForSimdDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTeamsDistributeParallelForDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetTeamsDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetTeamsDistributeDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetTeamsDistributeParallelForDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetTeamsDistributeParallelForSimdDirective )
+    HIPACC_UNSUPPORTED_STMT( OMPTargetTeamsDistributeSimdDirective )
 };
 } // namespace hipacc
 } // namespace clang
