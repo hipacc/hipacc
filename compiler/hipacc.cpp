@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
   printCopyright();
 
   // get stack trace on SegFaults
-  llvm::sys::PrintStackTraceOnErrorSignal();
+  llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
   llvm::PrettyStackTraceProgram X(argc, argv);
 
   // argument list for CompilerInvocation after removing our compiler flags
