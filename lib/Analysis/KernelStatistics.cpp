@@ -134,8 +134,8 @@ class TransferFunctions : public StmtVisitor<TransferFunctions> {
     void VisitBinaryOperator(BinaryOperator *E);
     void VisitUnaryOperator(UnaryOperator *E);
     void VisitCallExpr(CallExpr *E);
-    void VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {}
-    void VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {}
+    void VisitCXXMemberCallExpr(CXXMemberCallExpr *) {}
+    void VisitCXXOperatorCallExpr(CXXOperatorCallExpr *) {}
     void VisitCStyleCastExpr(CStyleCastExpr *E);
     void VisitDeclStmt(DeclStmt *S);
     void VisitDeclRefExpr(DeclRefExpr *E);

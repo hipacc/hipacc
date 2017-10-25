@@ -375,9 +375,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     }
     // Interpolation.cpp
     // create interpolation function name
-    static std::string getInterpolationName(ASTContext &Ctx,
-        hipacc::Builtin::Context &builtins, CompilerOptions &compilerOptions,
-        HipaccKernel *Kernel, HipaccAccessor *Acc, border_variant bh_variant);
+    static std::string getInterpolationName(CompilerOptions &compilerOptions,
+        HipaccKernel *Kernel, HipaccAccessor *Acc);
 
     // the following list is ordered according to
     // include/clang/Basic/StmtNodes.td

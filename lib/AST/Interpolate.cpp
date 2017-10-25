@@ -40,9 +40,8 @@ using namespace hipacc::Builtin;
 
 
 // create interpolation function name
-std::string ASTTranslate::getInterpolationName(ASTContext &Ctx,
-    hipacc::Builtin::Context &builtins, CompilerOptions &compilerOptions,
-    HipaccKernel *Kernel, HipaccAccessor *Acc, border_variant bh_variant) {
+std::string ASTTranslate::getInterpolationName(CompilerOptions &compilerOptions,
+    HipaccKernel *Kernel, HipaccAccessor *Acc) {
   std::string name = "interpolate_";
 
   switch (Acc->getInterpolationMode()) {
@@ -109,8 +108,7 @@ FunctionDecl *ASTTranslate::getInterpolationFunction(HipaccAccessor *Acc) {
   QualType QT = Acc->getImage()->getType();
   std::string typeSpecifier = builtins.EncodeTypeIntoStr(QT, Ctx);
 
-  std::string name = getInterpolationName(Ctx, builtins, compilerOptions,
-      Kernel, Acc, bh_variant);
+  std::string name = getInterpolationName(compilerOptions, Kernel, Acc);
 
   // only add boundary handling mode string if required
   // for local operators only add support if the code variant requires this
