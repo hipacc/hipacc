@@ -483,6 +483,7 @@ void TransferFunctions::VisitBinaryOperator(BinaryOperator *E) {
           E->getOpcodeStr();
         exit(EXIT_FAILURE);
       }
+      break;
     case BO_Mul:
     case BO_Div:
     case BO_Rem:
@@ -614,6 +615,7 @@ void TransferFunctions::VisitUnaryOperator(UnaryOperator *E) {
           E->getOpcodeStr(E->getOpcode());
         exit(EXIT_FAILURE);
       }
+      break;
     case UO_PostInc:
     case UO_PostDec:
     case UO_PreInc:
