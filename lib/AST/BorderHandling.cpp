@@ -38,8 +38,7 @@ using namespace ASTNode;
 
 
 // add border handling: CLAMP
-Stmt *clamp_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *upper,
-    Expr *stride) {
+Stmt *clamp_upper(ASTContext &Ctx, Expr *idx, Expr *upper, Expr *) {
   // if (idx >= upper) idx = upper-1;
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
 
@@ -47,8 +46,7 @@ Stmt *clamp_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *upper,
         createBinaryOperator(Ctx, upper, createIntegerLiteral(Ctx, 1), BO_Sub,
           Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr, nullptr);
 }
-Stmt *clamp_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *lower,
-    Expr *stride) {
+Stmt *clamp_lower(ASTContext &Ctx,  Expr *idx, Expr *lower, Expr *) {
   // if (idx < lower) idx = lower;
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
 
@@ -58,8 +56,7 @@ Stmt *clamp_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *lower,
 
 
 // add border handling: REPEAT
-Stmt *repeat_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *upper,
-    Expr *stride) {
+Stmt *repeat_upper(ASTContext &Ctx, Expr *idx, Expr *upper, Expr *stride) {
   // while (idx >= upper) idx -= is_width | is_height;
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
 
@@ -67,8 +64,7 @@ Stmt *repeat_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *upper,
         createBinaryOperator(Ctx, idx, stride, BO_Sub, Ctx.IntTy), BO_Assign,
         Ctx.IntTy));
 }
-Stmt *repeat_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *lower,
-    Expr *stride) {
+Stmt *repeat_lower(ASTContext &Ctx, Expr *idx, Expr *lower, Expr *stride) {
   // while (idx < lower) idx += is_width | is_height;
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
 
@@ -79,8 +75,7 @@ Stmt *repeat_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *lower,
 
 
 // add border handling: MIRROR
-Stmt *mirror_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *upper,
-    Expr *stride) {
+Stmt *mirror_upper(ASTContext &Ctx, Expr *idx, Expr *upper, Expr *) {
   // if (idx >= upper) idx = upper - (idx+1 - upper);
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
 
@@ -91,8 +86,7 @@ Stmt *mirror_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *upper,
               createParenExpr(Ctx, upper), BO_Sub, Ctx.IntTy)) , BO_Sub,
           Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr, nullptr);
 }
-Stmt *mirror_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *lower,
-    Expr *stride) {
+Stmt *mirror_lower(ASTContext &Ctx, Expr *idx, Expr *lower, Expr *) {
   // if (idx < lower) idx = lower + (lower - idx-1);
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
 
@@ -106,8 +100,7 @@ Stmt *mirror_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr *lower,
 
 
 // add border handling: CONSTANT
-Expr *constant_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr
-    *upper, Expr *cond) {
+Expr *constant_upper(ASTContext &Ctx, Expr *idx, Expr *upper, Expr *cond) {
   // (idx < upper)
   Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_LT, Ctx.BoolTy);
 
@@ -116,8 +109,7 @@ Expr *constant_upper(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr
   }
   return bo_upper;
 }
-Expr *constant_lower(ASTContext &Ctx, HipaccAccessor *Acc, Expr *idx, Expr
-    *lower, Expr *cond) {
+Expr *constant_lower(ASTContext &Ctx, Expr *idx, Expr *lower, Expr *cond) {
   // (idx >= lower)
   Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_GE, Ctx.BoolTy);
 
@@ -240,19 +232,19 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     Expr *bo_constant = nullptr;
     if (bh_variant.borders.right && local_offset_x) {
       // < _gid_x<0> >= offset_x+width >
-      bo_constant = constant_upper(Ctx, Acc, idx_x, upper_x, bo_constant);
+      bo_constant = constant_upper(Ctx, idx_x, upper_x, bo_constant);
     }
     if (bh_variant.borders.bottom && local_offset_y) {
       // if (_gid_y<0> >= offset_y+height)
-      bo_constant = constant_upper(Ctx, Acc, idx_y, upper_y, bo_constant);
+      bo_constant = constant_upper(Ctx, idx_y, upper_y, bo_constant);
     }
     if (bh_variant.borders.left && local_offset_x) {
       // if (_gid_x<0> < offset_x)
-      bo_constant = constant_lower(Ctx, Acc, idx_x, lower_x, bo_constant);
+      bo_constant = constant_lower(Ctx, idx_x, lower_x, bo_constant);
     }
     if (bh_variant.borders.top && local_offset_y) {
       // if (_gid_y<0> < offset_y)
-      bo_constant = constant_lower(Ctx, Acc, idx_y, lower_y, bo_constant);
+      bo_constant = constant_lower(Ctx, idx_y, lower_y, bo_constant);
     }
 
     switch (compilerOptions.getTargetLang()) {
@@ -294,7 +286,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     }
     result = tmp_t_ref;
   } else {
-    std::function<Stmt*(ASTContext &, HipaccAccessor *, Expr *, Expr *, Expr *)>
+    std::function<Stmt*(ASTContext &, Expr *, Expr *, Expr *)>
       lower_fun = nullptr, upper_fun = nullptr;
     switch (Acc->getBoundaryMode()) {
       case Boundary::CLAMP:  lower_fun = clamp_lower;
@@ -321,21 +313,21 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     auto stride_y = getHeightDecl(Acc);
     if (upper_fun) {
       if (bh_variant.borders.right && local_offset_x) {
-        bhStmts.push_back(upper_fun(Ctx, Acc, idx_x, upper_x, stride_x));
+        bhStmts.push_back(upper_fun(Ctx, idx_x, upper_x, stride_x));
         bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.bottom && local_offset_y) {
-        bhStmts.push_back(upper_fun(Ctx, Acc, idx_y, upper_y, stride_y));
+        bhStmts.push_back(upper_fun(Ctx, idx_y, upper_y, stride_y));
         bhCStmt.push_back(curCStmt);
       }
     }
     if (lower_fun) {
       if (bh_variant.borders.left && local_offset_x) {
-        bhStmts.push_back(lower_fun(Ctx, Acc, idx_x, lower_x, stride_x));
+        bhStmts.push_back(lower_fun(Ctx, idx_x, lower_x, stride_x));
         bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.top && local_offset_y) {
-        bhStmts.push_back(lower_fun(Ctx, Acc, idx_y, lower_y, stride_y));
+        bhStmts.push_back(lower_fun(Ctx, idx_y, lower_y, stride_y));
         bhCStmt.push_back(curCStmt);
       }
     }

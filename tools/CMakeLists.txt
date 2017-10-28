@@ -1,5 +1,6 @@
 if(OpenCL_FOUND)
-    include_directories(${OpenCL_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/runtime)
+    include_directories(SYSTEM ${OpenCL_INCLUDE_DIRS})
+    include_directories(${CMAKE_SOURCE_DIR}/runtime)
 
     set(cl_compile_SOURCES cl_compile.cc)
     add_executable(cl_compile ${cl_compile_SOURCES})

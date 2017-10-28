@@ -52,7 +52,7 @@ class HipaccRewriteAction : public ASTFrontendAction {
 
   protected:
     std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
-        StringRef file) override;
+        StringRef in_file) override;
 };
 } // namespace hipacc
 } // namespace clang

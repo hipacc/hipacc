@@ -144,7 +144,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
   private:
     // ASTConsumer
-    void HandleTranslationUnit(ASTContext &Context) override;
+    void HandleTranslationUnit(ASTContext &) override;
     bool HandleTopLevelDecl(DeclGroupRef D) override;
     void Initialize(ASTContext &Context) override {
       // get the ID and start/end of the main file.
@@ -187,7 +187,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
 
 std::unique_ptr<ASTConsumer>
-HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI, StringRef file) {
+HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
+                                       StringRef /*in_file*/) {
   std::string out;
   if (!out_file.empty()) {
     StringRef rel_path(out_file);
@@ -206,7 +207,7 @@ HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI, StringRef file) {
 }
 
 
-void Rewrite::HandleTranslationUnit(ASTContext &Context) {
+void Rewrite::HandleTranslationUnit(ASTContext &) {
   assert(compilerClasses.Coordinate && "Coordinate class not found!");
   assert(compilerClasses.Image && "Image class not found!");
   assert(compilerClasses.BoundaryCondition && "BoundaryCondition class not found!");
@@ -2143,8 +2144,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         }
 
         // define required interpolation mode
-        std::string function_name(ASTTranslate::getInterpolationName(Context,
-              builtins, compilerOptions, K, Acc, border_variant()));
+        std::string function_name(ASTTranslate::getInterpolationName(
+              compilerOptions, K, Acc));
         std::string suffix("_" +
             builtins.EncodeTypeIntoStr(Acc->getImage()->getType(), Context));
 
