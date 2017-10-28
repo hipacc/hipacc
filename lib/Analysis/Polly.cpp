@@ -52,7 +52,7 @@ void Polly::analyzeKernel() {
 
   // code generation for Polly
   llvm::LLVMContext llvm_context;
-  CodeGenerator *llvm_ir_cg = CreateLLVMCodeGen( Clang.getDiagnostics(),
+  CodeGenerator *llvm_ir_cg = CreateLLVMCodeGen(Clang.getDiagnostics(),
       func->getNameAsString(), Clang.getHeaderSearchOpts(),
       Clang.getPreprocessorOpts(), Clang.getCodeGenOpts(), llvm_context);
 

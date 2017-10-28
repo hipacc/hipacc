@@ -86,7 +86,7 @@ endif()
 
 if(CUDA_FOUND)
     set(NVCC "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
-    include_directories(${CUDA_INCLUDE_DIRS})
+    include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
     if(APPLE)
         set(NVCC_LINK "-Xlinker -lnvrtc -Xlinker -framework,CUDA")
         set(NVCC_COMP "-ccbin ${clang}")

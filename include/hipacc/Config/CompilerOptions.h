@@ -36,11 +36,16 @@
 #include "hipacc/Config/config.h"
 #include "hipacc/Device/TargetDevices.h"
 
+#include <clang/Basic/Version.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <string>
 #include <memory>
 
+
+#if CLANG_VERSION_MAJOR != 4
+#error "Clang Version 4.x required!"
+#endif
 
 namespace clang {
 namespace hipacc {
