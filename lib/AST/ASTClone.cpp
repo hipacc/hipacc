@@ -830,7 +830,7 @@ Expr *ASTTranslate::VisitCXXConstructExpr(CXXConstructExpr *E) {
   return result;
 }
 
-Expr *ASTTranslate::VisitExprWithCleanups(ExprWithCleanups *E) {
+Expr *ASTTranslate::VisitExprWithCleanupsClone(ExprWithCleanups *E) {
   SmallVector<ExprWithCleanups::CleanupObject, 16> objs;
 
   for (auto obj : E->getObjects())

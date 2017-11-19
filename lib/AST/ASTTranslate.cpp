@@ -2182,6 +2182,16 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 }
 
 
+Expr *ASTTranslate::VisitExprWithCleanupsTranslate(ExprWithCleanups *E) {
+  if (E->getNumObjects() == 0)
+      return Clone(E->getSubExpr());
+
+  llvm::errs() << "Hipacc: Stumbled upon unsupported expression:\n";
+  E->dump();
+  std::abort();
+}
+
+
 Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
   assert(isa<MemberExpr>(E->getCallee()) &&
       "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
@@ -2379,8 +2389,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     }
   }
 
-  assert(0 && "Hipacc: Stumbled upon unsupported expression: CXXMemberCallExpr");
-  return nullptr;
+  llvm::errs() << "Hipacc: Stumbled upon unsupported expression:\n";
+  E->dump();
+  std::abort();
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:
