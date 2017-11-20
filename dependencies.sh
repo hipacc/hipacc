@@ -3,7 +3,7 @@ llvm_revision=release_40
 compiler_rt_revision=release_40
 libcxx_revision=release_40
 polly_revision=release_40
-ndk_version=android-ndk-r14
+ndk_version=android-ndk-r16
 
 clang_repository=http://llvm.org/git/clang.git
 llvm_repository=http://llvm.org/git/llvm.git
