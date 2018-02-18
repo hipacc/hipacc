@@ -256,8 +256,8 @@ Expr *ASTTranslate::VisitPredefinedExpr(PredefinedExpr *E) {
 
 Expr *ASTTranslate::VisitDeclRefExpr(DeclRefExpr *E) {
   TemplateArgumentListInfo templateArgs(E->getLAngleLoc(), E->getRAngleLoc());
-  for (size_t I=0, N=E->getNumTemplateArgs(); I!=N; ++I)
-    templateArgs.addArgument(E->getTemplateArgs()[I]);
+  for (auto template_arg : E->template_arguments())
+    templateArgs.addArgument(template_arg);
 
   ValueDecl *VD = CloneDecl(E->getDecl());
   // remove reference type if present
@@ -421,7 +421,7 @@ Expr *ASTTranslate::VisitMemberExprClone(MemberExpr *E) {
 Expr *ASTTranslate::VisitBinaryOperatorClone(BinaryOperator *E) {
   BinaryOperator *result = new (Ctx) BinaryOperator(Clone(E->getLHS()),
       Clone(E->getRHS()), E->getOpcode(), E->getType(), E->getValueKind(),
-      E->getObjectKind(), E->getOperatorLoc(), E->isFPContractable());
+      E->getObjectKind(), E->getOperatorLoc(), E->getFPFeatures());
 
   setExprPropsClone(E, result);
 
@@ -432,8 +432,7 @@ Expr *ASTTranslate::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
   Expr *result = new (Ctx) CompoundAssignOperator(Clone(E->getLHS()),
       Clone(E->getRHS()), E->getOpcode(), E->getType(), E->getValueKind(),
       E->getObjectKind(), E->getComputationLHSType(),
-      E->getComputationResultType(), E->getOperatorLoc(),
-      E->isFPContractable());
+      E->getComputationResultType(), E->getOperatorLoc(), E->getFPFeatures());
 
   setExprPropsClone(E, result);
 
@@ -584,8 +583,8 @@ Expr *ASTTranslate::VisitArrayInitIndexExpr(ArrayInitIndexExpr *E) {
 Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
   SmallVector<Expr *, 16> exprs;
 
-  for (size_t I=0, N=E->getNumExprs(); I!=N; ++I)
-    exprs.push_back(Clone(E->getExpr(I)));
+  for (auto expr : E->exprs())
+    exprs.push_back(Clone(expr));
 
   Expr *result = new (Ctx) ParenListExpr(Ctx, E->getLParenLoc(), exprs,
       E->getRParenLoc());
@@ -670,7 +669,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprClone(CXXOperatorCallExpr *E) {
 
   CXXOperatorCallExpr *result = new (Ctx) CXXOperatorCallExpr(Ctx,
       E->getOperator(), Clone(E->getCallee()), args, E->getType(),
-      E->getValueKind(), E->getRParenLoc(), E->isFPContractable());
+      E->getValueKind(), E->getRParenLoc(), E->getFPFeatures());
 
   setExprPropsClone(E, result);
 

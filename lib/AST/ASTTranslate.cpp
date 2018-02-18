@@ -1782,7 +1782,7 @@ Expr *ASTTranslate::VisitBinaryOperatorTranslate(BinaryOperator *E) {
     // normal case: clone binary operator
     result = new (Ctx) BinaryOperator(LHS, RHS, E->getOpcode(), QT,
         E->getValueKind(), E->getObjectKind(), E->getOperatorLoc(),
-        E->isFPContractable());
+        E->getFPFeatures());
   }
   if (E->getOpcode() == BO_Assign) writeImageRHS = nullptr;
 

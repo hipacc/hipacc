@@ -542,6 +542,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // C++ Coroutines TS expressions
     HIPACC_UNSUPPORTED_EXPR( CoroutineSuspendExpr )
     HIPACC_UNSUPPORTED_EXPR( CoawaitExpr )
+    HIPACC_UNSUPPORTED_EXPR( DependentCoawaitExpr )
     HIPACC_UNSUPPORTED_EXPR( CoyieldExpr )
 
     // Obj-C Expressions
