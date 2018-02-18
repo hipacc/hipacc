@@ -28,8 +28,6 @@
 
 #include <cstdint>
 
-namespace hipacc {
-
 typedef unsigned char   uchar;
 typedef unsigned short  ushort;
 typedef unsigned int    uint;
@@ -491,8 +489,6 @@ MAKE_CONV(long4)
 MAKE_CONV(ulong4)
 MAKE_CONV(float4)
 MAKE_CONV(double4)
-
-} // end namespace hipacc
 
 #endif // __TYPES_HPP__
 
