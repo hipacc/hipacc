@@ -79,11 +79,10 @@ class Deriv1D : public Kernel<float> {
     }
 
     void kernel() {
-      float sum = 0;
-      sum += convolve(mask, Reduce::SUM, [&] () -> float {
+      float sum = convolve(mask, Reduce::SUM, [&] () -> float {
           return input(mask) * mask();
       });
-      output() = sum*sum;
+      output() = sum * sum;
     }
 };
 #else
@@ -102,11 +101,9 @@ class Deriv1DCol : public Kernel<float> {
     }
 
     void kernel() {
-      float sum = 0;
-      sum += convolve(mask, Reduce::SUM, [&] () -> float {
+      output() = convolve(mask, Reduce::SUM, [&] () -> float {
           return input(mask) * mask();
       });
-      output() = sum;
     }
 };
 class Deriv1DRow : public Kernel<float> {
@@ -124,11 +121,10 @@ class Deriv1DRow : public Kernel<float> {
     }
 
     void kernel() {
-      float sum = 0;
-      sum += convolve(mask, Reduce::SUM, [&] () -> float {
+      float sum = convolve(mask, Reduce::SUM, [&] () -> float {
           return input(mask) * mask();
       });
-      output() = sum*sum;
+      output() = sum * sum;
     }
 };
 #endif

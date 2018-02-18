@@ -286,7 +286,7 @@ BinaryOperator *createBinaryOperator(ASTContext &Ctx, Expr *lhs, Expr *rhs,
   E->setRHS(rhs);
   E->setOpcode(opc);
   E->setOperatorLoc(SourceLocation());
-  E->setFPContractable(false);
+  E->setFPFeatures(FPOptions());
   E->setType(ResTy);
 
   return E;
@@ -301,7 +301,7 @@ CompoundAssignOperator *createCompoundAssignOperator(ASTContext &Ctx, Expr *lhs,
   E->setRHS(rhs);
   E->setOpcode(opc);
   E->setOperatorLoc(SourceLocation());
-  E->setFPContractable(false);
+  E->setFPFeatures(FPOptions());
   E->setType(ResTy);
   E->setComputationLHSType(ResTy);
   E->setComputationResultType(ResTy);

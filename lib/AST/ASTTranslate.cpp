@@ -1802,7 +1802,7 @@ Expr *ASTTranslate::VisitBinaryOperatorTranslate(BinaryOperator *E) {
     // normal case: clone binary operator
     result = new (Ctx) BinaryOperator(LHS, RHS, E->getOpcode(), QT,
         E->getValueKind(), E->getObjectKind(), E->getOperatorLoc(),
-        E->isFPContractable());
+        E->getFPFeatures());
   }
   if (E->getOpcode() == BO_Assign) writeImageRHS = nullptr;
 
@@ -1912,7 +1912,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
   // look for Mask user class member variable
   if (auto mask = Kernel->getMaskFromMapping(FD)) {
     MemoryAccess mem_acc = KernelClass->getMemAccess(FD);
-    assert(mem_acc==READ_ONLY &&
+    assert(mem_acc == READ_ONLY &&
         "only read-only memory access to Mask supported");
 
     switch (E->getNumArgs()) {
@@ -1920,7 +1920,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         assert(0 && "0, 1, or 2 arguments for Mask operator() expected!");
         break;
       case 1:
-        assert(convMask && convMask==mask &&
+        assert(convMask && convMask == mask &&
             "0 arguments for Mask operator() only allowed within"
             "convolution lambda-function.");
         // within convolute lambda-function
@@ -2140,7 +2140,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         Mask = Kernel->getMaskFromMapping(FD);
         }
         if (convMask) {
-          assert(convMask==Mask &&
+          assert(convMask == Mask &&
               "the Mask parameter for Accessor operator(Mask) has to be"
               "the Mask parameter of the convolve method.");
           mask_idx_x = convIdxX;
@@ -2148,7 +2148,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         } else {
           bool found = false;
           for (unsigned int i = 0; i < redDomains.size(); ++i) {
-            if (redDomains[i]==Mask) {
+            if (redDomains[i] == Mask) {
               mask_idx_x = redIdxX[i];
               mask_idx_y = redIdxY[i];
               found = true;
@@ -2199,6 +2199,16 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
   setExprProps(E, result);
 
   return result;
+}
+
+
+Expr *ASTTranslate::VisitExprWithCleanupsTranslate(ExprWithCleanups *E) {
+  if (E->getNumObjects() == 0)
+      return Clone(E->getSubExpr());
+
+  llvm::errs() << "Hipacc: Stumbled upon unsupported expression:\n";
+  E->dump();
+  std::abort();
 }
 
 
@@ -2382,8 +2392,8 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
               static_cast<int>(redDomains[redDepth]->getSizeY()/2));
         }
       } else {
-        assert(mask==convMask && "Getting Mask convolution IDs is only allowed "
-                                 "allowed within convolution lambda-function.");
+        assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
+                                   "allowed within convolution lambda-function.");
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "x") {
           return createIntegerLiteral(Ctx, convIdxX -
@@ -2397,8 +2407,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     }
   }
 
-  assert(0 && "Hipacc: Stumbled upon unsupported expression: CXXMemberCallExpr");
-  return nullptr;
+  llvm::errs() << "Hipacc: Stumbled upon unsupported expression:\n";
+  E->dump();
+  std::abort();
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

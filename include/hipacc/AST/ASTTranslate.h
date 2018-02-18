@@ -280,13 +280,15 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // default error message for unsupported expressions and statements.
     #define HIPACC_UNSUPPORTED_EXPR(EXPR) \
-    Expr *Visit##EXPR(EXPR *) { \
+    Expr *Visit##EXPR(EXPR *E) { \
       llvm::errs() << "Hipacc: Stumbled upon unsupported expression: " #EXPR "\n"; \
+      E->dump(); \
       std::abort(); \
     }
     #define HIPACC_UNSUPPORTED_STMT(STMT) \
-    Stmt *Visit##STMT(STMT *) { \
+    Stmt *Visit##STMT(STMT *S) { \
       llvm::errs() << "Hipacc: Stumbled upon unsupported statement: " #STMT "\n"; \
+      S->dump(); \
       std::abort(); \
     }
     #define HIPACC_UNSUPPORTED_EXPR_BASE_CLASS(EXPR) \
@@ -520,7 +522,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitCXXConstructExpr(CXXConstructExpr *E);
     HIPACC_UNSUPPORTED_EXPR( CXXInheritedCtorInitExpr )
     HIPACC_UNSUPPORTED_EXPR( CXXBindTemporaryExpr )
-    Expr *VisitExprWithCleanups(ExprWithCleanups *E);
+    VISIT_MODE(Expr, ExprWithCleanups)
     HIPACC_UNSUPPORTED_EXPR( CXXTemporaryObjectExpr )
     HIPACC_UNSUPPORTED_EXPR( CXXUnresolvedConstructExpr )
     HIPACC_UNSUPPORTED_EXPR( CXXDependentScopeMemberExpr )
@@ -540,6 +542,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // C++ Coroutines TS expressions
     HIPACC_UNSUPPORTED_EXPR( CoroutineSuspendExpr )
     HIPACC_UNSUPPORTED_EXPR( CoawaitExpr )
+    HIPACC_UNSUPPORTED_EXPR( DependentCoawaitExpr )
     HIPACC_UNSUPPORTED_EXPR( CoyieldExpr )
 
     // Obj-C Expressions

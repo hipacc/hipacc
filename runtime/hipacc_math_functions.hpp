@@ -35,17 +35,6 @@
 #include "hipacc_types.hpp"
 
 
-#if defined __ANDROID__
-// log2 definition is missing on Android
-extern float log2(float v);
-#ifndef EXCLUDE_IMPL
-extern float log2(float v) {
-    return log10(v) / log10(2.f);
-}
-#endif // EXCLUDE_IMPL
-#endif
-
-
 // math operators
 #define MAKE_MATH_BI(NEW_TYPE, BASIC_TYPE, RET_TYPE, SUFFIX) \
  \
