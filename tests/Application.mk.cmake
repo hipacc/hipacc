@@ -1,3 +1,3 @@
-APP_ABI := armeabi #armeabi-v7a x86 mips
-APP_PLATFORM := android-@ANDROID_API@
-APP_STL := gnustl_static
+APP_ABI := armeabi-v7a #arm64-v8a x86
+APP_PLATFORM := android-19
+APP_STL := c++_static

@@ -546,9 +546,8 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   // clone Decl
   TemplateArgumentListInfo templateArgs(LHS->getLAngleLoc(),
       LHS->getRAngleLoc());
-  for (size_t i=0, e=LHS->getNumTemplateArgs(); i!=e; ++i) {
-    templateArgs.addArgument(LHS->getTemplateArgs()[i]);
-  }
+  for (auto template_arg : LHS->template_arguments())
+    templateArgs.addArgument(template_arg);
 
   assert(isa<ParmVarDecl>(LHS->getDecl()) && "texture variable must be a ParmVarDecl!");
   ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());

@@ -124,7 +124,7 @@ filterscript renderscript:
 	export CASE_FLAGS="$(MYFLAGS)"; \
 	export HIPACC_INCLUDE=$(HIPACC_DIR)/include; \
 	cd build_$@; @Renderscript_ndk_build_EXECUTABLE@ -B
-	cp build_$@/libs/armeabi/main_renderscript ./main_$@
+	cp build_$@/libs/armeabi-v7a/main_renderscript ./main_$@
 	adb shell mkdir -p /data/local/tmp
 	adb push main_$@ /data/local/tmp
 	adb shell /data/local/tmp/main_$@
