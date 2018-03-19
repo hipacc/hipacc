@@ -701,8 +701,22 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
               << Img->getName();
           }
-          Img->setSizeX(CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue());
-          Img->setSizeY(CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue());
+
+          int64_t img_stride = CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue();
+          int64_t img_height = CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue();
+
+          if (compilerOptions.emitPadding()) {
+            // respect alignment/padding for constantly sized CPU images
+            int64_t alignment = compilerOptions.getAlignment()
+                                  / (Context.getTypeSize(Img->getType())/8);
+
+            if (alignment > 1) {
+              img_stride = ((img_stride+alignment-1) / alignment) * alignment;
+            }
+          }
+
+          Img->setSizeX(img_stride);
+          Img->setSizeY(img_height);
         }
 
         // host memory

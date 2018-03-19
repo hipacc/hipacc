@@ -122,6 +122,7 @@ int main(int argc, char *argv[]) {
   for (int i=0; i<argc; ++i) {
     if (StringRef(argv[i]) == "-emit-cpu") {
       compilerOptions.setTargetLang(Language::C99);
+      compilerOptions.setTargetDevice(Device::CPU);
       continue;
     }
     if (StringRef(argv[i]) == "-emit-cuda") {
@@ -165,6 +166,12 @@ int main(int argc, char *argv[]) {
     }
     if (StringRef(argv[i]) == "-target") {
       assert(i<(argc-1) && "Mandatory code name parameter for -target switch missing.");
+
+      if (!compilerOptions.emitCUDA() && !compilerOptions.emitOpenCLGPU()) {
+        llvm::errs() << "WARNING: Setting target is only supported for CUDA/OpenCL-GPU.\n\n";
+        continue;
+      }
+
       if (StringRef(argv[i+1]) == "Fermi-20") {
         compilerOptions.setTargetDevice(Device::Fermi_20);
       } else if (StringRef(argv[i+1]) == "Fermi-21") {
@@ -365,7 +372,7 @@ int main(int argc, char *argv[]) {
     }
   }
   // Invalid specification for kernel configuration
-  if (compilerOptions.useKernelConfig(USER_ON)) {
+  if (compilerOptions.useKernelConfig(USER_ON) && !compilerOptions.emitC99()) {
     if (compilerOptions.getKernelConfigX()*compilerOptions.getKernelConfigY() >
         (int)targetDevice.max_threads_per_block) {
       llvm::errs() << "ERROR: Invalid kernel configuration: maximum threads for target device are "

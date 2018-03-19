@@ -66,6 +66,9 @@ class HipaccDeviceOptions {
       default_num_threads_y(1)
     {
       switch (options.getTargetDevice()) {
+        case Device::CPU:
+          alignment = 8;
+          break;
         case Device::Fermi_20:
         case Device::Fermi_21:
         case Device::Kepler_30:
@@ -214,6 +217,8 @@ class HipaccDevice : public HipaccDeviceOptions {
       num_sfus(0)
     {
       switch (target_device) {
+        case Device::CPU:
+          break;
         case Device::Fermi_20:
           max_threads_per_block = 1024;
           max_warps_per_multiprocessor = 48;
@@ -342,7 +347,7 @@ class HipaccDevice : public HipaccDeviceOptions {
 
     std::string getTargetDeviceName() {
       switch (target_device) {
-        //case Device::CPU:             return "x86_64 CPU";
+        case Device::CPU:             return "x86_64 CPU";
         case Device::Fermi_20:        return "NVIDIA Fermi (20)";
         case Device::Fermi_21:        return "NVIDIA Fermi (21)";
         case Device::Kepler_30:       return "NVIDIA Kepler (30)";
@@ -357,6 +362,7 @@ class HipaccDevice : public HipaccDeviceOptions {
         //case Device::SouthernIsland:  return "AMD Southern Island";
         case Device::Midgard:         return "ARM Midgard: Mali-T6xx";
         case Device::KnightsCorner:   return "Intel MIC: Knights Corner";
+        default:                      return "Unknown";
       }
     }
 
