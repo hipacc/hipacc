@@ -110,6 +110,31 @@ message(STATUS "JIT estimates: ${USE_JIT_ESTIMATE}")
 message(STATUS "===")
 
 
+# from LLVM CMake to enable / disable RTTI
+if(NOT DEFINED LLVM_COMPILER_IS_GCC_COMPATIBLE)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE ON)
+    elseif(MSVC)
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE OFF)
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE ON)
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE ON)
+    endif()
+endif()
+
+if(NOT LLVM_ENABLE_RTTI)
+    if(LLVM_COMPILER_IS_GCC_COMPATIBLE)
+        list(APPEND CMAKE_CXX_FLAGS "-fno-rtti")
+    elseif(MSVC)
+        list(APPEND CMAKE_CXX_FLAGS "/GR-")
+    endif()
+elseif(MSVC)
+    list(APPEND CMAKE_CXX_FLAGS "/GR")
+endif()
+# from LLVM CMake to enable / disable RTTI
+
+
 # set include directory, add src directories
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/include)
 add_subdirectory(lib)
