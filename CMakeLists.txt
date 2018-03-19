@@ -14,7 +14,6 @@ set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/bin)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 
 add_definitions("-Wall -Wunused")
 
@@ -178,6 +177,31 @@ if (MSVC)
     string(REPLACE "\\" "/" VISUAL_STUDIO_COMMON_TOOLS_PATH "${VISUAL_STUDIO_COMMON_TOOLS_PATH}")
     string(REPLACE "Common7/Tools/" "" HOST_COMPILER_INSTALL_PREFIX "${VISUAL_STUDIO_COMMON_TOOLS_PATH}")
 endif(MSVC)
+
+
+# from LLVM CMake to enable / disable RTTI
+if(NOT DEFINED LLVM_COMPILER_IS_GCC_COMPATIBLE)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE ON)
+    elseif(MSVC)
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE OFF)
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE ON)
+    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
+        set(LLVM_COMPILER_IS_GCC_COMPATIBLE ON)
+    endif()
+endif()
+
+if(NOT LLVM_ENABLE_RTTI)
+    if(LLVM_COMPILER_IS_GCC_COMPATIBLE)
+        list(APPEND CMAKE_CXX_FLAGS "-fno-rtti")
+    elseif(MSVC)
+        list(APPEND CMAKE_CXX_FLAGS "/GR-")
+    endif()
+elseif(MSVC)
+    list(APPEND CMAKE_CXX_FLAGS "/GR")
+endif()
+# from LLVM CMake to enable / disable RTTI
 
 
 # set include directory, add src directories
