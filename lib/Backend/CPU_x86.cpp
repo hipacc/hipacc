@@ -2929,8 +2929,14 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
     }
     break;
   case CompilerSwitchTypeEnum::VectorizeKernel:
-    _bVectorizeKernel = true;
-    GetCompilerOptions().setVectorizeKernels(USER_ON);
+    {
+      ::clang::hipacc::CompilerOption eOption = _ParseOption< KnownSwitches::VectorizeKernel >(rvecArguments, szCurrentIndex);
+      if (eOption == USER_ON) {
+        GetCompilerOptions().setVectorizeKernels(USER_ON);
+        _bVectorizeKernel = true;
+      }
+      ++szReturnIndex;
+    }
     break;
   case CompilerSwitchTypeEnum::VectorWidth:
     {

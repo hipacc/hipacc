@@ -249,13 +249,24 @@ namespace Backend
       struct VectorizeKernel final
       {
         /** \brief  Returns the command argument for this switch. */
-        inline static std::string Key()                 { return "-v"; }
+        inline static std::string Key()                 { return "-vectorize"; }
 
         /** \brief  Returns the additional options string for this switch. */
-        inline static std::string AdditionalOptions()   { return ""; }
+        inline static std::string AdditionalOptions()   { return "<o>"; }
 
         /** \brief  Returns the description for this switch. */
-        inline static std::string Description()         { return "Run a whole function vectorization on the kernel function"; }
+        inline static std::string Description()
+        {
+          std::string strDescription("");
+
+          strDescription += "Enable/disable whole-function vectorization on the kernel function\n";
+          strDescription += "Valid values: 'on' and 'off'";
+
+          return strDescription;
+        }
+
+
+        typedef CommonDefines::OptionParsers::OnOff   OptionParser;   //!< Type definition for the option parser for this switch.
       };
 
       /** \brief  The switch type for the "set vector width" switch. */

@@ -32,50 +32,54 @@ CU_LINK         = $(CC_LINK) @NVCC_LINK@
 # use specific configuration for kernels -> set HIPACC_CONFIG to nxm
 # generate code that explores configuration -> set HIPACC_EXPLORE to off|on
 # generate code that times kernel execution -> set HIPACC_TIMING to off|on
+#HIPACC_TARGET?=Kepler-30
+#HIPACC_CONFIG?=128x1
+#HIPACC_PAD?=256
 HIPACC_LMEM?=off
 HIPACC_TEX?=off
-HIPACC_VEC?=off
 HIPACC_PPT?=1
-HIPACC_CONFIG?=128x1
 HIPACC_EXPLORE?=off
 HIPACC_TIMING?=off
-HIPACC_TARGET?=Kepler-30
-HIPACC_VEC_IS?=sse4.2
 HIPACC_OMP?=off
+HIPACC_VEC?=off
+HIPACC_VEC_IS?=sse4.2
 
 
-HIPACC_OPTS=-target $(HIPACC_TARGET)
-ifdef HIPACC_PAD
-    HIPACC_OPTS+= -emit-padding $(HIPACC_PAD)
-endif
-ifdef HIPACC_LMEM
-    HIPACC_OPTS+= -use-local $(HIPACC_LMEM)
-endif
-ifdef HIPACC_TEX
-    HIPACC_OPTS+= -use-textures $(HIPACC_TEX)
-endif
-ifdef HIPACC_PPT
-    HIPACC_OPTS+= -pixels-per-thread $(HIPACC_PPT)
-endif
-ifeq ($(HIPACC_VEC),on)
-    HIPACC_OPTS+= -vectorize $(HIPACC_VEC)
-    HIPACC_CPU_OPTS+= -v -i-s $(HIPACC_VEC_IS)
-ifdef HIPACC_VEC_WIDTH
-    HIPACC_CPU_OPTS+= -v-w $(HIPACC_VEC_WIDTH)
-endif
+ifdef HIPACC_TARGET
+    HIPACC_OPTS=-target $(HIPACC_TARGET)
 endif
 ifdef HIPACC_CONFIG
     HIPACC_OPTS+= -use-config $(HIPACC_CONFIG)
 endif
-ifeq ($(HIPACC_EXPLORE),on)
+ifdef HIPACC_PAD
+    HIPACC_OPTS+= -emit-padding $(HIPACC_PAD)
+endif
+ifneq ($(HIPACC_LMEM),off)
+    HIPACC_OPTS+= -use-local $(HIPACC_LMEM)
+endif
+ifneq ($(HIPACC_TEX),off)
+    HIPACC_OPTS+= -use-textures $(HIPACC_TEX)
+endif
+ifneq ($(HIPACC_PPT),1)
+    HIPACC_OPTS+= -pixels-per-thread $(HIPACC_PPT)
+endif
+ifneq ($(HIPACC_EXPLORE),off)
     HIPACC_OPTS+= -explore-config
 endif
-ifeq ($(HIPACC_TIMING),on)
+ifneq ($(HIPACC_TIMING),off)
     HIPACC_OPTS+= -time-kernels
 endif
-ifeq ($(HIPACC_OMP),on)
+ifneq ($(HIPACC_OMP),off)
     HIPACC_CPU_OPTS+= -omp
     CC_LINK+= -fopenmp
+endif
+ifneq ($(HIPACC_VEC),off)
+    HIPACC_OPTS+= -vectorize $(HIPACC_VEC)
+    HIPACC_OPTS+= -i-s $(HIPACC_VEC_IS)
+    CC_CC+= -m$(HIPACC_VEC_IS)
+ifdef HIPACC_VEC_WIDTH
+    HIPACC_OPTS+= -v-w $(HIPACC_VEC_WIDTH)
+endif
 endif
 
 # set target GPU architecture to the compute capability encoded in target
@@ -88,9 +92,9 @@ run:
 
 cpu:
 	@echo 'Executing Hipacc Compiler for C++:'
-	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-cpu $(HIPACC_CPU_OPTS) -o main.cc $(TEST_CASE)/main.cpp
+	$(COMPILER) $(COMPILER_INC) $(MYFLAGS) -emit-cpu $(HIPACC_OPTS) -o main.cc $(TEST_CASE)/main.cpp
 	@echo 'Compiling C++ file using c++:'
-	$(CC_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -m$(HIPACC_VEC_IS) -o main_cpu main.cc $(CC_LINK)
+	$(CC_CC) -I$(HIPACC_DIR)/include $(COMMON_INC) $(MYFLAGS) $(OFLAGS) -o main_cpu main.cc $(CC_LINK)
 	@echo 'Executing C++ binary'
 	./main_cpu
 

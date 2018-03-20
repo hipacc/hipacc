@@ -297,7 +297,9 @@ namespace Backend
               i++;
             }
           } else {
-            throw RuntimeErrors::UnknownSwitchException(strSwitch, GetName());
+            llvm::errs() << "WARNING: Switch " << strSwitch
+                << " is not supported for target " << GetName() << "\n";
+            //throw RuntimeErrors::UnknownSwitchException(strSwitch, GetName());
           }
         } else {
           i = _HandleSwitch(itSwitchEntry->second.GetSwitchType(), rvecArguments, i);
