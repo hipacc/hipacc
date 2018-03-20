@@ -706,22 +706,24 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         std::string width_str  = convertToString(CCE->getArg(0));
         std::string height_str = convertToString(CCE->getArg(1));
 
-        if (compilerOptions.emitC99()) {
-          // check if the parameter can be resolved to a constant
-          unsigned IDConstant = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Constant expression for %0 argument of Image %1 required (C/C++ only).");
-          if (!CCE->getArg(0)->isEvaluatable(Context)) {
-            Diags.Report(CCE->getArg(0)->getExprLoc(), IDConstant) << "width"
-              << Img->getName();
-          }
-          if (!CCE->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
-              << Img->getName();
-          }
+        // TODO: No need for images in C++ to be of constant size, but this
+        //       might become useful for FPGA targets
+        //if (compilerOptions.emitC99()) {
+        //  // check if the parameter can be resolved to a constant
+        //  unsigned IDConstant = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+        //        "Constant expression for %0 argument of Image %1 required (C/C++ only).");
+        //  if (!CCE->getArg(0)->isEvaluatable(Context)) {
+        //    Diags.Report(CCE->getArg(0)->getExprLoc(), IDConstant) << "width"
+        //      << Img->getName();
+        //  }
+        //  if (!CCE->getArg(1)->isEvaluatable(Context)) {
+        //    Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
+        //      << Img->getName();
+        //  }
 
-          Img->setSizeX(CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue());
-          Img->setSizeY(CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue());
-        }
+        //  Img->setSizeX(CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue());
+        //  Img->setSizeY(CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue());
+        //}
 
         // host memory
         std::string init_str = "NULL";

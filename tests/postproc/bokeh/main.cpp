@@ -137,8 +137,8 @@ int main(int argc, const char **argv) {
     // load input
     FIBITMAP* img = FreeImage_Load(FIF_JPEG, "tests/postproc/bokeh/ny.jpg");
     img = FreeImage_ConvertTo32Bits(img);
-    const int width = 1920;//FreeImage_GetWidth(img);
-    const int height = 1200;//FreeImage_GetHeight(img);
+    const int width = FreeImage_GetWidth(img);
+    const int height = FreeImage_GetHeight(img);
     data_t* d;
     
     data_t* input = new data_t[width*height]; 
