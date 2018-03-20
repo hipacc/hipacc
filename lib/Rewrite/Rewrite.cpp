@@ -718,6 +718,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
               << Img->getName();
           }
+
           Img->setSizeX(CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue());
           Img->setSizeY(CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue());
         }

@@ -39,6 +39,7 @@ namespace clang {
 namespace hipacc {
 // supported target devices
 enum class Device {
+  CPU               =  1,
   Fermi_20          = 20,
   Fermi_21          = 21,
   Kepler_30         = 30,

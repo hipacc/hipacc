@@ -277,7 +277,7 @@ namespace Backend
       return vecKnownSwitches;
     }
 
-    virtual void Configure(CommonDefines::ArgumentVectorType & rvecArguments) final override
+    virtual void Configure(CommonDefines::ArgumentVectorType & rvecArguments) override
     {
       // Set the target code for this code generator
       GetCompilerOptions().setTargetLang(_Descriptor.TargetLang());
