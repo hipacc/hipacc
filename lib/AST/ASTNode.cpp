@@ -216,6 +216,7 @@ IfStmt *createIfStmt(ASTContext &Ctx, Expr *cond, Stmt *then, Stmt *elsev, Decl
     *decl) {
   IfStmt *S = new (Ctx) IfStmt(Stmt::EmptyShell());
 
+  S->setInit(nullptr);
   S->setConditionVariable(Ctx, cast_or_null<VarDecl>(decl));
   S->setCond(cond);
   S->setThen(then);
