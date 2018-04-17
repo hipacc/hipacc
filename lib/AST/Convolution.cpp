@@ -122,38 +122,46 @@ Expr *ASTTranslate::getInitExpr(Reduce mode, QualType QT) {
     default:
       assert(0 && "BuiltinType for reduce function not supported.");
 
+    // FIXME: Clang adds weird suffixes to integer literals with less then 32
+    // bits (e.g. "i8", "Ui16", @see StmtPrinter::VisitIntegerLiteral). As a
+    // workaround, we fall through for integer types smaller 32 bits and create
+    // the accordingly signed 32 bit literal instead.
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      initExpr = new (Ctx) CharacterLiteral(get_init<signed char>(mode),
-          CharacterLiteral::Ascii, QT, SourceLocation());
+      //initExpr = new (Ctx) CharacterLiteral(get_init<signed char>(mode),
+      //    CharacterLiteral::Ascii, QT, SourceLocation());
+      //break;
+    case BuiltinType::Short: //{
+      //llvm::APInt init(16, get_init<short>(mode));
+      //initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      //break; }
+    case BuiltinType::Int: //{
+      //llvm::APInt init(32, get_init<int>(mode));
+      //initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      //break; }
+      initExpr = createIntegerLiteral(Ctx, get_init<int>(mode));
       break;
-    case BuiltinType::Char_U:
-    case BuiltinType::UChar:
-      initExpr = new (Ctx) CharacterLiteral(get_init<unsigned char>(mode),
-          CharacterLiteral::Ascii, QT, SourceLocation());
-      break;
-    case BuiltinType::Short: {
-      llvm::APInt init(16, get_init<short>(mode));
-      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
-      break; }
-    case BuiltinType::Char16:
-    case BuiltinType::UShort: {
-      llvm::APInt init(16, get_init<unsigned short>(mode));
-      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
-      break; }
-    case BuiltinType::Int: {
-      llvm::APInt init(32, get_init<int>(mode));
-      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
-      break; }
-    case BuiltinType::Char32:
-    case BuiltinType::UInt: {
-      llvm::APInt init(32, get_init<unsigned>(mode));
-      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
-      break; }
     case BuiltinType::Long: {
       llvm::APInt init(64, get_init<long long>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
       break; }
+    case BuiltinType::Char_U:
+    case BuiltinType::UChar:
+      //initExpr = new (Ctx) CharacterLiteral(get_init<unsigned char>(mode),
+      //    CharacterLiteral::Ascii, QT, SourceLocation());
+      //break;
+    case BuiltinType::Char16:
+    case BuiltinType::UShort: //{
+      //llvm::APInt init(16, get_init<unsigned short>(mode));
+      //initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      //break; }
+    case BuiltinType::Char32:
+    case BuiltinType::UInt: //{
+      //llvm::APInt init(32, get_init<unsigned>(mode));
+      //initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      //break; }
+      initExpr = createIntegerLiteral(Ctx, get_init<unsigned>(mode));
+      break;
     case BuiltinType::ULong: {
       llvm::APInt init(64, get_init<unsigned long long>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
