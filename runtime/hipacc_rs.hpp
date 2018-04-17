@@ -39,7 +39,6 @@ using namespace android::RSC;
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <iterator>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -82,7 +81,7 @@ CREATE_ALLOCATION_DECL(double4)
 class HipaccContext : public HipaccContextBase {
     private:
         sp<RS> context;
-        std::list<std::pair<sp<const Allocation>, HipaccImage> > allocs;
+        std::list<std::pair<sp<const Allocation>, HipaccImage>> allocs;
 
         HipaccContext() {
           context = new RS();
@@ -99,11 +98,9 @@ class HipaccContext : public HipaccContextBase {
             allocs.push_back(std::make_pair(id, img));
         }
         void del_image(HipaccImage &img) {
-            size_t num=0;
-            std::list<std::pair<sp<const Allocation>, HipaccImage> >::iterator i;
-            for (i=allocs.begin(); i!=allocs.end(); ++i, ++num) {
-                if (i->second == img) {
-                    allocs.erase(i);
+            for (auto &alloc : allocs) {
+                if (alloc.second == img) {
+                    allocs.remove(alloc);
                     HipaccContextBase::del_image(img);
                     return;
                 }
@@ -114,11 +111,9 @@ class HipaccContext : public HipaccContextBase {
             exit(EXIT_FAILURE);
         }
         const sp<const Allocation> *get_allocation(HipaccImage &img) {
-            std::list<std::pair<sp<const Allocation>, HipaccImage> >::const_iterator i;
-            for (i=allocs.begin(); i!=allocs.end(); ++i) {
-                if (i->second == img) {
-                    return &i->first;
-                }
+            for (auto &alloc : allocs) {
+                if (alloc.second == img)
+                    return &alloc.first;
             }
             exit(EXIT_FAILURE);
         }
@@ -510,7 +505,7 @@ void hipaccLaunchScriptKernel(
 template<typename F>
 void hipaccLaunchScriptKernelBenchmark(
     F* script,
-    std::vector<hipacc_script_arg<F> > args,
+    std::vector<hipacc_script_arg<F>> args,
     void(F::*kernel)(sp<Allocation>),
     HipaccImage &out, size_t *work_size,
     bool print_timing=true
@@ -519,10 +514,8 @@ void hipaccLaunchScriptKernelBenchmark(
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
         // set kernel arguments
-        for (typename std::vector<hipacc_script_arg<F> >::const_iterator
-                it = args.begin(); it != args.end(); ++it) {
-            SET_SCRIPT_ARG(script, *it);
-        }
+        for (auto &arg : args)
+            SET_SCRIPT_ARG(script, arg);
 
         // launch kernel
         hipaccLaunchScriptKernel(script, kernel, out, work_size, print_timing);
@@ -546,7 +539,7 @@ void hipaccLaunchScriptKernelBenchmark(
 template<typename F, typename T>
 void hipaccLaunchScriptKernelExploration(
     F* script,
-    std::vector<hipacc_script_arg<F> > args,
+    std::vector<hipacc_script_arg<F>> args,
     void(F::*kernel)(sp<Allocation>),
     std::vector<hipacc_smem_info>, hipacc_launch_info &info,
     int warp_size, int, int max_threads_for_kernel,
@@ -574,10 +567,8 @@ void hipaccLaunchScriptKernelExploration(
         std::vector<float> times;
         for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
             // set kernel arguments
-            for (typename std::vector<hipacc_script_arg<F> >::const_iterator
-                    it = args.begin(); it != args.end(); ++it) {
-                SET_SCRIPT_ARG(script, *it);
-            }
+            for (auto &arg : args)
+                SET_SCRIPT_ARG(script, arg);
 
             // launch kernel
             hipaccLaunchScriptKernel(script, kernel, iter_space , work_size, false);
@@ -614,7 +605,7 @@ T hipaccApplyReduction(
     void(F::*kernel2D)(sp<Allocation>),
     void(F::*kernel1D)(sp<Allocation>),
     void(F::*setter)(sp<const Allocation>),
-    std::vector<hipacc_script_arg<F> > args,
+    std::vector<hipacc_script_arg<F>> args,
     int is_width, bool print_timing=true
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
@@ -633,10 +624,8 @@ T hipaccApplyReduction(
     sp<Allocation> is2 = (Allocation *)is2_img.mem;
 
     // set arguments
-    for (typename std::vector<hipacc_script_arg<F> >::const_iterator
-            it = args.begin(); it != args.end(); ++it) {
-        SET_SCRIPT_ARG(script, *it);
-    }
+    for (auto &arg : args)
+        SET_SCRIPT_ARG(script, arg);
 
     rs->finish();
     auto start = hipacc_time_micro();
