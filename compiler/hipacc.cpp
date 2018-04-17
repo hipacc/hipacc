@@ -167,8 +167,11 @@ int main(int argc, char *argv[]) {
     if (StringRef(argv[i]) == "-target") {
       assert(i<(argc-1) && "Mandatory code name parameter for -target switch missing.");
 
-      if (!compilerOptions.emitCUDA() && !compilerOptions.emitOpenCLGPU()) {
-        llvm::errs() << "WARNING: Setting target is only supported for CUDA/OpenCL-GPU.\n\n";
+      if (!compilerOptions.emitCUDA() &&
+          !compilerOptions.emitOpenCLGPU() &&
+          !compilerOptions.emitRenderscript() &&
+          !compilerOptions.emitFilterscript()) {
+        llvm::errs() << "WARNING: Setting target is only supported for GPU code generation.\n\n";
         continue;
       }
 
