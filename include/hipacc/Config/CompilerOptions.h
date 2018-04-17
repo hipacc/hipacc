@@ -231,6 +231,7 @@ class CompilerOptions {
         case Language::OpenCLGPU:    return "cl";
         case Language::Renderscript: return "rs";
         case Language::Filterscript: return "fs";
+        default: assert(false && "Unsupported target language");
       }
     }
 

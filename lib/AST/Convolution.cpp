@@ -80,7 +80,7 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
           tmp_var->getType());
       break;
     case Reduce::MEDIAN:
-      assert(0 && "Unsupported convolution mode.");
+      assert(0 && "Unsupported reduction mode.");
   }
 
   return result;
@@ -93,7 +93,8 @@ template<typename T> T get_init(Reduce mode) {
     case Reduce::MIN:    return std::numeric_limits<T>::max();
     case Reduce::MAX:    return std::numeric_limits<T>::min();
     case Reduce::PROD:   return 1;
-    case Reduce::MEDIAN: assert(false && "median not yet supported");
+    case Reduce::MEDIAN: assert(false && "Median not yet supported");
+    default:             assert(false && "Unsupported reduction mode");
   }
 }
 
@@ -250,7 +251,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   } else if (E->getDirectCallee()->getName().equals("iterate")) {
     method = Method::Iterate;
   } else {
-    assert(false && "unsupported convolution method.");
+    assert(false && "Unsupported convolution method.");
   }
 
   switch (method) {
@@ -473,6 +474,8 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
           CK_LValueToRValue, tmp_dre, nullptr, VK_RValue);
     case Method::Iterate:
       return nullptr;
+    default:
+      assert(false && "Unsupported convolution method.");
   }
 }
 
