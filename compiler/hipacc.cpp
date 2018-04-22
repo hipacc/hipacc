@@ -94,6 +94,8 @@ void printUsage() {
     << "                          Valid values: 'on' and 'off'\n"
     << "  -vectorize <o>          Enable/disable vectorization of generated CUDA/OpenCL code\n"
     << "                          Valid values: 'on' and 'off'\n"
+    << "  -fuse <o>               Enable/disable kernel fusion of generated CUDA code\n"
+    << "                          Valid values: 'on' and 'off'\n"
     << "  -pixels-per-thread <n>  Specify how many pixels should be calculated per thread\n"
     << "  -rs-package <string>    Specify Renderscript package name. (default: \"org.hipacc.rs\")\n"
     << "  -o <file>               Write output to <file>\n"
@@ -272,6 +274,20 @@ int main(int argc, char *argv[]) {
         compilerOptions.setVectorizeKernels(USER_ON);
       } else {
         llvm::errs() << "ERROR: Expected valid vectorization specification for -use-vectorize switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-fuse") {
+      assert(i<(argc-1) && "Mandatory fusion specification for -fuse switch missing.");
+      if (StringRef(argv[i+1]) == "off") {
+        compilerOptions.setFuseKernels(USER_OFF);
+      } else if (StringRef(argv[i+1]) == "on") {
+        compilerOptions.setFuseKernels(USER_ON);
+      } else {
+        llvm::errs() << "ERROR: Expected valid fusion specification for -use-fuse switch.\n\n";
         printUsage();
         return EXIT_FAILURE;
       }
