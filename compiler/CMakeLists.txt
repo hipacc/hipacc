@@ -19,6 +19,7 @@ if(USE_POLLY)
 endif()
 
 list(APPEND HIPACC_LIBS
+    hipaccHostDataDeps
     hipaccKernelStatistics
     hipaccBuiltins
     hipaccASTNode)

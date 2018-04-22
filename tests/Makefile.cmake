@@ -34,6 +34,7 @@ CU_LINK         = $(CC_LINK) @NVCC_LINK@
 HIPACC_LMEM?=off
 HIPACC_TEX?=off
 HIPACC_VEC?=off
+HIPACC_FUSE?=off
 HIPACC_PPT?=1
 HIPACC_CONFIG?=128x1
 HIPACC_EXPLORE?=off
@@ -56,6 +57,9 @@ ifdef HIPACC_PPT
 endif
 ifdef HIPACC_VEC
     HIPACC_OPTS+= -vectorize $(HIPACC_VEC)
+endif
+ifdef HIPACC_FUSE
+    HIPACC_OPTS+= -fuse $(HIPACC_FUSE)
 endif
 ifdef HIPACC_CONFIG
     HIPACC_OPTS+= -use-config $(HIPACC_CONFIG)

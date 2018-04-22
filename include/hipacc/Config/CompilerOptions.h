@@ -83,6 +83,7 @@ class CompilerOptions {
     CompilerOption local_memory;
     CompilerOption multiple_pixels;
     CompilerOption vectorize_kernels;
+    CompilerOption fuse_kernels;
     // user defined values for target code features
     int kernel_config_x, kernel_config_y;
     int align_bytes;
@@ -123,6 +124,7 @@ class CompilerOptions {
       local_memory(AUTO),
       multiple_pixels(AUTO),
       vectorize_kernels(OFF),
+      fuse_kernels(OFF),
       kernel_config_x(128),
       kernel_config_y(1),
       align_bytes(0),
@@ -179,6 +181,9 @@ class CompilerOptions {
     bool vectorizeKernels(CompilerOption option=option_ou) {
       return vectorize_kernels & option;
     }
+    bool fuseKernels(CompilerOption option=option_ou) {
+      return fuse_kernels & option;
+    }
     bool multiplePixelsPerThread(CompilerOption option=option_ou) {
       return multiple_pixels & option;
     }
@@ -192,6 +197,7 @@ class CompilerOptions {
     void setTimeKernels(CompilerOption o) { time_kernels = o; }
     void setLocalMemory(CompilerOption o) { local_memory = o; }
     void setVectorizeKernels(CompilerOption o) { vectorize_kernels = o; }
+    void setFuseKernels(CompilerOption o) { fuse_kernels = o; }
 
     void setTextureMemory(Texture type) {
       texture_type = type;
@@ -277,6 +283,8 @@ class CompilerOptions {
       getOptionAsString(multiple_pixels, pixels_per_thread);
       llvm::errs() << "\n  Vectorization of kernels: ";
       getOptionAsString(vectorize_kernels);
+      llvm::errs() << "\n  Fusion of kernels: ";
+      getOptionAsString(fuse_kernels);
       llvm::errs() << "\n\n";
     }
 };

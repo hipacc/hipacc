@@ -42,6 +42,7 @@
 #include "hipacc/Device/TargetDescription.h"
 #include "hipacc/DSL/CompilerKnownClasses.h"
 #include "hipacc/Rewrite/CreateHostStrings.h"
+#include "hipacc/Analysis/HostDataDeps.h"
 
 #include <clang/AST/ASTConsumer.h>
 #include <clang/AST/RecursiveASTVisitor.h>
@@ -75,6 +76,9 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     HipaccDevice targetDevice;
     hipacc::Builtin::Context builtins;
     CreateHostStrings stringCreator;
+
+    // optimization utilities
+    HostDataDeps *dataDeps;
 
     // compiler known/built-in C++ classes
     CompilerKnownClasses compilerClasses;
@@ -111,6 +115,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       targetDevice(options),
       builtins(CI.getASTContext()),
       stringCreator(CreateHostStrings(options, targetDevice)),
+      dataDeps(nullptr),
       compilerClasses(CompilerKnownClasses()),
       mainFD(nullptr),
       literalCount(0),
@@ -1364,6 +1369,12 @@ bool Rewrite::VisitFunctionDecl(FunctionDecl *D) {
     assert(D->getBody() && "main function has no body.");
     assert(isa<CompoundStmt>(D->getBody()) && "CompoundStmt for main body expected.");
     mainFD = D;
+    // Check enable kernel fusion for optimization
+    if (compilerOptions.fuseKernels()) {
+      AnalysisDeclContext AC(0, mainFD);
+      dataDeps = HostDataDeps::parse(Context, AC, compilerClasses, compilerOptions);
+      //hipaccKernelFuser = new ASTFuse(Context, builtins, compilerOptions, dataDeps);
+    }
   }
 
   return true;
