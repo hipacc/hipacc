@@ -133,7 +133,7 @@ class IterationSpace : public IterationSpaceBase {
 
         ~IterationSpace() {}
 
-    template<typename> friend class Kernel;
+    template<typename, typename> friend class Kernel;
 };
 
 // provide shortcut for ElementIterator
