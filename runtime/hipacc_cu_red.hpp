@@ -264,5 +264,114 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
     if (tid == 0) output[blockIdx.x] = sdata[0]; \
 }
 
+
+// Helper macros for accumulating integers in segmented binning/reduction
+// (first 5 bits are used for tagging with thread id)
+#define UNTAG_INT(DATA_TYPE, VAL) \
+  (VAL) & ~(0xF8 << ((sizeof(DATA_TYPE)-1)*8))
+
+#define TAG_INT(DATA_TYPE, VAL) \
+  (VAL) | (threadIdx.x << (3 + ((sizeof(DATA_TYPE)-1)*8)))
+
+#define ACCU_INT(DATA_TYPE, PTR, REDUCE) \
+  volatile DATA_TYPE* address = PTR; \
+  DATA_TYPE old, val; \
+  do { \
+    old = UNTAG_INT(DATA_TYPE, *address); \
+    val = TAG_INT(DATA_TYPE, REDUCE(old, bin)); \
+    *address = val; \
+  } while (*address != val);
+
+
+// Helper macros for accumulating non-integers in segmented binning/reduction
+#define UNTAG_NONINT(DATA_TYPE, VAL) (VAL)
+
+#define ACCU_NONINT(DATA_TYPE, PTR, REDUCE) \
+  DATA_TYPE* address = PTR; \
+  DATA_TYPE old, val; \
+  int *oldi = (int*)&old, *vali = (int*)&val; \
+  do { \
+    old = *address; \
+    val = REDUCE(old, bin); \
+  } while (atomicCAS((int*)address, *oldi, *vali) != *oldi);
+
+
+// Binning and reduction with conflicts solved via AtomicCAS or ThreadIdx
+#define BINNING_CUDA_2D_SEGMENTED(NAME, DATA_TYPE, PIXEL_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, BS, NUM_WARPS, NUM_HIST, SEGMENT_SIZE, INPUT_NAME) \
+__global__ void __launch_bounds__ (BS*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INPUT_NAME) \
+        DATA_TYPE *output, const unsigned int width, const unsigned int height, \
+        const unsigned int stride) { \
+  unsigned int lid = threadIdx.x + threadIdx.y * BS; \
+ \
+  __shared__ DATA_TYPE warp_hist[NUM_WARPS*SEGMENT_SIZE]; \
+  DATA_TYPE* lhist = &warp_hist[threadIdx.y * SEGMENT_SIZE]; \
+ \
+  /* initialize shared memory */ \
+  _Pragma("unroll") \
+  for (unsigned int i = 0; i < SEGMENT_SIZE; i += BS) { \
+    lhist[threadIdx.x + i] = 0; \
+  } \
+ \
+  __syncthreads(); \
+ \
+  /* compute histogram segments */ \
+  unsigned int increment = NUM_HIST * BS * NUM_WARPS; \
+  unsigned int gpos = ((BS * NUM_WARPS) * blockIdx.x) + (threadIdx.y * BS) + threadIdx.x; \
+  unsigned int end = width * height/PPT; \
+  unsigned int offset = blockIdx.y * SEGMENT_SIZE; \
+ \
+  DATA_TYPE bin = 0; \
+  _Pragma("unroll") \
+  for (unsigned int i = gpos; i < end; i += increment) { \
+    unsigned int gid_y = i / width; \
+    unsigned int gid_x = i % width; \
+    BINNING(lhist, offset, gid_x, gid_y, INPUT_NAME, stride); \
+  } \
+ \
+  __syncthreads(); \
+ \
+  /* assemble segments and write partial histograms */ \
+  if (lid < SEGMENT_SIZE) { \
+    bin = UNTAG(DATA_TYPE, warp_hist[lid]); \
+    _Pragma("unroll") \
+    for (unsigned int i = 1; i < NUM_WARPS; ++i) { \
+      bin = REDUCE(bin, UNTAG(DATA_TYPE, warp_hist[i * SEGMENT_SIZE + lid])); \
+    } \
+    output[offset + lid + (blockIdx.x * NUM_BINS)] = bin; \
+  } \
+ \
+  /* merge partial histograms */ \
+  if (gridDim.x > 1) { \
+    __shared__ bool last_block_for_segment; \
+ \
+    if (lid == 0) { \
+      unsigned int ticket = atomicInc(&finished_blocks_##NAME[blockIdx.y], gridDim.x); \
+      last_block_for_segment = (ticket == gridDim.x-1); \
+    } \
+    __syncthreads(); \
+ \
+    if (last_block_for_segment) { \
+      unsigned int blocksize = BS * NUM_WARPS; \
+      unsigned int runs = (SEGMENT_SIZE + blocksize - 1) / blocksize; \
+ \
+      _Pragma("unroll") \
+      for (unsigned int i = 0; i < runs; ++i) { \
+        if (lid < SEGMENT_SIZE) { \
+          bin = output[offset + lid]; \
+ \
+          _Pragma("unroll") \
+          for (unsigned yi = 1; yi < gridDim.x; ++yi) { \
+            bin = REDUCE(bin, output[offset + yi*NUM_BINS + lid]); \
+          } \
+ \
+          output[offset + lid] = bin; \
+        } \
+        lid += blocksize; \
+      } \
+    } \
+  } \
+}
+
+
 //#endif  // __HIPACC_CU_RED_HPP__
 

@@ -1163,6 +1163,74 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
 }
 
 
+#ifndef SEGMENT_SIZE
+# define SEGMENT_SIZE 128
+#endif
+template<typename T, typename T2, int NUM_BINS>
+T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
+                                  HipaccAccessor &acc, unsigned int num_hist, unsigned int num_warps, const textureReference *tex) {
+    T *output;  // GPU memory for reduction
+    T *result = new T[NUM_BINS];   // host result
+
+    dim3 grid(num_hist, (NUM_BINS+SEGMENT_SIZE-1)/SEGMENT_SIZE);
+    dim3 block(32, num_warps);
+
+    cudaError_t err = cudaMalloc((void **) &output, sizeof(T)*num_hist*NUM_BINS);
+    checkErr(err, "cudaMalloc()");
+
+    //unsigned int idle_left = 0;
+    //if ((acc.offset_x || acc.offset_y) &&
+    //    (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+    //    // reduce iteration space by idle blocks
+    //    idle_left = acc.offset_x / block.x;
+    //    unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / block.x;
+    //    grid.x = (int)ceilf((float)
+    //            (acc.img.width - (idle_left + idle_right) * block.x) /
+    //            (block.x*2));
+
+    //    // update number of blocks
+    //    idle_left *= block.x;
+    //}
+
+    size_t offset = 0;
+    hipaccConfigureCall(grid, block);
+
+    switch (acc.img.mem_type) {
+        default:
+        case Global:
+            hipaccSetupArgument(&acc.img.mem, sizeof(T2 *), offset);
+            break;
+        case Array2D:
+            hipaccBindTexture<T>(Array2D, tex, acc.img);
+            break;
+    }
+
+    hipaccSetupArgument(&output, sizeof(T *), offset);
+    hipaccSetupArgument(&acc.img.width, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img.height, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img.stride, sizeof(unsigned int), offset);
+    // check if the reduction is applied to the whole image
+    //if ((acc.offset_x || acc.offset_y) &&
+    //    (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+    //    hipaccSetupArgument(&acc.offset_x, sizeof(unsigned int), offset);
+    //    hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
+    //    hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
+    //    hipaccSetupArgument(&acc.height, sizeof(unsigned int), offset);
+    //    hipaccSetupArgument(&idle_left, sizeof(unsigned int), offset);
+    //}
+
+    hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
+
+    err = cudaMemcpy(result, output, sizeof(T)*NUM_BINS, cudaMemcpyDeviceToHost);
+    checkErr(err, "cudaMemcpy()");
+
+    err = cudaFree(output);
+    checkErr(err, "cudaFree()");
+
+    return result;
+}
+
+
 // Perform configuration exploration for a kernel call
 void hipaccKernelExploration(std::string filename, std::string kernel, std::vector<void *> args,
                              std::vector<hipacc_smem_info> smems, std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info*> texs,
