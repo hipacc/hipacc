@@ -1359,7 +1359,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       }
     }
   }
-
   return true;
 }
 
@@ -1372,7 +1371,7 @@ bool Rewrite::VisitFunctionDecl(FunctionDecl *D) {
     // Check enable kernel fusion for optimization
     if (compilerOptions.fuseKernels()) {
       AnalysisDeclContext AC(0, mainFD);
-      dataDeps = HostDataDeps::parse(Context, AC, compilerClasses, compilerOptions);
+      dataDeps = HostDataDeps::parse(Context, AC, compilerClasses, compilerOptions, KernelClassDeclMap);
       //hipaccKernelFuser = new ASTFuse(Context, builtins, compilerOptions, dataDeps);
     }
   }

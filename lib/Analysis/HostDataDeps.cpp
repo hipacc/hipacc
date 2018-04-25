@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2018, University of Erlangen-Nuremberg
 // Copyright (c) 2014, Saarland University
-// Copyright (c) 2014, University of Erlangen-Nuremberg
+// Copyright (c) 2015, University of Erlangen-Nuremberg
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -264,12 +264,15 @@ void HostDataDeps::addKernel(
     ValueDecl *KVD, ValueDecl *ISVD, std::vector<ValueDecl*> AVDS) {
   Kernel *kernel;
   assert(iterMap_.count(ISVD) && "IterationSpace was not declared");
+  assert(KernelClassDeclMap.count(KVD->getType()->getAsCXXRecordDecl()) && 
+          "Kernel class was not declared");
   assert(!kernelMap_.count(KVD) && "Duplicate Kernel declaration");
 
   kernel = new Kernel(
       KVD->getType()->getAsCXXRecordDecl()->getNameAsString()
         .append(KVD->getNameAsString()),
-          iterMap_[ISVD], KVD);
+          iterMap_[ISVD], KVD, 
+            KernelClassDeclMap[KVD->getType()->getAsCXXRecordDecl()]);
 
   for (auto it = AVDS.begin(); it != AVDS.end(); ++it) {
     assert(accMap_.count(*it) && "Accessor was not declared");
@@ -308,7 +311,6 @@ void HostDataDeps::addIterationSpace(
 
 void HostDataDeps::runKernel(ValueDecl *VD) {
   assert(kernelMap_.count(VD) && "Kernel was not declared");
-
   Kernel *kernel = kernelMap_[VD];
 
   // Create new process and output space
@@ -318,25 +320,18 @@ void HostDataDeps::runKernel(ValueDecl *VD) {
   spaces_.push_back(space);
   processes_.push_back(proc);
 
-  assert(!processMap_.count(kernel->getName()) && "Duplicate process declaration, kernel name exists");
+  // TODO to be rmd
+  assert(!processMap_.count(kernel->getName()) && 
+					"Duplicate process declaration, kernel name exists");
   processMap_[kernel->getName()] = proc;
-
-  assert(!spaceMap_.count(kernel->getIterationSpace()->getImage()->getName()) && "Duplicate space declaration, image name exists");
+  assert(!spaceMap_.count(kernel->getIterationSpace()->getImage()->getName()) && 
+					"Duplicate space declaration, image name exists");
   spaceMap_[kernel->getIterationSpace()->getImage()->getName()] = space;
 
   // Set process to destination for all predecessor spaces:
   std::vector<Accessor*> accs = kernel->getAccessors();
   for (auto it = accs.begin(); it != accs.end(); ++it) {
-    Space *s = nullptr;// = (*it)->getSpace();
-    // Lookup if space was written by previous process
-    //for (auto it2 = processes_.rbegin();
-    //          it2 != processes_.rend(); ++it2) {
-    //  IterationSpace *iter = (*it2)->getKernel()->getIterationSpace();
-    //  if (iter != nullptr && (*it)->getImage() == iter->getImage()) {
-    //    s = (*it2)->getOutSpace();
-    //    break;
-    //  }
-    //}
+    Space *s = nullptr;
     for (auto it2 = spaces_.rbegin(); it2 != spaces_.rend(); ++it2) {
       if ((*it)->getImage() == (*it2)->getImage()) {
         s = *it2;
@@ -351,16 +346,6 @@ void HostDataDeps::runKernel(ValueDecl *VD) {
     s->addDstProcess(proc);
     proc->addInputSpace(s);
   }
-
-  // Mark that IterationSpace was most recently written by this process
-  //IterationSpace *iter = kernel->getIterationSpace();
-
-  // Update all accessors that are bound to the image currently written
-  //for (auto it = accs.begin(); it != accs.end(); ++it) {
-  //  if ((*it)->getImage() == iter->getImage()) {
-  //    (*it)->setSpace(space);
-  //  }
-  //}
 }
 
 
@@ -453,6 +438,7 @@ std::vector<HostDataDeps::Space*> HostDataDeps::getOutputSpaces() {
 }
 
 
+// Fusibility analysis by traversing the DAG
 void HostDataDeps::markProcess(Process *t) {
   std::vector<Space*> spaces = t->getInSpaces();
   for (auto it = spaces.begin(); it != spaces.end(); ++it) {
@@ -462,155 +448,80 @@ void HostDataDeps::markProcess(Process *t) {
   }
 }
 
-
 void HostDataDeps::markSpace(Space *s) {
   std::vector<Process*> DstProcesses = s->getDstProcesses();
   Process *SrcProcess = s->getSrcProcess();
-  if (SrcProcess != nullptr) {
-    // set dependencies for linear dependency kernels
-//    if (  DstProcesses.size() == 1 && 
-//          ((DstProcesses.back())->getInSpaces().size() == 1) &&
-//          !((DstProcesses.back())->getKernel()->getKernelType() == LocalOperator && // TODO
-//          SrcProcess->getKernel()->getKernelType() == LocalOperator) ) {    // disable for L2L
-    if (  DstProcesses.size() == 1 && 
-          ((DstProcesses.back())->getInSpaces().size() == 1) ) {
-      // mark the space as shared
+  if (SrcProcess != nullptr) {  // not input image
+    if (DstProcesses.size() == 1 && 
+         ((DstProcesses.back())->getInSpaces().size() == 1)) {
+			// satisfy a linear pattern, data dependency constraints
+			// ...-> kernel -> img -> kernel ->...
       s->isShared = true;
-      // record process dependencies in both directions
-      SrcProcess->SetWriteDependentProcess(DstProcesses.back()); 
+      // record as fusible kernel pair       
+			SrcProcess->SetWriteDependentProcess(DstProcesses.back()); 
       DstProcesses.back()->SetReadDependentProcess(SrcProcess);
+			recordFusibleProcessPair(SrcProcess, DstProcesses.back()); 
     }
     markProcess(SrcProcess);
   }
 }
 
+void HostDataDeps::recordFusibleProcessPair(Process *pSrc, Process *pDest) {
+	if (std::find(fusibleProcesses_.begin(), fusibleProcesses_.end(), pDest) == fusibleProcesses_.end())
+      fusibleProcesses_.push_back(pDest);
+	if (std::find(fusibleProcesses_.begin(), fusibleProcesses_.end(), pSrc) == fusibleProcesses_.end())
+      fusibleProcesses_.push_back(pSrc);
+}
 
+// generate fusible kernel lists by data deps analysis
 void HostDataDeps::createSchedule() {
   std::vector<Space*> outSpaces = getOutputSpaces();
 
-  outId = tmpId = 0;
+	// generate all the fusible kernel pairs
   for (auto it = outSpaces.begin(); it != outSpaces.end(); ++it) {
     markSpace(*it);
   }
+
+	// create an initial set of fusion lists
+  for (auto p : fusibleProcesses_) {
+    if (p->hasReadDependentProcess() && !p->hasWriteDependentProcess()) {
+      std::list<Process*> list;
+      list.push_back(p);
+      FusibleKernelListsMap[p] = list;
+    } 
+    else if (p->hasWriteDependentProcess()) {
+      Process *pw = p->GetWriteDependentProcess();
+      std::list<Process*> list = FusibleKernelListsMap[pw];
+      auto it = std::find(list.begin(), list.end(), pw);
+      assert((it != list.end()) && "cannot find write dependent process for kernel fusion");
+      list.insert(it, p); 
+      FusibleKernelListsMap[pw] = list;
+      FusibleKernelListsMap[p] = list;
+    }
+  }
+  for (auto p: FusibleKernelListsMap) {
+    bool merge = true;
+    for (auto l: vecFusibleKernelLists) {
+      if (l == p.second) { merge = false; break;}
+    }
+    if (merge) vecFusibleKernelLists.push_back(p.second); 
+  } 
 }
 
 
-//std::string HostDataDeps::prettyPrint(
-//    std::map<std::string,std::vector<std::pair<std::string,std::string>>> args,
-//    bool print) {
-//  std::ostringstream retVal;
-//  std::string indent = "";
-//
-//  retVal << indent << getEntrySignature(args, true) << " {" << std::endl;
-//  retVal << "#pragma HLS dataflow" << std::endl;
-//
-//  indent = "  ";
-//
-//  //int cpyId = 0;
-//  for (auto it = schedule.rbegin(); it != schedule.rend(); ++it) {
-//    if ((*it)->isSpace()) {
-//      Space *s = (Space*)*it;
-//      if (s->cpyStreams.size() > 0) {
-//        for (auto it2 = s->cpyStreams.begin();
-//                  it2 != s->cpyStreams.end(); ++it2) {
-//          retVal << indent << declareFifo(getTypeStr(s), *it2);
-//        }
-//#define NICO_LIB
-//#ifdef NICO_LIB
-//        retVal << indent << "splitStream";
-//        if (compilerOptions.getPixelsPerThread() > 1) {
-//          retVal << "VECT";
-//        }
-//        retVal << "<HIPACC_II_TARGET,HIPACC_MAX_WIDTH,HIPACC_MAX_HEIGHT,HIPACC_WINDOW_SIZE_X,HIPACC_WINDOW_SIZE_Y";
-//        if (compilerOptions.getPixelsPerThread() > 1) {
-//          retVal << ",HIPACC_PPT";
-//        }
-//        retVal << ">(" << s->stream;
-//        for (auto it2 = s->cpyStreams.begin();
-//                  it2 != s->cpyStreams.end(); ++it2) {
-//          retVal << ", " << *it2;
-//        }
-//        retVal << ", HIPACC_MAX_WIDTH, HIPACC_MAX_HEIGHT);" << std::endl;
-//#else // NICO_LIB
-//        retVal << indent << "for (int i = 0; i < HIPACC_MAX_WIDTH*HIPACC_MAX_HEIGHT; ++i) {"
-//               << std::endl;
-//        retVal << indent << indent << getTypeStr(s) << " val;"
-//               << std::endl;
-//        retVal << indent << indent << s->stream << " >> val;" << std::endl;
-//        for (auto it2 = s->cpyStreams.begin();
-//                  it2 != s->cpyStreams.end(); ++it2) {
-//          retVal << indent << indent << *it2 << " << val;" << std::endl;
-//        }
-//        retVal << indent << "}"
-//               << std::endl;
-//#endif // NICO_LIB
-//
-//        //std::ostringstream var;
-//        //var << "_strmCpy" << cpyId;
-//        //++cpyId;
-//
-//        //retVal << indent << getTypeStr(s) << " " << var.str() << ";"
-//        //       << std::endl;
-//        //retVal << indent << s->stream << " >> " << var.str() << ";"
-//        //       << std::endl;
-//        //for (auto it2 = s->cpyStreams.begin();
-//        //          it2 != s->cpyStreams.end(); ++it2) {
-//        //  retVal << indent << "stream<" << getTypeStr(s) << "> " << *it2 << ";"
-//        //         << std::endl;
-//        //  retVal << indent << *it2 << " << " << var.str() << ";"
-//        //         << std::endl;
-//        //}
-//      }
-//    } else {
-//      Process *t = (Process*)*it;
-//      if (!t->getOutSpace()->getDstProcesses().empty()) {
-//        // do not print out stream (because it is function argument)
-//        retVal << indent << declareFifo(getTypeStr(t->getOutSpace()), t->outStream);
-//      }
-//      retVal << indent << "cc" << t->getKernel()->getName() << "Kernel(";
-//      retVal << t->outStream;
-//      for (auto it2 = t->inStreams.begin();
-//                it2 != t->inStreams.end(); ++it2) {
-//        retVal << ", " << *it2;
-//      }
-//      if (args.find("cc" + t->getKernel()->getName() + "Kernel") != args.end()) {
-//        std::vector<std::pair<std::string,std::string>> a =
-//            args["cc" + t->getKernel()->getName() + "Kernel"];
-//        for (auto it2 = a.begin(); it2 != a.end(); ++it2) {
-//          retVal << ", " << it2->second;
-//        }
-//      }
-//      retVal << ", HIPACC_MAX_WIDTH, HIPACC_MAX_HEIGHT);" << std::endl;
-//    }
-//  }
-//
-//  indent = "";
-//  retVal << indent << "}" << std::endl;
-//
-//  if (print) {
-//    std::cout << retVal.str() << std::endl;
-//  }
-//
-//  return retVal.str();
-//}
+// re-visit each fusible list to impose constaints for kernel fusion
+void HostDataDeps::fusibilityAnalysis() {
 
-
-//std::string HostDataDeps::printEntryDecl(
-//    std::map<std::string,std::vector<std::pair<std::string,std::string>>> args) {
-//  return getEntrySignature(args, true) + ";\n";
-//}
-
-
-//std::string HostDataDeps::printEntryCall(
-//    std::map<std::string,std::vector<std::pair<std::string,std::string>>> args,
-//    std::string img) {
-//  return getEntrySignature(args) + ";\n";
-//}
-
-//std::string HostDataDeps::printEntryDef(
-//    std::map<std::string,std::vector<std::pair<std::string,std::string>>> args) {
-//  return prettyPrint(args);
-//}
+  llvm::errs() << "\nfusibility analysis execution**********************************************\n";
+  for (auto l : vecFusibleKernelLists) {
+    llvm::errs() << "\nfor this list\n";
+    for (auto p : l) {
+      llvm::errs() << "\nkernel property: ";
+      llvm::errs() << "\nclass name " << p->getKernel()->getKernelClass()->getName();
+      llvm::errs() << "\nkernel name " << p->getKernel()->getName() << "\n";
+    }
+  }
+}
 
 
 ValueDecl *HostDataDeps::getSourceKernelValueDecl(HipaccKernel *K) {
@@ -663,7 +574,6 @@ bool HostDataDeps::isSharedSpace(ValueDecl *VD) {
   bool isShared = s->isShared;
   return isShared;
 }
-
 
 const bool HostDataDeps::DEBUG =
 #ifdef PRINT_DEBUG

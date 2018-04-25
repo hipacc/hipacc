@@ -37,6 +37,8 @@
 #define _HOSTDATADEPS_H_
 
 #include <vector>
+#include <list>
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 
@@ -88,7 +90,6 @@ class DependencyTracker : public StmtVisitor<DependencyTracker> {
         for (auto it = block->begin(), ei = block->end(); it != ei; ++it) {
           const CFGElement &elem = *it;
           if (!elem.getAs<CFGStmt>()) continue;
-
           const Stmt *S = elem.castAs<CFGStmt>().getStmt();
           this->Visit(const_cast<Stmt*>(S));
         }
@@ -110,10 +111,8 @@ class HostDataDeps : public ManagedAnalysis {
 
     // forward declarations
     class Node;
-
     class Space;
     class Process;
-
     class Accessor;
     class Image;
     class IterationSpace;
@@ -129,15 +128,14 @@ class HostDataDeps : public ManagedAnalysis {
     llvm::DenseMap<ValueDecl *, IterationSpace *> iterMap_;
     llvm::DenseMap<ValueDecl *, BoundaryCondition *> bcMap_;
     llvm::DenseMap<ValueDecl *, Kernel *> kernelMap_;
-    llvm::DenseMap<RecordDecl *, HipaccKernelClass *> KeernelClassDeclMap_; 
-
     std::map<std::string, Process *> processMap_;
     std::map<std::string, Space *> spaceMap_;
-
     std::vector<Space*> spaces_;
     std::vector<Process*> processes_;
-
-    unsigned int outId, tmpId;
+    std::vector<Process*> fusibleProcesses_;
+    llvm::DenseMap<RecordDecl *, HipaccKernelClass *> KernelClassDeclMap;
+    std::map<Process *, std::list<Process*>> FusibleKernelListsMap;
+    std::vector<std::list<Process*>> vecFusibleKernelLists;
 
     // inner class definitions
     class IterationSpace {
@@ -214,10 +212,6 @@ class HostDataDeps : public ManagedAnalysis {
         std::string getName() {
           return img->getName();
         }
-
-        //std::string getTypeStr(size_t ppt) {
-        //  return ASTNode::createVivadoTypeStr(img, ppt);
-        //}
     };
 
     class Kernel {
@@ -226,14 +220,20 @@ class HostDataDeps : public ManagedAnalysis {
         IterationSpace *iter;
         std::vector<Accessor*> accs;
         ValueDecl *VD;
+        HipaccKernelClass *KC;
 
       public:
-        Kernel(std::string name, IterationSpace *iter, ValueDecl *VD)
-            : name(name), iter(iter), VD(VD) {
+        Kernel(std::string name, IterationSpace *iter, 
+                ValueDecl *VD, HipaccKernelClass *KC)
+            : name(name), iter(iter), VD(VD), KC(KC) {
         }
 
         std::string getName() {
           return name;
+        }
+
+        HipaccKernelClass *getKernelClass() {
+          return KC;
         }
 
         IterationSpace *getIterationSpace() {
@@ -340,16 +340,21 @@ class HostDataDeps : public ManagedAnalysis {
         Kernel *kernel;
         Space *outSpace;
         std::vector<Space*> inSpaces;
+        Process* readDependentProcess; 
+        bool isReadDependentProcess; 
+        Process* writeDependentProcess; 
+        bool isWriteDependentProcess; 
 
       public:
-        std::vector<std::string> inStreams;
-        std::string outStream;
-        Process* readDependentProcess; 
-        Process* writeDependentProcess; 
-
         Process(Kernel *kernel, Space *outSpace)
-            : Node(false), kernel(kernel), outSpace(outSpace), 
-              readDependentProcess(nullptr), writeDependentProcess(nullptr){
+            : Node(false), 
+              kernel(kernel), 
+              outSpace(outSpace), 
+              readDependentProcess(nullptr), 
+              isReadDependentProcess(false),
+              writeDependentProcess(nullptr), 
+              isWriteDependentProcess(false)
+        {
           outSpace->srcProcess = this;
         }
 
@@ -371,10 +376,12 @@ class HostDataDeps : public ManagedAnalysis {
 
         void SetReadDependentProcess(Process *p) {
           readDependentProcess = p;
+          isReadDependentProcess = true;
         }
 
         void SetWriteDependentProcess(Process *p) {
           writeDependentProcess = p;
+          isWriteDependentProcess = true;
         }
 
         Process *GetReadDependentProcess() const {
@@ -383,6 +390,14 @@ class HostDataDeps : public ManagedAnalysis {
 
         Process *GetWriteDependentProcess() const {
           return writeDependentProcess;
+        }
+
+        bool hasReadDependentProcess() const {
+          return isReadDependentProcess;
+        }
+
+        bool hasWriteDependentProcess() const {
+          return isWriteDependentProcess;
         }
     };
 
@@ -418,7 +433,9 @@ class HostDataDeps : public ManagedAnalysis {
     std::vector<Space*> getOutputSpaces();
     void markProcess(Process *t);
     void markSpace(Space *s);
+		void recordFusibleProcessPair(Process *pSrc, Process *pDest);
     void createSchedule();
+    void fusibilityAnalysis();
     std::string declareFifo(std::string type, std::string name);
     std::string getEntrySignature(
         std::map<std::string,std::vector<std::pair<std::string,std::string>>> args,
@@ -444,10 +461,12 @@ class HostDataDeps : public ManagedAnalysis {
     static HostDataDeps *parse(ASTContext &Context,
         AnalysisDeclContext &analysisContext,
         CompilerKnownClasses &compilerClasses,
-        CompilerOptions &compilerOptions) {
+        CompilerOptions &compilerOptions, 
+				llvm::DenseMap<RecordDecl *, HipaccKernelClass *> &KernelClassDeclMap) {
       static HostDataDeps dataDeps;
       dataDeps.compilerClasses = compilerClasses;
       dataDeps.compilerOptions = compilerOptions;
+			dataDeps.KernelClassDeclMap = KernelClassDeclMap;
       DependencyTracker DT(Context, analysisContext, compilerClasses, dataDeps);
 
       if (DEBUG) {
@@ -457,6 +476,7 @@ class HostDataDeps : public ManagedAnalysis {
       }
 
       dataDeps.createSchedule();
+      dataDeps.fusibilityAnalysis();
       return &dataDeps;
     }
 };
