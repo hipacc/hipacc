@@ -958,6 +958,62 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
 }
 
 
+void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr) {
+  std::string imgTypeStr(K->getIterationSpace()->getImage()->getTypeStr());
+  std::string binTypeStr(K->getKernelClass()->getReduceFunction()->getReturnType().getAsString());
+  std::string red_decl(binTypeStr + " *" + K->getReduceStr() + " = ");
+
+  // print runtime function name plus name of reduction function
+  switch (options.getTargetLang()) {
+    case Language::CUDA:
+      if (options.exploreConfig()) {
+        assert(false && "Explorations not supported for multi-dimensional reductions");
+      }
+      // first get texture reference
+      resultStr += "cudaGetTextureReference(";
+      resultStr += "&_tex" + K->getIterationSpace()->getImage()->getName() + K->getName() + "Ref, ";
+      resultStr += "&_tex" + K->getIterationSpace()->getImage()->getName() + K->getName() + ");\n";
+      resultStr += indent;
+
+      resultStr += red_decl;
+
+      resultStr += "hipaccApplyBinningSegmented<";
+      resultStr += binTypeStr + ", ";
+      resultStr += imgTypeStr + ", ";
+      resultStr += "NUM_BINS>(";
+      resultStr += "(const void *)&" + K->getReduceName() + "2D, ";
+      resultStr += "\"" + K->getReduceName() + "2D\", ";
+      break;
+    case Language::C99:
+    case Language::Renderscript:
+    case Language::Filterscript:
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
+      assert(false && "Multi-dimensional reductions only supported for CUDA");
+      break;
+  }
+
+  // print image name
+  resultStr += K->getIterationSpace()->getName() + ", ";
+
+  // TODO: use block info
+  //resultStr += std::to_string(K->getNumThreadsReduce()) + ", ";
+  //resultStr += std::to_string(K->getPixelsPerThreadReduce());
+  resultStr += "NUM_HIST, ";
+  resultStr += "NUM_WARPS";
+
+  if (options.emitCUDA()) {
+    // print 2D CUDA array texture information - this parameter is only used if
+    // the texture type is Array2D
+    resultStr += ", _tex";
+    resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
+    resultStr += "Ref";
+  }
+  resultStr += ");";
+}
+
+
 std::string CreateHostStrings::getInterpolationDefinition(HipaccKernel *K,
     HipaccAccessor *Acc, std::string function_name, std::string type_suffix,
     Interpolate ip_mode, Boundary bh_mode) {

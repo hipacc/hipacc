@@ -633,6 +633,12 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
         KC->setReduceFunction(method);
         continue;
       }
+
+      // binning function
+      if (method->getNameAsString() == "binning") {
+        KC->setBinningFunction(method);
+        continue;
+      }
     }
   }
 
@@ -1647,8 +1653,11 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         // create kernel call string
         stringCreator.writeKernelCall(K, newStr);
 
-        // create reduce call string
-        if (K->getKernelClass()->getReduceFunction()) {
+        // create binning/reduce call string
+        if (K->getKernelClass()->getBinningFunction()) {
+          newStr += "\n" + stringCreator.getIndent();
+          stringCreator.writeBinningCall(K, newStr);
+        } else if (K->getKernelClass()->getReduceFunction()) {
           newStr += "\n" + stringCreator.getIndent();
           stringCreator.writeReductionDeclaration(K, newStr);
           stringCreator.writeReduceCall(K, newStr);
@@ -1672,7 +1681,8 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       // get the Kernel from the DRE if we have one
       if (KernelDeclMap.count(DRE->getDecl())) {
         // match for supported member calls
-        if (ME->getMemberNameInfo().getAsString() == "reduced_data") {
+        if (ME->getMemberNameInfo().getAsString() == "binned_data"
+            || ME->getMemberNameInfo().getAsString() == "reduced_data") {
           HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
 
           //

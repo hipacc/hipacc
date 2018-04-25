@@ -383,7 +383,7 @@ class HipaccKernelClass {
     };
 
     std::string name;
-    CXXMethodDecl *kernelFunction, *reduceFunction;
+    CXXMethodDecl *kernelFunction, *reduceFunction, *binningFunction;
     KernelStatistics *kernelStatistics;
     // kernel member information
     SmallVector<KernelMemberInfo, 16> members;
@@ -397,6 +397,7 @@ class HipaccKernelClass {
       name(name),
       kernelFunction(nullptr),
       reduceFunction(nullptr),
+      binningFunction(nullptr),
       kernelStatistics(nullptr),
       members(0),
       imgFields(0),
@@ -414,8 +415,10 @@ class HipaccKernelClass {
     }
 
     void setReduceFunction(CXXMethodDecl *fun) { reduceFunction = fun; }
+    void setBinningFunction(CXXMethodDecl *fun) { binningFunction = fun; }
     CXXMethodDecl *getKernelFunction() { return kernelFunction; }
     CXXMethodDecl *getReduceFunction() { return reduceFunction; }
+    CXXMethodDecl *getBinningFunction() { return binningFunction; }
 
     KernelStatistics &getKernelStatistics(void) {
       return *kernelStatistics;
