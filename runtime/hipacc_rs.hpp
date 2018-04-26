@@ -46,7 +46,6 @@ using namespace android::RSC;
 
 #include "hipacc_base.hpp"
 
-const sp<const Allocation> *hipaccGetAllocation(HipaccImage &img);
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);
 int64_t hipacc_time_micro();
 std::string getRSErrorCodeStr(int errorNum);
@@ -108,13 +107,6 @@ class HipaccContext : public HipaccContextBase {
 
             std::cerr << "ERROR: Unknown Allocation requested: "
                       << img.mem << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        const sp<const Allocation> *get_allocation(HipaccImage &img) {
-            for (auto &alloc : allocs) {
-                if (alloc.second == img)
-                    return &alloc.first;
-            }
             exit(EXIT_FAILURE);
         }
         sp<RS> get_context() { return context; }
@@ -203,11 +195,6 @@ class hipacc_script_arg {
     }
 
 #ifndef EXCLUDE_IMPL
-
-const sp<const Allocation> *hipaccGetAllocation(HipaccImage &img) {
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    return Ctx.get_allocation(img);
-}
 
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
     // calculate item id of a) first work item that requires no border handling
