@@ -26,13 +26,9 @@
 #ifndef __HIPACC_CPU_HPP__
 #define __HIPACC_CPU_HPP__
 
-#include <math.h>
-#include <stddef.h>
-#include <stdlib.h>
-
+#include <cmath>
 #include <cstring>
 #include <iostream>
-#include <string>
 
 #include "hipacc_base.hpp"
 
@@ -107,7 +103,7 @@ HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height) {
 // Write to memory
 template<typename T>
 void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
-    if (host_mem == NULL) return;
+    if (host_mem == nullptr) return;
 
     size_t width  = img->width;
     size_t height = img->height;
