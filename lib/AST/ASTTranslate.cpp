@@ -2305,6 +2305,11 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     if (ME->getMemberNameInfo().getAsString() == "output_at") {
       return mem_at_fun(acc, LHS, mem_acc);
     }
+
+    if (ME->getMemberNameInfo().getAsString() == "bin") {
+      //ME->dump();
+      // TODO: INSERT BINNING
+    }
   }
 
   if (auto base = dyn_cast<MemberExpr>(ME->getBase()->IgnoreImpCasts())) {
@@ -2392,6 +2397,37 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
   llvm::errs() << "Hipacc: Stumbled upon unsupported expression:\n";
   E->dump();
   std::abort();
+}
+
+
+Stmt *ASTTranslate::BinningTranslator::VisitCompoundStmt(CompoundStmt *S) {
+  SmallVector<Stmt *, 16> body;
+
+  for (auto stmt : S->body())
+    body.push_back(Clone(stmt));
+
+  return new (Ctx) CompoundStmt(Ctx, body, S->getLBracLoc(), S->getLBracLoc());
+}
+
+
+Expr *ASTTranslate::BinningTranslator::VisitBinaryOperator(BinaryOperator *E) {
+  if (CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getLHS())) {
+    assert(isa<MemberExpr>(MCE->getCallee()) &&
+        "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
+    MemberExpr *ME = cast<MemberExpr>(MCE->getCallee());
+    if (ME->getMemberNameInfo().getAsString() == "bin") {
+      SmallVector<Expr *, 16> args;
+
+      args.push_back(lmem);
+      args.push_back(offset);
+      args.push_back(MCE->getArg(0));
+      args.push_back(E->getRHS());
+
+      return createFunctionCall(Ctx, binFunc, args);
+    }
+  }
+
+  return E;
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

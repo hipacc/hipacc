@@ -129,6 +129,67 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *lidYRef, *gidYRef;
 
 
+    // BinningTranslater for translating binning(uint x, uint y, data_t pixel)
+    // independently of kernel() method.
+    class BinningTranslator : public StmtVisitor<BinningTranslator, Stmt *> {
+      private:
+        ASTContext &Ctx;
+        HipaccKernel *Kernel;
+        Expr *lmem, *offset;
+        FunctionDecl *binFunc;
+
+      public:
+        BinningTranslator(ASTContext &Ctx, HipaccKernel *Kernel)
+            : Ctx(Ctx), Kernel(Kernel) {
+          VarDecl *declLMem = nullptr, *declOffset= nullptr;
+
+          FunctionDecl *kernelDecl =
+            Kernel->getKernelClass()->getBinningFunction();
+
+          QualType binType = Kernel->getKernelClass()->getBinType();
+          QualType idxType = Ctx.UnsignedIntTy;
+
+          declLMem = ASTNode::createVarDecl(Ctx, kernelDecl, "_lmem", binType,
+              nullptr);
+          declOffset = ASTNode::createVarDecl(Ctx, kernelDecl, "_offset",
+              idxType, nullptr);
+
+          lmem = ASTNode::createDeclRefExpr(Ctx, declLMem);
+          offset = ASTNode::createDeclRefExpr(Ctx, declOffset);
+
+          SmallVector<QualType, 16> argTypes;
+          SmallVector<std::string, 16> argNames;
+
+          argTypes.push_back(lmem->getType());
+          argNames.push_back("_lmem");
+          argTypes.push_back(offset->getType());
+          argNames.push_back("_offset");
+          argTypes.push_back(idxType);
+          argNames.push_back("index");
+          argTypes.push_back(binType);
+          argNames.push_back("value");
+
+          binFunc = ASTNode::createFunctionDecl(Ctx,
+              Ctx.getTranslationUnitDecl(), Kernel->getBinningName() + "Put",
+              Ctx.VoidTy, argTypes, argNames);
+        }
+
+        template<class T> T *Clone(T *S) {
+          if (S==nullptr)
+            return nullptr;
+
+          return static_cast<T *>(Visit(S));
+        }
+
+        Stmt *VisitCompoundStmt(CompoundStmt *S);
+        Expr *VisitBinaryOperator(BinaryOperator *E);
+
+        Stmt* translate(Stmt* S) {
+          return Clone(S);
+        }
+    };
+
+
     template<class T> T *Clone(T *S) {
       if (S==nullptr)
         return nullptr;
@@ -370,6 +431,13 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       }
 
     Stmt *Hipacc(Stmt *S);
+
+    Stmt *translateBinning(Stmt *binningFunc) {
+      BinningTranslator binning(Ctx, Kernel);
+      Stmt *binningStmts = binning.translate(binningFunc);
+      return binningStmts;
+    }
+
 
   public:
     // dump all available statement visitors

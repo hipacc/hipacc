@@ -298,6 +298,32 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 
 // Binning and reduction with conflicts solved via AtomicCAS or ThreadIdx
 #define BINNING_CUDA_2D_SEGMENTED(NAME, DATA_TYPE, PIXEL_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, BS, NUM_WARPS, NUM_HIST, SEGMENT_SIZE, INPUT_NAME) \
+__device__ inline void BINNING##Put(DATA_TYPE * __restrict__ lmem, uint offset, uint idx, DATA_TYPE val) { \
+  idx -= offset; \
+  if (idx < SEGMENT_SIZE) { \
+ \
+    /* set bin value */ \
+    uint bin = val; \
+ \
+    /* accumulate using reduce function */ \
+    ACCU(DATA_TYPE, &lmem[idx], REDUCE); \
+  } \
+} \
+ \
+__device__ inline void BINNING##Shell(DATA_TYPE * __restrict__ lmem, unsigned int offset, const uint x, const uint gy, const PIXEL_TYPE * __restrict__ input, const uint height, const uint stride) { \
+  uint pos = x + gy * stride; \
+  const uint inc = height/PPT*stride; \
+  _Pragma("unroll") \
+  for (unsigned int p = 0; p < PPT; ++p) { \
+    uint y = gy + p*height/PPT; \
+ \
+    PIXEL_TYPE pixel = input[pos]; \
+    pos += inc; \
+ \
+    BINNING(lmem, offset, x, y, pixel); \
+  } \
+} \
+ \
 __global__ void __launch_bounds__ (BS*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INPUT_NAME) \
         DATA_TYPE *output, const unsigned int width, const unsigned int height, \
         const unsigned int stride) { \
@@ -325,7 +351,7 @@ __global__ void __launch_bounds__ (BS*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INP
   for (unsigned int i = gpos; i < end; i += increment) { \
     unsigned int gid_y = i / width; \
     unsigned int gid_x = i % width; \
-    BINNING(lhist, offset, gid_x, gid_y, INPUT_NAME, stride); \
+    BINNING##Shell(lhist, offset, gid_x, gid_y, INPUT_NAME, height, stride); \
   } \
  \
   __syncthreads(); \

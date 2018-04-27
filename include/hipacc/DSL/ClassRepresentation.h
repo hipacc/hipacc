@@ -384,6 +384,7 @@ class HipaccKernelClass {
 
     std::string name;
     CXXMethodDecl *kernelFunction, *reduceFunction, *binningFunction;
+    QualType pixelType, binType;
     KernelStatistics *kernelStatistics;
     // kernel member information
     SmallVector<KernelMemberInfo, 16> members;
@@ -419,6 +420,11 @@ class HipaccKernelClass {
     CXXMethodDecl *getKernelFunction() { return kernelFunction; }
     CXXMethodDecl *getReduceFunction() { return reduceFunction; }
     CXXMethodDecl *getBinningFunction() { return binningFunction; }
+
+    void setPixelType(QualType type) { pixelType = type; }
+    void setBinType(QualType type) { binType = type; }
+    QualType getPixelType() { return pixelType; }
+    QualType getBinType() { return binType; }
 
     KernelStatistics &getKernelStatistics(void) {
       return *kernelStatistics;
@@ -566,9 +572,10 @@ class HipaccKernel : public HipaccKernelFeatures {
     ASTContext &Ctx;
     VarDecl *VD;
     std::string name;
-    std::string kernelName, reduceName;
+    std::string kernelName, reduceName, binningName;
     std::string fileName;
     std::string reduceStr, infoStr;
+    unsigned num_bins;
     unsigned infoStrCnt;
     HipaccIterationSpace *iterationSpace;
     std::map<FieldDecl *, HipaccAccessor *> imgMap;
@@ -606,8 +613,10 @@ class HipaccKernel : public HipaccKernelFeatures {
       name(VD->getNameAsString()),
       kernelName(options.getTargetPrefix() + KC->getName() + name + "Kernel"),
       reduceName(options.getTargetPrefix() + KC->getName() + name + "Reduce"),
+      binningName(options.getTargetPrefix() + KC->getName() + name + "Binning"),
       fileName(options.getTargetPrefix() + KC->getName() + VD->getNameAsString()),
       reduceStr(), infoStr(),
+      num_bins(0),
       infoStrCnt(0),
       iterationSpace(nullptr),
       imgMap(),
@@ -644,6 +653,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     const std::string &getName() const { return name; }
     const std::string &getKernelName() const { return kernelName; }
     const std::string &getReduceName() const { return reduceName; }
+    const std::string &getBinningName() const { return binningName; }
     const std::string &getFileName() const { return fileName; }
     const std::string &getInfoStr() const { return infoStr; }
     const std::string &getReduceStr() const { return reduceStr; }
@@ -766,6 +776,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       }
     }
 
+    void setNumBins(unsigned nbins) { num_bins = nbins; }
+    unsigned getNumBins() { return num_bins; }
     unsigned getMaxThreadsForKernel() { return max_threads_for_kernel; }
     unsigned getMaxThreadsPerBlock() { return max_threads_per_block; }
     unsigned getMaxTotalSharedMemory() { return max_total_shared_memory; }

@@ -161,6 +161,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     }
 
     void setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K);
+    void printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
+        llvm::raw_fd_ostream &OS);
     void printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
         llvm::raw_fd_ostream &OS);
     void printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
@@ -311,8 +313,15 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
     case Language::CUDA:
       if (!compilerOptions.exploreConfig()) {
         for (auto map : KernelDeclMap) {
+          HipaccKernel* K = map.second;
+          if (K->getNumBins() != 0) {
+            newStr += "#define NUM_BINS " + std::to_string(K->getNumBins()) + "\n";
+            newStr += "#define NUM_WARPS 16\n";
+            newStr += "#define NUM_HIST 19\n";
+            newStr += "#define PPT 16\n";
+          }
           newStr += "#include \"";
-          newStr += map.second->getFileName();
+          newStr += K->getFileName();
           newStr += ".cu\"\n";
         }
       }
@@ -503,6 +512,8 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
       if (compilerClasses.isTypeOfTemplateClass(base.getType(),
             compilerClasses.Kernel)) {
         KC = new HipaccKernelClass(D->getNameAsString());
+        KC->setPixelType(compilerClasses.getTemplateType(base.getType(), 0));
+        KC->setBinType(compilerClasses.getTemplateType(base.getType(), 1));
         KernelClassDeclMap[D] = KC;
         // remove user kernel class (semicolon doesn't count to SourceRange)
         SourceLocation startLoc = D->getLocStart();
@@ -1341,6 +1352,13 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           kernelDecl->setBody(kernelStmts);
           K->printStats();
 
+          // translate binning function if we have one
+          if (KC->getBinningFunction()) {
+            Stmt *binningStmts = Hipacc->translateBinning(
+                KC->getBinningFunction()->getBody());
+            KC->getBinningFunction()->setBody(binningStmts);
+          }
+
           #ifdef USE_POLLY
           if (!compilerOptions.exploreConfig() && compilerOptions.emitC99()) {
             llvm::errs() << "\nPassing the following function to Polly:\n";
@@ -1692,6 +1710,15 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           SourceRange range(E->getLocStart(), E->getLocEnd());
           TextRewriter.ReplaceText(range, K->getReduceStr());
 
+          if (ME->getMemberNameInfo().getAsString() == "binned_data") {
+            // get number of bins
+            if (auto IL = dyn_cast<IntegerLiteral>(E->getArg(0)->IgnoreImpCasts())) {
+              K->setNumBins(IL->getValue().getSExtValue());
+            } else {
+              assert(false && "Expected Integer literal as first argument for 'binned_data'");
+            }
+          }
+
           return true;
         }
       }
@@ -1890,6 +1917,111 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
 }
 
 
+void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
+    llvm::raw_fd_ostream &OS) {
+  FunctionDecl *bin_fun = KC->getBinningFunction();
+  FunctionDecl *red_fun = KC->getReduceFunction();
+  std::string signatureBinning;
+
+  if (compilerOptions.exploreConfig()) {
+    assert(false && "Explorations not supported for multi-dimensional reductions");
+  }
+
+  // preprocessor defines
+  //OS << "#define PPT " << K->getPixelsPerThreadReduce() << "\n";
+
+  switch (compilerOptions.getTargetLang()) {
+    case Language::C99:
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
+    case Language::Renderscript:
+    case Language::Filterscript:
+      assert(false && "Multi-dimensional reductions only supported for CUDA");
+      break;
+    case Language::CUDA:
+      OS << "#define BS " << K->getWarpSize() << "\n"
+         << "#define NUM_SEGMENTS ((NUM_BINS+SEGMENT_SIZE-1)/SEGMENT_SIZE)\n";
+      break;
+  }
+  OS << "\n";
+
+  // write binning signature and qualifiers
+  switch (compilerOptions.getTargetLang()) {
+    default: break;
+    case Language::CUDA:
+      OS << "extern \"C\" {\n";
+      signatureBinning += "__device__ ";
+      break;
+  }
+  signatureBinning += "inline void " + K->getBinningName() + "(";
+  signatureBinning += red_fun->getReturnType().getAsString();
+  signatureBinning += " * __restrict__ _lmem, uint _offset, ";
+
+  // write other binning parameters
+  size_t comma = 0;
+  for (auto param : bin_fun->parameters()) {
+    std::string Name(param->getNameAsString());
+    QualType T = param->getType();
+    // normal arguments
+    if (comma++)
+      signatureBinning += ", ";
+    if (ParmVarDecl *Parm = dyn_cast<ParmVarDecl>(bin_fun))
+      T = Parm->getOriginalType();
+    T.getAsStringInternal(Name, Policy);
+    signatureBinning += Name;
+  }
+  signatureBinning += ")";
+
+  // print forward declaration
+  OS << signatureBinning << ";\n\n";
+
+  // instantiate reduction
+  switch (compilerOptions.getTargetLang()) {
+    case Language::C99:
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
+    case Language::Renderscript:
+    case Language::Filterscript:
+      break;
+    case Language::CUDA:
+      // 2D reduction
+      OS << "__device__ unsigned finished_blocks_" << K->getReduceName()
+         << "2D[NUM_SEGMENTS] = {0};\n\n";
+      OS << "BINNING_CUDA_2D_SEGMENTED(";
+      OS << K->getReduceName() << "2D, "
+         << red_fun->getReturnType().getAsString() << ", "
+         << K->getIterationSpace()->getImage()->getTypeStr() << ", "
+         << K->getReduceName() << ", "
+         << K->getBinningName() << ", ";
+      if (true) { // TODO: Check for Integer type
+        OS << "ACCU_INT, UNTAG_INT, ";
+      } else {
+        OS << "ACCU_NONINT, UNTAG_NONINT, ";
+      }
+      OS << "NUM_BINS, "
+         << "BS, "
+         << "NUM_WARPS, "
+         << "NUM_HIST, "
+         << "SEGMENT_SIZE, "
+         << "_tex" << K->getIterationSpace()->getImage()->getName() + K->getName()
+         << ")\n\n";
+      break;
+  }
+
+  // print binning function
+  OS << signatureBinning << "\n";
+  bin_fun->getBody()->printPretty(OS, 0, Policy, 0);
+  OS << "\n";
+
+  if (compilerOptions.emitCUDA())
+    OS << "}\n";
+  OS << "#include \"hipacc_undef.hpp\"\n";
+  OS << "\n";
+}
+
+
 void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     llvm::raw_fd_ostream &OS) {
   FunctionDecl *fun = KC->getReduceFunction();
@@ -2004,23 +2136,25 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << ";\nconst textureReference *_tex"
          << K->getIterationSpace()->getImage()->getName() + K->getName()
          << "Ref;\n\n";
-      // 2D reduction
-      if (compilerOptions.exploreConfig()) {
-        OS << "REDUCTION_CUDA_2D(";
-      } else {
-        OS << "__device__ unsigned finished_blocks_" << K->getReduceName()
-           << "2D = 0;\n\n";
-        OS << "REDUCTION_CUDA_2D_THREAD_FENCE(";
-      }
-      OS << K->getReduceName() << "2D, "
-         << fun->getReturnType().getAsString() << ", "
-         << K->getReduceName() << ", _tex"
-         << K->getIterationSpace()->getImage()->getName() + K->getName() << ")\n";
-      // 1D reduction
-      if (compilerOptions.exploreConfig()) {
-        OS << "REDUCTION_CUDA_1D(" << K->getReduceName() << "1D, "
+      if (!KC->getBinningFunction()) {
+        // 2D reduction
+        if (compilerOptions.exploreConfig()) {
+          OS << "REDUCTION_CUDA_2D(";
+        } else {
+          OS << "__device__ unsigned finished_blocks_" << K->getReduceName()
+             << "2D = 0;\n\n";
+          OS << "REDUCTION_CUDA_2D_THREAD_FENCE(";
+        }
+        OS << K->getReduceName() << "2D, "
            << fun->getReturnType().getAsString() << ", "
-           << K->getReduceName() << ")\n";
+           << K->getReduceName() << ", _tex"
+           << K->getIterationSpace()->getImage()->getName() + K->getName() << ")\n";
+        // 1D reduction
+        if (compilerOptions.exploreConfig()) {
+          OS << "REDUCTION_CUDA_1D(" << K->getReduceName() << "1D, "
+             << fun->getReturnType().getAsString() << ", "
+             << K->getReduceName() << ")\n";
+        }
       }
       break;
     case Language::Renderscript:
@@ -2473,6 +2607,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   if (KC->getReduceFunction())
     printReductionFunction(KC, K, OS);
+
+  // ensure emitHints, otherwise binning will interfere with analytics
+  if (emitHints && KC->getBinningFunction())
+    printBinningFunction(KC, K, OS);
 
   OS << "#endif //" + ifdef + "\n";
   OS << "\n";
