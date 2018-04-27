@@ -1681,9 +1681,9 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         }
 
         if (ME->getMemberNameInfo().getAsString() == "width") {
-          newStr = "width";
+          newStr = "->width";
         } else if (ME->getMemberNameInfo().getAsString() == "height") {
-          newStr = "height";
+          newStr = "->height";
         }
       }
 
@@ -1691,15 +1691,15 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       if (AccDeclMap.count(DRE->getDecl())) {
         // match for supported member calls
         if (ME->getMemberNameInfo().getAsString() == "width") {
-          newStr = "img.width";
+          newStr = ".img->width";
         } else if (ME->getMemberNameInfo().getAsString() == "height") {
-          newStr = "img.height";
+          newStr = ".img->height";
         }
       }
 
       if (!newStr.empty()) {
         // replace member function invocation
-        SourceRange range(ME->getMemberLoc(), E->getLocEnd());
+        SourceRange range(ME->getOperatorLoc(), E->getLocEnd());
         TextRewriter.ReplaceText(range, newStr);
       }
     }
