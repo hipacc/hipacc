@@ -768,7 +768,7 @@ void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst, int num_device=0
 
 
 // Copy from memory region to memory region
-void hipaccCopyMemoryRegion(const HipaccAccessor &src, HipaccAccessor &dst, int num_device=0) {
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
@@ -897,8 +897,7 @@ void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *loc
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
-        &acc, unsigned int max_threads, unsigned int pixels_per_thread) {
+T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     cl_int err = CL_SUCCESS;
@@ -977,19 +976,15 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
 }
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, const HipaccImage &img,
-        unsigned int max_threads, unsigned int pixels_per_thread) {
+T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, const HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccAccessor acc(img);
-    return hipaccApplyReduction<T>(kernel2D, kernel1D, acc, max_threads,
-            pixels_per_thread);
+    return hipaccApplyReduction<T>(kernel2D, kernel1D, acc, max_threads, pixels_per_thread);
 }
 
 
 // Perform exploration of global reduction and return result
 template<typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-        std::string kernel1D, HipaccAccessor &acc, unsigned int max_threads,
-        unsigned int pixels_per_thread) {
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D, const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     cl_int err = CL_SUCCESS;
@@ -1112,12 +1107,9 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
     return result;
 }
 template<typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-        std::string kernel1D, const HipaccImage &img, unsigned int max_threads,
-        unsigned int pixels_per_thread) {
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D, const HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccAccessor acc(img);
-    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc,
-            max_threads, pixels_per_thread);
+    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc, max_threads, pixels_per_thread);
 }
 
 

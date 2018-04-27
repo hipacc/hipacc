@@ -52,7 +52,7 @@ std::string getRSErrorCodeStr(int errorNum);
 void errorHandler(uint32_t errorNum, const char *errorText);
 void hipaccInitRenderScript(std::string rs_directory);
 void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst);
-void hipaccCopyMemoryRegion(const HipaccAccessor &src, HipaccAccessor &dst);
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst);
 #define CREATE_ALLOCATION_DECL(T) \
   HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height, size_t alignment); \
   HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height);
@@ -349,7 +349,7 @@ void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst) {
 
 
 // Copy from allocation region to allocation region
-void hipaccCopyMemoryRegion(const HipaccAccessor &src, HipaccAccessor &dst) {
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
     ((Allocation *)dst.img->mem)->copy2DRangeFrom(dst.offset_x, dst.offset_y, src.width, src.height,
                       (Allocation *)src.img->mem, src.offset_x, src.offset_y);
 }

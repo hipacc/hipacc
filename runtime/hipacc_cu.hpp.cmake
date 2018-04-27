@@ -405,7 +405,7 @@ void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst) {
 
 
 // Copy from memory region to memory region
-void hipaccCopyMemoryRegion(const HipaccAccessor &src, HipaccAccessor &dst) {
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
     if (src.img->mem_type >= Array2D) {
         cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst.img->mem, dst.offset_x*dst.img->pixel_size, dst.offset_y,
                                                    (cudaArray *)src.img->mem, src.offset_x*src.img->pixel_size, src.offset_y, 
@@ -835,7 +835,7 @@ void hipaccBindSurfaceDrv(CUsurfref &surface, const HipaccImage &img) {
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const void *kernel1D, std::string kernel1D_name,
-                       HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
+                       const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
@@ -934,7 +934,7 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
 // Perform global reduction using memory fence operations and return result
 template<typename T>
 T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_name,
-                                  HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
+                                  const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
@@ -1010,7 +1010,7 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_nam
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D,
-                                  HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
+                                  const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
