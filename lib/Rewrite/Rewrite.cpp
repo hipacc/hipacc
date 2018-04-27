@@ -836,16 +836,16 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               }
               continue;
             }
+          }
 
-            // check if the argument can be resolved to a constant
-            if (!arg->isEvaluatable(Context))
-              Diags.Report(arg->getExprLoc(), IDConstSize) << VD->getName();
-            if (size_args++ == 0) {
-              BC->setSizeX(arg->EvaluateKnownConstInt(Context).getSExtValue());
-              BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
-            } else {
-              BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
-            }
+          // check if the argument can be resolved to a constant
+          if (!arg->isEvaluatable(Context))
+            Diags.Report(arg->getExprLoc(), IDConstSize) << VD->getName();
+          if (size_args++ == 0) {
+            BC->setSizeX(arg->EvaluateKnownConstInt(Context).getSExtValue());
+            BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
+          } else {
+            BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
           }
         }
 
