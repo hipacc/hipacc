@@ -822,18 +822,17 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               BC->setBoundaryMode(mode);
 
               if (mode == Boundary::CONSTANT) {
-                  if (i+2 != e)
-                    Diags.Report(arg->getExprLoc(), IDMode) << VD->getName();
-                  // check if the parameter can be resolved to a constant
-                  auto const_arg = CCE->getArg(++i);
-                  if (!const_arg->isEvaluatable(Context)) {
-                    Diags.Report(arg->getExprLoc(), IDConstMode) <<
-                      VD->getName();
-                  } else {
-                    Expr::EvalResult val;
-                    const_arg->EvaluateAsRValue(val, Context);
-                    BC->setConstVal(val.Val, Context);
-                  }
+                if (i+2 != e)
+                  Diags.Report(arg->getExprLoc(), IDMode) << VD->getName();
+                // check if the parameter can be resolved to a constant
+                auto const_arg = CCE->getArg(++i);
+                if (!const_arg->isEvaluatable(Context)) {
+                  Diags.Report(arg->getExprLoc(), IDConstMode) << VD->getName();
+                } else {
+                  Expr::EvalResult val;
+                  const_arg->EvaluateAsRValue(val, Context);
+                  BC->setConstVal(val.Val, Context);
+                }
               }
               continue;
             }
