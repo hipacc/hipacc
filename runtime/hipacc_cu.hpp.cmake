@@ -513,7 +513,7 @@ void hipaccSetupArgument(const void *arg, size_t size, size_t &offset) {
         offset += offset % size;
     }
     cudaError_t err = cudaSetupArgument(arg, size, offset);
-    checkErr(err, "clSetKernelArg()");
+    checkErr(err, "cudaSetupArgument()");
     offset += size;
 }
 
