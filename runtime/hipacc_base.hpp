@@ -64,7 +64,7 @@ enum hipaccMemoryType {
 };
 
 
-class HipaccImage {
+class HipaccImageBase {
     public:
         size_t width, height;
         size_t stride, alignment;
@@ -72,10 +72,9 @@ class HipaccImage {
         void *mem;
         hipaccMemoryType mem_type;
         char *host;
-        uint32_t *refcount;
 
     public:
-        HipaccImage(size_t width, size_t height, size_t stride,
+        HipaccImageBase(size_t width, size_t height, size_t stride,
                     size_t alignment, size_t pixel_size, void *mem,
                     hipaccMemoryType mem_type=Global) :
             width(width), height(height),
@@ -84,59 +83,39 @@ class HipaccImage {
             pixel_size(pixel_size),
             mem(mem),
             mem_type(mem_type),
-            host(new char[width*height*pixel_size]),
-            refcount(new uint32_t(1))
+            host(new char[width*height*pixel_size])
         {
             std::fill(host, host + width*height*pixel_size, 0);
         }
 
-        HipaccImage(const HipaccImage &image) :
-            width(image.width),
-            height(image.height),
-            stride(image.stride),
-            alignment(image.alignment),
-            pixel_size(image.pixel_size),
-            mem(image.mem),
-            mem_type(image.mem_type),
-            host(image.host),
-            refcount(image.refcount)
-        {
-            ++(*refcount);
+        ~HipaccImageBase() {
+            delete[] host;
         }
 
-        ~HipaccImage() {
-            --(*refcount);
-            if (host != NULL &&
-                *refcount == 0) {
-              delete refcount;
-              delete[] host;
-              host = NULL;
-            }
-        }
-
-        bool operator==(HipaccImage other) const {
-            return mem==other.mem;
+        bool operator==(const HipaccImageBase &other) const {
+            return mem == other.mem;
         }
 };
+typedef std::shared_ptr<HipaccImageBase> HipaccImage;
 
 class HipaccAccessor {
     public:
-        HipaccImage &img;
+        HipaccImage img;
         size_t width, height;
         int32_t offset_x, offset_y;
 
     public:
-        HipaccAccessor(HipaccImage &img, size_t width, size_t height, int32_t offset_x=0, int32_t offset_y=0) :
+        HipaccAccessor(HipaccImage img, size_t width, size_t height, int32_t offset_x=0, int32_t offset_y=0) :
             img(img),
             width(width),
             height(height),
             offset_x(offset_x),
             offset_y(offset_y) {}
 
-        HipaccAccessor(HipaccImage &img) :
+        HipaccAccessor(HipaccImage img) :
             img(img),
-            width(img.width),
-            height(img.height),
+            width(img->width),
+            height(img->height),
             offset_x(0),
             offset_y(0) {}
 };
@@ -144,22 +123,9 @@ class HipaccAccessor {
 
 class HipaccContextBase {
     protected:
-        std::list<HipaccImage> imgs;
-
         HipaccContextBase() {};
         HipaccContextBase(HipaccContextBase const &);
         void operator=(HipaccContextBase const &);
-
-    public:
-        void add_image(HipaccImage &img) { imgs.push_back(img); }
-        void del_image(HipaccImage &img) {
-            for (auto &iter : imgs) {
-                if (iter == img) {
-                    imgs.remove(iter);
-                    return;
-                }
-            }
-        }
 };
 
 
@@ -226,7 +192,7 @@ class HipaccPyramid {
         : depth_(depth), level_(0), bound_(false) {
     }
 
-    void add(HipaccImage img) {
+    void add(const HipaccImage &img) {
         imgs_.push_back(img);
     }
 
@@ -276,17 +242,15 @@ class HipaccPyramid {
 
 // forward declarations
 template<typename T>
-HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t height);
-template<typename T>
-void hipaccReleaseMemory(HipaccImage &Img);
+HipaccImage hipaccCreatePyramidImage(const HipaccImage &base, size_t width, size_t height);
 
 template<typename data_t>
-HipaccPyramid hipaccCreatePyramid(HipaccImage &img, size_t depth) {
+HipaccPyramid hipaccCreatePyramid(const HipaccImage &img, size_t depth) {
     HipaccPyramid p(depth);
     p.add(img);
 
-    size_t width  = img.width  / 2;
-    size_t height = img.height / 2;
+    size_t width  = img->width  / 2;
+    size_t height = img->height / 2;
     for (size_t i=1; i<depth; ++i) {
         assert(width * height > 0 && "Pyramid stages too deep for image size");
         p.add(hipaccCreatePyramidImage<data_t>(img, width, height));
@@ -294,16 +258,6 @@ HipaccPyramid hipaccCreatePyramid(HipaccImage &img, size_t depth) {
         height /= 2;
     }
     return p;
-}
-
-
-template<typename T>
-void hipaccReleasePyramid(HipaccPyramid &pyr) {
-    // Do not remove the first one, it was created outside this context
-    while (pyr.imgs_.size() > 1) {
-        hipaccReleaseMemory<T>(pyr.imgs_.back());
-        pyr.imgs_.pop_back();
-    }
 }
 
 

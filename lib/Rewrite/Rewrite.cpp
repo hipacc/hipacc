@@ -393,34 +393,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   // insert initialization before first statement
   TextRewriter.InsertTextBefore(CS->body_front()->getLocStart(), initStr);
 
-  // insert memory release calls before last statement (return-statement)
-  // release all images
-  for (auto map : ImgDeclMap) {
-    auto img = map.second;
-    std::string releaseStr;
-
-    stringCreator.writeMemoryRelease(img, releaseStr);
-    TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
-  }
-  // release all non-const masks
-  for (auto map : MaskDeclMap) {
-    auto mask = map.second;
-    std::string releaseStr;
-
-    if (!compilerOptions.emitCUDA() && !mask->isConstant()) {
-      stringCreator.writeMemoryRelease(mask, releaseStr);
-      TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
-    }
-  }
-  // release all pyramids
-  for (auto map : PyrDeclMap) {
-    auto pyramid = map.second;
-    std::string releaseStr;
-
-    stringCreator.writeMemoryRelease(pyramid, releaseStr, true);
-    TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
-  }
-
   // get buffer of main file id. If we haven't changed it, then we are done.
   if (auto RewriteBuf = TextRewriter.getRewriteBufferFor(mainFileID)) {
     *Out << std::string(RewriteBuf->begin(), RewriteBuf->end());

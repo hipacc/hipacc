@@ -45,6 +45,20 @@ class HipaccContext : public HipaccContextBase {
         }
 };
 
+class HipaccImageCPU : public HipaccImageBase {
+    private:
+        char *mem;
+    public:
+        HipaccImageCPU(size_t width, size_t height, size_t stride,
+                       size_t alignment, size_t pixel_size, char* mem,
+                       hipaccMemoryType mem_type=Global) :
+            HipaccImageBase(width, height, stride, alignment, pixel_size, (void*)mem, mem_type),
+            mem(mem) {}
+        ~HipaccImageCPU() {
+            delete[] mem;
+        }
+};
+
 long start_time = 0L;
 long end_time = 0L;
 
@@ -63,9 +77,7 @@ void hipaccStopTiming() {
 
 template<typename T>
 HipaccImage createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
-    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), mem, mem_type);
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    Ctx.add_image(img);
+    HipaccImage img = std::make_shared<HipaccImageCPU>(width, height, stride, alignment, sizeof(T), mem, mem_type);
     hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host);
 
     return img;
@@ -89,15 +101,6 @@ template<typename T>
 HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height) {
     T *mem = new T[width*height];
     return createImage(host_mem, (void *)mem, width, height, width, 0);
-}
-
-
-// Release memory
-template<typename T>
-void hipaccReleaseMemory(HipaccImage &img) {
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    delete[] (T*)img.mem;
-    Ctx.del_image(img);
 }
 
 
@@ -125,7 +128,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
 
 // Read from memory
 template<typename T>
-T *hipaccReadMemory(HipaccImage &img) {
+T *hipaccReadMemory(const HipaccImage &img) {
     size_t width  = img.width;
     size_t height = img.height;
     size_t stride = img.stride;
@@ -143,7 +146,7 @@ T *hipaccReadMemory(HipaccImage &img) {
 
 
 // Copy from memory to memory
-void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
+void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst) {
     size_t height = src.height;
     size_t stride = src.stride;
     std::memcpy(dst.mem, src.mem, src.pixel_size*stride*height);
