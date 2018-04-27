@@ -50,10 +50,10 @@ class HipaccImageCPU : public HipaccImageBase {
         char *mem;
     public:
         HipaccImageCPU(size_t width, size_t height, size_t stride,
-                       size_t alignment, size_t pixel_size, char* mem,
+                       size_t alignment, size_t pixel_size, void* mem,
                        hipaccMemoryType mem_type=Global) :
-            HipaccImageBase(width, height, stride, alignment, pixel_size, (void*)mem, mem_type),
-            mem(mem) {}
+            HipaccImageBase(width, height, stride, alignment, pixel_size, mem, mem_type),
+            mem((char*)mem) {}
         ~HipaccImageCPU() {
             delete[] mem;
         }
@@ -78,7 +78,7 @@ void hipaccStopTiming() {
 template<typename T>
 HipaccImage createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
     HipaccImage img = std::make_shared<HipaccImageCPU>(width, height, stride, alignment, sizeof(T), mem, mem_type);
-    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host);
+    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img->host);
 
     return img;
 }
@@ -109,19 +109,19 @@ template<typename T>
 void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
     if (host_mem == NULL) return;
 
-    size_t width  = img.width;
-    size_t height = img.height;
-    size_t stride = img.stride;
+    size_t width  = img->width;
+    size_t height = img->height;
+    size_t stride = img->stride;
 
-    if ((char *)host_mem != img.host)
-        std::copy(host_mem, host_mem + width*height, (T*)img.host);
+    if ((char *)host_mem != img->host)
+        std::copy(host_mem, host_mem + width*height, (T*)img->host);
 
     if (stride > width) {
         for (size_t i=0; i<height; ++i) {
-            std::memcpy(&((T*)img.mem)[i*stride], &host_mem[i*width], sizeof(T)*width);
+            std::memcpy(&((T*)img->mem)[i*stride], &host_mem[i*width], sizeof(T)*width);
         }
     } else {
-        std::memcpy(img.mem, host_mem, sizeof(T)*width*height);
+        std::memcpy(img->mem, host_mem, sizeof(T)*width*height);
     }
 }
 
@@ -129,34 +129,34 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
 // Read from memory
 template<typename T>
 T *hipaccReadMemory(const HipaccImage &img) {
-    size_t width  = img.width;
-    size_t height = img.height;
-    size_t stride = img.stride;
+    size_t width  = img->width;
+    size_t height = img->height;
+    size_t stride = img->stride;
 
     if (stride > width) {
         for (size_t i=0; i<height; ++i) {
-            std::memcpy(&((T*)img.host)[i*width], &((T*)img.mem)[i*stride], sizeof(T)*width);
+            std::memcpy(&((T*)img->host)[i*width], &((T*)img->mem)[i*stride], sizeof(T)*width);
         }
     } else {
-        std::memcpy((T*)img.host, img.mem, sizeof(T)*width*height);
+        std::memcpy((T*)img->host, img->mem, sizeof(T)*width*height);
     }
 
-    return (T*)img.host;
+    return (T*)img->host;
 }
 
 
 // Copy from memory to memory
 void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst) {
-    size_t height = src.height;
-    size_t stride = src.stride;
-    std::memcpy(dst.mem, src.mem, src.pixel_size*stride*height);
+    size_t height = src->height;
+    size_t stride = src->stride;
+    std::memcpy(dst->mem, src->mem, src->pixel_size*stride*height);
 }
 
 
 // Infer non-const Domain from non-const Mask
 template<typename T>
 void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
-    size_t size = dom.width * dom.height;
+    size_t size = dom->width * dom->height;
     uchar *dom_mem = new uchar[size];
 
     for (size_t i=0; i<size; ++i) {
@@ -172,9 +172,9 @@ void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
 // Copy from memory region to memory region
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
     for (size_t i=0; i<dst.height; ++i) {
-        std::memcpy(&((uchar*)dst.img.mem)[dst.offset_x*dst.img.pixel_size + (dst.offset_y + i)*dst.img.stride*dst.img.pixel_size],
-                    &((uchar*)src.img.mem)[src.offset_x*src.img.pixel_size + (src.offset_y + i)*src.img.stride*src.img.pixel_size],
-                    src.width*src.img.pixel_size);
+        std::memcpy(&((uchar*)dst.img->mem)[dst.offset_x*dst.img->pixel_size + (dst.offset_y + i)*dst.img->stride*dst.img->pixel_size],
+                    &((uchar*)src.img->mem)[src.offset_x*src.img->pixel_size + (src.offset_y + i)*src.img->stride*src.img->pixel_size],
+                    src.width*src.img->pixel_size);
     }
 }
 

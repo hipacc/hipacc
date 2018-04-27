@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <functional>
 #include <list>
+#include <memory>
 #include <vector>
 
 #include "hipacc_math_functions.hpp"
