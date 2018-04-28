@@ -39,7 +39,6 @@ using namespace android::RSC;
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <iterator>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -47,13 +46,12 @@ using namespace android::RSC;
 
 #include "hipacc_base.hpp"
 
-const sp<const Allocation> *hipaccGetAllocation(HipaccImage &img);
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);
 int64_t hipacc_time_micro();
 std::string getRSErrorCodeStr(int errorNum);
 void errorHandler(uint32_t errorNum, const char *errorText);
 void hipaccInitRenderScript(std::string rs_directory);
-void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst);
+void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst);
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst);
 #define CREATE_ALLOCATION_DECL(T) \
   HipaccImage hipaccCreateAllocation(T *host_mem, size_t width, size_t height, size_t alignment); \
@@ -82,10 +80,9 @@ CREATE_ALLOCATION_DECL(double4)
 class HipaccContext : public HipaccContextBase {
     private:
         sp<RS> context;
-        std::list<std::pair<sp<const Allocation>, HipaccImage> > allocs;
 
         HipaccContext() {
-          context = new RS();
+            context = new RS();
         }
 
     public:
@@ -94,35 +91,18 @@ class HipaccContext : public HipaccContextBase {
 
             return instance;
         }
-        void add_image(HipaccImage &img, sp<const Allocation> id) {
-            HipaccContextBase::add_image(img);
-            allocs.push_back(std::make_pair(id, img));
-        }
-        void del_image(HipaccImage &img) {
-            size_t num=0;
-            std::list<std::pair<sp<const Allocation>, HipaccImage> >::iterator i;
-            for (i=allocs.begin(); i!=allocs.end(); ++i, ++num) {
-                if (i->second == img) {
-                    allocs.erase(i);
-                    HipaccContextBase::del_image(img);
-                    return;
-                }
-            }
-
-            std::cerr << "ERROR: Unknown Allocation requested: "
-                      << img.mem << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        const sp<const Allocation> *get_allocation(HipaccImage &img) {
-            std::list<std::pair<sp<const Allocation>, HipaccImage> >::const_iterator i;
-            for (i=allocs.begin(); i!=allocs.end(); ++i) {
-                if (i->second == img) {
-                    return &i->first;
-                }
-            }
-            exit(EXIT_FAILURE);
-        }
         sp<RS> get_context() { return context; }
+};
+
+class HipaccImageAndroid : public HipaccImageBase {
+    private:
+        sp<const Allocation> alloc;
+    public:
+        HipaccImageAndroid(size_t width, size_t height, size_t stride,
+                           size_t alignment, size_t pixel_size, sp<const Allocation> alloc,
+                           hipaccMemoryType mem_type=Global) :
+            HipaccImageBase(width, height, stride, alignment, pixel_size, (void*)alloc.get(), mem_type),
+            alloc(alloc) {}
 };
 
 
@@ -208,11 +188,6 @@ class hipacc_script_arg {
     }
 
 #ifndef EXCLUDE_IMPL
-
-const sp<const Allocation> *hipaccGetAllocation(HipaccImage &img) {
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    return Ctx.get_allocation(img);
-}
 
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
     // calculate item id of a) first work item that requires no border handling
@@ -305,52 +280,52 @@ template<typename T>
 void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
     if (host_mem == NULL) return;
 
-    size_t width  = img.width;
-    size_t height = img.height;
-    size_t stride = img.stride;
+    size_t width  = img->width;
+    size_t height = img->height;
+    size_t stride = img->stride;
 
-    if ((char *)host_mem != img.host)
-        std::copy(host_mem, host_mem + width*height, (T*)img.host);
+    if ((char *)host_mem != img->host)
+        std::copy(host_mem, host_mem + width*height, (T*)img->host);
 
     if (stride > width) {
         T* buff = new T[stride * height];
         for (size_t i=0; i<height; ++i) {
             std::memcpy(buff + (i * stride), host_mem + (i * width), sizeof(T) * width);
         }
-        ((Allocation *)img.mem)->copy1DRangeFrom(0, stride * height, buff);
+        ((Allocation *)img->mem)->copy1DRangeFrom(0, stride * height, buff);
         delete[] buff;
     } else {
-        ((Allocation *)img.mem)->copy1DRangeFrom(0, width * height, host_mem);
+        ((Allocation *)img->mem)->copy1DRangeFrom(0, width * height, host_mem);
     }
 }
 
 
 // Read from allocation
 template<typename T>
-T *hipaccReadMemory(HipaccImage &img) {
-    size_t width  = img.width;
-    size_t height = img.height;
-    size_t stride = img.stride;
+T *hipaccReadMemory(const HipaccImage &img) {
+    size_t width  = img->width;
+    size_t height = img->height;
+    size_t stride = img->stride;
 
     if (stride > width) {
         T* buff = new T[stride * height];
-        ((Allocation *)img.mem)->copy1DRangeTo(0, stride * height, buff);
+        ((Allocation *)img->mem)->copy1DRangeTo(0, stride * height, buff);
         for (size_t i=0; i<height; ++i) {
-            std::memcpy(&((T*)img.host)[i*width], buff + (i * stride), sizeof(T) * width);
+            std::memcpy(&((T*)img->host)[i*width], buff + (i * stride), sizeof(T) * width);
         }
         delete[] buff;
     } else {
-        ((Allocation *)img.mem)->copy1DRangeTo(0, width * height, (T*)img.host);
+        ((Allocation *)img->mem)->copy1DRangeTo(0, width * height, (T*)img->host);
     }
 
-    return (T*)img.host;
+    return (T*)img->host;
 }
 
 
 // Infer non-const Domain from non-const Mask
 template<typename T>
 void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
-    size_t size = dom.width * dom.height;
+    size_t size = dom->width * dom->height;
     uchar *dom_mem = new uchar[size];
 
     for (size_t i=0; i<size; ++i) {
@@ -365,18 +340,18 @@ void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
 #ifndef EXCLUDE_IMPL
 
 // Copy from allocation to allocation
-void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
-    assert(src.width == dst.width && src.height == dst.height &&
-           src.pixel_size == dst.pixel_size && "Invalid CopyAllocation!");
+void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst) {
+    assert(src->width == dst->width && src->height == dst->height &&
+           src->pixel_size == dst->pixel_size && "Invalid CopyAllocation!");
 
-    ((Allocation *)dst.mem)->copy1DRangeFrom(0, src.stride*src.height, (Allocation *)src.mem, 0);
+    ((Allocation *)dst->mem)->copy1DRangeFrom(0, src->stride*src->height, (Allocation *)src->mem, 0);
 }
 
 
 // Copy from allocation region to allocation region
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
-    ((Allocation *)dst.img.mem)->copy2DRangeFrom(dst.offset_x, dst.offset_y, src.width, src.height,
-                      (Allocation *)src.img.mem, src.offset_x, src.offset_y);
+    ((Allocation *)dst.img->mem)->copy2DRangeFrom(dst.offset_x, dst.offset_y, src.width, src.height,
+                      (Allocation *)src.img->mem, src.offset_x, src.offset_y);
 }
 
 
@@ -391,9 +366,8 @@ HipaccImage createImage(T *host_mem, size_t width, size_t height, size_t stride,
 \
     sp<const Allocation> allocation = Allocation::createTyped(rs, type.create()); \
 \
-    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), (void *)allocation.get()); \
-    Ctx.add_image(img, allocation); \
-    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host); \
+    HipaccImage img = std::make_shared<HipaccImageAndroid>(width, height, stride, alignment, sizeof(T), allocation); \
+    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img->host); \
 \
     return img; \
 } \
@@ -441,14 +415,6 @@ CREATE_ALLOCATION(double4,  Element::F64_4(rs))
 
 #endif // EXCLUDE_IMPL
 
-
-// Release memory
-template<typename T>
-void hipaccReleaseMemory(HipaccImage &img) {
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    Ctx.del_image(img);
-}
-
 // Set a single argument of script
 template<typename F, typename T>
 void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
@@ -468,7 +434,7 @@ void hipaccLaunchScriptKernel(
 
     rs->finish();
     auto start = hipacc_time_micro();
-    (script->*kernel)((Allocation *)out.mem);
+    (script->*kernel)((Allocation *)out->mem);
     rs->finish();
     auto end = hipacc_time_micro();
     last_gpu_timing = (end - start) * 1.0e-3f;
@@ -486,14 +452,14 @@ template<typename F>
 void hipaccLaunchScriptKernel(
     F* script,
     void(F::*kernel)(sp<Allocation>, sp<Allocation>),
-    HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing=true
+    const HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing=true
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     sp<RS> rs = Ctx.get_context();
 
     rs->finish();
     auto start = hipacc_time_micro();
-    (script->*kernel)((Allocation *)in.mem, (Allocation *)out.mem);
+    (script->*kernel)((Allocation *)in->mem, (Allocation *)out->mem);
     rs->finish();
     auto end = hipacc_time_micro();
     last_gpu_timing = (end - start) * 1.0e-3f;
@@ -510,7 +476,7 @@ void hipaccLaunchScriptKernel(
 template<typename F>
 void hipaccLaunchScriptKernelBenchmark(
     F* script,
-    std::vector<hipacc_script_arg<F> > args,
+    std::vector<hipacc_script_arg<F>> args,
     void(F::*kernel)(sp<Allocation>),
     HipaccImage &out, size_t *work_size,
     bool print_timing=true
@@ -519,10 +485,8 @@ void hipaccLaunchScriptKernelBenchmark(
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
         // set kernel arguments
-        for (typename std::vector<hipacc_script_arg<F> >::const_iterator
-                it = args.begin(); it != args.end(); ++it) {
-            SET_SCRIPT_ARG(script, *it);
-        }
+        for (auto &arg : args)
+            SET_SCRIPT_ARG(script, arg);
 
         // launch kernel
         hipaccLaunchScriptKernel(script, kernel, out, work_size, print_timing);
@@ -546,12 +510,12 @@ void hipaccLaunchScriptKernelBenchmark(
 template<typename F, typename T>
 void hipaccLaunchScriptKernelExploration(
     F* script,
-    std::vector<hipacc_script_arg<F> > args,
+    std::vector<hipacc_script_arg<F>> args,
     void(F::*kernel)(sp<Allocation>),
     std::vector<hipacc_smem_info>, hipacc_launch_info &info,
     int warp_size, int, int max_threads_for_kernel,
     int, int, int,
-    HipaccImage &iter_space
+    HipaccImage &out
 ) {
     int opt_ws=1;
     float opt_time = FLT_MAX;
@@ -574,13 +538,11 @@ void hipaccLaunchScriptKernelExploration(
         std::vector<float> times;
         for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
             // set kernel arguments
-            for (typename std::vector<hipacc_script_arg<F> >::const_iterator
-                    it = args.begin(); it != args.end(); ++it) {
-                SET_SCRIPT_ARG(script, *it);
-            }
+            for (auto &arg : args)
+                SET_SCRIPT_ARG(script, arg);
 
             // launch kernel
-            hipaccLaunchScriptKernel(script, kernel, iter_space , work_size, false);
+            hipaccLaunchScriptKernel(script, kernel, out , work_size, false);
             times.push_back(last_gpu_timing);
         }
         std::sort(times.begin(), times.end());
@@ -614,7 +576,7 @@ T hipaccApplyReduction(
     void(F::*kernel2D)(sp<Allocation>),
     void(F::*kernel1D)(sp<Allocation>),
     void(F::*setter)(sp<const Allocation>),
-    std::vector<hipacc_script_arg<F> > args,
+    std::vector<hipacc_script_arg<F>> args,
     int is_width, bool print_timing=true
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
@@ -625,18 +587,16 @@ T hipaccApplyReduction(
 
     // allocation for 1st reduction step
     HipaccImage is1_img = hipaccCreateAllocation((T*)NULL, is_width, 1);
-    sp<Allocation> is1 = (Allocation *)is1_img.mem;
+    sp<Allocation> is1 = (Allocation *)is1_img->mem;
     (script->*setter)(is1);
 
     // allocation for 2nd reduction step
     HipaccImage is2_img = hipaccCreateAllocation((T*)NULL, 1, 1);
-    sp<Allocation> is2 = (Allocation *)is2_img.mem;
+    sp<Allocation> is2 = (Allocation *)is2_img->mem;
 
     // set arguments
-    for (typename std::vector<hipacc_script_arg<F> >::const_iterator
-            it = args.begin(); it != args.end(); ++it) {
-        SET_SCRIPT_ARG(script, *it);
-    }
+    for (auto &arg : args)
+        SET_SCRIPT_ARG(script, arg);
 
     rs->finish();
     auto start = hipacc_time_micro();
@@ -660,9 +620,9 @@ T hipaccApplyReduction(
 
 
 template<typename T>
-HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t height) {
-    if (base.alignment > 0) {
-        return hipaccCreateAllocation((T*)NULL, width, height, base.alignment);
+HipaccImage hipaccCreatePyramidImage(const HipaccImage &base, size_t width, size_t height) {
+    if (base->alignment > 0) {
+        return hipaccCreateAllocation((T*)NULL, width, height, base->alignment);
     } else {
         return hipaccCreateAllocation((T*)NULL, width, height);
     }

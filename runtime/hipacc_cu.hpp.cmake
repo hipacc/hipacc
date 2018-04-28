@@ -59,74 +59,6 @@
 
 #include "hipacc_base.hpp"
 
-class HipaccContext : public HipaccContextBase {
-    public:
-        static HipaccContext &getInstance() {
-            static HipaccContext instance;
-
-            return instance;
-        }
-};
-
-
-typedef struct hipacc_const_info {
-    hipacc_const_info(std::string name, void *memory, int size) :
-        name(name), memory(memory), size(size) {}
-    std::string name;
-    void *memory;
-    int size;
-} hipacc_const_info;
-
-
-typedef struct hipacc_tex_info {
-    hipacc_tex_info(std::string name, CUarray_format format, HipaccImage &image,
-            hipaccMemoryType tex_type) :
-        name(name), format(format), image(image), tex_type(tex_type) {}
-    std::string name;
-    CUarray_format format;
-    HipaccImage &image;
-    hipaccMemoryType tex_type;
-} hipacc_tex_info;
-
-
-void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
-    // calculate block id of a) first block that requires no border handling
-    // (left, top) and b) first block that requires border handling (right,
-    // bottom)
-    if (info.size_x > 0) {
-        info.bh_start_left = (int)ceilf((float)(info.offset_x + info.size_x) / (block.x * info.simd_width));
-        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / (block.x * info.simd_width));
-    } else {
-        info.bh_start_left = 0;
-        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width) / (block.x * info.simd_width));
-    }
-    if (info.size_y > 0) {
-        // for shared memory calculate additional blocks to be staged - this is
-        // only required if shared memory is used, otherwise, info.size_y would
-        // be sufficient
-        int p_add = (int)ceilf(2*info.size_y / (float)block.y);
-        info.bh_start_top = (int)ceilf((float)(info.size_y) / (info.pixels_per_thread * block.y));
-        info.bh_start_bottom = (int)floor((float)(info.is_height - p_add*block.y) / (block.y * info.pixels_per_thread));
-    } else {
-        info.bh_start_top = 0;
-        info.bh_start_bottom = (int)floor((float)(info.is_height) / (block.y * info.pixels_per_thread));
-    }
-
-    if ((info.bh_start_right - info.bh_start_left) > 1 && (info.bh_start_bottom - info.bh_start_top) > 1) {
-        info.bh_fall_back = 0;
-    } else {
-        info.bh_fall_back = 1;
-    }
-}
-
-
-dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
-    return dim3(
-            (int)ceilf((float)(info.is_width + info.offset_x)/(block.x*info.simd_width)),
-            (int)ceilf((float)(info.is_height)/(block.y*info.pixels_per_thread))
-            );
-}
-
 
 std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
     const char *error_name;
@@ -212,6 +144,93 @@ inline void checkErrNVRTC(nvrtcResult err, std::string name) {
 #endif
 
 
+class HipaccContext : public HipaccContextBase {
+    public:
+        static HipaccContext &getInstance() {
+            static HipaccContext instance;
+
+            return instance;
+        }
+};
+
+class HipaccImageCUDA : public HipaccImageBase {
+    public:
+        HipaccImageCUDA(size_t width, size_t height, size_t stride,
+                        size_t alignment, size_t pixel_size, void *mem,
+                        hipaccMemoryType mem_type=Global) :
+            HipaccImageBase(width, height, stride, alignment, pixel_size, mem, mem_type) {}
+
+        ~HipaccImageCUDA() {
+            if (mem_type >= Array2D) {
+                cudaError_t err = cudaFreeArray((cudaArray *)mem);
+                checkErr(err, "cudaFreeArray()");
+            } else {
+                cudaError_t err = cudaFree(mem);
+                checkErr(err, "cudaFree()");
+            }
+        }
+};
+
+
+typedef struct hipacc_const_info {
+    hipacc_const_info(std::string name, void *memory, int size) :
+        name(name), memory(memory), size(size) {}
+    std::string name;
+    void *memory;
+    int size;
+} hipacc_const_info;
+
+
+typedef struct hipacc_tex_info {
+    hipacc_tex_info(std::string name, CUarray_format format, const HipaccImage &image,
+            hipaccMemoryType tex_type) :
+        name(name), format(format), image(image), tex_type(tex_type) {}
+    std::string name;
+    CUarray_format format;
+    const HipaccImage &image;
+    hipaccMemoryType tex_type;
+} hipacc_tex_info;
+
+
+void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
+    // calculate block id of a) first block that requires no border handling
+    // (left, top) and b) first block that requires border handling (right,
+    // bottom)
+    if (info.size_x > 0) {
+        info.bh_start_left = (int)ceilf((float)(info.offset_x + info.size_x) / (block.x * info.simd_width));
+        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / (block.x * info.simd_width));
+    } else {
+        info.bh_start_left = 0;
+        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width) / (block.x * info.simd_width));
+    }
+    if (info.size_y > 0) {
+        // for shared memory calculate additional blocks to be staged - this is
+        // only required if shared memory is used, otherwise, info.size_y would
+        // be sufficient
+        int p_add = (int)ceilf(2*info.size_y / (float)block.y);
+        info.bh_start_top = (int)ceilf((float)(info.size_y) / (info.pixels_per_thread * block.y));
+        info.bh_start_bottom = (int)floor((float)(info.is_height - p_add*block.y) / (block.y * info.pixels_per_thread));
+    } else {
+        info.bh_start_top = 0;
+        info.bh_start_bottom = (int)floor((float)(info.is_height) / (block.y * info.pixels_per_thread));
+    }
+
+    if ((info.bh_start_right - info.bh_start_left) > 1 && (info.bh_start_bottom - info.bh_start_top) > 1) {
+        info.bh_fall_back = 0;
+    } else {
+        info.bh_fall_back = 1;
+    }
+}
+
+
+dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
+    return dim3(
+            (int)ceilf((float)(info.is_width + info.offset_x)/(block.x*info.simd_width)),
+            (int)ceilf((float)(info.is_height)/(block.y*info.pixels_per_thread))
+            );
+}
+
+
 // Initialize CUDA devices
 void hipaccInitCUDA() {
     setenv("CUDA_CACHE_DISABLE", "1", 1);
@@ -254,10 +273,8 @@ void hipaccInitCUDA() {
 
 template<typename T>
 HipaccImage createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
-    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), mem, mem_type);
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    Ctx.add_image(img);
-    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host);
+    HipaccImage img = std::make_shared<HipaccImageCUDA>(width, height, stride, alignment, sizeof(T), mem, mem_type);
+    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img->host);
 
     return img;
 }
@@ -307,11 +324,11 @@ HipaccImage hipaccCreateArray2D(T *host_mem, size_t width, size_t height) {
 
 // Allocate memory for Pyramid image
 template<typename T>
-HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t height) {
-    switch (base.mem_type) {
+HipaccImage hipaccCreatePyramidImage(const HipaccImage &base, size_t width, size_t height) {
+    switch (base->mem_type) {
         default:
-            if (base.alignment > 0) {
-                return hipaccCreateMemory<T>(NULL, width, height, base.alignment);
+            if (base->alignment > 0) {
+                return hipaccCreateMemory<T>(NULL, width, height, base->alignment);
             } else {
                 return hipaccCreateMemory<T>(NULL, width, height);
             }
@@ -321,43 +338,27 @@ HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t hei
 }
 
 
-// Release memory
-template<typename T>
-void hipaccReleaseMemory(HipaccImage &img) {
-    if (img.mem_type >= Array2D) {
-        cudaError_t err = cudaFreeArray((cudaArray *)img.mem);
-        checkErr(err, "cudaFreeArray()");
-    } else {
-        cudaError_t err = cudaFree(img.mem);
-        checkErr(err, "cudaFree()");
-    }
-
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    Ctx.del_image(img);
-}
-
-
 // Write to memory
 template<typename T>
 void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
     if (host_mem == NULL) return;
 
-    size_t width  = img.width;
-    size_t height = img.height;
-    size_t stride = img.stride;
+    size_t width  = img->width;
+    size_t height = img->height;
+    size_t stride = img->stride;
 
-    if ((char *)host_mem != img.host)
-        std::copy(host_mem, host_mem + width*height, (T*)img.host);
+    if ((char *)host_mem != img->host)
+        std::copy(host_mem, host_mem + width*height, (T*)img->host);
 
-    if (img.mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpyToArray((cudaArray *)img.mem, 0, 0, host_mem, sizeof(T)*width*height, cudaMemcpyHostToDevice);
+    if (img->mem_type >= Array2D) {
+        cudaError_t err = cudaMemcpyToArray((cudaArray *)img->mem, 0, 0, host_mem, sizeof(T)*width*height, cudaMemcpyHostToDevice);
         checkErr(err, "cudaMemcpyToArray()");
     } else {
         if (stride > width) {
-            cudaError_t err = cudaMemcpy2D(img.mem, stride*sizeof(T), host_mem, width*sizeof(T), width*sizeof(T), height, cudaMemcpyHostToDevice);
+            cudaError_t err = cudaMemcpy2D(img->mem, stride*sizeof(T), host_mem, width*sizeof(T), width*sizeof(T), height, cudaMemcpyHostToDevice);
             checkErr(err, "cudaMemcpy2D()");
         } else {
-            cudaError_t err = cudaMemcpy(img.mem, host_mem, sizeof(T)*width*height, cudaMemcpyHostToDevice);
+            cudaError_t err = cudaMemcpy(img->mem, host_mem, sizeof(T)*width*height, cudaMemcpyHostToDevice);
             checkErr(err, "cudaMemcpy()");
         }
     }
@@ -366,38 +367,38 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
 
 // Read from memory
 template<typename T>
-T *hipaccReadMemory(HipaccImage &img) {
-    size_t width  = img.width;
-    size_t height = img.height;
-    size_t stride = img.stride;
+T *hipaccReadMemory(const HipaccImage &img) {
+    size_t width  = img->width;
+    size_t height = img->height;
+    size_t stride = img->stride;
 
-    if (img.mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpyFromArray((T*)img.host, (cudaArray *)img.mem, 0, 0, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
+    if (img->mem_type >= Array2D) {
+        cudaError_t err = cudaMemcpyFromArray((T*)img->host, (cudaArray *)img->mem, 0, 0, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
         checkErr(err, "cudaMemcpyFromArray()");
     } else {
         if (stride > width) {
-            cudaError_t err = cudaMemcpy2D((T*)img.host, width*sizeof(T), img.mem, stride*sizeof(T), width*sizeof(T), height, cudaMemcpyDeviceToHost);
+            cudaError_t err = cudaMemcpy2D((T*)img->host, width*sizeof(T), img->mem, stride*sizeof(T), width*sizeof(T), height, cudaMemcpyDeviceToHost);
             checkErr(err, "cudaMemcpy2D()");
         } else {
-            cudaError_t err = cudaMemcpy((T*)img.host, img.mem, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
+            cudaError_t err = cudaMemcpy((T*)img->host, img->mem, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
             checkErr(err, "cudaMemcpy()");
         }
     }
 
-    return (T*)img.host;
+    return (T*)img->host;
 }
 
 
 // Copy from memory to memory
-void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
-    size_t height = src.height;
-    size_t stride = src.stride;
+void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst) {
+    size_t height = src->height;
+    size_t stride = src->stride;
 
-    if (src.mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpyArrayToArray((cudaArray *)dst.mem, 0, 0, (cudaArray *)src.mem, 0, 0, stride*height*src.pixel_size, cudaMemcpyDeviceToDevice);
+    if (src->mem_type >= Array2D) {
+        cudaError_t err = cudaMemcpyArrayToArray((cudaArray *)dst->mem, 0, 0, (cudaArray *)src->mem, 0, 0, stride*height*src->pixel_size, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpyArrayToArray()");
     } else {
-        cudaError_t err = cudaMemcpy(dst.mem, src.mem, src.pixel_size*stride*height, cudaMemcpyDeviceToDevice);
+        cudaError_t err = cudaMemcpy(dst->mem, src->mem, src->pixel_size*stride*height, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpy()");
     }
 }
@@ -405,18 +406,18 @@ void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
 
 // Copy from memory region to memory region
 void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
-    if (src.img.mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst.img.mem, dst.offset_x*dst.img.pixel_size, dst.offset_y,
-                                                   (cudaArray *)src.img.mem, src.offset_x*src.img.pixel_size, src.offset_y, 
-                                                   src.width*src.img.pixel_size, src.height, cudaMemcpyDeviceToDevice);
+    if (src.img->mem_type >= Array2D) {
+        cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst.img->mem, dst.offset_x*dst.img->pixel_size, dst.offset_y,
+                                                   (cudaArray *)src.img->mem, src.offset_x*src.img->pixel_size, src.offset_y, 
+                                                   src.width*src.img->pixel_size, src.height, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpy2DArrayToArray()");
     } else {
-        void *dst_start = (char *)dst.img.mem + dst.offset_x*dst.img.pixel_size + (dst.offset_y*dst.img.stride*dst.img.pixel_size);
-        void *src_start = (char *)src.img.mem + src.offset_x*src.img.pixel_size + (src.offset_y*src.img.stride*src.img.pixel_size);
+        void *dst_start = (char *)dst.img->mem + dst.offset_x*dst.img->pixel_size + (dst.offset_y*dst.img->stride*dst.img->pixel_size);
+        void *src_start = (char *)src.img->mem + src.offset_x*src.img->pixel_size + (src.offset_y*src.img->stride*src.img->pixel_size);
 
-        cudaError_t err = cudaMemcpy2D(dst_start, dst.img.stride*dst.img.pixel_size,
-                                       src_start, src.img.stride*src.img.pixel_size,
-                                       src.width*src.img.pixel_size, src.height, cudaMemcpyDeviceToDevice);
+        cudaError_t err = cudaMemcpy2D(dst_start, dst.img->stride*dst.img->pixel_size,
+                                       src_start, src.img->stride*src.img->pixel_size,
+                                       src.width*src.img->pixel_size, src.height, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpy2D()");
     }
 }
@@ -424,24 +425,24 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
 
 // Bind memory to texture
 template<typename T>
-void hipaccBindTexture(hipaccMemoryType mem_type, const textureReference *tex, HipaccImage &img) {
+void hipaccBindTexture(hipaccMemoryType mem_type, const textureReference *tex, const HipaccImage &img) {
     cudaError_t err = cudaSuccess;
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
 
     switch (mem_type) {
         case Linear1D:
-            assert(img.mem_type<=Linear2D && "expected linear memory");
-            err = cudaBindTexture(NULL, tex, img.mem, &channelDesc, sizeof(T)*img.stride*img.height);
+            assert(img->mem_type<=Linear2D && "expected linear memory");
+            err = cudaBindTexture(NULL, tex, img->mem, &channelDesc, sizeof(T)*img->stride*img->height);
             checkErr(err, "cudaBindTexture()");
             break;
         case Linear2D:
-            assert(img.mem_type<=Linear2D && "expected linear memory");
-            err = cudaBindTexture2D(NULL, tex, img.mem, &channelDesc, img.width, img.height, img.stride*sizeof(T));
+            assert(img->mem_type<=Linear2D && "expected linear memory");
+            err = cudaBindTexture2D(NULL, tex, img->mem, &channelDesc, img->width, img->height, img->stride*sizeof(T));
             checkErr(err, "cudaBindTexture2D()");
             break;
         case Array2D:
-            assert(img.mem_type==Array2D && "expected Array2D memory");
-            err = cudaBindTextureToArray(tex, (cudaArray *)img.mem, &channelDesc);
+            assert(img->mem_type==Array2D && "expected Array2D memory");
+            err = cudaBindTextureToArray(tex, (cudaArray *)img->mem, &channelDesc);
             checkErr(err, "cudaBindTextureToArray()");
             break;
         default:
@@ -452,10 +453,10 @@ void hipaccBindTexture(hipaccMemoryType mem_type, const textureReference *tex, H
 
 // Bind 2D array to surface
 template<typename T>
-void hipaccBindSurface(hipaccMemoryType mem_type, const surfaceReference *surf, HipaccImage &img) {
+void hipaccBindSurface(hipaccMemoryType mem_type, const surfaceReference *surf, const HipaccImage &img) {
     assert(mem_type==Surface && "wrong texture type");
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<T>();
-    cudaError_t err = cudaBindSurfaceToArray(surf, (cudaArray *)img.mem, &channelDesc);
+    cudaError_t err = cudaBindSurfaceToArray(surf, (cudaArray *)img->mem, &channelDesc);
     checkErr(err, "cudaBindSurfaceToArray()");
 }
 
@@ -513,7 +514,7 @@ void hipaccSetupArgument(const void *arg, size_t size, size_t &offset) {
         offset += offset % size;
     }
     cudaError_t err = cudaSetupArgument(arg, size, offset);
-    checkErr(err, "clSetKernelArg()");
+    checkErr(err, "cudaSetupArgument()");
     offset += size;
 }
 
@@ -796,27 +797,27 @@ void hipaccGetSurfRef(CUsurfref &surf, CUmodule &module, std::string surface_nam
 
 
 // Bind texture to linear memory
-void hipaccBindTextureDrv(CUtexref &texture, HipaccImage &img, CUarray_format
+void hipaccBindTextureDrv(CUtexref &texture, const HipaccImage &img, CUarray_format
         format, hipaccMemoryType tex_type) {
     checkErrDrv(cuTexRefSetFormat(texture, format, 1), "cuTexRefSetFormat()");
     checkErrDrv(cuTexRefSetFlags(texture, CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
     switch (tex_type) {
         case Linear1D:
-            checkErrDrv(cuTexRefSetAddress(0, texture, (CUdeviceptr)img.mem,
-                        img.pixel_size*img.stride*img.height),
+            checkErrDrv(cuTexRefSetAddress(0, texture, (CUdeviceptr)img->mem,
+                        img->pixel_size*img->stride*img->height),
                     "cuTexRefSetAddress()");
             break;
         case Linear2D:
             CUDA_ARRAY_DESCRIPTOR desc;
             desc.Format = format;
             desc.NumChannels = 1;
-            desc.Width = img.width;
-            desc.Height = img.height;
-            checkErrDrv(cuTexRefSetAddress2D(texture, &desc, (CUdeviceptr)img.mem,
-                        img.pixel_size*img.stride), "cuTexRefSetAddress2D()");
+            desc.Width = img->width;
+            desc.Height = img->height;
+            checkErrDrv(cuTexRefSetAddress2D(texture, &desc, (CUdeviceptr)img->mem,
+                        img->pixel_size*img->stride), "cuTexRefSetAddress2D()");
             break;
         case Array2D:
-            checkErrDrv(cuTexRefSetArray(texture, (CUarray)img.mem,
+            checkErrDrv(cuTexRefSetArray(texture, (CUarray)img->mem,
                         CU_TRSA_OVERRIDE_FORMAT), "cuTexRefSetArray()");
             break;
         default:
@@ -826,21 +827,21 @@ void hipaccBindTextureDrv(CUtexref &texture, HipaccImage &img, CUarray_format
 
 
 // Bind surface to 2D array
-void hipaccBindSurfaceDrv(CUsurfref &surface, HipaccImage &img) {
-    checkErrDrv(cuSurfRefSetArray(surface, (CUarray)img.mem, 0), "cuSurfRefSetArray()");
+void hipaccBindSurfaceDrv(CUsurfref &surface, const HipaccImage &img) {
+    checkErrDrv(cuSurfRefSetArray(surface, (CUarray)img->mem, 0), "cuSurfRefSetArray()");
 }
 
 
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const void *kernel1D, std::string kernel1D_name,
-                       HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
+                       const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
     // first step: reduce image (region) into linear memory
     dim3 block(max_threads, 1);
-    dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/pixels_per_thread));
+    dim3 grid((int)ceilf((float)(acc.img->width)/(block.x*2)), (int)ceilf((float)(acc.height)/pixels_per_thread));
     unsigned int num_blocks = grid.x*grid.y;
     unsigned int idle_left = 0;
 
@@ -848,12 +849,12 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
     checkErr(err, "cudaMalloc()");
 
     if ((acc.offset_x || acc.offset_y) &&
-        (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+        (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
         // reduce iteration space by idle blocks
         idle_left = acc.offset_x / block.x;
-        unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / block.x;
+        unsigned int idle_right = (acc.img->width - (acc.offset_x+acc.width)) / block.x;
         grid.x = (int)ceilf((float)
-                (acc.img.width - (idle_left + idle_right) * block.x) /
+                (acc.img->width - (idle_left + idle_right) * block.x) /
                 (block.x*2));
 
         // update number of blocks
@@ -864,10 +865,10 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
     size_t offset = 0;
     hipaccConfigureCall(grid, block);
 
-    switch (acc.img.mem_type) {
+    switch (acc.img->mem_type) {
         default:
         case Global:
-            hipaccSetupArgument(&acc.img.mem, sizeof(T *), offset);
+            hipaccSetupArgument(&acc.img->mem, sizeof(T *), offset);
             break;
         case Array2D:
             hipaccBindTexture<T>(Array2D, tex, acc.img);
@@ -875,12 +876,12 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
     }
 
     hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&acc.img.width, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img.height, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img.stride, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img->width, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img->height, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img->stride, sizeof(unsigned int), offset);
     // check if the reduction is applied to the whole image
     if ((acc.offset_x || acc.offset_y) &&
-        (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+        (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
         hipaccSetupArgument(&acc.offset_x, sizeof(unsigned int), offset);
         hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
         hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
@@ -924,7 +925,7 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const void *kernel1D, std::string kernel1D_name,
-                       HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
+                       const HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     HipaccAccessor acc(img);
     return hipaccApplyReduction<T>(kernel2D, kernel2D_name, kernel1D, kernel1D_name, acc, max_threads, pixels_per_thread, tex);
 }
@@ -933,14 +934,14 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
 // Perform global reduction using memory fence operations and return result
 template<typename T>
 T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_name,
-                                  HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
+                                  const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
     // single step reduction: reduce image (region) into linear memory and
     // reduce the linear memory using memory fence operations
     dim3 block(max_threads, 1);
-    dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/pixels_per_thread));
+    dim3 grid((int)ceilf((float)(acc.img->width)/(block.x*2)), (int)ceilf((float)(acc.height)/pixels_per_thread));
     unsigned int num_blocks = grid.x*grid.y;
     unsigned int idle_left = 0;
 
@@ -948,12 +949,12 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_nam
     checkErr(err, "cudaMalloc()");
 
     if ((acc.offset_x || acc.offset_y) &&
-        (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+        (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
         // reduce iteration space by idle blocks
         idle_left = acc.offset_x / block.x;
-        unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / block.x;
+        unsigned int idle_right = (acc.img->width - (acc.offset_x+acc.width)) / block.x;
         grid.x = (int)ceilf((float)
-                (acc.img.width - (idle_left + idle_right) * block.x) /
+                (acc.img->width - (idle_left + idle_right) * block.x) /
                 (block.x*2));
 
         // update number of blocks
@@ -963,10 +964,10 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_nam
     size_t offset = 0;
     hipaccConfigureCall(grid, block);
 
-    switch (acc.img.mem_type) {
+    switch (acc.img->mem_type) {
         default:
         case Global:
-            hipaccSetupArgument(&acc.img.mem, sizeof(T *), offset);
+            hipaccSetupArgument(&acc.img->mem, sizeof(T *), offset);
             break;
         case Array2D:
             hipaccBindTexture<T>(Array2D, tex, acc.img);
@@ -974,12 +975,12 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_nam
     }
 
     hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&acc.img.width, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img.height, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img.stride, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img->width, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img->height, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img->stride, sizeof(unsigned int), offset);
     // check if the reduction is applied to the whole image
     if ((acc.offset_x || acc.offset_y) &&
-        (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+        (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
         hipaccSetupArgument(&acc.offset_x, sizeof(unsigned int), offset);
         hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
         hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
@@ -1000,7 +1001,7 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_nam
 // Perform global reduction using memory fence operations and return result
 template<typename T>
 T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_name,
-                                  HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
+                                  const HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, const textureReference *tex) {
     HipaccAccessor acc(img);
     return hipaccApplyReductionThreadFence<T>(kernel2D, kernel2D_name, acc, max_threads, pixels_per_thread, tex);
 }
@@ -1009,22 +1010,22 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_nam
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D,
-                                  HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
+                                  const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     T *output;  // GPU memory for reduction
     T result;   // host result
 
-    unsigned int num_blocks = (int)ceilf((float)(acc.img.width)/(max_threads*2))*acc.height;
+    unsigned int num_blocks = (int)ceilf((float)(acc.img->width)/(max_threads*2))*acc.height;
     unsigned int idle_left = 0;
 
     cudaError_t err = cudaMalloc((void **) &output, sizeof(T)*num_blocks);
     checkErr(err, "cudaMalloc()");
 
     void *argsReduction2D[] = {
-        (void *)&acc.img.mem,
+        (void *)&acc.img->mem,
         (void *)&output,
-        (void *)&acc.img.width,
-        (void *)&acc.img.height,
-        (void *)&acc.img.stride,
+        (void *)&acc.img->width,
+        (void *)&acc.img->height,
+        (void *)&acc.img->stride,
         (void *)&acc.offset_x,
         (void *)&acc.offset_y,
         (void *)&acc.width,
@@ -1033,9 +1034,9 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
     };
     void *argsReduction2DArray[] = {
         (void *)&output,
-        (void *)&acc.img.width,
-        (void *)&acc.img.height,
-        (void *)&acc.img.stride,
+        (void *)&acc.img->width,
+        (void *)&acc.img->height,
+        (void *)&acc.img->stride,
         (void *)&acc.offset_x,
         (void *)&acc.offset_y,
         (void *)&acc.width,
@@ -1071,17 +1072,17 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
 
         for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
             dim3 block(max_threads, 1);
-            dim3 grid((int)ceilf((float)(acc.img.width)/(block.x*2)), (int)ceilf((float)(acc.height)/ppt));
+            dim3 grid((int)ceilf((float)(acc.img->width)/(block.x*2)), (int)ceilf((float)(acc.height)/ppt));
             num_blocks = grid.x*grid.y;
 
             // check if the reduction is applied to the whole image
             if ((acc.offset_x || acc.offset_y) &&
-                (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+                (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
                 // reduce iteration space by idle blocks
                 idle_left = acc.offset_x / block.x;
-                unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / block.x;
+                unsigned int idle_right = (acc.img->width - (acc.offset_x+acc.width)) / block.x;
                 grid.x = (int)ceilf((float)
-                        (acc.img.width - (idle_left + idle_right) * block.x) /
+                        (acc.img->width - (idle_left + idle_right) * block.x) /
                         (block.x*2));
 
                 // update number of blocks
@@ -1157,7 +1158,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
 }
 template<typename T>
 T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D,
-                                  HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
+                                  const HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread, hipacc_tex_info tex_info, int cc) {
     HipaccAccessor acc(img);
     return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc, max_threads, pixels_per_thread, tex_info, cc);
 }

@@ -410,34 +410,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   // insert initialization before first statement
   TextRewriter.InsertTextBefore(CS->body_front()->getLocStart(), initStr);
 
-  // insert memory release calls before last statement (return-statement)
-  // release all images
-  for (auto map : ImgDeclMap) {
-    auto img = map.second;
-    std::string releaseStr;
-
-    stringCreator.writeMemoryRelease(img, releaseStr);
-    TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
-  }
-  // release all non-const masks
-  for (auto map : MaskDeclMap) {
-    auto mask = map.second;
-    std::string releaseStr;
-
-    if (!compilerOptions.emitCUDA() && !mask->isConstant()) {
-      stringCreator.writeMemoryRelease(mask, releaseStr);
-      TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
-    }
-  }
-  // release all pyramids
-  for (auto map : PyrDeclMap) {
-    auto pyramid = map.second;
-    std::string releaseStr;
-
-    stringCreator.writeMemoryRelease(pyramid, releaseStr, true);
-    TextRewriter.InsertTextBefore(CS->body_back()->getLocStart(), releaseStr);
-  }
-
   // get buffer of main file id. If we haven't changed it, then we are done.
   if (auto RewriteBuf = TextRewriter.getRewriteBufferFor(mainFileID)) {
     *Out << std::string(RewriteBuf->begin(), RewriteBuf->end());
@@ -856,31 +828,30 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               BC->setBoundaryMode(mode);
 
               if (mode == Boundary::CONSTANT) {
-                  if (i+2 != e)
-                    Diags.Report(arg->getExprLoc(), IDMode) << VD->getName();
-                  // check if the parameter can be resolved to a constant
-                  auto const_arg = CCE->getArg(++i);
-                  if (!const_arg->isEvaluatable(Context)) {
-                    Diags.Report(arg->getExprLoc(), IDConstMode) <<
-                      VD->getName();
-                  } else {
-                    Expr::EvalResult val;
-                    const_arg->EvaluateAsRValue(val, Context);
-                    BC->setConstVal(val.Val, Context);
-                  }
+                if (i+2 != e)
+                  Diags.Report(arg->getExprLoc(), IDMode) << VD->getName();
+                // check if the parameter can be resolved to a constant
+                auto const_arg = CCE->getArg(++i);
+                if (!const_arg->isEvaluatable(Context)) {
+                  Diags.Report(arg->getExprLoc(), IDConstMode) << VD->getName();
+                } else {
+                  Expr::EvalResult val;
+                  const_arg->EvaluateAsRValue(val, Context);
+                  BC->setConstVal(val.Val, Context);
+                }
               }
               continue;
             }
+          }
 
-            // check if the argument can be resolved to a constant
-            if (!arg->isEvaluatable(Context))
-              Diags.Report(arg->getExprLoc(), IDConstSize) << VD->getName();
-            if (size_args++ == 0) {
-              BC->setSizeX(arg->EvaluateKnownConstInt(Context).getSExtValue());
-              BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
-            } else {
-              BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
-            }
+          // check if the argument can be resolved to a constant
+          if (!arg->isEvaluatable(Context))
+            Diags.Report(arg->getExprLoc(), IDConstSize) << VD->getName();
+          if (size_args++ == 0) {
+            BC->setSizeX(arg->EvaluateKnownConstInt(Context).getSExtValue());
+            BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
+          } else {
+            BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
           }
         }
 
@@ -1715,9 +1686,9 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         }
 
         if (ME->getMemberNameInfo().getAsString() == "width") {
-          newStr = "width";
+          newStr = "->width";
         } else if (ME->getMemberNameInfo().getAsString() == "height") {
-          newStr = "height";
+          newStr = "->height";
         }
       }
 
@@ -1725,15 +1696,15 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       if (AccDeclMap.count(DRE->getDecl())) {
         // match for supported member calls
         if (ME->getMemberNameInfo().getAsString() == "width") {
-          newStr = "img.width";
+          newStr = ".img->width";
         } else if (ME->getMemberNameInfo().getAsString() == "height") {
-          newStr = "img.height";
+          newStr = ".img->height";
         }
       }
 
       if (!newStr.empty()) {
         // replace member function invocation
-        SourceRange range(ME->getMemberLoc(), E->getLocEnd());
+        SourceRange range(ME->getOperatorLoc(), E->getLocEnd());
         TextRewriter.ReplaceText(range, newStr);
       }
     }

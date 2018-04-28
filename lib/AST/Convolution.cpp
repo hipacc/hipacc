@@ -80,7 +80,7 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
           tmp_var->getType());
       break;
     case Reduce::MEDIAN:
-      assert(0 && "Unsupported convolution mode.");
+      assert(0 && "Unsupported reduction mode.");
   }
 
   return result;
@@ -93,7 +93,8 @@ template<typename T> T get_init(Reduce mode) {
     case Reduce::MIN:    return std::numeric_limits<T>::max();
     case Reduce::MAX:    return std::numeric_limits<T>::min();
     case Reduce::PROD:   return 1;
-    case Reduce::MEDIAN: assert(false && "median not yet supported");
+    case Reduce::MEDIAN: assert(false && "Median not yet supported");
+    default:             assert(false && "Unsupported reduction mode");
   }
 }
 
@@ -122,38 +123,46 @@ Expr *ASTTranslate::getInitExpr(Reduce mode, QualType QT) {
     default:
       assert(0 && "BuiltinType for reduce function not supported.");
 
+    // FIXME: Clang adds weird suffixes to integer literals with less then 32
+    // bits (e.g. "i8", "Ui16", @see StmtPrinter::VisitIntegerLiteral). As a
+    // workaround, we fall through for integer types smaller 32 bits and create
+    // the accordingly signed 32 bit literal instead.
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
-      initExpr = new (Ctx) CharacterLiteral(get_init<signed char>(mode),
-          CharacterLiteral::Ascii, QT, SourceLocation());
+      //initExpr = new (Ctx) CharacterLiteral(get_init<signed char>(mode),
+      //    CharacterLiteral::Ascii, QT, SourceLocation());
+      //break;
+    case BuiltinType::Short: //{
+      //llvm::APInt init(16, get_init<short>(mode));
+      //initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      //break; }
+    case BuiltinType::Int: //{
+      //llvm::APInt init(32, get_init<int>(mode));
+      //initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      //break; }
+      initExpr = createIntegerLiteral(Ctx, get_init<int>(mode));
       break;
-    case BuiltinType::Char_U:
-    case BuiltinType::UChar:
-      initExpr = new (Ctx) CharacterLiteral(get_init<unsigned char>(mode),
-          CharacterLiteral::Ascii, QT, SourceLocation());
-      break;
-    case BuiltinType::Short: {
-      llvm::APInt init(16, get_init<short>(mode));
-      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
-      break; }
-    case BuiltinType::Char16:
-    case BuiltinType::UShort: {
-      llvm::APInt init(16, get_init<unsigned short>(mode));
-      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
-      break; }
-    case BuiltinType::Int: {
-      llvm::APInt init(32, get_init<int>(mode));
-      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
-      break; }
-    case BuiltinType::Char32:
-    case BuiltinType::UInt: {
-      llvm::APInt init(32, get_init<unsigned>(mode));
-      initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
-      break; }
     case BuiltinType::Long: {
       llvm::APInt init(64, get_init<long long>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
       break; }
+    case BuiltinType::Char_U:
+    case BuiltinType::UChar:
+      //initExpr = new (Ctx) CharacterLiteral(get_init<unsigned char>(mode),
+      //    CharacterLiteral::Ascii, QT, SourceLocation());
+      //break;
+    case BuiltinType::Char16:
+    case BuiltinType::UShort: //{
+      //llvm::APInt init(16, get_init<unsigned short>(mode));
+      //initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      //break; }
+    case BuiltinType::Char32:
+    case BuiltinType::UInt: //{
+      //llvm::APInt init(32, get_init<unsigned>(mode));
+      //initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
+      //break; }
+      initExpr = createIntegerLiteral(Ctx, get_init<unsigned>(mode));
+      break;
     case BuiltinType::ULong: {
       llvm::APInt init(64, get_init<unsigned long long>(mode));
       initExpr = new (Ctx) IntegerLiteral(Ctx, init, EQT, SourceLocation());
@@ -242,7 +251,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   } else if (E->getDirectCallee()->getName().equals("iterate")) {
     method = Method::Iterate;
   } else {
-    assert(false && "unsupported convolution method.");
+    assert(false && "Unsupported convolution method.");
   }
 
   switch (method) {
@@ -465,6 +474,8 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
           CK_LValueToRValue, tmp_dre, nullptr, VK_RValue);
     case Method::Iterate:
       return nullptr;
+    default:
+      assert(false && "Unsupported convolution method.");
   }
 }
 
