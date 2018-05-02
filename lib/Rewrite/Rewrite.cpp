@@ -512,8 +512,9 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
       if (compilerClasses.isTypeOfTemplateClass(base.getType(),
             compilerClasses.Kernel)) {
         KC = new HipaccKernelClass(D->getNameAsString());
-        KC->setPixelType(compilerClasses.getTemplateType(base.getType(), 0));
-        KC->setBinType(compilerClasses.getTemplateType(base.getType(), 1));
+        KC->setPixelType(compilerClasses.getFirstTemplateType(base.getType()));
+        KC->setBinType(compilerClasses.getTemplateType(base.getType(),
+              compilerClasses.getNumberOfTemplateArguments(base.getType())-1));
         KernelClassDeclMap[D] = KC;
         // remove user kernel class (semicolon doesn't count to SourceRange)
         SourceLocation startLoc = D->getLocStart();

@@ -112,6 +112,23 @@ class CompilerKnownClasses {
       return false;
     }
 
+    unsigned getNumberOfTemplateArguments(QualType QT) {
+      if (QT->isReferenceType()) {
+        QT = QT->getPointeeType();
+      }
+
+      if (QT->getTypeClass() == Type::Elaborated) {
+        QT = cast<ElaboratedType>(QT)->getNamedType();
+      }
+
+      // class<type> ...
+      assert(QT->getTypeClass() == Type::TemplateSpecialization &&
+          "instance of template class expected");
+      auto TST = dyn_cast<TemplateSpecializationType>(QT);
+
+      return TST->getNumArgs();
+    }
+
     QualType getTemplateType(QualType QT, unsigned id) {
       if (QT->isReferenceType()) {
         QT = QT->getPointeeType();
