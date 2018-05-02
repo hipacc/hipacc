@@ -959,9 +959,9 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
 
 
 void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr) {
-  std::string imgTypeStr(K->getIterationSpace()->getImage()->getTypeStr());
-  std::string binTypeStr(K->getKernelClass()->getReduceFunction()->getReturnType().getAsString());
-  std::string red_decl(binTypeStr + " *" + K->getReduceStr() + " = ");
+  std::string pixTypeStr(K->getKernelClass()->getPixelType().getAsString());
+  std::string binTypeStr(K->getKernelClass()->getBinType().getAsString());
+  std::string bin_decl(binTypeStr + " *" + K->getBinningStr() + " = ");
 
   // print runtime function name plus name of reduction function
   switch (options.getTargetLang()) {
@@ -975,14 +975,14 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       resultStr += "&_tex" + K->getIterationSpace()->getImage()->getName() + K->getName() + ");\n";
       resultStr += indent;
 
-      resultStr += red_decl;
+      resultStr += bin_decl;
 
       resultStr += "hipaccApplyBinningSegmented<";
       resultStr += binTypeStr + ", ";
-      resultStr += imgTypeStr + ", ";
-      resultStr += "NUM_BINS>(";
-      resultStr += "(const void *)&" + K->getReduceName() + "2D, ";
-      resultStr += "\"" + K->getReduceName() + "2D\", ";
+      resultStr += pixTypeStr + ", ";
+      resultStr += K->getKernelName() + "NUM_BINS>(";
+      resultStr += "(const void *)&" + K->getBinningName() + "2D, ";
+      resultStr += "\"" + K->getBinningName() + "2D\", ";
       break;
     case Language::C99:
     case Language::Renderscript:
@@ -1000,8 +1000,8 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
   // TODO: use block info
   //resultStr += std::to_string(K->getNumThreadsReduce()) + ", ";
   //resultStr += std::to_string(K->getPixelsPerThreadReduce());
-  resultStr += "NUM_HIST, ";
-  resultStr += "NUM_WARPS";
+  resultStr += K->getKernelName() + "NUM_HIST, ";
+  resultStr += K->getKernelName() + "NUM_WARPS";
 
   if (options.emitCUDA()) {
     // print 2D CUDA array texture information - this parameter is only used if

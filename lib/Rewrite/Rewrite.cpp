@@ -315,10 +315,10 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
         for (auto map : KernelDeclMap) {
           HipaccKernel* K = map.second;
           if (K->getNumBins() != 0) {
-            newStr += "#define NUM_BINS " + std::to_string(K->getNumBins()) + "\n";
-            newStr += "#define NUM_WARPS 16\n";
-            newStr += "#define NUM_HIST 19\n";
-            newStr += "#define PPT 16\n";
+            newStr += "#define " + K->getKernelName() + "NUM_BINS " + std::to_string(K->getNumBins()) + "\n";
+            newStr += "#define " + K->getKernelName() + "NUM_WARPS 16\n";
+            newStr += "#define " + K->getKernelName() + "NUM_HIST 19\n";
+            newStr += "#define " + K->getKernelName() + "PPT 16\n";
           }
           newStr += "#include \"";
           newStr += K->getFileName();
@@ -1704,21 +1704,26 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
             || ME->getMemberNameInfo().getAsString() == "reduced_data") {
           HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
 
-          //
-          // TODO: make sure that kernel was executed before reduced_data call
-          //
-          // replace member function invocation
-          SourceRange range(E->getLocStart(), E->getLocEnd());
-          TextRewriter.ReplaceText(range, K->getReduceStr());
-
+          std::string dataVar;
           if (ME->getMemberNameInfo().getAsString() == "binned_data") {
+            dataVar = K->getBinningStr();
+
             // get number of bins
             if (auto IL = dyn_cast<IntegerLiteral>(E->getArg(0)->IgnoreImpCasts())) {
               K->setNumBins(IL->getValue().getSExtValue());
             } else {
               assert(false && "Expected Integer literal as first argument for 'binned_data'");
             }
+          } else {
+            dataVar = K->getReduceStr();
           }
+
+          //
+          // TODO: make sure that kernel was executed before *_data call
+          //
+          // replace member function invocation
+          SourceRange range(E->getLocStart(), E->getLocEnd());
+          TextRewriter.ReplaceText(range, dataVar);
 
           return true;
         }
@@ -1941,8 +1946,9 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       assert(false && "Multi-dimensional reductions only supported for CUDA");
       break;
     case Language::CUDA:
-      OS << "#define BS " << K->getWarpSize() << "\n"
-         << "#define NUM_SEGMENTS ((NUM_BINS+SEGMENT_SIZE-1)/SEGMENT_SIZE)\n";
+      OS << "#define " << K->getKernelName() << "BS " << K->getWarpSize() << "\n"
+         << "#define " << K->getKernelName() << "NUM_SEGMENTS (("
+             << K->getKernelName() << "NUM_BINS+SEGMENT_SIZE-1)/SEGMENT_SIZE)\n";
       break;
   }
   OS << "\n";
@@ -1988,10 +1994,10 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       break;
     case Language::CUDA:
       // 2D reduction
-      OS << "__device__ unsigned finished_blocks_" << K->getReduceName()
-         << "2D[NUM_SEGMENTS] = {0};\n\n";
+      OS << "__device__ unsigned finished_blocks_" << K->getBinningName()
+         << "2D[" << K->getKernelName() << "NUM_SEGMENTS] = {0};\n\n";
       OS << "BINNING_CUDA_2D_SEGMENTED(";
-      OS << K->getReduceName() << "2D, "
+      OS << K->getBinningName() << "2D, "
          << red_fun->getReturnType().getAsString() << ", "
          << K->getIterationSpace()->getImage()->getTypeStr() << ", "
          << K->getReduceName() << ", "
@@ -2001,10 +2007,10 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       } else {
         OS << "ACCU_NONINT, UNTAG_NONINT, ";
       }
-      OS << "NUM_BINS, "
-         << "BS, "
-         << "NUM_WARPS, "
-         << "NUM_HIST, "
+      OS << K->getKernelName() << "NUM_BINS, "
+         << K->getKernelName() << "BS, "
+         << K->getKernelName() << "NUM_WARPS, "
+         << K->getKernelName() << "NUM_HIST, "
          << "SEGMENT_SIZE, "
          << "_tex" << K->getIterationSpace()->getImage()->getName() + K->getName()
          << ")\n\n";

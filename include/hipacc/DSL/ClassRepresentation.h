@@ -574,7 +574,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     std::string name;
     std::string kernelName, reduceName, binningName;
     std::string fileName;
-    std::string reduceStr, infoStr;
+    std::string reduceStr, binningStr, infoStr;
     unsigned num_bins;
     unsigned infoStrCnt;
     HipaccIterationSpace *iterationSpace;
@@ -615,7 +615,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       reduceName(options.getTargetPrefix() + KC->getName() + name + "Reduce"),
       binningName(options.getTargetPrefix() + KC->getName() + name + "Binning"),
       fileName(options.getTargetPrefix() + KC->getName() + VD->getNameAsString()),
-      reduceStr(), infoStr(),
+      reduceStr(), binningStr(), infoStr(),
       num_bins(0),
       infoStrCnt(0),
       iterationSpace(nullptr),
@@ -657,6 +657,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     const std::string &getFileName() const { return fileName; }
     const std::string &getInfoStr() const { return infoStr; }
     const std::string &getReduceStr() const { return reduceStr; }
+    const std::string &getBinningStr() const { return binningStr; }
 
     // keep track of variables used within kernel
     void setUsed(std::string name) { usedVars.insert(name); }
@@ -720,6 +721,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       std::string cnt(std::to_string(infoStrCnt++));
       infoStr = name + "_info" + cnt;
       reduceStr = name + "_red" + cnt;
+      binningStr = name + "_bin" + cnt;
       createArgInfo();
       createHostArgInfo(hostArgs, hostLiterals, literalCount);
     }
