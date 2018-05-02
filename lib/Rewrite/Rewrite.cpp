@@ -1996,7 +1996,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << K->getIterationSpace()->getImage()->getTypeStr() << ", "
          << K->getReduceName() << ", "
          << K->getBinningName() << ", ";
-      if (true) { // TODO: Check for Integer type
+      if (KC->getBinType().getTypePtr()->isIntegerType()) {
         OS << "ACCU_INT, UNTAG_INT, ";
       } else {
         OS << "ACCU_NONINT, UNTAG_NONINT, ";
