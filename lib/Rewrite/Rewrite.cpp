@@ -316,9 +316,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
           HipaccKernel* K = map.second;
           if (K->getNumBins() != 0) {
             newStr += "#define " + K->getKernelName() + "NUM_BINS " + std::to_string(K->getNumBins()) + "\n";
-            newStr += "#define " + K->getKernelName() + "NUM_WARPS 16\n";
-            newStr += "#define " + K->getKernelName() + "NUM_HIST 19\n";
-            newStr += "#define " + K->getKernelName() + "PPT 16\n";
           }
           newStr += "#include \"";
           newStr += K->getFileName();
@@ -1934,8 +1931,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   }
 
   // preprocessor defines
-  //OS << "#define PPT " << K->getPixelsPerThreadReduce() << "\n";
-
+  std::string KID = K->getKernelName();
   switch (compilerOptions.getTargetLang()) {
     case Language::C99:
     case Language::OpenCLACC:
@@ -1946,9 +1942,12 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       assert(false && "Multi-dimensional reductions only supported for CUDA");
       break;
     case Language::CUDA:
-      OS << "#define " << K->getKernelName() << "BS " << K->getWarpSize() << "\n"
-         << "#define " << K->getKernelName() << "NUM_SEGMENTS (("
-             << K->getKernelName() << "NUM_BINS+SEGMENT_SIZE-1)/SEGMENT_SIZE)\n";
+      OS << "#define " << KID << "WARP_SIZE " << K->getWarpSize() << "\n"
+         << "#define " << KID << "NUM_WARPS 16\n"
+         << "#define " << KID << "NUM_HIST  19\n"
+         << "#define " << KID << "PPT       " << K->getPixelsPerThread() << "\n"
+         << "#define " << KID << "NUM_SEGMENTS (("
+             << KID << "NUM_BINS+SEGMENT_SIZE-1)/SEGMENT_SIZE)\n";
       break;
   }
   OS << "\n";
@@ -1995,11 +1994,11 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case Language::CUDA:
       // 2D reduction
       OS << "__device__ unsigned finished_blocks_" << K->getBinningName()
-         << "2D[" << K->getKernelName() << "NUM_SEGMENTS] = {0};\n\n";
+         << "2D[" << KID << "NUM_SEGMENTS] = {0};\n\n";
       OS << "BINNING_CUDA_2D_SEGMENTED(";
       OS << K->getBinningName() << "2D, "
-         << red_fun->getReturnType().getAsString() << ", "
-         << K->getIterationSpace()->getImage()->getTypeStr() << ", "
+         << K->getKernelClass()->getPixelType().getAsString() << ", "
+         << K->getKernelClass()->getBinType().getAsString() << ", "
          << K->getReduceName() << ", "
          << K->getBinningName() << ", ";
       if (KC->getBinType().getTypePtr()->isIntegerType()) {
@@ -2007,10 +2006,11 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       } else {
         OS << "ACCU_NONINT, UNTAG_NONINT, ";
       }
-      OS << K->getKernelName() << "NUM_BINS, "
-         << K->getKernelName() << "BS, "
-         << K->getKernelName() << "NUM_WARPS, "
-         << K->getKernelName() << "NUM_HIST, "
+      OS << KID << "NUM_BINS, "
+         << KID << "WARP_SIZE, "
+         << KID << "NUM_WARPS, "
+         << KID << "NUM_HIST, "
+         << KID << "PPT, "
          << "SEGMENT_SIZE, "
          << "_tex" << K->getIterationSpace()->getImage()->getName() + K->getName()
          << ")\n\n";
@@ -2024,7 +2024,6 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
 
   if (compilerOptions.emitCUDA())
     OS << "}\n";
-  OS << "#include \"hipacc_undef.hpp\"\n";
   OS << "\n";
 }
 

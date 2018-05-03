@@ -2406,7 +2406,7 @@ Stmt *ASTTranslate::BinningTranslator::VisitCompoundStmt(CompoundStmt *S) {
   for (auto stmt : S->body())
     body.push_back(Clone(stmt));
 
-  return new (Ctx) CompoundStmt(Ctx, body, S->getLBracLoc(), S->getLBracLoc());
+  return new (ctx_) CompoundStmt(ctx_, body, S->getLBracLoc(), S->getLBracLoc());
 }
 
 
@@ -2418,12 +2418,12 @@ Expr *ASTTranslate::BinningTranslator::VisitBinaryOperator(BinaryOperator *E) {
     if (ME->getMemberNameInfo().getAsString() == "bin") {
       SmallVector<Expr *, 16> args;
 
-      args.push_back(lmem);
-      args.push_back(offset);
+      args.push_back(lmem_);
+      args.push_back(offset_);
       args.push_back(MCE->getArg(0));
       args.push_back(E->getRHS());
 
-      return createFunctionCall(Ctx, binFunc, args);
+      return createFunctionCall(ctx_, binFunc_, args);
     }
   }
 

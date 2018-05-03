@@ -267,28 +267,28 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 
 // Helper macros for accumulating integers in segmented binning/reduction
 // (first 5 bits are used for tagging with thread id)
-#define UNTAG_INT(DATA_TYPE, VAL) \
-  (VAL) & ~(0xF8 << ((sizeof(DATA_TYPE)-1)*8))
+#define UNTAG_INT(BIN_TYPE, VAL) \
+  (VAL) & ~(0xF8 << ((sizeof(BIN_TYPE)-1)*8))
 
-#define TAG_INT(DATA_TYPE, VAL) \
-  (VAL) | (threadIdx.x << (3 + ((sizeof(DATA_TYPE)-1)*8)))
+#define TAG_INT(BIN_TYPE, VAL) \
+  (VAL) | (threadIdx.x << (3 + ((sizeof(BIN_TYPE)-1)*8)))
 
-#define ACCU_INT(DATA_TYPE, PTR, REDUCE) \
-  volatile DATA_TYPE* address = PTR; \
-  DATA_TYPE old, val; \
+#define ACCU_INT(BIN_TYPE, PTR, REDUCE) \
+  volatile BIN_TYPE* address = PTR; \
+  BIN_TYPE old, val; \
   do { \
-    old = UNTAG_INT(DATA_TYPE, *address); \
-    val = TAG_INT(DATA_TYPE, REDUCE(old, bin)); \
+    old = UNTAG_INT(BIN_TYPE, *address); \
+    val = TAG_INT(BIN_TYPE, REDUCE(old, bin)); \
     *address = val; \
   } while (*address != val);
 
 
 // Helper macros for accumulating non-integers in segmented binning/reduction
-#define UNTAG_NONINT(DATA_TYPE, VAL) (VAL)
+#define UNTAG_NONINT(BIN_TYPE, VAL) (VAL)
 
-#define ACCU_NONINT(DATA_TYPE, PTR, REDUCE) \
-  DATA_TYPE* address = PTR; \
-  DATA_TYPE old, val; \
+#define ACCU_NONINT(BIN_TYPE, PTR, REDUCE) \
+  BIN_TYPE* address = PTR; \
+  BIN_TYPE old, val; \
   int *oldi = (int*)&old, *vali = (int*)&val; \
   do { \
     old = *address; \
@@ -297,20 +297,20 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 
 
 // Binning and reduction with conflicts solved via AtomicCAS or ThreadIdx
-#define BINNING_CUDA_2D_SEGMENTED(NAME, DATA_TYPE, PIXEL_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, BS, NUM_WARPS, NUM_HIST, SEGMENT_SIZE, INPUT_NAME) \
-__device__ inline void BINNING##Put(DATA_TYPE * __restrict__ lmem, uint offset, uint idx, DATA_TYPE val) { \
+#define BINNING_CUDA_2D_SEGMENTED(NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, BS, NUM_WARPS, NUM_HIST, PPT, SEGMENT_SIZE, INPUT_NAME) \
+__device__ inline void BINNING##Put(BIN_TYPE * __restrict__ lmem, uint offset, uint idx, BIN_TYPE val) { \
   idx -= offset; \
   if (idx < SEGMENT_SIZE) { \
  \
     /* set bin value */ \
-    uint bin = val; \
+    BIN_TYPE bin = val; \
  \
     /* accumulate using reduce function */ \
-    ACCU(DATA_TYPE, &lmem[idx], REDUCE); \
+    ACCU(BIN_TYPE, &lmem[idx], REDUCE); \
   } \
 } \
  \
-__device__ inline void BINNING##Shell(DATA_TYPE * __restrict__ lmem, unsigned int offset, const uint x, const uint gy, const PIXEL_TYPE * __restrict__ input, const uint height, const uint stride) { \
+__device__ inline void BINNING##Shell(BIN_TYPE * __restrict__ lmem, unsigned int offset, const uint x, const uint gy, const PIXEL_TYPE * __restrict__ input, const uint height, const uint stride) { \
   uint pos = x + gy * stride; \
   const uint inc = height/PPT*stride; \
   _Pragma("unroll") \
@@ -325,12 +325,12 @@ __device__ inline void BINNING##Shell(DATA_TYPE * __restrict__ lmem, unsigned in
 } \
  \
 __global__ void __launch_bounds__ (BS*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INPUT_NAME) \
-        DATA_TYPE *output, const unsigned int width, const unsigned int height, \
+        BIN_TYPE *output, const unsigned int width, const unsigned int height, \
         const unsigned int stride) { \
   unsigned int lid = threadIdx.x + threadIdx.y * BS; \
  \
-  __shared__ DATA_TYPE warp_hist[NUM_WARPS*SEGMENT_SIZE]; \
-  DATA_TYPE* lhist = &warp_hist[threadIdx.y * SEGMENT_SIZE]; \
+  __shared__ BIN_TYPE warp_hist[NUM_WARPS*SEGMENT_SIZE]; \
+  BIN_TYPE* lhist = &warp_hist[threadIdx.y * SEGMENT_SIZE]; \
  \
   /* initialize shared memory */ \
   _Pragma("unroll") \
@@ -346,7 +346,7 @@ __global__ void __launch_bounds__ (BS*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INP
   unsigned int end = width * height/PPT; \
   unsigned int offset = blockIdx.y * SEGMENT_SIZE; \
  \
-  DATA_TYPE bin = 0; \
+  BIN_TYPE bin = 0; \
   _Pragma("unroll") \
   for (unsigned int i = gpos; i < end; i += increment) { \
     unsigned int gid_y = i / width; \
@@ -358,10 +358,10 @@ __global__ void __launch_bounds__ (BS*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INP
  \
   /* assemble segments and write partial histograms */ \
   if (lid < SEGMENT_SIZE) { \
-    bin = UNTAG(DATA_TYPE, warp_hist[lid]); \
+    bin = UNTAG(BIN_TYPE, warp_hist[lid]); \
     _Pragma("unroll") \
     for (unsigned int i = 1; i < NUM_WARPS; ++i) { \
-      bin = REDUCE(bin, UNTAG(DATA_TYPE, warp_hist[i * SEGMENT_SIZE + lid])); \
+      bin = REDUCE(bin, UNTAG(BIN_TYPE, warp_hist[i * SEGMENT_SIZE + lid])); \
     } \
     output[offset + lid + (blockIdx.x * NUM_BINS)] = bin; \
   } \
