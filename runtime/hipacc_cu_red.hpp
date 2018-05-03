@@ -297,7 +297,35 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 
 
 // Binning and reduction with conflicts solved via AtomicCAS or ThreadIdx
-#define BINNING_CUDA_2D_SEGMENTED(NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, BS, NUM_WARPS, NUM_HIST, PPT, SEGMENT_SIZE, INPUT_NAME) \
+//
+// Variables:
+//  - PIXEL_TYPE: Type of image pixels
+//  - BIN_TYPE:   Type of histogram bins
+//  - NUM_BINS:   Number of histogram bins
+//
+// Configuration:
+//  - WARP_SIZE: Threads per warp (32 for NVIDIA)
+//  - NUM_WARPS: Warps per block (affects block size and shared memory size)
+//  - NUM_HIST:  Partial histograms (affects number of blocks)
+//
+// Constants:
+//  - SEGMENT_SIZE: 128 (higher -> less segments and redundancy, more conflicts)
+//
+// Settings:
+//  - Block size:              WARP_SIZE x NUM_WARPS
+//  - Shared memory per block: SEGMENT_SIZE * NUM_WARPS * sizeof(BIN_TYPE)
+//  - Number of segments:      NUM_SEGMENTS = ceil(NUM_BINS/SEGMENT_SIZE)
+//  - Grid size:               NUM_HIST x NUM_SEGMENTS
+//
+// Steps:
+//  1) Each warp computes a single SEGMENT in shared memory.
+//  2) SEGMENTS of all warps within a block are assembled to single SEGMENT
+//     and stored in global memory.
+//      - x SEGMENTS represent partial (full size, not entire image) histogram,
+//      - where x = ceil(NUM_BINS/SEGMENT_SIZE)
+//  3) y partial histograms are merged by x blocks to a single final histogram.
+//      - where y = NUM_HIST
+#define BINNING_CUDA_2D_SEGMENTED(NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, WARP_SIZE, NUM_WARPS, NUM_HIST, PPT, SEGMENT_SIZE, INPUT_NAME) \
 __device__ inline void BINNING##Put(BIN_TYPE * __restrict__ lmem, uint offset, uint idx, BIN_TYPE val) { \
   idx -= offset; \
   if (idx < SEGMENT_SIZE) { \
@@ -324,25 +352,25 @@ __device__ inline void BINNING##Shell(BIN_TYPE * __restrict__ lmem, unsigned int
   } \
 } \
  \
-__global__ void __launch_bounds__ (BS*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INPUT_NAME) \
+__global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INPUT_NAME) \
         BIN_TYPE *output, const unsigned int width, const unsigned int height, \
         const unsigned int stride) { \
-  unsigned int lid = threadIdx.x + threadIdx.y * BS; \
+  unsigned int lid = threadIdx.x + threadIdx.y * WARP_SIZE; \
  \
   __shared__ BIN_TYPE warp_hist[NUM_WARPS*SEGMENT_SIZE]; \
   BIN_TYPE* lhist = &warp_hist[threadIdx.y * SEGMENT_SIZE]; \
  \
   /* initialize shared memory */ \
   _Pragma("unroll") \
-  for (unsigned int i = 0; i < SEGMENT_SIZE; i += BS) { \
+  for (unsigned int i = 0; i < SEGMENT_SIZE; i += WARP_SIZE) { \
     lhist[threadIdx.x + i] = 0; \
   } \
  \
   __syncthreads(); \
  \
   /* compute histogram segments */ \
-  unsigned int increment = NUM_HIST * BS * NUM_WARPS; \
-  unsigned int gpos = ((BS * NUM_WARPS) * blockIdx.x) + (threadIdx.y * BS) + threadIdx.x; \
+  unsigned int increment = NUM_HIST * WARP_SIZE * NUM_WARPS; \
+  unsigned int gpos = ((WARP_SIZE * NUM_WARPS) * blockIdx.x) + (threadIdx.y * WARP_SIZE) + threadIdx.x; \
   unsigned int end = width * height/PPT; \
   unsigned int offset = blockIdx.y * SEGMENT_SIZE; \
  \
@@ -377,7 +405,7 @@ __global__ void __launch_bounds__ (BS*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INP
     __syncthreads(); \
  \
     if (last_block_for_segment) { \
-      unsigned int blocksize = BS * NUM_WARPS; \
+      unsigned int blocksize = WARP_SIZE * NUM_WARPS; \
       unsigned int runs = (SEGMENT_SIZE + blocksize - 1) / blocksize; \
  \
       _Pragma("unroll") \
