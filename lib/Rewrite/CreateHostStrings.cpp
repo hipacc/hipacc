@@ -1000,7 +1000,7 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
   // TODO: use block info
   //resultStr += std::to_string(K->getNumThreadsReduce()) + ", ";
   //resultStr += std::to_string(K->getPixelsPerThreadReduce());
-  resultStr += K->getKernelName() + "NUM_HIST, ";
+  resultStr += K->getKernelName() + "NUM_HISTS, ";
   resultStr += K->getKernelName() + "NUM_WARPS";
 
   if (options.emitCUDA()) {

@@ -1943,8 +1943,8 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       break;
     case Language::CUDA:
       OS << "#define " << KID << "WARP_SIZE " << K->getWarpSize() << "\n"
-         << "#define " << KID << "NUM_WARPS 16\n"
-         << "#define " << KID << "NUM_HIST  19\n"
+         << "#define " << KID << "NUM_WARPS " << compilerOptions.getReduceConfigNumWarps() << "\n"
+         << "#define " << KID << "NUM_HISTS " << compilerOptions.getReduceConfigNumHists() << "\n"
          << "#define " << KID << "PPT       " << K->getPixelsPerThread() << "\n"
          << "#define " << KID << "NUM_SEGMENTS (("
              << KID << "NUM_BINS+SEGMENT_SIZE-1)/SEGMENT_SIZE)\n";
@@ -2009,7 +2009,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       OS << KID << "NUM_BINS, "
          << KID << "WARP_SIZE, "
          << KID << "NUM_WARPS, "
-         << KID << "NUM_HIST, "
+         << KID << "NUM_HISTS, "
          << KID << "PPT, "
          << "SEGMENT_SIZE, "
          << "_tex" << K->getIterationSpace()->getImage()->getName() + K->getName()

@@ -306,7 +306,7 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 // Configuration:
 //  - WARP_SIZE: Threads per warp (32 for NVIDIA)
 //  - NUM_WARPS: Warps per block (affects block size and shared memory size)
-//  - NUM_HIST:  Partial histograms (affects number of blocks)
+//  - NUM_HISTS: Partial histograms (affects number of blocks)
 //
 // Constants:
 //  - SEGMENT_SIZE: 128 (higher -> less segments and redundancy, more conflicts)
@@ -315,7 +315,7 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 //  - Block size:              WARP_SIZE x NUM_WARPS
 //  - Shared memory per block: SEGMENT_SIZE * NUM_WARPS * sizeof(BIN_TYPE)
 //  - Number of segments:      NUM_SEGMENTS = ceil(NUM_BINS/SEGMENT_SIZE)
-//  - Grid size:               NUM_HIST x NUM_SEGMENTS
+//  - Grid size:               NUM_HISTS x NUM_SEGMENTS
 //
 // Steps:
 //  1) Each warp computes a single SEGMENT in shared memory.
@@ -324,8 +324,8 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 //      - x SEGMENTS represent partial (full size, not entire image) histogram,
 //      - where x = ceil(NUM_BINS/SEGMENT_SIZE)
 //  3) y partial histograms are merged by x blocks to a single final histogram.
-//      - where y = NUM_HIST
-#define BINNING_CUDA_2D_SEGMENTED(NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, WARP_SIZE, NUM_WARPS, NUM_HIST, PPT, SEGMENT_SIZE, INPUT_NAME) \
+//      - where y = NUM_HISTS
+#define BINNING_CUDA_2D_SEGMENTED(NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, WARP_SIZE, NUM_WARPS, NUM_HISTS, PPT, SEGMENT_SIZE, INPUT_NAME) \
 __device__ inline void BINNING##Put(BIN_TYPE * __restrict__ lmem, uint offset, uint idx, BIN_TYPE val) { \
   idx -= offset; \
   if (idx < SEGMENT_SIZE) { \
@@ -369,7 +369,7 @@ __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TY
   __syncthreads(); \
  \
   /* compute histogram segments */ \
-  unsigned int increment = NUM_HIST * WARP_SIZE * NUM_WARPS; \
+  unsigned int increment = NUM_HISTS * WARP_SIZE * NUM_WARPS; \
   unsigned int gpos = ((WARP_SIZE * NUM_WARPS) * blockIdx.x) + (threadIdx.y * WARP_SIZE) + threadIdx.x; \
   unsigned int end = width * height/PPT; \
   unsigned int offset = blockIdx.y * SEGMENT_SIZE; \

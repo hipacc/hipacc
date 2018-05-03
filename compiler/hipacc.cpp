@@ -86,6 +86,9 @@ void printUsage() {
     << "                            'KnightsCorner' for Knights Corner Many Integrated Cores architecture.\n"
     << "  -explore-config         Emit code that explores all possible kernel configuration and print its performance\n"
     << "  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1\n"
+    << "  -reduce-config <nxm>    Emit code that uses a multi-dimensional reduction configuration of\n"
+    << "                            n warps per block    (affects block size and shared memory size)\n"
+    << "                            m partial histograms (affects number of blocks)\n"
     << "  -time-kernels           Emit code that executes each kernel multiple times to get accurate timings\n"
     << "  -use-textures <o>       Enable/disable usage of textures (cached) in CUDA/OpenCL to read/write image pixels - for GPU devices only\n"
     << "                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', 'Array2D', and 'Ldg'\n"
@@ -223,6 +226,19 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
       }
       compilerOptions.setKernelConfig(x, y);
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-reduce-config") {
+      assert(i<(argc-1) && "Mandatory configuration specification for -reduce-config switch missing.");
+      int num_warps=0, num_hists=0, ret=0;
+      ret = sscanf(argv[i+1], "%dx%d", &num_warps, &num_hists);
+      if (ret!=2) {
+        llvm::errs() << "ERROR: Expected valid configuration specification for -use-config switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      compilerOptions.setReduceConfig(num_warps, num_hists);
       ++i;
       continue;
     }

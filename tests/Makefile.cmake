@@ -36,6 +36,7 @@ HIPACC_TEX?=off
 HIPACC_VEC?=off
 HIPACC_PPT?=1
 HIPACC_CONFIG?=128x1
+HIPACC_REDUCE?=16x16
 HIPACC_EXPLORE?=off
 HIPACC_TIMING?=off
 HIPACC_TARGET?=Kepler-30
@@ -59,6 +60,9 @@ ifdef HIPACC_VEC
 endif
 ifdef HIPACC_CONFIG
     HIPACC_OPTS+= -use-config $(HIPACC_CONFIG)
+endif
+ifdef HIPACC_REDUCE
+    HIPACC_OPTS+= -reduce-config $(HIPACC_REDUCE)
 endif
 ifeq ($(HIPACC_EXPLORE),on)
     HIPACC_OPTS+= -explore-config
