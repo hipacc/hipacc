@@ -325,7 +325,7 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 //      - where x = ceil(NUM_BINS/SEGMENT_SIZE)
 //  3) y partial histograms are merged by x blocks to a single final histogram.
 //      - where y = NUM_HISTS
-#define BINNING_CUDA_2D_SEGMENTED(NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, WARP_SIZE, NUM_WARPS, NUM_HISTS, PPT, SEGMENT_SIZE, INPUT_NAME) \
+#define BINNING_CUDA_2D_SEGMENTED(NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, WARP_SIZE, NUM_WARPS, NUM_HISTS, PPT, SEGMENT_SIZE, ZERO, INPUT_NAME) \
 __device__ inline void BINNING##Put(BIN_TYPE * __restrict__ lmem, uint offset, uint idx, BIN_TYPE val) { \
   idx -= offset; \
   if (idx < SEGMENT_SIZE) { \
@@ -363,7 +363,7 @@ __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TY
   /* initialize shared memory */ \
   _Pragma("unroll") \
   for (unsigned int i = 0; i < SEGMENT_SIZE; i += WARP_SIZE) { \
-    lhist[threadIdx.x + i] = 0; \
+    lhist[threadIdx.x + i] = ZERO; \
   } \
  \
   __syncthreads(); \
@@ -374,7 +374,7 @@ __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TY
   unsigned int end = width * height/PPT; \
   unsigned int offset = blockIdx.y * SEGMENT_SIZE; \
  \
-  BIN_TYPE bin = 0; \
+  BIN_TYPE bin = ZERO; \
   _Pragma("unroll") \
   for (unsigned int i = gpos; i < end; i += increment) { \
     unsigned int gid_y = i / width; \

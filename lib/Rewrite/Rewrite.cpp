@@ -1924,6 +1924,8 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
     llvm::raw_fd_ostream &OS) {
   FunctionDecl *bin_fun = KC->getBinningFunction();
   FunctionDecl *red_fun = KC->getReduceFunction();
+  QualType pixelType = KC->getPixelType();
+  QualType binType = KC->getBinType();
   std::string signatureBinning;
 
   if (compilerOptions.exploreConfig()) {
@@ -1997,11 +1999,11 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << "2D[" << KID << "NUM_SEGMENTS] = {0};\n\n";
       OS << "BINNING_CUDA_2D_SEGMENTED(";
       OS << K->getBinningName() << "2D, "
-         << K->getKernelClass()->getPixelType().getAsString() << ", "
-         << K->getKernelClass()->getBinType().getAsString() << ", "
+         << pixelType.getAsString() << ", "
+         << binType.getAsString() << ", "
          << K->getReduceName() << ", "
          << K->getBinningName() << ", ";
-      if (KC->getBinType().getTypePtr()->isIntegerType()) {
+      if (binType.getTypePtr()->isIntegerType()) {
         OS << "ACCU_INT, UNTAG_INT, ";
       } else {
         OS << "ACCU_NONINT, UNTAG_NONINT, ";
@@ -2012,6 +2014,9 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << KID << "NUM_HISTS, "
          << KID << "PPT, "
          << "SEGMENT_SIZE, "
+         << (binType.getTypePtr()->isVectorType()
+             ? "make_" + binType.getAsString() + "(0), "
+             : "(0), ")
          << "_tex" << K->getIterationSpace()->getImage()->getName() + K->getName()
          << ")\n\n";
       break;
