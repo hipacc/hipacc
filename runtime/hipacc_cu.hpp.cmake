@@ -1169,7 +1169,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
 #endif
 template<typename T, typename T2, int NUM_BINS>
 T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
-                                  HipaccAccessor &acc, unsigned int num_hist, unsigned int num_warps, const textureReference *tex) {
+                               HipaccAccessor &acc, unsigned int num_hist, unsigned int num_warps, const textureReference *tex) {
     T *output;  // GPU memory for reduction
     T *result = new T[NUM_BINS];   // host result
 
@@ -1181,12 +1181,12 @@ T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
 
     //unsigned int idle_left = 0;
     //if ((acc.offset_x || acc.offset_y) &&
-    //    (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+    //    (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
     //    // reduce iteration space by idle blocks
     //    idle_left = acc.offset_x / block.x;
-    //    unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / block.x;
+    //    unsigned int idle_right = (acc.img->width - (acc.offset_x+acc.width)) / block.x;
     //    grid.x = (int)ceilf((float)
-    //            (acc.img.width - (idle_left + idle_right) * block.x) /
+    //            (acc.img->width - (idle_left + idle_right) * block.x) /
     //            (block.x*2));
 
     //    // update number of blocks
@@ -1196,10 +1196,10 @@ T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
     size_t offset = 0;
     hipaccConfigureCall(grid, block);
 
-    switch (acc.img.mem_type) {
+    switch (acc.img->mem_type) {
         default:
         case Global:
-            hipaccSetupArgument(&acc.img.mem, sizeof(T2 *), offset);
+            hipaccSetupArgument(&acc.img->mem, sizeof(T2 *), offset);
             break;
         case Array2D:
             hipaccBindTexture<T>(Array2D, tex, acc.img);
@@ -1207,12 +1207,12 @@ T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
     }
 
     hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&acc.img.width, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img.height, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img.stride, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img->width, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img->height, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.img->stride, sizeof(unsigned int), offset);
     // check if the reduction is applied to the whole image
     //if ((acc.offset_x || acc.offset_y) &&
-    //    (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+    //    (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
     //    hipaccSetupArgument(&acc.offset_x, sizeof(unsigned int), offset);
     //    hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
     //    hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
