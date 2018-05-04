@@ -2404,7 +2404,7 @@ Stmt *ASTTranslate::BinningTranslator::VisitCompoundStmt(CompoundStmt *S) {
   SmallVector<Stmt *, 16> body;
 
   for (auto stmt : S->body())
-    body.push_back(Clone(stmt));
+    body.push_back(isa<BinaryOperator>(stmt) ? Clone(stmt) : stmt);
 
   return new (ctx_) CompoundStmt(ctx_, body, S->getLBracLoc(), S->getLBracLoc());
 }
