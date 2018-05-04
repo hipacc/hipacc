@@ -29,6 +29,7 @@
 #define __KERNEL_HPP__
 
 #include <vector>
+#include <cstring>
 
 #include "iterationspace.hpp"
 
