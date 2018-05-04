@@ -62,74 +62,6 @@ enum cl_platform_name {
 };
 
 
-class HipaccContext : public HipaccContextBase {
-    private:
-        std::vector<cl_platform_id> platforms;
-        std::vector<cl_platform_name> platform_names;
-        std::vector<cl_device_id> devices, devices_all;
-        std::vector<cl_context> contexts;
-        std::vector<cl_command_queue> queues;
-
-    public:
-        static HipaccContext &getInstance() {
-            static HipaccContext instance;
-
-            return instance;
-        }
-        void add_platform(cl_platform_id id, cl_platform_name name) {
-            platforms.push_back(id);
-            platform_names.push_back(name);
-        }
-        void add_device(cl_device_id id) { devices.push_back(id); }
-        void add_device_all(cl_device_id id) { devices_all.push_back(id); }
-        void add_context(cl_context id) { contexts.push_back(id); }
-        void add_command_queue(cl_command_queue id) { queues.push_back(id); }
-        std::vector<cl_platform_id> get_platforms() { return platforms; }
-        std::vector<cl_platform_name> get_platform_names() { return platform_names; }
-        std::vector<cl_device_id> get_devices() { return devices; }
-        std::vector<cl_device_id> get_devices_all() { return devices_all; }
-        std::vector<cl_context> get_contexts() { return contexts; }
-        std::vector<cl_command_queue> get_command_queues() { return queues; }
-};
-
-
-void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
-    // calculate block id of a) first block that requires no border handling
-    // (left, top) and b) first block that requires border handling (right,
-    // bottom)
-    if (info.size_x > 0) {
-        info.bh_start_left = (int)ceilf((float)(info.offset_x + info.size_x) / (block[0] * info.simd_width));
-        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / (block[0] * info.simd_width));
-    } else {
-        info.bh_start_left = 0;
-        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width) / (block[0] * info.simd_width));
-    }
-    if (info.size_y > 0) {
-        // for shared memory calculate additional blocks to be staged - this is
-        // only required if shared memory is used, otherwise, info.size_y would
-        // be sufficient
-        int p_add = (int)ceilf(2*info.size_y / (float)block[1]);
-        info.bh_start_top = (int)ceilf((float)(info.size_y) / (info.pixels_per_thread * block[1]));
-        info.bh_start_bottom = (int)floor((float)(info.is_height - p_add*block[1]) / (block[1] * info.pixels_per_thread));
-    } else {
-        info.bh_start_top = 0;
-        info.bh_start_bottom = (int)floor((float)(info.is_height) / (block[1] * info.pixels_per_thread));
-    }
-
-    if ((info.bh_start_right - info.bh_start_left) > 1 && (info.bh_start_bottom - info.bh_start_top) > 1) {
-        info.bh_fall_back = 0;
-    } else {
-        info.bh_fall_back = 1;
-    }
-}
-
-
-void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *grid) {
-    grid[0] = (int)ceilf((float)(info.is_width + info.offset_x)/(block[0]*info.simd_width)) * block[0];
-    grid[1] = (int)ceilf((float)(info.is_height)/(block[1]*info.pixels_per_thread)) * block[1];
-}
-
-
 std::string getOpenCLErrorCodeStr(int error) {
     #define CL_ERROR_CODE(CODE) case CODE: return #CODE;
     switch (error) {
@@ -218,6 +150,90 @@ inline void __checkOpenCLErrors(cl_int err, std::string name, std::string file, 
                   << getOpenCLErrorCodeStr(err) << std::endl;
         exit(EXIT_FAILURE);
     }
+}
+
+
+class HipaccContext : public HipaccContextBase {
+    private:
+        std::vector<cl_platform_id> platforms;
+        std::vector<cl_platform_name> platform_names;
+        std::vector<cl_device_id> devices, devices_all;
+        std::vector<cl_context> contexts;
+        std::vector<cl_command_queue> queues;
+
+    public:
+        static HipaccContext &getInstance() {
+            static HipaccContext instance;
+
+            return instance;
+        }
+        void add_platform(cl_platform_id id, cl_platform_name name) {
+            platforms.push_back(id);
+            platform_names.push_back(name);
+        }
+        void add_device(cl_device_id id) { devices.push_back(id); }
+        void add_device_all(cl_device_id id) { devices_all.push_back(id); }
+        void add_context(cl_context id) { contexts.push_back(id); }
+        void add_command_queue(cl_command_queue id) { queues.push_back(id); }
+        std::vector<cl_platform_id> get_platforms() { return platforms; }
+        std::vector<cl_platform_name> get_platform_names() { return platform_names; }
+        std::vector<cl_device_id> get_devices() { return devices; }
+        std::vector<cl_device_id> get_devices_all() { return devices_all; }
+        std::vector<cl_context> get_contexts() { return contexts; }
+        std::vector<cl_command_queue> get_command_queues() { return queues; }
+};
+
+class HipaccImageOpenCL : public HipaccImageBase {
+    private:
+        cl_mem mem;
+
+    public:
+        HipaccImageOpenCL(size_t width, size_t height, size_t stride,
+                          size_t alignment, size_t pixel_size, cl_mem mem,
+                          hipaccMemoryType mem_type=Global) :
+            HipaccImageBase(width, height, stride, alignment, pixel_size, (void*)mem, mem_type),
+            mem(mem) {}
+
+        ~HipaccImageOpenCL() {
+            cl_int err = clReleaseMemObject(mem);
+            checkErr(err, "clReleaseMemObject()");
+        }
+};
+
+void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block) {
+    // calculate block id of a) first block that requires no border handling
+    // (left, top) and b) first block that requires border handling (right,
+    // bottom)
+    if (info.size_x > 0) {
+        info.bh_start_left = (int)ceilf((float)(info.offset_x + info.size_x) / (block[0] * info.simd_width));
+        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width - info.size_x) / (block[0] * info.simd_width));
+    } else {
+        info.bh_start_left = 0;
+        info.bh_start_right = (int)floor((float)(info.offset_x + info.is_width) / (block[0] * info.simd_width));
+    }
+    if (info.size_y > 0) {
+        // for shared memory calculate additional blocks to be staged - this is
+        // only required if shared memory is used, otherwise, info.size_y would
+        // be sufficient
+        int p_add = (int)ceilf(2*info.size_y / (float)block[1]);
+        info.bh_start_top = (int)ceilf((float)(info.size_y) / (info.pixels_per_thread * block[1]));
+        info.bh_start_bottom = (int)floor((float)(info.is_height - p_add*block[1]) / (block[1] * info.pixels_per_thread));
+    } else {
+        info.bh_start_top = 0;
+        info.bh_start_bottom = (int)floor((float)(info.is_height) / (block[1] * info.pixels_per_thread));
+    }
+
+    if ((info.bh_start_right - info.bh_start_left) > 1 && (info.bh_start_bottom - info.bh_start_top) > 1) {
+        info.bh_fall_back = 0;
+    } else {
+        info.bh_fall_back = 1;
+    }
+}
+
+
+void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block, size_t *grid) {
+    grid[0] = (int)ceilf((float)(info.is_width + info.offset_x)/(block[0]*info.simd_width)) * block[0];
+    grid[1] = (int)ceilf((float)(info.is_height)/(block[1]*info.pixels_per_thread)) * block[1];
 }
 
 
@@ -517,11 +533,9 @@ cl_kernel hipaccBuildProgramAndKernel(std::string file_name, std::string kernel_
 
 
 template<typename T>
-HipaccImage createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
-    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), mem, mem_type);
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    Ctx.add_image(img);
-    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host);
+HipaccImage createImage(T *host_mem, cl_mem mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
+    HipaccImage img = std::make_shared<HipaccImageOpenCL>(width, height, stride, alignment, sizeof(T), mem, mem_type);
+    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img->host);
     return img;
 }
 
@@ -543,7 +557,7 @@ HipaccImage hipaccCreateBuffer(T *host_mem, size_t width, size_t height, size_t 
     size_t stride = (size_t)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
 
     cl_mem buffer = createBuffer<T>(stride, height, CL_MEM_READ_WRITE);
-    return createImage(host_mem, (void *)buffer, width, height, stride, alignment);
+    return createImage(host_mem, buffer, width, height, stride, alignment);
 }
 
 
@@ -551,7 +565,7 @@ HipaccImage hipaccCreateBuffer(T *host_mem, size_t width, size_t height, size_t 
 template<typename T>
 HipaccImage hipaccCreateBuffer(T *host_mem, size_t width, size_t height) {
     cl_mem buffer = createBuffer<T>(width, height, CL_MEM_READ_WRITE);
-    return createImage(host_mem, (void *)buffer, width, height, width, 0);
+    return createImage(host_mem, buffer, width, height, width, 0);
 }
 
 
@@ -559,7 +573,7 @@ HipaccImage hipaccCreateBuffer(T *host_mem, size_t width, size_t height) {
 template<typename T>
 HipaccImage hipaccCreateBufferConstant(T *host_mem, size_t width, size_t height) {
     cl_mem buffer = createBuffer<T>(width, height, CL_MEM_READ_ONLY);
-    return createImage(host_mem, (void *)buffer, width, height, width, 0);
+    return createImage(host_mem, buffer, width, height, width, 0);
 }
 
 
@@ -592,7 +606,7 @@ HipaccImage hipaccCreateImage(T *host_mem, size_t width, size_t height,
     checkErr(err, "clCreateImage2D()");
     #endif
 
-    return createImage(host_mem, (void *)image, width, height, width, 0, Array2D);
+    return createImage(host_mem, image, width, height, width, 0, Array2D);
 }
 template<typename T>
 HipaccImage hipaccCreateImage(T *host_mem, size_t width, size_t height);
@@ -641,48 +655,37 @@ cl_sampler hipaccCreateSampler(cl_bool normalized_coords, cl_addressing_mode add
 }
 
 
-// Release buffer or image
-template<typename T>
-void hipaccReleaseMemory(HipaccImage &img) {
-    cl_int err = clReleaseMemObject((cl_mem)img.mem);
-    checkErr(err, "clReleaseMemObject()");
-
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    Ctx.del_image(img);
-}
-
-
 // Write to memory
 template<typename T>
 void hipaccWriteMemory(HipaccImage &img, T *host_mem, int num_device=0) {
     if (host_mem == NULL) return;
 
-    size_t width  = img.width;
-    size_t height = img.height;
-    size_t stride = img.stride;
+    size_t width  = img->width;
+    size_t height = img->height;
+    size_t stride = img->stride;
 
-    if ((char *)host_mem != img.host)
-        std::copy(host_mem, host_mem + width*height, (T*)img.host);
+    if ((char *)host_mem != img->host)
+        std::copy(host_mem, host_mem + width*height, (T*)img->host);
 
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_int err = CL_SUCCESS;
-    if (img.mem_type >= Array2D) {
+    if (img->mem_type >= Array2D) {
         const size_t origin[] = { 0, 0, 0 };
         const size_t region[] = { width, height, 1 };
         // no stride supported for images in OpenCL
         const size_t input_row_pitch = width*sizeof(T);
         const size_t input_slice_pitch = 0;
 
-        err = clEnqueueWriteImage(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, origin, region, input_row_pitch, input_slice_pitch, host_mem, 0, NULL, NULL);
+        err = clEnqueueWriteImage(Ctx.get_command_queues()[num_device], (cl_mem)img->mem, CL_FALSE, origin, region, input_row_pitch, input_slice_pitch, host_mem, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueWriteImage()");
     } else {
         if (stride > width) {
             for (size_t i=0; i<height; ++i) {
-                err |= clEnqueueWriteBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &host_mem[i*width], 0, NULL, NULL);
+                err |= clEnqueueWriteBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img->mem, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &host_mem[i*width], 0, NULL, NULL);
             }
         } else {
-            err = clEnqueueWriteBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, 0, sizeof(T)*width*height, host_mem, 0, NULL, NULL);
+            err = clEnqueueWriteBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img->mem, CL_FALSE, 0, sizeof(T)*width*height, host_mem, 0, NULL, NULL);
         }
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueWriteBuffer()");
@@ -692,44 +695,44 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem, int num_device=0) {
 
 // Read from memory
 template<typename T>
-T *hipaccReadMemory(HipaccImage &img, int num_device=0) {
+T *hipaccReadMemory(const HipaccImage &img, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    if (img.mem_type >= Array2D) {
+    if (img->mem_type >= Array2D) {
         const size_t origin[] = { 0, 0, 0 };
-        const size_t region[] = { img.width, img.height, 1 };
+        const size_t region[] = { img->width, img->height, 1 };
         // no stride supported for images in OpenCL
-        const size_t row_pitch = img.width*sizeof(T);
+        const size_t row_pitch = img->width*sizeof(T);
         const size_t slice_pitch = 0;
 
-        err = clEnqueueReadImage(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, origin, region, row_pitch, slice_pitch, (T*)img.host, 0, NULL, NULL);
+        err = clEnqueueReadImage(Ctx.get_command_queues()[num_device], (cl_mem)img->mem, CL_FALSE, origin, region, row_pitch, slice_pitch, (T*)img->host, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueReadImage()");
     } else {
-        size_t width = img.width;
-        size_t height = img.height;
-        size_t stride = img.stride;
+        size_t width = img->width;
+        size_t height = img->height;
+        size_t stride = img->stride;
 
         if (stride > width) {
             for (size_t i=0; i<height; ++i) {
-                err |= clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &((T*)img.host)[i*width], 0, NULL, NULL);
+                err |= clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img->mem, CL_FALSE, i*sizeof(T)*stride, sizeof(T)*width, &((T*)img->host)[i*width], 0, NULL, NULL);
             }
         } else {
-            err = clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img.mem, CL_FALSE, 0, sizeof(T)*width*height, (T*)img.host, 0, NULL, NULL);
+            err = clEnqueueReadBuffer(Ctx.get_command_queues()[num_device], (cl_mem)img->mem, CL_FALSE, 0, sizeof(T)*width*height, (T*)img->host, 0, NULL, NULL);
         }
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueReadBuffer()");
     }
 
-    return (T*)img.host;
+    return (T*)img->host;
 }
 
 
 // Infer non-const Domain from non-const Mask
 template<typename T>
 void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
-    size_t size = dom.width * dom.height;
+    size_t size = dom->width * dom->height;
     uchar *dom_mem = new uchar[size];
 
     for (size_t i=0; i < size; ++i) {
@@ -743,21 +746,21 @@ void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
 
 
 // Copy between memory
-void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst, int num_device=0) {
+void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst, int num_device=0) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    assert(src.width == dst.width && src.height == dst.height && src.pixel_size == dst.pixel_size && "Invalid CopyBuffer or CopyImage!");
+    assert(src->width == dst->width && src->height == dst->height && src->pixel_size == dst->pixel_size && "Invalid CopyBuffer or CopyImage!");
 
-    if (src.mem_type >= Array2D) {
+    if (src->mem_type >= Array2D) {
         const size_t origin[] = { 0, 0, 0 };
-        const size_t region[] = { src.width, src.height, 1 };
+        const size_t region[] = { src->width, src->height, 1 };
 
-        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, origin, origin, region, 0, NULL, NULL);
+        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], (cl_mem)src->mem, (cl_mem)dst->mem, origin, origin, region, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyImage()");
     } else {
-        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.stride*src.height*src.pixel_size, 0, NULL, NULL);
+        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src->mem, (cl_mem)dst->mem, 0, 0, src->stride*src->height*src->pixel_size, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyBuffer()");
     }
@@ -769,21 +772,21 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    if (src.img.mem_type >= Array2D) {
+    if (src.img->mem_type >= Array2D) {
         const size_t dst_origin[] = { (size_t)dst.offset_x, (size_t)dst.offset_y, 0 };
         const size_t src_origin[] = { (size_t)src.offset_x, (size_t)src.offset_y, 0 };
         const size_t region[]     = { dst.width, dst.height, 1 };
 
-        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin, region, 0, NULL, NULL);
+        err = clEnqueueCopyImage(Ctx.get_command_queues()[num_device], (cl_mem)src.img->mem, (cl_mem)dst.img->mem, src_origin, dst_origin, region, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyImage()");
     } else {
-        const size_t dst_origin[] = { dst.offset_x*dst.img.pixel_size, (size_t)dst.offset_y, 0 };
-        const size_t src_origin[] = { src.offset_x*src.img.pixel_size, (size_t)src.offset_y, 0 };
-        const size_t region[]     = { dst.width*dst.img.pixel_size, dst.height, 1 };
+        const size_t dst_origin[] = { dst.offset_x*dst.img->pixel_size, (size_t)dst.offset_y, 0 };
+        const size_t src_origin[] = { src.offset_x*src.img->pixel_size, (size_t)src.offset_y, 0 };
+        const size_t region[]     = { dst.width*dst.img->pixel_size, dst.height, 1 };
 
-        err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device], (cl_mem)src.img.mem, (cl_mem)dst.img.mem, src_origin, dst_origin, region,
-                                      src.img.stride*src.img.pixel_size, 0, dst.img.stride*dst.img.pixel_size, 0, 0, NULL, NULL);
+        err = clEnqueueCopyBufferRect(Ctx.get_command_queues()[num_device], (cl_mem)src.img->mem, (cl_mem)dst.img->mem, src_origin, dst_origin, region,
+                                      src.img->stride*src.img->pixel_size, 0, dst.img->stride*dst.img->pixel_size, 0, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyBufferRect()");
     }
@@ -791,7 +794,7 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
 
 
 // Copy between buffers and return time
-double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_device=0, bool print_timing=false) {
+double hipaccCopyBufferBenchmark(const HipaccImage &src, HipaccImage &dst, int num_device=0, bool print_timing=false) {
     cl_int err = CL_SUCCESS;
     cl_ulong end, start;
     std::vector<float> times;
@@ -800,11 +803,11 @@ double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_dev
     #endif
     HipaccContext &Ctx = HipaccContext::getInstance();
 
-    assert(src.width == dst.width && src.height == dst.height && src.pixel_size == dst.pixel_size && "Invalid CopyBuffer!");
+    assert(src->width == dst->width && src->height == dst->height && src->pixel_size == dst->pixel_size && "Invalid CopyBuffer!");
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
         #ifdef EVENT_TIMING
-        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, &event);
+        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src->mem, (cl_mem)dst->mem, 0, 0, src->width*src->height*src->pixel_size, 0, NULL, &event);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         checkErr(err, "clEnqueueCopyBuffer()");
 
@@ -819,15 +822,15 @@ double hipaccCopyBufferBenchmark(HipaccImage &src, HipaccImage &dst, int num_dev
         #else
         clFinish(Ctx.get_command_queues()[num_device]);
         start = hipacc_time_micro();
-        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src.mem, (cl_mem)dst.mem, 0, 0, src.width*src.height*src.pixel_size, 0, NULL, NULL);
+        err = clEnqueueCopyBuffer(Ctx.get_command_queues()[num_device], (cl_mem)src->mem, (cl_mem)dst->mem, 0, 0, src->width*src->height*src->pixel_size, 0, NULL, NULL);
         err |= clFinish(Ctx.get_command_queues()[num_device]);
         end = hipacc_time_micro();
         checkErr(err, "clEnqueueCopyBuffer()");
         #endif
 
         if (print_timing) {
-            std::cerr << "<HIPACC:> Copy timing (" << (src.width*src.height*src.pixel_size) / (float)(1 << 20) << " MB): " << (end-start)*1.0e-3f << "(ms)" << std::endl;
-            std::cerr << "          Bandwidth: " << 2.0f * (double)(src.width*src.height*src.pixel_size) / ((end-start)*1.0e-6f * (float)(1 << 30)) << " GB/s" << std::endl;
+            std::cerr << "<HIPACC:> Copy timing (" << (src->width*src->height*src->pixel_size) / (float)(1 << 20) << " MB): " << (end-start)*1.0e-3f << "(ms)" << std::endl;
+            std::cerr << "          Bandwidth: " << 2.0f * (double)(src->width*src->height*src->pixel_size) / ((end-start)*1.0e-6f * (float)(1 << 30)) << " GB/s" << std::endl;
         }
         times.push_back(end-start);
     }
@@ -894,8 +897,7 @@ void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *loc
 
 // Perform global reduction and return result
 template<typename T>
-T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
-        &acc, unsigned int max_threads, unsigned int pixels_per_thread) {
+T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     cl_int err = CL_SUCCESS;
@@ -907,21 +909,21 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
     local_work_size[0] = max_threads;
     local_work_size[1] = 1;
     size_t global_work_size[2];
-    global_work_size[0] = (int)ceilf((float)(acc.img.width)/(local_work_size[0]*2))*local_work_size[0];
+    global_work_size[0] = (int)ceilf((float)(acc.img->width)/(local_work_size[0]*2))*local_work_size[0];
     global_work_size[1] = (int)ceilf((float)(acc.height)/(local_work_size[1]*pixels_per_thread))*local_work_size[1];
 
     unsigned int num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
     output = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*num_blocks, NULL, &err);
     checkErr(err, "clCreateBuffer()");
 
-    hipaccSetKernelArg(kernel2D, 0, sizeof(cl_mem), &acc.img.mem);
+    hipaccSetKernelArg(kernel2D, 0, sizeof(cl_mem), &acc.img->mem);
     hipaccSetKernelArg(kernel2D, 1, sizeof(cl_mem), &output);
-    hipaccSetKernelArg(kernel2D, 2, sizeof(unsigned int), &acc.img.width);
-    hipaccSetKernelArg(kernel2D, 3, sizeof(unsigned int), &acc.img.height);
-    hipaccSetKernelArg(kernel2D, 4, sizeof(unsigned int), &acc.img.stride);
+    hipaccSetKernelArg(kernel2D, 2, sizeof(unsigned int), &acc.img->width);
+    hipaccSetKernelArg(kernel2D, 3, sizeof(unsigned int), &acc.img->height);
+    hipaccSetKernelArg(kernel2D, 4, sizeof(unsigned int), &acc.img->stride);
     // check if the reduction is applied to the whole image
     if ((acc.offset_x || acc.offset_y) &&
-        (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+        (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
         hipaccSetKernelArg(kernel2D, 5, sizeof(unsigned int), &acc.offset_x);
         hipaccSetKernelArg(kernel2D, 6, sizeof(unsigned int), &acc.offset_y);
         hipaccSetKernelArg(kernel2D, 7, sizeof(unsigned int), &acc.width);
@@ -929,9 +931,9 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
 
         // reduce iteration space by idle blocks
         unsigned int idle_left = acc.offset_x / local_work_size[0];
-        unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / local_work_size[0];
+        unsigned int idle_right = (acc.img->width - (acc.offset_x+acc.width)) / local_work_size[0];
         global_work_size[0] = (int)ceilf((float)
-                (acc.img.width - (idle_left + idle_right) * local_work_size[0])
+                (acc.img->width - (idle_left + idle_right) * local_work_size[0])
                 / (local_work_size[0]*2))*local_work_size[0];
         // update number of blocks
         num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
@@ -974,26 +976,22 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccAccessor
 }
 // Perform global reduction using memory fence operations and return result
 template<typename T>
-T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, HipaccImage &img,
-        unsigned int max_threads, unsigned int pixels_per_thread) {
+T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, const HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccAccessor acc(img);
-    return hipaccApplyReduction<T>(kernel2D, kernel1D, acc, max_threads,
-            pixels_per_thread);
+    return hipaccApplyReduction<T>(kernel2D, kernel1D, acc, max_threads, pixels_per_thread);
 }
 
 
 // Perform exploration of global reduction and return result
 template<typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-        std::string kernel1D, HipaccAccessor &acc, unsigned int max_threads,
-        unsigned int pixels_per_thread) {
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D, const HipaccAccessor &acc, unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     cl_int err = CL_SUCCESS;
     cl_mem output;  // GPU memory for reduction
     T result;       // host result
 
-    unsigned int num_blocks = (int)ceilf((float)(acc.img.width)/(max_threads*2))*acc.height;
+    unsigned int num_blocks = (int)ceilf((float)(acc.img->width)/(max_threads*2))*acc.height;
     output = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*num_blocks, NULL, &err);
     checkErr(err, "clCreateBuffer()");
 
@@ -1019,18 +1017,18 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
             local_work_size[0] = max_threads;
             local_work_size[1] = 1;
             size_t global_work_size[2];
-            global_work_size[0] = (int)ceilf((float)(acc.img.width)/(local_work_size[0]*2))*local_work_size[0];
+            global_work_size[0] = (int)ceilf((float)(acc.img->width)/(local_work_size[0]*2))*local_work_size[0];
             global_work_size[1] = (int)ceilf((float)(acc.height)/(local_work_size[1]*ppt))*local_work_size[1];
             num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
 
-            hipaccSetKernelArg(exploreReduction2D, 0, sizeof(cl_mem), &acc.img.mem);
+            hipaccSetKernelArg(exploreReduction2D, 0, sizeof(cl_mem), &acc.img->mem);
             hipaccSetKernelArg(exploreReduction2D, 1, sizeof(cl_mem), &output);
-            hipaccSetKernelArg(exploreReduction2D, 2, sizeof(unsigned int), &acc.img.width);
-            hipaccSetKernelArg(exploreReduction2D, 3, sizeof(unsigned int), &acc.img.height);
-            hipaccSetKernelArg(exploreReduction2D, 4, sizeof(unsigned int), &acc.img.stride);
+            hipaccSetKernelArg(exploreReduction2D, 2, sizeof(unsigned int), &acc.img->width);
+            hipaccSetKernelArg(exploreReduction2D, 3, sizeof(unsigned int), &acc.img->height);
+            hipaccSetKernelArg(exploreReduction2D, 4, sizeof(unsigned int), &acc.img->stride);
             // check if the reduction is applied to the whole image
             if ((acc.offset_x || acc.offset_y) &&
-                (acc.width!=acc.img.width || acc.height!=acc.img.height)) {
+                (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
                 hipaccSetKernelArg(exploreReduction2D, 5, sizeof(unsigned int), &acc.offset_x);
                 hipaccSetKernelArg(exploreReduction2D, 6, sizeof(unsigned int), &acc.offset_y);
                 hipaccSetKernelArg(exploreReduction2D, 7, sizeof(unsigned int), &acc.width);
@@ -1038,9 +1036,9 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
 
                 // reduce iteration space by idle blocks
                 unsigned int idle_left = acc.offset_x / local_work_size[0];
-                unsigned int idle_right = (acc.img.width - (acc.offset_x+acc.width)) / local_work_size[0];
+                unsigned int idle_right = (acc.img->width - (acc.offset_x+acc.width)) / local_work_size[0];
                 global_work_size[0] = (int)ceilf((float)
-                        (acc.img.width - (idle_left + idle_right) * local_work_size[0])
+                        (acc.img->width - (idle_left + idle_right) * local_work_size[0])
                         / (local_work_size[0]*2))*local_work_size[0];
                 // update number of blocks
                 num_blocks = (global_work_size[0]/local_work_size[0])*(global_work_size[1]/local_work_size[1]);
@@ -1109,12 +1107,9 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
     return result;
 }
 template<typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-        std::string kernel1D, HipaccImage &img, unsigned int max_threads,
-        unsigned int pixels_per_thread) {
+T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, std::string kernel1D, const HipaccImage &img, unsigned int max_threads, unsigned int pixels_per_thread) {
     HipaccAccessor acc(img);
-    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc,
-            max_threads, pixels_per_thread);
+    return hipaccApplyReductionExploration<T>(filename, kernel2D, kernel1D, acc, max_threads, pixels_per_thread);
 }
 
 
@@ -1234,14 +1229,14 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
 
 
 template<typename T>
-HipaccImage hipaccCreatePyramidImage(HipaccImage &base, size_t width, size_t height) {
-  switch (base.mem_type) {
+HipaccImage hipaccCreatePyramidImage(const HipaccImage &base, size_t width, size_t height) {
+  switch (base->mem_type) {
     case Array2D:
       return hipaccCreateImage<T>(NULL, width, height);
 
     case Global:
-      if (base.alignment > 0) {
-        return hipaccCreateBuffer<T>(NULL, width, height, base.alignment);
+      if (base->alignment > 0) {
+        return hipaccCreateBuffer<T>(NULL, width, height, base->alignment);
       } else {
         return hipaccCreateBuffer<T>(NULL, width, height);
       }

@@ -88,7 +88,7 @@ class GradFilter : public Kernel<float> {
                     });
 
             float tmp = gx*gx + gy*gy;
-            output() = sqrt(tmp);
+            output() = sqrtf(tmp);
         }
 };
 class NMSFilter : public Kernel<int> {
