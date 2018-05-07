@@ -70,7 +70,8 @@ class Kernel {
         {}
 
         virtual ~Kernel() {
-            if (binned_result_ != nullptr) { delete[] binned_result_; }
+            if (binned_result_)
+                delete[] binned_result_;
         }
         virtual void kernel() = 0;
         virtual bin_t reduce(bin_t left, bin_t right) const {
@@ -91,7 +92,7 @@ class Kernel {
                     acc->set_iterator(&iter);
                 output_.set_iterator(&iter);
 
-                // advance iterator and apply kernel to whole iteration space
+                // apply kernel for whole iteration space
                 auto start_time = hipacc_time_micro();
                 while (iter != end) {
                     kernel();
@@ -110,9 +111,8 @@ class Kernel {
         }
 
         void reduce() {
-            if (!executed_) {
+            if (!executed_)
                 execute();
-            }
 
             if (!reduced_) {
                 auto end  = iteration_space_.end();
@@ -124,10 +124,9 @@ class Kernel {
                 // first element
                 data_t result = output_();
 
-                // advance iterator and apply kernel to whole iteration space
-                while (++iter != end) {
+                // apply reduction for remaining iteration space
+                while (++iter != end)
                     result = reduce(result, output_());
-                }
 
                 // de-register output accessor
                 output_.set_iterator(nullptr);
@@ -146,9 +145,8 @@ class Kernel {
         }
 
         bin_t* binned_data(const unsigned int bin_size) {
-            if (!executed_) {
+            if (!executed_)
                 execute();
-            }
 
             if (!binned_) {
                 auto end  = iteration_space_.end();
