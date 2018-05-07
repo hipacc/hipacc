@@ -29,7 +29,6 @@
 #define __KERNEL_HPP__
 
 #include <vector>
-#include <cstring>
 
 #include "iterationspace.hpp"
 
@@ -155,7 +154,8 @@ class Kernel {
                 // register output accessor
                 output_.set_iterator(&iter);
 
-                binned_result_ = new bin_t[bin_size]();
+                if (!binned_result_)
+                    binned_result_ = new bin_t[bin_size]();
 
                 // apply binning for whole iteration space
                 while (iter != end) {
@@ -174,9 +174,7 @@ class Kernel {
                 binned_ = true;
             }
 
-            bin_t* ret = new bin_t[bin_size];
-            std::memcpy(ret, binned_result_, sizeof(bin_t)*bin_size);
-            return ret;
+            return binned_result_;
         }
 
 
