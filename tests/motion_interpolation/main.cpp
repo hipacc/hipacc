@@ -187,8 +187,8 @@ class VectorKernel : public Kernel<int, float4> {
 
 class Assemble : public Kernel<uchar> {
   private:
-    Accessor<float4> &vecs;
     Accessor<uchar> &input;
+    Accessor<float4> &vecs;
 
   public:
     Assemble(IterationSpace<uchar> &iter, Accessor<uchar> &input,
