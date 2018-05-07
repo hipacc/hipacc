@@ -107,6 +107,17 @@ IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint32_t val);
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, int64_t val);
 IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint64_t val);
 
+
+typedef struct {
+  std::string elementType;
+  size_t elementCount;
+  size_t elementWidth;
+} VectorTypeInfo;
+
+size_t getBuiltinTypeSize(const BuiltinType *BT);
+VectorTypeInfo createVectorTypeInfo(const VectorType *VT);
+
+
 // create label/goto statements
 LabelDecl *createLabelDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name);
 LabelStmt *createLabelStmt(ASTContext &Ctx, LabelDecl *LD, Stmt *Stmt);

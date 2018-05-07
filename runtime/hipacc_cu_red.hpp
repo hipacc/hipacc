@@ -286,14 +286,38 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 // Helper macros for accumulating non-integers in segmented binning/reduction
 #define UNTAG_NONINT(BIN_TYPE, VAL) (VAL)
 
-#define ACCU_NONINT(BIN_TYPE, PTR, REDUCE) \
+#define ACCU_NONINT_32(BIN_TYPE, PTR, REDUCE) \
   BIN_TYPE* address = PTR; \
   BIN_TYPE old, val; \
-  int *oldi = (int*)&old, *vali = (int*)&val; \
+  unsigned int *oldi = (unsigned int*)&old, *vali = (unsigned int*)&val; \
   do { \
     old = *address; \
     val = REDUCE(old, bin); \
-  } while (atomicCAS((int*)address, *oldi, *vali) != *oldi);
+  } while (atomicCAS((unsigned int*)address, *oldi, *vali) != *oldi);
+
+#define ACCU_NONINT_64(BIN_TYPE, PTR, REDUCE) \
+  BIN_TYPE* address = PTR; \
+  BIN_TYPE old, val; \
+  unsigned long long int *oldi = (unsigned long long int*)&old, *vali = (unsigned long long int*)&val; \
+  do { \
+    old = *address; \
+    val = REDUCE(old, bin); \
+  } while (atomicCAS((unsigned long long int*)address, *oldi, *vali) != *oldi);
+
+#define ACCU_NONINT_GT64(BIN_TYPE, PTR, REDUCE) \
+  BIN_TYPE* address = PTR; \
+  BIN_TYPE old, val; \
+  unsigned long long int *oldi = (unsigned long long int*)&old, *vali = (unsigned long long int*)&val; \
+  bool run = true; \
+  do { \
+    old = *address; \
+    val = REDUCE(old, bin); \
+    if (atomicCAS((unsigned long long int*)address, *oldi, *vali) == *oldi) { \
+      run = false; \
+      /* 64bit CAS succeeded, winning thread in warp => write remaining bits */ \
+      *address = val; \
+    } \
+  } while (run);
 
 
 // Binning and reduction with conflicts solved via AtomicCAS or ThreadIdx

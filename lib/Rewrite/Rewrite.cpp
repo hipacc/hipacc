@@ -1964,7 +1964,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case Language::Renderscript:
     case Language::Filterscript:
       break;
-    case Language::CUDA:
+    case Language::CUDA: {
       // 2D reduction
       OS << "__device__ unsigned finished_blocks_" << K->getBinningName()
          << "2D[" << KID << "NUM_SEGMENTS] = {0};\n\n";
@@ -1974,11 +1974,35 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << binType.getAsString() << ", "
          << K->getReduceName() << ", "
          << K->getBinningName() << ", ";
-      if (binType.getTypePtr()->isIntegerType()) {
-        OS << "ACCU_INT, UNTAG_INT, ";
+
+      size_t bitWidth = 32;
+      if (isa<VectorType>(binType.getCanonicalType().getTypePtr())) {
+        const VectorType *VT = dyn_cast<VectorType>(
+            binType.getCanonicalType().getTypePtr());
+        VectorTypeInfo info = createVectorTypeInfo(VT);
+        bitWidth = info.elementCount * info.elementWidth;
       } else {
-        OS << "ACCU_NONINT, UNTAG_NONINT, ";
+        bitWidth = getBuiltinTypeSize(binType->getAs<BuiltinType>());
       }
+
+      if (bitWidth > 64) {
+        // >64bit: Synchronize using 64bit AtomicCAS (might cause errors)
+        llvm::errs() << "WARNING: Potential data race if first 64 bits of bin write are identical to current bin value!\n";
+        OS << "ACCU_NONINT_GT64, UNTAG_NONINT, ";
+        // TODO: Implement synchronization using locks for bin types >64bit
+        // TODO: Consider compiler switch to force locks for bin types >64bit
+      } else {
+        if (binType.getTypePtr()->isIntegerType()) {
+          // INT: Synchronize using thread ID tagging
+          llvm::errs() << "WARNING: First 5 bits of bin value are used for thread ID tagging!\n";
+          OS << "ACCU_INT, UNTAG_INT, ";
+          // TODO: Consider compiler switch to force NONINT for full bit width
+        } else {
+          // NONINT: Synchronize using AtomicCAS (32 or 64 bit)
+          OS << "ACCU_NONINT_" << bitWidth << ", UNTAG_NONINT, ";
+        }
+      }
+
       OS << KID << "NUM_BINS, "
          << KID << "WARP_SIZE, "
          << KID << "NUM_WARPS, "
@@ -1990,6 +2014,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
              : "(0), ")
          << "_tex" << K->getIterationSpace()->getImage()->getName() + K->getName()
          << ")\n\n";
+      }
       break;
   }
 
