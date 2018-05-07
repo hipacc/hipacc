@@ -283,10 +283,10 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
   } while (*address != val);
 
 
-// Helper macros for accumulating non-integers in segmented binning/reduction
-#define UNTAG_NONINT(BIN_TYPE, VAL) (VAL)
+// Helper macros for accumulating using atomicCAS in segmented binning/reduction
+#define UNTAG_NONE(BIN_TYPE, VAL) (VAL)
 
-#define ACCU_NONINT_32(BIN_TYPE, PTR, REDUCE) \
+#define ACCU_CAS_32(BIN_TYPE, PTR, REDUCE) \
   BIN_TYPE* address = PTR; \
   BIN_TYPE old, val; \
   unsigned int *oldi = (unsigned int*)&old, *vali = (unsigned int*)&val; \
@@ -295,7 +295,7 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
     val = REDUCE(old, bin); \
   } while (atomicCAS((unsigned int*)address, *oldi, *vali) != *oldi);
 
-#define ACCU_NONINT_64(BIN_TYPE, PTR, REDUCE) \
+#define ACCU_CAS_64(BIN_TYPE, PTR, REDUCE) \
   BIN_TYPE* address = PTR; \
   BIN_TYPE old, val; \
   unsigned long long int *oldi = (unsigned long long int*)&old, *vali = (unsigned long long int*)&val; \
@@ -304,7 +304,7 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
     val = REDUCE(old, bin); \
   } while (atomicCAS((unsigned long long int*)address, *oldi, *vali) != *oldi);
 
-#define ACCU_NONINT_GT64(BIN_TYPE, PTR, REDUCE) \
+#define ACCU_CAS_GT64(BIN_TYPE, PTR, REDUCE) \
   BIN_TYPE* address = PTR; \
   BIN_TYPE old, val; \
   unsigned long long int *oldi = (unsigned long long int*)&old, *vali = (unsigned long long int*)&val; \

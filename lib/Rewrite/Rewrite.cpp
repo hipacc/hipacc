@@ -1986,9 +1986,9 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       }
 
       if (bitWidth > 64) {
-        // >64bit: Synchronize using 64bit AtomicCAS (might cause errors)
+        // >64bit: Synchronize using 64bit atomicCAS (might cause errors)
         llvm::errs() << "WARNING: Potential data race if first 64 bits of bin write are identical to current bin value!\n";
-        OS << "ACCU_NONINT_GT64, UNTAG_NONINT, ";
+        OS << "ACCU_CAS_GT64, UNTAG_NONE, ";
         // TODO: Implement synchronization using locks for bin types >64bit
         // TODO: Consider compiler switch to force locks for bin types >64bit
       } else {
@@ -1996,10 +1996,10 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
           // INT: Synchronize using thread ID tagging
           llvm::errs() << "WARNING: First 5 bits of bin value are used for thread ID tagging!\n";
           OS << "ACCU_INT, UNTAG_INT, ";
-          // TODO: Consider compiler switch to force NONINT for full bit width
+          // TODO: Consider compiler switch to force CAS for full bit width
         } else {
-          // NONINT: Synchronize using AtomicCAS (32 or 64 bit)
-          OS << "ACCU_NONINT_" << bitWidth << ", UNTAG_NONINT, ";
+          // CAS: Synchronize using atomicCAS (32 or 64 bit)
+          OS << "ACCU_CAS_" << bitWidth << ", UNTAG_NONE, ";
         }
       }
 
