@@ -574,9 +574,8 @@ class HipaccKernel : public HipaccKernelFeatures {
     std::string name;
     std::string kernelName, reduceName, binningName;
     std::string fileName;
-    std::string reduceStr, binningStr, infoStr;
-    unsigned num_bins;
-    unsigned infoStrCnt;
+    std::string reduceStr, binningStr, infoStr, numBinsStr;
+    unsigned infoStrCnt, binningStrCnt;
     HipaccIterationSpace *iterationSpace;
     std::map<FieldDecl *, HipaccAccessor *> imgMap;
     std::map<FieldDecl *, HipaccMask *> maskMap;
@@ -615,9 +614,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       reduceName(options.getTargetPrefix() + KC->getName() + name + "Reduce"),
       binningName(options.getTargetPrefix() + KC->getName() + name + "Binning"),
       fileName(options.getTargetPrefix() + KC->getName() + VD->getNameAsString()),
-      reduceStr(), binningStr(), infoStr(),
-      num_bins(0),
-      infoStrCnt(0),
+      reduceStr(), binningStr(), infoStr(), numBinsStr(),
+      infoStrCnt(0), binningStrCnt(0),
       iterationSpace(nullptr),
       imgMap(),
       maskMap(),
@@ -657,7 +655,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     const std::string &getFileName() const { return fileName; }
     const std::string &getInfoStr() const { return infoStr; }
     const std::string &getReduceStr() const { return reduceStr; }
-    const std::string &getBinningStr() const { return binningStr; }
+    const std::string getBinningStr() const {
+      return binningStr + "_" + std::to_string(binningStrCnt);
+    }
 
     // keep track of variables used within kernel
     void setUsed(std::string name) { usedVars.insert(name); }
@@ -778,8 +778,11 @@ class HipaccKernel : public HipaccKernelFeatures {
       }
     }
 
-    void setNumBins(unsigned nbins) { num_bins = nbins; }
-    unsigned getNumBins() { return num_bins; }
+    void setNumBinsStr(std::string numBins) {
+      binningStrCnt++;
+      numBinsStr = numBins;
+    }
+    std::string getNumBinsStr() { return numBinsStr; }
     unsigned getMaxThreadsForKernel() { return max_threads_for_kernel; }
     unsigned getMaxThreadsPerBlock() { return max_threads_per_block; }
     unsigned getMaxTotalSharedMemory() { return max_total_shared_memory; }

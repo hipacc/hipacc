@@ -1166,17 +1166,18 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
 
 #ifndef SEGMENT_SIZE
 # define SEGMENT_SIZE 128
+# define MAX_SEGMENTS 512 // equals 65k bins (MAX_SEGMENTS*SEGMENT_SIZE)
 #endif
-template<typename T, typename T2, int NUM_BINS>
+template<typename T, typename T2>
 T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
-                               HipaccAccessor &acc, unsigned int num_hist, unsigned int num_warps, const textureReference *tex) {
+                               HipaccAccessor &acc, unsigned int num_hists, unsigned int num_warps, unsigned int num_bins, const textureReference *tex) {
     T *output;  // GPU memory for reduction
-    T *result = new T[NUM_BINS];   // host result
+    T *result = new T[num_bins];   // host result
 
-    dim3 grid(num_hist, (NUM_BINS+SEGMENT_SIZE-1)/SEGMENT_SIZE);
+    dim3 grid(num_hists, (num_bins+SEGMENT_SIZE-1)/SEGMENT_SIZE);
     dim3 block(32, num_warps);
 
-    cudaError_t err = cudaMalloc((void **) &output, sizeof(T)*num_hist*NUM_BINS);
+    cudaError_t err = cudaMalloc((void **) &output, sizeof(T)*num_hists*num_bins);
     checkErr(err, "cudaMalloc()");
 
     //unsigned int idle_left = 0;
@@ -1210,6 +1211,7 @@ T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
     hipaccSetupArgument(&acc.img->width, sizeof(unsigned int), offset);
     hipaccSetupArgument(&acc.img->height, sizeof(unsigned int), offset);
     hipaccSetupArgument(&acc.img->stride, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&num_bins, sizeof(unsigned int), offset);
     // check if the reduction is applied to the whole image
     //if ((acc.offset_x || acc.offset_y) &&
     //    (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
@@ -1222,7 +1224,7 @@ T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
 
     hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
 
-    err = cudaMemcpy(result, output, sizeof(T)*NUM_BINS, cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(result, output, sizeof(T)*num_bins, cudaMemcpyDeviceToHost);
     checkErr(err, "cudaMemcpy()");
 
     err = cudaFree(output);

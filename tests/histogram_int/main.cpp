@@ -35,7 +35,7 @@ class Histogram : public Kernel<float,uint> {
         }
 
         void binning(unsigned int x, unsigned int y, float pixel) {
-            bin((uint)(pixel*NUM_BINS-.5f)) = 1;
+            bin((uint)(pixel*num_bins()-.5f)) = 1;
         }
 
         uint reduce(uint left, uint right) const {
@@ -48,12 +48,17 @@ class Histogram : public Kernel<float,uint> {
  *************************************************************************/
 int main(int argc, const char **argv) {
     float timing = .0f;
+    int num_bins = NUM_BINS;
+
+    if (argc > 1) {
+      num_bins = atoi(argv[1]);
+    }
 
     const int width = WIDTH;
     const int height = HEIGHT;
 
-    float refBin[NUM_BINS];
-    for (size_t i = 0; i < NUM_BINS; ++i) {
+    uint refBin[num_bins];
+    for (size_t i = 0; i < num_bins; ++i) {
       refBin[i] = 0.0f;
     }
 
@@ -62,10 +67,10 @@ int main(int argc, const char **argv) {
     for(size_t y = 0; y < height; ++y) {
         for(size_t x = 0; x < width; ++x) {
             // rand -> [0.0f - 1.0f]
-            float pixel = static_cast<float>(rand() % NUM_BINS)
-                    / static_cast<float>(NUM_BINS-1);
+            float pixel = static_cast<float>(rand() % num_bins)
+                    / static_cast<float>(num_bins-1);
             input[x+y*width] = pixel;
-            refBin[(uint)(pixel*NUM_BINS-.5f)] += 1.0f;
+            refBin[(uint)(pixel*num_bins-.5f)] += 1;
         }
     }
 
@@ -79,8 +84,13 @@ int main(int argc, const char **argv) {
     Accessor<float> AccIN(IN);
 
     Histogram Hist(IS, AccIN);
+
+    std::cout << "Executing kernel" << std::endl;
     Hist.execute();
-    uint* bin = Hist.binned_data(NUM_BINS);
+    timing += hipacc_last_kernel_timing();
+
+    std::cout << "Executing histogram" << std::endl;
+    uint* bin = Hist.binned_data(num_bins);
     timing += hipacc_last_kernel_timing();
 
     //float* output = OUT.data();
@@ -91,18 +101,18 @@ int main(int argc, const char **argv) {
 
     bool pass = true;
 
-    for (size_t i = 0; i < NUM_BINS; ++i) {
+    for (size_t i = 0; i < num_bins; ++i) {
       if (i == 0) std::cout << "refBin: ";
       else        std::cout << ", ";
       std::cout << refBin[i];
-      if (i == NUM_BINS-1) std::cout << std::endl;
+      if (i == num_bins-1) std::cout << std::endl;
     }
 
-    for (size_t i = 0; i < NUM_BINS; ++i) {
+    for (size_t i = 0; i < num_bins; ++i) {
       if (i == 0) std::cout << "bin: ";
       else        std::cout << ", ";
       std::cout << bin[i];
-      if (i == NUM_BINS-1) std::cout << std::endl;
+      if (i == num_bins-1) std::cout << std::endl;
       if (bin[i] != refBin[i]) {pass = false;
       std::cout << std::endl << "FAIL at " << i << ": " << bin[i] << " vs. " << refBin[i] << std::endl;}
     }

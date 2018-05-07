@@ -53,12 +53,11 @@ class Kernel {
         Accessor<data_t> output_;
         std::vector<AccessorBase *> inputs_;
         data_t reduction_result_;
-        bin_t* binned_result_ = nullptr;
         bin_t bin_val_;
         unsigned int bin_idx_;
+        unsigned int num_bins_;
         bool executed_ = false;
         bool reduced_ = false;
-        bool binned_ = false;
 
     public:
         explicit Kernel(IterationSpace<data_t> &iteration_space) :
@@ -68,10 +67,7 @@ class Kernel {
                     iteration_space.offset_x(), iteration_space.offset_y())
         {}
 
-        virtual ~Kernel() {
-            if (binned_result_)
-                delete[] binned_result_;
-        }
+        virtual ~Kernel() {}
         virtual void kernel() = 0;
         virtual bin_t reduce(bin_t left, bin_t right) const {
             assert(false && "No reduce method specified");
@@ -147,34 +143,31 @@ class Kernel {
             if (!executed_)
                 execute();
 
-            if (!binned_) {
-                auto end  = iteration_space_.end();
-                auto iter = iteration_space_.begin();
+            num_bins_ = bin_size;
 
-                // register output accessor
-                output_.set_iterator(&iter);
+            auto end  = iteration_space_.end();
+            auto iter = iteration_space_.begin();
 
-                if (!binned_result_)
-                    binned_result_ = new bin_t[bin_size]();
+            // register output accessor
+            output_.set_iterator(&iter);
 
-                // apply binning for whole iteration space
-                while (iter != end) {
-                    binning(x(), y(), output_());
+            bin_t *binned_result = new bin_t[bin_size]();
 
-                    assert(bin_size > bin_idx_ && "Bin index out of range");
+            // apply binning for whole iteration space
+            while (iter != end) {
+                binning(x(), y(), output_());
 
-                    binned_result_[bin_idx_] = reduce(binned_result_[bin_idx_], bin_val_);
+                assert(bin_idx_ < bin_size && "Bin index out of range");
 
-                    ++iter;
-                }
+                binned_result[bin_idx_] = reduce(binned_result[bin_idx_], bin_val_);
 
-                // de-register output accessor
-                output_.set_iterator(nullptr);
-
-                binned_ = true;
+                ++iter;
             }
 
-            return binned_result_;
+            // de-register output accessor
+            output_.set_iterator(nullptr);
+
+            return binned_result;
         }
 
 
@@ -203,6 +196,10 @@ class Kernel {
         int y() const {
             assert(output_.EI!=ElementIterator() && "ElementIterator not set!");
             return output_.y();
+        }
+
+        unsigned int num_bins() const {
+          return num_bins_;
         }
 
         // built-in functions: convolve, iterate, and reduce

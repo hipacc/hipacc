@@ -131,15 +131,17 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
     // BinningTranslater for translating binning(uint x, uint y, data_t pixel)
     // independently of kernel() method.
-    class BinningTranslator : public StmtVisitor<BinningTranslator, Stmt *> {
+    class BinningTranslator {
       private:
         ASTContext &ctx_;
         HipaccKernel *kernel_;
-        Expr *lmem_, *offset_;
+        Expr *lmem_, *offset_, *num_bins_;
         FunctionDecl *binFunc_;
 
         void createBinningArguments(QualType &idxType, QualType &binType) {
-          VarDecl *declLMem = nullptr, *declOffset = nullptr;
+          VarDecl *declLMem = nullptr,
+                  *declOffset = nullptr,
+                  *declNumBins = nullptr;
 
           FunctionDecl *binningDecl =
             kernel_->getKernelClass()->getBinningFunction();
@@ -148,9 +150,12 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
               nullptr);
           declOffset = ASTNode::createVarDecl(ctx_, binningDecl, "_offset",
               idxType, nullptr);
+          declNumBins = ASTNode::createVarDecl(ctx_, binningDecl, "_num_bins",
+              idxType, nullptr);
 
           lmem_ = ASTNode::createDeclRefExpr(ctx_, declLMem);
           offset_ = ASTNode::createDeclRefExpr(ctx_, declOffset);
+          num_bins_ = ASTNode::createDeclRefExpr(ctx_, declNumBins);
         }
 
         void createBinningPutDeclaration(QualType &idxType, QualType &binType) {
@@ -173,6 +178,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
               ctx_.VoidTy, argTypes, argNames);
         }
 
+        Stmt *traverseStmt(Stmt *S);
+        Expr *translateBinaryOperator(BinaryOperator *E);
+        Expr *translateCXXMemberCallExpr(CXXMemberCallExpr *E);
+
       public:
         BinningTranslator(ASTContext &ctx, HipaccKernel *kernel)
             : ctx_(ctx), kernel_(kernel) {
@@ -182,18 +191,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
           createBinningPutDeclaration(idxType, binType);
         }
 
-        template<class T> T *Clone(T *S) {
-          if (S==nullptr)
-            return nullptr;
-
-          return static_cast<T *>(Visit(S));
-        }
-
-        Stmt *VisitCompoundStmt(CompoundStmt *S);
-        Expr *VisitBinaryOperator(BinaryOperator *E);
-
         Stmt* translate(Stmt* S) {
-          return Clone(S);
+          return traverseStmt(S);
         }
     };
 

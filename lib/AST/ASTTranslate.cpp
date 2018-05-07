@@ -2400,17 +2400,27 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 }
 
 
-Stmt *ASTTranslate::BinningTranslator::VisitCompoundStmt(CompoundStmt *S) {
-  SmallVector<Stmt *, 16> body;
+Stmt *ASTTranslate::BinningTranslator::traverseStmt(Stmt *S) {
+  for (auto stmt = S->child_begin(); stmt != S->child_end(); ++stmt) {
+    if (*stmt != nullptr) {
+      // traverse recursively from bottom up
+      traverseStmt(*stmt);
 
-  for (auto stmt : S->body())
-    body.push_back(isa<BinaryOperator>(stmt) ? Clone(stmt) : stmt);
-
-  return new (ctx_) CompoundStmt(ctx_, body, S->getLBracLoc(), S->getLBracLoc());
+      // translate statements
+      if (isa<BinaryOperator>(*stmt)) {
+        // look for "bin(idx) = val"
+        *stmt = translateBinaryOperator(dyn_cast<BinaryOperator>(*stmt));
+      } else if (isa<CXXMemberCallExpr>(*stmt)) {
+        // look for "num_hist()"
+        *stmt = translateCXXMemberCallExpr(dyn_cast<CXXMemberCallExpr>(*stmt));
+      }
+    }
+  }
+  return S;
 }
 
 
-Expr *ASTTranslate::BinningTranslator::VisitBinaryOperator(BinaryOperator *E) {
+Expr *ASTTranslate::BinningTranslator::translateBinaryOperator(BinaryOperator *E) {
   if (CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getLHS())) {
     assert(isa<MemberExpr>(MCE->getCallee()) &&
         "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
@@ -2429,6 +2439,20 @@ Expr *ASTTranslate::BinningTranslator::VisitBinaryOperator(BinaryOperator *E) {
 
   return E;
 }
+
+
+Expr *ASTTranslate::BinningTranslator::translateCXXMemberCallExpr(CXXMemberCallExpr *E) {
+  assert(isa<MemberExpr>(E->getCallee()) &&
+      "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
+  MemberExpr *ME = cast<MemberExpr>(E->getCallee());
+
+  if (ME->getMemberNameInfo().getAsString() == "num_bins") {
+    return num_bins_;
+  }
+
+  return E;
+}
+
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

@@ -314,9 +314,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
       if (!compilerOptions.exploreConfig()) {
         for (auto map : KernelDeclMap) {
           HipaccKernel* K = map.second;
-          if (K->getNumBins() != 0) {
-            newStr += "#define " + K->getKernelName() + "NUM_BINS " + std::to_string(K->getNumBins()) + "\n";
-          }
           newStr += "#include \"";
           newStr += K->getFileName();
           newStr += ".cu\"\n";
@@ -1640,16 +1637,6 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         // create kernel call string
         stringCreator.writeKernelCall(K, newStr);
 
-        // create binning/reduce call string
-        if (K->getKernelClass()->getBinningFunction()) {
-          newStr += "\n" + stringCreator.getIndent();
-          stringCreator.writeBinningCall(K, newStr);
-        } else if (K->getKernelClass()->getReduceFunction()) {
-          newStr += "\n" + stringCreator.getIndent();
-          stringCreator.writeReductionDeclaration(K, newStr);
-          stringCreator.writeReduceCall(K, newStr);
-        }
-
         // rewrite kernel invocation
         // get the start location and compute the semi location.
         SourceLocation startLoc = E->getLocStart();
@@ -1672,26 +1659,43 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
             || ME->getMemberNameInfo().getAsString() == "reduced_data") {
           HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
 
-          std::string dataVar;
+          std::string callStr, resultStr;
           if (ME->getMemberNameInfo().getAsString() == "binned_data") {
-            dataVar = K->getBinningStr();
+            auto numBinsExpr = E->getArg(0)->IgnoreImpCasts();
+            std::string numBinsStr;
+            llvm::raw_string_ostream SS(numBinsStr);
+            numBinsExpr->printPretty(SS, 0, Policy);
+            K->setNumBinsStr(SS.str());
 
-            // get number of bins
-            if (auto IL = dyn_cast<IntegerLiteral>(E->getArg(0)->IgnoreImpCasts())) {
-              K->setNumBins(IL->getValue().getSExtValue());
-            } else {
-              assert(false && "Expected Integer literal as first argument for 'binned_data'");
-            }
+            assert(K->getKernelClass()->getBinningFunction()
+                   && "Called binned_data() but no binning function defined!");
+
+            callStr += "\n" + stringCreator.getIndent();
+            stringCreator.writeBinningCall(K, callStr);
+
+            resultStr = K->getBinningStr();
           } else {
-            dataVar = K->getReduceStr();
+            assert(K->getKernelClass()->getReduceFunction()
+                   && "Called reduced_data() but no reduce function defined!");
+
+            callStr += "\n" + stringCreator.getIndent();
+            stringCreator.writeReductionDeclaration(K, callStr);
+            stringCreator.writeReduceCall(K, callStr);
+
+            resultStr = K->getReduceStr();
           }
+
+          // insert reduction call in the line before
+          unsigned fileNum = SM.getSpellingLineNumber(E->getLocStart(), nullptr);
+          SourceLocation callLoc = SM.translateLineCol(mainFileID, fileNum, 1);
+          TextRewriter.InsertText(callLoc, callStr);
 
           //
           // TODO: make sure that kernel was executed before *_data call
           //
           // replace member function invocation
           SourceRange range(E->getLocStart(), E->getLocEnd());
-          TextRewriter.ReplaceText(range, dataVar);
+          TextRewriter.ReplaceText(range, resultStr);
 
           return true;
         }
@@ -1918,9 +1922,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       OS << "#define " << KID << "WARP_SIZE " << K->getWarpSize() << "\n"
          << "#define " << KID << "NUM_WARPS " << compilerOptions.getReduceConfigNumWarps() << "\n"
          << "#define " << KID << "NUM_HISTS " << compilerOptions.getReduceConfigNumHists() << "\n"
-         << "#define " << KID << "PPT       " << K->getPixelsPerThread() << "\n"
-         << "#define " << KID << "NUM_SEGMENTS (("
-             << KID << "NUM_BINS+SEGMENT_SIZE-1)/SEGMENT_SIZE)\n";
+         << "#define " << KID << "PPT       " << K->getPixelsPerThread() << "\n";
       break;
   }
   OS << "\n";
@@ -1935,7 +1937,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   }
   signatureBinning += "inline void " + K->getBinningName() + "(";
   signatureBinning += red_fun->getReturnType().getAsString();
-  signatureBinning += " * __restrict__ _lmem, uint _offset, ";
+  signatureBinning += " * __restrict__ _lmem, uint _offset, uint _num_bins, ";
 
   // write other binning parameters
   size_t comma = 0;
@@ -1967,7 +1969,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case Language::CUDA: {
       // 2D reduction
       OS << "__device__ unsigned finished_blocks_" << K->getBinningName()
-         << "2D[" << KID << "NUM_SEGMENTS] = {0};\n\n";
+         << "2D[MAX_SEGMENTS] = {0};\n\n";
       OS << "BINNING_CUDA_2D_SEGMENTED(";
       OS << K->getBinningName() << "2D, "
          << pixelType.getAsString() << ", "
@@ -2003,8 +2005,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
         }
       }
 
-      OS << KID << "NUM_BINS, "
-         << KID << "WARP_SIZE, "
+      OS << KID << "WARP_SIZE, "
          << KID << "NUM_WARPS, "
          << KID << "NUM_HISTS, "
          << KID << "PPT, "
@@ -2143,7 +2144,8 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << ";\nconst textureReference *_tex"
          << K->getIterationSpace()->getImage()->getName() + K->getName()
          << "Ref;\n\n";
-      if (!KC->getBinningFunction()) {
+      if (!isa<VectorType>(KC->getBinType().getCanonicalType().getTypePtr())) {
+        // TODO: support vector types for global reduction
         // 2D reduction
         if (compilerOptions.exploreConfig()) {
           OS << "REDUCTION_CUDA_2D(";

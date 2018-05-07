@@ -376,7 +376,11 @@ int main(int argc, const char **argv) {
     fprintf(stdout, "HIPAcc vector kernel: %.3f ms\n", timing);
 
     // get merged vectors
-    float4* vecs = vector_kernel.binned_data(1024);// TODO: STRIDE_X*STRIDE_Y
+    float4* vecs = vector_kernel.binned_data(STRIDE_X*STRIDE_Y);
+    timing = hipacc_last_kernel_timing();
+    fps_timing += timing;
+    fprintf(stdout, "HIPAcc vector merge: %.3f ms\n", timing);
+
     merged_vec = vecs;
 
     // assemble final image

@@ -945,7 +945,7 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
       resultStr += std::to_string(device.getTargetCC());
     }
   }
-  resultStr += ");";
+  resultStr += ");\n";
 }
 
 
@@ -970,8 +970,7 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
 
       resultStr += "hipaccApplyBinningSegmented<";
       resultStr += binTypeStr + ", ";
-      resultStr += pixTypeStr + ", ";
-      resultStr += K->getKernelName() + "NUM_BINS>(";
+      resultStr += pixTypeStr + ">(";
       resultStr += "(const void *)&" + K->getBinningName() + "2D, ";
       resultStr += "\"" + K->getBinningName() + "2D\", ";
       break;
@@ -987,12 +986,9 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
 
   // print image name
   resultStr += K->getIterationSpace()->getName() + ", ";
-
-  // TODO: use block info
-  //resultStr += std::to_string(K->getNumThreadsReduce()) + ", ";
-  //resultStr += std::to_string(K->getPixelsPerThreadReduce());
   resultStr += K->getKernelName() + "NUM_HISTS, ";
-  resultStr += K->getKernelName() + "NUM_WARPS";
+  resultStr += K->getKernelName() + "NUM_WARPS, ";
+  resultStr += K->getNumBinsStr();
 
   if (options.emitCUDA()) {
     // print 2D CUDA array texture information - this parameter is only used if
@@ -1001,7 +997,7 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
     resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
     resultStr += "Ref";
   }
-  resultStr += ");";
+  resultStr += ");\n";
 }
 
 

@@ -349,7 +349,7 @@ __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output, const unsigned \
 //      - where x = ceil(NUM_BINS/SEGMENT_SIZE)
 //  3) y partial histograms are merged by x blocks to a single final histogram.
 //      - where y = NUM_HISTS
-#define BINNING_CUDA_2D_SEGMENTED(NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, NUM_BINS, WARP_SIZE, NUM_WARPS, NUM_HISTS, PPT, SEGMENT_SIZE, ZERO, INPUT_NAME) \
+#define BINNING_CUDA_2D_SEGMENTED(NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, WARP_SIZE, NUM_WARPS, NUM_HISTS, PPT, SEGMENT_SIZE, ZERO, INPUT_NAME) \
 __device__ inline void BINNING##Put(BIN_TYPE * __restrict__ lmem, uint offset, uint idx, BIN_TYPE val) { \
   idx -= offset; \
   if (idx < SEGMENT_SIZE) { \
@@ -364,7 +364,7 @@ __device__ inline void BINNING##Put(BIN_TYPE * __restrict__ lmem, uint offset, u
  \
 __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INPUT_NAME) \
         BIN_TYPE *output, const unsigned int width, const unsigned int height, \
-        const unsigned int stride) { \
+        const unsigned int stride, const unsigned int num_bins) { \
   unsigned int lid = threadIdx.x + threadIdx.y * WARP_SIZE; \
  \
   __shared__ BIN_TYPE warp_hist[NUM_WARPS*SEGMENT_SIZE]; \
@@ -398,7 +398,7 @@ __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TY
       PIXEL_TYPE pixel = INPUT_NAME[ipos]; \
       ipos += inc; \
    \
-      BINNING(lhist, offset, gid_x, y, pixel); \
+      BINNING(lhist, offset, num_bins, gid_x, y, pixel); \
     } \
   } \
  \
@@ -411,7 +411,7 @@ __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TY
     for (unsigned int i = 1; i < NUM_WARPS; ++i) { \
       bin = REDUCE(bin, UNTAG(BIN_TYPE, warp_hist[i * SEGMENT_SIZE + lid])); \
     } \
-    output[offset + lid + (blockIdx.x * NUM_BINS)] = bin; \
+    output[offset + lid + (blockIdx.x * num_bins)] = bin; \
   } \
  \
   /* merge partial histograms */ \
@@ -435,7 +435,7 @@ __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TY
  \
           _Pragma("unroll") \
           for (unsigned yi = 1; yi < gridDim.x; ++yi) { \
-            bin = REDUCE(bin, output[offset + yi*NUM_BINS + lid]); \
+            bin = REDUCE(bin, output[offset + yi*num_bins + lid]); \
           } \
  \
           output[offset + lid] = bin; \
