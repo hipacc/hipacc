@@ -157,22 +157,16 @@ class Kernel {
 
                 binned_result_ = new bin_t[bin_size]();
 
-                // advance iterator and apply kernel to whole iteration space
-                unsigned int x = 0;
-                unsigned int y = 0;
-                unsigned int i = 0;
-                do {
-                    binning(x, y, output_());
+                // apply binning for whole iteration space
+                while (iter != end) {
+                    binning(x(), y(), output_());
 
                     assert(bin_size > bin_idx_ && "Bin index out of range");
 
-                    binned_result_[bin_idx_] = reduce(binned_result_[bin_idx_],
-                                                      bin_val_);
+                    binned_result_[bin_idx_] = reduce(binned_result_[bin_idx_], bin_val_);
 
-                    ++i;
-                    x = i%iteration_space_.width();
-                    y = i/iteration_space_.height();
-                } while (++iter != end);
+                    ++iter;
+                }
 
                 // de-register output accessor
                 output_.set_iterator(nullptr);
