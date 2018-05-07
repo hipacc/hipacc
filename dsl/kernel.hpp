@@ -138,7 +138,7 @@ class Kernel {
             }
         }
 
-        data_t reduced_data() const {
+        data_t reduced_data() {
             // apply reduction
             reduce();
 
