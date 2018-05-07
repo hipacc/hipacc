@@ -362,20 +362,6 @@ __device__ inline void BINNING##Put(BIN_TYPE * __restrict__ lmem, uint offset, u
   } \
 } \
  \
-__device__ inline void BINNING##Shell(BIN_TYPE * __restrict__ lmem, unsigned int offset, const uint x, const uint gy, const PIXEL_TYPE * __restrict__ input, const uint height, const uint stride) { \
-  uint pos = x + gy * stride; \
-  const uint inc = height/PPT*stride; \
-  _Pragma("unroll") \
-  for (unsigned int p = 0; p < PPT; ++p) { \
-    uint y = gy + p*height/PPT; \
- \
-    PIXEL_TYPE pixel = input[pos]; \
-    pos += inc; \
- \
-    BINNING(lmem, offset, x, y, pixel); \
-  } \
-} \
- \
 __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TYPE, INPUT_NAME) \
         BIN_TYPE *output, const unsigned int width, const unsigned int height, \
         const unsigned int stride) { \
@@ -403,7 +389,17 @@ __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TY
   for (unsigned int i = gpos; i < end; i += increment) { \
     unsigned int gid_y = i / width; \
     unsigned int gid_x = i % width; \
-    BINNING##Shell(lhist, offset, gid_x, gid_y, INPUT_NAME, height, stride); \
+    uint ipos = gid_x + gid_y * stride; \
+    const uint inc = height/PPT*stride; \
+    _Pragma("unroll") \
+    for (unsigned int p = 0; p < PPT; ++p) { \
+      uint y = gid_y + p*height/PPT; \
+   \
+      PIXEL_TYPE pixel = INPUT_NAME[ipos]; \
+      ipos += inc; \
+   \
+      BINNING(lhist, offset, gid_x, y, pixel); \
+    } \
   } \
  \
   __syncthreads(); \
