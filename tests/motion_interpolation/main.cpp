@@ -445,7 +445,7 @@ int main(int argc, const char **argv) {
               int pos = ix + iy*width;
               if (pos > 0 && pos < width*height)
                 host_in2[pos] = 255;
-            } 
+            }
           } else {
             bool negative = high < 0;
             for (int i=0; i<abs(high); ++i) {
@@ -454,7 +454,7 @@ int main(int argc, const char **argv) {
               int pos = ix + iy*width;
               if (pos > 0 && pos < width*height)
                 host_in2[pos] = 255;
-            } 
+            }
           }
         }
       }
