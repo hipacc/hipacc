@@ -405,7 +405,7 @@ __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TY
   __syncthreads(); \
  \
   /* assemble segments and write partial histograms */ \
-  if (lid < SEGMENT_SIZE) { \
+  if (lid < min(SEGMENT_SIZE,num_bins)) { \
     bin = UNTAG(BIN_TYPE, warp_hist[lid]); \
     _Pragma("unroll") \
     for (unsigned int i = 1; i < NUM_WARPS; ++i) { \
