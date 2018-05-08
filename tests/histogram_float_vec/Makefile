@@ -1,14 +1,14 @@
 CC = /usr/bin/c++
 
-HIPACC_DIR ?= /scratch-local/usr
+HIPACC_DIR ?= /opt/hipacc
 
 ifeq ($(notdir $(CC)),clang++)
     # use libc++ for clang++
     CFLAGS  = -std=c++11 -stdlib=libc++ \
-              -I`/scratch-local/usr-clang50/bin/llvm-config --includedir` \
-              -I`/scratch-local/usr-clang50/bin/llvm-config --includedir`/c++/v1 \
-              -I`/scratch-local/usr-clang50/bin/clang -print-file-name=include`
-    LDFLAGS = -L`/scratch-local/usr-clang50/bin/llvm-config --libdir` -lc++ -lc++abi
+              -I`/opt/clang50/bin/llvm-config --includedir` \
+              -I`/opt/clang50/bin/llvm-config --includedir`/c++/v1 \
+              -I`/opt/clang50/bin/clang -print-file-name=include`
+    LDFLAGS = -L`/opt/clang50/bin/llvm-config --libdir` -lc++ -lc++abi
 else
     CFLAGS  = -std=c++11
     LDFLAGS = -lstdc++

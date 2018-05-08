@@ -101,20 +101,27 @@ int main(int argc, const char **argv) {
 
     bool pass = true;
 
+#ifdef DEBUG
     for (size_t i = 0; i < num_bins; ++i) {
       if (i == 0) std::cout << "refBin: ";
       else        std::cout << ", ";
       std::cout << refBin[i];
       if (i == num_bins-1) std::cout << std::endl;
     }
+#endif
 
     for (size_t i = 0; i < num_bins; ++i) {
+#ifdef DEBUG
       if (i == 0) std::cout << "bin: ";
       else        std::cout << ", ";
       std::cout << bin[i].w;
       if (i == num_bins-1) std::cout << std::endl;
-      if (bin[i].w != refBin[i]) {pass = false;
-      std::cout << std::endl << "FAIL at " << i << ": " << bin[i].w << " vs. " << refBin[i] << std::endl;}
+#endif
+      if (bin[i].w != refBin[i]) {
+        pass = false;
+        std::cout << std::endl << "FAIL at " << i << ": "
+                  << bin[i].w << " vs. " << refBin[i] << std::endl;
+      }
     }
 
     std::cout << (pass ? "PASSED" : "FAILED") << std::endl;
