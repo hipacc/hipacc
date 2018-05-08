@@ -2144,8 +2144,8 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << ";\nconst textureReference *_tex"
          << K->getIterationSpace()->getImage()->getName() + K->getName()
          << "Ref;\n\n";
-      if (!isa<VectorType>(KC->getBinType().getCanonicalType().getTypePtr())) {
-        // TODO: support vector types for global reduction
+      // define reduction only if pixel and bin are of the same type
+      if (KC->getPixelType() == KC->getBinType()) {
         // 2D reduction
         if (compilerOptions.exploreConfig()) {
           OS << "REDUCTION_CUDA_2D(";
