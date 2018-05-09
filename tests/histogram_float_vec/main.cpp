@@ -25,10 +25,8 @@ class Histogram : public Kernel<float, float4> {
         Accessor<float> &input;
 
     public:
-        Histogram(IterationSpace<float> &iter, Accessor<float> &input)
-                : Kernel(iter), input(input) {
-            add_accessor(&input);
-        }
+        Histogram(IterationSpace<float> &iter, Accessor<float> &input) :
+            Kernel(iter), input(input) { add_accessor(&input); }
 
         void kernel() {
             output() = input();
@@ -51,7 +49,7 @@ int main(int argc, const char **argv) {
     int num_bins = NUM_BINS;
 
     if (argc > 1) {
-      num_bins = atoi(argv[1]);
+        num_bins = atoi(argv[1]);
     }
 
     const int width = WIDTH;
@@ -59,7 +57,7 @@ int main(int argc, const char **argv) {
 
     float refBin[num_bins];
     for (size_t i = 0; i < num_bins; ++i) {
-      refBin[i] = 0.0f;
+        refBin[i] = 0.0f;
     }
 
     float* input = new float[width*height];
@@ -103,25 +101,25 @@ int main(int argc, const char **argv) {
 
 #ifdef DEBUG
     for (size_t i = 0; i < num_bins; ++i) {
-      if (i == 0) std::cout << "refBin: ";
-      else        std::cout << ", ";
-      std::cout << refBin[i];
-      if (i == num_bins-1) std::cout << std::endl;
+        if (i == 0) std::cout << "refBin: ";
+        else        std::cout << ", ";
+        std::cout << refBin[i];
+        if (i == num_bins-1) std::cout << std::endl;
     }
 #endif
 
     for (size_t i = 0; i < num_bins; ++i) {
 #ifdef DEBUG
-      if (i == 0) std::cout << "bin: ";
-      else        std::cout << ", ";
-      std::cout << bin[i].w;
-      if (i == num_bins-1) std::cout << std::endl;
+        if (i == 0) std::cout << "bin: ";
+        else        std::cout << ", ";
+        std::cout << bin[i].w;
+        if (i == num_bins-1) std::cout << std::endl;
 #endif
-      if (bin[i].w != refBin[i]) {
-        pass = false;
-        std::cout << std::endl << "FAIL at " << i << ": "
-                  << bin[i].w << " vs. " << refBin[i] << std::endl;
-      }
+        if (bin[i].w != refBin[i]) {
+            pass = false;
+            std::cout << std::endl << "FAIL at " << i << ": "
+                      << bin[i].w << " vs. " << refBin[i] << std::endl;
+        }
     }
 
     std::cout << (pass ? "PASSED" : "FAILED") << std::endl;
@@ -130,4 +128,3 @@ int main(int argc, const char **argv) {
 
     return EXIT_SUCCESS;
 }
-

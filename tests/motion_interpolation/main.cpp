@@ -21,33 +21,33 @@
 #  include <FreeImage.h>
 
 FIBITMAP* loadGrayscaleImage(const char *filename) {
-  FIBITMAP* image = FreeImage_Load(FIF_PNG, filename);
-  FIBITMAP* imGrayscale;
+    FIBITMAP* image = FreeImage_Load(FIF_PNG, filename);
+    FIBITMAP* imGrayscale;
 
-  FREE_IMAGE_COLOR_TYPE type = FreeImage_GetColorType(image);
+    FREE_IMAGE_COLOR_TYPE type = FreeImage_GetColorType(image);
 
-  switch(type) {
-   case FIC_MINISBLACK:
-    imGrayscale = image;
-    break;
-   case FIC_RGB:
-   case FIC_RGBALPHA:
-    imGrayscale = FreeImage_ConvertToGreyscale(image);
-    FreeImage_Unload(image);
-    break;
-   default:
-    std::cerr << "Error: Image type unsupported" << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  std::cout << "Loaded " << filename << "." << std::endl;
+    switch(type) {
+        case FIC_MINISBLACK:
+            imGrayscale = image;
+            break;
+        case FIC_RGB:
+        case FIC_RGBALPHA:
+            imGrayscale = FreeImage_ConvertToGreyscale(image);
+            FreeImage_Unload(image);
+            break;
+        default:
+            std::cerr << "Error: Image type unsupported" << std::endl;
+            exit(EXIT_FAILURE);
+    }
+    std::cout << "Loaded " << filename << "." << std::endl;
 
-  if (FreeImage_GetWidth(imGrayscale) != WIDTH
-      && FreeImage_GetHeight(imGrayscale) != HEIGHT) {
-    std::cerr << "Error: Image dimension mismatch" << std::endl;
-    exit(EXIT_FAILURE);
-  }
+    if (FreeImage_GetWidth(imGrayscale) != WIDTH &&
+        FreeImage_GetHeight(imGrayscale) != HEIGHT) {
+        std::cerr << "Error: Image dimension mismatch" << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
-  return imGrayscale;
+    return imGrayscale;
 }
 #endif
 
@@ -55,161 +55,153 @@ using namespace hipacc;
 
 
 class GaussianBlurFilter : public Kernel<uchar> {
-  private:
-    Accessor<uchar> &input;
-    Mask<float> &mask;
+    private:
+        Accessor<uchar> &input;
+        Mask<float> &mask;
 
-  public:
-    GaussianBlurFilter(IterationSpace<uchar> &iter, Accessor<uchar> &input,
-            Mask<float> &mask)
-        : Kernel(iter), input(input), mask(mask) {
-      add_accessor(&input);
-    }
+    public:
+        GaussianBlurFilter(IterationSpace<uchar> &iter, Accessor<uchar> &input, Mask<float> &mask) :
+            Kernel(iter), input(input), mask(mask) { add_accessor(&input); }
 
-    void kernel() {
-      output() = (uchar)(convolve(mask, Reduce::SUM, [&] () -> float {
-        return mask() * input(mask);
-      }) + 0.5f);
-    }
+        void kernel() {
+            output() = (uchar)(convolve(mask, Reduce::SUM, [&] () -> float {
+                return mask() * input(mask);
+            }) + 0.5f);
+        }
 };
 
 class SignatureKernel : public Kernel<uint> {
-  private:
-    Accessor<uchar> &input;
-    Domain &dom;
+    private:
+        Accessor<uchar> &input;
+        Domain &dom;
 
-  public:
-    SignatureKernel(IterationSpace<uint> &iter, Accessor<uchar> &input,
-                    Domain &dom)
-        : Kernel(iter), input(input), dom(dom) {
-      add_accessor(&input);
-    }
+    public:
+        SignatureKernel(IterationSpace<uint> &iter, Accessor<uchar> &input, Domain &dom) :
+            Kernel(iter), input(input), dom(dom) { add_accessor(&input); }
 
-    void kernel() {
-      // Census Transformation
-      short z = input();
-      uint c = 0u;
-      iterate(dom, [&] () {
-        short data = input(dom);
-        if (data > z + EPSILON) {
-          c = (c << 2) | 0x01;
-        } else if (data < z - EPSILON) {
-          c = (c << 2) | 0x02;
-        } else {
-          c = c << 2;
+        void kernel() {
+            // Census Transformation
+            short z = input();
+            uint c = 0u;
+            iterate(dom, [&] () {
+                short data = input(dom);
+                if (data > z + EPSILON) {
+                    c = (c << 2) | 0x01;
+                } else if (data < z - EPSILON) {
+                    c = (c << 2) | 0x02;
+                } else {
+                    c = c << 2;
+                }
+            });
+
+            output() = c;
         }
-      });
-
-      output() = c;
-    }
 };
 
 class VectorKernel : public Kernel<int, float4> {
-  private:
-    Accessor<uint> &sig1, &sig2;
-    Domain &dom;
+    private:
+        Accessor<uint> &sig1, &sig2;
+        Domain &dom;
 
-  public:
-    VectorKernel(IterationSpace<int> &iter, Accessor<uint> &sig1,
-            Accessor<uint> &sig2, Domain &dom)
-        : Kernel(iter), sig1(sig1), sig2(sig2), dom(dom) {
-      add_accessor(&sig1);
-      add_accessor(&sig2);
-    }
-
-    void kernel() {
-      int vec_found = 0;
-      int mem_loc = 0;
-
-      uint reference = sig1();
-
-      iterate(dom, [&] () -> void {
-        if (sig2(dom) == reference) {
-          //vec_found++; // BUG: Hipacc doesn't recognize ++-operator as assignment
-          vec_found = vec_found + 1;
-          // encode ix and iy as upper and lower half-word of
-          // mem_loc
-          mem_loc = (dom.x() << 16) | (dom.y() & 0xffff);
+    public:
+        VectorKernel(IterationSpace<int> &iter, Accessor<uint> &sig1, Accessor<uint> &sig2, Domain &dom) :
+            Kernel(iter), sig1(sig1), sig2(sig2), dom(dom) {
+            add_accessor(&sig1);
+            add_accessor(&sig2);
         }
-      });
 
-      // save the vector, if exactly one was found
-      if (vec_found!=1) {
-          mem_loc = 0;
-      }
+        void kernel() {
+            int vec_found = 0;
+            int mem_loc = 0;
 
-      output() = mem_loc;
-    }
+            uint reference = sig1();
 
-    void binning(uint x, uint y, int vector) {
-      float4 result = { 0.0f, 0.0f, 0.0f, 0.0f };
-      uint ix = x / TILE_SIZE;
-      uint iy = y / TILE_SIZE;
+            iterate(dom, [&] () -> void {
+                if (sig2(dom) == reference) {
+                    //vec_found++; // BUG: Hipacc doesn't recognize ++-operator as assignment
+                    vec_found = vec_found + 1;
+                    // encode ix and iy as upper and lower half-word of
+                    // mem_loc
+                    mem_loc = (dom.x() << 16) | (dom.y() & 0xffff);
+                }
+            });
 
-      if (vector != 0) {
-        // Cartesian to polar
-        float x = vector >> 16;
-        int iy = (vector & 0xffff);
-        if (iy >> 15) iy |= 0xffff0000;
-        float y = (float)iy;
-        float dist = sqrt(x*x+y*y)/2.0f;
-        float angle = atan((float)y/x);
+            // save the vector, if exactly one was found
+            if (vec_found!=1) {
+                mem_loc = 0;
+            }
 
-        result.x = dist;
-        result.y = angle;
-        result.w = 1.0f;
-      }
+            output() = mem_loc;
+        }
 
-      bin((uint)(iy * STRIDE_X + ix)) = result;
-    }
+        void binning(uint x, uint y, int vector) {
+            float4 result = { 0.0f, 0.0f, 0.0f, 0.0f };
+            uint ix = x / TILE_SIZE;
+            uint iy = y / TILE_SIZE;
 
-    float4 reduce(float4 left, float4 right) const {
-      if (left.w == 0.0f) {
-        return right;
-      } else if (right.w == 0.0f) {
-        return left;
-      } else {
-        float ws = left.w + right.w;
-        float wl = left.w/ws;
-        float wr = 1.0f-wl;
-        float4 result = wl*left + wr*right;
-        result.w = ws;
-        return result;
-      }
-    }
+            if (vector != 0) {
+                // Cartesian to polar
+                float x = vector >> 16;
+                int iy = (vector & 0xffff);
+                if (iy >> 15) iy |= 0xffff0000;
+                float y = (float)iy;
+                float dist = sqrt(x*x+y*y)/2.0f;
+                float angle = atan((float)y/x);
+
+                result.x = dist;
+                result.y = angle;
+                result.w = 1.0f;
+            }
+
+            bin((uint)(iy * STRIDE_X + ix)) = result;
+        }
+
+        float4 reduce(float4 left, float4 right) const {
+            if (left.w == 0.0f) {
+                return right;
+            } else if (right.w == 0.0f) {
+                return left;
+            } else {
+                float ws = left.w + right.w;
+                float wl = left.w/ws;
+                float wr = 1.0f-wl;
+                float4 result = wl*left + wr*right;
+                result.w = ws;
+                return result;
+            }
+        }
 };
 
 
 class Assemble : public Kernel<uchar> {
-  private:
-    Accessor<uchar> &input;
-    Accessor<float4> &vecs;
+    private:
+        Accessor<uchar> &input;
+        Accessor<float4> &vecs;
 
-  public:
-    Assemble(IterationSpace<uchar> &iter, Accessor<uchar> &input,
-             Accessor<float4> &vecs)
-        : Kernel(iter), input(input), vecs(vecs) {
-      add_accessor(&input);
-      add_accessor(&vecs);
-    }
+    public:
+        Assemble(IterationSpace<uchar> &iter, Accessor<uchar> &input, Accessor<float4> &vecs) :
+            Kernel(iter), input(input), vecs(vecs) {
+            add_accessor(&input);
+            add_accessor(&vecs);
+        }
 
-    void kernel() {
-      int x = 0;
-      int y = 0;
-      float4 vector = vecs();
+        void kernel() {
+            int x = 0;
+            int y = 0;
+            float4 vector = vecs();
 
-      if (vector.w != 0.0f) {
-        // polar to Cartesian
-        float xf = vector.x * cosf(vector.y);
-        float yf = vector.x * sinf(vector.y);
+            if (vector.w != 0.0f) {
+                // polar to Cartesian
+                float xf = vector.x * cosf(vector.y);
+                float yf = vector.x * sinf(vector.y);
 
-        // correct rounding
-        x = (int)(xf + 0.5f - (xf < 0 ? 1.0f : 0.0f));
-        y = (int)(yf + 0.5f - (yf < 0 ? 1.0f : 0.0f));
-      }
+                // correct rounding
+                x = (int)(xf + 0.5f - (xf < 0 ? 1.0f : 0.0f));
+                y = (int)(yf + 0.5f - (yf < 0 ? 1.0f : 0.0f));
+            }
 
-      output() = input(x, y);
-    }
+            output() = input(x, y);
+        }
 };
 
 
@@ -251,15 +243,16 @@ int main(int argc, const char **argv) {
 
     // domain for signature kernel
     const uchar sig_coef[9][9] = {
-      { 1, 0, 0, 0, 1, 0, 0, 0, 1 },
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 0, 0, 1, 0, 1, 0, 1, 0, 0 },
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 1, 0, 0, 0, 1, 0, 0, 0, 1 },
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 0, 0, 1, 0, 1, 0, 1, 0, 0 },
-      { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 1, 0, 0, 0, 1, 0, 0, 0, 1 }};
+        { 1, 0, 0, 0, 1, 0, 0, 0, 1 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0, 0, 1, 0, 1, 0, 1, 0, 0 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 1, 0, 0, 0, 1, 0, 0, 0, 1 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0, 0, 1, 0, 1, 0, 1, 0, 0 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 1, 0, 0, 0, 1, 0, 0, 0, 1 }
+    };
     Domain sig_dom(sig_coef);
 
     // domain for vector kernel
@@ -345,22 +338,22 @@ int main(int argc, const char **argv) {
 
 #ifdef DEBUG
     for (int y=0; y<STRIDE_Y; y++) {
-      for (int x=0; x<STRIDE_X; x++) {
-        int pos = x + y*(STRIDE_X);
-        if (vecs[pos].w != 0) {
-          // polar to Cartesian
-          float xf = vecs[pos].x * cos(vecs[pos].y);
-          float yf = vecs[pos].x * sin(vecs[pos].y);
+        for (int x=0; x<STRIDE_X; x++) {
+            int pos = x + y*(STRIDE_X);
+            if (vecs[pos].w != 0) {
+                // polar to Cartesian
+                float xf = vecs[pos].x * cos(vecs[pos].y);
+                float yf = vecs[pos].x * sin(vecs[pos].y);
 
-          // correct rounding
-          int high = (int)(xf + 0.5f - (xf < 0 ? 1.0f : 0.0f));
-          int low = (int)(yf + 0.5f - (yf < 0 ? 1.0f : 0.0f));
+                // correct rounding
+                int high = (int)(xf + 0.5f - (xf < 0 ? 1.0f : 0.0f));
+                int low = (int)(yf + 0.5f - (yf < 0 ? 1.0f : 0.0f));
 
-          int ox = x*tile_size + tile_size/2;
-          int oy = y*tile_size + tile_size/2;
-          fprintf(stdout, "(%d, %d) ---> (%d, %d)\n", ox + high, oy + low, ox, oy);
+                int ox = x*tile_size + tile_size/2;
+                int oy = y*tile_size + tile_size/2;
+                fprintf(stdout, "(%d, %d) ---> (%d, %d)\n", ox + high, oy + low, ox, oy);
+            }
         }
-      }
     }
 #endif
 
@@ -370,42 +363,42 @@ int main(int argc, const char **argv) {
     FreeImage_Save(FIF_PNG, fiout, "output.png");
 
     for (int y=0; y<STRIDE_Y; y++) {
-      for (int x=0; x<STRIDE_X; x++) {
-        int pos = x + y*(STRIDE_X);
-        int ox = x*tile_size + tile_size/2;
-        int oy = y*tile_size + tile_size/2;
-        if (vecs[pos].w != 0) {
-          // polar to Cartesian
-          float xf = vecs[pos].x * cos(vecs[pos].y);
-          float yf = vecs[pos].x * sin(vecs[pos].y);
+        for (int x=0; x<STRIDE_X; x++) {
+            int pos = x + y*(STRIDE_X);
+            int ox = x*tile_size + tile_size/2;
+            int oy = y*tile_size + tile_size/2;
+            if (vecs[pos].w != 0) {
+                // polar to Cartesian
+                float xf = vecs[pos].x * cos(vecs[pos].y);
+                float yf = vecs[pos].x * sin(vecs[pos].y);
 
-          // correct rounding
-          int high = (int)(xf + 0.5f - (xf < 0 ? 1.0f : 0.0f));
-          int low = (int)(yf + 0.5f - (yf < 0 ? 1.0f : 0.0f));
+                // correct rounding
+                int high = (int)(xf + 0.5f - (xf < 0 ? 1.0f : 0.0f));
+                int low = (int)(yf + 0.5f - (yf < 0 ? 1.0f : 0.0f));
 
-          // draw line
-          float m = (float)low/(float)high;
-          if (abs(low) > abs(high)) {
-            bool negative = low < 0;
-            for (int i=0; i<abs(low); ++i) {
-              int iy = oy + (negative ? -i : i);
-              int ix = ox + (negative ? -i/m : i/m);
-              int pos = ix + iy*width;
-              if (pos > 0 && pos < width*height)
-                host_in2[pos] = 255;
+                // draw line
+                float m = (float)low/(float)high;
+                if (abs(low) > abs(high)) {
+                    bool negative = low < 0;
+                    for (int i=0; i<abs(low); ++i) {
+                        int iy = oy + (negative ? -i : i);
+                        int ix = ox + (negative ? -i/m : i/m);
+                        int pos = ix + iy*width;
+                        if (pos > 0 && pos < width*height)
+                            host_in2[pos] = 255;
+                    }
+                } else {
+                    bool negative = high < 0;
+                    for (int i=0; i<abs(high); ++i) {
+                        int ix = ox + (negative ? -i : i);
+                        int iy = oy + (negative ? -i*m : i*m);
+                        int pos = ix + iy*width;
+                        if (pos > 0 && pos < width*height)
+                            host_in2[pos] = 255;
+                    }
+                }
             }
-          } else {
-            bool negative = high < 0;
-            for (int i=0; i<abs(high); ++i) {
-              int ix = ox + (negative ? -i : i);
-              int iy = oy + (negative ? -i*m : i*m);
-              int pos = ix + iy*width;
-              if (pos > 0 && pos < width*height)
-                host_in2[pos] = 255;
-            }
-          }
         }
-      }
     }
 
     FIBITMAP* fidbg = FreeImage_ConvertFromRawBits(host_in2, width, height, width,
