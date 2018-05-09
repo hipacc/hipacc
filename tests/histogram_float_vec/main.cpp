@@ -56,13 +56,13 @@ int main(int argc, const char **argv) {
 
     const int width = WIDTH;
     const int height = HEIGHT;
-    
+
     float refBin[num_bins];
     for (size_t i = 0; i < num_bins; ++i) {
       refBin[i] = 0.0f;
     }
 
-    float* input = new float[width*height]; 
+    float* input = new float[width*height];
     srand(time(NULL));
     for(size_t y = 0; y < height; ++y) {
         for(size_t x = 0; x < width; ++x) {
@@ -71,7 +71,7 @@ int main(int argc, const char **argv) {
                     / static_cast<float>(num_bins-1);
             input[x+y*width] = pixel;
             refBin[(uint)(pixel*num_bins-.5f)] += 1.0f;
-        }           
+        }
     }
 
     //*************************************************************************//
