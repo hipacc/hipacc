@@ -509,71 +509,90 @@ void HostDataDeps::createSchedule() {
 }
 
 
-// re-visit each fusible list to impose constaints for kernel fusion
+// TODO re-visit each fusible list to impose constaints for kernel fusion
 void HostDataDeps::fusibilityAnalysis() {
 
-  llvm::errs() << "\nfusibility analysis execution**********************************************\n";
+  //assert(((K->getKernelClass())->getKernelType() != GlobalOperator) && 
+  //    "global operators not yet supported for kernel fusion");
+}
+
+
+void HostDataDeps::recordFusibleKernelListInfo() {
+  unsigned posCnt = 0;
+  unsigned listPosCnt = 0;
+  llvm::errs() << "Fusibility analysis for Kernel Fusion: \n";
   for (auto l : vecFusibleKernelLists) {
-    llvm::errs() << "\nfor this list\n";
+    llvm::errs() << "  Fusible kernel list " << listPosCnt << ": \n";
     for (auto p : l) {
-      llvm::errs() << "\nkernel property: ";
-      llvm::errs() << "\nclass name " << p->getKernel()->getKernelClass()->getName();
-      llvm::errs() << "\nkernel name " << p->getKernel()->getName() << "\n";
+      FusibleProcessInfoFinalMap[p] = std::make_tuple(listPosCnt, posCnt);     
+      FusibleProcessListSizeFinalMap[p] = l.size();
+      posCnt++;
+      llvm::errs() << "  --->  " << p->getKernel()->getName();
     }
+    llvm::errs() << "\n";
+    listPosCnt++;
   }
+  llvm::errs() << "\n";
 }
 
-
-ValueDecl *HostDataDeps::getSourceKernelValueDecl(HipaccKernel *K) {
-  std::string fullName = K->getKernelClass()->getName() + K->getName(); 
-  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
-  Process *p = (processMap_[fullName])->GetReadDependentProcess();
-  return p ? p->getKernel()->getValueDecl() : nullptr;
-}
-
-bool HostDataDeps::isSourceKernel(HipaccKernel *K) { 
-  bool isSrc = true;
-  std::string fullName = K->getKernelClass()->getName() + K->getName(); 
-  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
-  Process *p = processMap_[fullName];
-
-  if (p->GetReadDependentProcess()) { 
-    isSrc = false;
-  }
-  return isSrc;
-}
-
-bool HostDataDeps::isDestinationKernel(HipaccKernel *K) { 
-  bool isDest = true;
-  std::string fullName = K->getKernelClass()->getName() + K->getName(); 
-  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
-  Process *p = processMap_[fullName];
-
-  if (p->GetWriteDependentProcess()) { 
-    isDest = false;
-  }
-  return isDest;
-}
-
-bool HostDataDeps::isFusibleKernel(HipaccKernel *K) { 
+bool HostDataDeps::isFusible(HipaccKernel *K) { 
   bool isFusible = false;
   std::string fullName = K->getKernelClass()->getName() + K->getName(); 
   assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
   Process *p = processMap_[fullName];
-
-  if ((p->GetReadDependentProcess()) || (p->GetWriteDependentProcess())) {
-    isFusible = true;
-  }
+  if (FusibleProcessInfoFinalMap.count(p)) { isFusible = true; }
   return isFusible;
 }
 
-bool HostDataDeps::isSharedSpace(ValueDecl *VD) {
-  std::string fullName = VD->getNameAsString();
-  assert(spaceMap_.count(fullName) && "image name has no corresponding space");
-  Space *s = spaceMap_[fullName];
-  bool isShared = s->isShared;
-  return isShared;
+bool HostDataDeps::isSrc(HipaccKernel *K) { 
+  bool isSrc = false;
+  std::string fullName = K->getKernelClass()->getName() + K->getName(); 
+  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
+  Process *p = processMap_[fullName];
+  if (std::get<1>(FusibleProcessInfoFinalMap[p]) == 0) { isSrc = true; }
+  return isSrc;
 }
+
+bool HostDataDeps::isDest(HipaccKernel *K) { 
+  bool isDest = false;
+  std::string fullName = K->getKernelClass()->getName() + K->getName(); 
+  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
+  Process *p = processMap_[fullName];
+  if (std::get<1>(FusibleProcessInfoFinalMap[p]) == 
+        FusibleProcessListSizeFinalMap[p]-1) { 
+    isDest = true; 
+  }
+  return isDest;
+}
+
+unsigned HostDataDeps::getNumberOfFusibleKernelList() const { 
+  return vecFusibleKernelLists.size(); 
+} 
+
+unsigned HostDataDeps::getKernelListIndex(HipaccKernel *K) {
+  std::string fullName = K->getKernelClass()->getName() + K->getName(); 
+  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
+  Process *p = processMap_[fullName];
+  assert(FusibleProcessInfoFinalMap.count(p) && "Kernel has no corresponding fusible process");
+  return std::get<0>(FusibleProcessInfoFinalMap[p]);
+}
+
+unsigned HostDataDeps::getKernelIndex(HipaccKernel *K) {
+  std::string fullName = K->getKernelClass()->getName() + K->getName(); 
+  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
+  Process *p = processMap_[fullName];
+  assert(FusibleProcessInfoFinalMap.count(p) && "Kernel has no corresponding fusible process");
+  return std::get<1>(FusibleProcessInfoFinalMap[p]);
+}
+
+unsigned HostDataDeps::getKernelListSize(HipaccKernel *K) {
+  std::string fullName = K->getKernelClass()->getName() + K->getName(); 
+  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
+  Process *p = processMap_[fullName];
+  assert(FusibleProcessListSizeFinalMap.count(p) && "Kernel has no corresponding fusible process");
+  return FusibleProcessListSizeFinalMap[p];
+}
+
 
 const bool HostDataDeps::DEBUG =
 #ifdef PRINT_DEBUG

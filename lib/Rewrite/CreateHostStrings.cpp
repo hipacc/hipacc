@@ -389,6 +389,360 @@ void CreateHostStrings::writeMemoryRelease(HipaccMemory *mem, std::string
 }
 
 
+void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K, 
+        std::string &resultStr, ASTFuse *kernelFuser) {
+  // kernel call elements 
+  std::string fusedKernelLaunchInfo;
+  std::string fusedKernelPrepareLaunchBlock;
+  std::string fusedKernelPrepareLaunchGrid;
+  std::string fusedKernelPrepareLaunch;
+  std::string fusedKernelConfig;
+  std::string fusedKernelCall;
+  std::string fusedDestKernelTexConst;
+  std::string fusedDestKernelCall;
+  std::string fusedDestKernelLaunch;
+  std::string kernel_name = kernelFuser->getFusedKernelName(K);
+
+  auto argTypeNames = K->getArgTypeNames();
+  auto deviceArgNames = K->getDeviceArgNames();
+  auto hostArgNames = K->getHostArgNames();
+
+  std::string lit(std::to_string(literal_count++));
+  std::string threads_x(std::to_string(K->getNumThreadsX()));
+  std::string threads_y(std::to_string(K->getNumThreadsY()));
+  std::string blockStr, gridStr, offsetStr, infoStr, infoStrFuse;
+
+  switch (options.getTargetLang()) {
+    case Language::C99: break;
+    case Language::CUDA:
+      blockStr = "block" + lit;
+      gridStr = "grid" + lit;
+      offsetStr = "offset" + kernel_name;
+      break;
+    default: assert(0 && "language not support for kernel fusion!");
+  }
+  infoStr = K->getInfoStr();
+  infoStrFuse = "FusedKernel_info";
+
+  if (options.exploreConfig() || options.timeKernels()) {
+    // explore config not yet supported
+  }
+
+  if (options.getTargetLang() != Language::C99) {
+    // hipacc_launch_info
+    fusedKernelLaunchInfo += "hipacc_launch_info " + infoStr + "(";
+    fusedKernelLaunchInfo += std::to_string(K->getMaxSizeX()) + ", ";
+    fusedKernelLaunchInfo += std::to_string(K->getMaxSizeY()) + ", ";
+    fusedKernelLaunchInfo += K->getIterationSpace()->getName() + ", ";
+    fusedKernelLaunchInfo += std::to_string(K->getPixelsPerThread()) + ", ";
+    if (K->vectorize()) {
+      // TODO set and calculate per kernel simd width ...
+      fusedKernelLaunchInfo += "4);\n";
+    } else {
+      fusedKernelLaunchInfo += "1);\n";
+    }
+    fusedKernelLaunchInfo += indent;
+  }
+
+  if (!options.exploreConfig()) {
+    switch (options.getTargetLang()) {
+      case Language::C99: break;
+      case Language::CUDA:
+        // dim3 block
+        fusedKernelPrepareLaunchBlock += "dim3 " + blockStr + "(" + threads_x + ", " + threads_y + ");\n";
+        fusedKernelPrepareLaunchBlock += indent;
+
+        // dim3 grid & hipaccCalcGridFromBlock
+        fusedKernelPrepareLaunchGrid += "dim3 " + gridStr + "(hipaccCalcGridFromBlock(";
+        fusedKernelPrepareLaunchGrid += infoStr + ", ";
+        fusedKernelPrepareLaunchGrid += blockStr + "));\n\n";
+        fusedKernelPrepareLaunchGrid += indent;
+
+        // hipaccPrepareKernelLaunch
+        fusedKernelPrepareLaunch += "hipaccPrepareKernelLaunch(";
+        fusedKernelPrepareLaunch += infoStr + ", ";
+        fusedKernelPrepareLaunch += blockStr + ");\n";
+        fusedKernelPrepareLaunch += indent;
+
+        // hipaccConfigureCall
+        fusedKernelConfig += "hipaccConfigureCall(";
+        fusedKernelConfig += gridStr;
+        fusedKernelConfig += ", " + blockStr;
+        fusedKernelConfig += ");\n\n";
+        fusedKernelConfig += indent;
+
+        // offset parameter
+        if (!options.timeKernels()) {
+          fusedKernelConfig += "size_t " + offsetStr + " = 0;\n";
+          fusedKernelConfig += indent;
+        }
+        break;
+    default: assert(0 && "language not support for kernel fusion!");
+    }
+  }
+
+  // bind textures and get constant pointers
+  size_t num_arg = 0;
+  for (auto arg : K->getDeviceArgFields()) {
+    size_t i = num_arg++;
+
+    // get param name as well as its orig name before kernel fusion
+    std::string nameTemp(K->getDeviceArgNames()[i]);
+    std::string nameOrig = nameTemp.substr(0, nameTemp.find("_kernelFusion_")); 
+
+    // skip unused variables
+    if (!K->getUsed(nameTemp) && !K->getUsed(nameOrig))
+      continue;
+
+    if (auto Acc = K->getImgFromMapping(arg)) {
+      if (options.emitCUDA() && K->useTextureMemory(Acc) != Texture::None &&
+                                K->useTextureMemory(Acc) != Texture::Ldg) {
+        std::string tex_type = "Texture", hipacc_type = "Array2D";
+        if (K->getKernelClass()->getMemAccess(arg) == WRITE_ONLY)
+          tex_type = hipacc_type = "Surface";
+        // bind texture and surface
+        if (options.exploreConfig()) {
+          std::string lit(std::to_string(literal_count++));
+          fusedDestKernelTexConst += "hipacc_tex_info tex_info" + lit;
+          fusedDestKernelTexConst += "(std::string(\"_tex" + deviceArgNames[i] + K->getName() + "\"), ";
+          fusedDestKernelTexConst += Acc->getImage()->getTextureType() + ", ";
+          fusedDestKernelTexConst += hostArgNames[i] + ", ";
+          switch (K->useTextureMemory(Acc)) {
+            case Texture::Linear1D: fusedDestKernelTexConst += "Linear1D";  break;
+            case Texture::Linear2D: fusedDestKernelTexConst += "Linear2D";  break;
+            case Texture::Array2D:  fusedDestKernelTexConst += hipacc_type; break;
+            default: assert(0 && "unsupported texture type!");
+          }
+          fusedDestKernelTexConst += ");\n";
+          fusedDestKernelTexConst += indent;
+          fusedDestKernelTexConst += "_texs" + kernel_name + ".push_back(&tex_info" + lit + ");\n";
+        } else {
+          std::string tex_reference = tex_type;
+          tex_reference[0] = std::tolower(tex_reference[0], std::locale());
+          fusedDestKernelTexConst += "const " + tex_reference + "Reference *_tex" + deviceArgNames[i] + K->getName() + "Ref;\n";
+          fusedDestKernelTexConst += indent;
+          fusedDestKernelTexConst += "cudaGet" + tex_type + "Reference(&";
+          fusedDestKernelTexConst += "_tex" + deviceArgNames[i] + K->getName() + "Ref, &";
+          fusedDestKernelTexConst += "_tex" + deviceArgNames[i] + K->getName() + ");\n";
+          fusedDestKernelTexConst += indent;
+          fusedDestKernelTexConst += "hipaccBind" + tex_type + "<" + argTypeNames[i] + ">(";
+          switch (K->useTextureMemory(Acc)) {
+            case Texture::Linear1D: fusedDestKernelTexConst += "Linear1D";  break;
+            case Texture::Linear2D: fusedDestKernelTexConst += "Linear2D";  break;
+            case Texture::Array2D:  fusedDestKernelTexConst += hipacc_type; break;
+            default: assert(0 && "unsupported texture type!");
+          }
+          fusedDestKernelTexConst += ", _tex" + deviceArgNames[i] + K->getName() + "Ref, ";
+          fusedDestKernelTexConst += hostArgNames[i] + ");\n";
+        }
+        fusedDestKernelTexConst += indent;
+      }
+
+      if (options.exploreConfig() && K->useLocalMemory(Acc)) {
+        // store local memory size information for exploration
+        fusedDestKernelTexConst += "_smems" + kernel_name + ".push_back(";
+        fusedDestKernelTexConst += "hipacc_smem_info(" + Acc->getSizeXStr() + ", ";
+        fusedDestKernelTexConst += Acc->getSizeYStr() + ", ";
+        fusedDestKernelTexConst += "sizeof(" + Acc->getImage()->getTypeStr() + ")));\n";
+        fusedDestKernelTexConst += indent;
+      }
+    }
+  }
+
+  // parameters
+  num_arg = 0;
+  for (auto arg : K->getDeviceArgFields()) {
+    size_t i = num_arg++;
+    // skip unused variables
+    std::string Name(K->getDeviceArgNames()[i]);
+    std::string nameOrig = Name.substr(0, Name.find("_"+K->getKernelName())); 
+    if (!K->getUsed(Name) && !K->getUsed(nameOrig)){
+      continue;
+    }
+    HipaccMask *Mask = K->getMaskFromMapping(arg);
+    if (Mask) {
+      if (options.emitCUDA()) {
+        Mask->addKernel(K);
+        continue;
+      } else {
+        if (Mask->isConstant())
+          continue;
+      }
+    }
+    HipaccAccessor *Acc = K->getImgFromMapping(arg);
+    if (options.emitCUDA() && Acc && K->useTextureMemory(Acc) != Texture::None &&
+                                     K->useTextureMemory(Acc) != Texture::Ldg)
+      continue; // textures are handled separately
+    std::string img_mem;
+    if (Acc || Mask) img_mem = ".mem";
+
+    if (options.exploreConfig() || options.timeKernels()) {
+      // add kernel argument
+      switch (options.getTargetLang()) {
+        case Language::C99: break;
+        case Language::CUDA:
+          fusedDestKernelCall += "_args" + kernel_name + ".push_back(";
+          if (options.exploreConfig()) {
+            fusedDestKernelCall += "(void *)&" + hostArgNames[i] + img_mem + ");\n";
+          } else {
+            fusedDestKernelCall += "std::make_pair(sizeof(" + argTypeNames[i];
+            fusedDestKernelCall += "), (void *)&" + hostArgNames[i] + img_mem + "));\n";
+          }
+          fusedDestKernelCall += indent;
+          break;
+        default: assert(0 && "language not support for kernel fusion!");
+      }
+    } else {
+      // set kernel arguments
+      switch (options.getTargetLang()) {
+        case Language::CUDA:
+          fusedKernelCall += "hipaccSetupArgument(&";
+          fusedKernelCall += hostArgNames[i] + img_mem;
+          fusedKernelCall += ", sizeof(" + argTypeNames[i] + "), ";
+          fusedKernelCall += offsetStr;
+          fusedKernelCall += ");\n";
+          fusedKernelCall += indent;
+          break;
+        default: assert(0 && "language not support for kernel fusion!");
+      }
+    }
+  }
+  fusedKernelCall += "\n" + indent;
+
+  // launch kernel
+  if (options.exploreConfig() || options.timeKernels()) {
+    switch (options.getTargetLang()) {
+      case Language::C99: break;
+      case Language::CUDA:
+        if (options.timeKernels()) {
+          fusedDestKernelLaunch += "hipaccLaunchKernelBenchmark((const void *)&";
+          fusedDestKernelLaunch += kernel_name + ", \"";
+          fusedDestKernelLaunch += kernel_name + "\"";
+        } else {
+          fusedDestKernelLaunch += "hipaccKernelExploration(\"" + K->getFileName() + ".cu\", \"" + kernel_name + "\"";
+        }
+        break;
+      case Language::Renderscript:
+      case Language::Filterscript:
+        if (options.timeKernels()) {
+          fusedDestKernelLaunch += "hipaccLaunchScriptKernelBenchmark(&" + kernel_name;
+        } else {
+          fusedDestKernelLaunch += "ScriptC_" + K->getFileName() + " " + kernel_name + " = ";
+          fusedDestKernelLaunch += "hipaccInitScript<ScriptC_" + K->getFileName() + ">();\n";
+          fusedDestKernelLaunch += indent + "hipaccLaunchScriptKernelExploration<";
+          fusedDestKernelLaunch += "ScriptC_" + K->getFileName() + ", ";
+          fusedDestKernelLaunch += K->getIterationSpace()->getImage()->getTypeStr();
+          fusedDestKernelLaunch += ">(&" + kernel_name;
+        }
+        break;
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        if (options.timeKernels()) {
+          fusedDestKernelLaunch += "hipaccEnqueueKernelBenchmark(" + kernel_name;
+        } else {
+          fusedDestKernelLaunch += "hipaccKernelExploration(\"" + K->getFileName() + ".cl\", \"" + kernel_name + "\"";
+        }
+        break;
+    }
+    fusedDestKernelLaunch += ", _args" + kernel_name;
+    if (options.emitRenderscript() || options.emitFilterscript()) {
+        fusedDestKernelLaunch += ", &ScriptC_" + K->getFileName() + "::forEach_" + kernel_name;
+    }
+    // additional parameters for exploration
+    if (options.exploreConfig()) {
+      fusedDestKernelLaunch += ", _smems" + kernel_name;
+      if (options.emitCUDA()) {
+        fusedDestKernelLaunch += ", _consts" + kernel_name;
+        fusedDestKernelLaunch += ", _texs" + kernel_name;
+      }
+      fusedDestKernelLaunch += ", " + infoStrFuse;
+      fusedDestKernelLaunch += ", " + std::to_string(K->getWarpSize());
+      fusedDestKernelLaunch += ", " + std::to_string(K->getMaxThreadsPerBlock());
+      fusedDestKernelLaunch += ", " + std::to_string(K->getMaxThreadsForKernel());
+      fusedDestKernelLaunch += ", " + std::to_string(K->getMaxTotalSharedMemory());
+      fusedDestKernelLaunch += ", " + std::to_string(K->getNumThreadsX());
+      fusedDestKernelLaunch += ", " + std::to_string(K->getNumThreadsY());
+      if (options.emitCUDA()) {
+        fusedDestKernelLaunch += ", " + std::to_string(device.getTargetCC());
+      }
+      if (options.emitRenderscript() || options.emitFilterscript()) {
+        fusedDestKernelLaunch += ", " + gridStr;
+      }
+    } else {
+      fusedDestKernelLaunch += ", " + gridStr;
+      fusedDestKernelLaunch += ", " + blockStr;
+      fusedDestKernelLaunch += ", true";
+    }
+    fusedDestKernelLaunch += ");\n";
+    dec_indent();
+    fusedDestKernelLaunch += indent + "}\n";
+  } else {
+    switch (options.getTargetLang()) {
+      case Language::C99: break;
+      case Language::CUDA:
+        fusedDestKernelLaunch += "hipaccLaunchKernel((const void *)&";
+        fusedDestKernelLaunch += kernel_name + ", \"";
+        fusedDestKernelLaunch += kernel_name + "\"";
+        break;
+      case Language::Renderscript:
+      case Language::Filterscript:
+        fusedDestKernelLaunch += "hipaccLaunchScriptKernel(&" + kernel_name + ", ";
+        fusedDestKernelLaunch += "&ScriptC_" + K->getFileName() + "::forEach_" + kernel_name;
+        fusedDestKernelLaunch += ", " + gridStr;
+        fusedDestKernelLaunch += ", " + blockStr + ");";
+        break;
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        fusedDestKernelLaunch += "hipaccEnqueueKernel(";
+        fusedDestKernelLaunch += kernel_name;
+        break;
+    }
+    if (!options.emitRenderscript() && !options.emitFilterscript() &&
+        !options.emitC99()) {
+      fusedDestKernelLaunch += ", " + gridStr;
+      fusedDestKernelLaunch += ", " + blockStr;
+      fusedDestKernelLaunch += ");";
+    }
+  }
+
+  if (!kernelFuser->isDestKernel(K)) {
+    // concatenate kernel calls
+    if (kernelFuser->isSrcKernel(K)) {
+      fusedKernelLaunchInfoMap[K] = fusedKernelLaunchInfo;
+      fusedKernelCallMap[K] = fusedKernelCall;
+      fusedKernelPrepareLaunchMap[K] = fusedKernelPrepareLaunchBlock + fusedKernelPrepareLaunch;
+    }
+    else {
+      fusedKernelLaunchInfoMap[K] = 
+        fusedKernelLaunchInfoMap[kernelFuser->getProducerKernel(K)] + 
+        fusedKernelLaunchInfo;
+      fusedKernelCallMap[K] = 
+        fusedKernelCallMap[kernelFuser->getProducerKernel(K)] + 
+        fusedKernelCall;
+      fusedKernelPrepareLaunchMap[K] = 
+        fusedKernelPrepareLaunchMap[kernelFuser->getProducerKernel(K)] + 
+        fusedKernelPrepareLaunchBlock + fusedKernelPrepareLaunch;
+    }
+  }         // !kernelFuser->isDestKernel(K) END
+  else {    // kernelFuser->isDestKernel(K) BEGIN
+    resultStr += fusedKernelLaunchInfoMap[kernelFuser->getProducerKernel(K)];
+    resultStr += fusedKernelLaunchInfo;
+    resultStr += fusedKernelPrepareLaunchBlock;
+    resultStr += fusedKernelPrepareLaunchGrid;
+    resultStr += fusedKernelPrepareLaunchMap[kernelFuser->getProducerKernel(K)];
+    resultStr += fusedKernelPrepareLaunch;
+    resultStr += fusedKernelConfig;
+    resultStr += fusedDestKernelTexConst;
+    resultStr += fusedKernelCallMap[kernelFuser->getProducerKernel(K)];
+    resultStr += fusedDestKernelCall;
+    resultStr += fusedKernelCall;
+    resultStr += fusedDestKernelLaunch;
+  }
+}
+
+
 void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr) {
   auto argTypeNames = K->getArgTypeNames();
   auto deviceArgNames = K->getDeviceArgNames();

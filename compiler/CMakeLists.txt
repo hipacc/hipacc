@@ -21,6 +21,7 @@ endif()
 list(APPEND HIPACC_LIBS
     hipaccHostDataDeps
     hipaccKernelStatistics
+    hipaccASTFuse
     hipaccBuiltins
     hipaccASTNode)
 

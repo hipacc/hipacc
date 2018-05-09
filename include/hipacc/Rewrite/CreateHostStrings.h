@@ -36,6 +36,7 @@
 #define _CREATE_HOST_STRINGS_H_
 
 #include "hipacc/DSL/ClassRepresentation.h"
+#include "hipacc/AST/ASTFuse.h"
 
 #include <string>
 
@@ -48,6 +49,11 @@ class CreateHostStrings {
     unsigned literal_count;
     int num_indent, cur_indent;
     std::string indent;
+    
+    // optimization params
+    std::map<HipaccKernel *, std::string> fusedKernelLaunchInfoMap;
+    std::map<HipaccKernel *, std::string> fusedKernelCallMap;
+    std::map<HipaccKernel *, std::string> fusedKernelPrepareLaunchMap;
 
     void inc_indent() {
       cur_indent += num_indent;
@@ -91,6 +97,7 @@ class CreateHostStrings {
     void writeMemoryRelease(HipaccMemory *mem, std::string &resultStr, bool
         is_pyramid=false);
     void writeKernelCall(HipaccKernel *K, std::string &resultStr);
+    void writeFusedKernelCall(HipaccKernel *K, std::string &resultStr, ASTFuse *kernelFuser);
     void writeReduceCall(HipaccKernel *K, std::string &resultStr);
     std::string getInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,
         std::string function_name, std::string type_suffix, Interpolate ip_mode,

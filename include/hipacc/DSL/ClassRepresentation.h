@@ -424,13 +424,7 @@ class HipaccKernelClass {
     MemoryAccess getMemAccess(FieldDecl *decl) {
       return kernelStatistics->getMemAccess(decl);
     }
-    MemoryPattern getMemPattern(FieldDecl *decl) {
-      return kernelStatistics->getMemPattern(decl);
-    }
-    VectorInfo getVectorizeInfo(VarDecl *decl) {
-      return kernelStatistics->getVectorizeInfo(decl);
-    }
-    KernelType getKernelType() {
+    MemoryPattern getMemPattern(FieldDecl *decl) { return kernelStatistics->getMemPattern(decl); } VectorInfo getVectorizeInfo(VarDecl *decl) { return kernelStatistics->getVectorizeInfo(decl); } KernelType getKernelType() {
       return kernelStatistics->getKernelType();
     }
 
@@ -456,8 +450,8 @@ class HipaccKernelClass {
     }
 
     ArrayRef<KernelMemberInfo> getMembers() { return members; }
-    ArrayRef<FieldDecl *> getImgFields() { return imgFields; }
-    ArrayRef<FieldDecl *> getMaskFields() { return maskFields; }
+    ArrayRef<FieldDecl *> getImgFields() { return imgFields; } 
+    ArrayRef<FieldDecl *> getMaskFields() { return maskFields; } 
     FieldDecl *getOutField() { return output_image; }
 
     friend class HipaccKernel;
@@ -647,6 +641,7 @@ class HipaccKernel : public HipaccKernelFeatures {
 
     // keep track of variables used within kernel
     void setUsed(std::string name) { usedVars.insert(name); }
+    void setUnused(std::string name) { usedVars.erase(name); }
     void resetUsed() {
       usedVars.clear();
       deviceFuncs.clear();

@@ -483,7 +483,8 @@ void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3,
                                  argTypeNames.push_back(typeC); break;
   }
 
-  deviceArgNames.push_back(name);
+  if (options.fuseKernels()) deviceArgNames.push_back(name + "_" + kernelName);
+  else deviceArgNames.push_back(name);
   deviceArgFields.push_back(fd);
 }
 

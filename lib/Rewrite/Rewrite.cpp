@@ -1,4 +1,5 @@
 //
+// Copyright (c) 2018, University of Erlangen-Nuremberg
 // Copyright (c) 2012, University of Erlangen-Nuremberg
 // Copyright (c) 2012, Siemens AG
 // Copyright (c) 2010, ARM Limited
@@ -38,6 +39,7 @@
 #endif
 #include "hipacc/AST/ASTNode.h"
 #include "hipacc/AST/ASTTranslate.h"
+#include "hipacc/AST/ASTFuse.h"
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDescription.h"
 #include "hipacc/DSL/CompilerKnownClasses.h"
@@ -56,7 +58,6 @@
 using namespace clang;
 using namespace hipacc;
 using namespace ASTNode;
-
 
 namespace {
 class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
@@ -79,6 +80,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
 
     // optimization utilities
     HostDataDeps *dataDeps;
+    ASTFuse *kernelFuser;
 
     // compiler known/built-in C++ classes
     CompilerKnownClasses compilerClasses;
@@ -116,6 +118,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       builtins(CI.getASTContext()),
       stringCreator(CreateHostStrings(options, targetDevice)),
       dataDeps(nullptr),
+      kernelFuser(nullptr),
       compilerClasses(CompilerKnownClasses()),
       mainFD(nullptr),
       literalCount(0),
@@ -315,10 +318,26 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
       break;
     case Language::CUDA:
       if (!compilerOptions.exploreConfig()) {
-        for (auto map : KernelDeclMap) {
-          newStr += "#include \"";
-          newStr += map.second->getFileName();
-          newStr += ".cu\"\n";
+        if (compilerOptions.fuseKernels()) {
+          for (auto map : KernelDeclMap) {  
+            if (!dataDeps->isFusible(map.second)) {
+              newStr += "#include \""; 
+              newStr += map.second->getFileName();
+              newStr += ".cu\"\n";
+            }
+          }
+          for (auto fName : kernelFuser->getFusedFileNamesAll()) {  
+            newStr += "#include \"";
+            newStr += fName;
+            newStr += ".cu\"\n";  
+          }
+        }
+        else {
+          for (auto map : KernelDeclMap) {
+            newStr += "#include \"";
+            newStr += map.second->getFileName();
+            newStr += ".cu\"\n";
+          }
         }
       }
       break;
@@ -1323,6 +1342,15 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             }
           }
 
+          // kernel optimization 
+          if (compilerOptions.fuseKernels() && dataDeps->isFusible(K)) {
+            // TODO set kernel configuration
+            K->setDefaultConfig();
+            // execute domain specific fusion
+            kernelFuser->parseFusibleKernel(K);
+            break;
+          }
+
           // set kernel configuration
           setKernelConfiguration(KC, K);
 
@@ -1372,7 +1400,7 @@ bool Rewrite::VisitFunctionDecl(FunctionDecl *D) {
     if (compilerOptions.fuseKernels()) {
       AnalysisDeclContext AC(0, mainFD);
       dataDeps = HostDataDeps::parse(Context, AC, compilerClasses, compilerOptions, KernelClassDeclMap);
-      //hipaccKernelFuser = new ASTFuse(Context, builtins, compilerOptions, dataDeps);
+      kernelFuser = new ASTFuse(Context, builtins, compilerOptions, Policy, dataDeps);
     }
   }
 
@@ -1655,7 +1683,12 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         // TODO: handle the case when only reduce function is specified
         //
         // create kernel call string
-        stringCreator.writeKernelCall(K, newStr);
+        if (compilerOptions.fuseKernels() && dataDeps->isFusible(K)) {
+          stringCreator.writeFusedKernelCall(K, newStr, kernelFuser);
+        }
+        else {
+          stringCreator.writeKernelCall(K, newStr);
+        }
 
         // create reduce call string
         if (K->getKernelClass()->getReduceFunction()) {

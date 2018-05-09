@@ -68,7 +68,7 @@ typedef union border_variant {
 } border_variant;
 
 class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
-  private:
+  protected:
     enum TranslationMode {
       CloneAST,
       TranslateAST
@@ -160,7 +160,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     void setExprPropsClone(Expr *orig, Expr *clone);
     void setCastPath(CastExpr *orig, CXXCastPath &castPath);
     void initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S);
-    void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
+    virtual void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
     void initOpenCL(SmallVector<Stmt *, 16> &kernelBody);
     void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
     void updateTileVars();
@@ -369,7 +369,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         // debug
       }
 
-    Stmt *Hipacc(Stmt *S);
+  virtual Stmt *Hipacc(Stmt *S);
 
   public:
     // dump all available statement visitors
@@ -392,9 +392,9 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // ASTTranslate.cpp for translation related to CUDA/OpenCL
 
     #define VISIT_MODE(B, K) \
-    B *Visit##K##Clone(K *k); \
-    B *Visit##K##Translate(K *k); \
-    B *Visit##K(K *k) { \
+    virtual B *Visit##K##Clone(K *k); \
+    virtual B *Visit##K##Translate(K *k); \
+    virtual B *Visit##K(K *k) { \
       if (astMode==CloneAST) return Visit##K##Clone(k); \
       return Visit##K##Translate(k); \
     }

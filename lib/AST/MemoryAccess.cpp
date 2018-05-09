@@ -151,7 +151,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
             return accessMemTexAt(LHS, Acc, mem_acc, idx_x, idx_y);
           return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
         case Language::Renderscript:
-          if (KernelClass->getMembers()[0].name.compare(LHS->getNameInfo().getAsString()) != 0)
+          if (KernelClass->getMembers()[0].name.compare(LHS->getNameInfo().getAsString()+"_"+Kernel->getKernelName()) != 0)
             return accessMemAllocPtr(LHS); // access allocation by using local pointer type kernel argument
           return accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
         case Language::Filterscript:

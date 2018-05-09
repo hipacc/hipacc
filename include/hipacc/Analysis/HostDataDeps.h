@@ -36,12 +36,6 @@
 #ifndef _HOSTDATADEPS_H_ 
 #define _HOSTDATADEPS_H_
 
-#include <vector>
-#include <list>
-#include <algorithm>
-#include <iostream>
-#include <sstream>
-
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/StmtVisitor.h>
 #include <clang/Analysis/AnalysisContext.h>
@@ -54,6 +48,13 @@
 #include "hipacc/DSL/CompilerKnownClasses.h"
 #include "hipacc/DSL/ClassRepresentation.h"
 #include "hipacc/AST/ASTNode.h"
+
+#include <vector>
+#include <list>
+#include <tuple>
+#include <algorithm>
+#include <iostream>
+#include <sstream>
 
 //#define PRINT_DEBUG
 
@@ -136,6 +137,8 @@ class HostDataDeps : public ManagedAnalysis {
     llvm::DenseMap<RecordDecl *, HipaccKernelClass *> KernelClassDeclMap;
     std::map<Process *, std::list<Process*>> FusibleKernelListsMap;
     std::vector<std::list<Process*>> vecFusibleKernelLists;
+    std::map<Process *, std::tuple<unsigned, unsigned>> FusibleProcessInfoFinalMap;
+    std::map<Process *, unsigned> FusibleProcessListSizeFinalMap;
 
     // inner class definitions
     class IterationSpace {
@@ -329,10 +332,6 @@ class HostDataDeps : public ManagedAnalysis {
           }
           dstProcess.push_back(proc);
         }
-
-        //std::string getTypeStr(size_t ppt) {
-        //  return image->getTypeStr(ppt);
-        //}
     };
 
     class Process : public Node {
@@ -436,6 +435,7 @@ class HostDataDeps : public ManagedAnalysis {
 		void recordFusibleProcessPair(Process *pSrc, Process *pDest);
     void createSchedule();
     void fusibilityAnalysis();
+    void recordFusibleKernelListInfo();
     std::string declareFifo(std::string type, std::string name);
     std::string getEntrySignature(
         std::map<std::string,std::vector<std::pair<std::string,std::string>>> args,
@@ -445,18 +445,13 @@ class HostDataDeps : public ManagedAnalysis {
         bool print=false);
 
   public:
-    std::string printEntryDecl(
-        std::map<std::string,std::vector<std::pair<std::string,std::string>>> args);
-    std::string printEntryCall(
-        std::map<std::string,std::vector<std::pair<std::string,std::string>>> args,
-        std::string img);
-    std::string printEntryDef(
-        std::map<std::string,std::vector<std::pair<std::string,std::string>>> args);
-    bool isSharedSpace(ValueDecl *VD); 
-    bool isFusibleKernel(HipaccKernel *K); 
-    bool isDestinationKernel(HipaccKernel *K); 
-    bool isSourceKernel(HipaccKernel *K); 
-    ValueDecl *getSourceKernelValueDecl(HipaccKernel *K); 
+    bool isFusible(HipaccKernel *K); 
+    bool isSrc(HipaccKernel *K); 
+    bool isDest(HipaccKernel *K); 
+    unsigned getNumberOfFusibleKernelList() const;
+    unsigned getKernelListIndex(HipaccKernel *K); 
+    unsigned getKernelListSize(HipaccKernel *K); 
+    unsigned getKernelIndex(HipaccKernel *K); 
 
     static HostDataDeps *parse(ASTContext &Context,
         AnalysisDeclContext &analysisContext,
@@ -477,6 +472,7 @@ class HostDataDeps : public ManagedAnalysis {
 
       dataDeps.createSchedule();
       dataDeps.fusibilityAnalysis();
+      dataDeps.recordFusibleKernelListInfo();
       return &dataDeps;
     }
 };

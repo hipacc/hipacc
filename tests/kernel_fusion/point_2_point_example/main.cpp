@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include "hipacc.hpp"
 
-#define CHECK_RESULT
+//#define CHECK_RESULT
 
 
 using namespace hipacc;

@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include "hipacc.hpp"
 
-#define PRINT_RESULT
+//#define PRINT_RESULT
 
 using namespace hipacc;
 
