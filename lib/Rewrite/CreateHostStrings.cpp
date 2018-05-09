@@ -847,7 +847,21 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
 
   // print runtime function name plus name of reduction function
   switch (options.getTargetLang()) {
-    case Language::C99: break;
+    case Language::C99:
+      resultStr += "hipaccStartTiming();\n";
+      resultStr += indent;
+      resultStr += red_decl;
+      resultStr += K->getReduceName() + "2DKernel(";
+      resultStr += "(" + K->getIterationSpace()->getImage()->getTypeStr();
+      resultStr += "(*)[" + K->getIterationSpace()->getImage()->getSizeXStr() + "])";
+      resultStr += K->getIterationSpace()->getName() + ".img->mem, ";
+      resultStr += K->getIterationSpace()->getName() + ".width, ";
+      resultStr += K->getIterationSpace()->getName() + ".height, ";
+      resultStr += K->getIterationSpace()->getName() + ".img->stride);\n";
+      resultStr += indent;
+      resultStr += "hipaccStopTiming();\n";
+      resultStr += indent;
+      return;
     case Language::CUDA:
       if (!options.exploreConfig()) {
         // first get texture reference

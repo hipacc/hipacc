@@ -2043,7 +2043,9 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     OS << "#define USE_OFFSETS\n";
   }
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99: break;
+    case Language::C99:
+      OS << "#include \"hipacc_cpu_red.hpp\"\n\n";
+      break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
@@ -2121,7 +2123,16 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
 
   // instantiate reduction
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99: break;
+    case Language::C99:
+      // 2D reduction
+      OS << "REDUCTION_CPU_2D_SINGLE(" << K->getReduceName() << "2D, "
+         << fun->getReturnType().getAsString() << ", "
+         << K->getReduceName() << ", "
+         << K->getIterationSpace()->getImage()->getSizeXStr() << ", "
+         << K->getIterationSpace()->getImage()->getSizeYStr() << ", "
+         << "PPT, (0)"
+         << ")\n";
+      break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
