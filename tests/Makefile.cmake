@@ -31,7 +31,7 @@ CU_LINK         = $(CC_LINK) @NVCC_LINK@
 # use specific configuration for kernels -> set HIPACC_CONFIG to nxm
 # generate code that explores configuration -> set HIPACC_EXPLORE to off|on
 # generate code that times kernel execution -> set HIPACC_TIMING to off|on
-HIPACC_LMEM?=off
+HIPACC_LMEM?=on
 HIPACC_TEX?=off
 HIPACC_VEC?=off
 HIPACC_FUSE?=off
