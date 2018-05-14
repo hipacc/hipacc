@@ -270,7 +270,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=nullptr, Expr
         *offset_y=nullptr);
     Expr *accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
-    void stageLineToSharedMemory(ParmVarDecl *PVD, SmallVector<Stmt *, 16>
+    virtual void stageLineToSharedMemory(ParmVarDecl *PVD, SmallVector<Stmt *, 16>
         &stageBody, Expr *local_offset_x, Expr *local_offset_y, Expr
         *global_offset_x, Expr *global_offset_y);
     void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int

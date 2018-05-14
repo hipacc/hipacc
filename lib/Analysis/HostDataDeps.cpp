@@ -518,11 +518,12 @@ void HostDataDeps::fusibilityAnalysis() {
 
 
 void HostDataDeps::recordFusibleKernelListInfo() {
-  unsigned posCnt = 0;
+  unsigned posCnt;
   unsigned listPosCnt = 0;
   llvm::errs() << "Fusibility analysis for Kernel Fusion: \n";
   for (auto l : vecFusibleKernelLists) {
     llvm::errs() << "  Fusible kernel list " << listPosCnt << ": \n";
+    posCnt = 0;
     for (auto p : l) {
       FusibleProcessInfoFinalMap[p] = std::make_tuple(listPosCnt, posCnt);     
       FusibleProcessListSizeFinalMap[p] = l.size();

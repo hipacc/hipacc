@@ -483,8 +483,12 @@ void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3,
                                  argTypeNames.push_back(typeC); break;
   }
 
-  if (options.fuseKernels()) deviceArgNames.push_back(name + "_" + kernelName);
-  else deviceArgNames.push_back(name);
+  if (options.fuseKernels() && OptmOpt == OptimizationOption::KERNEL_FUSE) {
+    deviceArgNames.push_back(name + "_" + kernelName);
+  }
+  else {
+    deviceArgNames.push_back(name);
+  }
   deviceArgFields.push_back(fd);
 }
 

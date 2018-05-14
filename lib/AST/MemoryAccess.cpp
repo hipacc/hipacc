@@ -761,6 +761,7 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
 void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
     &stageBody, int p) {
   for (auto param : kernelDecl->parameters()) {
+
     if (KernelDeclMapShared[param]) {
       HipaccAccessor *Acc = KernelDeclMapAcc[param];
 

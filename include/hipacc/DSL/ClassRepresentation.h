@@ -85,6 +85,12 @@ enum class Interpolate : uint8_t {
   L3
 };
 
+// optimization modes for kernels 
+enum class OptimizationOption : uint8_t {
+  NONE = 0,
+  KERNEL_FUSE
+};
+
 
 // common base class for images, masks and pyramids
 class HipaccSize {
@@ -576,6 +582,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     unsigned max_size_x_undef, max_size_y_undef;
     unsigned num_threads_x, num_threads_y;
     unsigned num_reg, num_lmem, num_smem, num_cmem;
+    OptimizationOption OptmOpt;
 
     void calcSizes();
     void calcConfig();
@@ -628,6 +635,7 @@ class HipaccKernel : public HipaccKernelFeatures {
               std::bind2nd(std::ptr_fun(&std::tolower<char>), std::locale()));
           break;
       }
+      OptmOpt = OptimizationOption::NONE;
     }
 
     VarDecl *getDecl() const { return VD; }
@@ -642,6 +650,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     // keep track of variables used within kernel
     void setUsed(std::string name) { usedVars.insert(name); }
     void setUnused(std::string name) { usedVars.erase(name); }
+    void setOptimizationOptions(OptimizationOption opt) { OptmOpt = opt; }
     void resetUsed() {
       usedVars.clear();
       deviceFuncs.clear();

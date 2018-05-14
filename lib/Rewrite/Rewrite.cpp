@@ -1295,6 +1295,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           HipaccKernelClass *KC = KernelClassDeclMap[RT->getDecl()];
           HipaccKernel *K = new HipaccKernel(Context, VD, KC, compilerOptions);
           KernelDeclMap[VD] = K;
+          if (dataDeps->isFusible(K)) { 
+            K->setOptimizationOptions(OptimizationOption::KERNEL_FUSE); 
+          }
 
           // remove kernel declaration
           TextRewriter.RemoveText(D->getSourceRange());

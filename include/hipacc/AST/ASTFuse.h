@@ -79,15 +79,19 @@ class ASTFuse {
     std::map<HipaccKernel *, std::string> fusedKernelNameMap;
     SmallVector<std::string, 16> fusedFileNamesAll;
 
-
-
-
-    // check the usability of these
-    std::map<ValueDecl *, SmallVector<HipaccKernel *, 16>> fusibleKernelListMap;
-    std::map<ValueDecl *, HipaccKernel *> fusibleKernelValueDeclMap;
-    SmallVector<HipaccKernel *, 16> curFusibleKernelList;
-    SmallVector<Stmt *, 16> fusedKernelBody;
-    SmallVector<Stmt *, 16> fusedKernelStmt;
+    enum SubListPosition {
+      Source,
+      Intermediate,
+      Destination,
+      Undefined
+    };
+    struct FusionTypeTags {
+      SubListPosition Point2PointLoc = Undefined;
+      SubListPosition Local2PointLoc = Undefined;
+      SubListPosition Point2LocalLoc = Undefined;
+      SubListPosition Local2LocalLoc = Undefined;
+    };
+    std::map<HipaccKernel *, FusionTypeTags *> FusibleKernelSubListPosMap;
 
     // "global variables"
     unsigned fusionRegVarCount;
@@ -103,16 +107,9 @@ class ASTFuse {
     void insertPrologFusedKernel(); 
     void insertEpilogFusedKernel(); 
     void createReg4FusionVarDecl(QualType QT); 
-    void createIdx4FusionVarDecl(QualType QT);
+    void createIdx4FusionVarDecl();
     void createGidVarDecl(); 
-
-
-    // check the usability
-    void pointConsumerFusion(SmallVector<HipaccKernel *, 16> kernelList);
-    void point2LocalFusion(SmallVector<HipaccKernel *, 16> kernelList);
-    void local2LocalFusion(SmallVector<HipaccKernel *, 16> kernelList);
-
-
+    void markKernelPositionSublist(std::list<HipaccKernel *> &l);
 
   public:
     ASTFuse(ASTContext& Ctx, hipacc::Builtin::Context &builtins, 
@@ -142,20 +139,6 @@ class ASTFuse {
     bool isDestKernel(HipaccKernel *K) const;
     HipaccKernel *getProducerKernel(HipaccKernel *K);
     std::string getFusedKernelName(HipaccKernel *K);
-
-
-
-
-    // TODO, check the usage of the following
-    HipaccKernel *getReadDependentKernel(HipaccKernel *K);
-    Expr *createRegisterExpr(std::string kernelName);
-    FunctionDecl *getFusedKernelDecl() const;
-    SmallVector<HipaccKernel *, 16> getFusibleKernelList() const; 
-    std::map<std::string, HipaccKernel *> getFuncDeclParamKernelMap() const;
-    std::map<std::string, FieldDecl *> getFuncDeclParamDeclMap() const;
-    std::tuple<unsigned, unsigned> getLocalOperatorUpdatedFilterSize(HipaccKernel *K); 
-    Expr *getRegisterInputExpr(std::string kernelName);
-    Expr *getRegisterOutputExpr(std::string kernelName);
 };
 
 
@@ -167,6 +150,11 @@ class ASTTranslateFusion: public ASTTranslate {
     Expr *exprOutputFusion;
     bool bReplaceInputExpr;
     Expr *exprInputFusion;
+    // point-to-local replacements
+    bool bReplaceInputIdxExpr;
+    Expr *exprInputIdxFusion;
+    bool bReplaceInputLocalExprs;
+    Stmt *stmtProducerBodyP2L;
     std::string kernelParamNameSuffix;
 
     // onverload functions for ASTTranslate
@@ -174,6 +162,10 @@ class ASTTranslateFusion: public ASTTranslate {
     Expr *VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E);
     Expr *VisitMemberExprTranslate(MemberExpr *E);
     Expr *VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E);
+    void stageLineToSharedMemory(ParmVarDecl *PVD, SmallVector<Stmt *, 16>
+        &stageBody, Expr *local_offset_x, Expr *local_offset_y, Expr
+        *global_offset_x, Expr *global_offset_y);
+
   public:
     Stmt *Hipacc(Stmt *S);
 
@@ -188,6 +180,9 @@ class ASTTranslateFusion: public ASTTranslate {
       exprOutputFusion(nullptr),
       bReplaceInputExpr(false),
       exprInputFusion(nullptr),
+      bReplaceInputIdxExpr(false),
+      exprInputIdxFusion(nullptr),
+      bReplaceInputLocalExprs(false),
       kernelParamNameSuffix("_"+Kernel->getKernelName())
     {}
 
@@ -195,10 +190,11 @@ class ASTTranslateFusion: public ASTTranslate {
     void setSkipGidDecl(bool b) { bSkipGidDecl = b; } 
 
     // domain specific fusion methods
-    // Point-to-Point Fusion
     void configSrcOperatorP2P(VarDecl *VD);
     void configDestOperatorP2P(VarDecl *VD);
     void configIntermOperatorP2P(VarDecl *VDIn, VarDecl *VDOut);
+    void configSrcOperatorP2L(VarDecl *VDReg, VarDecl *VDIdx);
+    void configDestOperatorP2L(VarDecl *VDReg, VarDecl *VDIdx, Stmt *S);
 };
 
 } // namespace hipacc
