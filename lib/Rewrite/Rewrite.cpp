@@ -2125,13 +2125,12 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   switch (compilerOptions.getTargetLang()) {
     case Language::C99:
       // 2D reduction
-      OS << "REDUCTION_CPU_2D_SINGLE(" << K->getReduceName() << "2D, "
+      OS << "REDUCTION_CPU_2D(" << K->getReduceName() << "2D, "
          << fun->getReturnType().getAsString() << ", "
          << K->getReduceName() << ", "
          << K->getIterationSpace()->getImage()->getSizeXStr() << ", "
          << K->getIterationSpace()->getImage()->getSizeYStr() << ", "
-         << "PPT, (0)"
-         << ")\n";
+         << "PPT)\n";
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:

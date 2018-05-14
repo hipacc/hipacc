@@ -857,7 +857,12 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
       resultStr += K->getIterationSpace()->getName() + ".img->mem, ";
       resultStr += K->getIterationSpace()->getName() + ".width, ";
       resultStr += K->getIterationSpace()->getName() + ".height, ";
-      resultStr += K->getIterationSpace()->getName() + ".img->stride);\n";
+      resultStr += K->getIterationSpace()->getName() + ".img->stride";
+      if (K->getIterationSpace()->isCrop()) {
+        resultStr += ", " + K->getIterationSpace()->getName() + ".offset_x";
+        resultStr += ", " + K->getIterationSpace()->getName() + ".offset_y";
+      }
+      resultStr += ");\n";
       resultStr += indent;
       resultStr += "hipaccStopTiming();\n";
       resultStr += indent;
