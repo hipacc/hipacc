@@ -975,6 +975,27 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
 
   // print runtime function name plus name of reduction function
   switch (options.getTargetLang()) {
+    case Language::C99:
+      resultStr += "hipaccStartTiming();\n";
+      resultStr += indent;
+      resultStr += bin_decl;
+      resultStr += K->getBinningName() + "2DKernel(";
+      resultStr += "(" + K->getIterationSpace()->getImage()->getTypeStr();
+      resultStr += "(*)[" + K->getIterationSpace()->getImage()->getSizeXStr() + "])";
+      resultStr += K->getIterationSpace()->getName() + ".img->mem, ";
+      resultStr += K->getNumBinsStr() + ", ";
+      resultStr += K->getIterationSpace()->getName() + ".width, ";
+      resultStr += K->getIterationSpace()->getName() + ".height, ";
+      resultStr += K->getIterationSpace()->getName() + ".img->stride";
+      if (K->getIterationSpace()->isCrop()) {
+        resultStr += ", " + K->getIterationSpace()->getName() + ".offset_x";
+        resultStr += ", " + K->getIterationSpace()->getName() + ".offset_y";
+      }
+      resultStr += ");\n";
+      resultStr += indent;
+      resultStr += "hipaccStopTiming();\n";
+      resultStr += indent;
+      return;
     case Language::CUDA:
       if (options.exploreConfig()) {
         assert(false && "Explorations not supported for multi-dimensional reductions");
@@ -993,13 +1014,12 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       resultStr += "(const void *)&" + K->getBinningName() + "2D, ";
       resultStr += "\"" + K->getBinningName() + "2D\", ";
       break;
-    case Language::C99:
     case Language::Renderscript:
     case Language::Filterscript:
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
-      assert(false && "Multi-dimensional reductions only supported for CUDA");
+      assert(false && "Multi-dimensional reductions only supported for CUDA and C99");
       break;
   }
 

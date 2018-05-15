@@ -40,10 +40,13 @@ inline DATA_TYPE NAME ##Kernel(DATA_TYPE input[HEIGHT][WIDTH], int width, int he
  \
     if (int missing = height%PPT) { \
        int gid_y = offset_y + end * PPT; \
+ \
+       OPENMP_PRAGMA \
        for (int m = 0; m < missing; ++m) { \
+            const int tid = GET_THREAD_ID; \
             int gy = gid_y + m; \
             for (int gid_x = offset_x; gid_x < offset_x + width; ++gid_x) { \
-                part_result[0] = REDUCE(part_result[0], input[gy][gid_x]); \
+                part_result[tid] = REDUCE(part_result[tid], input[gy][gid_x]); \
             } \
        } \
     } \
@@ -58,5 +61,58 @@ inline DATA_TYPE NAME ##Kernel(DATA_TYPE input[HEIGHT][WIDTH], int width, int he
     delete [] part_result; \
  \
     return result; \
+}
+
+
+#define BINNING_CPU_2D(NAME, DATA_TYPE, BIN_TYPE, REDUCE, BINNING, WIDTH, HEIGHT, PPT) \
+inline void BINNING ##Put(BIN_TYPE *_lmem, uint _offset, uint idx, BIN_TYPE val) { \
+    if (idx < _offset) { \
+        _lmem[idx] = REDUCE(_lmem[idx], val); \
+    } \
+} \
+ \
+inline BIN_TYPE* NAME ##Kernel(DATA_TYPE input[HEIGHT][WIDTH], uint num_bins, int width, int height, int stride, int offset_x=0, int offset_y=0) { \
+    int num_cores = GET_NUM_CORES; \
+ \
+    BIN_TYPE *bins = new BIN_TYPE[num_bins](); \
+    BIN_TYPE *lbins = new BIN_TYPE[num_cores * num_bins](); \
+    int end = height/PPT; \
+ \
+    OPENMP_PRAGMA \
+    for (int gid_y = 0; gid_y < end; ++gid_y) { \
+        const int tid = GET_THREAD_ID; \
+        int y = offset_y + gid_y * PPT; \
+ \
+        for (int p = 0; p < PPT; ++p) { \
+            int gy = y + p; \
+            for (int gid_x = offset_x; gid_x < offset_x + width; ++gid_x) { \
+                BINNING(&lbins[tid * num_bins], num_bins, num_bins, gid_x, gy, input[gy][gid_x]); \
+            } \
+        } \
+    } \
+ \
+    if (int missing = height%PPT) { \
+       int gid_y = offset_y + end * PPT; \
+ \
+       OPENMP_PRAGMA \
+       for (int m = 0; m < missing; ++m) { \
+            const int tid = GET_THREAD_ID; \
+            int gy = gid_y + m; \
+            for (int gid_x = offset_x; gid_x < offset_x + width; ++gid_x) { \
+                BINNING(&lbins[tid * num_bins], num_bins, num_bins, gid_x, gy, input[gy][gid_x]); \
+            } \
+       } \
+    } \
+ \
+    OPENMP_PRAGMA \
+    for (uint i = 0; i < num_bins; ++i) { \
+        for (int tid = 0; tid < num_cores; ++tid) { \
+            bins[i] = REDUCE(bins[i], lbins[tid * num_bins + i]); \
+        } \
+    } \
+ \
+    delete [] lbins; \
+ \
+    return bins; \
 }
 

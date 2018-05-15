@@ -1898,7 +1898,6 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
 void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
     llvm::raw_fd_ostream &OS) {
   FunctionDecl *bin_fun = KC->getBinningFunction();
-  FunctionDecl *red_fun = KC->getReduceFunction();
   QualType pixelType = KC->getPixelType();
   QualType binType = KC->getBinType();
   std::string signatureBinning;
@@ -1910,13 +1909,15 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   // preprocessor defines
   std::string KID = K->getKernelName();
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
     case Language::Renderscript:
     case Language::Filterscript:
-      assert(false && "Multi-dimensional reductions only supported for CUDA");
+      assert(false && "Multi-dimensional reductions only supported for CUDA and C99");
+      break;
+    case Language::C99:
+      OS << "#define " << KID << "PPT       " << K->getPixelsPerThread() << "\n";
       break;
     case Language::CUDA:
       OS << "#define " << KID << "WARP_SIZE " << K->getWarpSize() << "\n"
@@ -1936,8 +1937,8 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       break;
   }
   signatureBinning += "inline void " + K->getBinningName() + "(";
-  signatureBinning += red_fun->getReturnType().getAsString();
-  signatureBinning += " * __restrict__ _lmem, uint _offset, uint _num_bins, ";
+  signatureBinning += binType.getAsString();
+  signatureBinning += " *_lmem, uint _offset, uint _num_bins, ";
 
   // write other binning parameters
   size_t comma = 0;
@@ -1959,12 +1960,23 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
 
   // instantiate reduction
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
     case Language::Renderscript:
     case Language::Filterscript:
+      break;
+    case Language::C99:
+      OS << "BINNING_CPU_2D(";
+      OS << K->getBinningName() << "2D, "
+         << pixelType.getAsString() << ", "
+         << binType.getAsString() << ", "
+         << K->getReduceName() << ", "
+         << K->getBinningName() << ", "
+         << K->getIterationSpace()->getImage()->getSizeXStr() << ", "
+         << K->getIterationSpace()->getImage()->getSizeYStr() << ", "
+         << KID << "PPT"
+         << ")\n\n";
       break;
     case Language::CUDA: {
       // 2D reduction
