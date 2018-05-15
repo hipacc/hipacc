@@ -46,7 +46,7 @@ class Histogram : public Kernel<float> {
  *************************************************************************/
 int main(int argc, const char **argv) {
     float timing = .0f;
-    int num_bins = NUM_BINS;
+    uint num_bins = NUM_BINS;
 
     if (argc > 1) {
         num_bins = atoi(argv[1]);
