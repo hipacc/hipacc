@@ -1180,20 +1180,6 @@ T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
     cudaError_t err = cudaMalloc((void **) &output, sizeof(T)*num_hists*num_bins);
     checkErr(err, "cudaMalloc()");
 
-    //unsigned int idle_left = 0;
-    //if ((acc.offset_x || acc.offset_y) &&
-    //    (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
-    //    // reduce iteration space by idle blocks
-    //    idle_left = acc.offset_x / block.x;
-    //    unsigned int idle_right = (acc.img->width - (acc.offset_x+acc.width)) / block.x;
-    //    grid.x = (int)ceilf((float)
-    //            (acc.img->width - (idle_left + idle_right) * block.x) /
-    //            (block.x*2));
-
-    //    // update number of blocks
-    //    idle_left *= block.x;
-    //}
-
     size_t offset = 0;
     hipaccConfigureCall(grid, block);
 
@@ -1208,19 +1194,12 @@ T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
     }
 
     hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&acc.img->width, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img->height, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.height, sizeof(unsigned int), offset);
     hipaccSetupArgument(&acc.img->stride, sizeof(unsigned int), offset);
     hipaccSetupArgument(&num_bins, sizeof(unsigned int), offset);
-    // check if the reduction is applied to the whole image
-    //if ((acc.offset_x || acc.offset_y) &&
-    //    (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
-    //    hipaccSetupArgument(&acc.offset_x, sizeof(unsigned int), offset);
-    //    hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
-    //    hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
-    //    hipaccSetupArgument(&acc.height, sizeof(unsigned int), offset);
-    //    hipaccSetupArgument(&idle_left, sizeof(unsigned int), offset);
-    //}
+    hipaccSetupArgument(&acc.offset_x, sizeof(unsigned int), offset);
+    hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
 
     hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
 
