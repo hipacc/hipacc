@@ -151,13 +151,13 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
       for (auto it = (list.begin()); it != list.end(); ++it) {
         HipaccKernel *K = *it;
         FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
-        if (it == l.begin() && std::next(it) == l.end()) {  // single kernel sublist  
+        if (it == list.begin() && std::next(it) == list.end()) {  // single kernel sublist  
           KTag->Local2PointLoc = Undefined;
         }
-        else if (it == l.begin()) {  
+        else if (it == list.begin()) {  
           KTag->Local2PointLoc = Source;
         }
-        else if (std::next(it) == l.end()) {  
+        else if (std::next(it) == list.end()) {  
           KTag->Local2PointLoc = Destination;
         }
         else {
@@ -263,6 +263,26 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
     // domain-specific translation and fusion
     // point to point apply replacement
 		switch(KTag->Point2PointLoc) {
+			default: break;
+			case Source:
+				createReg4FusionVarDecl(KC->getOutField()->getType());
+				Hipacc->configSrcOperatorP2P(fusionRegVarDecls.back());
+				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+				break;
+			case Destination:
+				Hipacc->configDestOperatorP2P(fusionRegVarDecls.back());
+				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+				break;
+			case Intermediate:
+				VarDecl *VDIn = fusionRegVarDecls.back();
+				createReg4FusionVarDecl(KC->getOutField()->getType());
+				VarDecl *VDOut = fusionRegVarDecls.back();
+				Hipacc->configIntermOperatorP2P(VDIn, VDOut);
+				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+				break;
+		}
+    // local to point apply replacement
+		switch(KTag->Local2PointLoc) {
 			default: break;
 			case Source:
 				createReg4FusionVarDecl(KC->getOutField()->getType());

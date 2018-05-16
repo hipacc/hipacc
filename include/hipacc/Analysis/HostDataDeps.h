@@ -135,8 +135,8 @@ class HostDataDeps : public ManagedAnalysis {
     std::vector<Process*> processes_;
     std::vector<Process*> fusibleProcesses_;
     llvm::DenseMap<RecordDecl *, HipaccKernelClass *> KernelClassDeclMap;
-    std::map<Process *, std::list<Process*>> FusibleKernelListsMap;
-    std::vector<std::list<Process*>> vecFusibleKernelLists;
+    std::map<Process *, std::list<Process*> *> FusibleKernelListsMap;
+    std::vector<std::list<Process*> *> vecFusibleKernelLists;
     std::map<Process *, std::tuple<unsigned, unsigned>> FusibleProcessInfoFinalMap;
     std::map<Process *, unsigned> FusibleProcessListSizeFinalMap;
 

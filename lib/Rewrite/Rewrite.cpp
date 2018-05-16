@@ -1289,13 +1289,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       // found Kernel decl
       if (VD->getType()->getTypeClass() == Type::Record) {
         const RecordType *RT = cast<RecordType>(VD->getType());
-
         // get Kernel Class
         if (KernelClassDeclMap.count(RT->getDecl())) {
           HipaccKernelClass *KC = KernelClassDeclMap[RT->getDecl()];
           HipaccKernel *K = new HipaccKernel(Context, VD, KC, compilerOptions);
           KernelDeclMap[VD] = K;
-          if (dataDeps->isFusible(K)) { 
+          if (compilerOptions.fuseKernels() && dataDeps->isFusible(K)) {
             K->setOptimizationOptions(OptimizationOption::KERNEL_FUSE); 
           }
 
@@ -1384,7 +1383,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           // write kernel to file
           printKernelFunction(kernelDecl, KC, K, K->getFileName(), true);
-
           break;
         }
       }

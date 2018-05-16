@@ -485,35 +485,44 @@ void HostDataDeps::createSchedule() {
 	// create an initial set of fusion lists
   for (auto p : fusibleProcesses_) {
     if (p->hasReadDependentProcess() && !p->hasWriteDependentProcess()) {
-      std::list<Process*> list;
-      list.push_back(p);
+      std::list<Process*> *list = new std::list<Process*>;
+      list->push_back(p);
       FusibleKernelListsMap[p] = list;
     } 
     else if (p->hasWriteDependentProcess()) {
       Process *pw = p->GetWriteDependentProcess();
-      std::list<Process*> list = FusibleKernelListsMap[pw];
-      auto it = std::find(list.begin(), list.end(), pw);
-      assert((it != list.end()) && "cannot find write dependent process for kernel fusion");
-      list.insert(it, p); 
-      FusibleKernelListsMap[pw] = list;
+      std::list<Process*> *list = FusibleKernelListsMap[pw];
+      auto it = std::find(list->begin(), list->end(), pw);
+      assert((it != list->end()) && "cannot find write dependent process for kernel fusion");
+      list->insert(it, p); 
       FusibleKernelListsMap[p] = list;
     }
   }
-  for (auto p: FusibleKernelListsMap) {
+  for (auto pair: FusibleKernelListsMap) {
     bool merge = true;
     for (auto l: vecFusibleKernelLists) {
-      if (l == p.second) { merge = false; break;}
+      if (l == pair.second) { merge = false; break;}
     }
-    if (merge) vecFusibleKernelLists.push_back(p.second); 
+    if (merge) vecFusibleKernelLists.push_back(pair.second); 
   } 
 }
 
-
-// TODO re-visit each fusible list to impose constaints for kernel fusion
+// TODO enable local to local fusion
 void HostDataDeps::fusibilityAnalysis() {
-
-  //assert(((K->getKernelClass())->getKernelType() != GlobalOperator) && 
-  //    "global operators not yet supported for kernel fusion");
+  for (auto l : vecFusibleKernelLists) {
+    Process *PLast = nullptr;
+    for (auto p : *l) {
+      HipaccKernelClass *KC = p->getKernel()->getKernelClass();
+      if (KC->getKernelType() == GlobalOperator) {
+        assert(0 && "global operators not yet supported for kernel fusion");
+      }
+      else if (KC->getKernelType() == LocalOperator && PLast && 
+                PLast->getKernel()->getKernelClass()->getKernelType() == LocalOperator) {
+        l->remove(PLast);
+      }
+      PLast = p;
+    }
+  }
 }
 
 
@@ -524,9 +533,9 @@ void HostDataDeps::recordFusibleKernelListInfo() {
   for (auto l : vecFusibleKernelLists) {
     llvm::errs() << "  Fusible kernel list " << listPosCnt << ": \n";
     posCnt = 0;
-    for (auto p : l) {
+    for (auto p : *l) {
       FusibleProcessInfoFinalMap[p] = std::make_tuple(listPosCnt, posCnt);     
-      FusibleProcessListSizeFinalMap[p] = l.size();
+      FusibleProcessListSizeFinalMap[p] = l->size();
       posCnt++;
       llvm::errs() << "  --->  " << p->getKernel()->getName();
     }
