@@ -127,6 +127,13 @@ void CreateHostStrings::writeKernelCompilation(HipaccKernel *K,
         resultStr += indent;
         writeCLCompilation(K->getFileName(), K->getReduceName(),
             device.getCLIncludes(), resultStr, "1D");
+        if (K->getKernelClass()->getBinningFunction()) {
+          writeCLCompilation(K->getFileName(), K->getBinningName(),
+              device.getCLIncludes(), resultStr, "2D");
+          resultStr += indent;
+          writeCLCompilation(K->getFileName(), K->getBinningName(),
+              device.getCLIncludes(), resultStr, "1D");
+        }
       }
       break;
   }
@@ -973,6 +980,10 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
   std::string binTypeStr(K->getKernelClass()->getBinType().getAsString());
   std::string bin_decl(binTypeStr + " *" + K->getBinningStr() + " = ");
 
+  if (options.exploreConfig()) {
+    assert(false && "Explorations not supported for multi-dimensional reductions");
+  }
+
   // print runtime function name plus name of reduction function
   switch (options.getTargetLang()) {
     case Language::C99:
@@ -994,12 +1005,8 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       resultStr += ");\n";
       resultStr += indent;
       resultStr += "hipaccStopTiming();\n";
-      resultStr += indent;
       return;
     case Language::CUDA:
-      if (options.exploreConfig()) {
-        assert(false && "Explorations not supported for multi-dimensional reductions");
-      }
       // first get texture reference
       resultStr += "cudaGetTextureReference(";
       resultStr += "&_tex" + K->getIterationSpace()->getImage()->getName() + K->getName() + "Ref, ";
@@ -1014,19 +1021,26 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       resultStr += "(const void *)&" + K->getBinningName() + "2D, ";
       resultStr += "\"" + K->getBinningName() + "2D\", ";
       break;
-    case Language::Renderscript:
-    case Language::Filterscript:
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
-      assert(false && "Multi-dimensional reductions only supported for CUDA and C99");
+      resultStr += bin_decl;
+      resultStr += "hipaccApplyBinningSegmented<";
+      resultStr += binTypeStr + ", ";
+      resultStr += pixTypeStr + ">(";
+      resultStr += K->getBinningName() + "2D, ";
+      resultStr += K->getBinningName() + "1D, ";
+      break;
+    case Language::Renderscript:
+    case Language::Filterscript:
+      assert(false && "Multi-dimensional reductions not supported for Renderscript");
       break;
   }
 
   // print image name
   resultStr += K->getIterationSpace()->getName() + ", ";
-  resultStr += K->getKernelName() + "NUM_HISTS, ";
-  resultStr += K->getKernelName() + "NUM_WARPS, ";
+  resultStr += std::to_string(options.getReduceConfigNumHists()) + ", ";
+  resultStr += std::to_string(options.getReduceConfigNumWarps()) + ", ";
   resultStr += K->getNumBinsStr();
 
   if (options.emitCUDA()) {

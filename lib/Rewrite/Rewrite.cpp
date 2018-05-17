@@ -1909,34 +1909,29 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   // preprocessor defines
   std::string KID = K->getKernelName();
   switch (compilerOptions.getTargetLang()) {
+    case Language::Renderscript:
+    case Language::Filterscript:
+      assert(false && "Multi-dimensional reductions is not supported for Renderscript");
+      break;
+    case Language::C99:
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
-    case Language::Renderscript:
-    case Language::Filterscript:
-      assert(false && "Multi-dimensional reductions only supported for CUDA and C99");
-      break;
-    case Language::C99:
-      OS << "#define " << KID << "PPT       " << K->getPixelsPerThread() << "\n";
-      break;
     case Language::CUDA:
-      OS << "#define " << KID << "WARP_SIZE " << K->getWarpSize() << "\n"
-         << "#define " << KID << "NUM_WARPS " << compilerOptions.getReduceConfigNumWarps() << "\n"
-         << "#define " << KID << "NUM_HISTS " << compilerOptions.getReduceConfigNumHists() << "\n"
-         << "#define " << KID << "PPT       " << K->getPixelsPerThread() << "\n";
+      OS << "#define " << KID << "PPT " << K->getPixelsPerThread() << "\n";
       break;
   }
   OS << "\n";
 
   // write binning signature and qualifiers
-  switch (compilerOptions.getTargetLang()) {
-    default: break;
-    case Language::CUDA:
-      OS << "extern \"C\" {\n";
-      signatureBinning += "__device__ ";
-      break;
+  if (compilerOptions.emitCUDA()) {
+    OS << "extern \"C\" {\n";
+    signatureBinning += "__device__ ";
   }
   signatureBinning += "inline void " + K->getBinningName() + "(";
+  if (compilerOptions.emitOpenCL()) {
+    signatureBinning += "__local ";
+  }
   signatureBinning += binType.getAsString();
   signatureBinning += " *_lmem, uint _offset, uint _num_bins, ";
 
@@ -1960,9 +1955,6 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
 
   // instantiate reduction
   switch (compilerOptions.getTargetLang()) {
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
     case Language::Renderscript:
     case Language::Filterscript:
       break;
@@ -1982,9 +1974,20 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
       // 2D reduction
       OS << "__device__ unsigned finished_blocks_" << K->getBinningName()
          << "2D[MAX_SEGMENTS] = {0};\n\n";
-      OS << "BINNING_CUDA_2D_SEGMENTED(";
-      OS << K->getBinningName() << "2D, "
-         << pixelType.getAsString() << ", "
+      OS << "BINNING_CUDA_2D_SEGMENTED("
+         << K->getBinningName() << "2D, ";
+      // fall through!
+
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
+      if (compilerOptions.emitOpenCL()) {
+        OS << "BINNING_CL_2D_SEGMENTED("
+           << K->getBinningName() << "2D, "
+           << K->getBinningName() << "1D, ";
+      }
+
+      OS << pixelType.getAsString() << ", "
          << binType.getAsString() << ", "
          << K->getReduceName() << ", "
          << K->getBinningName() << ", ";
@@ -2017,16 +2020,24 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
         }
       }
 
-      OS << KID << "WARP_SIZE, "
-         << KID << "NUM_WARPS, "
-         << KID << "NUM_HISTS, "
-         << KID << "PPT, "
-         << "SEGMENT_SIZE, "
-         << (binType.getTypePtr()->isVectorType()
-             ? "make_" + binType.getAsString() + "(0), "
-             : "(0), ")
-         << "_tex" << K->getIterationSpace()->getImage()->getName() + K->getName()
-         << ")\n\n";
+      OS << K->getWarpSize() << ", "
+         << compilerOptions.getReduceConfigNumWarps() << ", "
+         << compilerOptions.getReduceConfigNumHists() << ", "
+         << KID << "PPT, ";
+
+      if (compilerOptions.emitCUDA()) {
+        OS << "SEGMENT_SIZE, " // defined in "hipacc_cu.hpp"
+           << (binType.getTypePtr()->isVectorType()
+               ? "make_" + binType.getAsString() + "(0), "
+               : "(0), ")
+           << "_tex" << K->getIterationSpace()->getImage()->getName() + K->getName();
+      } else {
+        OS << (binType.getTypePtr()->isVectorType()
+               ? "(" + binType.getAsString() + ")(0)"
+               : "(0)");
+      }
+
+      OS << ")\n\n";
       }
       break;
   }

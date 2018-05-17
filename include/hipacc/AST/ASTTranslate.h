@@ -136,30 +136,30 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         ASTContext &ctx_;
         HipaccKernel *kernel_;
         Expr *lmem_, *offset_, *num_bins_;
-        FunctionDecl *binFunc_;
+        FunctionDecl *funcBinPut_, *funcBinning_;
+        QualType typeIdx_, typeBin_;
 
-        void createBinningArguments(QualType &idxType, QualType &binType) {
+        void createBinningArguments() {
           VarDecl *declLMem = nullptr,
                   *declOffset = nullptr,
                   *declNumBins = nullptr;
 
-          FunctionDecl *binningDecl =
-            kernel_->getKernelClass()->getBinningFunction();
+          funcBinning_ = kernel_->getKernelClass()->getBinningFunction();
 
-          declLMem = ASTNode::createVarDecl(ctx_, binningDecl, "_lmem", binType,
-              nullptr);
-          declOffset = ASTNode::createVarDecl(ctx_, binningDecl, "_offset",
-              idxType, nullptr);
-          declNumBins = ASTNode::createVarDecl(ctx_, binningDecl, "_num_bins",
-              idxType, nullptr);
+          declLMem = ASTNode::createVarDecl(ctx_, funcBinning_, "_lmem",
+              typeBin_, nullptr);
+          declOffset = ASTNode::createVarDecl(ctx_, funcBinning_, "_offset",
+              typeIdx_, nullptr);
+          declNumBins = ASTNode::createVarDecl(ctx_, funcBinning_, "_num_bins",
+              typeIdx_, nullptr);
 
           lmem_ = ASTNode::createDeclRefExpr(ctx_, declLMem);
           offset_ = ASTNode::createDeclRefExpr(ctx_, declOffset);
           num_bins_ = ASTNode::createDeclRefExpr(ctx_, declNumBins);
         }
 
-        void createBinningPutDeclaration(QualType &idxType, QualType &binType) {
-          createBinningArguments(idxType, binType);
+        void createBinningPutDeclaration() {
+          createBinningArguments();
 
           SmallVector<QualType, 16> argTypes;
           SmallVector<std::string, 16> argNames;
@@ -168,27 +168,27 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
           argNames.push_back("_lmem");
           argTypes.push_back(offset_->getType());
           argNames.push_back("_offset");
-          argTypes.push_back(idxType);
+          argTypes.push_back(typeIdx_);
           argNames.push_back("index");
-          argTypes.push_back(binType);
+          argTypes.push_back(typeBin_);
           argNames.push_back("value");
 
-          binFunc_ = ASTNode::createFunctionDecl(ctx_,
+          funcBinPut_ = ASTNode::createFunctionDecl(ctx_,
               ctx_.getTranslationUnitDecl(), kernel_->getBinningName() + "Put",
               ctx_.VoidTy, argTypes, argNames);
         }
 
         Stmt *traverseStmt(Stmt *S);
-        Expr *translateBinaryOperator(BinaryOperator *E);
+        Stmt *translateBinaryOperator(BinaryOperator *E);
         Expr *translateCXXMemberCallExpr(CXXMemberCallExpr *E);
 
       public:
         BinningTranslator(ASTContext &ctx, HipaccKernel *kernel)
             : ctx_(ctx), kernel_(kernel) {
-          QualType idxType = ctx_.UnsignedIntTy;
-          QualType binType = kernel_->getKernelClass()->getBinType();
+          typeIdx_ = ctx_.UnsignedIntTy;
+          typeBin_ = kernel_->getKernelClass()->getBinType();
 
-          createBinningPutDeclaration(idxType, binType);
+          createBinningPutDeclaration();
         }
 
         Stmt* translate(Stmt* S) {

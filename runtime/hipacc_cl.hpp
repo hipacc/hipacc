@@ -1113,6 +1113,74 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
 }
 
 
+#ifndef SEGMENT_SIZE
+# define SEGMENT_SIZE 128
+#endif
+template<typename T, typename T2>
+T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D, const HipaccAccessor &acc, unsigned int num_hists, unsigned int num_warps, unsigned int num_bins) {
+    HipaccContext &Ctx = HipaccContext::getInstance();
+    cl_mem_flags flags = CL_MEM_READ_WRITE;
+    cl_int err = CL_SUCCESS;
+    cl_mem output;  // GPU memory for reduction
+    T *result = new T[num_bins];   // host result
+    size_t wavefront;
+
+    switch (Ctx.get_platform_names()[0]) {
+      case AMD:
+        wavefront = 64;
+        break;
+      case NVIDIA:
+        wavefront = 32;
+        break;
+      default:
+        wavefront = 1;
+        break;
+    }
+
+    size_t local_work_size[2];
+    local_work_size[0] = wavefront;
+    local_work_size[1] = num_warps;
+    size_t global_work_size[2];
+    global_work_size[0] = local_work_size[0]*num_hists;
+    global_work_size[1] = local_work_size[1]*((num_bins+SEGMENT_SIZE-1)/SEGMENT_SIZE);
+
+    output = clCreateBuffer(Ctx.get_contexts()[0], flags, sizeof(T)*num_hists*num_bins, NULL, &err);
+    checkErr(err, "clCreateBuffer()");
+
+    int offset = 0;
+    hipaccSetKernelArg(kernel2D, offset++, sizeof(cl_mem), &acc.img->mem);
+    hipaccSetKernelArg(kernel2D, offset++, sizeof(cl_mem), &output);
+    hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.width);
+    hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.height);
+    hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.img->stride);
+    hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &num_bins);
+    hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.offset_x);
+    hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.offset_y);
+
+    hipaccEnqueueKernel(kernel2D, global_work_size, local_work_size);
+
+    local_work_size[0] = wavefront;
+    local_work_size[1] = 1;
+    global_work_size[0] = max(local_work_size[0], (size_t)num_bins);
+    global_work_size[1] = 1;
+
+    offset = 0;
+    hipaccSetKernelArg(kernel1D, offset++, sizeof(cl_mem), &output);
+    hipaccSetKernelArg(kernel1D, offset++, sizeof(unsigned int), &num_bins);
+
+    hipaccEnqueueKernel(kernel1D, global_work_size, local_work_size);
+
+    err = clEnqueueReadBuffer(Ctx.get_command_queues()[0], output, CL_FALSE, 0, sizeof(T)*num_bins, result, 0, NULL, NULL);
+    err |= clFinish(Ctx.get_command_queues()[0]);
+    checkErr(err, "clEnqueueReadBuffer()");
+
+    err = clReleaseMemObject(output);
+    checkErr(err, "clReleaseMemObject()");
+
+    return result;
+}
+
+
 // Benchmark timing for a kernel call
 void hipaccEnqueueKernelBenchmark(cl_kernel kernel, std::vector<std::pair<size_t, void *> > args, size_t *global_work_size, size_t *local_work_size, bool print_timing=true) {
     std::vector<float> times;

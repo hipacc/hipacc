@@ -2420,20 +2420,35 @@ Stmt *ASTTranslate::BinningTranslator::traverseStmt(Stmt *S) {
 }
 
 
-Expr *ASTTranslate::BinningTranslator::translateBinaryOperator(BinaryOperator *E) {
+Stmt *ASTTranslate::BinningTranslator::translateBinaryOperator(BinaryOperator *E) {
   if (CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getLHS())) {
     assert(isa<MemberExpr>(MCE->getCallee()) &&
         "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
     MemberExpr *ME = cast<MemberExpr>(MCE->getCallee());
-    if (ME->getMemberNameInfo().getAsString() == "bin") {
-      SmallVector<Expr *, 16> args;
 
+    // convert "bin(IDX) = RHS";
+    if (ME->getMemberNameInfo().getAsString() == "bin") {
+      // create variable initialization "BIN_TYPE _tmp = RHS;"
+      VarDecl *declTmp =
+          createVarDecl(ctx_, funcBinning_, "_tmp", typeBin_, E->getRHS());
+      DeclRefExpr *tmp = createDeclRefExpr(ctx_, declTmp);
+      DeclStmt *initTmp = createDeclStmt(ctx_, declTmp);
+
+      // create binPut function call "binPut(_lmem, _offset, IDX, _tmp)";
+      SmallVector<Expr *, 16> args;
       args.push_back(lmem_);
       args.push_back(offset_);
       args.push_back(MCE->getArg(0));
-      args.push_back(E->getRHS());
+      args.push_back(tmp);
+      CallExpr *callBinPut = createFunctionCall(ctx_, funcBinPut_, args);
 
-      return createFunctionCall(ctx_, binFunc_, args);
+      // combine both in new scope
+      SmallVector<Stmt *, 2> stmts;
+      stmts.push_back(initTmp);
+      stmts.push_back(callBinPut);
+      CompoundStmt *compStmt = createCompoundStmt(ctx_, stmts);
+
+      return compStmt;
     }
   }
 
