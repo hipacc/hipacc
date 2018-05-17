@@ -565,7 +565,7 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
                                      K->useTextureMemory(Acc) != Texture::Ldg)
       continue; // textures are handled separately
     std::string img_mem;
-    if (Acc || Mask) img_mem = ".mem";
+    if (Acc || Mask) img_mem = "->mem";
 
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument
