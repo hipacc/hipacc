@@ -94,8 +94,6 @@ class CreateHostStrings {
         MemoryTransferDirection direction, std::string &resultStr);
     void writeMemoryTransferDomainFromMask(HipaccMask *Domain,
         HipaccMask *Mask, std::string &resultStr);
-    void writeMemoryRelease(HipaccMemory *mem, std::string &resultStr, bool
-        is_pyramid=false);
     void writeKernelCall(HipaccKernel *K, std::string &resultStr);
     void writeFusedKernelCall(HipaccKernel *K, std::string &resultStr, ASTFuse *kernelFuser);
     void writeReduceCall(HipaccKernel *K, std::string &resultStr);

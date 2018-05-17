@@ -162,8 +162,8 @@ void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
       resultStr += indent;
 
       // store reduction arguments
-      add_red_arg("_red_Input", Img->getName() + ".mem", "sp<const Allocation> *");
-      add_red_arg("_red_stride", Img->getName() + ".stride", "int *");
+      add_red_arg("_red_Input", Img->getName() + "->mem", "sp<const Allocation> *");
+      add_red_arg("_red_stride", Img->getName() + "->stride", "int *");
 
       // print optional offset_x/offset_y and iteration space width/height
       if (K->getIterationSpace()->isCrop()) {
@@ -172,8 +172,8 @@ void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
         add_red_arg("_red_is_height", Acc->getName() + ".height", "int *");
         add_red_arg("_red_num_elements", Acc->getName() + ".width", "int *");
       } else {
-        add_red_arg("_red_is_height", Img->getName() + ".height", "int *");
-        add_red_arg("_red_num_elements", Img->getName() + ".width", "int *");
+        add_red_arg("_red_is_height", Img->getName() + "->height", "int *");
+        add_red_arg("_red_num_elements", Img->getName() + "->width", "int *");
       }
       break;
   }
@@ -377,15 +377,6 @@ void CreateHostStrings::writeMemoryTransferDomainFromMask(
       resultStr += Mask->getHostMemName() + ");";
       break;
   }
-}
-
-
-void CreateHostStrings::writeMemoryRelease(HipaccMemory *mem, std::string
-    &resultStr, bool is_pyramid) {
-  resultStr += is_pyramid ? "hipaccReleasePyramid" : "hipaccReleaseMemory";
-  resultStr += "<" + mem->getTypeStr() + ">";
-  resultStr += "(" + mem->getName() + ");\n";
-  resultStr += indent;
 }
 
 
@@ -999,7 +990,7 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
       continue; // textures are handled separately
 
     std::string img_mem;
-    if (Acc || Mask) img_mem = ".mem";
+    if (Acc || Mask) img_mem = "->mem";
 
     if (options.exploreConfig() || options.timeKernels()) {
       // add kernel argument
