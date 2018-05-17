@@ -167,7 +167,7 @@ class HarrisCorner : public Kernel<int> {
  *************************************************************************/
 int main(int argc, const char **argv) {
 
-#ifdef PRINT_RESULT 
+#ifdef PRINT_RESULT
     const int width = 24;
     const int height = 24;
 #else
@@ -179,8 +179,8 @@ int main(int argc, const char **argv) {
     int *host_in = new int[width*height];
 
     // initialize data
-#ifdef PRINT_RESULT 
-    int host_in_test[width*height] = { 
+#ifdef PRINT_RESULT
+    int host_in_test[width*height] = {
              0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,255,255,255,255,255,255,255,255, 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
              0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,255,255,255,255,255,255,255,255, 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
              0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,255,255,255,255,255,255,255,255, 0 , 0 , 0 , 0 , 0 , 0 , 0 , 0 ,
@@ -220,15 +220,15 @@ int main(int argc, const char **argv) {
         { 2, 4, 2 },
         { 1, 2, 1 }
     };
-    const  int mask_x[3][3] = {  
-        {-1,  0,  1},  
-        {-1,  0,  1},  
-        {-1,  0,  1} 
+    const  int mask_x[3][3] = {
+        {-1,  0,  1},
+        {-1,  0,  1},
+        {-1,  0,  1}
     };
-    const  int mask_y[3][3] = {  
-        {-1, -1, -1},  
-        { 0,  0,  0},  
-        { 1,  1,  1} 
+    const  int mask_y[3][3] = {
+        {-1, -1, -1},
+        { 0,  0,  0},
+        { 1,  1,  1}
     };
 
     Mask<int> G(filter_xy);
@@ -307,7 +307,7 @@ int main(int argc, const char **argv) {
     // get pointer to result data
     int *output = OUT.data();
 
-#ifdef PRINT_RESULT 
+#ifdef PRINT_RESULT
     int i,j;
     for(i = 0; i < height; i++) {
         for(j = 0; j < width; j++) {

@@ -104,19 +104,19 @@ class ASTFuse {
     void HipaccFusion(std::list<HipaccKernel *>& l);
     void initKernelFusion();
     FunctionDecl *createFusedKernelDecl(std::list<HipaccKernel *> &l);
-    void insertPrologFusedKernel(); 
-    void insertEpilogFusedKernel(); 
-    void createReg4FusionVarDecl(QualType QT); 
+    void insertPrologFusedKernel();
+    void insertEpilogFusedKernel();
+    void createReg4FusionVarDecl(QualType QT);
     void createIdx4FusionVarDecl();
-    void createGidVarDecl(); 
+    void createGidVarDecl();
     void markKernelPositionSublist(std::list<HipaccKernel *> &l);
 
   public:
-    ASTFuse(ASTContext& Ctx, hipacc::Builtin::Context &builtins, 
-        CompilerOptions &options, PrintingPolicy Policy, HostDataDeps *dataDeps) : 
-      Ctx(Ctx), 
-      builtins(builtins), 
-      compilerOptions(options), 
+    ASTFuse(ASTContext& Ctx, hipacc::Builtin::Context &builtins,
+        CompilerOptions &options, PrintingPolicy Policy, HostDataDeps *dataDeps) :
+      Ctx(Ctx),
+      builtins(builtins),
+      compilerOptions(options),
       Policy(Policy),
       dataDeps(dataDeps),
       curFusedKernelDecl(nullptr),
@@ -134,7 +134,7 @@ class ASTFuse {
 
     // Called by Rewriter
     void parseFusibleKernel(HipaccKernel *K);
-    SmallVector<std::string, 16> getFusedFileNamesAll() const; 
+    SmallVector<std::string, 16> getFusedFileNamesAll() const;
     bool isSrcKernel(HipaccKernel *K) const;
     bool isDestKernel(HipaccKernel *K) const;
     HipaccKernel *getProducerKernel(HipaccKernel *K);
@@ -170,10 +170,10 @@ class ASTTranslateFusion: public ASTTranslate {
     Stmt *Hipacc(Stmt *S);
 
   public:
-    ASTTranslateFusion(ASTContext& Ctx, FunctionDecl *kernelDecl, HipaccKernel 
+    ASTTranslateFusion(ASTContext& Ctx, FunctionDecl *kernelDecl, HipaccKernel
         *kernel, HipaccKernelClass *kernelClass, hipacc::Builtin::Context
         &builtins, CompilerOptions &options, bool emitEstimation=false) :
-      ASTTranslate(Ctx, kernelDecl, kernel, kernelClass, builtins, options, 
+      ASTTranslate(Ctx, kernelDecl, kernel, kernelClass, builtins, options,
           emitEstimation),
       bSkipGidDecl(true),
       bReplaceOutputExpr(false),
@@ -187,7 +187,7 @@ class ASTTranslateFusion: public ASTTranslate {
     {}
 
     // getters and setters
-    void setSkipGidDecl(bool b) { bSkipGidDecl = b; } 
+    void setSkipGidDecl(bool b) { bSkipGidDecl = b; }
 
     // domain specific fusion methods
     void configSrcOperatorP2P(VarDecl *VD);

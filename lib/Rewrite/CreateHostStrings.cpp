@@ -389,9 +389,9 @@ void CreateHostStrings::writeMemoryRelease(HipaccMemory *mem, std::string
 }
 
 
-void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K, 
+void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
         std::string &resultStr, ASTFuse *kernelFuser) {
-  // kernel call elements 
+  // kernel call elements
   std::string fusedKernelLaunchInfo;
   std::string fusedKernelPrepareLaunchBlock;
   std::string fusedKernelPrepareLaunchGrid;
@@ -488,7 +488,7 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
 
     // get param name as well as its orig name before kernel fusion
     std::string nameTemp(K->getDeviceArgNames()[i]);
-    std::string nameOrig = nameTemp.substr(0, nameTemp.find("_kernelFusion_")); 
+    std::string nameOrig = nameTemp.substr(0, nameTemp.find("_kernelFusion_"));
 
     // skip unused variables
     if (!K->getUsed(nameTemp) && !K->getUsed(nameOrig))
@@ -555,7 +555,7 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
     size_t i = num_arg++;
     // skip unused variables
     std::string Name(K->getDeviceArgNames()[i]);
-    std::string nameOrig = Name.substr(0, Name.find("_"+K->getKernelName())); 
+    std::string nameOrig = Name.substr(0, Name.find("_"+K->getKernelName()));
     if (!K->getUsed(Name) && !K->getUsed(nameOrig)){
       continue;
     }
@@ -713,20 +713,18 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
       fusedKernelLaunchInfoMap[K] = fusedKernelLaunchInfo;
       fusedKernelCallMap[K] = fusedKernelCall;
       fusedKernelPrepareLaunchMap[K] = fusedKernelPrepareLaunchBlock + fusedKernelPrepareLaunch;
-    }
-    else {
-      fusedKernelLaunchInfoMap[K] = 
-        fusedKernelLaunchInfoMap[kernelFuser->getProducerKernel(K)] + 
+    } else {
+      fusedKernelLaunchInfoMap[K] =
+        fusedKernelLaunchInfoMap[kernelFuser->getProducerKernel(K)] +
         fusedKernelLaunchInfo;
-      fusedKernelCallMap[K] = 
-        fusedKernelCallMap[kernelFuser->getProducerKernel(K)] + 
+      fusedKernelCallMap[K] =
+        fusedKernelCallMap[kernelFuser->getProducerKernel(K)] +
         fusedKernelCall;
-      fusedKernelPrepareLaunchMap[K] = 
-        fusedKernelPrepareLaunchMap[kernelFuser->getProducerKernel(K)] + 
+      fusedKernelPrepareLaunchMap[K] =
+        fusedKernelPrepareLaunchMap[kernelFuser->getProducerKernel(K)] +
         fusedKernelPrepareLaunchBlock + fusedKernelPrepareLaunch;
     }
-  }         // !kernelFuser->isDestKernel(K) END
-  else {    // kernelFuser->isDestKernel(K) BEGIN
+  } else {
     resultStr += fusedKernelLaunchInfoMap[kernelFuser->getProducerKernel(K)];
     resultStr += fusedKernelLaunchInfo;
     resultStr += fusedKernelPrepareLaunchBlock;

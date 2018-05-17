@@ -85,7 +85,7 @@ enum class Interpolate : uint8_t {
   L3
 };
 
-// optimization modes for kernels 
+// optimization modes for kernels
 enum class OptimizationOption : uint8_t {
   NONE = 0,
   KERNEL_FUSE
@@ -456,8 +456,8 @@ class HipaccKernelClass {
     }
 
     ArrayRef<KernelMemberInfo> getMembers() { return members; }
-    ArrayRef<FieldDecl *> getImgFields() { return imgFields; } 
-    ArrayRef<FieldDecl *> getMaskFields() { return maskFields; } 
+    ArrayRef<FieldDecl *> getImgFields() { return imgFields; }
+    ArrayRef<FieldDecl *> getMaskFields() { return maskFields; }
     FieldDecl *getOutField() { return output_image; }
 
     friend class HipaccKernel;

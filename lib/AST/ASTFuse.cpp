@@ -47,9 +47,9 @@ FunctionDecl *ASTFuse::createFusedKernelDecl(std::list<HipaccKernel *> &l) {
   size_t kfNumArg;
   for (auto K : l) {  // concatenate kernel arguments from the list
     kfNumArg = 0;
-    for (auto arg : K->getArgTypes()) 
+    for (auto arg : K->getArgTypes())
       argTypesKFuse.push_back(arg);
-    for (auto argNam : K->getDeviceArgNames()) { 
+    for (auto argNam : K->getDeviceArgNames()) {
       deviceArgNamesKFuse.push_back(argNam);
       FuncDeclParamKernelMap[argNam] = K;
       FuncDeclParamDeclMap[argNam] = K->getDeviceArgFields()[kfNumArg++];
@@ -58,12 +58,12 @@ FunctionDecl *ASTFuse::createFusedKernelDecl(std::list<HipaccKernel *> &l) {
   }
 
   fusedKernelName = compilerOptions.getTargetPrefix() + name + "FusedKernel";
-  for (auto K : l) {  // record kernel name 
+  for (auto K : l) {  // record kernel name
     fusedKernelNameMap[K] = fusedKernelName;
   }
   fusedFileName = compilerOptions.getTargetPrefix() + name + "Fused";
   fusedFileNamesAll.push_back(fusedFileName);
-  return createFunctionDecl(Ctx, Ctx.getTranslationUnitDecl(), 
+  return createFunctionDecl(Ctx, Ctx.getTranslationUnitDecl(),
       fusedKernelName, Ctx.VoidTy, argTypesKFuse, deviceArgNamesKFuse);
 }
 
@@ -75,7 +75,7 @@ void ASTFuse::insertPrologFusedKernel() {
 }
 
 void ASTFuse::insertEpilogFusedKernel() {
-  // TODO 
+  // TODO
 }
 
 void ASTFuse::initKernelFusion() {
@@ -102,42 +102,37 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
   }
 
   // sublisting
-  std::list<HipaccKernel *> pointKernelList; 
+  std::list<HipaccKernel *> pointKernelList;
   SmallVector<std::list<HipaccKernel *>, 16> vecLocalKernelLists;
 
-  // scenario 1: no local kernel sublists
-  // e.g. p -> p -> ... -> p
-  if (vecLocalKernelIndices.size() == 0) {        
+  if (vecLocalKernelIndices.size() == 0) {
+    // scenario 1: no local kernel sublists
+    // e.g. p -> p -> ... -> p
     pointKernelList.assign(l.begin(), l.end());
-    // tag generation 
+    // tag generation
     for (auto it = (pointKernelList.begin()); it != pointKernelList.end(); ++it) {
       HipaccKernel *K = *it;
       FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
-      if (it == pointKernelList.begin() && std::next(it) == pointKernelList.end()) {  // single kernel sublist              
+      if (it == pointKernelList.begin() && std::next(it) == pointKernelList.end()) {  // single kernel sublist
         KTag->Point2PointLoc = Undefined;
-      }
-      else if (it == pointKernelList.begin()) {  
+      } else if (it == pointKernelList.begin()) {
         KTag->Point2PointLoc = Source;
-      }
-      else if (std::next(it) == pointKernelList.end()) {  
+      } else if (std::next(it) == pointKernelList.end()) {
         KTag->Point2PointLoc = Destination;
-      }
-      else {
+      } else {
         KTag->Point2PointLoc = Intermediate;
       }
     }
-  }
-  // scenario 2: no point kernel sublist
-  // e.g. l -> p -> ... -> l -> p -> ...
-  else if (vecLocalKernelIndices.front() == 0) {  
+  } else if (vecLocalKernelIndices.front() == 0) {
+    // scenario 2: no point kernel sublist
+    // e.g. l -> p -> ... -> l -> p -> ...
     for (auto it = (vecLocalKernelIndices.begin()); it != vecLocalKernelIndices.end(); ++it) {
       std::list<HipaccKernel *> localKernelList;
-      if (std::next(it) == vecLocalKernelIndices.end()) { 
+      if (std::next(it) == vecLocalKernelIndices.end()) {
         auto itTemp = l.begin();
         std::advance(itTemp, *it);
         localKernelList.assign(itTemp, l.end());
-      }
-      else {
+      } else {
         auto itTempS = l.begin();
         std::advance(itTempS, *it);
         auto itTempE = l.begin();
@@ -151,36 +146,31 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
       for (auto it = (list.begin()); it != list.end(); ++it) {
         HipaccKernel *K = *it;
         FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
-        if (it == list.begin() && std::next(it) == list.end()) {  // single kernel sublist  
+        if (it == list.begin() && std::next(it) == list.end()) {  // single kernel sublist
           KTag->Local2PointLoc = Undefined;
-        }
-        else if (it == list.begin()) {  
+        } else if (it == list.begin()) {
           KTag->Local2PointLoc = Source;
-        }
-        else if (std::next(it) == list.end()) {  
+        } else if (std::next(it) == list.end()) {
           KTag->Local2PointLoc = Destination;
-        }
-        else {
+        } else {
           KTag->Local2PointLoc = Intermediate;
         }
       }
     }
-  }
-  // scenario 3: both point and local kernel sublists exist
-  // e.g. p -> ... -> p -> l -> p -> ...
-  else if (vecLocalKernelIndices.front() > 0) {   
+  } else if (vecLocalKernelIndices.front() > 0) {
+    // scenario 3: both point and local kernel sublists exist
+    // e.g. p -> ... -> p -> l -> p -> ...
     auto itTempP = l.begin();
     std::advance(itTempP, vecLocalKernelIndices.front());
     pointKernelList.assign(l.begin(), itTempP);
 
     for (auto it = (vecLocalKernelIndices.begin()); it != vecLocalKernelIndices.end(); ++it) {
       std::list<HipaccKernel *> localKernelList;
-      if (std::next(it) == vecLocalKernelIndices.end()) { 
+      if (std::next(it) == vecLocalKernelIndices.end()) {
         auto itTemp = l.begin();
         std::advance(itTemp, *it);
         localKernelList.assign(itTemp, l.end());
-      }
-      else {
+      } else {
         auto itTempS = l.begin();
         std::advance(itTempS, *it);
         auto itTempE = l.begin();
@@ -189,25 +179,22 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
       }
       vecLocalKernelLists.push_back(localKernelList);
     }
-  
+
     // tag generation
-    // TODO: local-to-local fusion tags are not generated 
+    // TODO: local-to-local fusion tags are not generated
     for (auto it = (pointKernelList.begin()); it != pointKernelList.end(); ++it) {
       HipaccKernel *K = *it;
       FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
-      if (it == pointKernelList.begin() && std::next(it) == pointKernelList.end()) {                
+      if (it == pointKernelList.begin() && std::next(it) == pointKernelList.end()) {
         KTag->Point2PointLoc = Undefined;
         KTag->Point2LocalLoc = Source;
-      }
-      else if (it == pointKernelList.begin()) {  
+      } else if (it == pointKernelList.begin()) {
         KTag->Point2PointLoc = Source;
         KTag->Point2LocalLoc = Source;
-      }
-      else if (std::next(it) == pointKernelList.end()) {  
+      } else if (std::next(it) == pointKernelList.end()) {
         KTag->Point2PointLoc = Destination;
         KTag->Point2LocalLoc = Source;
-      }
-      else {
+      } else {
         KTag->Point2PointLoc = Intermediate;
         KTag->Point2LocalLoc = Source;
       }
@@ -216,19 +203,16 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
       for (auto it = (list.begin()); it != list.end(); ++it) {
         HipaccKernel *K = *it;
         FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
-        if (it == list.begin() && std::next(it) == list.end()) {  // single kernel sublist  
+        if (it == list.begin() && std::next(it) == list.end()) {  // single kernel sublist
           KTag->Local2PointLoc = Undefined;
           KTag->Point2LocalLoc = Destination;
-        }
-        else if (it == list.begin()) {  
+        } else if (it == list.begin()) {
           KTag->Local2PointLoc = Source;
           KTag->Point2LocalLoc = Destination;
-        }
-        else if (std::next(it) == list.end()) {  
+        } else if (std::next(it) == list.end()) {
           KTag->Local2PointLoc = Destination;
           KTag->Point2LocalLoc = Destination;
-        }
-        else {
+        } else {
           KTag->Local2PointLoc = Intermediate;
           KTag->Point2LocalLoc = Destination;
         }
@@ -251,7 +235,7 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
   SmallVector<Stmt *, 16> vecProducerP2LBody;
   for (auto it = (l.begin()); it != l.end(); ++it) {
     curFusionBody = nullptr;
-    HipaccKernel *K = *it;  
+    HipaccKernel *K = *it;
     HipaccKernelClass *KC = K->getKernelClass();
     FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
     FunctionDecl *kernelDecl = createFunctionDecl(Ctx,
@@ -262,67 +246,67 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
 
     // domain-specific translation and fusion
     // point to point apply replacement
-		switch(KTag->Point2PointLoc) {
-			default: break;
-			case Source:
-				createReg4FusionVarDecl(KC->getOutField()->getType());
-				Hipacc->configSrcOperatorP2P(fusionRegVarDecls.back());
-				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
-				break;
-			case Destination:
-				Hipacc->configDestOperatorP2P(fusionRegVarDecls.back());
-				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
-				break;
-			case Intermediate:
-				VarDecl *VDIn = fusionRegVarDecls.back();
-				createReg4FusionVarDecl(KC->getOutField()->getType());
-				VarDecl *VDOut = fusionRegVarDecls.back();
-				Hipacc->configIntermOperatorP2P(VDIn, VDOut);
-				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
-				break;
-		}
+    switch(KTag->Point2PointLoc) {
+      default: break;
+      case Source:
+        createReg4FusionVarDecl(KC->getOutField()->getType());
+        Hipacc->configSrcOperatorP2P(fusionRegVarDecls.back());
+        curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+        break;
+      case Destination:
+        Hipacc->configDestOperatorP2P(fusionRegVarDecls.back());
+        curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+        break;
+      case Intermediate:
+        VarDecl *VDIn = fusionRegVarDecls.back();
+        createReg4FusionVarDecl(KC->getOutField()->getType());
+        VarDecl *VDOut = fusionRegVarDecls.back();
+        Hipacc->configIntermOperatorP2P(VDIn, VDOut);
+        curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+        break;
+    }
     // local to point apply replacement
-		switch(KTag->Local2PointLoc) {
-			default: break;
-			case Source:
-				createReg4FusionVarDecl(KC->getOutField()->getType());
-				Hipacc->configSrcOperatorP2P(fusionRegVarDecls.back());
-				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
-				break;
-			case Destination:
-				Hipacc->configDestOperatorP2P(fusionRegVarDecls.back());
-				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
-				break;
-			case Intermediate:
-				VarDecl *VDIn = fusionRegVarDecls.back();
-				createReg4FusionVarDecl(KC->getOutField()->getType());
-				VarDecl *VDOut = fusionRegVarDecls.back();
-				Hipacc->configIntermOperatorP2P(VDIn, VDOut);
-				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
-				break;
-		}
-		// point to local apply replacement
-		switch(KTag->Point2LocalLoc) {
-			default: break;
-			case Source:
-				createIdx4FusionVarDecl();
-				createReg4FusionVarDecl(KC->getOutField()->getType());
-				Hipacc->configSrcOperatorP2L(fusionRegVarDecls.back(), fusionIdxVarDecls.back());
-				vecProducerP2LBody.push_back(Hipacc->Hipacc(KC->getKernelFunction()->getBody()));
-				break;
-			case Destination:
-				Hipacc->configDestOperatorP2L(fusionRegVarDecls.back(), fusionIdxVarDecls.back(), 
-																createCompoundStmt(Ctx, vecProducerP2LBody));
-				curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
-				break;
-			case Intermediate:
-				VarDecl *VDIn = fusionRegVarDecls.back();
-				createReg4FusionVarDecl(KC->getOutField()->getType());
-				VarDecl *VDOut = fusionRegVarDecls.back();
-				Hipacc->configIntermOperatorP2P(VDIn, VDOut);
-				vecProducerP2LBody.push_back(Hipacc->Hipacc(KC->getKernelFunction()->getBody()));
-				break;
-		}
+    switch(KTag->Local2PointLoc) {
+      default: break;
+      case Source:
+        createReg4FusionVarDecl(KC->getOutField()->getType());
+        Hipacc->configSrcOperatorP2P(fusionRegVarDecls.back());
+        curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+        break;
+      case Destination:
+        Hipacc->configDestOperatorP2P(fusionRegVarDecls.back());
+        curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+        break;
+      case Intermediate:
+        VarDecl *VDIn = fusionRegVarDecls.back();
+        createReg4FusionVarDecl(KC->getOutField()->getType());
+        VarDecl *VDOut = fusionRegVarDecls.back();
+        Hipacc->configIntermOperatorP2P(VDIn, VDOut);
+        curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+        break;
+    }
+    // point to local apply replacement
+    switch(KTag->Point2LocalLoc) {
+      default: break;
+      case Source:
+        createIdx4FusionVarDecl();
+        createReg4FusionVarDecl(KC->getOutField()->getType());
+        Hipacc->configSrcOperatorP2L(fusionRegVarDecls.back(), fusionIdxVarDecls.back());
+        vecProducerP2LBody.push_back(Hipacc->Hipacc(KC->getKernelFunction()->getBody()));
+        break;
+      case Destination:
+        Hipacc->configDestOperatorP2L(fusionRegVarDecls.back(), fusionIdxVarDecls.back(),
+                                createCompoundStmt(Ctx, vecProducerP2LBody));
+        curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+        break;
+      case Intermediate:
+        VarDecl *VDIn = fusionRegVarDecls.back();
+        createReg4FusionVarDecl(KC->getOutField()->getType());
+        VarDecl *VDOut = fusionRegVarDecls.back();
+        Hipacc->configIntermOperatorP2P(VDIn, VDOut);
+        vecProducerP2LBody.push_back(Hipacc->Hipacc(KC->getKernelFunction()->getBody()));
+        break;
+    }
 
     if (curFusionBody) {
       vecFusionBody.push_back(curFusionBody);
@@ -331,7 +315,7 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
 
   insertPrologFusedKernel();
   curFusedKernelBody.push_back(createCompoundStmt(Ctx, vecFusionBody));
-  insertEpilogFusedKernel(); 
+  insertEpilogFusedKernel();
   curFusedKernelDecl->setBody(createCompoundStmt(Ctx, curFusedKernelBody));
 }
 
@@ -344,7 +328,7 @@ void ASTFuse::parseFusibleKernel(HipaccKernel *K) {
   vecFusibleKernelLists[dataDeps->getKernelListIndex(K)] = curList;
   // fusion starts whenever a list is complete
   if (curList.size() == dataDeps->getKernelListSize(K)) {
-    HipaccFusion(curList);    
+    HipaccFusion(curList);
     printFusedKernelFunction(curList); // write kernel to file
   }
 }
@@ -356,11 +340,11 @@ HipaccKernel *ASTFuse::getProducerKernel(HipaccKernel *K) {
   auto curList = vecFusibleKernelLists[dataDeps->getKernelListIndex(K)];
   auto it = curList.begin();
   std::advance(it, dataDeps->getKernelIndex(K)-1);
-  return *it; 
+  return *it;
 }
-SmallVector<std::string, 16> ASTFuse::getFusedFileNamesAll() const { 
-  return fusedFileNamesAll; 
-} 
+SmallVector<std::string, 16> ASTFuse::getFusedFileNamesAll() const {
+  return fusedFileNamesAll;
+}
 std::string ASTFuse::getFusedKernelName(HipaccKernel *K) { return fusedKernelNameMap[K]; }
 
 
@@ -463,7 +447,7 @@ void ASTFuse::printFusedKernelFunction(std::list<HipaccKernel *>& l) {
     for (auto arg : K->getDeviceArgFields()) {
       auto cur_arg = num_arg++;
       std::string Name(K->getDeviceArgNames()[cur_arg]);
-      std::string nameOrig = Name.substr(0, Name.find("_"+K->getKernelName())); 
+      std::string nameOrig = Name.substr(0, Name.find("_"+K->getKernelName()));
       if (!K->getUsed(Name) && !K->getUsed(nameOrig)){
         continue;
       }
@@ -562,11 +546,11 @@ void ASTFuse::printFusedKernelFunction(std::list<HipaccKernel *>& l) {
       break;
     case Language::CUDA:
       OS << "__global__ ";
-      // TODO, configure the fused kernel, currently use the destination kernel config 
+      // TODO, configure the fused kernel, currently use the destination kernel config
       //if (compilerOptions.exploreConfig() && emitHints) {
       //  OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";
       //} else {
-        OS << "__launch_bounds__ (" << (l.back())->getNumThreadsX() 
+        OS << "__launch_bounds__ (" << (l.back())->getNumThreadsX()
            << "*" << (l.back())->getNumThreadsY() << ") ";
       //}
       break;
@@ -593,7 +577,7 @@ void ASTFuse::printFusedKernelFunction(std::list<HipaccKernel *>& l) {
     T.removeLocalRestrict();
 
     std::string Name(param->getNameAsString());
-    std::string nameOrig = Name.substr(0, Name.find("_"+K->getKernelName())); 
+    std::string nameOrig = Name.substr(0, Name.find("_"+K->getKernelName()));
     FieldDecl *FD = FuncDeclParamDeclMap[Name];
     if (!K->getUsed(Name) && !K->getUsed(nameOrig)){
       continue;
@@ -728,7 +712,7 @@ void ASTTranslateFusion::configDestOperatorP2L(VarDecl *VDReg, VarDecl *VDIdx, S
   bReplaceInputLocalExprs = true;
   exprInputIdxFusion = createDeclRefExpr(Ctx, VDIdx);
   exprOutputFusion = createDeclRefExpr(Ctx, VDReg);
-	stmtProducerBodyP2L = S;
+  stmtProducerBodyP2L = S;
 }
 
 void ASTTranslateFusion::configSrcOperatorP2L(VarDecl *VDReg, VarDecl *VDIdx) {
@@ -917,7 +901,7 @@ Stmt *ASTTranslateFusion::Hipacc(Stmt *S) {
     for (auto param : kernelDecl->parameters()) {
       // output image - iteration space
       std::string strFuseName = (*kernelDecl->param_begin())->getName();
-      strFuseName += kernelParamNameSuffix; 
+      strFuseName += kernelParamNameSuffix;
       if (param->getName().equals(strFuseName)) {
         // <type>4 *Output4 = (<type>4 *) Output;
         VarDecl *VD = CloneParmVarDecl(param);
@@ -939,7 +923,7 @@ Stmt *ASTTranslateFusion::Hipacc(Stmt *S) {
       for (auto param : kernelDecl->parameters()) {
         // parameter name matches
         std::string strFuseName = name;
-        strFuseName += kernelParamNameSuffix; 
+        strFuseName += kernelParamNameSuffix;
         if (param->getName().equals(strFuseName)) {
           // <type>4 *Input4 = (<type>4 *) Input;
           VarDecl *VD = CloneParmVarDecl(param);
@@ -1750,7 +1734,7 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
     MemoryAccess mem_acc = KernelClass->getMemAccess(FD);
 
     if (bReplaceInputExpr) {
-      return LHS; 
+      return LHS;
     }
 
     // Images are ParmVarDecls
@@ -1869,10 +1853,10 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
 
   setExprProps(E, result);
 
-	if (bReplaceInputIdxExpr) {
-		ArraySubscriptExpr *tempASE = dyn_cast<ArraySubscriptExpr>(result);
-		tempASE->setRHS(exprInputIdxFusion);
-	}
+  if (bReplaceInputIdxExpr) {
+    ArraySubscriptExpr *tempASE = dyn_cast<ArraySubscriptExpr>(result);
+    tempASE->setRHS(exprInputIdxFusion);
+  }
 
   return result;
 }
@@ -1899,7 +1883,7 @@ Expr *ASTTranslateFusion::VisitMemberExprTranslate(MemberExpr *E) {
   for (auto param : kernelDecl->parameters()) {
     // parameter name matches
     std::string strFuseName = VD->getName();
-    strFuseName += kernelParamNameSuffix; 
+    strFuseName += kernelParamNameSuffix;
     if (param->getName().equals(strFuseName)) {
       paramDecl = param;
 
@@ -1928,7 +1912,7 @@ Expr *ASTTranslateFusion::VisitMemberExprTranslate(MemberExpr *E) {
   bool isMask = false;
   for (auto mask : KernelClass->getMaskFields()) {
     std::string strFuseName = mask->getName();
-    strFuseName += kernelParamNameSuffix; 
+    strFuseName += kernelParamNameSuffix;
     if (paramDecl->getName().equals(strFuseName)) {
       if (auto Mask = Kernel->getMaskFromMapping(mask)) {
         isMask = true;
@@ -1961,9 +1945,9 @@ Expr *ASTTranslateFusion::VisitMemberExprTranslate(MemberExpr *E) {
   Expr *result = createDeclRefExpr(Ctx, paramDecl);
   setExprProps(E, result);
 
-  if (bReplaceInputExpr && 
+  if (bReplaceInputExpr &&
         Kernel->getImgFromMapping(dyn_cast<FieldDecl>(VD))) {
-    return exprInputFusion; 
+    return exprInputFusion;
   }
   return result;
 }
@@ -2201,20 +2185,20 @@ void ASTTranslateFusion::stageLineToSharedMemory(ParmVarDecl *PVD,
   }
 
   if (bReplaceInputLocalExprs) {
-		// extract and set global id
-		ArraySubscriptExpr *tempASE = dyn_cast<ArraySubscriptExpr>(RHS);
-		stageBody.push_back(createBinaryOperator(Ctx, exprInputIdxFusion, 
-			tempASE->getIdx(), BO_Assign, Acc->getImage()->getType()));
+    // extract and set global id
+    ArraySubscriptExpr *tempASE = dyn_cast<ArraySubscriptExpr>(RHS);
+    stageBody.push_back(createBinaryOperator(Ctx, exprInputIdxFusion,
+      tempASE->getIdx(), BO_Assign, Acc->getImage()->getType()));
     // insert the producer body
-		stageBody.push_back(stmtProducerBodyP2L);
+    stageBody.push_back(stmtProducerBodyP2L);
     // replace the input
-    stageBody.push_back(createBinaryOperator(Ctx, LHS, exprOutputFusion, 
-			BO_Assign, Acc->getImage()->getType()));
-	}
+    stageBody.push_back(createBinaryOperator(Ctx, LHS, exprOutputFusion,
+      BO_Assign, Acc->getImage()->getType()));
+  }
   else {
-		stageBody.push_back(createBinaryOperator(Ctx, LHS, RHS, BO_Assign,
-					Acc->getImage()->getType()));
-	}
+    stageBody.push_back(createBinaryOperator(Ctx, LHS, RHS, BO_Assign,
+          Acc->getImage()->getType()));
+  }
 }
 
 

@@ -319,20 +319,19 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
     case Language::CUDA:
       if (!compilerOptions.exploreConfig()) {
         if (compilerOptions.fuseKernels()) {
-          for (auto map : KernelDeclMap) {  
+          for (auto map : KernelDeclMap) {
             if (!dataDeps->isFusible(map.second)) {
-              newStr += "#include \""; 
+              newStr += "#include \"";
               newStr += map.second->getFileName();
               newStr += ".cu\"\n";
             }
           }
-          for (auto fName : kernelFuser->getFusedFileNamesAll()) {  
+          for (auto fName : kernelFuser->getFusedFileNamesAll()) {
             newStr += "#include \"";
             newStr += fName;
-            newStr += ".cu\"\n";  
+            newStr += ".cu\"\n";
           }
-        }
-        else {
+        } else {
           for (auto map : KernelDeclMap) {
             newStr += "#include \"";
             newStr += map.second->getFileName();
@@ -1295,7 +1294,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           HipaccKernel *K = new HipaccKernel(Context, VD, KC, compilerOptions);
           KernelDeclMap[VD] = K;
           if (compilerOptions.fuseKernels() && dataDeps->isFusible(K)) {
-            K->setOptimizationOptions(OptimizationOption::KERNEL_FUSE); 
+            K->setOptimizationOptions(OptimizationOption::KERNEL_FUSE);
           }
 
           // remove kernel declaration
@@ -1344,7 +1343,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             }
           }
 
-          // kernel optimization 
+          // kernel optimization
           if (compilerOptions.fuseKernels() && dataDeps->isFusible(K)) {
             // TODO set kernel configuration
             K->setDefaultConfig();
@@ -1686,8 +1685,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         // create kernel call string
         if (compilerOptions.fuseKernels() && dataDeps->isFusible(K)) {
           stringCreator.writeFusedKernelCall(K, newStr, kernelFuser);
-        }
-        else {
+        } else {
           stringCreator.writeKernelCall(K, newStr);
         }
 

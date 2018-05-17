@@ -49,7 +49,7 @@ class CreateHostStrings {
     unsigned literal_count;
     int num_indent, cur_indent;
     std::string indent;
-    
+
     // optimization params
     std::map<HipaccKernel *, std::string> fusedKernelLaunchInfoMap;
     std::map<HipaccKernel *, std::string> fusedKernelCallMap;

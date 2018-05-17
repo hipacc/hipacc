@@ -485,8 +485,7 @@ void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3,
 
   if (options.fuseKernels() && OptmOpt == OptimizationOption::KERNEL_FUSE) {
     deviceArgNames.push_back(name + "_" + kernelName);
-  }
-  else {
+  } else {
     deviceArgNames.push_back(name);
   }
   deviceArgFields.push_back(fd);

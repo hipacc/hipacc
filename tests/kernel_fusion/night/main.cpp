@@ -73,7 +73,7 @@
 using namespace hipacc;
 
 
-// kernel description in Hipacc 
+// kernel description in Hipacc
 class Atrous : public Kernel<data_t> {
     private:
         Accessor<data_t> &input;
@@ -100,7 +100,7 @@ class Atrous : public Kernel<data_t> {
             float sum_r = 0.0f;
             float sum_g = 0.0f;
             float sum_b = 0.0f;
-            
+
             iterate(dom, [&] () {
                 data_t pixel = input(dom);
                 float rpixel, gpixel, bpixel;
@@ -159,7 +159,7 @@ class Scoto : public Kernel<data_t> {
             float y1 = Y / W;
             const float xb = 0.25f;
             const float yb = 0.25f;
-            
+
             x1 = ((1.0f - s) * xb) + (s * x1);
             y1 = ((1.0f - s) * yb) + (s * y1);
             Y = (V * 0.4468f * (1.0f - s)) + (s * Y);
@@ -202,12 +202,12 @@ int main(int argc, const char **argv) {
     // load input
     const int width = 1920;//FreeImage_GetWidth(img);
     const int height = 1200;//FreeImage_GetHeight(img);
-    
-    data_t* input = new data_t[width*height]; 
+
+    data_t* input = new data_t[width*height];
     for(size_t y = 0; y < height; ++y) {
         for(size_t x = 0; x < width; ++x) {
             input[x+y*width] = pack(x%5, y%15, (x+y)%25, 255);
-        }           
+        }
     }
 
     // hipacc object decls
@@ -238,22 +238,22 @@ int main(int argc, const char **argv) {
     Scoto SCOTO(IS_OUT, AccSc);
 
     // kernel invocation
-		IN = input;
+    IN = input;
     Atrous0.execute();
     Atrous1.execute();
     SCOTO.execute();
-    data_t *output = OUT.data(); 
+    data_t *output = OUT.data();
 
-#ifdef PRINT_RESULT 
+#ifdef PRINT_RESULT
     std::cerr << "\nwriting output to file...\n";
     int ySkip = 17;
     int xSkip = 13;
     // compute the golden results
     for (int y=0; y<height; y=y+ySkip) {
       for (int x=0; x<width; x=x+xSkip) {
-        std::cout << "output at y " << y << ", x " << x << " : " << 
+        std::cout << "output at y " << y << ", x " << x << " : " <<
           (int)output[y*width + x].x << " " << (int)output[y*width + x].y <<
-            " " << (int)output[y*width + x].z << "\n"; 
+            " " << (int)output[y*width + x].z << "\n";
       }
     }
 #endif

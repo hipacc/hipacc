@@ -28,12 +28,12 @@
 
 //===------------- HostDataDeps.h - Track data dependencies ---------------===//
 //
-// This file implements tracking of data dependencies to provide information 
+// This file implements tracking of data dependencies to provide information
 // for optimization such as kernel fusion
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _HOSTDATADEPS_H_ 
+#ifndef _HOSTDATADEPS_H_
 #define _HOSTDATADEPS_H_
 
 #include <clang/AST/ASTContext.h>
@@ -226,7 +226,7 @@ class HostDataDeps : public ManagedAnalysis {
         HipaccKernelClass *KC;
 
       public:
-        Kernel(std::string name, IterationSpace *iter, 
+        Kernel(std::string name, IterationSpace *iter,
                 ValueDecl *VD, HipaccKernelClass *KC)
             : name(name), iter(iter), VD(VD), KC(KC) {
         }
@@ -290,11 +290,11 @@ class HostDataDeps : public ManagedAnalysis {
         std::vector<Accessor*> accs_;
         Process *srcProcess;
         std::vector<Process*> dstProcess;
-      public: 
-        std::string stream; 
-        std::vector<std::string> cpyStreams; 
-        bool isShared; 
-        Space(Image *image) : Node(true), image(image), iter(nullptr), srcProcess(nullptr), isShared(false) { } 
+      public:
+        std::string stream;
+        std::vector<std::string> cpyStreams;
+        bool isShared;
+        Space(Image *image) : Node(true), image(image), iter(nullptr), srcProcess(nullptr), isShared(false) { }
         Image *getImage() {
           return image;
         }
@@ -326,7 +326,7 @@ class HostDataDeps : public ManagedAnalysis {
         void addDstProcess(Process *proc) {
           // a single process can have multiple accessors to same image
           std::vector<Accessor*> accs = proc->getKernel()->getAccessors(image);
-          assert(accs.size() > 0 && "Accessor Image mismatch"); 
+          assert(accs.size() > 0 && "Accessor Image mismatch");
           for (auto it = accs.begin(); it != accs.end(); ++it) {
             accs_.push_back(*it);
           }
@@ -339,19 +339,19 @@ class HostDataDeps : public ManagedAnalysis {
         Kernel *kernel;
         Space *outSpace;
         std::vector<Space*> inSpaces;
-        Process* readDependentProcess; 
-        bool isReadDependentProcess; 
-        Process* writeDependentProcess; 
-        bool isWriteDependentProcess; 
+        Process* readDependentProcess;
+        bool isReadDependentProcess;
+        Process* writeDependentProcess;
+        bool isWriteDependentProcess;
 
       public:
         Process(Kernel *kernel, Space *outSpace)
-            : Node(false), 
-              kernel(kernel), 
-              outSpace(outSpace), 
-              readDependentProcess(nullptr), 
+            : Node(false),
+              kernel(kernel),
+              outSpace(outSpace),
+              readDependentProcess(nullptr),
               isReadDependentProcess(false),
-              writeDependentProcess(nullptr), 
+              writeDependentProcess(nullptr),
               isWriteDependentProcess(false)
         {
           outSpace->srcProcess = this;
@@ -432,7 +432,7 @@ class HostDataDeps : public ManagedAnalysis {
     std::vector<Space*> getOutputSpaces();
     void markProcess(Process *t);
     void markSpace(Space *s);
-		void recordFusibleProcessPair(Process *pSrc, Process *pDest);
+    void recordFusibleProcessPair(Process *pSrc, Process *pDest);
     void createSchedule();
     void fusibilityAnalysis();
     void recordFusibleKernelListInfo();
@@ -445,23 +445,23 @@ class HostDataDeps : public ManagedAnalysis {
         bool print=false);
 
   public:
-    bool isFusible(HipaccKernel *K); 
-    bool isSrc(HipaccKernel *K); 
-    bool isDest(HipaccKernel *K); 
+    bool isFusible(HipaccKernel *K);
+    bool isSrc(HipaccKernel *K);
+    bool isDest(HipaccKernel *K);
     unsigned getNumberOfFusibleKernelList() const;
-    unsigned getKernelListIndex(HipaccKernel *K); 
-    unsigned getKernelListSize(HipaccKernel *K); 
-    unsigned getKernelIndex(HipaccKernel *K); 
+    unsigned getKernelListIndex(HipaccKernel *K);
+    unsigned getKernelListSize(HipaccKernel *K);
+    unsigned getKernelIndex(HipaccKernel *K);
 
     static HostDataDeps *parse(ASTContext &Context,
         AnalysisDeclContext &analysisContext,
         CompilerKnownClasses &compilerClasses,
-        CompilerOptions &compilerOptions, 
-				llvm::DenseMap<RecordDecl *, HipaccKernelClass *> &KernelClassDeclMap) {
+        CompilerOptions &compilerOptions,
+        llvm::DenseMap<RecordDecl *, HipaccKernelClass *> &KernelClassDeclMap) {
       static HostDataDeps dataDeps;
       dataDeps.compilerClasses = compilerClasses;
       dataDeps.compilerOptions = compilerOptions;
-			dataDeps.KernelClassDeclMap = KernelClassDeclMap;
+      dataDeps.KernelClassDeclMap = KernelClassDeclMap;
       DependencyTracker DT(Context, analysisContext, compilerClasses, dataDeps);
 
       if (DEBUG) {
