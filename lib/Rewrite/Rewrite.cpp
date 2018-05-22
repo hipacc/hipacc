@@ -2174,7 +2174,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       OS << "texture<" << fun->getReturnType().getAsString()
          << ", cudaTextureType2D, cudaReadModeElementType> _tex"
          << K->getIterationSpace()->getImage()->getName() + K->getName()
-         << ";\nconst textureReference *_tex"
+         << ";\n__device__ const textureReference *_tex"
          << K->getIterationSpace()->getImage()->getName() + K->getName()
          << "Ref;\n\n";
       // define reduction only if pixel and bin are of the same type
