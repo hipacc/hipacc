@@ -447,6 +447,4 @@ __global__ void __launch_bounds__ (WARP_SIZE*NUM_WARPS) NAME(INPUT_PARM(PIXEL_TY
   } \
 }
 
-
 //#endif  // __HIPACC_CU_RED_HPP__
-

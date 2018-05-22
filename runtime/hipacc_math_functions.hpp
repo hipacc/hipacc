@@ -416,4 +416,3 @@ MAKE_MATH_BI_INT(int4,  int,    int4,    )
 MAKE_MATH_BI_INT(long4, long,   long4,  l)
 
 #endif  // __HIPACC_MATH_FUNCTIONS_HPP__
-

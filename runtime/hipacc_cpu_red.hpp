@@ -115,4 +115,3 @@ inline BIN_TYPE* NAME ##Kernel(DATA_TYPE input[HEIGHT][WIDTH], uint num_bins, in
  \
     return bins; \
 }
-

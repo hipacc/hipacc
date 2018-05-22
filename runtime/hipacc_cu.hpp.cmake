@@ -1327,4 +1327,3 @@ void hipaccLaunchKernelExploration(std::string filename, std::string kernel, std
 }
 
 #endif  // __HIPACC_CU_HPP__
-

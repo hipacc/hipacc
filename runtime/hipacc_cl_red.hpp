@@ -319,4 +319,3 @@ __kernel void NAME1D(__global BIN_TYPE *output, const unsigned int num_bins) { \
 
 
 //#endif  // __HIPACC_CL_RED_HPP__
-

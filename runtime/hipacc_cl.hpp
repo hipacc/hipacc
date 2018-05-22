@@ -1310,4 +1310,3 @@ HipaccImage hipaccCreatePyramidImage(const HipaccImage &base, size_t width, size
 }
 
 #endif  // __HIPACC_CL_HPP__
-

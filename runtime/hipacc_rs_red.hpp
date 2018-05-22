@@ -80,4 +80,3 @@ RET_TYPE NAME(IS_PARM) { \
 }
 
 //#endif  // __HIPACC_RS_RED_HPP__
-

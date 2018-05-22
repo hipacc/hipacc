@@ -458,4 +458,3 @@ void hipaccTraverse(unsigned int loop=1,
 #endif // EXCLUDE_IMPL
 
 #endif // __HIPACC_BASE_HPP__
-
