@@ -856,7 +856,7 @@ void hipaccSetKernelArg(cl_kernel kernel, unsigned int num, size_t size, T* para
 
 
 // Enqueue and launch kernel
-void hipaccEnqueueKernel(cl_kernel kernel, size_t *global_work_size, size_t *local_work_size, bool print_timing=true) {
+void hipaccLaunchKernel(cl_kernel kernel, size_t *global_work_size, size_t *local_work_size, bool print_timing=true) {
     cl_int err;
     cl_ulong end, start;
     #ifdef EVENT_TIMING
@@ -943,7 +943,7 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, const HipaccAcces
         hipaccSetKernelArg(kernel2D, 9, sizeof(unsigned int), &idle_left);
     }
 
-    hipaccEnqueueKernel(kernel2D, global_work_size, local_work_size);
+    hipaccLaunchKernel(kernel2D, global_work_size, local_work_size);
 
 
     // second step: reduce partial blocks on GPU
@@ -962,7 +962,7 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, const HipaccAcces
     hipaccSetKernelArg(kernel1D, 2, sizeof(unsigned int), &num_blocks);
     hipaccSetKernelArg(kernel1D, 3, sizeof(unsigned int), &num_steps);
 
-    hipaccEnqueueKernel(kernel1D, global_work_size, local_work_size);
+    hipaccLaunchKernel(kernel1D, global_work_size, local_work_size);
 
     // get reduced value
     err = clEnqueueReadBuffer(Ctx.get_command_queues()[0], output, CL_FALSE, 0, sizeof(T), &result, 0, NULL, NULL);
@@ -1048,7 +1048,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
                 hipaccSetKernelArg(exploreReduction2D, 9, sizeof(unsigned int), &idle_left);
             }
 
-            hipaccEnqueueKernel(exploreReduction2D, global_work_size, local_work_size, false);
+            hipaccLaunchKernel(exploreReduction2D, global_work_size, local_work_size, false);
             float total_time = last_gpu_timing;
 
             // second step: reduce partial blocks on GPU
@@ -1063,7 +1063,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
                 hipaccSetKernelArg(exploreReduction1D, 2, sizeof(unsigned int), &num_blocks);
                 hipaccSetKernelArg(exploreReduction1D, 3, sizeof(unsigned int), &ppt);
 
-                hipaccEnqueueKernel(exploreReduction1D, global_work_size, local_work_size, false);
+                hipaccLaunchKernel(exploreReduction1D, global_work_size, local_work_size, false);
                 total_time += last_gpu_timing;
 
                 num_blocks = global_work_size[0]/local_work_size[0];
@@ -1157,7 +1157,7 @@ T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D, const Hip
     hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.offset_x);
     hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.offset_y);
 
-    hipaccEnqueueKernel(kernel2D, global_work_size, local_work_size);
+    hipaccLaunchKernel(kernel2D, global_work_size, local_work_size);
 
     local_work_size[0] = wavefront;
     local_work_size[1] = 1;
@@ -1168,7 +1168,7 @@ T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D, const Hip
     hipaccSetKernelArg(kernel1D, offset++, sizeof(cl_mem), &output);
     hipaccSetKernelArg(kernel1D, offset++, sizeof(unsigned int), &num_bins);
 
-    hipaccEnqueueKernel(kernel1D, global_work_size, local_work_size);
+    hipaccLaunchKernel(kernel1D, global_work_size, local_work_size);
 
     err = clEnqueueReadBuffer(Ctx.get_command_queues()[0], output, CL_FALSE, 0, sizeof(T)*num_bins, result, 0, NULL, NULL);
     err |= clFinish(Ctx.get_command_queues()[0]);
@@ -1182,17 +1182,14 @@ T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D, const Hip
 
 
 // Benchmark timing for a kernel call
-void hipaccEnqueueKernelBenchmark(cl_kernel kernel, std::vector<std::pair<size_t, void *> > args, size_t *global_work_size, size_t *local_work_size, bool print_timing=true) {
+void hipaccLaunchKernelBenchmark(cl_kernel kernel, size_t *global_work_size, size_t *local_work_size, std::vector<std::pair<size_t, void *>> args, bool print_timing=true) {
     std::vector<float> times;
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
-        // set kernel arguments
-        for (size_t j=0; j<args.size(); ++j) {
+        for (size_t j=0; j<args.size(); ++j)
             hipaccSetKernelArg(kernel, j, args[j].first, args[j].second);
-        }
 
-        // launch kernel
-        hipaccEnqueueKernel(kernel, global_work_size, local_work_size, print_timing);
+        hipaccLaunchKernel(kernel, global_work_size, local_work_size, print_timing);
         times.push_back(last_gpu_timing);
     }
 
@@ -1210,8 +1207,8 @@ void hipaccEnqueueKernelBenchmark(cl_kernel kernel, std::vector<std::pair<size_t
 
 
 // Perform configuration exploration for a kernel call
-void hipaccKernelExploration(std::string filename, std::string kernel,
-        std::vector<std::pair<size_t, void *> > args,
+void hipaccLaunchxploration(std::string filename, std::string kernel,
+        std::vector<std::pair<size_t, void *>> args,
         std::vector<hipacc_smem_info> smems, hipacc_launch_info &info, int
         warp_size, int max_threads_per_block, int max_threads_for_kernel, int
         max_smem_per_block, int heu_tx, int heu_ty) {
@@ -1255,13 +1252,10 @@ void hipaccKernelExploration(std::string filename, std::string kernel,
             std::vector<float> times;
 
             for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
-                // set kernel arguments
-                for (size_t j=0; j<args.size(); ++j) {
+                for (size_t j=0; j<args.size(); ++j)
                     hipaccSetKernelArg(exploreKernel, j, args[j].first, args[j].second);
-                }
 
-                // launch kernel
-                hipaccEnqueueKernel(exploreKernel, global_work_size, local_work_size, false);
+                hipaccLaunchKernel(exploreKernel, global_work_size, local_work_size, false);
                 times.push_back(last_gpu_timing);
             }
 

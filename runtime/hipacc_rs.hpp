@@ -424,7 +424,7 @@ void hipaccSetScriptArg(F* script, void(F::*setter)(T), T param) {
 
 // Launch script kernel (one allocation)
 template<typename F>
-void hipaccLaunchScriptKernel(
+void hipaccLaunchKernel(
     F* script,
     void(F::*kernel)(sp<Allocation>),
     HipaccImage &out, size_t *work_size, bool print_timing=true
@@ -449,7 +449,7 @@ void hipaccLaunchScriptKernel(
 
 // Launch script kernel (two allocations)
 template<typename F>
-void hipaccLaunchScriptKernel(
+void hipaccLaunchKernel(
     F* script,
     void(F::*kernel)(sp<Allocation>, sp<Allocation>),
     const HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing=true
@@ -474,7 +474,7 @@ void hipaccLaunchScriptKernel(
 
 // Benchmark timing for a kernel call
 template<typename F>
-void hipaccLaunchScriptKernelBenchmark(
+void hipaccLaunchKernelBenchmark(
     F* script,
     std::vector<hipacc_script_arg<F>> args,
     void(F::*kernel)(sp<Allocation>),
@@ -484,12 +484,10 @@ void hipaccLaunchScriptKernelBenchmark(
     std::vector<float> times;
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
-        // set kernel arguments
         for (auto &arg : args)
             SET_SCRIPT_ARG(script, arg);
 
-        // launch kernel
-        hipaccLaunchScriptKernel(script, kernel, out, work_size, print_timing);
+        hipaccLaunchKernel(script, kernel, out, work_size, print_timing);
         times.push_back(last_gpu_timing);
     }
 
@@ -508,7 +506,7 @@ void hipaccLaunchScriptKernelBenchmark(
 
 // Perform configuration exploration for a kernel call
 template<typename F, typename T>
-void hipaccLaunchScriptKernelExploration(
+void hipaccLaunchKernelExploration(
     F* script,
     std::vector<hipacc_script_arg<F>> args,
     void(F::*kernel)(sp<Allocation>),
@@ -537,12 +535,10 @@ void hipaccLaunchScriptKernelExploration(
 
         std::vector<float> times;
         for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
-            // set kernel arguments
             for (auto &arg : args)
                 SET_SCRIPT_ARG(script, arg);
 
-            // launch kernel
-            hipaccLaunchScriptKernel(script, kernel, out , work_size, false);
+            hipaccLaunchKernel(script, kernel, out , work_size, false);
             times.push_back(last_gpu_timing);
         }
         std::sort(times.begin(), times.end());

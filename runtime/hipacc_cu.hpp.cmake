@@ -500,39 +500,20 @@ void hipaccWriteDomainFromMask(const void *symbol, T *host_mem, size_t width, si
 }
 
 
-// Set the configuration for a kernel
-void hipaccConfigureCall(dim3 grid, dim3 block) {
-    cudaError_t err = cudaConfigureCall(grid, block, 0, 0);
-    checkErr(err, "cudaConfigureCall()");
-}
-
-
-// Set a single argument of a kernel
-void hipaccSetupArgument(const void *arg, size_t size, size_t &offset) {
-    // GPU data has to be accessed aligned
-    if (offset % size) {
-        offset += offset % size;
-    }
-    cudaError_t err = cudaSetupArgument(arg, size, offset);
-    checkErr(err, "cudaSetupArgument()");
-    offset += size;
-}
-
-
 // Launch kernel
-void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 grid, dim3 block, bool print_timing=true) {
+void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 grid, dim3 block, void **args, bool print_timing=true) {
     cudaEvent_t start, end;
 
     cudaEventCreate(&start);
     cudaEventCreate(&end);
     cudaEventRecord(start, 0);
 
-    cudaError_t err = cudaLaunch(kernel);
-    checkErr(err, "cudaLaunch(" + kernel_name + ")");
+    cudaError_t err = cudaLaunchKernel(kernel, grid, block, args, 0, 0);
+    checkErr(err, "cudaLaunchKernel(" + kernel_name + ")");
 
     cudaThreadSynchronize();
     err = cudaGetLastError();
-    checkErr(err, "cudaLaunch(" + kernel_name + ")");
+    checkErr(err, "cudaLaunchKernel(" + kernel_name + ")");
 
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
@@ -548,29 +529,19 @@ void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 grid, 
 
 
 // Benchmark timing for a kernel call
-void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, std::vector<std::pair<size_t, void *> > args, dim3 grid, dim3 block, bool print_timing=true) {
+void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, dim3 grid, dim3 block, std::vector<void *> args, bool print_timing=true) {
     std::vector<float> times;
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
-        // setup call
-        hipaccConfigureCall(grid, block);
-
-        // set kernel arguments
-        size_t offset = 0;
-        for (auto arg : args)
-            hipaccSetupArgument(arg.second, arg.first, offset);
-
-        // launch kernel
-        hipaccLaunchKernel(kernel, kernel_name, grid, block, print_timing);
+        hipaccLaunchKernel(kernel, kernel_name, grid, block, args.data(), print_timing);
         times.push_back(last_gpu_timing);
     }
 
     std::sort(times.begin(), times.end());
     last_gpu_timing = times[times.size()/2];
 
-    if (print_timing) {
+    if (print_timing)
         std::cerr << "<HIPACC:> Kernel timing benchmark ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << last_gpu_timing << "(ms)" << std::endl;
-    }
 }
 
 
@@ -737,7 +708,6 @@ void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 grid, 
     cudaEventCreate(&end);
     cudaEventRecord(start, 0);
 
-    // Launch the kernel
     CUresult err = cuLaunchKernel(kernel, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, args, NULL);
     checkErrDrv(err, "cuLaunchKernel(" + kernel_name + ")");
     err = cuCtxSynchronize();
@@ -750,10 +720,10 @@ void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 grid, 
     cudaEventDestroy(start);
     cudaEventDestroy(end);
 
-    if (print_timing) {
+    if (print_timing)
         std::cerr << "<HIPACC:> Kernel timing (" << block.x*block.y << ": " << block.x << "x" << block.y << "): " << last_gpu_timing << "(ms)" << std::endl;
-    }
 }
+
 void hipaccLaunchKernelBenchmark(CUfunction &kernel, std::string kernel_name, dim3 grid, dim3 block, void **args, bool print_timing=true) {
     std::vector<float> times;
 
@@ -862,56 +832,51 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
         idle_left *= block.x;
     }
 
-    size_t offset = 0;
-    hipaccConfigureCall(grid, block);
-
+    std::vector<void*> args_step1;
     switch (acc.img->mem_type) {
         default:
         case Global:
-            hipaccSetupArgument(&acc.img->mem, sizeof(T *), offset);
+            args_step1.push_back((void*)&acc.img->mem);
             break;
         case Array2D:
             hipaccBindTexture<T>(Array2D, tex, acc.img);
             break;
     }
 
-    hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&acc.img->width, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img->height, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img->stride, sizeof(unsigned int), offset);
+    args_step1.push_back((void*)&output);
+    args_step1.push_back((void*)&acc.img->width);
+    args_step1.push_back((void*)&acc.img->height);
+    args_step1.push_back((void*)&acc.img->stride);
     // check if the reduction is applied to the whole image
     if ((acc.offset_x || acc.offset_y) &&
         (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
-        hipaccSetupArgument(&acc.offset_x, sizeof(unsigned int), offset);
-        hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
-        hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
-        hipaccSetupArgument(&acc.height, sizeof(unsigned int), offset);
-        hipaccSetupArgument(&idle_left, sizeof(unsigned int), offset);
+        args_step1.push_back((void*)&acc.offset_x);
+        args_step1.push_back((void*)&acc.offset_y);
+        args_step1.push_back((void*)&acc.width);
+        args_step1.push_back((void*)&acc.height);
+        args_step1.push_back((void*)&idle_left);
     }
 
-    hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
+    hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block, args_step1.data());
 
 
     // second step: reduce partial blocks on GPU
     // this is done in one shot, so no additional memory is required, i.e. the
     // same array can be used for the input and output array
     // block.x is fixed, either max_threads or power of two
-    block.x = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2) :
-        max_threads;
+    block.x = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2) : max_threads;
     grid.x = 1;
     grid.y = 1;
     // calculate the number of pixels reduced per thread
     int num_steps = (num_blocks + (block.x - 1)) / (block.x);
 
-    offset = 0;
-    hipaccConfigureCall(grid, block);
+    std::vector<void*> args_step2;
+    args_step2.push_back((void*)&output);
+    args_step2.push_back((void*)&output);
+    args_step2.push_back((void*)&num_blocks);
+    args_step2.push_back((void*)&num_steps);
 
-    hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&num_blocks, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&num_steps, sizeof(unsigned int), offset);
-
-    hipaccLaunchKernel(kernel1D, kernel1D_name, grid, block);
+    hipaccLaunchKernel(kernel1D, kernel1D_name, grid, block, args_step2.data());
 
     // get reduced value
     err = cudaMemcpy(&result, output, sizeof(T), cudaMemcpyDeviceToHost);
@@ -922,6 +887,7 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
 
     return result;
 }
+
 // Perform global reduction and return result
 template<typename T>
 T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const void *kernel1D, std::string kernel1D_name,
@@ -961,34 +927,32 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_nam
         idle_left *= block.x;
     }
 
-    size_t offset = 0;
-    hipaccConfigureCall(grid, block);
-
+    std::vector<void*> args;
     switch (acc.img->mem_type) {
         default:
         case Global:
-            hipaccSetupArgument(&acc.img->mem, sizeof(T *), offset);
+            args.push_back((void*)&acc.img->mem);
             break;
         case Array2D:
             hipaccBindTexture<T>(Array2D, tex, acc.img);
             break;
     }
 
-    hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&acc.img->width, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img->height, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img->stride, sizeof(unsigned int), offset);
+    args.push_back((void*)&output);
+    args.push_back((void*)&acc.img->width);
+    args.push_back((void*)&acc.img->height);
+    args.push_back((void*)&acc.img->stride);
     // check if the reduction is applied to the whole image
     if ((acc.offset_x || acc.offset_y) &&
         (acc.width!=acc.img->width || acc.height!=acc.img->height)) {
-        hipaccSetupArgument(&acc.offset_x, sizeof(unsigned int), offset);
-        hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
-        hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
-        hipaccSetupArgument(&acc.height, sizeof(unsigned int), offset);
-        hipaccSetupArgument(&idle_left, sizeof(unsigned int), offset);
+        args.push_back((void*)&acc.offset_x);
+        args.push_back((void*)&acc.offset_y);
+        args.push_back((void*)&acc.width);
+        args.push_back((void*)&acc.height);
+        args.push_back((void*)&idle_left);
     }
 
-    hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
+    hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block, args.data());
 
     err = cudaMemcpy(&result, output, sizeof(T), cudaMemcpyDeviceToHost);
     checkErr(err, "cudaMemcpy()");
@@ -998,6 +962,7 @@ T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_nam
 
     return result;
 }
+
 // Perform global reduction using memory fence operations and return result
 template<typename T>
 T hipaccApplyReductionThreadFence(const void *kernel2D, std::string kernel2D_name,
@@ -1180,28 +1145,26 @@ T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
     cudaError_t err = cudaMalloc((void **) &output, sizeof(T)*num_hists*num_bins);
     checkErr(err, "cudaMalloc()");
 
-    size_t offset = 0;
-    hipaccConfigureCall(grid, block);
-
+    std::vector<void*> args;
     switch (acc.img->mem_type) {
         default:
         case Global:
-            hipaccSetupArgument(&acc.img->mem, sizeof(T2 *), offset);
+            args.push_back((void*)&acc.img->mem);
             break;
         case Array2D:
             hipaccBindTexture<T>(Array2D, tex, acc.img);
             break;
     }
 
-    hipaccSetupArgument(&output, sizeof(T *), offset);
-    hipaccSetupArgument(&acc.width, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.height, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.img->stride, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&num_bins, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.offset_x, sizeof(unsigned int), offset);
-    hipaccSetupArgument(&acc.offset_y, sizeof(unsigned int), offset);
+    args.push_back((void*)&output);
+    args.push_back((void*)&acc.width);
+    args.push_back((void*)&acc.height);
+    args.push_back((void*)&acc.img->stride);
+    args.push_back((void*)&num_bins);
+    args.push_back((void*)&acc.offset_x);
+    args.push_back((void*)&acc.offset_y);
 
-    hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block);
+    hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block, args.data());
 
     err = cudaMemcpy(result, output, sizeof(T)*num_bins, cudaMemcpyDeviceToHost);
     checkErr(err, "cudaMemcpy()");
@@ -1214,9 +1177,9 @@ T* hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
 
 
 // Perform configuration exploration for a kernel call
-void hipaccKernelExploration(std::string filename, std::string kernel, std::vector<void *> args,
-                             std::vector<hipacc_smem_info> smems, std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info*> texs,
-                             hipacc_launch_info &info, size_t warp_size, size_t max_threads_per_block, size_t max_threads_for_kernel, size_t max_smem_per_block, size_t heu_tx, size_t heu_ty, int cc) {
+void hipaccLaunchKernelExploration(std::string filename, std::string kernel, std::vector<void *> args,
+                                   std::vector<hipacc_smem_info> smems, std::vector<hipacc_const_info> consts, std::vector<hipacc_tex_info*> texs,
+                                   hipacc_launch_info &info, size_t warp_size, size_t max_threads_per_block, size_t max_threads_for_kernel, size_t max_smem_per_block, size_t heu_tx, size_t heu_ty, int cc) {
     CUresult err = CUDA_SUCCESS;
     size_t opt_tx=warp_size, opt_ty=1;
     float opt_time = FLT_MAX;
