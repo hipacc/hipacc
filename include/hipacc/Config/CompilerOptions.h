@@ -78,6 +78,7 @@ class CompilerOptions {
     CompilerOption time_kernels;
     // target code features - may be selected by the framework
     CompilerOption kernel_config;
+    CompilerOption reduce_config;
     CompilerOption align_memory;
     CompilerOption texture_memory;
     CompilerOption local_memory;
@@ -86,6 +87,7 @@ class CompilerOptions {
     CompilerOption fuse_kernels;
     // user defined values for target code features
     int kernel_config_x, kernel_config_y;
+    int reduce_config_num_warps, reduce_config_num_hists;
     int align_bytes;
     int pixels_per_thread;
     Texture texture_type;
@@ -119,6 +121,7 @@ class CompilerOptions {
       explore_config(OFF),
       time_kernels(OFF),
       kernel_config(AUTO),
+      reduce_config(AUTO),
       align_memory(AUTO),
       texture_memory(AUTO),
       local_memory(AUTO),
@@ -127,6 +130,8 @@ class CompilerOptions {
       fuse_kernels(OFF),
       kernel_config_x(128),
       kernel_config_y(1),
+      reduce_config_num_warps(16),
+      reduce_config_num_hists(16),
       align_bytes(0),
       pixels_per_thread(1),
       texture_type(Texture::None),
@@ -164,6 +169,12 @@ class CompilerOptions {
     }
     int getKernelConfigX() { return kernel_config_x; }
     int getKernelConfigY() { return kernel_config_y; }
+
+    bool useReduceConfig(CompilerOption option=option_ou) {
+      return reduce_config & option;
+    }
+    int getReduceConfigNumWarps() { return reduce_config_num_warps; }
+    int getReduceConfigNumHists() { return reduce_config_num_hists; }
 
     bool emitPadding(CompilerOption option=option_aou) {
       return align_memory & option;
@@ -209,6 +220,12 @@ class CompilerOptions {
       kernel_config = USER_ON;
       kernel_config_x = x;
       kernel_config_y = y;
+    }
+
+    void setReduceConfig(int num_warps, int num_hists) {
+      reduce_config = USER_ON;
+      reduce_config_num_warps = num_warps;
+      reduce_config_num_hists = num_hists;
     }
 
     void setPadding(int bytes) {
@@ -265,6 +282,12 @@ class CompilerOptions {
       getOptionAsString(kernel_config);
       if (useKernelConfig()) {
         llvm::errs() << ": " << kernel_config_x << "x" << kernel_config_y;
+      }
+      llvm::errs() << "\n  Multi-dimension reduction configuration: ";
+      getOptionAsString(kernel_config);
+      if (useReduceConfig()) {
+        llvm::errs() << ": " << reduce_config_num_warps << " warps"
+                     << ", " << reduce_config_num_hists << " histograms";
       }
       llvm::errs() << "\n  Alignment of image memory: ";
       getOptionAsString(align_memory, align_bytes);

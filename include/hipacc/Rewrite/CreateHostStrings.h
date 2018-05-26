@@ -97,6 +97,7 @@ class CreateHostStrings {
     void writeKernelCall(HipaccKernel *K, std::string &resultStr);
     void writeFusedKernelCall(HipaccKernel *K, std::string &resultStr, ASTFuse *kernelFuser);
     void writeReduceCall(HipaccKernel *K, std::string &resultStr);
+    void writeBinningCall(HipaccKernel *K, std::string &resultStr);
     std::string getInterpolationDefinition(HipaccKernel *K, HipaccAccessor *Acc,
         std::string function_name, std::string type_suffix, Interpolate ip_mode,
         Boundary bh_mode);

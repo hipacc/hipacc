@@ -488,4 +488,3 @@ MAKE_CONV(float4)
 MAKE_CONV(double4)
 
 #endif  // __HIPACC_TYPES_HPP__
-

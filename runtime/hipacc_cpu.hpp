@@ -175,4 +175,3 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst
 }
 
 #endif  // __HIPACC_CPU_HPP__
-

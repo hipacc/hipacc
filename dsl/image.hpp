@@ -423,7 +423,7 @@ class AccessorBase {
             EI(nullptr)
         {}
 
-    template<typename> friend class Kernel;
+    template<typename, typename> friend class Kernel;
 };
 
 
@@ -573,7 +573,7 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
         }
 
     template<typename> friend class Image;
-    template<typename> friend class Kernel;
+    template<typename, typename> friend class Kernel;
 };
 
 } // end namespace hipacc

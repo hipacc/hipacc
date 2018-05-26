@@ -283,4 +283,3 @@ __device__ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped
 }
 
 #endif  // __HIPACC_CU_INTERPOLATE_HPP__
-
