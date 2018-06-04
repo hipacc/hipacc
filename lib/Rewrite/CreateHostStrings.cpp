@@ -462,19 +462,8 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
         fusedKernelPrepareLaunch += indent;
 
         // hipaccConfigureCall
-        //fusedKernelConfig += "hipaccConfigureCall(";
-        //fusedKernelConfig += gridStr;
-        //fusedKernelConfig += ", " + blockStr;
-        //fusedKernelConfig += ");\n\n";
-        //fusedKernelConfig += indent;
         fusedKernelConfig += "std::vector<void *> _args" + kernel_name + ";\n";
         fusedKernelConfig += indent;
-
-        // offset parameter
-        //if (!options.timeKernels()) {
-        //  fusedKernelConfig += "size_t " + offsetStr + " = 0;\n";
-        //  fusedKernelConfig += indent;
-        //}
         break;
     default: assert(0 && "language not support for kernel fusion!");
     }
@@ -590,11 +579,6 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
       // set kernel arguments
       switch (options.getTargetLang()) {
         case Language::CUDA:
-          //fusedKernelCall += "hipaccSetupArgument(&";
-          //fusedKernelCall += hostArgNames[i] + img_mem;
-          //fusedKernelCall += ", sizeof(" + argTypeNames[i] + "), ";
-          //fusedKernelCall += offsetStr;
-          //fusedKernelCall += ");\n";
           fusedKernelCall += "_args" + kernel_name + ".push_back(";
           fusedKernelCall += "(void *)&" + hostArgNames[i] + img_mem + ");\n";
           fusedKernelCall += indent;
