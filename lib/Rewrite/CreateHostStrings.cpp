@@ -408,14 +408,13 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
   std::string lit(std::to_string(literal_count++));
   std::string threads_x(std::to_string(K->getNumThreadsX()));
   std::string threads_y(std::to_string(K->getNumThreadsY()));
-  std::string blockStr, gridStr, offsetStr, infoStr, infoStrFuse;
+  std::string blockStr, gridStr, infoStr, infoStrFuse;
 
   switch (options.getTargetLang()) {
     case Language::C99: break;
     case Language::CUDA:
       blockStr = "block" + lit;
       gridStr = "grid" + lit;
-      offsetStr = "offset" + kernel_name;
       break;
     default: assert(0 && "language not support for kernel fusion!");
   }
@@ -463,17 +462,19 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
         fusedKernelPrepareLaunch += indent;
 
         // hipaccConfigureCall
-        fusedKernelConfig += "hipaccConfigureCall(";
-        fusedKernelConfig += gridStr;
-        fusedKernelConfig += ", " + blockStr;
-        fusedKernelConfig += ");\n\n";
+        //fusedKernelConfig += "hipaccConfigureCall(";
+        //fusedKernelConfig += gridStr;
+        //fusedKernelConfig += ", " + blockStr;
+        //fusedKernelConfig += ");\n\n";
+        //fusedKernelConfig += indent;
+        fusedKernelConfig += "std::vector<void *> _args" + kernel_name + ";\n";
         fusedKernelConfig += indent;
 
         // offset parameter
-        if (!options.timeKernels()) {
-          fusedKernelConfig += "size_t " + offsetStr + " = 0;\n";
-          fusedKernelConfig += indent;
-        }
+        //if (!options.timeKernels()) {
+        //  fusedKernelConfig += "size_t " + offsetStr + " = 0;\n";
+        //  fusedKernelConfig += indent;
+        //}
         break;
     default: assert(0 && "language not support for kernel fusion!");
     }
@@ -580,12 +581,7 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
         case Language::C99: break;
         case Language::CUDA:
           fusedDestKernelCall += "_args" + kernel_name + ".push_back(";
-          if (options.exploreConfig()) {
-            fusedDestKernelCall += "(void *)&" + hostArgNames[i] + img_mem + ");\n";
-          } else {
-            fusedDestKernelCall += "std::make_pair(sizeof(" + argTypeNames[i];
-            fusedDestKernelCall += "), (void *)&" + hostArgNames[i] + img_mem + "));\n";
-          }
+          fusedDestKernelCall += "(void *)&" + hostArgNames[i] + img_mem + ");\n";
           fusedDestKernelCall += indent;
           break;
         default: assert(0 && "language not support for kernel fusion!");
@@ -594,11 +590,13 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
       // set kernel arguments
       switch (options.getTargetLang()) {
         case Language::CUDA:
-          fusedKernelCall += "hipaccSetupArgument(&";
-          fusedKernelCall += hostArgNames[i] + img_mem;
-          fusedKernelCall += ", sizeof(" + argTypeNames[i] + "), ";
-          fusedKernelCall += offsetStr;
-          fusedKernelCall += ");\n";
+          //fusedKernelCall += "hipaccSetupArgument(&";
+          //fusedKernelCall += hostArgNames[i] + img_mem;
+          //fusedKernelCall += ", sizeof(" + argTypeNames[i] + "), ";
+          //fusedKernelCall += offsetStr;
+          //fusedKernelCall += ");\n";
+          fusedKernelCall += "_args" + kernel_name + ".push_back(";
+          fusedKernelCall += "(void *)&" + hostArgNames[i] + img_mem + ");\n";
           fusedKernelCall += indent;
           break;
         default: assert(0 && "language not support for kernel fusion!");
@@ -617,38 +615,36 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
           fusedDestKernelLaunch += kernel_name + ", \"";
           fusedDestKernelLaunch += kernel_name + "\"";
         } else {
-          fusedDestKernelLaunch += "hipaccKernelExploration(\"" + K->getFileName() + ".cu\", \"" + kernel_name + "\"";
+          fusedDestKernelLaunch += "hipaccLaunchKernelExploration(\"" + K->getFileName() + ".cu\", \"" + kernel_name + "\"";
         }
         break;
       case Language::Renderscript:
       case Language::Filterscript:
         if (options.timeKernels()) {
-          fusedDestKernelLaunch += "hipaccLaunchScriptKernelBenchmark(&" + kernel_name;
+          fusedDestKernelLaunch += "hipaccLaunchKernelBenchmark(&" + kernel_name;
         } else {
           fusedDestKernelLaunch += "ScriptC_" + K->getFileName() + " " + kernel_name + " = ";
-          fusedDestKernelLaunch += "hipaccInitScript<ScriptC_" + K->getFileName() + ">();\n";
-          fusedDestKernelLaunch += indent + "hipaccLaunchScriptKernelExploration<";
+          fusedDestKernelLaunch += "hipaccInitScript<ScriptC_" + K->getFileName() + ">();\n" + indent;
+          fusedDestKernelLaunch += indent + "hipaccLaunchKernelExploration<";
           fusedDestKernelLaunch += "ScriptC_" + K->getFileName() + ", ";
           fusedDestKernelLaunch += K->getIterationSpace()->getImage()->getTypeStr();
           fusedDestKernelLaunch += ">(&" + kernel_name;
         }
+        fusedDestKernelLaunch += ", &ScriptC_" + K->getFileName() + "::forEach_" + kernel_name;
         break;
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:
         if (options.timeKernels()) {
-          fusedDestKernelLaunch += "hipaccEnqueueKernelBenchmark(" + kernel_name;
+          fusedDestKernelLaunch += "hipaccLaunchKernelBenchmark(" + kernel_name;
         } else {
-          fusedDestKernelLaunch += "hipaccKernelExploration(\"" + K->getFileName() + ".cl\", \"" + kernel_name + "\"";
+          fusedDestKernelLaunch += "hipaccLaunchKernelExploration(\"" + K->getFileName() + ".cl\", \"" + kernel_name + "\"";
         }
         break;
     }
-    fusedDestKernelLaunch += ", _args" + kernel_name;
-    if (options.emitRenderscript() || options.emitFilterscript()) {
-        fusedDestKernelLaunch += ", &ScriptC_" + K->getFileName() + "::forEach_" + kernel_name;
-    }
     // additional parameters for exploration
     if (options.exploreConfig()) {
+      fusedDestKernelLaunch += ", _args" + kernel_name;
       fusedDestKernelLaunch += ", _smems" + kernel_name;
       if (options.emitCUDA()) {
         fusedDestKernelLaunch += ", _consts" + kernel_name;
@@ -670,6 +666,7 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
     } else {
       fusedDestKernelLaunch += ", " + gridStr;
       fusedDestKernelLaunch += ", " + blockStr;
+      fusedDestKernelLaunch += ", _args" + kernel_name;
       fusedDestKernelLaunch += ", true";
     }
     fusedDestKernelLaunch += ");\n";
@@ -682,10 +679,14 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
         fusedDestKernelLaunch += "hipaccLaunchKernel((const void *)&";
         fusedDestKernelLaunch += kernel_name + ", \"";
         fusedDestKernelLaunch += kernel_name + "\"";
+        fusedDestKernelLaunch += ", " + gridStr;
+        fusedDestKernelLaunch += ", " + blockStr;
+        fusedDestKernelLaunch += ", _args" + kernel_name + ".data()";
+        fusedDestKernelLaunch += ");";
         break;
       case Language::Renderscript:
       case Language::Filterscript:
-        fusedDestKernelLaunch += "hipaccLaunchScriptKernel(&" + kernel_name + ", ";
+        fusedDestKernelLaunch += "hipaccLaunchKernel(&" + kernel_name + ", ";
         fusedDestKernelLaunch += "&ScriptC_" + K->getFileName() + "::forEach_" + kernel_name;
         fusedDestKernelLaunch += ", " + gridStr;
         fusedDestKernelLaunch += ", " + blockStr + ");";
@@ -693,15 +694,12 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:
-        fusedDestKernelLaunch += "hipaccEnqueueKernel(";
+        fusedDestKernelLaunch += "hipaccLaunchKernel(";
         fusedDestKernelLaunch += kernel_name;
+        fusedDestKernelLaunch += ", " + gridStr;
+        fusedDestKernelLaunch += ", " + blockStr;
+        fusedDestKernelLaunch += ");";
         break;
-    }
-    if (!options.emitRenderscript() && !options.emitFilterscript() &&
-        !options.emitC99()) {
-      fusedDestKernelLaunch += ", " + gridStr;
-      fusedDestKernelLaunch += ", " + blockStr;
-      fusedDestKernelLaunch += ");";
     }
   }
 
