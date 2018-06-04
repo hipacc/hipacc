@@ -437,7 +437,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         // debug
       }
 
-  virtual Stmt *Hipacc(Stmt *S);
+    virtual Stmt *Hipacc(Stmt *S);
 
     Stmt *translateBinning(Stmt *binningFunc) {
       BinningTranslator binning(Ctx, Kernel);

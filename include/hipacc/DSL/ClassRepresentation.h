@@ -439,7 +439,13 @@ class HipaccKernelClass {
     MemoryAccess getMemAccess(FieldDecl *decl) {
       return kernelStatistics->getMemAccess(decl);
     }
-    MemoryPattern getMemPattern(FieldDecl *decl) { return kernelStatistics->getMemPattern(decl); } VectorInfo getVectorizeInfo(VarDecl *decl) { return kernelStatistics->getVectorizeInfo(decl); } KernelType getKernelType() {
+    MemoryPattern getMemPattern(FieldDecl *decl) {
+      return kernelStatistics->getMemPattern(decl);
+    }
+    VectorInfo getVectorizeInfo(VarDecl *decl) {
+      return kernelStatistics->getVectorizeInfo(decl);
+    }
+    KernelType getKernelType() {
       return kernelStatistics->getKernelType();
     }
 
