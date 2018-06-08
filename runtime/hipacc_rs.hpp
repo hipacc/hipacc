@@ -27,7 +27,10 @@
 #define __HIPACC_RS_HPP__
 
 
-#define PATH_MAX 256
+#ifndef PATH_MAX
+#  include <linux/limits.h>
+#endif
+
 #include <RenderScript.h>
 
 using namespace android;
