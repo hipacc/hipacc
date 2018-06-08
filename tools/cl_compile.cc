@@ -33,7 +33,7 @@
 
 #include <unistd.h>
 
-#include "hipacc_cl.hpp"
+#include "hipacc_cl_standalone.hpp"
 
 
 void usage(char **argv) {
