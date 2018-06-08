@@ -175,7 +175,7 @@ template<typename F>
 void hipaccLaunchKernel(
     F* script,
     void(F::*kernel)(sp<Allocation>),
-    HipaccImage &out, size_t *work_size, bool print_timing=true
+    HipaccImage &out, size_t *work_size, bool print_timing
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     sp<RS> rs = Ctx.get_context();
@@ -200,7 +200,7 @@ template<typename F>
 void hipaccLaunchKernel(
     F* script,
     void(F::*kernel)(sp<Allocation>, sp<Allocation>),
-    const HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing=true
+    const HipaccImage &in, HipaccImage &out, size_t *work_size, bool print_timing
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     sp<RS> rs = Ctx.get_context();
@@ -227,7 +227,7 @@ void hipaccLaunchKernelBenchmark(
     std::vector<hipacc_script_arg<F>> args,
     void(F::*kernel)(sp<Allocation>),
     HipaccImage &out, size_t *work_size,
-    bool print_timing=true
+    bool print_timing
 ) {
     std::vector<float> times;
 
@@ -321,7 +321,7 @@ T hipaccApplyReduction(
     void(F::*kernel1D)(sp<Allocation>),
     void(F::*setter)(sp<const Allocation>),
     std::vector<hipacc_script_arg<F>> args,
-    int is_width, bool print_timing=true
+    int is_width, bool print_timing
 ) {
     HipaccContext &Ctx = HipaccContext::getInstance();
     sp<RS> rs = Ctx.get_context();

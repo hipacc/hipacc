@@ -29,7 +29,7 @@
 
 
 template<typename T>
-HipaccImage createImage(T *host_mem, cl_mem mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
+HipaccImage createImage(T *host_mem, cl_mem mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type) {
     HipaccImage img = std::make_shared<HipaccImageOpenCL>(width, height, stride, alignment, sizeof(T), mem, mem_type);
     hipaccWriteMemory(img, host_mem ? host_mem : (T*)img->host);
     return img;
@@ -108,7 +108,7 @@ HipaccImage hipaccCreateImage(T *host_mem, size_t width, size_t height,
 
 // Write to memory
 template<typename T>
-void hipaccWriteMemory(HipaccImage &img, T *host_mem, int num_device=0) {
+void hipaccWriteMemory(HipaccImage &img, T *host_mem, int num_device) {
     if (host_mem == NULL) return;
 
     size_t width  = img->width;
@@ -146,7 +146,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem, int num_device=0) {
 
 // Read from memory
 template<typename T>
-T *hipaccReadMemory(const HipaccImage &img, int num_device=0) {
+T *hipaccReadMemory(const HipaccImage &img, int num_device) {
     cl_int err = CL_SUCCESS;
     HipaccContext &Ctx = HipaccContext::getInstance();
 
