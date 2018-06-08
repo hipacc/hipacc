@@ -24,14 +24,17 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef __HIPACC_CL_STANDALONE_HPP__
-#define __HIPACC_CL_STANDALONE_HPP__
-
 
 // This is the standalone (header-only) Hipacc OpenCL runtime
 
 
 #include "hipacc_cl.hpp"
+
+
+#ifndef __HIPACC_CL_STANDALONE_HPP__
+#define __HIPACC_CL_STANDALONE_HPP__
+
+
 #include "hipacc_base_standalone.hpp"
 
 

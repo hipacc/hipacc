@@ -23,14 +23,15 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef __HIPACC_BASE_STANDALONE_HPP__
-#define __HIPACC_BASE_STANDALONE_HPP__
-
 
 // This is the standalone (header-only) Hipacc base runtime
 
 
 #include "hipacc_base.hpp"
+
+
+#ifndef __HIPACC_BASE_STANDALONE_HPP__
+#define __HIPACC_BASE_STANDALONE_HPP__
 
 
 float last_gpu_timing = 0.0f;

@@ -23,14 +23,17 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef __HIPACC_RS_STANDALONE_HPP__
-#define __HIPACC_RS_STANDALONE_HPP__
-
 
 // This is the standalone (header-only) Hipacc Renderscript runtime
 
 
 #include "hipacc_rs.hpp"
+
+
+#ifndef __HIPACC_RS_STANDALONE_HPP__
+#define __HIPACC_RS_STANDALONE_HPP__
+
+
 #include "hipacc_base_standalone.hpp"
 
 
