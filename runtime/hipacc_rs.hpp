@@ -105,16 +105,18 @@ class hipacc_script_arg {
     CREATE_SCRIPT_ARG_DECL(12, uchar4)
     CREATE_SCRIPT_ARG_DECL(13, ushort4)
     CREATE_SCRIPT_ARG_DECL(14, uint4)
+    CREATE_SCRIPT_ARG_DECL(15, ulong4)
 
-    CREATE_SCRIPT_ARG_DECL(15, char4)
-    CREATE_SCRIPT_ARG_DECL(16, short4)
-    CREATE_SCRIPT_ARG_DECL(17, int4)
+    CREATE_SCRIPT_ARG_DECL(16, char4)
+    CREATE_SCRIPT_ARG_DECL(17, short4)
+    CREATE_SCRIPT_ARG_DECL(18, int4)
+    CREATE_SCRIPT_ARG_DECL(19, long4)
 
-    CREATE_SCRIPT_ARG_DECL(18, float4)
-    CREATE_SCRIPT_ARG_DECL(19, double4)
+    CREATE_SCRIPT_ARG_DECL(20, float4)
+    CREATE_SCRIPT_ARG_DECL(21, double4)
 
     hipacc_script_arg(void(F::*setter)(sp<const Allocation>), sp<const Allocation> const *arg);
-    std::pair<void(F::*)(sp<const Allocation>), sp<const Allocation>*> get20() const;
+    std::pair<void(F::*)(sp<const Allocation>), sp<const Allocation>*> get22() const;
 };
 
 
@@ -149,12 +151,12 @@ CREATE_ALLOCATION_DECL(double,   Element::F64(rs))
 CREATE_ALLOCATION_DECL(uchar4,   Element::U8_4(rs))
 CREATE_ALLOCATION_DECL(ushort4,  Element::U16_4(rs))
 CREATE_ALLOCATION_DECL(uint4,    Element::U32_4(rs))
-//CREATE_ALLOCATION_DECL(ulong4,   Element::U64_4(rs))
+CREATE_ALLOCATION_DECL(ulong4,   Element::U64_4(rs))
 
 CREATE_ALLOCATION_DECL(char4,    Element::I8_4(rs))
 CREATE_ALLOCATION_DECL(short4,   Element::I16_4(rs))
 CREATE_ALLOCATION_DECL(int4,     Element::I32_4(rs))
-//CREATE_ALLOCATION_DECL(long4,    Element::I64_4(rs))
+CREATE_ALLOCATION_DECL(long4,    Element::I64_4(rs))
 
 CREATE_ALLOCATION_DECL(float4,   Element::F32_4(rs))
 CREATE_ALLOCATION_DECL(double4,  Element::F64_4(rs))

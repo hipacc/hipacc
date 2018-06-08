@@ -65,7 +65,7 @@ hipacc_script_arg<F>::hipacc_script_arg(void(F::*setter)(sp<const Allocation>),
 }
 
 template<typename F>
-std::pair<void(F::*)(sp<const Allocation>), sp<const Allocation>*> hipacc_script_arg<F>::get20() const {
+std::pair<void(F::*)(sp<const Allocation>), sp<const Allocation>*> hipacc_script_arg<F>::get22() const {
     return std::make_pair((void(F::*)(sp<const Allocation>))memptr, (sp<const Allocation>*)valptr);
 }
 
@@ -213,12 +213,12 @@ CREATE_ALLOCATION_IMPL(double,   Element::F64(rs))
 CREATE_ALLOCATION_IMPL(uchar4,   Element::U8_4(rs))
 CREATE_ALLOCATION_IMPL(ushort4,  Element::U16_4(rs))
 CREATE_ALLOCATION_IMPL(uint4,    Element::U32_4(rs))
-//CREATE_ALLOCATION_IMPL(ulong4,   Element::U64_4(rs))
+CREATE_ALLOCATION_IMPL(ulong4,   Element::U64_4(rs))
 
 CREATE_ALLOCATION_IMPL(char4,    Element::I8_4(rs))
 CREATE_ALLOCATION_IMPL(short4,   Element::I16_4(rs))
 CREATE_ALLOCATION_IMPL(int4,     Element::I32_4(rs))
-//CREATE_ALLOCATION_IMPL(long4,    Element::I64_4(rs))
+CREATE_ALLOCATION_IMPL(long4,    Element::I64_4(rs))
 
 CREATE_ALLOCATION_IMPL(float4,   Element::F32_4(rs))
 CREATE_ALLOCATION_IMPL(double4,  Element::F64_4(rs))
