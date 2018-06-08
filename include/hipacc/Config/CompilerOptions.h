@@ -198,6 +198,9 @@ class CompilerOptions {
     bool multiplePixelsPerThread(CompilerOption option=option_ou) {
       return multiple_pixels & option;
     }
+    bool allowMisAlignedAccess() {
+      return (target_device > Device::Fermi_20 && target_device <= Device::Maxwell_53);
+    }
     int getPixelsPerThread() { return pixels_per_thread; }
     std::string getRSPackageName() { return rs_package_name; }
     std::string getRSDirectory() { return rs_directory; }
