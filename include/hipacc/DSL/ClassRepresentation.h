@@ -445,6 +445,9 @@ class HipaccKernelClass {
     VectorInfo getVectorizeInfo(VarDecl *decl) {
       return kernelStatistics->getVectorizeInfo(decl);
     }
+    VarDecl *getVarDeclByName(std::string name) {
+      return kernelStatistics->getVarDeclByName(name);
+    }
     KernelType getKernelType() {
       return kernelStatistics->getKernelType();
     }
@@ -594,6 +597,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     std::set<std::string> usedVars;
     unsigned max_threads_for_kernel;
     unsigned max_size_x, max_size_y;
+    unsigned updated_size_x, updated_size_y;
     unsigned max_size_x_undef, max_size_y_undef;
     unsigned num_threads_x, num_threads_y;
     unsigned num_reg, num_lmem, num_smem, num_cmem;
@@ -634,6 +638,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       deviceFuncs(),
       max_threads_for_kernel(0),
       max_size_x(0), max_size_y(0),
+      updated_size_x(0), updated_size_y(0),
       max_size_x_undef(0), max_size_y_undef(0),
       num_threads_x(default_num_threads_x),
       num_threads_y(default_num_threads_y),
@@ -671,6 +676,8 @@ class HipaccKernel : public HipaccKernelFeatures {
     void setUsed(std::string name) { usedVars.insert(name); }
     void setUnused(std::string name) { usedVars.erase(name); }
     void setOptimizationOptions(OptimizationOption opt) { OptmOpt = opt; }
+    void updateFusionSizeX(unsigned szX) { updated_size_x = szX; }
+    void updateFusionSizeY(unsigned szY) { updated_size_y = szY; }
     void resetUsed() {
       usedVars.clear();
       deviceFuncs.clear();

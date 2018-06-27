@@ -221,7 +221,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       }
     }
 
-    VarDecl *CloneVarDecl(VarDecl *VD);
+    virtual VarDecl *CloneVarDecl(VarDecl *VD);
     VarDecl *CloneParmVarDecl(ParmVarDecl *PVD);
     VarDecl *CloneDeclTex(ParmVarDecl *D, std::string prefix);
     void setExprProps(Expr *orig, Expr *clone);
@@ -293,9 +293,9 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     FunMapTy KernelFunctionMap;
 
     // BorderHandling.cpp
-    Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
+    virtual Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
         *local_offset_y, HipaccAccessor *Acc);
-    Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
+    virtual Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
         *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
         SmallVector<CompoundStmt *, 16> &bhCStmt);
 
@@ -341,7 +341,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     virtual void stageLineToSharedMemory(ParmVarDecl *PVD, SmallVector<Stmt *, 16>
         &stageBody, Expr *local_offset_x, Expr *local_offset_y, Expr
         *global_offset_x, Expr *global_offset_y);
-    void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int
+    virtual void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int
         p);
     void stageIterationToSharedMemoryExploration(SmallVector<Stmt *, 16>
         &stageBody);

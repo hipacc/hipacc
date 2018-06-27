@@ -1326,11 +1326,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           }
 
           // kernel optimization
-          if (compilerOptions.fuseKernels() && dataDeps->isFusible(K)) {
-            // TODO set kernel configuration
-            K->setDefaultConfig();
-            // execute domain specific fusion
-            kernelFuser->parseFusibleKernel(K);
+          if (compilerOptions.fuseKernels() && kernelFuser->parseFusibleKernel(K)) {
             break;
           }
 
@@ -1389,7 +1385,7 @@ bool Rewrite::VisitFunctionDecl(FunctionDecl *D) {
     if (compilerOptions.fuseKernels()) {
       AnalysisDeclContext AC(0, mainFD);
       dataDeps = HostDataDeps::parse(Context, AC, compilerClasses, compilerOptions, KernelClassDeclMap);
-      kernelFuser = new ASTFuse(Context, builtins, compilerOptions, Policy, dataDeps);
+      kernelFuser = new ASTFuse(Context, Diags, builtins, compilerOptions, Policy, dataDeps);
     }
   }
 

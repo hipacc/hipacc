@@ -267,19 +267,37 @@ void HipaccKernel::calcConfig() {
       HipaccAccessor *Acc = getImgFromMapping(img);
       if (useLocalMemory(Acc)) {
         // check if the configuration suits our assumptions about shared memory
+        int size_x, size_y;
         if (num_threads % 32 == 0) {
-          // fixed shared memory for x: 3*BSX
-          int size_x = 32;
-          if (Acc->getSizeX() > 1) {
-            size_x *= 3;
-          }
-          // add padding to avoid bank conflicts
-          size_x += 1;
+          if (options.fuseKernels() && 
+                options.allowMisAlignedAccess() &&
+                  OptmOpt == OptimizationOption::KERNEL_FUSE) {
+            // fixed shared memory for x: BSX+MaskX*2 
+            size_x = 32;
+            if (updated_size_x > 1) {
+              size_x = size_x + 2 * static_cast<int32_t>(updated_size_x/2);
+            }
+            // add padding to avoid bank conflicts
+            size_x += 1;
 
-          // size_y = ceil((PPT*BSY+SX-1)/BSY)
-          int threads_y = num_threads/32;
-          int size_y = (int)ceilf((float)(getPixelsPerThread()*threads_y +
-                Acc->getSizeY()-1)/(float)threads_y) * threads_y;
+            // size_y = ceil((PPT*BSY+SX-1)/BSY)
+            int threads_y = num_threads/32;
+            size_y = (int)ceilf((float)(getPixelsPerThread()*threads_y +
+                  updated_size_y-1)/(float)threads_y) * threads_y;
+          } else {
+            // fixed shared memory for x: 3*BSX
+            size_x = 32;
+            if (Acc->getSizeX() > 1) {
+              size_x *= 3;
+            }
+            // add padding to avoid bank conflicts
+            size_x += 1;
+
+            // size_y = ceil((PPT*BSY+SX-1)/BSY)
+            int threads_y = num_threads/32;
+            size_y = (int)ceilf((float)(getPixelsPerThread()*threads_y +
+                  Acc->getSizeY()-1)/(float)threads_y) * threads_y;
+          }
           smem_used += size_x*size_y * Acc->getImage()->getPixelSize();
           use_shared = true;
         } else {
@@ -315,25 +333,31 @@ void HipaccKernel::calcConfig() {
     dev_props.warpSize = max_threads_per_warp;
     dev_props.sharedMemPerBlock = max_total_shared_memory;
     dev_props.sharedMemPerMultiprocessor = max_total_shared_memory;
-    dev_props.numSms = 23;
+    dev_props.numSms = 8;
     fun_attrs.maxThreadsPerBlock = max_threads_per_block;
     fun_attrs.numRegs = num_reg;
     fun_attrs.sharedSizeBytes = smem_used;
 
     size_t dynamic_smem_bytes = 0;
     cudaOccResult fun_occ;
-    cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
-    int active_blocks = fun_occ.activeBlocksPerMultiprocessor;
-    int min_grid_size, opt_block_size;
-    cudaOccMaxPotentialOccupancyBlockSize(&min_grid_size, &opt_block_size, &dev_props, &fun_attrs, &dev_state, 0, dynamic_smem_bytes);
-    int active_warps = active_blocks * (num_threads/max_threads_per_warp);
 
-    // re-compute with optimal block size
-    cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, opt_block_size, dynamic_smem_bytes);
-    int max_blocks = std::min(fun_occ.blockLimitRegs, std::min(fun_occ.blockLimitSharedMem, std::min(fun_occ.blockLimitWarps, fun_occ.blockLimitBlocks)));
-    int max_warps = max_blocks * (opt_block_size/max_threads_per_warp);
+    if (!isNVIDIAGPU()) {
+      cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
+      int active_blocks = fun_occ.activeBlocksPerMultiprocessor;
+      int min_grid_size, opt_block_size;
+      cudaOccMaxPotentialOccupancyBlockSize(&min_grid_size, &opt_block_size, &dev_props, &fun_attrs, &dev_state, 0, dynamic_smem_bytes);
+      int active_warps = active_blocks * (num_threads/max_threads_per_warp);
+      // re-compute with optimal block size
+      cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, opt_block_size, dynamic_smem_bytes);
+      int max_blocks = std::min(fun_occ.blockLimitRegs, std::min(fun_occ.blockLimitSharedMem, std::min(fun_occ.blockLimitWarps, fun_occ.blockLimitBlocks)));
+      int max_warps = max_blocks * (opt_block_size/max_threads_per_warp);
+    } else { // TODO, comply result from excel sheet calculation
+      cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
+      int active_blocks = fun_occ.activeBlocksPerMultiprocessor;
+      int active_warps = active_blocks * (num_threads/max_threads_per_warp);
+      int max_warps = 64;
+    }
     float occupancy = (float)active_warps/(float)max_warps;
-
     occVec.emplace_back(num_threads, occupancy);
     num_threads += max_threads_per_warp;
   }

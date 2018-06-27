@@ -86,6 +86,10 @@ void ASTFuse::initKernelFusion() {
   curFusedKernelBody.clear();
   FuncDeclParamKernelMap.clear();
   FuncDeclParamDeclMap.clear();
+  localKernelMemorySizeMap.clear();
+  FusibleKernelSubListPosMap.clear();
+  fusedFileNamesAll.clear();
+  fusedKernelNameMap.clear();
 }
 
 void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
@@ -101,20 +105,19 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
     FusibleKernelSubListPosMap[K] = tags;
   }
 
-  // sublisting
   std::list<HipaccKernel *> pointKernelList;
   SmallVector<std::list<HipaccKernel *>, 16> vecLocalKernelLists;
-
   if (vecLocalKernelIndices.size() == 0) {
     // scenario 1: no local kernel sublists
     // e.g. p -> p -> ... -> p
+    // sublisting 
     pointKernelList.assign(l.begin(), l.end());
     // tag generation
     for (auto it = (pointKernelList.begin()); it != pointKernelList.end(); ++it) {
       HipaccKernel *K = *it;
       FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
-      if (it == pointKernelList.begin() && std::next(it) == pointKernelList.end()) {  // single kernel sublist
-        KTag->Point2PointLoc = Undefined;
+      if (it == pointKernelList.begin() && std::next(it) == pointKernelList.end()) {  
+        KTag->Point2PointLoc = Undefined;  // single kernel sublist, no fusion
       } else if (it == pointKernelList.begin()) {
         KTag->Point2PointLoc = Source;
       } else if (std::next(it) == pointKernelList.end()) {
@@ -126,6 +129,7 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
   } else if (vecLocalKernelIndices.front() == 0) {
     // scenario 2: no point kernel sublist
     // e.g. l -> p -> ... -> l -> p -> ...
+    // sublisting 
     for (auto it = (vecLocalKernelIndices.begin()); it != vecLocalKernelIndices.end(); ++it) {
       std::list<HipaccKernel *> localKernelList;
       if (std::next(it) == vecLocalKernelIndices.end()) {
@@ -142,28 +146,40 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
       vecLocalKernelLists.push_back(localKernelList);
     }
     // tag generation
-    for (auto list : vecLocalKernelLists) {
-      for (auto it = (list.begin()); it != list.end(); ++it) {
+    for (auto itLists = (vecLocalKernelLists.begin()); itLists != vecLocalKernelLists.end(); ++itLists) {
+      std::list<HipaccKernel *> listLocal = *itLists;
+      for (auto it = (listLocal.begin()); it != listLocal.end(); ++it) {
         HipaccKernel *K = *it;
         FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
-        if (it == list.begin() && std::next(it) == list.end()) {  // single kernel sublist
+        // local-to-point tag
+        if (it == listLocal.begin() && std::next(it) == listLocal.end()) {
           KTag->Local2PointLoc = Undefined;
-        } else if (it == list.begin()) {
+        } else if (it == listLocal.begin()) {
           KTag->Local2PointLoc = Source;
-        } else if (std::next(it) == list.end()) {
+        } else if (std::next(it) == listLocal.end()) {
           KTag->Local2PointLoc = Destination;
         } else {
           KTag->Local2PointLoc = Intermediate;
+        }
+        // local-to-local tag
+        if (itLists == vecLocalKernelLists.begin() && std::next(itLists) == vecLocalKernelLists.end()) {
+          KTag->Local2LocalLoc = Undefined;
+        } else if (itLists == vecLocalKernelLists.begin()) {
+          KTag->Local2LocalLoc = Source;
+        } else if (std::next(itLists) == vecLocalKernelLists.end()) {
+          KTag->Local2LocalLoc = Destination;
+        } else {
+          KTag->Local2LocalLoc = Intermediate;
         }
       }
     }
   } else if (vecLocalKernelIndices.front() > 0) {
     // scenario 3: both point and local kernel sublists exist
     // e.g. p -> ... -> p -> l -> p -> ...
+    // sublisting 
     auto itTempP = l.begin();
     std::advance(itTempP, vecLocalKernelIndices.front());
     pointKernelList.assign(l.begin(), itTempP);
-
     for (auto it = (vecLocalKernelIndices.begin()); it != vecLocalKernelIndices.end(); ++it) {
       std::list<HipaccKernel *> localKernelList;
       if (std::next(it) == vecLocalKernelIndices.end()) {
@@ -179,9 +195,7 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
       }
       vecLocalKernelLists.push_back(localKernelList);
     }
-
     // tag generation
-    // TODO: local-to-local fusion tags are not generated
     for (auto it = (pointKernelList.begin()); it != pointKernelList.end(); ++it) {
       HipaccKernel *K = *it;
       FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
@@ -199,29 +213,63 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
         KTag->Point2LocalLoc = Source;
       }
     }
-    for (auto list : vecLocalKernelLists) {
-      for (auto it = (list.begin()); it != list.end(); ++it) {
+    for (auto itLists = (vecLocalKernelLists.begin()); itLists != vecLocalKernelLists.end(); ++itLists) {
+      std::list<HipaccKernel *> listLocal = *itLists;
+      for (auto it = (listLocal.begin()); it != listLocal.end(); ++it) {
         HipaccKernel *K = *it;
         FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
-        if (it == list.begin() && std::next(it) == list.end()) {  // single kernel sublist
+        // local-to-point tag
+        if (it == listLocal.begin() && std::next(it) == listLocal.end()) {
           KTag->Local2PointLoc = Undefined;
-          KTag->Point2LocalLoc = Destination;
-        } else if (it == list.begin()) {
+        } else if (it == listLocal.begin()) {
           KTag->Local2PointLoc = Source;
-          KTag->Point2LocalLoc = Destination;
-        } else if (std::next(it) == list.end()) {
+        } else if (std::next(it) == listLocal.end()) {
           KTag->Local2PointLoc = Destination;
-          KTag->Point2LocalLoc = Destination;
         } else {
           KTag->Local2PointLoc = Intermediate;
+        }
+        // point/local-to-local tag
+        if (itLists == vecLocalKernelLists.begin() && std::next(itLists) == vecLocalKernelLists.end()) {
           KTag->Point2LocalLoc = Destination;
+          KTag->Local2LocalLoc = Undefined;
+        } else if (itLists == vecLocalKernelLists.begin()) {
+          KTag->Point2LocalLoc = Destination;
+          KTag->Local2LocalLoc = Source;
+        } else if (std::next(itLists) == vecLocalKernelLists.end()) {
+          KTag->Local2LocalLoc = Destination;
+        } else {
+          KTag->Local2LocalLoc = Intermediate;
         }
       }
     }
   }
 }
 
-void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
+void ASTFuse::recomputeMemorySizeLocal2LocalFusion(std::list<HipaccKernel *> &l) {
+  // shared memory size update
+  unsigned YSizeAcc = 1;
+  unsigned XSizeAcc = 1;
+  SmallVector<HipaccKernel *, 16> revList;
+  for (auto K : l) {
+    HipaccKernelClass *KC = K->getKernelClass();
+    for (auto img : KC->getImgFields()) {
+      HipaccAccessor *Acc = K->getImgFromMapping(img);
+      MemoryAccess mem_acc = KC->getMemAccess(img);
+      if (mem_acc == READ_ONLY && K->useLocalMemory(Acc)) { 
+        localKernelMemorySizeMap[K] = std::make_tuple(Acc->getSizeX(),
+            Acc->getSizeY());
+        revList.insert(revList.begin(), K);
+      }
+    }
+  }
+  for (auto K : revList) {
+    XSizeAcc = XSizeAcc + std::get<0>(localKernelMemorySizeMap[K]) - 1;
+    YSizeAcc = YSizeAcc + std::get<1>(localKernelMemorySizeMap[K]) - 1;
+    localKernelMemorySizeMap[K] = std::make_tuple(XSizeAcc, YSizeAcc);
+  }
+}
+
+void ASTFuse::HipaccFusion(std::list<HipaccKernel *>& l) {
   assert((l.size() >=2) && "at least two kernels shoud be recorded for fusion");
   initKernelFusion();
   curFusedKernelDecl = createFusedKernelDecl(l);
@@ -229,10 +277,17 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
 
   markKernelPositionSublist(l);
 
-  Stmt *curFusionBody;
   // generating body for the fused kernel
+  Stmt *curFusionBody;
+  bool Local2LocalEndInsertion = false;
+  VarDecl *idxXFused, *idxYFused;
   SmallVector<Stmt *, 16> vecFusionBody;
   SmallVector<Stmt *, 16> vecProducerP2LBody;
+  std::queue<Stmt *> stmtsL2LProducerKernel;
+  std::queue<Stmt *> stmtsL2LConsumerKernel;
+  HipaccKernel *KLocalSrc = nullptr;
+  
+
   for (auto it = (l.begin()); it != l.end(); ++it) {
     curFusionBody = nullptr;
     HipaccKernel *K = *it;
@@ -244,8 +299,8 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
     ASTTranslateFusion *Hipacc = new ASTTranslateFusion(Ctx, kernelDecl, K, KC,
         builtins, compilerOptions);
 
+    // TODO, enable the composition of multiple fusions
     // domain-specific translation and fusion
-    // point to point apply replacement
     switch(KTag->Point2PointLoc) {
       default: break;
       case Source:
@@ -265,7 +320,6 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
         curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
         break;
     }
-    // local to point apply replacement
     switch(KTag->Local2PointLoc) {
       default: break;
       case Source:
@@ -285,7 +339,6 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
         curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
         break;
     }
-    // point to local apply replacement
     switch(KTag->Point2LocalLoc) {
       default: break;
       case Source:
@@ -307,10 +360,50 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
         vecProducerP2LBody.push_back(Hipacc->Hipacc(KC->getKernelFunction()->getBody()));
         break;
     }
+    switch(KTag->Local2LocalLoc) {
+      default: break;
+      case Source:
+        recomputeMemorySizeLocal2LocalFusion(l);
+        createReg4FusionVarDecl(KC->getOutField()->getType());
+        createIdx4FusionVarDecl();
+        idxXFused = fusionIdxVarDecls.back();
+        createIdx4FusionVarDecl();
+        idxYFused = fusionIdxVarDecls.back();
+        Hipacc->configSrcOperatorL2L(fusionRegVarDecls.back(), idxXFused, idxYFused, 
+            std::get<1>(localKernelMemorySizeMap[K]));
+        Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+        stmtsL2LProducerKernel = Hipacc->getFusionLocalKernelBody();
+        KLocalSrc = K;
+        break;
+      case Destination:
+        Hipacc->configDestOperatorL2L(stmtsL2LProducerKernel, 
+          fusionRegVarDecls.back(), idxXFused, idxYFused, 
+          std::get<1>(localKernelMemorySizeMap[K]));
+        Hipacc->Hipacc(KC->getKernelFunction()->getBody());
+        stmtsL2LConsumerKernel = Hipacc->getFusionLocalKernelBody();
+        Local2LocalEndInsertion = true;
+        break;
+      case Intermediate:
+        break;
+    }
 
     if (curFusionBody) {
       vecFusionBody.push_back(curFusionBody);
     }
+  }
+
+  if (Local2LocalEndInsertion) {
+    HipaccKernel *K = KLocalSrc;
+    HipaccKernelClass *KC = K->getKernelClass();
+    FunctionDecl *kernelDecl = createFunctionDecl(Ctx,
+        Ctx.getTranslationUnitDecl(), K->getKernelName(),
+        Ctx.VoidTy, K->getArgTypes(), K->getDeviceArgNames());
+    ASTTranslateFusion *Hipacc = new ASTTranslateFusion(Ctx, kernelDecl, K, KC,
+        builtins, compilerOptions);
+    Hipacc->configEndSrcOperatorL2L(stmtsL2LConsumerKernel, idxXFused, idxYFused,
+        std::get<1>(localKernelMemorySizeMap[K]));
+    localKernelMaxAccSizeUpdated = localKernelMemorySizeMap[K];
+    vecFusionBody.push_back(Hipacc->Hipacc(KC->getKernelFunction()->getBody()));
   }
 
   insertPrologFusedKernel();
@@ -319,18 +412,137 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *> &l) {
   curFusedKernelDecl->setBody(createCompoundStmt(Ctx, curFusedKernelBody));
 }
 
-void ASTFuse::parseFusibleKernel(HipaccKernel *K) {
-  // push into the list
+void ASTFuse::setFusedKernelConfiguration(std::list<HipaccKernel *>& l) {
+  #ifdef USE_JIT_ESTIMATE
+  HipaccFusion(l);
+  printFusedKernelFunction(l); // write fused kernel to file
+
+  // JIT compile kernel in order to get resource usage
+  std::string command = (l.back())->getCompileCommand(fusedKernelName,
+      fusedFileName, compilerOptions.emitCUDA());
+
+  int reg=0, lmem=0, smem=0, cmem=0;
+  char line[FILENAME_MAX];
+  SmallVector<std::string, 16> lines;
+  FILE *fpipe;
+
+  if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
+    perror("Problems with pipe");
+    exit(EXIT_FAILURE);
+  }
+
+  while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
+    lines.push_back(std::string(line));
+
+    if (targetDevice.isNVIDIAGPU()) {
+      char *ptr = line;
+      char mem_type = 'x';
+      int val1 = 0, val2 = 0;
+
+      if (sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type) == 2) {
+        if (mem_type == 's') {
+          lmem = val1;
+          continue;
+        }
+      }
+
+      if (sscanf(line, "ptxas info : Used %d registers", &reg) == 0)
+        continue;
+
+      while ((ptr = strchr(ptr, ','))) {
+        ptr++;
+
+        if (sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type) == 3) {
+          switch (mem_type) {
+            default: llvm::errs() << "wrong memory specifier '" << mem_type
+                                  << "': " << ptr; break;
+            case 'c': cmem += val1 + val2; break;
+            case 'l': lmem += val1 + val2; break;
+            case 's': smem += val1 + val2; break;
+          }
+          continue;
+        }
+
+        if (sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type) == 2) {
+          switch (mem_type) {
+            default: llvm::errs() << "wrong memory specifier '" << mem_type
+                                  << "': " << ptr; break;
+            case 'c': cmem += val1; break;
+            case 'l': lmem += val1; break;
+            case 's': smem += val1; break;
+          }
+          continue;
+        }
+
+        if (sscanf(ptr, "%d texture %1c", &val1, &mem_type) == 2)
+          continue;
+        if (sscanf(ptr, "%d sampler %1c", &val1, &mem_type) == 2)
+          continue;
+        if (sscanf(ptr, "%d surface %1c", &val1, &mem_type) == 2)
+          continue;
+
+        // no match found
+        llvm::errs() << "Unexpected memory usage specification: '" << ptr;
+      }
+    } else if (targetDevice.isAMDGPU()) {
+      sscanf(line, "isa info : Used %d gprs, %d bytes lds", &reg, &smem);
+    }
+  }
+  pclose(fpipe);
+
+  if (reg == 0) {
+    unsigned DiagIDCompile = Diags.getCustomDiagID(DiagnosticsEngine::Warning,
+        "Compiling kernel in file '%0.%1' failed, using default kernel configuration:\n%2");
+    Diags.Report(DiagIDCompile)
+      << fusedFileName << (const char*)(compilerOptions.emitCUDA()?"cu":"cl")
+      << command.c_str();
+    for (auto line : lines)
+      llvm::errs() << line;
+  } else {
+    if (targetDevice.isNVIDIAGPU()) {
+      llvm::errs() << "Resource usage for kernel '" << fusedKernelName << "'"
+                   << ": " << reg << " registers, "
+                   << lmem << " bytes lmem, "
+                   << smem << " bytes smem, "
+                   << cmem << " bytes cmem\n";
+    } else if (targetDevice.isAMDGPU()) {
+      llvm::errs() << "Resource usage for kernel '" << fusedKernelName << "'"
+                   << ": " << reg << " gprs, "
+                   << smem << " bytes lds\n";
+    }
+  }
+
+  for (auto K : l) {
+    K->updateFusionSizeX(std::get<1>(localKernelMaxAccSizeUpdated));
+    K->updateFusionSizeY(std::get<1>(localKernelMaxAccSizeUpdated));
+    K->setResourceUsage(reg, lmem, smem, cmem);
+  }
+  #else
+  for (auto K : l)
+    K->setDefaultConfig();
+  #endif
+}
+
+
+bool ASTFuse::parseFusibleKernel(HipaccKernel *K) {
+  if (!dataDeps->isFusible(K)) { 
+    return false; 
+  }
+
+  // prepare fusible kernel list
   auto curList = vecFusibleKernelLists[dataDeps->getKernelListIndex(K)];
   auto it = curList.begin();
   std::advance(it, dataDeps->getKernelIndex(K));
   curList.insert(it, K);
   vecFusibleKernelLists[dataDeps->getKernelListIndex(K)] = curList;
+
   // fusion starts whenever a list is complete
   if (curList.size() == dataDeps->getKernelListSize(K)) {
+    setFusedKernelConfiguration(curList); 
     HipaccFusion(curList);
-    printFusedKernelFunction(curList); // write kernel to file
+    printFusedKernelFunction(curList); // write fused kernel to file
   }
+  return true;
 }
 
 // getters
@@ -346,7 +558,7 @@ SmallVector<std::string, 16> ASTFuse::getFusedFileNamesAll() const {
   return fusedFileNamesAll;
 }
 std::string ASTFuse::getFusedKernelName(HipaccKernel *K) { return fusedKernelNameMap[K]; }
-
+unsigned ASTFuse::getNewYSizeLocalKernel(HipaccKernel *K) { return std::get<1>(localKernelMemorySizeMap[K]); }
 
 void ASTFuse::createReg4FusionVarDecl(QualType QT) {
   std::string Name = "_reg_fusion" + std::to_string(fusionRegVarCount++);
@@ -405,22 +617,23 @@ void ASTFuse::createGidVarDecl() {
 
 void ASTFuse::printFusedKernelFunction(std::list<HipaccKernel *>& l) {
   int fd;
-  std::string ifdef("_" + fusedFileName + "_");
+  std::string filename(fusedFileName);
+  std::string ifdef("_" + filename + "_");
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99:          fusedFileName += ".cc"; ifdef += "CC_"; break;
-    case Language::CUDA:         fusedFileName += ".cu"; ifdef += "CU_"; break;
+    case Language::C99:          filename += ".cc"; ifdef += "CC_"; break;
+    case Language::CUDA:         filename += ".cu"; ifdef += "CU_"; break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
-    case Language::OpenCLGPU:    fusedFileName += ".cl"; ifdef += "CL_"; break;
-    case Language::Renderscript: fusedFileName += ".rs"; ifdef += "RS_"; break;
-    case Language::Filterscript: fusedFileName += ".fs"; ifdef += "FS_"; break;
+    case Language::OpenCLGPU:    filename += ".cl"; ifdef += "CL_"; break;
+    case Language::Renderscript: filename += ".rs"; ifdef += "RS_"; break;
+    case Language::Filterscript: filename += ".fs"; ifdef += "FS_"; break;
   }
 
   // open file stream using own file descriptor. We need to call fsync() to
   // compile the generated code using nvcc afterwards.
-  while ((fd = open(fusedFileName.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
+  while ((fd = open(filename.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0) {
     if (errno != EINTR) {
-      std::string errorInfo("Error opening output file '" + fusedFileName + "'");
+      std::string errorInfo("Error opening output file '" + filename + "'");
       perror(errorInfo.c_str());
     }
   }
@@ -692,6 +905,7 @@ void ASTFuse::printFusedKernelFunction(std::list<HipaccKernel *>& l) {
 
   // print kernel body
   curFusedKernelDecl->getBody()->printPretty(OS, 0, Policy, 0);
+
   if (compilerOptions.emitCUDA())
     OS << "}\n";
   OS << "\n";
@@ -738,6 +952,46 @@ void ASTTranslateFusion::configIntermOperatorP2P(VarDecl *VDIn, VarDecl *VDOut) 
   bReplaceOutputExpr = true;
   exprOutputFusion = createDeclRefExpr(Ctx, VDOut);
 }
+
+void ASTTranslateFusion::configSrcOperatorL2L(VarDecl *VDRegOut, VarDecl *VDIdX,
+    VarDecl *VDIdY, unsigned szY) {
+  bRecordLocalKernelBody = true;
+  bReplaceVarAccSizeY = true;
+  FusionLocalVarAccSizeY = szY;
+  bReplaceOutputExpr = true;
+  exprOutputFusion = createDeclRefExpr(Ctx, VDRegOut);
+  exprIdXShiftFusion = createDeclRefExpr(Ctx, VDIdX);
+  exprIdYShiftFusion = createDeclRefExpr(Ctx, VDIdY);
+}
+
+std::queue<Stmt *> ASTTranslateFusion::getFusionLocalKernelBody() {
+  return stmtsL2LKernelFusion;
+}
+
+void ASTTranslateFusion::configDestOperatorL2L(std::queue<Stmt *> stmtsLocal,
+        VarDecl *VDRegIn, VarDecl *VDIdX, VarDecl *VDIdY, unsigned szY) {
+  bReplaceVarAccSizeY = true;
+  FusionLocalVarAccSizeY = szY;
+  bInsertLocalKernelBody = true;
+  stmtsProducerL2LKernelFusion = stmtsLocal;
+  bRecordLocalKernelBody = true;
+  bRecordLocalKernelBorderHandeling = true;
+  bReplaceInputExpr = true;
+  exprInputFusion = createDeclRefExpr(Ctx, VDRegIn);
+  exprIdXShiftFusion = createDeclRefExpr(Ctx, VDIdX);
+  exprIdYShiftFusion = createDeclRefExpr(Ctx, VDIdY);
+}
+
+void ASTTranslateFusion::configEndSrcOperatorL2L(std::queue<Stmt *> stmtsLocal,
+        VarDecl *VDIdX, VarDecl *VDIdY, unsigned szY) {
+  bReplaceVarAccSizeY = true;
+  FusionLocalVarAccSizeY = szY;
+  stmtsProducerL2LKernelFusion = stmtsLocal;
+  exprIdXShiftFusion = createDeclRefExpr(Ctx, VDIdX);
+  exprIdYShiftFusion = createDeclRefExpr(Ctx, VDIdY);
+  bReplaceLocalKernelBody = true;
+}
+
 
 //*******************************************************************************
 //
@@ -1008,18 +1262,32 @@ Stmt *ASTTranslateFusion::Hipacc(Stmt *S) {
       } else {
         llvm::APInt SX, SY;
         SX = llvm::APInt(32, Kernel->getNumThreadsX());
+
+        unsigned accSizeY = Acc->getSizeY();
+        unsigned accSizeX = Acc->getSizeY();
+        if (bReplaceVarAccSizeY) {
+          accSizeY = FusionLocalVarAccSizeY;
+          accSizeX = FusionLocalVarAccSizeY;
+        }
+
         if (Acc->getSizeX() > 1) {
-          // 3*BSX
-          SX *= llvm::APInt(32, 3);
+          if (compilerOptions.allowMisAlignedAccess()) {
+            // BSX+MaskX*2
+            SX += llvm::APInt(32, static_cast<int32_t>(accSizeX/2)) * llvm::APInt(32, 2);
+          } else {
+            // 3*BSX
+            SX *= llvm::APInt(32, 3);
+          }
         }
         // add padding to avoid bank conflicts
         SX += llvm::APInt(32, 1);
+
 
         // size_y = ceil((PPT*BSY+SY-1)/BSY)
         int smem_size_y =
           static_cast<int>(ceilf(
                 static_cast<float>(Kernel->getPixelsPerThread() *
-                  Kernel->getNumThreadsY() + Acc->getSizeY() - 1) /
+                  Kernel->getNumThreadsY() + accSizeY - 1) /
                 static_cast<float>(Kernel->getNumThreadsY())));
         SY = llvm::APInt(32, smem_size_y*Kernel->getNumThreadsY());
 
@@ -1265,6 +1533,11 @@ Stmt *ASTTranslateFusion::Hipacc(Stmt *S) {
         break;
     }
 
+    if (bRecordLocalKernelBorderHandeling) {
+      bRecordBorderHandelingStmts = true;
+      stmtsBHFusion.clear();
+    }
+
     // if (gid_x >= is_offset_x && gid_x < is_width+is_offset_x)
     BinaryOperator *check_bop = nullptr;
     if (border_handling) {
@@ -1380,11 +1653,17 @@ Stmt *ASTTranslateFusion::Hipacc(Stmt *S) {
     // stage pixels into shared memory
     // ppt + ceil((size_y-1)/sy) iterations
     int p_add = 0;
-    if (Kernel->getMaxSizeYUndef()) {
-      p_add = static_cast<int>(ceilf(2*Kernel->getMaxSizeYUndef() /
+    unsigned maxSizeYUndef = Kernel->getMaxSizeYUndef();
+    if (bReplaceVarAccSizeY) {
+      maxSizeYUndef = FusionLocalVarAccSizeY >> 1;
+    }
+
+    if (maxSizeYUndef) {
+      p_add = static_cast<int>(ceilf(2*maxSizeYUndef /
             static_cast<float>(Kernel->getNumThreadsY())));
     }
     SmallVector<Stmt *, 16> labelBody;
+
     for (size_t p=0; use_shared && p<Kernel->getPixelsPerThread()+p_add; ++p) {
       if (compilerOptions.exploreConfig()) {
         // initialize lid_y and gid_y
@@ -1497,11 +1776,21 @@ Stmt *ASTTranslateFusion::Hipacc(Stmt *S) {
         pptBody.push_back(new_body);
       }
 
+      // TODO remove this, enable this only for bandwidth profiling
+      //pptBody.clear();
+
+      // TODO whole body replacement for kernel fusion
+      if (bReplaceLocalKernelBody) {
+        pptBody.clear();
+        pptBody.push_back(stmtsProducerL2LKernelFusion.front());
+        stmtsProducerL2LKernelFusion.pop();
+      }
 
       // add iteration space checking in case we have padded images and/or
       // padded block/grid configurations
       // TODO, disabled for optimization, assume same granularity
-      if (check_bop && !bReplaceInputIdxExpr) {
+      //if (check_bop && !bReplaceInputIdxExpr) {
+      if (check_bop) {
         IfStmt *ispace_check = createIfStmt(Ctx, check_bop,
             createCompoundStmt(Ctx, pptBody));
         labelBody.push_back(ispace_check);
@@ -1509,8 +1798,12 @@ Stmt *ASTTranslateFusion::Hipacc(Stmt *S) {
         for (auto stmt : pptBody)
           labelBody.push_back(stmt);
       }
-    }
 
+      // record ppt body for l2l fusion
+      if (bRecordLocalKernelBody) {
+        stmtsL2LKernelFusion.push(createCompoundStmt(Ctx, pptBody));
+      }
+    }
     // add label statement if needed (boundary handling), else add body
     if (border_handling) {
       LabelStmt *LS = createLabelStmt(Ctx, LDS[ld_count++],
@@ -1519,6 +1812,10 @@ Stmt *ASTTranslateFusion::Hipacc(Stmt *S) {
       kernelBody.push_back(GSExit);
     } else {
       kernelBody.push_back(createCompoundStmt(Ctx, labelBody));
+    }
+
+    if (bInsertLocalKernelBody) {
+      stmtsProducerL2LKernelFusion.pop();
     }
 
     // reset image border configuration
@@ -1543,6 +1840,516 @@ Stmt *ASTTranslateFusion::Hipacc(Stmt *S) {
   return createCompoundStmt(Ctx, kernelBody);
 }
 
+
+VarDecl *ASTTranslateFusion::CloneVarDecl(VarDecl *VD) {
+  VarDecl *result = KernelDeclMap[VD];
+
+  if (!result && (convMask || !redDomains.empty()))
+    result = LambdaDeclMap[VD];
+
+  if (!result) {
+    QualType QT = VD->getType();
+    TypeSourceInfo *TInfo = VD->getTypeSourceInfo();
+    std::string name = VD->getName();
+
+    if (KernelClass->getKernelType() == LocalOperator &&
+        KernelClass->getVarDeclByName(name)) {
+      name += kernelParamNameSuffix;
+    }
+
+    if (Kernel->vectorize() && KernelClass->getVectorizeInfo(VD) == VECTORIZE &&
+        !compilerOptions.emitC99()) {
+      QT = simdTypes.getSIMDType(VD, SIMD4);
+      TInfo = Ctx.getTrivialTypeSourceInfo(QT);
+    }
+
+    DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+    result = VarDecl::Create(Ctx, DC, VD->getInnerLocStart(), VD->getLocation(),
+        &Ctx.Idents.get(name), QT, TInfo, VD->getStorageClass());
+    result->setIsUsed(); // set VarDecl as being used - required for CodeGen
+    if (Kernel->vectorize() && KernelClass->getVectorizeInfo(VD) == VECTORIZE &&
+        !compilerOptions.emitC99() ) {
+      result->setInit(simdTypes.propagate(VD, Clone(VD->getInit())));
+    } else {
+      result->setInit(Clone(VD->getInit()));
+    }
+    result->setInitStyle(VD->getInitStyle());
+    result->setTSCSpec(VD->getTSCSpec());
+
+    // store mapping between original VarDecl and cloned VarDecl
+    if (convMask || !redDomains.empty()) {
+      LambdaDeclMap[VD] = result;
+      LambdaDeclMap[result] = result;
+    } else {
+      KernelDeclMap[VD] = result;
+      KernelDeclMap[result] = result;
+    }
+
+    // add VarDecl to current kernel DeclContext
+    DC->addDecl(result);
+  }
+
+  return result;
+}
+
+
+
+Stmt *ASTTranslateFusion::VisitCompoundStmtTranslate(CompoundStmt *S) {
+  CompoundStmt *result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
+      S->getLBracLoc(), S->getLBracLoc());
+
+  SmallVector<Stmt *, 16> body;
+  for (auto stmt : S->body()) {
+    curCStmt = S;
+    Stmt *newS = Clone(stmt);
+    curCStmt = S;
+
+    if (preStmts.size()) {
+      size_t num_stmts = 0;
+      for (size_t i=0, e=preStmts.size(); i!=e; ++i) {
+        if (preCStmt[i]==S) {
+          body.push_back(preStmts[i]);
+          num_stmts++;
+        }
+      }
+      for (size_t i=0; i<num_stmts; ++i) {
+        preStmts.pop_back();
+        preCStmt.pop_back();
+      }
+    }
+
+    if (bInsertLocalKernelBody && bInsertBeforeSmem) {
+      Expr *offset_x, *offset_y;
+      offset_x = createBinaryOperator(Ctx, exprIdXShiftFusion, 
+                    createIntegerLiteral(Ctx, curIdxXShiftFusion), 
+                      BO_Assign, Ctx.IntTy);
+      offset_y = createBinaryOperator(Ctx, exprIdYShiftFusion, 
+                    createIntegerLiteral(Ctx, curIdxYShiftFusion), 
+                      BO_Assign, Ctx.IntTy);
+      body.push_back(offset_x);
+      body.push_back(offset_y);
+
+      for (auto stmt : stmtsBHFusion) {
+        body.push_back(stmt);
+      }
+
+      body.push_back(stmtsProducerL2LKernelFusion.front());
+      bInsertBeforeSmem = false;
+    }
+
+    if (newS) body.push_back(newS);
+
+    if (postStmts.size()) {
+      size_t num_stmts = 0;
+      for (size_t i=0, e=postStmts.size(); i!=e; ++i) {
+        if (postCStmt[i]==S) {
+          body.push_back(postStmts[i]);
+          num_stmts++;
+        }
+      }
+      for (size_t i=0; i<num_stmts; ++i) {
+        postStmts.pop_back();
+        postCStmt.pop_back();
+      }
+    }
+  }
+
+  result->setStmts(Ctx, body);
+
+  return result;
+}
+
+// add border handling: CLAMP
+Stmt *clamp_upper_fuse(ASTContext &Ctx, Expr *idx, Expr *upper, Expr *) {
+  // if (idx >= upper) idx = upper-1;
+  Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
+
+  return createIfStmt(Ctx, bo_upper, createBinaryOperator(Ctx, idx,
+        createBinaryOperator(Ctx, upper, createIntegerLiteral(Ctx, 1), BO_Sub,
+          Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr, nullptr);
+}
+Stmt *clamp_lower_fuse(ASTContext &Ctx,  Expr *idx, Expr *lower, Expr *) {
+  // if (idx < lower) idx = lower;
+  Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
+
+  return createIfStmt(Ctx, bo_lower, createBinaryOperator(Ctx, idx, lower,
+        BO_Assign, Ctx.IntTy), nullptr, nullptr);
+}
+
+
+// add border handling: REPEAT
+Stmt *repeat_upper_fuse(ASTContext &Ctx, Expr *idx, Expr *upper, Expr *stride) {
+  // while (idx >= upper) idx -= is_width | is_height;
+  Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
+
+  return createWhileStmt(Ctx, nullptr, bo_upper, createBinaryOperator(Ctx, idx,
+        createBinaryOperator(Ctx, idx, stride, BO_Sub, Ctx.IntTy), BO_Assign,
+        Ctx.IntTy));
+}
+Stmt *repeat_lower_fuse(ASTContext &Ctx, Expr *idx, Expr *lower, Expr *stride) {
+  // while (idx < lower) idx += is_width | is_height;
+  Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
+
+  return createWhileStmt(Ctx, nullptr, bo_lower, createBinaryOperator(Ctx, idx,
+        createBinaryOperator(Ctx, idx, stride, BO_Add, Ctx.IntTy), BO_Assign,
+        Ctx.IntTy));
+}
+
+
+// add border handling: MIRROR
+Stmt *mirror_upper_fuse(ASTContext &Ctx, Expr *idx, Expr *upper, Expr *) {
+  // if (idx >= upper) idx = upper - (idx+1 - upper);
+  Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_GE, Ctx.BoolTy);
+
+  return createIfStmt(Ctx, bo_upper, createBinaryOperator(Ctx, idx,
+        createBinaryOperator(Ctx, upper, createParenExpr(Ctx,
+            createBinaryOperator(Ctx, createBinaryOperator(Ctx, idx,
+                createIntegerLiteral(Ctx, 1), BO_Add, Ctx.IntTy),
+              createParenExpr(Ctx, upper), BO_Sub, Ctx.IntTy)) , BO_Sub,
+          Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr, nullptr);
+}
+Stmt *mirror_lower_fuse(ASTContext &Ctx, Expr *idx, Expr *lower, Expr *) {
+  // if (idx < lower) idx = lower + (lower - idx-1);
+  Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_LT, Ctx.BoolTy);
+
+  return createIfStmt(Ctx, bo_lower, createBinaryOperator(Ctx, idx,
+        createBinaryOperator(Ctx, lower, createParenExpr(Ctx,
+            createBinaryOperator(Ctx, lower, createBinaryOperator(Ctx, idx,
+                createIntegerLiteral(Ctx, 1), BO_Sub, Ctx.IntTy), BO_Sub,
+              Ctx.IntTy)) , BO_Add, Ctx.IntTy), BO_Assign, Ctx.IntTy), nullptr,
+      nullptr);
+}
+
+
+// add border handling: CONSTANT
+Expr *constant_upper_fuse(ASTContext &Ctx, Expr *idx, Expr *upper, Expr *cond) {
+  // (idx < upper)
+  Expr *bo_upper = createBinaryOperator(Ctx, idx, upper, BO_LT, Ctx.BoolTy);
+
+  if (cond) {
+    return createBinaryOperator(Ctx, bo_upper, cond, BO_LAnd, Ctx.BoolTy);
+  }
+  return bo_upper;
+}
+Expr *constant_lower_fuse(ASTContext &Ctx, Expr *idx, Expr *lower, Expr *cond) {
+  // (idx >= lower)
+  Expr *bo_lower = createBinaryOperator(Ctx, idx, lower, BO_GE, Ctx.BoolTy);
+
+  if (cond) {
+    return createBinaryOperator(Ctx, bo_lower, cond, BO_LAnd, Ctx.BoolTy);
+  }
+  return bo_lower;
+}
+
+// add border handling statements to the AST
+Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
+    Expr *local_offset_y, HipaccAccessor *Acc) {
+  return addBorderHandling(LHS, local_offset_x, local_offset_y, Acc, preStmts,
+      preCStmt);
+}
+
+Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
+    Expr *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
+    SmallVector<CompoundStmt *, 16> &bhCStmt) {
+  Expr *result = nullptr;
+  DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
+
+	bool bRecordStmtsForKernelFusion = false;
+  if (bRecordLocalKernelBorderHandeling && bRecordBorderHandelingStmts) {
+    bRecordStmtsForKernelFusion = true;
+	}
+
+  std::string gidx_str;
+  std::string gidy_str;
+  std::string tmp_str;
+  if (bRecordStmtsForKernelFusion) {
+    gidx_str = "_gid_x_fusion" + std::to_string(FusionLocalLiteralCount);
+    gidy_str = "_gid_y_fusion" + std::to_string(FusionLocalLiteralCount);
+    tmp_str = "_tmp_fusion" + std::to_string(FusionLocalLiteralCount++);
+  }
+  else {
+    gidx_str = "_gid_x" + std::to_string(literalCount);
+    gidy_str = "_gid_y" + std::to_string(literalCount);
+    tmp_str = "_tmp" + std::to_string(literalCount++);
+  }
+
+  Expr *lower_x, *upper_x, *lower_y, *upper_y;
+  if (Acc->getOffsetXDecl()) {
+    lower_x = getOffsetXDecl(Acc);
+    upper_x = createBinaryOperator(Ctx, getOffsetXDecl(Acc), getWidthDecl(Acc),
+        BO_Add, Ctx.IntTy);
+  } else {
+    lower_x = createIntegerLiteral(Ctx, 0);
+    upper_x = getWidthDecl(Acc);
+  }
+  if (Acc->getOffsetYDecl()) {
+    lower_y = getOffsetYDecl(Acc);
+    upper_y = createBinaryOperator(Ctx, getOffsetYDecl(Acc), getHeightDecl(Acc),
+        BO_Add, Ctx.IntTy);
+  } else {
+    lower_y = createIntegerLiteral(Ctx, 0);
+    upper_y = getHeightDecl(Acc);
+  }
+
+  Expr *idx_x = tileVars.global_id_x;
+  Expr *idx_y = gidYRef;
+  Expr *idx_x_fusion = tileVars.global_id_x;
+  Expr *idx_y_fusion = gidYRef;
+
+  // step 0: add local offset: gid_[x|y] + local_offset_[x|y]
+  idx_x = addLocalOffset(idx_x, local_offset_x);
+  idx_y = addLocalOffset(idx_y, local_offset_y);
+  if (bRecordStmtsForKernelFusion) {
+    idx_x_fusion = addLocalOffset(idx_x_fusion, exprIdXShiftFusion);
+    idx_y_fusion = addLocalOffset(idx_y_fusion, exprIdYShiftFusion);
+  }
+  // step 1: remove is_offset and add interpolation & boundary handling
+  switch (Acc->getInterpolationMode()) {
+    case Interpolate::NO:
+      if (Acc!=Kernel->getIterationSpace()) {
+        idx_x = removeISOffsetX(idx_x);
+      }
+      if ((compilerOptions.emitC99() ||
+           compilerOptions.emitRenderscript() ||
+           compilerOptions.emitFilterscript()) &&
+          Acc!=Kernel->getIterationSpace()) {
+        idx_y = removeISOffsetY(idx_y);
+      }
+      break;
+    case Interpolate::NN:
+      idx_x = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+          createParenExpr(Ctx, addNNInterpolationX(Acc, idx_x)), nullptr,
+          Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
+      idx_y = createCStyleCastExpr(Ctx, Ctx.IntTy, CK_FloatingToIntegral,
+          createParenExpr(Ctx, addNNInterpolationY(Acc, idx_y)), nullptr,
+          Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
+      break;
+    case Interpolate::LF:
+    case Interpolate::CF:
+    case Interpolate::L3:
+      return addInterpolationCall(LHS, Acc, idx_x, idx_y);
+  }
+
+  // step 2: add global Accessor/Iteration Space offset
+  if (Acc!=Kernel->getIterationSpace()) {
+    idx_x = addGlobalOffsetX(idx_x, Acc);
+    idx_y = addGlobalOffsetY(idx_y, Acc);
+  } else {
+    if (!(compilerOptions.emitC99() ||
+          compilerOptions.emitRenderscript() ||
+          compilerOptions.emitFilterscript())) {
+      idx_y = addGlobalOffsetY(idx_y, Acc);
+    }
+  }
+
+  // TODO
+  if (bRecordStmtsForKernelFusion) {
+    idx_x = idx_x_fusion;
+    idx_y = idx_y_fusion;
+  }
+  // add temporary variables for updated idx_x and idx_y
+  if (local_offset_x) {
+    VarDecl *tmp_x = createVarDecl(Ctx, kernelDecl, gidx_str, Ctx.IntTy, idx_x);
+    DC->addDecl(tmp_x);
+    idx_x = createDeclRefExpr(Ctx, tmp_x);
+    Stmt *bhTemp = createDeclStmt(Ctx, tmp_x);
+    if (bRecordStmtsForKernelFusion) 
+      (stmtsBHFusion).push_back(bhTemp);
+    bhStmts.push_back(bhTemp);
+    bhCStmt.push_back(curCStmt);
+  }
+
+  if (local_offset_y) {
+    VarDecl *tmp_y = createVarDecl(Ctx, kernelDecl, gidy_str, Ctx.IntTy, idx_y);
+    DC->addDecl(tmp_y);
+    idx_y = createDeclRefExpr(Ctx, tmp_y);
+    Stmt *bhTemp = createDeclStmt(Ctx, tmp_y);
+    if (bRecordStmtsForKernelFusion) 
+      (stmtsBHFusion).push_back(bhTemp);
+    bhStmts.push_back(bhTemp);
+    bhCStmt.push_back(curCStmt);
+  }
+
+  if (Acc->getBoundaryMode() == Boundary::CONSTANT) {
+    // <type> _tmp<0> = const_val;
+    Expr *RHS = nullptr;
+    Expr *const_val = Acc->getConstExpr();
+    VarDecl *tmp_t = createVarDecl(Ctx, kernelDecl, tmp_str,
+        const_val->getType(), const_val);
+
+    DC->addDecl(tmp_t);
+    DeclRefExpr *tmp_t_ref = createDeclRefExpr(Ctx, tmp_t);
+
+    Stmt *bhTemp = createDeclStmt(Ctx, tmp_t);
+    bhStmts.push_back(bhTemp);
+    if (bRecordStmtsForKernelFusion) 
+      (stmtsBHFusion).push_back(bhTemp);
+    bhCStmt.push_back(curCStmt);
+
+    Expr *bo_constant = nullptr;
+    if (bh_variant.borders.right && local_offset_x) {
+      // < _gid_x<0> >= offset_x+width >
+      bo_constant = constant_upper_fuse(Ctx, idx_x, upper_x, bo_constant);
+    }
+    if (bh_variant.borders.bottom && local_offset_y) {
+      // if (_gid_y<0> >= offset_y+height)
+      bo_constant = constant_upper_fuse(Ctx, idx_y, upper_y, bo_constant);
+    }
+    if (bh_variant.borders.left && local_offset_x) {
+      // if (_gid_x<0> < offset_x)
+      bo_constant = constant_lower_fuse(Ctx, idx_x, lower_x, bo_constant);
+    }
+    if (bh_variant.borders.top && local_offset_y) {
+      // if (_gid_y<0> < offset_y)
+      bo_constant = constant_lower_fuse(Ctx, idx_y, lower_y, bo_constant);
+    }
+
+    switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
+          RHS = accessMem2DAt(LHS, idx_x, idx_y);
+          break;
+      case Language::CUDA:
+        if (Kernel->useTextureMemory(Acc) != Texture::None) {
+          RHS = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
+          break;
+        }
+        // fall through
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        if (Kernel->useTextureMemory(Acc) != Texture::None) {
+          RHS = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
+          break;
+        }
+        RHS = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        break;
+      case Language::Renderscript:
+      case Language::Filterscript:
+        RHS = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
+        break;
+    }
+    setExprProps(LHS, RHS);
+
+    // tmp<0> = RHS;
+    if (bo_constant) {
+      Stmt *bhTemp = createIfStmt(Ctx, bo_constant, createBinaryOperator(Ctx,
+                      tmp_t_ref, RHS, BO_Assign, tmp_t_ref->getType()), nullptr,
+                        nullptr);
+      bhStmts.push_back(bhTemp);
+      if (bRecordStmtsForKernelFusion) 
+        (stmtsBHFusion).push_back(bhTemp);
+      bhCStmt.push_back(curCStmt);
+    } else {
+      Stmt *bhTemp = createBinaryOperator(Ctx, tmp_t_ref, RHS, BO_Assign,
+                  tmp_t_ref->getType());
+      bhStmts.push_back(bhTemp);
+      if (bRecordStmtsForKernelFusion) 
+        (stmtsBHFusion).push_back(bhTemp);
+      bhCStmt.push_back(curCStmt);
+    }
+    result = tmp_t_ref;
+  } else {
+    std::function<Stmt*(ASTContext &, Expr *, Expr *, Expr *)>
+      lower_fun = nullptr, upper_fun = nullptr;
+    switch (Acc->getBoundaryMode()) {
+      case Boundary::CLAMP:  lower_fun = clamp_lower_fuse;
+                             upper_fun = clamp_upper_fuse;
+                             break;
+      case Boundary::REPEAT: lower_fun = repeat_lower_fuse;
+                             upper_fun = repeat_upper_fuse;
+                             break;
+      case Boundary::MIRROR: lower_fun = mirror_lower_fuse;
+                             upper_fun = mirror_upper_fuse;
+                             break;
+      case Boundary::UNDEFINED:
+        // in case of exploration boundary handling variants are required
+        if (!compilerOptions.exploreConfig()) {
+          assert(0 && "addBorderHandling && Boundary::UNDEFINED!");
+        }
+        break;
+      case Boundary::CONSTANT:
+        assert(0 && "addBorderHandling && Boundary::CONSTANT!");
+        break;
+    }
+
+    auto stride_x = getWidthDecl(Acc);
+    auto stride_y = getHeightDecl(Acc);
+    if (upper_fun) {
+      if (bh_variant.borders.right && local_offset_x) {
+        Stmt *bhTemp = upper_fun(Ctx, idx_x, upper_x, stride_x);
+        bhStmts.push_back(bhTemp);
+        if (bRecordStmtsForKernelFusion) 
+          (stmtsBHFusion).push_back(bhTemp);
+        bhCStmt.push_back(curCStmt);
+      }
+      if (bh_variant.borders.bottom && local_offset_y) {
+        Stmt *bhTemp = upper_fun(Ctx, idx_y, upper_y, stride_y);
+        bhStmts.push_back(bhTemp);
+        if (bRecordStmtsForKernelFusion) 
+          (stmtsBHFusion).push_back(bhTemp);
+        bhCStmt.push_back(curCStmt);
+      }
+    }
+    if (lower_fun) {
+      if (bh_variant.borders.left && local_offset_x) {
+        Stmt *bhTemp = lower_fun(Ctx, idx_x, lower_x, stride_x);
+        bhStmts.push_back(bhTemp);
+        if (bRecordStmtsForKernelFusion) 
+          (stmtsBHFusion).push_back(bhTemp);
+        bhCStmt.push_back(curCStmt);
+      }
+      if (bh_variant.borders.top && local_offset_y) {
+        Stmt *bhTemp = lower_fun(Ctx, idx_y, lower_y, stride_y);
+        bhStmts.push_back(bhTemp);
+        if (bRecordStmtsForKernelFusion) 
+          (stmtsBHFusion).push_back(bhTemp);
+        bhCStmt.push_back(curCStmt);
+      }
+    }
+
+    // get data
+    switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
+          result = accessMem2DAt(LHS, idx_x, idx_y);
+          break;
+      case Language::CUDA:
+        if (Kernel->useTextureMemory(Acc) != Texture::None) {
+          result = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
+          break;
+        }
+        // fall through
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        if (Kernel->useTextureMemory(Acc) != Texture::None) {
+          result = accessMemImgAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
+          break;
+        }
+        result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
+        break;
+      case Language::Renderscript:
+      case Language::Filterscript:
+        result = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
+        break;
+    }
+    setExprProps(LHS, result);
+  }
+
+  if (bRecordStmtsForKernelFusion) {
+    Expr *end_offset_x, *end_offset_y;
+    end_offset_x = createBinaryOperator(Ctx, exprIdXShiftFusion, 
+                    createBinaryOperator(Ctx, idx_x, tileVars.global_id_x, BO_Sub, Ctx.IntTy),
+                      BO_Assign, Ctx.IntTy);
+    end_offset_y = createBinaryOperator(Ctx, exprIdYShiftFusion, 
+                    createBinaryOperator(Ctx, idx_y, gidYRef, BO_Sub, Ctx.IntTy),
+                      BO_Assign, Ctx.IntTy);
+    (stmtsBHFusion).push_back(end_offset_x);
+    (stmtsBHFusion).push_back(end_offset_y);
+
+    bRecordBorderHandelingStmts = false;
+  }
+  return result;
+}
 
 Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
   Expr *result = nullptr;
@@ -1585,6 +2392,7 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
 
           // set Mask as being used within Kernel
           Kernel->setUsed(FD->getNameAsString());
+
           switch (compilerOptions.getTargetLang()) {
             case Language::C99:
             case Language::CUDA:
@@ -1636,6 +2444,7 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
 
           // set Mask as being used within Kernel
           Kernel->setUsed(FD->getNameAsString());
+
           switch (compilerOptions.getTargetLang()) {
             case Language::C99:
             case Language::CUDA:
@@ -1665,6 +2474,7 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
 
         // set Mask as being used within Kernel
         Kernel->setUsed(FD->getNameAsString());
+
         switch (compilerOptions.getTargetLang()) {
           case Language::C99:
           case Language::CUDA:
@@ -1733,7 +2543,7 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
   if (auto acc = Kernel->getImgFromMapping(FD)) {
     MemoryAccess mem_acc = KernelClass->getMemAccess(FD);
 
-    if (bReplaceInputExpr) {
+    if (bReplaceInputExpr && KernelClass->getKernelType() == PointOperator) {
       return LHS;
     }
 
@@ -1753,20 +2563,44 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
     }
 
     Expr *SY, *TX;
-    if (acc->getSizeX() > 1) {
-      if (compilerOptions.exploreConfig()) {
-        TX = tileVars.local_size_x;
+    Expr *SYOld, *TXOld;
+    if (bReplaceVarAccSizeY) { 
+      // Index fusion for local kernel fusion
+      if (acc->getSizeX() > 1) {
+        if (compilerOptions.exploreConfig()) {
+          TXOld = tileVars.local_size_x;
+        } else if (compilerOptions.allowMisAlignedAccess()) {
+          TXOld = createIntegerLiteral(Ctx, static_cast<int>(FusionLocalVarAccSizeY/2));
+        } else {
+          TXOld = createIntegerLiteral(Ctx, static_cast<int>(Kernel->getNumThreadsX()));
+        }
       } else {
-        TX = createIntegerLiteral(Ctx,
-            static_cast<int>(Kernel->getNumThreadsX()));
+        TXOld = createIntegerLiteral(Ctx, 0);
       }
+      TX = createBinaryOperator(Ctx, exprIdXShiftFusion, TXOld, BO_Add, Ctx.IntTy);
+      if (acc->getSizeY() > 1) {
+        SYOld = createIntegerLiteral(Ctx, static_cast<int>(FusionLocalVarAccSizeY/2));
+      } else {
+        SYOld = createIntegerLiteral(Ctx, 0);
+      }
+      SY = createBinaryOperator(Ctx, exprIdYShiftFusion, SYOld, BO_Add, Ctx.IntTy);
     } else {
-      TX = createIntegerLiteral(Ctx, 0);
-    }
-    if (acc->getSizeY() > 1) {
-      SY = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeY()/2));
-    } else {
-      SY = createIntegerLiteral(Ctx, 0);
+      if (acc->getSizeX() > 1) {
+        if (compilerOptions.exploreConfig()) {
+          TX = tileVars.local_size_x;
+        } else if (compilerOptions.allowMisAlignedAccess()) {
+          TX = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeY()/2));
+        } else {
+          TX = createIntegerLiteral(Ctx, static_cast<int>(Kernel->getNumThreadsX()));
+        }
+      } else {
+        TX = createIntegerLiteral(Ctx, 0);
+      }
+      if (acc->getSizeY() > 1) {
+        SY = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeY()/2));
+      } else {
+        SY = createIntegerLiteral(Ctx, 0);
+      }
     }
 
     HipaccMask *Mask = nullptr;
@@ -1781,6 +2615,10 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
           result = accessMemShared(DRE, TX, SY);
         } else {
           result = accessMem(LHS, acc, mem_acc);
+        }
+        if (compilerOptions.fuseKernels() && KernelClass->getKernelType() == LocalOperator) {
+          curIdxXShiftFusion = 0;
+          curIdxYShiftFusion = 0;
         }
         break;
       case 2:
@@ -1824,9 +2662,18 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
               mask_idx_x-static_cast<int>(Mask->getSizeX()/2));
           offset_y = createIntegerLiteral(Ctx,
               mask_idx_y-static_cast<int>(Mask->getSizeY()/2));
+          if (compilerOptions.fuseKernels() && KernelClass->getKernelType() == LocalOperator) {
+            curIdxXShiftFusion = mask_idx_x-static_cast<int>(Mask->getSizeX()/2);
+            curIdxYShiftFusion = mask_idx_y-static_cast<int>(Mask->getSizeY()/2);
+          }
         } else {
           offset_x = Clone(E->getArg(1));
           offset_y = Clone(E->getArg(2));
+          //TODO re-update the shift for kernel fusion
+          if (compilerOptions.fuseKernels() && KernelClass->getKernelType() == LocalOperator) {
+            curIdxXShiftFusion = 0;
+            curIdxYShiftFusion = 0;
+          }
         }
 
         if (use_shared) {
@@ -1849,10 +2696,16 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
         }
         break;
     }
+
+		if (compilerOptions.fuseKernels() && KernelClass->getKernelType() == LocalOperator) {
+			bInsertBeforeSmem = true;
+		}
+		if (bReplaceInputExpr && KernelClass->getKernelType() == LocalOperator) {
+			return exprInputFusion; 
+		}
   }
 
   setExprProps(E, result);
-
   if (bReplaceInputIdxExpr) {
     ArraySubscriptExpr *tempASE = dyn_cast<ArraySubscriptExpr>(result);
     tempASE->setRHS(exprInputIdxFusion);
@@ -1945,7 +2798,7 @@ Expr *ASTTranslateFusion::VisitMemberExprTranslate(MemberExpr *E) {
   Expr *result = createDeclRefExpr(Ctx, paramDecl);
   setExprProps(E, result);
 
-  if (bReplaceInputExpr &&
+  if (bReplaceInputExpr && KernelClass->getKernelType() == PointOperator &&
         Kernel->getImgFromMapping(dyn_cast<FieldDecl>(VD))) {
     return exprInputFusion;
   }
@@ -2200,6 +3053,98 @@ void ASTTranslateFusion::stageLineToSharedMemory(ParmVarDecl *PVD,
           Acc->getImage()->getType()));
   }
 }
+
+
+// stage iteration p to shared memory
+void ASTTranslateFusion::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
+    &stageBody, int p) {
+  for (auto param : kernelDecl->parameters()) {
+    if (KernelDeclMapShared[param]) {
+      HipaccAccessor *Acc = KernelDeclMapAcc[param];
+
+      unsigned varAccSizeY = Acc->getSizeY();
+      if (bReplaceVarAccSizeY) {
+        varAccSizeY = FusionLocalVarAccSizeY;
+      }
+
+      // check if the bottom apron has to be fetched
+      if (p>=static_cast<int>(Kernel->getPixelsPerThread())) {
+        int p_add = static_cast<int>(ceilf((varAccSizeY-1) /
+              static_cast<float>(Kernel->getNumThreadsY())));
+        if (p>=static_cast<int>(Kernel->getPixelsPerThread())+p_add) continue;
+      }
+
+      Expr *global_offset_x = nullptr, *global_offset_y = nullptr;
+      Expr *SX2;
+
+      if (Acc->getSizeX() > 1) {
+        if (compilerOptions.exploreConfig()) {
+          SX2 = tileVars.local_size_x;
+        } else {
+          SX2 = createIntegerLiteral(Ctx,
+              static_cast<int32_t>(Kernel->getNumThreadsX()));
+        }
+      } else {
+        SX2 = createIntegerLiteral(Ctx, 0);
+      }
+      if (varAccSizeY > 1) {
+        global_offset_y = createParenExpr(Ctx, createUnaryOperator(Ctx,
+              createIntegerLiteral(Ctx,
+                static_cast<int32_t>(varAccSizeY/2)), UO_Minus, Ctx.IntTy));
+      } else {
+        global_offset_y = nullptr;
+      }
+
+      if (compilerOptions.allowMisAlignedAccess()) {
+        Expr *local_offset_x = nullptr;
+        // load line first half
+        if (Acc->getSizeX() > 1) {
+          local_offset_x = createIntegerLiteral(Ctx, static_cast<int32_t>(0));
+          global_offset_x = createParenExpr(Ctx, createUnaryOperator(Ctx,
+                createIntegerLiteral(Ctx,
+                  static_cast<int32_t>(varAccSizeY/2)), UO_Minus, Ctx.IntTy));
+        }
+        stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
+            global_offset_x, global_offset_y);
+        
+        // load line second half (partially overlap)
+        if (Acc->getSizeX() > 1) {
+          local_offset_x = createIntegerLiteral(Ctx, static_cast<int32_t>(varAccSizeY/2)*2);
+          global_offset_x = createParenExpr(Ctx, createUnaryOperator(Ctx,
+                createIntegerLiteral(Ctx,
+                  static_cast<int32_t>(varAccSizeY/2)), UO_Plus, Ctx.IntTy));
+        }
+        stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
+            global_offset_x, global_offset_y);
+      } else {
+        // check if we need to stage right apron
+        size_t num_stages_x = 0;
+        if (Acc->getSizeX() > 1) {
+            num_stages_x = 2;
+        }
+
+        // load row (line)
+        for (size_t i=0; i<=num_stages_x; ++i) {
+          // _smem[lidYRef][(int)threadIdx.x + i*(int)blockDim.x] =
+          //        Image[-SX/2 + i*(int)blockDim.x, -SY/2];
+          Expr *local_offset_x = nullptr;
+          if (Acc->getSizeX() > 1) {
+            local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
+                  static_cast<int32_t>(i)), tileVars.local_size_x, BO_Mul,
+                Ctx.IntTy);
+            global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
+                BO_Sub, Ctx.IntTy);
+          }
+
+          stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
+              global_offset_x, global_offset_y);
+        }
+      }
+    }
+  }
+}
+
+
 
 
 void ASTTranslateFusion::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {

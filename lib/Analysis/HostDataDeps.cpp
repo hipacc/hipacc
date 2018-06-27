@@ -506,23 +506,16 @@ void HostDataDeps::createSchedule() {
   }
 }
 
-// TODO enable local to local fusion
+// TODO performance projection model 
 void HostDataDeps::fusibilityAnalysis() {
   for (auto l : vecFusibleKernelLists) {
-    Process *PLast = nullptr;
     for (auto p : *l) {
-      HipaccKernelClass *KC = p->getKernel()->getKernelClass();
-      if (KC->getKernelType() == GlobalOperator) {
+      if (p->getKernel()->getKernelClass()->getKernelType() == GlobalOperator) {
         assert(0 && "global operators not yet supported for kernel fusion");
-      } else if (KC->getKernelType() == LocalOperator && PLast &&
-          PLast->getKernel()->getKernelClass()->getKernelType() == LocalOperator) {
-        l->remove(PLast);
       }
-      PLast = p;
     }
   }
 }
-
 
 void HostDataDeps::recordFusibleKernelListInfo() {
   unsigned posCnt;

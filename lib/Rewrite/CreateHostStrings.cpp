@@ -400,7 +400,8 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
   std::string fusedDestKernelCall;
   std::string fusedDestKernelLaunch;
   std::string kernel_name = kernelFuser->getFusedKernelName(K);
-
+  unsigned newYSizeLocal = kernelFuser->getNewYSizeLocalKernel(K);
+  unsigned newYMaxSizeLocal = newYSizeLocal <= 1 ? 0:newYSizeLocal>>1;
   auto argTypeNames = K->getArgTypeNames();
   auto deviceArgNames = K->getDeviceArgNames();
   auto hostArgNames = K->getHostArgNames();
@@ -424,12 +425,11 @@ void CreateHostStrings::writeFusedKernelCall(HipaccKernel *K,
   if (options.exploreConfig() || options.timeKernels()) {
     // explore config not yet supported
   }
-
   if (options.getTargetLang() != Language::C99) {
     // hipacc_launch_info
     fusedKernelLaunchInfo += "hipacc_launch_info " + infoStr + "(";
-    fusedKernelLaunchInfo += std::to_string(K->getMaxSizeX()) + ", ";
-    fusedKernelLaunchInfo += std::to_string(K->getMaxSizeY()) + ", ";
+    fusedKernelLaunchInfo += std::to_string(newYMaxSizeLocal) + ", ";
+    fusedKernelLaunchInfo += std::to_string(newYMaxSizeLocal) + ", ";
     fusedKernelLaunchInfo += K->getIterationSpace()->getName() + ", ";
     fusedKernelLaunchInfo += std::to_string(K->getPixelsPerThread()) + ", ";
     if (K->vectorize()) {

@@ -78,6 +78,7 @@ class KernelStatistics : public ManagedAnalysis {
     MemoryAccess getMemAccess(const FieldDecl *FD);
     MemoryPattern getMemPattern(const FieldDecl *FD);
     VectorInfo getVectorizeInfo(const VarDecl *VD);
+    VarDecl *getVarDeclByName(std::string name);
     KernelType getKernelType();
 
     ~KernelStatistics() override;
