@@ -2373,24 +2373,20 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
                                   "within reduction lambda-function.");
           return createIntegerLiteral(Ctx, redIdxX[redDepth] -
               static_cast<int>(redDomains[redDepth]->getSizeX()/2));
-        }
-        else if (ME->getMemberNameInfo().getAsString() == "y") {
+        } else if (ME->getMemberNameInfo().getAsString() == "y") {
           assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
                                   "within reduction lambda-function.");
           return createIntegerLiteral(Ctx, redIdxY[redDepth] -
               static_cast<int>(redDomains[redDepth]->getSizeY()/2));
-        }
-        else if (ME->getMemberNameInfo().getAsString() == "size_x") {
+        } else if (ME->getMemberNameInfo().getAsString() == "size_x") {
           assert(mask->isConstant() && "Domain size x must be constant.");
           return createIntegerLiteral(Ctx,
               static_cast<int>(mask->getSizeX()));
-        }
-        else if (ME->getMemberNameInfo().getAsString() == "size_y") {
+        } else if (ME->getMemberNameInfo().getAsString() == "size_y") {
           assert(mask->isConstant() && "Domain size y must be constant.");
           return createIntegerLiteral(Ctx,
               static_cast<int>(mask->getSizeY()));
-        }
-        else {
+        } else {
           assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
                                   "within reduction lambda-function.");
         }
@@ -2398,29 +2394,25 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "x") {
           assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
-                                    "allowed within convolution lambda-function.");
+                                     "allowed within convolution lambda-function.");
           return createIntegerLiteral(Ctx, convIdxX -
               static_cast<int>(mask->getSizeX()/2));
-        }
-        else if (ME->getMemberNameInfo().getAsString() == "y") {
+        } else if (ME->getMemberNameInfo().getAsString() == "y") {
           assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
-                                    "allowed within convolution lambda-function.");
+                                     "allowed within convolution lambda-function.");
           return createIntegerLiteral(Ctx, convIdxY -
               static_cast<int>(mask->getSizeY()/2));
-        }
-        else if (ME->getMemberNameInfo().getAsString() == "size_x") {
+        } else if (ME->getMemberNameInfo().getAsString() == "size_x") {
           assert(mask->isConstant() && "Mask size x must be constant.");
           return createIntegerLiteral(Ctx,
               static_cast<int>(mask->getSizeX()));
-        }
-        else if (ME->getMemberNameInfo().getAsString() == "size_y") {
+        } else if (ME->getMemberNameInfo().getAsString() == "size_y") {
           assert(mask->isConstant() && "Mask size y must be constant.");
           return createIntegerLiteral(Ctx,
               static_cast<int>(mask->getSizeY()));
-        }
-        else {
+        } else {
           assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
-                                        "allowed within convolution lambda-function.");
+                                     "allowed within convolution lambda-function.");
         }
       }
     }
