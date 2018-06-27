@@ -2054,10 +2054,10 @@ Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset
   Expr *result = nullptr;
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
 
-	bool bRecordStmtsForKernelFusion = false;
+  bool bRecordStmtsForKernelFusion = false;
   if (bRecordLocalKernelBorderHandeling && bRecordBorderHandelingStmts) {
     bRecordStmtsForKernelFusion = true;
-	}
+  }
 
   std::string gidx_str;
   std::string gidy_str;
@@ -2697,12 +2697,12 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
         break;
     }
 
-		if (compilerOptions.fuseKernels() && KernelClass->getKernelType() == LocalOperator) {
-			bInsertBeforeSmem = true;
-		}
-		if (bReplaceInputExpr && KernelClass->getKernelType() == LocalOperator) {
-			return exprInputFusion; 
-		}
+    if (compilerOptions.fuseKernels() && KernelClass->getKernelType() == LocalOperator) {
+     bInsertBeforeSmem = true;
+    }
+    if (bReplaceInputExpr && KernelClass->getKernelType() == LocalOperator) {
+     return exprInputFusion; 
+    }
   }
 
   setExprProps(E, result);

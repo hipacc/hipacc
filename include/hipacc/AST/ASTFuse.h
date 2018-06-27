@@ -183,7 +183,7 @@ class ASTTranslateFusion: public ASTTranslate {
     bool bReplaceLocalKernelBody;
     std::queue<Stmt *> stmtsL2LKernelFusion;
     std::queue<Stmt *> stmtsProducerL2LKernelFusion;
-		SmallVector<Stmt *, 16> stmtsBHFusion;
+    SmallVector<Stmt *, 16> stmtsBHFusion;
 
     // onverload functions for ASTTranslate
     void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
@@ -193,14 +193,13 @@ class ASTTranslateFusion: public ASTTranslate {
     void stageLineToSharedMemory(ParmVarDecl *PVD, SmallVector<Stmt *, 16>
         &stageBody, Expr *local_offset_x, Expr *local_offset_y, Expr
         *global_offset_x, Expr *global_offset_y);
-    void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int
-        p);
+    void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int p);
     Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         Expr *local_offset_y, HipaccAccessor *Acc);
-		Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
-				Expr *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
-				SmallVector<CompoundStmt *, 16> &bhCStmt);
-		Stmt *VisitCompoundStmtTranslate(CompoundStmt *S);
+    Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
+        Expr *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
+        SmallVector<CompoundStmt *, 16> &bhCStmt);
+    Stmt *VisitCompoundStmtTranslate(CompoundStmt *S);
     VarDecl *CloneVarDecl(VarDecl *VD);
   public:
     Stmt *Hipacc(Stmt *S);
@@ -227,13 +226,13 @@ class ASTTranslateFusion: public ASTTranslate {
       bInsertProducerBeforeSMem(false),
       exprIdXShiftFusion(nullptr),
       exprIdYShiftFusion(nullptr),
-			curIdxXShiftFusion(0),
-			curIdxYShiftFusion(0),
+      curIdxXShiftFusion(0),
+      curIdxYShiftFusion(0),
       bInsertLocalKernelBody(false),
       bInsertBeforeSmem(false),
       bRecordLocalKernelBorderHandeling(false),
-			bRecordBorderHandelingStmts(false),
-			bReplaceLocalKernelBody(false)
+      bRecordBorderHandelingStmts(false),
+      bReplaceLocalKernelBody(false)
     {}
 
     // getters and setters
@@ -248,11 +247,10 @@ class ASTTranslateFusion: public ASTTranslate {
     void configSrcOperatorL2L(VarDecl *VDRegOut, VarDecl *VDIdX, VarDecl *VDIdY,
         unsigned szY);
     std::queue<Stmt *> getFusionLocalKernelBody();
-		void configDestOperatorL2L(std::queue<Stmt *> stmtsLocal,
-						VarDecl *VDRegIn, VarDecl *VDIdX, VarDecl *VDIdY, unsigned szY);
-		void configEndSrcOperatorL2L(std::queue<Stmt *> stmtsLocal,
-						VarDecl *VDIdX, VarDecl *VDIdY, unsigned szY);
-
+    void configDestOperatorL2L(std::queue<Stmt *> stmtsLocal,
+        VarDecl *VDRegIn, VarDecl *VDIdX, VarDecl *VDIdY, unsigned szY);
+    void configEndSrcOperatorL2L(std::queue<Stmt *> stmtsLocal,
+        VarDecl *VDIdX, VarDecl *VDIdY, unsigned szY);
 };
 
 } // namespace hipacc
