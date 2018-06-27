@@ -269,10 +269,10 @@ void HipaccKernel::calcConfig() {
         // check if the configuration suits our assumptions about shared memory
         int size_x, size_y;
         if (num_threads % 32 == 0) {
-          if (options.fuseKernels() && 
+          if (options.fuseKernels() &&
                 options.allowMisAlignedAccess() &&
                   OptmOpt == OptimizationOption::KERNEL_FUSE) {
-            // fixed shared memory for x: BSX+MaskX*2 
+            // fixed shared memory for x: BSX+MaskX*2
             size_x = 32;
             if (updated_size_x > 1) {
               size_x = size_x + 2 * static_cast<int32_t>(updated_size_x/2);

@@ -506,7 +506,7 @@ void HostDataDeps::createSchedule() {
   }
 }
 
-// TODO performance projection model 
+// TODO performance projection model
 void HostDataDeps::fusibilityAnalysis() {
   for (auto l : vecFusibleKernelLists) {
     for (auto p : *l) {

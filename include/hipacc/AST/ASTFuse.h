@@ -169,8 +169,8 @@ class ASTTranslateFusion: public ASTTranslate {
     // local-to-local replacements
     bool bRecordLocalKernelBody;
     bool bReplaceVarAccSizeY;
-    unsigned FusionLocalVarAccSizeY; 
-    unsigned FusionLocalLiteralCount; 
+    unsigned FusionLocalVarAccSizeY;
+    unsigned FusionLocalLiteralCount;
     bool bInsertProducerBeforeSMem;
     Expr *exprIdXShiftFusion;
     Expr *exprIdYShiftFusion;

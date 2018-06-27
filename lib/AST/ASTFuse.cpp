@@ -110,13 +110,13 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
   if (vecLocalKernelIndices.size() == 0) {
     // scenario 1: no local kernel sublists
     // e.g. p -> p -> ... -> p
-    // sublisting 
+    // sublisting
     pointKernelList.assign(l.begin(), l.end());
     // tag generation
     for (auto it = (pointKernelList.begin()); it != pointKernelList.end(); ++it) {
       HipaccKernel *K = *it;
       FusionTypeTags *KTag = FusibleKernelSubListPosMap[K];
-      if (it == pointKernelList.begin() && std::next(it) == pointKernelList.end()) {  
+      if (it == pointKernelList.begin() && std::next(it) == pointKernelList.end()) {
         KTag->Point2PointLoc = Undefined;  // single kernel sublist, no fusion
       } else if (it == pointKernelList.begin()) {
         KTag->Point2PointLoc = Source;
@@ -129,7 +129,7 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
   } else if (vecLocalKernelIndices.front() == 0) {
     // scenario 2: no point kernel sublist
     // e.g. l -> p -> ... -> l -> p -> ...
-    // sublisting 
+    // sublisting
     for (auto it = (vecLocalKernelIndices.begin()); it != vecLocalKernelIndices.end(); ++it) {
       std::list<HipaccKernel *> localKernelList;
       if (std::next(it) == vecLocalKernelIndices.end()) {
@@ -176,7 +176,7 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
   } else if (vecLocalKernelIndices.front() > 0) {
     // scenario 3: both point and local kernel sublists exist
     // e.g. p -> ... -> p -> l -> p -> ...
-    // sublisting 
+    // sublisting
     auto itTempP = l.begin();
     std::advance(itTempP, vecLocalKernelIndices.front());
     pointKernelList.assign(l.begin(), itTempP);
@@ -255,7 +255,7 @@ void ASTFuse::recomputeMemorySizeLocal2LocalFusion(std::list<HipaccKernel *> &l)
     for (auto img : KC->getImgFields()) {
       HipaccAccessor *Acc = K->getImgFromMapping(img);
       MemoryAccess mem_acc = KC->getMemAccess(img);
-      if (mem_acc == READ_ONLY && K->useLocalMemory(Acc)) { 
+      if (mem_acc == READ_ONLY && K->useLocalMemory(Acc)) {
         localKernelMemorySizeMap[K] = std::make_tuple(Acc->getSizeX(),
             Acc->getSizeY());
         revList.insert(revList.begin(), K);
@@ -286,7 +286,7 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *>& l) {
   std::queue<Stmt *> stmtsL2LProducerKernel;
   std::queue<Stmt *> stmtsL2LConsumerKernel;
   HipaccKernel *KLocalSrc = nullptr;
-  
+
 
   for (auto it = (l.begin()); it != l.end(); ++it) {
     curFusionBody = nullptr;
@@ -369,15 +369,15 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *>& l) {
         idxXFused = fusionIdxVarDecls.back();
         createIdx4FusionVarDecl();
         idxYFused = fusionIdxVarDecls.back();
-        Hipacc->configSrcOperatorL2L(fusionRegVarDecls.back(), idxXFused, idxYFused, 
+        Hipacc->configSrcOperatorL2L(fusionRegVarDecls.back(), idxXFused, idxYFused,
             std::get<1>(localKernelMemorySizeMap[K]));
         Hipacc->Hipacc(KC->getKernelFunction()->getBody());
         stmtsL2LProducerKernel = Hipacc->getFusionLocalKernelBody();
         KLocalSrc = K;
         break;
       case Destination:
-        Hipacc->configDestOperatorL2L(stmtsL2LProducerKernel, 
-          fusionRegVarDecls.back(), idxXFused, idxYFused, 
+        Hipacc->configDestOperatorL2L(stmtsL2LProducerKernel,
+          fusionRegVarDecls.back(), idxXFused, idxYFused,
           std::get<1>(localKernelMemorySizeMap[K]));
         Hipacc->Hipacc(KC->getKernelFunction()->getBody());
         stmtsL2LConsumerKernel = Hipacc->getFusionLocalKernelBody();
@@ -525,8 +525,8 @@ void ASTFuse::setFusedKernelConfiguration(std::list<HipaccKernel *>& l) {
 
 
 bool ASTFuse::parseFusibleKernel(HipaccKernel *K) {
-  if (!dataDeps->isFusible(K)) { 
-    return false; 
+  if (!dataDeps->isFusible(K)) {
+    return false;
   }
 
   // prepare fusible kernel list
@@ -538,7 +538,7 @@ bool ASTFuse::parseFusibleKernel(HipaccKernel *K) {
 
   // fusion starts whenever a list is complete
   if (curList.size() == dataDeps->getKernelListSize(K)) {
-    setFusedKernelConfiguration(curList); 
+    setFusedKernelConfiguration(curList);
     HipaccFusion(curList);
     printFusedKernelFunction(curList); // write fused kernel to file
   }
@@ -1920,11 +1920,11 @@ Stmt *ASTTranslateFusion::VisitCompoundStmtTranslate(CompoundStmt *S) {
 
     if (bInsertLocalKernelBody && bInsertBeforeSmem) {
       Expr *offset_x, *offset_y;
-      offset_x = createBinaryOperator(Ctx, exprIdXShiftFusion, 
-                    createIntegerLiteral(Ctx, curIdxXShiftFusion), 
+      offset_x = createBinaryOperator(Ctx, exprIdXShiftFusion,
+                    createIntegerLiteral(Ctx, curIdxXShiftFusion),
                       BO_Assign, Ctx.IntTy);
-      offset_y = createBinaryOperator(Ctx, exprIdYShiftFusion, 
-                    createIntegerLiteral(Ctx, curIdxYShiftFusion), 
+      offset_y = createBinaryOperator(Ctx, exprIdYShiftFusion,
+                    createIntegerLiteral(Ctx, curIdxYShiftFusion),
                       BO_Assign, Ctx.IntTy);
       body.push_back(offset_x);
       body.push_back(offset_y);
@@ -2153,7 +2153,7 @@ Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset
     DC->addDecl(tmp_x);
     idx_x = createDeclRefExpr(Ctx, tmp_x);
     Stmt *bhTemp = createDeclStmt(Ctx, tmp_x);
-    if (bRecordStmtsForKernelFusion) 
+    if (bRecordStmtsForKernelFusion)
       (stmtsBHFusion).push_back(bhTemp);
     bhStmts.push_back(bhTemp);
     bhCStmt.push_back(curCStmt);
@@ -2164,7 +2164,7 @@ Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset
     DC->addDecl(tmp_y);
     idx_y = createDeclRefExpr(Ctx, tmp_y);
     Stmt *bhTemp = createDeclStmt(Ctx, tmp_y);
-    if (bRecordStmtsForKernelFusion) 
+    if (bRecordStmtsForKernelFusion)
       (stmtsBHFusion).push_back(bhTemp);
     bhStmts.push_back(bhTemp);
     bhCStmt.push_back(curCStmt);
@@ -2182,7 +2182,7 @@ Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset
 
     Stmt *bhTemp = createDeclStmt(Ctx, tmp_t);
     bhStmts.push_back(bhTemp);
-    if (bRecordStmtsForKernelFusion) 
+    if (bRecordStmtsForKernelFusion)
       (stmtsBHFusion).push_back(bhTemp);
     bhCStmt.push_back(curCStmt);
 
@@ -2236,14 +2236,14 @@ Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset
                       tmp_t_ref, RHS, BO_Assign, tmp_t_ref->getType()), nullptr,
                         nullptr);
       bhStmts.push_back(bhTemp);
-      if (bRecordStmtsForKernelFusion) 
+      if (bRecordStmtsForKernelFusion)
         (stmtsBHFusion).push_back(bhTemp);
       bhCStmt.push_back(curCStmt);
     } else {
       Stmt *bhTemp = createBinaryOperator(Ctx, tmp_t_ref, RHS, BO_Assign,
                   tmp_t_ref->getType());
       bhStmts.push_back(bhTemp);
-      if (bRecordStmtsForKernelFusion) 
+      if (bRecordStmtsForKernelFusion)
         (stmtsBHFusion).push_back(bhTemp);
       bhCStmt.push_back(curCStmt);
     }
@@ -2278,14 +2278,14 @@ Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset
       if (bh_variant.borders.right && local_offset_x) {
         Stmt *bhTemp = upper_fun(Ctx, idx_x, upper_x, stride_x);
         bhStmts.push_back(bhTemp);
-        if (bRecordStmtsForKernelFusion) 
+        if (bRecordStmtsForKernelFusion)
           (stmtsBHFusion).push_back(bhTemp);
         bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.bottom && local_offset_y) {
         Stmt *bhTemp = upper_fun(Ctx, idx_y, upper_y, stride_y);
         bhStmts.push_back(bhTemp);
-        if (bRecordStmtsForKernelFusion) 
+        if (bRecordStmtsForKernelFusion)
           (stmtsBHFusion).push_back(bhTemp);
         bhCStmt.push_back(curCStmt);
       }
@@ -2294,14 +2294,14 @@ Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset
       if (bh_variant.borders.left && local_offset_x) {
         Stmt *bhTemp = lower_fun(Ctx, idx_x, lower_x, stride_x);
         bhStmts.push_back(bhTemp);
-        if (bRecordStmtsForKernelFusion) 
+        if (bRecordStmtsForKernelFusion)
           (stmtsBHFusion).push_back(bhTemp);
         bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.top && local_offset_y) {
         Stmt *bhTemp = lower_fun(Ctx, idx_y, lower_y, stride_y);
         bhStmts.push_back(bhTemp);
-        if (bRecordStmtsForKernelFusion) 
+        if (bRecordStmtsForKernelFusion)
           (stmtsBHFusion).push_back(bhTemp);
         bhCStmt.push_back(curCStmt);
       }
@@ -2337,10 +2337,10 @@ Expr *ASTTranslateFusion::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset
 
   if (bRecordStmtsForKernelFusion) {
     Expr *end_offset_x, *end_offset_y;
-    end_offset_x = createBinaryOperator(Ctx, exprIdXShiftFusion, 
+    end_offset_x = createBinaryOperator(Ctx, exprIdXShiftFusion,
                     createBinaryOperator(Ctx, idx_x, tileVars.global_id_x, BO_Sub, Ctx.IntTy),
                       BO_Assign, Ctx.IntTy);
-    end_offset_y = createBinaryOperator(Ctx, exprIdYShiftFusion, 
+    end_offset_y = createBinaryOperator(Ctx, exprIdYShiftFusion,
                     createBinaryOperator(Ctx, idx_y, gidYRef, BO_Sub, Ctx.IntTy),
                       BO_Assign, Ctx.IntTy);
     (stmtsBHFusion).push_back(end_offset_x);
@@ -2564,7 +2564,7 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
 
     Expr *SY, *TX;
     Expr *SYOld, *TXOld;
-    if (bReplaceVarAccSizeY) { 
+    if (bReplaceVarAccSizeY) {
       // Index fusion for local kernel fusion
       if (acc->getSizeX() > 1) {
         if (compilerOptions.exploreConfig()) {
@@ -2701,7 +2701,7 @@ Expr *ASTTranslateFusion::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr 
      bInsertBeforeSmem = true;
     }
     if (bReplaceInputExpr && KernelClass->getKernelType() == LocalOperator) {
-     return exprInputFusion; 
+     return exprInputFusion;
     }
   }
 
@@ -3106,7 +3106,7 @@ void ASTTranslateFusion::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
         }
         stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
             global_offset_x, global_offset_y);
-        
+
         // load line second half (partially overlap)
         if (Acc->getSizeX() > 1) {
           local_offset_x = createIntegerLiteral(Ctx, static_cast<int32_t>(varAccSizeY/2)*2);
