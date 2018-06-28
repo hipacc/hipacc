@@ -341,21 +341,22 @@ void HipaccKernel::calcConfig() {
     size_t dynamic_smem_bytes = 0;
     cudaOccResult fun_occ;
 
+    int active_warps, max_warps;
     if (!isNVIDIAGPU()) {
       cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
       int active_blocks = fun_occ.activeBlocksPerMultiprocessor;
       int min_grid_size, opt_block_size;
       cudaOccMaxPotentialOccupancyBlockSize(&min_grid_size, &opt_block_size, &dev_props, &fun_attrs, &dev_state, 0, dynamic_smem_bytes);
-      int active_warps = active_blocks * (num_threads/max_threads_per_warp);
+      active_warps = active_blocks * (num_threads/max_threads_per_warp);
       // re-compute with optimal block size
       cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, opt_block_size, dynamic_smem_bytes);
       int max_blocks = std::min(fun_occ.blockLimitRegs, std::min(fun_occ.blockLimitSharedMem, std::min(fun_occ.blockLimitWarps, fun_occ.blockLimitBlocks)));
-      int max_warps = max_blocks * (opt_block_size/max_threads_per_warp);
+      max_warps = max_blocks * (opt_block_size/max_threads_per_warp);
     } else { // TODO, comply result from excel sheet calculation
       cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
       int active_blocks = fun_occ.activeBlocksPerMultiprocessor;
-      int active_warps = active_blocks * (num_threads/max_threads_per_warp);
-      int max_warps = 64;
+      active_warps = active_blocks * (num_threads/max_threads_per_warp);
+      max_warps = 64;
     }
     float occupancy = (float)active_warps/(float)max_warps;
     occVec.emplace_back(num_threads, occupancy);
