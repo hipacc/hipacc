@@ -36,6 +36,7 @@
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDescription.h"
 #include "hipacc/Rewrite/Rewrite.h"
+#include "json/single_include/nlohmann/json.hpp"
 
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
@@ -45,10 +46,11 @@
 #include <llvm/Support/Host.h>
 
 #include <sstream>
+#include <fstream>
 
 using namespace clang;
 using namespace hipacc;
-
+using json = nlohmann::json;
 
 void printCopyright() {
   llvm::errs() << "\n"
@@ -86,6 +88,7 @@ void printUsage() {
     << "                            'KnightsCorner' for Knights Corner Many Integrated Cores architecture.\n"
     << "  -explore-config         Emit code that explores all possible kernel configuration and print its performance\n"
     << "  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1\n"
+    << "  -use-lconfig <o>        Emit code that uses a configuration file\n"
     << "  -reduce-config <nxm>    Emit code that uses a multi-dimensional reduction configuration of\n"
     << "                            n warps per block    (affects block size and shared memory size)\n"
     << "                            m partial histograms (affects number of blocks)\n"
@@ -229,6 +232,35 @@ int main(int argc, char *argv[]) {
       }
       compilerOptions.setKernelConfig(x, y);
       ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-use-lconfig") {
+      assert(i<(argc-1) && "Mandatory local configuration file for -use-lconfig switch missing.");
+      if (StringRef(argv[i+1]) == "on") {
+        std::ifstream jfile(StringRef(argv[i+2]));
+        auto j = json::parse(jfile);
+        for (json::iterator it = j["kernelConfig"].begin(); it != j["kernelConfig"].end(); ++it) {
+          std::string kernelName = (*it)["name"];
+          SKernelLocalConfig *KConfig = new SKernelLocalConfig;
+          KConfig->kernel_fusibility = ((*it)["fusibility"] == "off") ? false : true;
+          int x=0, y=0, ret=0;
+          std::string kernelConfigStr = (*it)["config"];
+          ret = sscanf(kernelConfigStr.c_str(), "%dx%d", &x, &y);
+          if (ret!=2) {
+            llvm::errs() << "ERROR: Expected valid configuration specification for -use-lconfig.\n\n";
+            printUsage();
+            return EXIT_FAILURE;
+          }
+          KConfig->kernel_config_x = x;
+          KConfig->kernel_config_y = y;
+          compilerOptions.setKernelLocalConfig(kernelName, KConfig);
+        }
+      } else if (!(StringRef(argv[i+1]) == "off")) {
+        llvm::errs() << "ERROR: Expected valid configuration specification for -use-lconfig switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      i = i + 2;
       continue;
     }
     if (StringRef(argv[i]) == "-reduce-config") {

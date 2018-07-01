@@ -136,7 +136,7 @@ endif()
 
 
 # set include directory, add src directories
-include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/submodules ${CMAKE_BINARY_DIR}/include)
 add_subdirectory(lib)
 add_subdirectory(compiler)
 add_subdirectory(tools)

@@ -656,6 +656,12 @@ class HipaccKernel : public HipaccKernelFeatures {
               std::bind2nd(std::ptr_fun(&std::tolower<char>), std::locale()));
           break;
       }
+      if (options.useKernelLocalConfig()) {  // local config update
+        default_num_threads_x = options.getKernelLocalConfigX(name);
+        default_num_threads_y = options.getKernelLocalConfigY(name);
+        num_threads_x = default_num_threads_x;
+        num_threads_y = default_num_threads_y;
+      }
       OptmOpt = OptimizationOption::NONE;
     }
 

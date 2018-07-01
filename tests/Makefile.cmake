@@ -29,6 +29,7 @@ CU_LINK         = $(CC_LINK) @NVCC_LINK@
 # pad images to a multiple of n bytes -> set HIPACC_PAD to n
 # map n output pixels to one thread -> set HIPACC_PPT to n
 # use specific configuration for kernels -> set HIPACC_CONFIG to nxm
+# use specific local configuration for kernels -> set HIPACC_LCONFIG to off|on
 # generate code that explores configuration -> set HIPACC_EXPLORE to off|on
 # generate code that times kernel execution -> set HIPACC_TIMING to off|on
 HIPACC_LMEM?=on
@@ -37,6 +38,7 @@ HIPACC_VEC?=off
 HIPACC_FUSE?=off
 HIPACC_PPT?=1
 HIPACC_CONFIG?=128x1
+HIPACC_LCONFIG?=off
 HIPACC_REDUCE?=16x16
 HIPACC_EXPLORE?=off
 HIPACC_TIMING?=off
@@ -64,6 +66,9 @@ ifdef HIPACC_FUSE
 endif
 ifdef HIPACC_CONFIG
     HIPACC_OPTS+= -use-config $(HIPACC_CONFIG)
+endif
+ifdef HIPACC_LCONFIG
+    HIPACC_OPTS+= -use-lconfig $(HIPACC_LCONFIG) $(TEST_CASE)/config.json
 endif
 ifdef HIPACC_REDUCE
     HIPACC_OPTS+= -reduce-config $(HIPACC_REDUCE)

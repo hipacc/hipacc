@@ -40,6 +40,7 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <string>
+#include <map>
 
 #if CLANG_VERSION_MAJOR != 5
 #error "Clang Version 5.x required!"
@@ -68,6 +69,12 @@ enum class Language : uint8_t {
   Filterscript
 };
 
+struct SKernelLocalConfig {
+  int kernel_config_x = 0;
+  int kernel_config_y = 0;
+  bool kernel_fusibility = false;
+};
+
 class CompilerOptions {
   private:
     // target code and device specification
@@ -78,6 +85,7 @@ class CompilerOptions {
     CompilerOption time_kernels;
     // target code features - may be selected by the framework
     CompilerOption kernel_config;
+    CompilerOption kernel_lconfig;
     CompilerOption reduce_config;
     CompilerOption align_memory;
     CompilerOption texture_memory;
@@ -87,6 +95,7 @@ class CompilerOptions {
     CompilerOption fuse_kernels;
     // user defined values for target code features
     int kernel_config_x, kernel_config_y;
+    std::map<std::string, SKernelLocalConfig *> KernelLocalConfigMap;
     int reduce_config_num_warps, reduce_config_num_hists;
     int align_bytes;
     int pixels_per_thread;
@@ -121,6 +130,7 @@ class CompilerOptions {
       explore_config(OFF),
       time_kernels(OFF),
       kernel_config(AUTO),
+      kernel_lconfig(OFF),
       reduce_config(AUTO),
       align_memory(AUTO),
       texture_memory(AUTO),
@@ -167,8 +177,17 @@ class CompilerOptions {
     bool useKernelConfig(CompilerOption option=option_ou) {
       return kernel_config & option;
     }
+    bool useKernelLocalConfig(CompilerOption option=option_ou) {
+      return kernel_lconfig & option;
+    }
     int getKernelConfigX() { return kernel_config_x; }
     int getKernelConfigY() { return kernel_config_y; }
+    int getKernelLocalConfigX(std::string KName) {
+      return KernelLocalConfigMap[KName]->kernel_config_x;
+    }
+    int getKernelLocalConfigY(std::string KName) {
+      return KernelLocalConfigMap[KName]->kernel_config_y;
+    }
 
     bool useReduceConfig(CompilerOption option=option_ou) {
       return reduce_config & option;
@@ -223,6 +242,11 @@ class CompilerOptions {
       kernel_config = USER_ON;
       kernel_config_x = x;
       kernel_config_y = y;
+    }
+
+    void setKernelLocalConfig(std::string kernelName, SKernelLocalConfig *KLConfig) {
+      kernel_lconfig = ON;
+      KernelLocalConfigMap[kernelName] = KLConfig;
     }
 
     void setReduceConfig(int num_warps, int num_hists) {
@@ -286,6 +310,16 @@ class CompilerOptions {
       if (useKernelConfig()) {
         llvm::errs() << ": " << kernel_config_x << "x" << kernel_config_y;
       }
+
+      llvm::errs() << "\n  Kernel execution local configuration: ";
+      getOptionAsString(kernel_lconfig);
+      if (useKernelLocalConfig()) {
+        for (auto KConfig : KernelLocalConfigMap) {
+          llvm::errs() << ": " << (KConfig.second)->kernel_config_x << "x"
+            << (KConfig.second)->kernel_config_y;
+        }
+      }
+
       llvm::errs() << "\n  Multi-dimension reduction configuration: ";
       getOptionAsString(kernel_config);
       if (useReduceConfig()) {
