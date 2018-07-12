@@ -93,6 +93,8 @@ CREATE_SCRIPT_ARG_IMPL(21, double4)
        case 18: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 18) break; \
        case 19: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 19) break; \
        case 20: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 20) break; \
+       case 21: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 21) break; \
+       case 22: SET_SCRIPT_ARG_ID(SCRIPT, ARG, 22) break; \
     }
 
 
@@ -226,9 +228,9 @@ void hipaccLaunchKernel(
 template<typename F>
 void hipaccLaunchKernelBenchmark(
     F* script,
-    std::vector<hipacc_script_arg<F>> args,
     void(F::*kernel)(sp<Allocation>),
     HipaccImage &out, size_t *work_size,
+    std::vector<hipacc_script_arg<F>> args,
     bool print_timing
 ) {
     std::vector<float> times;
@@ -258,8 +260,8 @@ void hipaccLaunchKernelBenchmark(
 template<typename F, typename T>
 void hipaccLaunchKernelExploration(
     F* script,
-    std::vector<hipacc_script_arg<F>> args,
     void(F::*kernel)(sp<Allocation>),
+    std::vector<hipacc_script_arg<F>> args,
     std::vector<hipacc_smem_info>, hipacc_launch_info &info,
     int warp_size, int, int max_threads_for_kernel,
     int, int, int,
@@ -288,7 +290,7 @@ void hipaccLaunchKernelExploration(
             for (auto &arg : args)
                 SET_SCRIPT_ARG(script, arg);
 
-            hipaccLaunchKernel(script, kernel, out , work_size, false);
+            hipaccLaunchKernel(script, kernel, out, work_size, false);
             times.push_back(last_gpu_timing);
         }
         std::sort(times.begin(), times.end());
