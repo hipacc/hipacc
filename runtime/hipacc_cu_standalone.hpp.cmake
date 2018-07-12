@@ -362,39 +362,29 @@ void hipaccGetKernel(CUfunction &function, CUmodule &module, std::string kernel_
 
 
 // Computes occupancy for kernel function
-size_t blockSizeToSmemSize(int blockSize) { return 0; } // TODO: provide proper function to estimate smem usage
 void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y) {
     CUresult err = CUDA_SUCCESS;
     CUdevice dev = 0;
-    int warp_size;
     int block_size = tile_size_x*tile_size_y;
     size_t dynamic_smem_bytes = 0;
-    int block_size_limit = 0;
 
+    int warp_size;
     err = cuDeviceGetAttribute(&warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, dev);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
+    int max_threads_per_multiprocessor;
+    err = cuDeviceGetAttribute(&max_threads_per_multiprocessor, CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR, dev);
     checkErrDrv(err, "cuDeviceGetAttribute()");
 
     int active_blocks;
-    int min_grid_size, opt_block_size;
     err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&active_blocks, fun, block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
-    err = cuOccupancyMaxPotentialBlockSize(&min_grid_size, &opt_block_size, fun, &blockSizeToSmemSize, dynamic_smem_bytes, block_size_limit);
-    checkErrDrv(err, "cuOccupancyMaxPotentialBlockSize()");
+    int active_warps = active_blocks * (block_size / warp_size);
+    int max_warps_per_multiprocessor = max_threads_per_multiprocessor / warp_size;
+    float occupancy = (float)active_warps / (float)max_warps_per_multiprocessor;
 
-    // re-compute with optimal block size
-    int max_blocks;
-    err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&max_blocks, fun, opt_block_size, dynamic_smem_bytes);
-    checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
-
-    block_size = ((block_size + warp_size - 1) / warp_size) * warp_size;
-    int max_warps = max_blocks * (opt_block_size/warp_size);
-    int active_warps = active_blocks * (block_size/warp_size);
-    float occupancy = (float)active_warps/(float)max_warps;
     std::cerr << ";  occupancy: "
               << std::fixed << std::setprecision(2) << occupancy << " ("
-              << active_warps << " out of " << max_warps << " warps"
-              //<< "; optimal block size: " << opt_block_size
-              << ")" << std::endl;
+              << active_warps << " out of " << max_warps_per_multiprocessor << " warps)" << std::endl;
 }
 
 
