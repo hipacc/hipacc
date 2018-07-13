@@ -15,7 +15,11 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_definitions("-Wall -Wunused")
+if (WIN32)
+    add_definitions("/W2")
+else()
+    add_definitions("-Wall -Wunused")
+endif()
 
 # provide only Debug and Release configurations
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "build config types" FORCE)
@@ -32,15 +36,25 @@ include(CMakeDependentOption)
 cmake_dependent_option(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
 
+# set repository and revision commands
+if (WIN32)
+    set(CMD_GET_REPO git remote get-url origin)
+    set(CMD_GET_VERSION git log -1 --pretty=format:%H)
+else()
+    set(CMD_GET_REPO sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_repository_path.sh)
+    set(CMD_GET_VERSION sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_source_version.sh)
+endif()
+
+
 # get repository and revision
-execute_process(COMMAND sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_repository_path.sh
+execute_process(COMMAND ${CMD_GET_REPO}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     TIMEOUT 5
     RESULT_VARIABLE git_result
     OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
 string(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
 
-execute_process(COMMAND sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_source_version.sh
+execute_process(COMMAND ${CMD_GET_VERSION}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     TIMEOUT 5
     RESULT_VARIABLE git_result
@@ -145,12 +159,6 @@ add_subdirectory(tools)
 # configure header files to pass some of the CMake settings to the source code
 configure_file(include/hipacc/Config/config.h.cmake   ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
 configure_file(runtime/hipacc_cu_standalone.hpp.cmake ${CMAKE_BINARY_DIR}/runtime/hipacc_cu_standalone.hpp)
-configure_file(tests/Android.mk.cmake                 ${CMAKE_BINARY_DIR}/tests/Android.mk)
-configure_file(tests/Application.mk.cmake             ${CMAKE_BINARY_DIR}/tests/Application.mk)
-configure_file(tests/Makefile.cmake                   ${CMAKE_BINARY_DIR}/tests/Makefile)
-configure_file(tests/Makefile_test.cmake              ${CMAKE_BINARY_DIR}/tests/Makefile_test)
-configure_file(tests/Makefile_test_opencv.cmake       ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv)
-configure_file(tests/CMakeLists.txt.cmake             ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
 
 
 # install dsl and runtime header files
@@ -161,7 +169,28 @@ file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
 install(FILES ${RUNTIME_HEADERS} DESTINATION include)
 install(FILES ${DSL_HEADERS} DESTINATION include/dsl)
 
-# install tests
+
+# configure and install tests
+if (WIN32)
+
+configure_file(tests/vs2015/example_blur/example_blur/example_blur.vcxproj.cmake
+               ${CMAKE_BINARY_DIR}/tests/vs2015/example_blur/example_blur/example_blur.vcxproj)
+
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/tests/vs2015
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/tests
+    PATTERN "*.cmake" EXCLUDE)
+install(DIRECTORY ${CMAKE_BINARY_DIR}/tests/vs2015
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/tests)
+
+else()
+
+configure_file(tests/Android.mk.cmake                 ${CMAKE_BINARY_DIR}/tests/Android.mk)
+configure_file(tests/Application.mk.cmake             ${CMAKE_BINARY_DIR}/tests/Application.mk)
+configure_file(tests/Makefile.cmake                   ${CMAKE_BINARY_DIR}/tests/Makefile)
+configure_file(tests/Makefile_test.cmake              ${CMAKE_BINARY_DIR}/tests/Makefile_test)
+configure_file(tests/Makefile_test_opencv.cmake       ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv)
+configure_file(tests/CMakeLists.txt.cmake             ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
+
 install(DIRECTORY tests
     DESTINATION ${CMAKE_INSTALL_PREFIX}
     PATTERN "*.cmake" EXCLUDE)
@@ -184,3 +213,5 @@ foreach(DIR IN LISTS TEST_DIRS)
         endif()
     endif()
 endforeach()
+
+endif()

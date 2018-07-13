@@ -24,6 +24,12 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+
+#ifdef WIN32
+# define NOMINMAX
+#endif
+
+
 #include <cassert>
 #include <chrono>
 

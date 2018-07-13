@@ -285,7 +285,7 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
 
     int offset = 2;
     int num_options = build_options.size() + offset;
-    const char *options[num_options];
+    const char **options = new const char*[num_options];
     std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
     options[0] = compute_arch.c_str();
     options[1] = "-std=c++11";
@@ -316,6 +316,8 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
     checkErrNVRTC(err, "nvrtcDestroyProgram()");
 
     hipaccCreateModule(module, ptx.c_str(), cc);
+
+    delete[] options;
 }
 #else
 void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {

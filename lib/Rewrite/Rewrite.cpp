@@ -50,7 +50,14 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
+
+#ifdef WIN32
+# include <io.h>
+# define popen(x,y)    _popen(x,y)
+# define pclose(x)     _pclose(x)
+#else
+# include <unistd.h>
+#endif
 
 using namespace clang;
 using namespace hipacc;
@@ -2657,7 +2664,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   OS << "#endif //" + ifdef + "\n";
   OS << "\n";
   OS.flush();
+#ifndef WIN32
   fsync(fd);
+#endif
   close(fd);
 }
 

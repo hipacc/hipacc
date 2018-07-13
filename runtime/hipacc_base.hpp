@@ -39,6 +39,10 @@
 
 #define HIPACC_NUM_ITERATIONS 10
 
+#ifdef _MSC_VER
+# define setenv(a,b,c) _putenv_s(a,b)
+#endif
+
 extern float last_gpu_timing;
 
 float hipacc_last_kernel_timing();
