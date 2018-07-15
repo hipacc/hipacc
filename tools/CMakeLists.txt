@@ -6,11 +6,11 @@ if(OpenCL_FOUND)
     add_executable(cl_compile ${cl_compile_SOURCES})
     target_link_libraries(cl_compile ${OpenCL_LIBRARIES} ${RT_LIBRARIES})
 
-    install(TARGETS cl_compile RUNTIME DESTINATION bin)
+    install(TARGETS cl_compile RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
     set(cl_bandwidth_test_SOURCES cl_bandwidth_test.cc)
     add_executable(cl_bandwidth_test ${cl_bandwidth_test_SOURCES})
     target_link_libraries(cl_bandwidth_test ${OpenCL_LIBRARIES} ${RT_LIBRARIES})
 
-    install(TARGETS cl_bandwidth_test RUNTIME DESTINATION bin)
+    install(TARGETS cl_bandwidth_test RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 endif()

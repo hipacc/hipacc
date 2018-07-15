@@ -166,8 +166,8 @@ file(GLOB DSL_HEADERS ${CMAKE_SOURCE_DIR}/dsl/*.hpp)
 file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
                           ${CMAKE_SOURCE_DIR}/runtime/*.tpp
                           ${CMAKE_BINARY_DIR}/runtime/*.hpp)
-install(FILES ${RUNTIME_HEADERS} DESTINATION include)
-install(FILES ${DSL_HEADERS} DESTINATION include/dsl)
+install(FILES ${RUNTIME_HEADERS} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+install(FILES ${DSL_HEADERS} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/dsl)
 
 
 # configure and install tests
@@ -204,14 +204,67 @@ foreach(DIR IN LISTS TEST_DIRS)
     if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/${DIR})
         if(${DIR} MATCHES "opencv_*")
             install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv
-                DESTINATION tests/${DIR}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/tests/${DIR}
                 RENAME Makefile)
         else()
             install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test
-                DESTINATION tests/${DIR}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/tests/${DIR}
                 RENAME Makefile)
         endif()
     endif()
 endforeach()
 
 endif()
+
+if(CMAKE_BUILD_TYPE MATCHES Release)
+    # Setup packaging variables
+    set (CPACK_PACKAGE_NAME Hipacc)
+    set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Hipacc Framework")
+    set (CPACK_PACKAGE_VERSION_MAJOR ${HIPACC_MAJOR_VERSION})
+    set (CPACK_PACKAGE_VERSION_MINOR ${HIPACC_MINOR_VERSION})
+    set (CPACK_PACKAGE_VERSION_PATCH ${HIPACC_PATCH_VERSION})
+    set (CPACK_PACKAGE_VERSION ${HIPACC_VERSION})
+
+    # Setup debian packaging options
+    if (UNIX AND NOT APPLE)
+        set(CPACK_GENERATOR DEB)
+
+        #set (CPACK_DEBIAN_PACKAGE_DEPENDS "libopencv (>= 2.4.0)")
+        set (CPACK_DEBIAN_PACKAGE_MAINTAINER "Richard Membarth, Oliver Reiche, M. Akif Özkan, Bo Qiao")
+        set (CPACK_DEBIAN_PACKAGE_SECTION "devel")
+
+        if(DEFINED PLATFORM)
+            if (PLATFORM MATCHES 32)
+                set (CPACK_DEBIAN_PACKAGE_ARCHITECTURE "i386")
+            elseif (PLATFORM MATCHES 64)
+                set (CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+            endif (PLATFORM MATCHES 32)
+        else (DEFINED PLATFORM)
+            find_program(DPKG_PROGRAM dpkg DOC "dpkg program of Debian-based systems")
+            if(DPKG_PROGRAM)
+                execute_process(
+                    COMMAND ${DPKG_PROGRAM} --print-architecture
+                    OUTPUT_VARIABLE CPACK_DEBIAN_PACKAGE_ARCHITECTURE
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+            endif(DPKG_PROGRAM)
+        endif(DEFINED PLATFORM)
+
+        string(TOLOWER "${CPACK_PACKAGE_NAME}" CPACK_PACKAGE_NAME_LOWERCASE)
+
+        set(CPACK_PACKAGE_FILE_NAME
+            "${CPACK_PACKAGE_NAME_LOWERCASE}_${HIPACC_VERSION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
+    endif (UNIX AND NOT APPLE)
+
+    # Copy system's libcxx to current build dir
+    set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++)
+    set(LIBCXX_DST ${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/include/c++)
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
+
+    # Add libcxx to package
+    set(CPACK_INSTALLED_DIRECTORIES ${LIBCXX_DST} ${CMAKE_INSTALL_PREFIX}/include/c++)
+
+    include (CPack)
+endif()
+
