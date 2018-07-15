@@ -166,8 +166,8 @@ file(GLOB DSL_HEADERS ${CMAKE_SOURCE_DIR}/dsl/*.hpp)
 file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
                           ${CMAKE_SOURCE_DIR}/runtime/*.tpp
                           ${CMAKE_BINARY_DIR}/runtime/*.hpp)
-install(FILES ${RUNTIME_HEADERS} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-install(FILES ${DSL_HEADERS} DESTINATION ${CMAKE_INSTALL_PREFIX}/include/dsl)
+install(FILES ${RUNTIME_HEADERS} DESTINATION include)
+install(FILES ${DSL_HEADERS} DESTINATION include/dsl)
 
 
 # configure and install tests
@@ -177,10 +177,10 @@ configure_file(tests/vs2015/example_blur/example_blur/example_blur.vcxproj.cmake
                ${CMAKE_BINARY_DIR}/tests/vs2015/example_blur/example_blur/example_blur.vcxproj)
 
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/tests/vs2015
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/tests
+    DESTINATION tests
     PATTERN "*.cmake" EXCLUDE)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/tests/vs2015
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/tests)
+    DESTINATION tests)
 
 else()
 
@@ -192,10 +192,10 @@ configure_file(tests/Makefile_test_opencv.cmake       ${CMAKE_BINARY_DIR}/tests/
 configure_file(tests/CMakeLists.txt.cmake             ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
 
 install(DIRECTORY tests
-    DESTINATION ${CMAKE_INSTALL_PREFIX}
+    DESTINATION .
     PATTERN "*.cmake" EXCLUDE)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/tests/
-    DESTINATION ${CMAKE_INSTALL_PREFIX}
+    DESTINATION .
     PATTERN "*Makefile_test*" EXCLUDE)
 
 # install Makefiles for test cases
@@ -204,11 +204,11 @@ foreach(DIR IN LISTS TEST_DIRS)
     if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/${DIR})
         if(${DIR} MATCHES "opencv_*")
             install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/tests/${DIR}
+                DESTINATION tests/${DIR}
                 RENAME Makefile)
         else()
             install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/tests/${DIR}
+                DESTINATION tests/${DIR}
                 RENAME Makefile)
         endif()
     endif()
@@ -228,6 +228,9 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     # Setup debian packaging options
     if (UNIX AND NOT APPLE)
         set(CPACK_GENERATOR DEB)
+        if(NOT CPACK_PACKAGING_INSTALL_PREFIX)
+            set(CPACK_PACKAGING_INSTALL_PREFIX "/usr/local/hipacc")
+        endif()
 
         #set (CPACK_DEBIAN_PACKAGE_DEPENDS "libopencv (>= 2.4.0)")
         set (CPACK_DEBIAN_PACKAGE_MAINTAINER "Richard Membarth, Oliver Reiche, M. Akif Özkan, Bo Qiao")
@@ -257,13 +260,14 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
 
     # Copy system's libcxx to current build dir
     set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++)
-    set(LIBCXX_DST ${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/include/c++)
+    set(LIBCXX_DST ${CMAKE_BINARY_DIR}/include/c++)
     execute_process(
         COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST}
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
 
     # Add libcxx to package
-    set(CPACK_INSTALLED_DIRECTORIES ${LIBCXX_DST} ${CMAKE_INSTALL_PREFIX}/include/c++)
+    set(CPACK_INSTALLED_DIRECTORIES ${LIBCXX_DST}
+        ${CPACK_PACKAGING_INSTALL_PREFIX}/include/c++)
 
     include (CPack)
 endif()
