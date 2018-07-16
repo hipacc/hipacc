@@ -166,8 +166,10 @@ file(GLOB DSL_HEADERS ${CMAKE_SOURCE_DIR}/dsl/*.hpp)
 file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
                           ${CMAKE_SOURCE_DIR}/runtime/*.tpp
                           ${CMAKE_BINARY_DIR}/runtime/*.hpp)
-install(FILES ${RUNTIME_HEADERS} DESTINATION include)
-install(FILES ${DSL_HEADERS} DESTINATION include/dsl)
+install(FILES ${RUNTIME_HEADERS} DESTINATION include
+        COMPONENT headers)
+install(FILES ${DSL_HEADERS} DESTINATION include/dsl
+        COMPONENT headers)
 
 
 # configure and install tests
@@ -178,9 +180,11 @@ configure_file(tests/vs2015/example_blur/example_blur/example_blur.vcxproj.cmake
 
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/tests/vs2015
     DESTINATION tests
+    COMPONENT tests
     PATTERN "*.cmake" EXCLUDE)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/tests/vs2015
-    DESTINATION tests)
+    DESTINATION tests
+    COMPONENT tests)
 
 else()
 
@@ -193,9 +197,11 @@ configure_file(tests/CMakeLists.txt.cmake             ${CMAKE_BINARY_DIR}/tests/
 
 install(DIRECTORY tests
     DESTINATION .
+    COMPONENT tests
     PATTERN "*.cmake" EXCLUDE)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/tests/
     DESTINATION .
+    COMPONENT tests
     PATTERN "*Makefile_test*" EXCLUDE)
 
 # install Makefiles for test cases
@@ -205,10 +211,12 @@ foreach(DIR IN LISTS TEST_DIRS)
         if(${DIR} MATCHES "opencv_*")
             install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv
                 DESTINATION tests/${DIR}
+                COMPONENT tests
                 RENAME Makefile)
         else()
             install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test
                 DESTINATION tests/${DIR}
+                COMPONENT tests
                 RENAME Makefile)
         endif()
     endif()
@@ -228,10 +236,6 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     # Setup debian packaging options
     if (UNIX AND NOT APPLE)
         set(CPACK_GENERATOR DEB)
-        if(NOT CPACK_PACKAGING_INSTALL_PREFIX)
-            set(CPACK_PACKAGING_INSTALL_PREFIX "/usr/local/hipacc")
-        endif()
-
         #set (CPACK_DEBIAN_PACKAGE_DEPENDS "libopencv (>= 2.4.0)")
         set (CPACK_DEBIAN_PACKAGE_MAINTAINER "Richard Membarth, Oliver Reiche, M. Akif Özkan, Bo Qiao")
         set (CPACK_DEBIAN_PACKAGE_SECTION "devel")
@@ -256,6 +260,33 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
 
         set(CPACK_PACKAGE_FILE_NAME
             "${CPACK_PACKAGE_NAME_LOWERCASE}_${HIPACC_VERSION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
+
+        if(NOT HIPACC_PACKAGING_PREFIX)
+            set(HIPACC_PACKAGING_PREFIX "/usr/local")
+        endif()
+        set(CPACK_PACKAGING_INSTALL_PREFIX "${HIPACC_PACKAGING_PREFIX}/${CPACK_PACKAGE_NAME_LOWERCASE}-${HIPACC_VERSION}")
+        set(HIPACC_PACKAGE_SYMLINK "${HIPACC_PACKAGING_PREFIX}/${CPACK_PACKAGE_NAME_LOWERCASE}")
+
+        # postinst script for creating symlink and profile file
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/postinst "\
+ln -s ${CPACK_PACKAGING_INSTALL_PREFIX} ${HIPACC_PACKAGE_SYMLINK}
+echo \"export PATH=${HIPACC_PACKAGE_SYMLINK}/bin:\\\$PATH\" > /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh
+echo \"export CPLUS_INCLUDE_PATH=${HIPACC_PACKAGE_SYMLINK}/include:\\\$CPLUS_INCLUDE_PATH\" >> /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh
+echo \"export LIBRARY_PATH=${HIPACC_PACKAGE_SYMLINK}/lib:\\\$LIBRARY_PATH\" >> /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
+
+        # postrm script for cleaning symlink and profile file
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/postrm "\
+rm -f ${HIPACC_PACKAGE_SYMLINK}
+rm -f /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
+
+        # add extra scripts
+        set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
+            ${CMAKE_CURRENT_BINARY_DIR}/postinst;
+            ${CMAKE_CURRENT_BINARY_DIR}/postrm)
+
+        # enable component install for debian
+        set(CPACK_DEB_COMPONENT_INSTALL ON)
+        set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
     endif (UNIX AND NOT APPLE)
 
     # Copy system's libcxx to current build dir
@@ -267,7 +298,11 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
 
     # Add libcxx to package
     set(CPACK_INSTALLED_DIRECTORIES ${LIBCXX_DST}
-        ${CPACK_PACKAGING_INSTALL_PREFIX}/include/c++)
+        ALL_COMPONENTS_IN_ONE/${CPACK_PACKAGING_INSTALL_PREFIX}/include/c++
+        COMPONENT libcxx)
+
+    # Only package compiler and headers, without tools and tests
+    set(CPACK_COMPONENTS_ALL compiler headers libcxx)
 
     include (CPack)
 endif()
