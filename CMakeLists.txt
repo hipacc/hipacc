@@ -301,8 +301,8 @@ rm -f /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
         ALL_COMPONENTS_IN_ONE/${CPACK_PACKAGING_INSTALL_PREFIX}/include/c++
         COMPONENT libcxx)
 
-    # Only package compiler and headers, without tools and tests
-    set(CPACK_COMPONENTS_ALL compiler headers libcxx)
+    # Only package compiler, headers, and runtime, without tools and tests
+    set(CPACK_COMPONENTS_ALL compiler headers runtime libcxx)
 
     include (CPack)
 endif()

@@ -12,4 +12,4 @@ include_directories(${CMAKE_SOURCE_DIR}/runtime
                     ${CMAKE_BINARY_DIR}/runtime)
 
 add_library(hipaccRuntime ${Runtime_SOURCES})
-install(TARGETS hipaccRuntime ARCHIVE DESTINATION lib)
+install(TARGETS hipaccRuntime ARCHIVE DESTINATION lib COMPONENT runtime)
