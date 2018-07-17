@@ -232,10 +232,11 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     set (CPACK_PACKAGE_VERSION_MINOR ${HIPACC_MINOR_VERSION})
     set (CPACK_PACKAGE_VERSION_PATCH ${HIPACC_PATCH_VERSION})
     set (CPACK_PACKAGE_VERSION ${HIPACC_VERSION})
+    set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
-    # Setup debian packaging options
+    # Setup Debian packaging options
     if (UNIX AND NOT APPLE)
-        set(CPACK_GENERATOR DEB)
+        set (CPACK_GENERATOR DEB)
         #set (CPACK_DEBIAN_PACKAGE_DEPENDS "libopencv (>= 2.4.0)")
         set (CPACK_DEBIAN_PACKAGE_MAINTAINER "Richard Membarth, Oliver Reiche, M. Akif Özkan, Bo Qiao")
         set (CPACK_DEBIAN_PACKAGE_SECTION "devel")
@@ -284,10 +285,42 @@ rm -f /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
             ${CMAKE_CURRENT_BINARY_DIR}/postinst;
             ${CMAKE_CURRENT_BINARY_DIR}/postrm)
 
-        # enable component install for debian
+        # enable component install for Debian
         set(CPACK_DEB_COMPONENT_INSTALL ON)
-        set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
     endif (UNIX AND NOT APPLE)
+
+    # Setup Windows Nullsoft Scriptable Install System
+    if (WIN32)
+        set (CPACK_GENERATOR NSIS)
+        set(CPACK_PACKAGE_INSTALL_DIRECTORY
+            ${CPACK_PACKAGE_NAME}-${HIPACC_VERSION})
+        list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/templates)
+
+        # setup icons and banner
+        set(CPACK_NSIS_MUI_ICON ${CMAKE_SOURCE_DIR}/res/hipacc.ico)
+        set(CPACK_NSIS_MUI_UNIICON ${CMAKE_SOURCE_DIR}/res/hipacc.ico)
+        set(CPACK_NSIS_MUI_HEADERIMAGE ${CMAKE_SOURCE_DIR}/res/hipacc_banner.bmp)
+        string(REPLACE "/" "\\\\"
+               CPACK_NSIS_MUI_HEADERIMAGE "${CPACK_NSIS_MUI_HEADERIMAGE}")
+
+        # set HIPACC_PATH and append to PATH environment variables
+        set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "\
+StrCpy \$ADD_TO_PATH_ALL_USERS \\\"1\\\"
+Push \\\"HIPACC_PATH\\\"
+Push \\\"\$INSTDIR\\\"
+Call AddToEnvVar
+Push \\\"\$INSTDIR/bin\\\"
+Call AddToPath")
+
+        # unset HIPACC_PATH and remove from PATH environment variables
+        set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "\
+StrCpy \$ADD_TO_PATH_ALL_USERS \\\"1\\\"
+Push \\\"HIPACC_PATH\\\"
+Push \\\"\$INSTDIR\\\"
+Call un.RemoveFromEnvVar
+Push \\\"\$INSTDIR/bin\\\"
+Call un.RemoveFromPath")
+    endif (WIN32)
 
     # Copy system's libcxx to current build dir
     set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++)
@@ -297,11 +330,12 @@ rm -f /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
 
     # Add libcxx to package
-    set(CPACK_INSTALLED_DIRECTORIES ${LIBCXX_DST}
-        ALL_COMPONENTS_IN_ONE/${CPACK_PACKAGING_INSTALL_PREFIX}/include/c++
-        COMPONENT libcxx)
+    install(DIRECTORY ${LIBCXX_DST}
+            DESTINATION include
+            COMPONENT libcxx)
 
     # Only package compiler, headers, and runtime, without tools and tests
+    set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
     set(CPACK_COMPONENTS_ALL compiler headers runtime libcxx)
 
     include (CPack)
