@@ -221,11 +221,12 @@ endforeach()
 if(CMAKE_BUILD_TYPE MATCHES Release)
     # Setup packaging variables
     set (CPACK_PACKAGE_NAME Hipacc)
-    set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Hipacc Framework")
+    set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "The Hipacc Framework: A Domain-Specific Language and Compiler for Image Processing")
     set (CPACK_PACKAGE_VERSION_MAJOR ${HIPACC_MAJOR_VERSION})
     set (CPACK_PACKAGE_VERSION_MINOR ${HIPACC_MINOR_VERSION})
     set (CPACK_PACKAGE_VERSION_PATCH ${HIPACC_PATCH_VERSION})
     set (CPACK_PACKAGE_VERSION ${HIPACC_VERSION})
+    set (CPACK_PACKAGE_CONTACT "https://hipacc-lang.org/#authors")
     set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
     # Copy system's clang headers to current build dir
@@ -264,8 +265,8 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     if (UNIX AND NOT APPLE)
         set (CPACK_GENERATOR DEB)
         #set (CPACK_DEBIAN_PACKAGE_DEPENDS "libopencv (>= 2.4.0)")
-        set (CPACK_DEBIAN_PACKAGE_MAINTAINER "Richard Membarth, Oliver Reiche, M. Akif Özkan, Bo Qiao")
         set (CPACK_DEBIAN_PACKAGE_SECTION "devel")
+        set (CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://hipacc-lang.org")
 
         if(DEFINED PLATFORM)
             if (PLATFORM MATCHES 32)
