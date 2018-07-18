@@ -108,7 +108,7 @@ endif
 
 clean:
 	rm -rf jni libs obj
-	rm -f *cc *.cu *.cubin *.cl *.rs *.fs
+	rm -f *cc *.cu *.cubin *.rs *.fs
 
 distclean: clean
-	rm -f main_*
+	rm -f main_* *.cl
