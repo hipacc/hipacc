@@ -167,9 +167,9 @@ file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
                           ${CMAKE_SOURCE_DIR}/runtime/*.tpp
                           ${CMAKE_BINARY_DIR}/runtime/*.hpp)
 install(FILES ${RUNTIME_HEADERS} DESTINATION include
-        COMPONENT headers-runtime)
+        COMPONENT headers_runtime)
 install(FILES ${DSL_HEADERS} DESTINATION include/dsl
-        COMPONENT headers-dsl)
+        COMPONENT headers_dsl)
 
 
 # install samples
@@ -179,15 +179,20 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/samples
 
 # deploy build tool for samples
 file(GLOB SAMPLE_DIRS RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/samples/*/*)
-if (UNIX)
-    foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
-        if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${SAMPLE_DIR})
+foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
+    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${SAMPLE_DIR})
+        if (UNIX)
             install(FILES ${CMAKE_SOURCE_DIR}/buildtools/unix/Makefile
                     DESTINATION ${SAMPLE_DIR}
                     COMPONENT samples)
-        endif()
-    endforeach()
-endif(UNIX)
+        elseif (WIN32)
+            file(GLOB VS2015_FILES ${CMAKE_SOURCE_DIR}/buildtools/vs2015/*)
+            install(FILES ${VS2015_FILES}
+                    DESTINATION ${SAMPLE_DIR}
+                    COMPONENT samples)
+        endif ()
+    endif()
+endforeach()
 
 
 # configure and install tests
@@ -266,7 +271,7 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     # Add clang headers to package
     install(DIRECTORY ${CLANG_HEADERS_DST}
             DESTINATION include
-            COMPONENT headers-clang)
+            COMPONENT headers_clang)
 
     # Copy system's libcxx to current build dir
     set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++/v1)
@@ -282,7 +287,7 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
 
     # Do not package tools and tests
     set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
-    set(CPACK_COMPONENTS_ALL compiler runtime headers-runtime headers-dsl headers-clang libcxx samples)
+    set(CPACK_COMPONENTS_ALL compiler runtime headers_runtime headers_dsl headers_clang libcxx samples)
 
     # Setup Debian packaging options
     if (UNIX AND NOT APPLE)
