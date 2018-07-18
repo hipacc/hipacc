@@ -234,6 +234,22 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     set (CPACK_PACKAGE_VERSION ${HIPACC_VERSION})
     set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
+    # Copy system's libcxx to current build dir
+    set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++)
+    set(LIBCXX_DST ${CMAKE_BINARY_DIR}/include/c++)
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
+
+    # Add libcxx to package
+    install(DIRECTORY ${LIBCXX_DST}
+            DESTINATION include
+            COMPONENT libcxx)
+
+    # Only package compiler, headers, and runtime, without tools and tests
+    set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
+    set(CPACK_COMPONENTS_ALL compiler headers runtime libcxx)
+
     # Setup Debian packaging options
     if (UNIX AND NOT APPLE)
         set (CPACK_GENERATOR DEB)
@@ -303,6 +319,20 @@ rm -f /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
         string(REPLACE "/" "\\\\"
                CPACK_NSIS_MUI_HEADERIMAGE "${CPACK_NSIS_MUI_HEADERIMAGE}")
 
+        # find and add Visual Studio redistributables
+        include(InstallRequiredSystemLibraries)
+        set(MSVC_REDIST_NAME "vcredist_${CMAKE_MSVC_ARCH}.exe")
+        find_program(MSVC_REDIST NAMES ${MSVC_REDIST_NAME}
+                     PATHS "${MSVC_REDIST_DIR}" "${MSVC_REDIST_DIR}/*")
+        if (MSVC_REDIST)
+            install(FILES ${MSVC_REDIST} DESTINATION . COMPONENT vcredist)
+            list(APPEND CPACK_COMPONENTS_ALL vcredist)
+            set(CMAKE_NSIS_MSVC_REDIST_INSTALL
+                "ExecWait \\\"\$INSTDIR\\\\${MSVC_REDIST_NAME} /passive\\\"")
+        else (MSVC_REDIST)
+            message(WARNING "Could not find Visual Studio redistributables!")
+        endif (MSVC_REDIST)
+
         # set HIPACC_PATH and append to PATH environment variables
         set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "\
 StrCpy \$ADD_TO_PATH_ALL_USERS \\\"1\\\"
@@ -310,7 +340,8 @@ Push \\\"HIPACC_PATH\\\"
 Push \\\"\$INSTDIR\\\"
 Call AddToEnvVar
 Push \\\"\$INSTDIR/bin\\\"
-Call AddToPath")
+Call AddToPath
+${CMAKE_NSIS_MSVC_REDIST_INSTALL}")
 
         # unset HIPACC_PATH and remove from PATH environment variables
         set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "\
@@ -321,22 +352,6 @@ Call un.RemoveFromEnvVar
 Push \\\"\$INSTDIR/bin\\\"
 Call un.RemoveFromPath")
     endif (WIN32)
-
-    # Copy system's libcxx to current build dir
-    set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++)
-    set(LIBCXX_DST ${CMAKE_BINARY_DIR}/include/c++)
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
-
-    # Add libcxx to package
-    install(DIRECTORY ${LIBCXX_DST}
-            DESTINATION include
-            COMPONENT libcxx)
-
-    # Only package compiler, headers, and runtime, without tools and tests
-    set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
-    set(CPACK_COMPONENTS_ALL compiler headers runtime libcxx)
 
     include (CPack)
 endif()
