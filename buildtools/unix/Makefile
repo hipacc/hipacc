@@ -13,7 +13,7 @@ HIPACC := $(shell if [ -f $(CURDIR)/../../../bin/hipacc ]; then \
                     echo $$(which hipacc); \
                   fi)
 ifndef HIPACC
-	$(error "Could not find 'hipacc' in PATH")
+  $(error "Error: Could not find binary 'hipacc' in PATH")
 endif
 
 ################################################################################
@@ -53,6 +53,7 @@ HIPACC_INCLUDE := -I $(HIPACC_PATH)/include/dsl \
 # Turn on GNU Make feature for using automatic variables in dependencies
 .SECONDEXPANSION:
 .PHONY: cpu cuda opencl-cpu opencl-gpu renderscript filterscript
+.PRECIOUS: main_%.cc
 
 ################################################################################
 
@@ -76,7 +77,7 @@ ifdef NVCC
 	$(NVCC) $(NVCC_FLAGS) $< $(NVCC_INCLUDE) $(NVCC_LIB_DIR) $(NVCC_LINK) -o $@
 	./$@
 else
-	@echo "Could not find 'nvcc' in PATH"
+	@echo "Abort: Could not find binary 'nvcc' in PATH"
 endif
 
 # Build OpenCL-CPU or OpenCL-GPU
@@ -99,10 +100,10 @@ ifdef ADB
 	$(ADB) push $@ /data/local/tmp
 	$(ADB) shell /data/local/tmp/$@
 else
-	@echo "Could not find 'adb' in PATH"
+	@echo "Abort: Could not find binary 'adb' in PATH"
 endif
 else
-	@echo "Could not find 'ndk-build' in PATH"
+	@echo "Abort: Could not find binary 'ndk-build' in PATH"
 endif
 
 clean:
