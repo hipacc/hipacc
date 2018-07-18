@@ -325,7 +325,7 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
 
         # postinst script for creating symlink and profile file
         file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/postinst "\
-ln -s ${CPACK_PACKAGING_INSTALL_PREFIX} ${HIPACC_PACKAGE_SYMLINK}
+ln -s ${CPACK_PACKAGE_NAME_LOWERCASE}-${HIPACC_VERSION} ${HIPACC_PACKAGE_SYMLINK}
 echo \"export PATH=${HIPACC_PACKAGE_SYMLINK}/bin:\\\$PATH\" > /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh
 echo \"export CPLUS_INCLUDE_PATH=${HIPACC_PACKAGE_SYMLINK}/include:\\\$CPLUS_INCLUDE_PATH\" >> /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh
 echo \"export LIBRARY_PATH=${HIPACC_PACKAGE_SYMLINK}/lib:\\\$LIBRARY_PATH\" >> /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
