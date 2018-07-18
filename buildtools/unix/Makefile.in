@@ -6,9 +6,11 @@ NDK_BUILD := $(shell which ndk-build)
 
 ################################################################################
 
-# Search Hipacc (prefer relative position shipped with package over PATH)
+# Search Hipacc (prefer relative path over package path over PATH env var)
 HIPACC := $(shell if [ -f $(CURDIR)/../../../bin/hipacc ]; then \
                     echo $(CURDIR)/../../../bin/hipacc; \
+                  elif [ -f @CPACK_PACKAGING_INSTALL_PREFIX@/bin/hipacc ]; then \
+                    echo @CPACK_PACKAGING_INSTALL_PREFIX@/bin/hipacc; \
                   else \
                     echo $$(which hipacc); \
                   fi)
@@ -43,7 +45,7 @@ OCL_INCLUDE  += -I $(CUDA_PATH)/include
 OCL_LIB_DIR  += -L $(CUDA_PATH)/lib64
 endif
 
-HIPACC_FLAGS   := -std=c++11
+HIPACC_FLAGS   := -std=c++11 -nostdinc++
 HIPACC_INCLUDE := -I $(HIPACC_PATH)/include/dsl \
                   -I $(HIPACC_PATH)/include/c++/v1 \
                   -I $(HIPACC_PATH)/include/clang

@@ -156,11 +156,6 @@ add_subdirectory(compiler)
 add_subdirectory(tools)
 
 
-# configure header files to pass some of the CMake settings to the source code
-configure_file(include/hipacc/Config/config.h.cmake   ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
-configure_file(runtime/hipacc_cu_standalone.hpp.cmake ${CMAKE_BINARY_DIR}/runtime/hipacc_cu_standalone.hpp)
-
-
 # install dsl and runtime header files
 file(GLOB DSL_HEADERS ${CMAKE_SOURCE_DIR}/dsl/*.hpp)
 file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
@@ -182,7 +177,7 @@ file(GLOB SAMPLE_DIRS RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/samples/*
 foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
     if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${SAMPLE_DIR})
         if (UNIX)
-            install(FILES ${CMAKE_SOURCE_DIR}/buildtools/unix/Makefile
+            install(FILES ${CMAKE_BINARY_DIR}/buildtools/unix/Makefile
                     DESTINATION ${SAMPLE_DIR}
                     COMPONENT samples)
         elseif (WIN32)
@@ -194,29 +189,6 @@ foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
     endif()
 endforeach()
 
-
-# configure and install tests
-if (WIN32)
-
-configure_file(tests/vs2015/example_blur/example_blur/example_blur.vcxproj.cmake
-               ${CMAKE_BINARY_DIR}/tests/vs2015/example_blur/example_blur/example_blur.vcxproj)
-
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/tests/vs2015
-    DESTINATION tests
-    COMPONENT tests
-    PATTERN "*.cmake" EXCLUDE)
-install(DIRECTORY ${CMAKE_BINARY_DIR}/tests/vs2015
-    DESTINATION tests
-    COMPONENT tests)
-
-else()
-
-configure_file(tests/Android.mk.cmake                 ${CMAKE_BINARY_DIR}/tests/Android.mk)
-configure_file(tests/Application.mk.cmake             ${CMAKE_BINARY_DIR}/tests/Application.mk)
-configure_file(tests/Makefile.cmake                   ${CMAKE_BINARY_DIR}/tests/Makefile)
-configure_file(tests/Makefile_test.cmake              ${CMAKE_BINARY_DIR}/tests/Makefile_test)
-configure_file(tests/Makefile_test_opencv.cmake       ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv)
-configure_file(tests/CMakeLists.txt.cmake             ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
 
 install(DIRECTORY tests
     DESTINATION .
@@ -245,7 +217,6 @@ foreach(DIR IN LISTS TEST_DIRS)
     endif()
 endforeach()
 
-endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Release)
     # Setup packaging variables
@@ -394,4 +365,19 @@ Call un.RemoveFromPath")
 
     include (CPack)
 endif()
+
+# configure header files to pass some of the CMake settings to the source code
+configure_file(include/hipacc/Config/config.h.cmake   ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
+configure_file(runtime/hipacc_cu_standalone.hpp.cmake ${CMAKE_BINARY_DIR}/runtime/hipacc_cu_standalone.hpp)
+
+# configure build tools
+configure_file(buildtools/unix/Makefile.in ${CMAKE_BINARY_DIR}/buildtools/unix/Makefile)
+
+# configure and install tests
+configure_file(tests/Android.mk.cmake                 ${CMAKE_BINARY_DIR}/tests/Android.mk)
+configure_file(tests/Application.mk.cmake             ${CMAKE_BINARY_DIR}/tests/Application.mk)
+configure_file(tests/Makefile.cmake                   ${CMAKE_BINARY_DIR}/tests/Makefile)
+configure_file(tests/Makefile_test.cmake              ${CMAKE_BINARY_DIR}/tests/Makefile_test)
+configure_file(tests/Makefile_test_opencv.cmake       ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv)
+configure_file(tests/CMakeLists.txt.cmake             ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
 
