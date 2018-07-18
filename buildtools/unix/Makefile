@@ -62,18 +62,16 @@ all: cpu
 cpu cuda opencl-cpu opencl-gpu renderscript filterscript: main_$$@
 
 # Run Hipacc
-hipacc_gen/main_%.cc: hipacc_src/main.cpp
-	mkdir -p hipacc_gen
-	cd hipacc_gen; \
-	  $(HIPACC) -emit-$* $(HIPACC_FLAGS) $(HIPACC_INCLUDE) $(CURDIR)/$< -o $(shell basename $@)
+main_%.cc: src/main.cpp
+	$(HIPACC) -emit-$* $(HIPACC_FLAGS) $(HIPACC_INCLUDE) $(CURDIR)/$< -o $(shell basename $@)
 
 # Build CPU
-main_cpu: hipacc_gen/$$@.cc
+main_cpu: $$@.cc
 	$(CXX) $(CXX_FLAGS) $< $(CXX_INCLUDE) $(CXX_LIB_DIR) $(CXX_LINK) -o $@
 	./$@
 
 # Build CUDA
-main_cuda: hipacc_gen/$$@.cc
+main_cuda: $$@.cc
 ifdef NVCC
 	$(NVCC) $(NVCC_FLAGS) $< $(NVCC_INCLUDE) $(NVCC_LIB_DIR) $(NVCC_LINK) -o $@
 	./$@
@@ -82,22 +80,20 @@ else
 endif
 
 # Build OpenCL-CPU or OpenCL-GPU
-main_opencl-%: hipacc_gen/$$@.cc
+main_opencl-%: $$@.cc
 	$(CXX) $(CXX_FLAGS) $< $(OCL_INCLUDE) $(OCL_LIB_DIR) $(OCL_LINK) -o $@
-	cp hipacc_gen/*.cl .
 	./$@
 
 # Build Renderscript or Filterscript
-main_%: hipacc_gen/$$@.cc
-	mkdir -p hipacc_gen/jni
-	cp ../../common/Android.mk hipacc_gen/jni/Android.mk
-	cp ../../common/Application.mk hipacc_gen/jni/Application.mk
+main_%: $$@.cc
+	mkdir -p jni
+	cp ../../common/Android.mk jni/Android.mk
+	cp ../../common/Application.mk jni/Application.mk
 ifdef NDK_BUILD
-	cd hipacc_gen; \
-	  export HIPACC_MAIN=$@.cc; \
-	  export HIPACC_INCLUDE=$(HIPACC_PATH)/include; \
-	  $(NDK_BUILD) -B
-	cp hipacc_gen/libs/armeabi-v7a/main_renderscript ./$@
+	export HIPACC_MAIN=$@.cc; \
+	export HIPACC_INCLUDE=$(HIPACC_PATH)/include; \
+	$(NDK_BUILD) -B
+	cp libs/armeabi-v7a/main_renderscript ./$@
 ifdef ADB
 	$(ADB) shell mkdir -p /data/local/tmp
 	$(ADB) push $@ /data/local/tmp
@@ -110,8 +106,8 @@ else
 endif
 
 clean:
-	rm -rf hipacc_gen/*
-	rm -f *.cl
+	rm -rf jni libs obj
+	rm -f *cc *.cu *.cubin *.cl *.rs *.fs
 
 distclean: clean
 	rm -f main_*
