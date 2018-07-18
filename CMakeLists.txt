@@ -92,6 +92,7 @@ endif()
 
 if(CUDA_FOUND)
     set(NVCC "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
+    set(CU_COMPILER ${NVCC})
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
     if(APPLE)
         set(NVCC_LINK "-Xlinker -lnvrtc -Xlinker -framework,CUDA")
@@ -112,6 +113,8 @@ endif()
 if(OpenCL_FOUND)
     set(CL_COMPILER "${CMAKE_INSTALL_PREFIX}/bin/cl_compile")
 endif()
+
+set(RUNTIME_INCLUDES "${CMAKE_INSTALL_PREFIX}/include")
 
 message(STATUS "Configuration summary:")
 message(STATUS "===")
@@ -257,9 +260,9 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
             DESTINATION include/c++
             COMPONENT libcxx)
 
-    # Do not package tools and tests
+    # Do not package tests component
     set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
-    set(CPACK_COMPONENTS_ALL compiler runtime headers_runtime headers_dsl headers_clang libcxx samples)
+    set(CPACK_COMPONENTS_ALL compiler runtime headers_runtime headers_dsl headers_clang libcxx tools samples)
 
     # Setup Debian packaging options
     if (UNIX AND NOT APPLE)
@@ -314,6 +317,11 @@ rm -f /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
 
         # enable component install for Debian
         set(CPACK_DEB_COMPONENT_INSTALL ON)
+
+        # Strip development machine's path from compiler and runtime includes
+        set(CU_COMPILER "nvcc")
+        set(CL_COMPILER "${CPACK_PACKAGING_INSTALL_PREFIX}/bin/cl_compile")
+        set(RUNTIME_INCLUDES "${CPACK_PACKAGING_INSTALL_PREFIX}/include")
     endif (UNIX AND NOT APPLE)
 
     # Setup Windows Nullsoft Scriptable Install System
@@ -362,6 +370,11 @@ Push \\\"\$INSTDIR\\\"
 Call un.RemoveFromEnvVar
 Push \\\"\$INSTDIR/bin\\\"
 Call un.RemoveFromPath")
+
+        # Strip development machine's path from compiler and runtime includes
+        set(CU_COMPILER "nvcc.exe")
+        set(CL_COMPILER "%HIPACC_PATH%/bin/cl_compile.exe")
+        set(RUNTIME_INCLUDES "%HIPACC_PATH%/include")
     endif (WIN32)
 
     include (CPack)

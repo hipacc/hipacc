@@ -321,7 +321,7 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
 }
 #else
 void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
-    std::string command = "${NVCC} -O4 -ptx -arch=compute_" + std::to_string(cc) + " ";
+    std::string command = "${CU_COMPILER} -O4 -ptx -arch=compute_" + std::to_string(cc) + " ";
     for (auto option : build_options)
         command += option + " ";
     command += file_name + " -o " + file_name + ".ptx 2>&1";
