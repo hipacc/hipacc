@@ -1,5 +1,5 @@
 @if "%VS140COMNTOOLS%"=="" goto error_vc14
-@call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat"
+@call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" x64
 @if "%HIPACC_PATH%"=="" goto error_hipacc
 
 
