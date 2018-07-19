@@ -26,7 +26,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cc">
+    <ClCompile Include="main_cpu.cc">
       <Filter>Source Files\hipacc_gen</Filter>
     </ClCompile>
   </ItemGroup>

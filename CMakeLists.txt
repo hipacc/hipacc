@@ -184,8 +184,9 @@ foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
                     DESTINATION ${SAMPLE_DIR}
                     COMPONENT samples)
         elseif (WIN32)
+            file(GLOB NMAKE_FILES ${CMAKE_SOURCE_DIR}/buildtools/nmake/*)
             file(GLOB VS2015_FILES ${CMAKE_SOURCE_DIR}/buildtools/vs2015/*)
-            install(FILES ${VS2015_FILES}
+            install(FILES ${NMAKE_FILES} ${VS2015_FILES}
                     DESTINATION ${SAMPLE_DIR}
                     COMPONENT samples)
         endif ()
