@@ -1,8 +1,9 @@
 # Search binaries
-CXX       := $(shell which c++)
-NVCC      := $(shell which nvcc)
-ADB       := $(shell which adb)
-NDK_BUILD := $(shell which ndk-build)
+CXX        := $(shell which c++)
+NVCC       := $(shell which nvcc)
+ADB        := $(shell which adb)
+NDK_BUILD  := $(shell which ndk-build)
+PKG_CONFIG := $(shell which pkg-config)
 
 ################################################################################
 
@@ -29,28 +30,40 @@ endif
 ################################################################################
 
 # Set compiler options
-CXX_FLAGS   := -std=c++11 -O2
-CXX_INCLUDE := -I $(HIPACC_PATH)/include
-CXX_LIB_DIR := -L $(HIPACC_PATH)/lib
-CXX_LINK    := -lhipaccRuntime
+CXX_FLAGS     = -std=c++11 -O2
+CXX_INCLUDE   = -I ../../common \
+                -I $(HIPACC_PATH)/include
+CXX_LIB_DIR   = -L $(HIPACC_PATH)/lib
+CXX_LINK      = -lhipaccRuntime
 
-OCL_INCLUDE := $(CXX_INCLUDE)
-OCL_LIB_DIR := $(CXX_LIB_DIR)
-OCL_LINK    := $(CXX_LINK) -lOpenCL
+OCL_INCLUDE   = $(CXX_INCLUDE)
+OCL_LIB_DIR   = $(CXX_LIB_DIR)
+OCL_LINK      = $(CXX_LINK) -lOpenCL
 
 ifdef NVCC
-NVCC_FLAGS   := -std=c++11 -O2 -x cu
-NVCC_INCLUDE := $(CXX_INCLUDE)
-NVCC_LIB_DIR := $(CXX_LIB_DIR)
-NVCC_LINK    := $(CXX_LINK) -lcuda -lcudart -lnvrtc
+NVCC_FLAGS    = $(CXX_FLAGS) -x cu
+NVCC_INCLUDE  = $(CXX_INCLUDE)
+NVCC_LIB_DIR  = $(CXX_LIB_DIR)
+NVCC_LINK     = $(CXX_LINK) -lcuda -lcudart -lnvrtc
 OCL_INCLUDE  += -I $(CUDA_PATH)/include
 OCL_LIB_DIR  += -L $(CUDA_PATH)/lib64
 endif
 
-HIPACC_FLAGS   := -std=c++11 -nostdinc++
-HIPACC_INCLUDE := -I $(HIPACC_PATH)/include/dsl \
-                  -I $(HIPACC_PATH)/include/c++/v1 \
-                  -I $(HIPACC_PATH)/include/clang
+HIPACC_FLAGS   = -std=c++11 -nostdinc++
+HIPACC_INCLUDE = -I ../../common \
+                 -I $(HIPACC_PATH)/include/dsl \
+                 -I $(HIPACC_PATH)/include/c++/v1 \
+                 -I $(HIPACC_PATH)/include/clang
+
+ifdef PKG_CONFIG
+# Check for OpenCV
+ifeq ($(shell if $(PKG_CONFIG) --exists opencv; then echo true; fi),true)
+CXX_FLAGS   += $(shell $(PKG_CONFIG) --cflags-only-other opencv) -DUSE_OPENCV
+CXX_INCLUDE += $(shell $(PKG_CONFIG) --cflags-only-I opencv)
+CXX_LIB_DIR += $(shell $(PKG_CONFIG) --libs-only-L opencv)
+CXX_LINK    += $(shell $(PKG_CONFIG) --libs-only-l opencv)
+endif
+endif
 
 ################################################################################
 

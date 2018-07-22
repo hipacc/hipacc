@@ -26,10 +26,10 @@
 
 #include "hipacc.hpp"
 
-#include <cstdlib>
 #include <iostream>
-#include <vector>
-#include <chrono>
+
+#include "hipacc_helper.hpp"
+
 
 #define SIZE_X 5
 #define SIZE_Y 5
@@ -39,35 +39,6 @@
 
 using namespace hipacc;
 using namespace hipacc::math;
-
-
-// get time in milliseconds
-double time_ms () {
-    auto duration = std::chrono::system_clock::now().time_since_epoch();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-}
-
-
-// blur filter reference
-void blur_filter(uchar *in, uchar *out, int size_x, int size_y, int width, int height) {
-    int anchor_x = size_x >> 1;
-    int anchor_y = size_y >> 1;
-    int upper_x = width  - anchor_x;
-    int upper_y = height - anchor_y;
-
-    for (int y=anchor_y; y<upper_y; ++y) {
-        for (int x=anchor_x; x<upper_x; ++x) {
-            int sum = 0;
-
-            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
-                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
-                    sum += in[(y + yf)*width + x + xf];
-                }
-            }
-            out[y*width + x] = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
-        }
-    }
-}
 
 
 // Kernel description in Hipacc
@@ -92,6 +63,28 @@ class BlurFilter : public Kernel<uchar> {
 };
 
 
+// blur filter reference
+void blur_filter(uchar *in, uchar *out, int size_x, int size_y, int width, int height) {
+    int anchor_x = size_x >> 1;
+    int anchor_y = size_y >> 1;
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
+
+    for (int y=anchor_y; y<upper_y; ++y) {
+        for (int x=anchor_x; x<upper_x; ++x) {
+            int sum = 0;
+
+            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
+                    sum += in[(y + yf)*width + x + xf];
+                }
+            }
+            out[y*width + x] = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
+        }
+    }
+}
+
+
 /*************************************************************************
  * Main function                                                         *
  *************************************************************************/
@@ -102,27 +95,22 @@ int main(int argc, const char **argv) {
     const int size_y = SIZE_Y;
     const int offset_x = size_x >> 1;
     const int offset_y = size_y >> 1;
+    float timing = 0;
 
     // only filter kernel sizes 3x3 and 5x5 implemented
     if (size_x != size_y && (size_x != 3 || size_x != 5)) {
-        std::cerr << "Wrong filter kernel size. Currently supported values: 3x3 and 5x5!" << std::endl;
+        std::cerr << "Wrong filter kernel size. "
+                  << "Currently supported values: 3x3 and 5x5!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
     // host memory for image of width x height pixels
-    uchar *input = new uchar[width*height];
-    uchar *reference_in = new uchar[width*height];
-    uchar *reference_out = new uchar[width*height];
+    uchar *input = load_data<uchar>(width, height, 1);
+    uchar *reference = new uchar[width*height];
 
-    // initialize data
-    for (int y=0; y<height; ++y) {
-        for (int x=0; x<width; ++x) {
-            input[y*width + x] = (uchar)(y*width + x) % 256;
-            reference_in[y*width + x] = (uchar)(y*width + x) % 256;
-            reference_out[y*width + x] = 0;
-        }
-    }
+    std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
 
+    //************************************************************************//
 
     // input and output image of width x height pixels
     Image<uchar> in(width, height, input);
@@ -130,10 +118,6 @@ int main(int argc, const char **argv) {
 
     // define Domain for blur filter
     Domain dom(size_x, size_y);
-
-    std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
-    std::vector<float> timings_hipacc;
-    float timing = 0;
 
     BoundaryCondition<uchar> bound(in, dom, Boundary::CLAMP);
     Accessor<uchar> acc(bound);
@@ -143,52 +127,27 @@ int main(int argc, const char **argv) {
 
     filter.execute();
     timing = hipacc_last_kernel_timing();
-    timings_hipacc.push_back(timing);
-    std::cerr << "Hipacc (CLAMP): " << timing << " ms, " << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
     // get pointer to result data
     uchar *output = out.data();
 
-    if (timings_hipacc.size()) {
-        std::cerr << "Hipacc:";
-        for (std::vector<float>::const_iterator it = timings_hipacc.begin(); it != timings_hipacc.end(); ++it)
-            std::cerr << "\t" << *it;
-        std::cerr << std::endl;
-    }
+    //************************************************************************//
 
+    std::cerr << "Hipacc (CLAMP): " << timing << " ms, "
+              << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
     std::cerr << "Calculating reference ..." << std::endl;
-    std::vector<float> timings_reference;
-    for (int nt=0; nt<3; ++nt) {
-        double start = time_ms();
+    double start = time_ms();
+    blur_filter(input, reference, size_x, size_y, width, height);
+    double end = time_ms();
+    std::cerr << "Reference: " << end-start << " ms, "
+              << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
-        blur_filter(reference_in, reference_out, size_x, size_y, width, height);
-
-        double end = time_ms();
-        timings_reference.push_back(end - start);
-    }
-    std::sort(timings_reference.begin(), timings_reference.end());
-    float time = timings_reference[timings_reference.size()/2];
-    std::cerr << "Reference: " << time << " ms, " << (width*height/time)/1000 << " Mpixel/s" << std::endl;
-
-
-    std::cerr << "Comparing results ..." << std::endl;
-    for (int y=offset_y; y<height-offset_y; ++y) {
-        for (int x=offset_x; x<width-offset_x; ++x) {
-            if (reference_out[y*width + x] != output[y*width + x]) {
-                std::cerr << "Test FAILED, at (" << x << "," << y << "): "
-                          << (int)reference_out[y*width + x] << " vs. "
-                          << (int)output[y*width + x] << std::endl;
-                exit(EXIT_FAILURE);
-            }
-        }
-    }
-    std::cerr << "Test PASSED" << std::endl;
+    compare_results(output, reference, width, height, offset_x, offset_y);
 
     // free memory
     delete[] input;
-    delete[] reference_in;
-    delete[] reference_out;
+    delete[] reference;
 
     return EXIT_SUCCESS;
 }
