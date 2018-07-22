@@ -18,14 +18,14 @@ make
 make cuda
 ```
 ### On Windows
-###### With Visual Studio 2015
+###### With Visual Studio 2015 and 2017
 Navigate to sample directory `%HIPACC_PATH%\samples\1_Local_Operators\Box_Blur`,
 open the project `sample.vcxproj`, and run build.
 
 ###### With Visual C++ Build Tools 2015
 To run the samples without Visual Studio, install the latest **Windows SDK** and
 **VC++ 2015 toolset** provided by
-[Build Tools für Visual Studio 2017](https://aka.ms/buildtools).  
+[Build Tools for Visual Studio 2017](https://aka.ms/buildtools).
 Open PowerShell and run:
 ```PowerShell
 cp -r "$Env:HIPACC_PATH\samples" .
