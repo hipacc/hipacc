@@ -21,8 +21,10 @@ endif
 ################################################################################
 
 # Set paths for build tools
-CUDA_PATH   := $(shell dirname $(NVCC))/..
 HIPACC_PATH := $(shell dirname $(HIPACC))/..
+ifdef NVCC
+CUDA_PATH   := $(shell dirname $(NVCC))/..
+endif
 
 ################################################################################
 
@@ -66,7 +68,7 @@ cpu cuda opencl-cpu opencl-gpu renderscript filterscript: main_$$@
 
 # Run Hipacc
 main_%.cc: src/main.cpp
-	$(HIPACC) -emit-$* $(HIPACC_FLAGS) $(HIPACC_INCLUDE) $(CURDIR)/$< -o $(shell basename $@)
+	$(HIPACC) -emit-$* $(HIPACC_FLAGS) $(HIPACC_INCLUDE) $(CURDIR)/$< -o $@
 
 # Build CPU
 main_cpu: $$@.cc
