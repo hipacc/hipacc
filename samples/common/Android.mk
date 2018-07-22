@@ -7,6 +7,7 @@ LOCAL_MODULE     := main_renderscript
 LOCAL_C_INCLUDES := $(RENDERSCRIPT_PLATFORM_HEADER)/cpp \
                     $(RENDERSCRIPT_PLATFORM_HEADER) \
                     $(TARGET_OBJS)/$(LOCAL_MODULE) \
+                    ../../common \
                     $(HIPACC_INCLUDE)
 
 LOCAL_SRC_FILES := $(HIPACC_MAIN) \
