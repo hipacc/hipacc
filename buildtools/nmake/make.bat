@@ -3,6 +3,16 @@
 @if "%HIPACC_PATH%"=="" goto error_hipacc
 
 
+@if "%OPENCV_DIR%"=="" goto target_rules
+@where.exe /R %OPENCV_DIR%\lib opencv_world???.lib > libpath.txt
+@set /p OPENCV_LIBARY_PATH=<libpath.txt
+@del libpath.txt
+@if "%OPENCV_LIBARY_PATH%"=="" goto target_rules
+@set CXX_FLAGS_OPENCV=/D USE_OPENCV /I "%OPENCV_DIR%\..\..\include" "%OPENCV_LIBARY_PATH%"
+@set NVCC_FLAGS_OPENCV=-D USE_OPENCV -I "%OPENCV_DIR%/../../include" -l "%OPENCV_LIBARY_PATH:~0,-4%"
+
+
+:target_rules
 @if "%1" == "cpu" goto cpu
 @if "%1" == "cuda" goto cuda
 @if "%1" == "clean" goto clean
