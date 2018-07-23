@@ -30,10 +30,9 @@
 #include <hipacc_helper.hpp>
 
 
-#define SIZE_X 5
-#define SIZE_Y 5
-#define WIDTH  4096
-#define HEIGHT 4096
+#define WIDTH  512
+#define HEIGHT 512
+#define IMAGE  "../../common/img/lenna.png"
 
 
 using namespace hipacc;
@@ -41,45 +40,27 @@ using namespace hipacc::math;
 
 
 // Kernel description in Hipacc
-class BlurFilter : public Kernel<uchar> {
+class ColorConversion : public Kernel<uchar> {
     private:
-        Accessor<uchar> &in;
-        Domain &dom;
-        int size_x, size_y;
+        Accessor<uchar4> &in;
 
     public:
-        BlurFilter(IterationSpace<uchar> &iter, Accessor<uchar> &in, Domain
-                &dom, int size_x, int size_y) :
-            Kernel(iter), in(in), dom(dom),
-            size_x(size_x), size_y(size_y)
+        ColorConversion(IterationSpace<uchar> &iter, Accessor<uchar4> &acc)
+            : Kernel(iter), in(acc)
         { add_accessor(&in); }
 
         void kernel() {
-            output() = reduce(dom, Reduce::SUM, [&] () -> int {
-                           return in(dom);
-                       }) / (float)(size_x*size_y);
+            uchar4 pixel = in();
+            output() = .3f*pixel.x + .59f*pixel.y + .11f*pixel.z + .5f;
         }
 };
 
 
-// blur filter reference
-void blur_filter(uchar *in, uchar *out, int size_x, int size_y, int width, int height) {
-    int anchor_x = size_x >> 1;
-    int anchor_y = size_y >> 1;
-    int upper_x = width  - anchor_x;
-    int upper_y = height - anchor_y;
-
-    for (int y=anchor_y; y<upper_y; ++y) {
-        for (int x=anchor_x; x<upper_x; ++x) {
-            int sum = 0;
-
-            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
-                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
-                    sum += in[(y + yf)*width + x + xf];
-                }
-            }
-            out[y*width + x] = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
-        }
+// color conversion reference
+void color_conversion(uchar4 *in, uchar *out, int width, int height) {
+    for (int p = 0; p < width*height; ++p) {
+        uchar4 pixel = in[p];
+        out[p] = .3f*pixel.x + .59f*pixel.y + .11f*pixel.z + .5f;
     }
 }
 
@@ -90,39 +71,24 @@ void blur_filter(uchar *in, uchar *out, int size_x, int size_y, int width, int h
 int main(int argc, const char **argv) {
     const int width = WIDTH;
     const int height = HEIGHT;
-    const int size_x = SIZE_X;
-    const int size_y = SIZE_Y;
-    const int offset_x = size_x >> 1;
-    const int offset_y = size_y >> 1;
     float timing = 0;
 
-    // only filter kernel sizes 3x3 and 5x5 implemented
-    if (size_x != size_y && (size_x != 3 || size_x != 5)) {
-        std::cerr << "Wrong filter kernel size. "
-                  << "Currently supported values: 3x3 and 5x5!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
     // host memory for image of width x height pixels
-    uchar *input = load_data<uchar>(width, height);
+    uchar4 *input = (uchar4*)load_data<uchar>(width, height, 4, IMAGE);
     uchar *reference = new uchar[width*height];
 
-    std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
+    std::cerr << "Calculating Hipacc color conversion ..." << std::endl;
 
     //************************************************************************//
 
     // input and output image of width x height pixels
-    Image<uchar> in(width, height, input);
+    Image<uchar4> in(width, height, input);
     Image<uchar> out(width, height);
 
-    // define Domain for blur filter
-    Domain dom(size_x, size_y);
-
-    BoundaryCondition<uchar> bound(in, dom, Boundary::CLAMP);
-    Accessor<uchar> acc(bound);
+    Accessor<uchar4> acc(in);
 
     IterationSpace<uchar> iter(out);
-    BlurFilter filter(iter, acc, dom, size_x, size_y);
+    ColorConversion filter(iter, acc);
 
     filter.execute();
     timing = hipacc_last_kernel_timing();
@@ -132,17 +98,19 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
-    std::cerr << "Hipacc (CLAMP): " << timing << " ms, "
+    store_data(width, height, 1, output, "output.jpg");
+
+    std::cerr << "Hipacc: " << timing << " ms, "
               << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
     std::cerr << "Calculating reference ..." << std::endl;
     double start = time_ms();
-    blur_filter(input, reference, size_x, size_y, width, height);
+    color_conversion(input, reference, width, height);
     double end = time_ms();
     std::cerr << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
-    compare_results(output, reference, width, height, offset_x, offset_y);
+    compare_results(output, reference, width, height);
 
     // free memory
     delete[] input;

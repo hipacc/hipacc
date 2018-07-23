@@ -3,8 +3,10 @@
 
 #include <iostream>
 #include <vector>
-#include <cstring>
 #include <chrono>
+#include <cstring>
+#include <cstdlib>
+#include <ctime>
 
 #ifdef USE_OPENCV
 # include <opencv2/opencv.hpp>
@@ -133,14 +135,24 @@ void store_data(const unsigned int width, const unsigned int height,
 template<typename T>
 void compare_results(const T* output, const T* reference,
                      const unsigned int width, const unsigned int height,
-                     const unsigned int border_x, const unsigned int border_y) {
+                     const unsigned int border_x=0,
+                     const unsigned int border_y=0) {
     std::cout << "Comparing results ..." << std::endl;
     for (unsigned int y = border_y; y < height-border_y; ++y) {
         for (unsigned int x = border_x; x < width-border_x; ++x) {
-            if (reference[y*width + x] != output[y*width + x]) {
+            bool failed = true;
+
+            if (std::is_same<T,float>::value) {
+                float ref = reference[y*width + x];
+                failed = abs(ref-output[y*width + x]) > (0.001f*ref);
+            } else {
+                failed = abs(reference[y*width + x]-output[y*width + x]) > 1;
+            }
+
+            if (failed) {
                 std::cerr << "Test FAILED, at (" << x << "," << y << "): "
-                          << (int)reference[y*width + x] << " vs. "
-                          << (int)output[y*width + x] << std::endl;
+                          << (float)reference[y*width + x] << " vs. "
+                          << (float)output[y*width + x] << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
