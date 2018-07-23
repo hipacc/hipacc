@@ -30,9 +30,9 @@
 #include <hipacc_helper.hpp>
 
 
-#define WIDTH  512
-#define HEIGHT 512
-#define IMAGE  "../../common/img/lenna.png"
+#define WIDTH  4032
+#define HEIGHT 3024
+#define IMAGE  "../../common/img/fuerte.jpg"
 
 
 using namespace hipacc;
@@ -46,8 +46,9 @@ class ColorConversion : public Kernel<uchar> {
 
     public:
         ColorConversion(IterationSpace<uchar> &iter, Accessor<uchar4> &acc)
-            : Kernel(iter), in(acc)
-        { add_accessor(&in); }
+              : Kernel(iter), in(acc) {
+            add_accessor(&in);
+        }
 
         void kernel() {
             uchar4 pixel = in();

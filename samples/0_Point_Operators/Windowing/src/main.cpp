@@ -30,9 +30,9 @@
 #include <hipacc_helper.hpp>
 
 
-#define WIDTH  512
-#define HEIGHT 512
-#define IMAGE  "../../common/img/lenna.png"
+#define WIDTH  4032
+#define HEIGHT 3024
+#define IMAGE  "../../common/img/fuerte.jpg"
 
 
 using namespace hipacc;
@@ -50,8 +50,10 @@ class WindowingFilter : public Kernel<float> {
     public:
         WindowingFilter(IterationSpace<float> &iter, Accessor<float> &acc,
                         float center, float wwidth, float scale)
-            : Kernel(iter), in(acc), center(center), wwidth(wwidth), scale(scale)
-        { add_accessor(&in); }
+              : Kernel(iter), in(acc), center(center), wwidth(wwidth),
+                scale(scale) {
+            add_accessor(&in);
+        }
 
         void kernel() {
             float pixel = in();

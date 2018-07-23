@@ -45,8 +45,9 @@ class Histogram : public Kernel<float,uint> {
 
     public:
         Histogram(IterationSpace<float> &iter, Accessor<float> &in)
-            : Kernel(iter), in(in)
-        { add_accessor(&in); }
+              : Kernel(iter), in(in) }
+            add_accessor(&in);
+        }
 
         void kernel() {
             output() = in();

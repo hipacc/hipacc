@@ -32,8 +32,9 @@
 
 #define SIZE_X 5
 #define SIZE_Y 5
-#define WIDTH  4096
-#define HEIGHT 4096
+#define WIDTH  4032
+#define HEIGHT 3024
+#define IMAGE  "../../common/img/fuerte.jpg"
 
 
 using namespace hipacc;
@@ -48,11 +49,11 @@ class BlurFilter : public Kernel<uchar> {
         int size_x, size_y;
 
     public:
-        BlurFilter(IterationSpace<uchar> &iter, Accessor<uchar> &in, Domain
-                &dom, int size_x, int size_y) :
-            Kernel(iter), in(in), dom(dom),
-            size_x(size_x), size_y(size_y)
-        { add_accessor(&in); }
+        BlurFilter(IterationSpace<uchar> &iter, Accessor<uchar> &in,
+                   Domain &dom, int size_x, int size_y)
+              : Kernel(iter), in(in), dom(dom), size_x(size_x), size_y(size_y) {
+            add_accessor(&in);
+        }
 
         void kernel() {
             output() = reduce(dom, Reduce::SUM, [&] () -> int {
@@ -78,7 +79,7 @@ void blur_filter(uchar *in, uchar *out, int size_x, int size_y, int width, int h
                     sum += in[(y + yf)*width + x + xf];
                 }
             }
-            out[y*width + x] = (uchar) ((1.0f/(float)(size_x*size_y))*sum);
+            out[y*width + x] = (uchar)(sum/(float)(size_x*size_y));
         }
     }
 }
@@ -104,7 +105,7 @@ int main(int argc, const char **argv) {
     }
 
     // host memory for image of width x height pixels
-    uchar *input = load_data<uchar>(width, height);
+    uchar *input = load_data<uchar>(width, height, 1, IMAGE);
     uchar *reference = new uchar[width*height];
 
     std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
@@ -131,6 +132,8 @@ int main(int argc, const char **argv) {
     uchar *output = out.data();
 
     //************************************************************************//
+
+    store_data(width, height, 1, output, "output.jpg");
 
     std::cerr << "Hipacc (CLAMP): " << timing << " ms, "
               << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
