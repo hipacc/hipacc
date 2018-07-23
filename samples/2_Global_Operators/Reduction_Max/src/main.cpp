@@ -45,7 +45,7 @@ class Reduction : public Kernel<float> {
 
     public:
         Reduction(IterationSpace<float> &iter, Accessor<float> &in)
-              : Kernel(iter), in(in)
+              : Kernel(iter), in(in) {
             add_accessor(&in);
         }
 
