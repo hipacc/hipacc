@@ -134,7 +134,7 @@ void store_data(const unsigned int width, const unsigned int height,
 
 template<typename T>
 void compare_results(const T* output, const T* reference,
-                     const unsigned int width, const unsigned int height,
+                     const unsigned int width=1, const unsigned int height=1,
                      const unsigned int border_x=0,
                      const unsigned int border_y=0) {
     std::cout << "Comparing results ..." << std::endl;
