@@ -146,7 +146,8 @@ void compare_results(const T* output, const T* reference,
                 float ref = reference[y*width + x];
                 failed = abs(ref-output[y*width + x]) > (0.001f*ref);
             } else {
-                failed = abs(reference[y*width + x]-output[y*width + x]) > 1;
+                int diff = (int)reference[y*width + x]-(int)output[y*width + x];
+                failed = abs((float)diff) > 1.0f;
             }
 
             if (failed) {
