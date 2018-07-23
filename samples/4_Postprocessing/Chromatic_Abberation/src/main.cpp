@@ -33,10 +33,12 @@
 #include <hipacc_helper.hpp>
 
 
-#define WIDTH  1920
-#define HEIGHT 1200
-#define PACK_INT
+#define WIDTH  4032
+#define HEIGHT 3024
+#define IMAGE  "../../common/img/fuerte_ship.jpg"
+
 #define BILIN
+#define PACK_INT
 
 #ifdef PACK_INT
 # define data_t uint
@@ -155,7 +157,7 @@ int main(int argc, const char **argv) {
 
     const int width = WIDTH;
     const int height = HEIGHT;
-    data_t *input = (data_t*)load_data<uchar>(width, height, 4, "house.jpg");
+    data_t *input = (data_t*)load_data<uchar>(width, height, 4, IMAGE);
 
     //************************************************************************//
 
@@ -174,9 +176,10 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
-    std::cout << "<HIPACC:> Overall time: " << timing << "(ms)" << std::endl;
-
+    store_data(width, height, 4, (uchar*)input, "input.jpg");
     store_data(width, height, 4, (uchar*)output, "output.jpg");
+
+    std::cout << "<HIPACC:> Overall time: " << timing << "(ms)" << std::endl;
 
     delete[] input;
 

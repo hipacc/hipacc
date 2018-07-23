@@ -19,7 +19,7 @@ main_cuda.exe: main_cuda.cc
   "%CUDA_PATH%\bin\nvcc.exe" -O2 -x cu "$**" -o "$@" -I"%HIPACC_PATH%\include" -I ..\..\common -lcuda -lcudart -lnvrtc $(NVCC_FLAGS_OPENCV)
 
 clean:
-  del *.cc *.cu *.cubin *.obj output.jpg >nul 2>&1
+  del *.cc *.cu *.cubin *.obj *.jpg >nul 2>&1
 
 distclean: clean
   del main_*.exe >nul 2>&1

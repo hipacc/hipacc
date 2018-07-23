@@ -125,7 +125,7 @@ endif
 
 clean:
 	rm -rf jni libs obj
-	rm -f *cc *.cu *.cubin *.rs *.fs output.jpg
+	rm -f *cc *.cu *.cubin *.rs *.fs *.jpg
 
 distclean: clean
 	rm -f main_* *.cl

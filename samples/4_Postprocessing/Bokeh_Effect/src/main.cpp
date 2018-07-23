@@ -33,8 +33,10 @@
 #include <hipacc_helper.hpp>
 
 
-#define WIDTH  1920
-#define HEIGHT 1200
+#define WIDTH  4032
+#define HEIGHT 3024
+#define IMAGE  "../../common/img/fuerte_night.jpg"
+
 #define PACK_INT
 
 #ifdef PACK_INT
@@ -159,7 +161,7 @@ int main(int argc, const char **argv) {
     // load input
     const int width = WIDTH;
     const int height = HEIGHT;
-    data_t *input = (data_t*)load_data<uchar>(width, height, 4, "ny.jpg");
+    data_t *input = (data_t*)load_data<uchar>(width, height, 4, IMAGE);
 
     //************************************************************************//
 
@@ -184,6 +186,7 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
+    store_data(width, height, 4, (uchar*)input, "input.jpg");
     store_data(width, height, 4, (uchar*)output, "output.jpg");
 
     delete [] input;

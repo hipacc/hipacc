@@ -34,7 +34,7 @@
 #define SIZE_Y 5
 #define WIDTH  4032
 #define HEIGHT 3024
-#define IMAGE  "../../common/img/fuerte.jpg"
+#define IMAGE  "../../common/img/fuerte_ship.jpg"
 
 
 using namespace hipacc;
@@ -136,6 +136,7 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
+    store_data(width, height, 4, (uchar*)input, "input.jpg");
     store_data(width, height, 4, (uchar*)output, "output.jpg");
 
     std::cerr << "Hipacc (CLAMP): " << timing << " ms, "
