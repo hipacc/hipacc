@@ -35,10 +35,10 @@
 #define IMAGE1 "../../common/img/q5_00164.jpg"
 #define IMAGE2 "../../common/img/q5_00165.jpg"
 
-#define WINDOW_SIZE_X 30
-#define WINDOW_SIZE_Y 30
-#define EPSILON       30
-#define TILE_SIZE     32
+#define WINDOW_SIZE_X 32
+#define WINDOW_SIZE_Y 32
+#define EPSILON       16
+#define TILE_SIZE     8
 #define STRIDE_X      ((WIDTH+TILE_SIZE-1)/TILE_SIZE)
 #define STRIDE_Y      ((HEIGHT+TILE_SIZE-1)/TILE_SIZE)
 
@@ -80,10 +80,10 @@ class SignatureKernel : public Kernel<uint> {
 
         void kernel() {
             // Census Transformation
-            short z = input();
+            uchar z = input();
             uint c = 0u;
             iterate(dom, [&] () {
-                    short data = input(dom);
+                    uchar data = input(dom);
                     if (data > z + EPSILON) {
                         c = (c << 2) | 0x01;
                     } else if (data < z - EPSILON) {
@@ -118,10 +118,9 @@ class VectorKernel : public Kernel<int, float4> {
 
             iterate(dom, [&] () -> void {
                     if (sig2(dom) == reference) {
-                        //vec_found++; // BUG: Hipacc doesn't recognize ++-operator as assignment
+                        // BUG: ++operator is not recognized as assignment
                         vec_found = vec_found + 1;
-                        // encode ix and iy as upper and lower half-word of
-                        // mem_loc
+                        // encode x and y as upper and lower half-word
                         mem_loc = (dom.x() << 16) | (dom.y() & 0xffff);
                     }
                 });
@@ -135,25 +134,27 @@ class VectorKernel : public Kernel<int, float4> {
         }
 
         void binning(uint x, uint y, int vector) {
-            float4 result = { 0.0f, 0.0f, 0.0f, 0.0f };
-            uint ix = x / TILE_SIZE;
-            uint iy = y / TILE_SIZE;
-
             if (vector != 0) {
+                float4 result = { 0.0f, 0.0f, 0.0f, 0.0f };
+
                 // Cartesian to polar
-                float x = vector >> 16;
-                int iy = (vector & 0xffff);
-                if (iy >> 15) iy |= 0xffff0000;
-                float y = (float)iy;
-                float dist = sqrt(x*x+y*y)/2.0f;
-                float angle = atan((float)y/x);
+                int xi = vector >> 16;
+                int yi = (vector & 0xffff);
+                if (yi >> 15) yi |= 0xffff0000;
+                float xf = (float)xi;
+                float yf = (float)yi;
+                float dist = sqrt(xf*xf+yf*yf);
+                float angle = atan2(yf,xf);
 
                 result.x = dist;
                 result.y = angle;
                 result.w = 1.0f;
-            }
 
-            bin((uint)(iy * STRIDE_X + ix)) = result;
+                // target tile is at midway (xi/2 & yi/2) of vector
+                uint xt = (x+xi/2) / TILE_SIZE;
+                uint yt = (y+yi/2) / TILE_SIZE;
+                bin((uint)(yt * STRIDE_X + xt)) = result;
+            }
         }
 
         float4 reduce(float4 left, float4 right) const {
@@ -162,6 +163,7 @@ class VectorKernel : public Kernel<int, float4> {
             } else if (right.w == 0.0f) {
                 return left;
             } else {
+                // average vectors
                 float ws = left.w + right.w;
                 float wl = left.w/ws;
                 float wr = 1.0f-wl;
@@ -195,6 +197,10 @@ class Assemble : public Kernel<uchar> {
                 // polar to Cartesian
                 float xf = vector.x * cosf(vector.y);
                 float yf = vector.x * sinf(vector.y);
+
+                // half distance and opposite direction
+                xf *= -.5f;
+                yf *= -.5f;
 
                 // correct rounding
                 x = (int)(xf + 0.5f - (xf < 0 ? 1.0f : 0.0f));
@@ -312,9 +318,9 @@ int main(int argc, const char **argv) {
     // assemble final image
     IterationSpace<uchar> iter_out(out);
     Accessor<float4> acc_merged_vec(merged_vec, Interpolate::NN);
-    BoundaryCondition<uchar> bound_asm_in2(in2, dom, Boundary::CLAMP);
-    Accessor<uchar> acc_asm_in2(bound_asm_in2);
-    Assemble assemble(iter_out, acc_in2, acc_merged_vec);
+    BoundaryCondition<uchar> bound_asm_in1(in1, dom, Boundary::CLAMP);
+    Accessor<uchar> acc_asm_in1(bound_asm_in1);
+    Assemble assemble(iter_out, acc_in1, acc_merged_vec);
     assemble.execute();
     timing += hipacc_last_kernel_timing();
 

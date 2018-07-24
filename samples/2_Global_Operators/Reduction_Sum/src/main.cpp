@@ -53,7 +53,7 @@ class Reduction : public Kernel<float> {
             output() = in();
         }
 
-        float reduce(float left, float right) {
+        float reduce(float left, float right) const {
             return left + right;
         }
 };

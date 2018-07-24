@@ -57,7 +57,7 @@ class Histogram : public Kernel<float,uint> {
             bin(pixel/255.0f*num_bins()) = 1;
         }
 
-        uint reduce(uint left, uint right) {
+        uint reduce(uint left, uint right) const {
             return left + right;
         }
 };
