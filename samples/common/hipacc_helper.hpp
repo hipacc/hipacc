@@ -100,7 +100,7 @@ void store_data(const unsigned int width, const unsigned int height,
                 const unsigned int chan, T* data, const std::string filename) {
 #ifdef USE_OPENCV
   cv::Mat image;
-  
+
   if (std::is_same<T,unsigned char>::value) {
     switch (chan) {
       case 1:
@@ -128,6 +128,47 @@ void store_data(const unsigned int width, const unsigned int height,
   std::memcpy((T*)image.data, data, width*height*chan*sizeof(T));
 
   cv::imwrite(filename.c_str(), image);
+#endif
+}
+
+
+template<typename T>
+bool show_data(const unsigned int width, const unsigned int height,
+               const unsigned int chan, T* data, const std::string title) {
+#ifdef USE_OPENCV
+  cv::Mat image;
+
+  if (std::is_same<T,unsigned char>::value) {
+    switch (chan) {
+      case 1:
+        image.create(height, width, CV_8UC1);
+        break;
+      case 4:
+        image.create(height, width, CV_8UC4);
+        break;
+      default:
+        std::cerr << "Only grayscale or RGBA supported for uchar" << std::endl;
+        exit(-1);
+        break;
+    }
+  } else if (std::is_same<T,float>::value) {
+    if (chan != 1) {
+      std::cerr << "Only grayscale supported for float" << std::endl;
+      exit(-1);
+    }
+    image.create(height, width, CV_32FC1);
+  } else {
+    std::cerr << "Type not supported" << std::endl;
+    exit(-1);
+  }
+
+  std::memcpy((T*)image.data, data, width*height*chan*sizeof(T));
+
+  cv::imshow(title.c_str(), image);
+
+  return cv::waitKey(1) >= 0;
+#else
+  return true;
 #endif
 }
 
