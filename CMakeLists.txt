@@ -176,7 +176,7 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/samples
     COMPONENT samples)
 
 # deploy build tool for samples
-file(GLOB SAMPLE_DIRS RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/samples/*/*)
+file(GLOB SAMPLE_DIRS RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/samples/[0-9]*/*)
 foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
     if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${SAMPLE_DIR})
         if (UNIX)
