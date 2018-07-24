@@ -57,8 +57,8 @@ class BlurFilter : public Kernel<uchar4> {
 
         void kernel() {
             int4 sum = reduce(dom, Reduce::SUM, [&] () -> int4 {
-                           return convert_int4(in(dom));
-                       });
+                    return convert_int4(in(dom));
+                });
             output() = convert_uchar4(convert_float4(sum)
                     / (float)(size_x*size_y));
         }

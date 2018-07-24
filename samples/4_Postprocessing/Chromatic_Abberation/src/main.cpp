@@ -42,16 +42,19 @@
 
 #ifdef PACK_INT
 # define data_t uint
-# define pack(x, y, z, w) \
-    (uint)((uint)(x) | (uint)(y) << 8 | (uint)(z) << 16 | (uint)(w) << 24)
-# define unpack(val, byte) \
-    (((val) >> (byte*8)) & 0xff)
+# define pack(a, b, c, d) \
+    (uint)((uint)(a) | (uint)(b) << 8 | (uint)(c) << 16 | (uint)(d) << 24)
+# define unpack(dst, val, byte) \
+    dst = (((val) >> (byte*8)) & 0xff)
 #else
 # define data_t uchar4
-# define pack(x, y, z, w) \
-    ((uchar4){x, y, z, w})
-# define unpack(val, byte) \
-    (val.s ## byte)
+# define pack(a, b, c, d) \
+    ((uchar4){(uchar)a, (uchar)b, (uchar)c, (uchar)d})
+# define unpack(dst, src, byte) \
+    uchar4 _##dst = src; \
+    dst = byte == 0 ? _##dst.x : \
+          byte == 1 ? _##dst.y : \
+          byte == 2 ? _##dst.z : _##dst.w
 #endif
 
 
@@ -95,10 +98,11 @@ class Chrome : public Kernel<data_t> {
               float xp = xshift-(uint)xshift;
               float yp = yshift-(uint)yshift;
 
-              float val1 = unpack(input(bx  , by  ), 2);
-              float val2 = unpack(input(bx+1, by  ), 2);
-              float val3 = unpack(input(bx  , by+1), 2);
-              float val4 = unpack(input(bx+1, by+1), 2);
+              float val1, val2, val3, val4;
+              unpack(val1, input(bx  , by  ), 2);
+              unpack(val2, input(bx+1, by  ), 2);
+              unpack(val3, input(bx  , by+1), 2);
+              unpack(val4, input(bx+1, by+1), 2);
 
               rout = ((1.0f-yp) * (((1.0f-xp) * val1) + (xp * val2)))
                      +      (yp * (((1.0f-xp) * val3) + (xp * val4)));
@@ -120,10 +124,11 @@ class Chrome : public Kernel<data_t> {
               float xp = xshift-(uint)xshift;
               float yp = yshift-(uint)yshift;
 
-              float val1 = unpack(input(bx  , by  ), 1);
-              float val2 = unpack(input(bx+1, by  ), 1);
-              float val3 = unpack(input(bx  , by+1), 1);
-              float val4 = unpack(input(bx+1, by+1), 1);
+              float val1, val2, val3, val4;
+              unpack(val1, input(bx  , by  ), 1);
+              unpack(val2, input(bx+1, by  ), 1);
+              unpack(val3, input(bx  , by+1), 1);
+              unpack(val4, input(bx+1, by+1), 1);
 
               gout = ((1.0f-yp) * (((1.0f-xp) * val1) + (xp * val2)))
                      +      (yp * (((1.0f-xp) * val3) + (xp * val4)));
@@ -133,7 +138,7 @@ class Chrome : public Kernel<data_t> {
             }
 
             { /* blue */
-              bout = unpack(input(), 0);
+              unpack(bout, input(), 0);
             }
 
             output() = pack(bout, gout, rout, 255);

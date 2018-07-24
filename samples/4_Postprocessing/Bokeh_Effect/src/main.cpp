@@ -41,22 +41,22 @@
 
 #ifdef PACK_INT
 # define data_t uint
-# define pack(x, y, z, w) \
-    (uint)((uint)(x)| (uint)(y) << 8 | (uint)(z) << 16 | (uint)(w) << 24 )
-# define unpack(x, y, z, val) \
-    x = val & 0xff; \
+# define pack(a, b, c, d) \
+    (uint)((uint)(a) | (uint)(b) << 8 | (uint)(c) << 16 | (uint)(d) << 24)
+# define unpack(a, b, c, val) \
+    a = val & 0xff; \
     val >>= 8; \
-    y = val & 0xff; \
+    b = val & 0xff; \
     val >>= 8; \
-    z = val & 0xff;
+    c = val & 0xff;
 #else
 # define data_t uchar4
-# define pack(x, y, z, w) \
-    ((uchar4){x, y, z, w})
-# define unpack(x, y, z, val) \
-    x = val.s0; \
-    y = val.s1; \
-    z = val.s2
+# define pack(a, b, c, d) \
+    ((uchar4){(uchar)a, (uchar)b, (uchar)c, (uchar)d})
+# define unpack(a, b, c, val) \
+    a = val.x; \
+    b = val.y; \
+    c = val.z;
 #endif
 
 
@@ -86,20 +86,20 @@ class Bokeh : public Kernel<data_t> {
             float sum_b = 0.0f;
             
             iterate(dom, [&] () {
-                data_t pixel = input(dom);
-                float rpixel, gpixel, bpixel;
-                unpack(bpixel, gpixel, rpixel, pixel);
-                rpixel /= 255.0f;
-                gpixel /= 255.0f;
-                bpixel /= 255.0f;
-                float luma = 0.2126f * rpixel +  0.7152f * gpixel + 0.0722f * bpixel;
-                float weight = mask(dom);
-                if (luma > threshold) weight *= amp; // amplify light pixels
-                sum_r += rpixel * weight;
-                sum_g += gpixel * weight;
-                sum_b += bpixel * weight;
-                sum_weight += weight;
-            });
+                    data_t pixel = input(dom);
+                    float rpixel, gpixel, bpixel;
+                    unpack(bpixel, gpixel, rpixel, pixel);
+                    rpixel /= 255.0f;
+                    gpixel /= 255.0f;
+                    bpixel /= 255.0f;
+                    float luma = 0.2126f * rpixel +  0.7152f * gpixel + 0.0722f * bpixel;
+                    float weight = mask(dom);
+                    if (luma > threshold) weight *= amp; // amplify light pixels
+                    sum_r += rpixel * weight;
+                    sum_g += gpixel * weight;
+                    sum_b += bpixel * weight;
+                    sum_weight += weight;
+                });
 
             float rout = sum_r * 255.f / sum_weight;
             float gout = sum_g * 255.f / sum_weight;
@@ -176,8 +176,8 @@ int main(int argc, const char **argv) {
 
     Accessor<data_t> AccAtClamp(BcAtClamp);
 
-    Bokeh BOKEH(iter, AccAtClamp, dom, mask, threshold, amp);
-    BOKEH.execute();
+    Bokeh bokeh(iter, AccAtClamp, dom, mask, threshold, amp);
+    bokeh.execute();
     float timing = hipacc_last_kernel_timing();
 
     data_t *output = out.data(); 

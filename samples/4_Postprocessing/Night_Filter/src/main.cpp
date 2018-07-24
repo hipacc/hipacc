@@ -42,22 +42,22 @@
 
 #ifdef PACK_INT
 # define data_t uint
-# define pack(x, y, z, w) \
-    (uint)((uint)(x) | (uint)(y) << 8 | (uint)(z) << 16 | (uint)(w) << 24)
-# define unpack(x, y, z, val) \
-    x = val & 0xff; \
+# define pack(a, b, c, d) \
+    (uint)((uint)(a) | (uint)(b) << 8 | (uint)(c) << 16 | (uint)(d) << 24)
+# define unpack(a, b, c, val) \
+    a = val & 0xff; \
     val >>= 8; \
-    y = val & 0xff; \
+    b = val & 0xff; \
     val >>= 8; \
-    z = val & 0xff;
+    c = val & 0xff;
 #else
 # define data_t uchar4
-# define pack(x, y, z, w) \
-    ((uchar4){x, y, z, w})
-# define unpack(x, y, z, val) \
-    x = val.s0; \
-    y = val.s1; \
-    z = val.s2
+# define pack(a, b, c, d) \
+    ((uchar4){(uchar)a, (uchar)b, (uchar)c, (uchar)d})
+# define unpack(a, b, c, val) \
+    a = val.x; \
+    b = val.y; \
+    c = val.z;
 #endif
 
 #define EXPF256(out, in) \
@@ -102,30 +102,30 @@ class Atrous : public Kernel<data_t> {
             float sum_b = 0.0f;
             
             iterate(dom, [&] () {
-                data_t pixel = input(dom);
-                float rpixel, gpixel, bpixel;
-                unpack(rpixel, gpixel, bpixel, pixel);
-                rpixel /= 255.0f;
-                gpixel /= 255.0f;
-                bpixel /= 255.0f;
-                float rd = rpixel - rin;
-                float gd = gpixel - gin;
-                float bd = bpixel - bin;
-                float weight = rd*rd + gd*gd + bd*bd;
+                    data_t pixel = input(dom);
+                    float rpixel, gpixel, bpixel;
+                    unpack(rpixel, gpixel, bpixel, pixel);
+                    rpixel /= 255.0f;
+                    gpixel /= 255.0f;
+                    bpixel /= 255.0f;
+                    float rd = rpixel - rin;
+                    float gd = gpixel - gin;
+                    float bd = bpixel - bin;
+                    float weight = rd*rd + gd*gd + bd*bd;
 #ifdef FAST_EXP
-                EXPF256(weight, -(weight));// * 1.0f));
+                    EXPF256(weight, -(weight));// * 1.0f));
 #else
-                weight = expf(-(weight));// * 1.0f));
+                    weight = expf(-(weight));// * 1.0f));
 #endif
-                if (weight > 1.0f) {
-                  weight = 1.0f;
-                }
-                weight *= mask(dom);
-                sum_weight += weight;
-                sum_r += rpixel * weight;
-                sum_g += gpixel * weight;
-                sum_b += bpixel * weight;
-            });
+                    if (weight > 1.0f) {
+                      weight = 1.0f;
+                    }
+                    weight *= mask(dom);
+                    sum_weight += weight;
+                    sum_r += rpixel * weight;
+                    sum_g += gpixel * weight;
+                    sum_b += bpixel * weight;
+                });
 
             float rout = sum_r * 255.0f / sum_weight;
             float gout = sum_g * 255.0f / sum_weight;
@@ -189,19 +189,19 @@ int main(int argc, const char **argv) {
     float timing = 0.0f;
 
     // define filters
-    const float atrous0[3][3] = {
+    const float coef0[3][3] = {
         { 0.057118f, 0.124758f, 0.057118f },
         { 0.124758f, 0.272496f, 0.124758f },
         { 0.057118f, 0.124758f, 0.057118f }
     };
-    const float atrous1[5][5] = {
+    const float coef1[5][5] = {
         { 0.057118f,      0.0f, 0.124758f,      0.0f, 0.057118f },
         {      0.0f,      0.0f,      0.0f,      0.0f,      0.0f },
         { 0.124758f,      0.0f, 0.272496f,      0.0f, 0.124758f },
         {      0.0f,      0.0f,      0.0f,      0.0f,      0.0f },
         { 0.057118f,      0.0f, 0.124758f,      0.0f, 0.057118f }
     };
-    const float atrous2[9][9] = {
+    const float coef2[9][9] = {
         { 0.057118f,      0.0f,      0.0f,      0.0f, 0.124758f,     0.0f,      0.0f,       0.0f, 0.057118f },
         {      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,     0.0f,      0.0f,       0.0f,      0.0f },
         {      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,     0.0f,      0.0f,       0.0f,      0.0f },
@@ -212,7 +212,7 @@ int main(int argc, const char **argv) {
         {      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,     0.0f,      0.0f,       0.0f,      0.0f },
         { 0.057118f,      0.0f,      0.0f,      0.0f, 0.124758f,     0.0f,      0.0f,       0.0f, 0.057118f }
     };
-    const float atrous3[17][17] = {
+    const float coef3[17][17] = {
         { 0.057118f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f, 0.124758f,      0.0f,      0.0f,      0.0f,      0.0f,     0.0f,      0.0f,       0.0f, 0.057118f },
         {      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,     0.0f,      0.0f,       0.0f,      0.0f },
         {      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,      0.0f,     0.0f,      0.0f,       0.0f,      0.0f },
@@ -239,10 +239,10 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
-    Mask<float> mask0(atrous0);
-    Mask<float> mask1(atrous1);
-    Mask<float> mask2(atrous2);
-    Mask<float> mask3(atrous3);
+    Mask<float> mask0(coef0);
+    Mask<float> mask1(coef1);
+    Mask<float> mask2(coef2);
+    Mask<float> mask3(coef3);
 
     Domain dom0(mask0);
     Domain dom1(mask1);
@@ -267,24 +267,24 @@ int main(int argc, const char **argv) {
     Accessor<data_t> AccAtClamp3(BcAtClamp3);
     Accessor<data_t> AccSc(at1);
 
-    Atrous Atrous0(iter_atrous0, AccAtClamp0, dom0, mask0);
-    Atrous0.execute();
+    Atrous atrous0(iter_atrous0, AccAtClamp0, dom0, mask0);
+    atrous0.execute();
     timing += hipacc_last_kernel_timing();
 
-    Atrous Atrous1(iter_atrous1, AccAtClamp1, dom1, mask1);
-    Atrous1.execute();
+    Atrous atrous1(iter_atrous1, AccAtClamp1, dom1, mask1);
+    atrous1.execute();
     timing += hipacc_last_kernel_timing();
 
-    Atrous Atrous2(iter_atrous0, AccAtClamp2, dom2, mask2);
-    Atrous2.execute();
+    Atrous atrous2(iter_atrous0, AccAtClamp2, dom2, mask2);
+    atrous2.execute();
     timing += hipacc_last_kernel_timing();
 
-    Atrous Atrous3(iter_atrous1, AccAtClamp3, dom3, mask3);
-    Atrous3.execute();
+    Atrous atrous3(iter_atrous1, AccAtClamp3, dom3, mask3);
+    atrous3.execute();
     timing += hipacc_last_kernel_timing();
 
-    Scoto SCOTO(iter_atrous0, AccSc);
-    SCOTO.execute();
+    Scoto scoto(iter_atrous0, AccSc);
+    scoto.execute();
     timing += hipacc_last_kernel_timing();
 
     data_t *output = at0.data(); 

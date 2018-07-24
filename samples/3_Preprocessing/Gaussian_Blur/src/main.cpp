@@ -57,7 +57,7 @@ class GaussianBlur : public Kernel<uchar> {
         void kernel() {
             output() = (uchar)(convolve(mask, Reduce::SUM, [&] () -> float {
                     return mask() * input(mask);
-                    }) + 0.5f);
+                }) + 0.5f);
         }
 };
 

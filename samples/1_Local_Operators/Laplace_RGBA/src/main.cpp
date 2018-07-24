@@ -58,7 +58,7 @@ class LaplaceFilter : public Kernel<uchar4> {
         void kernel() {
             int4 sum = reduce(dom, Reduce::SUM, [&] () -> int4 {
                     return mask(dom) * convert_int4(input(dom));
-                    });
+                });
             sum = min(sum, 255);
             sum = max(sum, 0);
             output() = convert_uchar4(sum);

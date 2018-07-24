@@ -64,7 +64,7 @@ class Sobel : public Kernel<data_t> {
         void kernel() {
             output() = (data_t)(reduce(dom, Reduce::SUM, [&] () -> int {
                     return mask(dom) * input(dom);
-                    }));
+                }));
         }
 };
 
