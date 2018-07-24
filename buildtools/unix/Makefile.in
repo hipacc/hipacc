@@ -77,7 +77,19 @@ endif
 # Target rules
 all: cpu
 
-cpu cuda opencl-cpu opencl-gpu renderscript filterscript: main_$$@
+# Run CPU/CUDA/OpenCL binary
+cpu cuda opencl-cpu opencl-gpu: main_$$@
+	./main_$@
+
+# Run Renderscript/Filterscript binary on Android device
+renderscript filterscript: main_$$@
+ifdef ADB
+	$(ADB) shell mkdir -p /data/local/tmp
+	$(ADB) push $@ /data/local/tmp
+	$(ADB) shell /data/local/tmp/$@
+else
+	@echo "Abort: Could not find binary 'adb' in PATH"
+endif
 
 # Run Hipacc
 main_%.cc: src/main.cpp
@@ -112,13 +124,6 @@ ifdef NDK_BUILD
 	export HIPACC_INCLUDE=$(HIPACC_PATH)/include; \
 	$(NDK_BUILD) -B
 	cp libs/armeabi-v7a/main_renderscript ./$@
-ifdef ADB
-	$(ADB) shell mkdir -p /data/local/tmp
-	$(ADB) push $@ /data/local/tmp
-	$(ADB) shell /data/local/tmp/$@
-else
-	@echo "Abort: Could not find binary 'adb' in PATH"
-endif
 else
 	@echo "Abort: Could not find binary 'ndk-build' in PATH"
 endif
