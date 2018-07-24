@@ -41,31 +41,34 @@ using namespace hipacc;
 using namespace hipacc::math;
 
 
-// Kernel description in Hipacc
-class BlurFilter : public Kernel<uchar> {
+// Laplace filter in Hipacc
+class LaplaceFilter : public Kernel<uchar4> {
     private:
-        Accessor<uchar> &in;
+        Accessor<uchar4> &input;
         Domain &dom;
-        int size_x, size_y;
+        Mask<int> &mask;
 
     public:
-        BlurFilter(IterationSpace<uchar> &iter, Accessor<uchar> &in,
-                   Domain &dom, int size_x, int size_y)
-              : Kernel(iter), in(in), dom(dom), size_x(size_x), size_y(size_y) {
-            add_accessor(&in);
+        LaplaceFilter(IterationSpace<uchar4> &iter, Accessor<uchar4> &input,
+                      Domain &dom, Mask<int> &mask)
+              : Kernel(iter), input(input), dom(dom), mask(mask) {
+            add_accessor(&input);
         }
 
         void kernel() {
-            output() = reduce(dom, Reduce::SUM, [&] () -> int {
-                           return in(dom);
-                       }) / (float)(size_x*size_y);
+            int4 sum = reduce(dom, Reduce::SUM, [&] () -> int4 {
+                    return mask(dom) * convert_int4(input(dom));
+                    });
+            sum = min(sum, 255);
+            sum = max(sum, 0);
+            output() = convert_uchar4(sum);
         }
 };
 
 
 // forward declaration of reference implementation
-void blur_filter(uchar *in, uchar *out, int size_x, int size_y,
-                 int width, int height);
+void laplace_filter(uchar4 *in, uchar4 *out, int *filter, int size,
+                    int width, int height);
 
 
 /*************************************************************************
@@ -87,49 +90,78 @@ int main(int argc, const char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    // host memory for image of width x height pixels
-    uchar *input = load_data<uchar>(width, height, 1, IMAGE);
-    uchar *ref_out = new uchar[width*height];
+#if SIZE_X == 1
+# define SIZE 3
+#elif SIZE_X == 3
+# define SIZE 3
+#else
+# define SIZE 5
+#endif
 
-    std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
+    int coef[SIZE][SIZE] = {
+#if SIZE_X==1
+        { 0,  1,  0 },
+        { 1, -4,  1 },
+        { 0,  1,  0 }
+#endif
+#if SIZE_X==3
+        { 2,  0,  2 },
+        { 0, -8,  0 },
+        { 2,  0,  2 }
+#endif
+#if SIZE_X==5
+        { 1,   1,   1,   1,   1 },
+        { 1,   1,   1,   1,   1 },
+        { 1,   1, -24,   1,   1 },
+        { 1,   1,   1,   1,   1 },
+        { 1,   1,   1,   1,   1 }
+#endif
+    };
+
+    // host memory for image of width x height pixels
+    uchar4 *input = (uchar4*)load_data<uchar>(width, height, 4, IMAGE);
+    uchar4 *ref_out = new uchar4[width*height];
+
+    std::cerr << "Calculating Hipacc Laplace filter ..." << std::endl;
 
     //************************************************************************//
 
     // input and output image of width x height pixels
-    Image<uchar> in(width, height, input);
-    Image<uchar> out(width, height);
+    Image<uchar4> in(width, height, input);
+    Image<uchar4> out(width, height);
 
-    // define Domain for blur filter
-    Domain dom(size_x, size_y);
+    // define Mask and Domain for Laplace
+    Mask<int> mask(coef);
+    Domain dom(mask);
 
-    BoundaryCondition<uchar> bound(in, dom, Boundary::CLAMP);
-    Accessor<uchar> acc(bound);
+    BoundaryCondition<uchar4> bound(in, dom, Boundary::CLAMP);
+    Accessor<uchar4> acc(bound);
 
-    IterationSpace<uchar> iter(out);
-    BlurFilter filter(iter, acc, dom, size_x, size_y);
+    IterationSpace<uchar4> iter(out);
+    LaplaceFilter filter(iter, acc, dom, mask);
 
     filter.execute();
     timing = hipacc_last_kernel_timing();
 
     // get pointer to result data
-    uchar *output = out.data();
+    uchar4 *output = out.data();
 
     //************************************************************************//
 
-    store_data(width, height, 1, input, "input.jpg");
-    store_data(width, height, 1, output, "output.jpg");
+    store_data(width, height, 4, (uchar*)input, "input.jpg");
+    store_data(width, height, 4, (uchar*)output, "output.jpg");
 
     std::cerr << "Hipacc (CLAMP): " << timing << " ms, "
               << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
     std::cerr << "Calculating reference ..." << std::endl;
     double start = time_ms();
-    blur_filter(input, ref_out, size_x, size_y, width, height);
+    laplace_filter(input, ref_out, (int*)coef, SIZE, width, height);
     double end = time_ms();
     std::cerr << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
-    compare_results(output, ref_out, width, height, offset_x, offset_y);
+    compare_results((uchar*)output, (uchar*)ref_out, width*4, height, offset_x*4, offset_y);
 
     // free memory
     delete[] input;
@@ -139,9 +171,11 @@ int main(int argc, const char **argv) {
 }
 
 
-// blur filter reference
-void blur_filter(uchar *in, uchar *out, int size_x, int size_y,
-                 int width, int height) {
+// Laplace filter reference
+void laplace_filter(uchar4 *in, uchar4 *out, int *filter, int size,
+                    int width, int height) {
+    const int size_x = size;
+    const int size_y = size;
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
     int upper_x = width  - anchor_x;
@@ -149,14 +183,18 @@ void blur_filter(uchar *in, uchar *out, int size_x, int size_y,
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
-            int sum = 0;
+            int4 sum = {0, 0, 0, 0};
 
             for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
                 for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
-                    sum += in[(y + yf)*width + x + xf];
+                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x]
+                            * convert_int4(in[(y+yf)*width + x + xf]);
                 }
             }
-            out[y*width + x] = (uchar)(sum/(float)(size_x*size_y));
+
+            sum = min(sum, 255);
+            sum = max(sum, 0);
+            out[y*width + x] = convert_uchar4(sum);
         }
     }
 }

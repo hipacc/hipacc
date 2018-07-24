@@ -63,13 +63,8 @@ class Histogram : public Kernel<float,uint> {
 };
 
 
-// histogram reference
-void histogram(float *in, uint *out, int width, int height, int num_bins) {
-    for (int p = 0; p < width * height; ++p) {
-        float pixel = in[p];
-        out[(uint)(pixel/255.0f*num_bins)] += 1;
-    }
-}
+// forward declaration of reference implementation
+void histogram(float *in, uint *out, int width, int height, int num_bins);
 
 
 /*************************************************************************
@@ -83,7 +78,7 @@ int main(int argc, const char **argv) {
 
     // host memory for image of width x height pixels
     float *input = load_data<float>(width, height);
-    uint *reference = new uint[num_bins]();
+    uint *ref_out = new uint[num_bins]();
 
     std::cerr << "Calculating Hipacc histogram ..." << std::endl;
 
@@ -109,12 +104,12 @@ int main(int argc, const char **argv) {
 
     std::cerr << "Calculating reference ..." << std::endl;
     double start = time_ms();
-    histogram(input, reference, width, height, num_bins);
+    histogram(input, ref_out, width, height, num_bins);
     double end = time_ms();
     std::cerr << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
-    compare_results(output, reference, num_bins);
+    compare_results(output, ref_out, num_bins);
 
     // free memory
     delete[] input;
@@ -122,3 +117,11 @@ int main(int argc, const char **argv) {
     return EXIT_SUCCESS;
 }
 
+
+// histogram reference
+void histogram(float *in, uint *out, int width, int height, int num_bins) {
+    for (int p = 0; p < width * height; ++p) {
+        float pixel = in[p];
+        out[(uint)(pixel/255.0f*num_bins)] += 1;
+    }
+}

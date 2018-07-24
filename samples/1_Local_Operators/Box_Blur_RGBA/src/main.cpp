@@ -65,27 +65,9 @@ class BlurFilter : public Kernel<uchar4> {
 };
 
 
-// blur filter reference
-void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y, int width, int height) {
-    int anchor_x = size_x >> 1;
-    int anchor_y = size_y >> 1;
-    int upper_x = width  - anchor_x;
-    int upper_y = height - anchor_y;
-
-    for (int y=anchor_y; y<upper_y; ++y) {
-        for (int x=anchor_x; x<upper_x; ++x) {
-            int4 sum = {0, 0, 0, 0};
-
-            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
-                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
-                    sum += convert_int4(in[(y + yf)*width + x + xf]);
-                }
-            }
-            out[y*width + x] = convert_uchar4(convert_float4(sum)
-                    / (float)(size_x*size_y));
-        }
-    }
-}
+// forward declaration of reference implementation
+void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
+                 int width, int height);
 
 
 /*************************************************************************
@@ -109,7 +91,7 @@ int main(int argc, const char **argv) {
 
     // host memory for image of width x height pixels
     uchar4 *input = (uchar4*)load_data<uchar>(width, height, 4, IMAGE);
-    uchar4 *reference = new uchar4[width*height];
+    uchar4 *ref_out = new uchar4[width*height];
 
     std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
 
@@ -144,17 +126,40 @@ int main(int argc, const char **argv) {
 
     std::cerr << "Calculating reference ..." << std::endl;
     double start = time_ms();
-    blur_filter(input, reference, size_x, size_y, width, height);
+    blur_filter(input, ref_out, size_x, size_y, width, height);
     double end = time_ms();
     std::cerr << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
-    compare_results((uchar*)output, (uchar*)reference, width*4, height, offset_x*4, offset_y);
+    compare_results((uchar*)output, (uchar*)ref_out, width*4, height, offset_x*4, offset_y);
 
     // free memory
     delete[] input;
-    delete[] reference;
+    delete[] ref_out;
 
     return EXIT_SUCCESS;
 }
 
+
+// blur filter reference
+void blur_filter(uchar4 *in, uchar4 *out, int size_x, int size_y,
+                 int width, int height) {
+    int anchor_x = size_x >> 1;
+    int anchor_y = size_y >> 1;
+    int upper_x = width  - anchor_x;
+    int upper_y = height - anchor_y;
+
+    for (int y=anchor_y; y<upper_y; ++y) {
+        for (int x=anchor_x; x<upper_x; ++x) {
+            int4 sum = {0, 0, 0, 0};
+
+            for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
+                for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
+                    sum += convert_int4(in[(y + yf)*width + x + xf]);
+                }
+            }
+            out[y*width + x] = convert_uchar4(convert_float4(sum)
+                    / (float)(size_x*size_y));
+        }
+    }
+}

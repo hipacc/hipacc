@@ -30,8 +30,8 @@
 #include <hipacc_helper.hpp>
 
 
-#define SIZE_X 5
-#define SIZE_Y 5
+#define SIZE_X 7
+#define SIZE_Y 7
 #define WIDTH  4032
 #define HEIGHT 3024
 #define IMAGE  "../../common/img/fuerte_ship.jpg"
@@ -41,31 +41,30 @@ using namespace hipacc;
 using namespace hipacc::math;
 
 
-// Kernel description in Hipacc
-class BlurFilter : public Kernel<uchar> {
+// Gaussian blur filter in Hipacc
+class GaussianBlur : public Kernel<uchar> {
     private:
-        Accessor<uchar> &in;
-        Domain &dom;
-        int size_x, size_y;
+        Accessor<uchar> &input;
+        Mask<float> &mask;
 
     public:
-        BlurFilter(IterationSpace<uchar> &iter, Accessor<uchar> &in,
-                   Domain &dom, int size_x, int size_y)
-              : Kernel(iter), in(in), dom(dom), size_x(size_x), size_y(size_y) {
-            add_accessor(&in);
+        GaussianBlur(IterationSpace<uchar> &iter, Accessor<uchar> &input,
+                     Mask<float> &mask)
+              : Kernel(iter), input(input), mask(mask) {
+            add_accessor(&input);
         }
 
         void kernel() {
-            output() = reduce(dom, Reduce::SUM, [&] () -> int {
-                           return in(dom);
-                       }) / (float)(size_x*size_y);
+            output() = (uchar)(convolve(mask, Reduce::SUM, [&] () -> float {
+                    return mask() * input(mask);
+                    }) + 0.5f);
         }
 };
 
 
 // forward declaration of reference implementation
-void blur_filter(uchar *in, uchar *out, int size_x, int size_y,
-                 int width, int height);
+void gaussian_filter(uchar *in, uchar *out, float *filter,
+                     int size_x, int size_y, int width, int height);
 
 
 /*************************************************************************
@@ -80,18 +79,44 @@ int main(int argc, const char **argv) {
     const int offset_y = size_y >> 1;
     float timing = 0;
 
-    // only filter kernel sizes 3x3 and 5x5 implemented
-    if (size_x != size_y && (size_x != 3 || size_x != 5)) {
+    // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
+    if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
         std::cerr << "Wrong filter kernel size. "
-                  << "Currently supported values: 3x3 and 5x5!" << std::endl;
+                  << "Currently supported values: 3x3, 5x5, and 7x7!"
+                  << std::endl;
         exit(EXIT_FAILURE);
     }
+
+    // convolution filter mask
+    const float coef[SIZE_Y][SIZE_X] = {
+#if SIZE_X == 3
+        { 0.057118f, 0.124758f, 0.057118f },
+        { 0.124758f, 0.272496f, 0.124758f },
+        { 0.057118f, 0.124758f, 0.057118f }
+#endif
+#if SIZE_X == 5
+        { 0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f },
+        { 0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f },
+        { 0.026151f, 0.090339f, 0.136565f, 0.090339f, 0.026151f },
+        { 0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f },
+        { 0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f }
+#endif
+#if SIZE_X == 7
+        { 0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841 },
+        { 0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010 },
+        { 0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471 },
+        { 0.008351, 0.029902, 0.064280, 0.082959, 0.064280, 0.029902, 0.008351 },
+        { 0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471 },
+        { 0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010 },
+        { 0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841 }
+#endif
+    };
 
     // host memory for image of width x height pixels
     uchar *input = load_data<uchar>(width, height, 1, IMAGE);
     uchar *ref_out = new uchar[width*height];
 
-    std::cerr << "Calculating Hipacc blur filter ..." << std::endl;
+    std::cerr << "Calculating Hipacc Gaussian filter ..." << std::endl;
 
     //************************************************************************//
 
@@ -99,14 +124,14 @@ int main(int argc, const char **argv) {
     Image<uchar> in(width, height, input);
     Image<uchar> out(width, height);
 
-    // define Domain for blur filter
-    Domain dom(size_x, size_y);
+    // define Mask for Gaussian filter
+    Mask<float> mask(coef);
 
-    BoundaryCondition<uchar> bound(in, dom, Boundary::CLAMP);
+    BoundaryCondition<uchar> bound(in, mask, Boundary::CLAMP);
     Accessor<uchar> acc(bound);
 
     IterationSpace<uchar> iter(out);
-    BlurFilter filter(iter, acc, dom, size_x, size_y);
+    GaussianBlur filter(iter, acc, mask);
 
     filter.execute();
     timing = hipacc_last_kernel_timing();
@@ -124,7 +149,7 @@ int main(int argc, const char **argv) {
 
     std::cerr << "Calculating reference ..." << std::endl;
     double start = time_ms();
-    blur_filter(input, ref_out, size_x, size_y, width, height);
+    gaussian_filter(input, ref_out, (float*)coef, size_x, size_y, width, height);
     double end = time_ms();
     std::cerr << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
@@ -139,9 +164,9 @@ int main(int argc, const char **argv) {
 }
 
 
-// blur filter reference
-void blur_filter(uchar *in, uchar *out, int size_x, int size_y,
-                 int width, int height) {
+// Gaussian blur filter reference
+void gaussian_filter(uchar *in, uchar *out, float *filter,
+                     int size_x, int size_y, int width, int height) {
     int anchor_x = size_x >> 1;
     int anchor_y = size_y >> 1;
     int upper_x = width  - anchor_x;
@@ -149,14 +174,15 @@ void blur_filter(uchar *in, uchar *out, int size_x, int size_y,
 
     for (int y=anchor_y; y<upper_y; ++y) {
         for (int x=anchor_x; x<upper_x; ++x) {
-            int sum = 0;
+            float sum = 0.5f;
 
             for (int yf = -anchor_y; yf<=anchor_y; ++yf) {
                 for (int xf = -anchor_x; xf<=anchor_x; ++xf) {
-                    sum += in[(y + yf)*width + x + xf];
+                    sum += filter[(yf+anchor_y)*size_x + xf+anchor_x]
+                            * in[(y+yf)*width + x + xf];
                 }
             }
-            out[y*width + x] = (uchar)(sum/(float)(size_x*size_y));
+            out[y*width + x] = (uchar) (sum);
         }
     }
 }

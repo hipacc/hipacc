@@ -68,14 +68,11 @@ class Chrome : public Kernel<data_t> {
 
     public:
         Chrome(IterationSpace<data_t> &iter, Accessor<data_t> &input,
-               int width, int height, float rindex, float gindex) :
-            Kernel(iter),
-            input(input),
-            width(width),
-            height(height),
-            rindex(rindex),
-            gindex(gindex)
-        { add_accessor(&input); }
+               int width, int height, float rindex, float gindex)
+              : Kernel(iter), input(input), width(width), height(height),
+                rindex(rindex), gindex(gindex) {
+            add_accessor(&input);
+        }
 
         void kernel() {
             int gposx = x();
@@ -142,6 +139,7 @@ class Chrome : public Kernel<data_t> {
             output() = pack(bout, gout, rout, 255);
         }
 };
+
 
 /*************************************************************************
  * Main function                                                         *

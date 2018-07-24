@@ -84,12 +84,10 @@ class Atrous : public Kernel<data_t> {
 
     public:
         Atrous(IterationSpace<data_t> &iter, Accessor<data_t> &input,
-               Domain &dom, Mask<float> &mask) :
-            Kernel(iter),
-            input(input),
-            dom(dom),
-            mask(mask)
-        { add_accessor(&input); }
+               Domain &dom, Mask<float> &mask)
+              : Kernel(iter), input(input), dom(dom), mask(mask) {
+            add_accessor(&input);
+        }
 
         void kernel() {
             data_t in = input();
@@ -182,6 +180,7 @@ class Scoto : public Kernel<data_t> {
             output() = pack(b, g, r, 255);
         }
 };
+
 
 /*************************************************************************
  * Main function                                                         *

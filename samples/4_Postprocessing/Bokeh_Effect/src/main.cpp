@@ -73,14 +73,11 @@ class Bokeh : public Kernel<data_t> {
 
     public:
         Bokeh(IterationSpace<data_t> &iter, Accessor<data_t> &input,
-              Domain &dom, Mask<float> &mask, float threshold, float amp) :
-            Kernel(iter),
-            input(input),
-            dom(dom),
-            mask(mask),
-            threshold(threshold),
-            amp(amp)
-        { add_accessor(&input); }
+              Domain &dom, Mask<float> &mask, float threshold, float amp)
+            : Kernel(iter), input(input), dom(dom), mask(mask),
+              threshold(threshold), amp(amp) {
+            add_accessor(&input);
+        }
 
         void kernel() {
             float sum_weight = 0.0f;
@@ -110,6 +107,7 @@ class Bokeh : public Kernel<data_t> {
             output() = pack(bout, gout, rout, 255);
         }
 };
+
 
 /*************************************************************************
  * Main function                                                         *

@@ -59,12 +59,8 @@ class Reduction : public Kernel<float> {
 };
 
 
-// reduction reference
-void reduction(float *in, float *out, int width, int height) {
-    for (int p = 0; p < width * height; ++p) {
-        *out += in[p];
-    }
-}
+// forward declaration of reference implementation
+void reduction(float *in, float *out, int width, int height);
 
 
 /*************************************************************************
@@ -77,7 +73,7 @@ int main(int argc, const char **argv) {
 
     // host memory for image of width x height pixels
     float *input = load_data<float>(width, height);
-    float reference;
+    float ref_out;
 
     std::cerr << "Calculating Hipacc reduction ..." << std::endl;
 
@@ -103,12 +99,12 @@ int main(int argc, const char **argv) {
 
     std::cerr << "Calculating reference ..." << std::endl;
     double start = time_ms();
-    reduction(input, &reference, width, height);
+    reduction(input, &ref_out, width, height);
     double end = time_ms();
     std::cerr << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
-    compare_results(&output, &reference);
+    compare_results(&output, &ref_out);
 
     // free memory
     delete[] input;
@@ -116,3 +112,10 @@ int main(int argc, const char **argv) {
     return EXIT_SUCCESS;
 }
 
+
+// reduction reference
+void reduction(float *in, float *out, int width, int height) {
+    for (int p = 0; p < width * height; ++p) {
+        *out += in[p];
+    }
+}

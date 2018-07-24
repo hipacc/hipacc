@@ -57,13 +57,8 @@ class ColorConversion : public Kernel<uchar> {
 };
 
 
-// color conversion reference
-void color_conversion(uchar4 *in, uchar *out, int width, int height) {
-    for (int p = 0; p < width*height; ++p) {
-        uchar4 pixel = in[p];
-        out[p] = .3f*pixel.x + .59f*pixel.y + .11f*pixel.z + .5f;
-    }
-}
+// forward declaration of reference implementation
+void color_conversion(uchar4 *in, uchar *out, int width, int height);
 
 
 /*************************************************************************
@@ -76,7 +71,7 @@ int main(int argc, const char **argv) {
 
     // host memory for image of width x height pixels
     uchar4 *input = (uchar4*)load_data<uchar>(width, height, 4, IMAGE);
-    uchar *reference = new uchar[width*height];
+    uchar *ref_out = new uchar[width*height];
 
     std::cerr << "Calculating Hipacc color conversion ..." << std::endl;
 
@@ -107,17 +102,25 @@ int main(int argc, const char **argv) {
 
     std::cerr << "Calculating reference ..." << std::endl;
     double start = time_ms();
-    color_conversion(input, reference, width, height);
+    color_conversion(input, ref_out, width, height);
     double end = time_ms();
     std::cerr << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
-    compare_results(output, reference, width, height);
+    compare_results(output, ref_out, width, height);
 
     // free memory
     delete[] input;
-    delete[] reference;
+    delete[] ref_out;
 
     return EXIT_SUCCESS;
 }
 
+
+// color conversion reference
+void color_conversion(uchar4 *in, uchar *out, int width, int height) {
+    for (int p = 0; p < width*height; ++p) {
+        uchar4 pixel = in[p];
+        out[p] = .3f*pixel.x + .59f*pixel.y + .11f*pixel.z + .5f;
+    }
+}

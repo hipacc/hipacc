@@ -65,17 +65,9 @@ class WindowingFilter : public Kernel<float> {
 };
 
 
-// windowing filter reference
+// forward declaration of reference implementation
 void windowing_filter(float *in, float *out, int width, int height,
-                      float center, float wwidth, float scale) {
-    for (int p = 0; p < width*height; ++p) {
-        float pixel = in[p];
-        pixel = (pixel - (center - wwidth)) * scale;
-        pixel = min(pixel, 255.0f);
-        pixel = max(pixel, 0.0f);
-        out[p] = pixel;
-    }
-}
+                      float center, float wwidth, float scale);
 
 
 /*************************************************************************
@@ -91,7 +83,7 @@ int main(int argc, const char **argv) {
 
     // host memory for image of width x height pixels
     float *input = load_data<float>(width, height, 1, IMAGE);
-    float *reference = new float[width*height];
+    float *ref_out = new float[width*height];
 
     std::cerr << "Calculating Hipacc windowing filter ..." << std::endl;
 
@@ -122,17 +114,29 @@ int main(int argc, const char **argv) {
 
     std::cerr << "Calculating reference ..." << std::endl;
     double start = time_ms();
-    windowing_filter(input, reference, width, height, center, wwidth, scale);
+    windowing_filter(input, ref_out, width, height, center, wwidth, scale);
     double end = time_ms();
     std::cerr << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
-    compare_results(output, reference, width, height);
+    compare_results(output, ref_out, width, height);
 
     // free memory
     delete[] input;
-    delete[] reference;
+    delete[] ref_out;
 
     return EXIT_SUCCESS;
 }
 
+
+// windowing filter reference
+void windowing_filter(float *in, float *out, int width, int height,
+                      float center, float wwidth, float scale) {
+    for (int p = 0; p < width*height; ++p) {
+        float pixel = in[p];
+        pixel = (pixel - (center - wwidth)) * scale;
+        pixel = min(pixel, 255.0f);
+        pixel = max(pixel, 0.0f);
+        out[p] = pixel;
+    }
+}
