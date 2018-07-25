@@ -35,10 +35,11 @@
 #define IMAGE1 "../../common/img/q5_00164.jpg"
 #define IMAGE2 "../../common/img/q5_00165.jpg"
 
-#define WINDOW_SIZE_X 32
-#define WINDOW_SIZE_Y 32
-#define EPSILON       16
-#define TILE_SIZE     8
+#define SIZE_X        7
+#define SIZE_Y        7
+#define DISTANCE      15
+#define EPSILON       10
+#define TILE_SIZE     16
 #define STRIDE_X      ((WIDTH+TILE_SIZE-1)/TILE_SIZE)
 #define STRIDE_Y      ((HEIGHT+TILE_SIZE-1)/TILE_SIZE)
 
@@ -126,9 +127,9 @@ class VectorKernel : public Kernel<int, float4> {
                 });
 
             // save the vector, if exactly one was found
-            if (vec_found!=1) {
-                mem_loc = 0;
-            }
+            //if (vec_found!=1) {
+            //    mem_loc = 0;
+            //}
 
             output() = mem_loc;
         }
@@ -217,13 +218,41 @@ class Assemble : public Kernel<uchar> {
 int main(int argc, const char **argv) {
     const int width = WIDTH;
     const int height = HEIGHT;
+		const int size_x = SIZE_X;
+    const int size_y = SIZE_Y;
     float timing = 0;
 
-    // filter mask
-    const float filter_mask[3][3] = {
+		// only filter kernel sizes 3x3, 5x5, and 7x7 implemented
+    if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
+        std::cerr << "Wrong filter kernel size. "
+                  << "Currently supported values: 3x3, 5x5, and 7x7!"
+                  << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // convolution filter mask
+    const float gauss_coef[SIZE_Y][SIZE_X] = {
+#if SIZE_X == 3
         { 0.057118f, 0.124758f, 0.057118f },
         { 0.124758f, 0.272496f, 0.124758f },
         { 0.057118f, 0.124758f, 0.057118f }
+#endif
+#if SIZE_X == 5
+        { 0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f },
+        { 0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f },
+        { 0.026151f, 0.090339f, 0.136565f, 0.090339f, 0.026151f },
+        { 0.017300f, 0.059761f, 0.090339f, 0.059761f, 0.017300f },
+        { 0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f }
+#endif
+#if SIZE_X == 7
+        { 0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841 },
+        { 0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010 },
+        { 0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471 },
+        { 0.008351, 0.029902, 0.064280, 0.082959, 0.064280, 0.029902, 0.008351 },
+        { 0.006471, 0.023169, 0.049806, 0.064280, 0.049806, 0.023169, 0.006471 },
+        { 0.003010, 0.010778, 0.023169, 0.029902, 0.023169, 0.010778, 0.003010 },
+        { 0.000841, 0.003010, 0.006471, 0.008351, 0.006471, 0.003010, 0.000841 }
+#endif
     };
 
     // domain for signature kernel
@@ -258,13 +287,13 @@ int main(int argc, const char **argv) {
     Image<float4> merged_vec(STRIDE_X, STRIDE_Y);
 
     // define Mask for Gaussian blur filter
-    Mask<float> mask(filter_mask);
+    Mask<float> mask(gauss_coef);
 
     // define Domain for signature kernel
     Domain sig_dom(sig_coef);
 
     // Domain for vector kernel
-    Domain dom(WINDOW_SIZE_X/2, WINDOW_SIZE_Y/2);
+    Domain dom(DISTANCE*2+1, DISTANCE*2+1);
     // do not process the center pixel
     dom(0,0) = 0;
 
