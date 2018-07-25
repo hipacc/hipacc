@@ -98,13 +98,11 @@ main_%.cc: src/main.cpp
 # Build CPU
 main_cpu: $$@.cc
 	$(CXX) $(CXX_FLAGS) $< $(CXX_INCLUDE) $(CXX_LIB_DIR) $(CXX_LINK) -o $@
-	./$@
 
 # Build CUDA
 main_cuda: $$@.cc
 ifdef NVCC
 	$(NVCC) $(NVCC_FLAGS) $< $(NVCC_INCLUDE) $(NVCC_LIB_DIR) $(NVCC_LINK) -o $@
-	./$@
 else
 	@echo "Abort: Could not find binary 'nvcc' in PATH"
 endif
@@ -112,7 +110,6 @@ endif
 # Build OpenCL-CPU or OpenCL-GPU
 main_opencl-%: $$@.cc
 	$(CXX) $(CXX_FLAGS) $< $(OCL_INCLUDE) $(OCL_LIB_DIR) $(OCL_LINK) -o $@
-	./$@
 
 # Build Renderscript or Filterscript
 main_%: $$@.cc
