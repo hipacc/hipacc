@@ -268,8 +268,8 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     # Setup Debian packaging options
     if (UNIX AND NOT APPLE)
         set (CPACK_GENERATOR DEB)
-        #set (CPACK_DEBIAN_PACKAGE_DEPENDS "libopencv (>= 2.4.0)")
         set (CPACK_DEBIAN_PACKAGE_SECTION "devel")
+        set (CPACK_DEBIAN_PACKAGE_SUGGESTS "libopencv (>= 2.4.0)")
         set (CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://hipacc-lang.org")
 
         if(DEFINED PLATFORM)
