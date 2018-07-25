@@ -38,9 +38,6 @@
 #define WINDOW_SIZE_X 32
 #define WINDOW_SIZE_Y 32
 #define EPSILON       16
-#define TILE_SIZE     8
-#define STRIDE_X      ((WIDTH+TILE_SIZE-1)/TILE_SIZE)
-#define STRIDE_Y      ((HEIGHT+TILE_SIZE-1)/TILE_SIZE)
 
 
 using namespace hipacc;
@@ -132,83 +129,6 @@ class VectorKernel : public Kernel<int, float4> {
 
             output() = mem_loc;
         }
-
-        void binning(uint x, uint y, int vector) {
-            if (vector != 0) {
-                float4 result = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-                // Cartesian to polar
-                int xi = vector >> 16;
-                int yi = (vector & 0xffff);
-                if (yi >> 15) yi |= 0xffff0000;
-                float xf = (float)xi;
-                float yf = (float)yi;
-                float dist = sqrt(xf*xf+yf*yf);
-                float angle = atan2(yf,xf);
-
-                result.x = dist;
-                result.y = angle;
-                result.w = 1.0f;
-
-                // target tile is at midway (xi/2 & yi/2) of vector
-                uint xt = (x+xi/2) / TILE_SIZE;
-                uint yt = (y+yi/2) / TILE_SIZE;
-                bin((uint)(yt * STRIDE_X + xt)) = result;
-            }
-        }
-
-        float4 reduce(float4 left, float4 right) const {
-            if (left.w == 0.0f) {
-                return right;
-            } else if (right.w == 0.0f) {
-                return left;
-            } else {
-                // average vectors
-                float ws = left.w + right.w;
-                float wl = left.w/ws;
-                float wr = 1.0f-wl;
-                float4 result = wl*left + wr*right;
-                result.w = ws;
-                return result;
-            }
-        }
-};
-
-
-class Assemble : public Kernel<uchar> {
-    private:
-        Accessor<uchar> &input;
-        Accessor<float4> &vecs;
-
-    public:
-        Assemble(IterationSpace<uchar> &iter, Accessor<uchar> &input,
-                 Accessor<float4> &vecs)
-              : Kernel(iter), input(input), vecs(vecs) {
-            add_accessor(&input);
-            add_accessor(&vecs);
-        }
-
-        void kernel() {
-            int x = 0;
-            int y = 0;
-            float4 vector = vecs();
-
-            if (vector.w != 0.0f) {
-                // polar to Cartesian
-                float xf = vector.x * cosf(vector.y);
-                float yf = vector.x * sinf(vector.y);
-
-                // half distance and opposite direction
-                xf *= -.5f;
-                yf *= -.5f;
-
-                // correct rounding
-                x = (int)(xf + (xf < 0 ? -.5f : .5f));
-                y = (int)(yf + (yf < 0 ? -.5f : .5f));
-            }
-
-            output() = input(x, y);
-        }
 };
 
 
@@ -244,7 +164,7 @@ int main(int argc, const char **argv) {
     uchar *input1 = load_data<uchar>(width, height, 1, IMAGE1);
     uchar *input2 = load_data<uchar>(width, height, 1, IMAGE2);
 
-    std::cout << "Calculating Hipacc motion interpolation ..." << std::endl;
+    std::cout << "Calculating Hipacc optical flow ..." << std::endl;
 
     //************************************************************************//
 
@@ -254,9 +174,7 @@ int main(int argc, const char **argv) {
     Image<uchar> tmp(width, height);
     Image<uint> in1_sig(width, height);
     Image<uint> in2_sig(width, height);
-    Image<uchar> out(width, height);
     Image<int> img_vec(width, height);
-    Image<float4> merged_vec(STRIDE_X, STRIDE_Y);
 
     // define Mask for Gaussian blur filter
     Mask<float> mask(filter_mask);
@@ -308,33 +226,34 @@ int main(int argc, const char **argv) {
     vector_kernel.execute();
     timing += hipacc_last_kernel_timing();
 
-    // merged vectors
-    float4* vecs = vector_kernel.binned_data(STRIDE_X*STRIDE_Y);
-    timing += hipacc_last_kernel_timing();
-
-    // load vectors into image 'merged_vec'
-    merged_vec = vecs;
-
-    // assemble final image
-    IterationSpace<uchar> iter_out(out);
-    Accessor<float4> acc_merged_vec(merged_vec, Interpolate::NN);
-    BoundaryCondition<uchar> bound_asm_in1(in1, dom, Boundary::CLAMP);
-    Accessor<uchar> acc_asm_in1(bound_asm_in1);
-    Assemble assemble(iter_out, acc_in1, acc_merged_vec);
-    assemble.execute();
-    timing += hipacc_last_kernel_timing();
-
-    uchar *output = out.data();
+    int *output = img_vec.data();
 
     //************************************************************************//
 
     std::cout << "Hipacc: " << timing << " ms, "
               << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
-    save_data(width, height, 1, input1, "frame1.jpg");
-    save_data(width, height, 1, output, "frame2.jpg");
-    save_data(width, height, 1, input2, "frame3.jpg");
-    show_data(width, height, 1, output, "frame2.jpg");
+    // draw motion vectors for visualization
+    for (int p = 0; p < width*height; ++p) {
+        int vector = output[p];
+        if (vector != 0) {
+            float xf = vector >> 16;
+            float yf = (vector & 0xffff);
+            float m = yf/xf;
+            for (int i = 0; i <= abs(xf); ++i) {
+                int xi = (xf < 0 ? -i : i);
+                int yi = m*xi + (m*xi < 0 ? -.5f : .5f);
+                int pos = p+yi*width+xi;
+                if (pos > 0 && pos < width*height) {
+                    input2[pos] = 255;
+                }
+            }
+        }
+    }
+
+    save_data(width, height, 1, input1, "input.jpg");
+    save_data(width, height, 1, input2, "output.jpg");
+    show_data(width, height, 1, input2, "output.jpg");
 
     // free memory
     delete[] input1;

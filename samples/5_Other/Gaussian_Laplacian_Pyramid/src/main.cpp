@@ -142,7 +142,7 @@ int main(int argc, const char **argv) {
 
     // only filter kernel sizes 3x3, 5x5, and 7x7 implemented
     if (size_x != size_y || !(size_x == 3 || size_x == 5 || size_x == 7)) {
-        std::cerr << "Wrong filter kernel size. "
+        std::cout << "Wrong filter kernel size. "
                   << "Currently supported values: 3x3, 5x5, and 7x7!"
                   << std::endl;
         exit(EXIT_FAILURE);
@@ -176,7 +176,7 @@ int main(int argc, const char **argv) {
     // host memory for image of width x height pixels
     char *input = (char*)load_data<uchar>(width, height, 1, IMAGE);
 
-    std::cerr << "Calculating Hipacc Gaussian Laplacian pyramid ..." << std::endl;
+    std::cout << "Calculating Hipacc Gaussian Laplacian pyramid ..." << std::endl;
 
     //************************************************************************//
 
@@ -248,19 +248,20 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
+    std::cout << "Hipacc: " << timing << " ms, "
+              << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
+
+    // input and restored input should be identical
+    compare_results((uchar*)input, (uchar*)restored, width, height);
+
     // convert to uchar for visualization
     for (int p = 0; p < width*height; ++p) {
         output[p] = (char)(output[p] + 127);
     }
 
-    store_data(width, height, 1, (uchar*)input, "input.jpg");
-    store_data(width, height, 1, (uchar*)output, "output.jpg");
-
-    std::cerr << "Hipacc: " << timing << " ms, "
-              << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
-
-    // input and restored input should be identical
-    compare_results((uchar*)input, (uchar*)restored, width, height);
+    save_data(width, height, 1, (uchar*)input, "input.jpg");
+    save_data(width, height, 1, (uchar*)output, "output.jpg");
+    show_data(width, height, 1, (uchar*)output, "output.jpg");
 
     // free memory
     delete[] input;

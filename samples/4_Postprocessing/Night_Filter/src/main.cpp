@@ -26,9 +26,6 @@
 
 #include "hipacc.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
 #include <iostream>
 #include <hipacc_helper.hpp>
 
@@ -291,12 +288,14 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
-    store_data(width, height, 4, (uchar*)input, "input.jpg");
-    store_data(width, height, 4, (uchar*)output, "output.jpg");
+    std::cout << "Hipacc: " << timing << " ms, "
+              << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
+
+    save_data(width, height, 4, (uchar*)input, "input.jpg");
+    save_data(width, height, 4, (uchar*)output, "output.jpg");
+    show_data(width, height, 4, (uchar*)output, "output.jpg");
 
     delete [] input;
-
-    std::cout << "<HIPACC:> Overall time: " << timing << "(ms)" << std::endl;
 
     return EXIT_SUCCESS;
 }

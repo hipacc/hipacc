@@ -75,7 +75,7 @@ int main(int argc, const char **argv) {
     float *input = load_data<float>(width, height);
     float ref_out;
 
-    std::cerr << "Calculating Hipacc reduction ..." << std::endl;
+    std::cout << "Calculating Hipacc reduction ..." << std::endl;
 
     //************************************************************************//
 
@@ -94,14 +94,14 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
-    std::cerr << "Hipacc: " << timing << " ms, "
+    std::cout << "Hipacc: " << timing << " ms, "
               << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
-    std::cerr << "Calculating reference ..." << std::endl;
+    std::cout << "Calculating reference ..." << std::endl;
     double start = time_ms();
     reduction(input, &ref_out, width, height);
     double end = time_ms();
-    std::cerr << "Reference: " << end-start << " ms, "
+    std::cout << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
     compare_results(&output, &ref_out);

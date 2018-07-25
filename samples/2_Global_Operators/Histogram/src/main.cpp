@@ -80,7 +80,7 @@ int main(int argc, const char **argv) {
     float *input = load_data<float>(width, height);
     uint *ref_out = new uint[num_bins]();
 
-    std::cerr << "Calculating Hipacc histogram ..." << std::endl;
+    std::cout << "Calculating Hipacc histogram ..." << std::endl;
 
     //************************************************************************//
 
@@ -99,14 +99,14 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
-    std::cerr << "Hipacc: " << timing << " ms, "
+    std::cout << "Hipacc: " << timing << " ms, "
               << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
-    std::cerr << "Calculating reference ..." << std::endl;
+    std::cout << "Calculating reference ..." << std::endl;
     double start = time_ms();
     histogram(input, ref_out, width, height, num_bins);
     double end = time_ms();
-    std::cerr << "Reference: " << end-start << " ms, "
+    std::cout << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
     compare_results(output, ref_out, num_bins);

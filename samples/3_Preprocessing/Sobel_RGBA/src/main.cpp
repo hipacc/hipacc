@@ -181,7 +181,7 @@ int main(int argc, const char **argv) {
     data_t *ref_tmp2 = new data_t[width*height];
     uchar4 *ref_out = new uchar4[width*height];
 
-    std::cerr << "Calculating Hipacc Sobel filter ..." << std::endl;
+    std::cout << "Calculating Hipacc Sobel filter ..." << std::endl;
 
     //************************************************************************//
 
@@ -223,22 +223,23 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
-    store_data(width, height, 4, (uchar*)input, "input.jpg");
-    store_data(width, height, 4, (uchar*)output, "output.jpg");
-
-    std::cerr << "Hipacc (CLAMP): " << timing << " ms, "
+    std::cout << "Hipacc: " << timing << " ms, "
               << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
-    std::cerr << "Calculating reference ..." << std::endl;
+    std::cout << "Calculating reference ..." << std::endl;
     double start = time_ms();
     sobel_filter(input, ref_tmp1, (int*)coef_x, size_x, size_y, width, height);
     sobel_filter(input, ref_tmp2, (int*)coef_y, size_x, size_y, width, height);
     sobel_combine(ref_tmp1, ref_tmp2, ref_out, width, height, norm);
     double end = time_ms();
-    std::cerr << "Reference: " << end-start << " ms, "
+    std::cout << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
     compare_results((uchar*)output, (uchar*)ref_out, width*4, height, offset_x*4, offset_y);
+
+    save_data(width, height, 4, (uchar*)input, "input.jpg");
+    save_data(width, height, 4, (uchar*)output, "output.jpg");
+    show_data(width, height, 4, (uchar*)output, "output.jpg");
 
     // free memory
     delete[] input;

@@ -122,7 +122,7 @@ int main(int argc, const char **argv) {
     uchar *input = load_data<uchar>(width, height, 1, IMAGE);
     uchar *ref_out = new uchar[width*height];
 
-    std::cerr << "Calculating Hipacc Laplace filter ..." << std::endl;
+    std::cout << "Calculating Hipacc Laplace filter ..." << std::endl;
 
     //************************************************************************//
 
@@ -148,20 +148,21 @@ int main(int argc, const char **argv) {
 
     //************************************************************************//
 
-    store_data(width, height, 1, input, "input.jpg");
-    store_data(width, height, 1, output, "output.jpg");
-
-    std::cerr << "Hipacc (CLAMP): " << timing << " ms, "
+    std::cout << "Hipacc: " << timing << " ms, "
               << (width*height/timing)/1000 << " Mpixel/s" << std::endl;
 
-    std::cerr << "Calculating reference ..." << std::endl;
+    std::cout << "Calculating reference ..." << std::endl;
     double start = time_ms();
     laplace_filter(input, ref_out, (int*)coef, SIZE, width, height);
     double end = time_ms();
-    std::cerr << "Reference: " << end-start << " ms, "
+    std::cout << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
     compare_results(output, ref_out, width, height, offset_x, offset_y);
+
+    save_data(width, height, 1, input, "input.jpg");
+    save_data(width, height, 1, output, "output.jpg");
+    show_data(width, height, 1, output, "output.jpg");
 
     // free memory
     delete[] input;

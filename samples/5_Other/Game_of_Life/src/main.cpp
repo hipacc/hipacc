@@ -104,7 +104,7 @@ int main(int argc, const char **argv) {
         }
 
         // display frame
-        if (show_data(width, height, 1, output, "Game of Life"))
+        if (show_data(width, height, 1, output, "Game of Life", 1))
             break;
 
         in = out;

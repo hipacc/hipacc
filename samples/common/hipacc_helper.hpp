@@ -96,8 +96,8 @@ T* load_data(const unsigned int width, const unsigned int height,
 
 
 template<typename T>
-void store_data(const unsigned int width, const unsigned int height,
-                const unsigned int chan, T* data, const std::string filename) {
+void save_data(const unsigned int width, const unsigned int height,
+               const unsigned int chan, T* data, const std::string filename) {
 #ifdef USE_OPENCV
   cv::Mat image;
 
@@ -134,7 +134,8 @@ void store_data(const unsigned int width, const unsigned int height,
 
 template<typename T>
 bool show_data(const unsigned int width, const unsigned int height,
-               const unsigned int chan, T* data, const std::string title) {
+               const unsigned int chan, T* data, const std::string title,
+               const int wait=0) {
 #ifdef USE_OPENCV
   cv::Mat image;
 
@@ -164,9 +165,15 @@ bool show_data(const unsigned int width, const unsigned int height,
 
   std::memcpy((T*)image.data, data, width*height*chan*sizeof(T));
 
+  if (height > 900) {
+    float scale = 900/(float)height;
+    cv::namedWindow(title.c_str(), cv::WINDOW_NORMAL);
+    cv::resizeWindow(title.c_str(), width*scale, height*scale);
+  }
+
   cv::imshow(title.c_str(), image);
 
-  return cv::waitKey(1) >= 0;
+  return cv::waitKey(wait) >= 0;
 #else
   return true;
 #endif
