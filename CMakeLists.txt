@@ -222,6 +222,35 @@ foreach(DIR IN LISTS TEST_DIRS)
 endforeach()
 
 
+# Copy system's clang headers to current build dir
+execute_process(
+    COMMAND ${clang} -print-file-name=include
+    OUTPUT_VARIABLE CLANG_INCLUDE_DIRS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(CLANG_HEADERS_SRC ${CLANG_INCLUDE_DIRS})
+set(CLANG_HEADERS_DST ${CMAKE_BINARY_DIR}/include/clang)
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CLANG_HEADERS_DST}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CLANG_HEADERS_SRC} ${CLANG_HEADERS_DST})
+
+# Add clang headers to package
+install(DIRECTORY ${CLANG_HEADERS_DST}
+        DESTINATION include
+        COMPONENT headers_clang)
+
+# Copy system's libcxx to current build dir
+set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++/v1)
+set(LIBCXX_DST ${CMAKE_BINARY_DIR}/include/c++/v1)
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
+
+# Add libcxx to package
+install(DIRECTORY ${LIBCXX_DST}
+        DESTINATION include/c++
+        COMPONENT libcxx)
+
+
 if(CMAKE_BUILD_TYPE MATCHES Release)
     # Setup packaging variables
     set (CPACK_PACKAGE_NAME Hipacc)
@@ -232,34 +261,6 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     set (CPACK_PACKAGE_VERSION ${HIPACC_VERSION})
     set (CPACK_PACKAGE_CONTACT "https://hipacc-lang.org/#authors")
     set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
-
-    # Copy system's clang headers to current build dir
-    execute_process(
-        COMMAND ${clang} -print-file-name=include
-        OUTPUT_VARIABLE CLANG_INCLUDE_DIRS
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-    set(CLANG_HEADERS_SRC ${CLANG_INCLUDE_DIRS})
-    set(CLANG_HEADERS_DST ${CMAKE_BINARY_DIR}/include/clang)
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CLANG_HEADERS_DST}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CLANG_HEADERS_SRC} ${CLANG_HEADERS_DST})
-
-    # Add clang headers to package
-    install(DIRECTORY ${CLANG_HEADERS_DST}
-            DESTINATION include
-            COMPONENT headers_clang)
-
-    # Copy system's libcxx to current build dir
-    set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++/v1)
-    set(LIBCXX_DST ${CMAKE_BINARY_DIR}/include/c++/v1)
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
-
-    # Add libcxx to package
-    install(DIRECTORY ${LIBCXX_DST}
-            DESTINATION include/c++
-            COMPONENT libcxx)
 
     # Do not package tests component
     set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
