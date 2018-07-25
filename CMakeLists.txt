@@ -270,7 +270,7 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     if (UNIX AND NOT APPLE)
         set (CPACK_GENERATOR DEB)
         set (CPACK_DEBIAN_PACKAGE_SECTION "devel")
-        set (CPACK_DEBIAN_PACKAGE_SUGGESTS "libopencv (>= 2.4.0)")
+        set (CPACK_DEBIAN_PACKAGE_SUGGESTS "libopencv-dev (>= 2.4.0)")
         set (CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://hipacc-lang.org")
 
         if(DEFINED PLATFORM)
