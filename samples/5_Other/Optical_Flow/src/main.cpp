@@ -238,7 +238,7 @@ int main(int argc, const char **argv) {
         int vector = output[p];
         if (vector != 0) {
             float xf = vector >> 16;
-            float yf = (vector & 0xffff);
+            float yf = (short)(vector & 0xffff);
             float m = yf/xf;
             for (int i = 0; i <= abs(xf); ++i) {
                 int xi = (xf < 0 ? -i : i);

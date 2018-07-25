@@ -139,8 +139,7 @@ class VectorKernel : public Kernel<int, float4> {
 
                 // Cartesian to polar
                 int xi = vector >> 16;
-                int yi = (vector & 0xffff);
-                if (yi >> 15) yi |= 0xffff0000;
+                int yi = (short)(vector & 0xffff);
                 float xf = (float)xi;
                 float yf = (float)yi;
                 float dist = sqrt(xf*xf+yf*yf);

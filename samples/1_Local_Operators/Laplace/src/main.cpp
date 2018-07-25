@@ -59,6 +59,7 @@ class LaplaceFilter : public Kernel<uchar> {
             int sum = reduce(dom, Reduce::SUM, [&] () -> int {
                     return mask(dom) * input(dom);
                 });
+            sum += 128;
             sum = min(sum, 255);
             sum = max(sum, 0);
             output() = (uchar) (sum);
@@ -193,6 +194,7 @@ void laplace_filter(uchar *in, uchar *out, int *filter, int size,
                 }
             }
 
+            sum += 128;
             sum = min(sum, 255);
             sum = max(sum, 0);
             out[y*width + x] = sum;
