@@ -81,7 +81,7 @@ int main(int argc, const char **argv) {
     float timing = 0;
 
     // only filter kernel sizes 3x3 and 5x5 implemented
-    if (size_x != size_y && (size_x != 3 || size_x != 5)) {
+    if (size_x != size_y || (size_x != 3 && size_x != 5)) {
         std::cerr << "Wrong filter kernel size. "
                   << "Currently supported values: 3x3 and 5x5!" << std::endl;
         exit(EXIT_FAILURE);

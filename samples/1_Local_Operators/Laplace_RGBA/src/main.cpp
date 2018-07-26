@@ -80,14 +80,13 @@ int main(int argc, const char **argv) {
     const int height = HEIGHT;
     const int size_x = SIZE_X;
     const int size_y = SIZE_Y;
-    const int offset_x = size_x >> 1;
-    const int offset_y = size_y >> 1;
     float timing = 0;
 
-    // only filter kernel sizes 3x3 and 5x5 implemented
-    if (size_x != size_y && (size_x != 3 || size_x != 5)) {
+    // only filter kernel sizes 1x1, 3x3 and 5x5 implemented
+    if (size_x != size_y || (size_x != 1 && size_x != 3 && size_x != 5)) {
         std::cerr << "Wrong filter kernel size. "
-                  << "Currently supported values: 3x3 and 5x5!" << std::endl;
+                  << "Currently supported values: 1x1, 3x3 and 5x5!"
+                  << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -159,7 +158,7 @@ int main(int argc, const char **argv) {
     std::cout << "Reference: " << end-start << " ms, "
               << (width*height/(end-start))/1000 << " Mpixel/s" << std::endl;
 
-    compare_results((uchar*)output, (uchar*)ref_out, width*4, height, offset_x*4, offset_y);
+    compare_results((uchar*)output, (uchar*)ref_out, width*4, height, SIZE/2*4, SIZE/2);
 
     save_data(width, height, 4, (uchar*)input, "input.jpg");
     save_data(width, height, 4, (uchar*)output, "output.jpg");
