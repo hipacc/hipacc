@@ -35,10 +35,12 @@
 #define IMAGE1 "../../common/img/q5_00164.jpg"
 #define IMAGE2 "../../common/img/q5_00165.jpg"
 
-#define SIZE_X   7
-#define SIZE_Y   7
-#define DISTANCE 15
-#define EPSILON  10
+#define SIZE_X     7
+#define SIZE_Y     7
+#define EPSILON    10
+#define MAX_DIST_X 15
+#define MAX_DIST_Y 3
+#define THRESHOLD  100
 
 
 using namespace hipacc;
@@ -95,15 +97,40 @@ class SignatureKernel : public Kernel<uint> {
         }
 };
 
+class DeltaKernel : public Kernel<uint> {
+    private:
+        Accessor<uchar> &input1;
+        Accessor<uchar> &input2;
+        Domain &dom;
+
+    public:
+        DeltaKernel(IterationSpace<uint> &iter, Accessor<uchar> &input1,
+                    Accessor<uchar> &input2, Domain &dom)
+              : Kernel(iter), input1(input1), input2(input2), dom(dom) {
+            add_accessor(&input1);
+            add_accessor(&input2);
+        }
+
+        void kernel() {
+            output() = reduce(dom, Reduce::SUM, [&] () -> uint {
+                    int in1 = input1(dom);
+                    int in2 = input2(dom);
+                    int diff = in1 - in2;
+                    if (diff < 0) diff *= -1;
+                    return diff;
+                });
+        }
+};
+
 class VectorKernel : public Kernel<int, float4> {
     private:
-        Accessor<uint> &sig1, &sig2;
+        Accessor<uint> &sig1, &sig2, &delta;
         Domain &dom;
 
     public:
         VectorKernel(IterationSpace<int> &iter, Accessor<uint> &sig1,
-                     Accessor<uint> &sig2, Domain &dom)
-              : Kernel(iter), sig1(sig1), sig2(sig2), dom(dom) {
+                     Accessor<uint> &sig2, Accessor<uint> &delta, Domain &dom)
+              : Kernel(iter), sig1(sig1), sig2(sig2), delta(delta), dom(dom) {
             add_accessor(&sig1);
             add_accessor(&sig2);
         }
@@ -111,6 +138,7 @@ class VectorKernel : public Kernel<int, float4> {
         void kernel() {
             int vec_found = 0;
             int mem_loc = 0;
+            uint max_delta = 0;
 
             uint reference = sig1();
 
@@ -118,13 +146,17 @@ class VectorKernel : public Kernel<int, float4> {
                     if (sig2(dom) == reference) {
                         // BUG: ++operator is not recognized as assignment
                         vec_found = vec_found + 1;
+
                         // encode x and y as upper and lower half-word
                         mem_loc = (dom.x() << 16) | (dom.y() & 0xffff);
+
+                        uint d = delta(dom);
+                        if (d > max_delta) max_delta = d;
                     }
                 });
 
             // save the vector, if exactly one was found
-            if (vec_found!=1) {
+            if (vec_found!=1 || max_delta < THRESHOLD) {
                 mem_loc = 0;
             }
 
@@ -201,6 +233,7 @@ int main(int argc, const char **argv) {
     Image<uchar> in1(width, height, input1);
     Image<uchar> in2(width, height, input2);
     Image<uchar> tmp(width, height);
+    Image<uint> delta(width, height);
     Image<uint> in1_sig(width, height);
     Image<uint> in2_sig(width, height);
     Image<int> img_vec(width, height);
@@ -212,7 +245,7 @@ int main(int argc, const char **argv) {
     Domain sig_dom(sig_coef);
 
     // Domain for vector kernel
-    Domain dom(DISTANCE*2+1, DISTANCE*2+1);
+    Domain dom(MAX_DIST_X*2+1, MAX_DIST_Y*2+1);
     // do not process the center pixel
     dom(0,0) = 0;
 
@@ -232,6 +265,8 @@ int main(int argc, const char **argv) {
     sig1.execute();
     timing += hipacc_last_kernel_timing();
 
+    in1 = tmp;
+
     // filter second image
     BoundaryCondition<uchar> bound_in2(in2, mask, Boundary::CLAMP);
     Accessor<uchar> acc_in2(bound_in2);
@@ -245,13 +280,22 @@ int main(int argc, const char **argv) {
     sig2.execute();
     timing += hipacc_last_kernel_timing();
 
+    in2 = tmp;
+
+    IterationSpace<uint> iter_delta(delta);
+    DeltaKernel del(iter_delta, acc_in1, acc_in2, sig_dom);
+    del.execute();
+    timing += hipacc_last_kernel_timing();
+
     // compute motion vectors
     BoundaryCondition<uint> bound_in2_sig(in2_sig, dom, Boundary::CONSTANT, 0);
     Accessor<uint> acc_in2_sig(bound_in2_sig);
     BoundaryCondition<uint> bound_in1_sig(in1_sig, dom, Boundary::CONSTANT, 0);
     Accessor<uint> acc_in1_sig(bound_in1_sig);
+    BoundaryCondition<uint> bound_delta(delta, dom, Boundary::CONSTANT, 0);
+    Accessor<uint> acc_delta(bound_delta);
     IterationSpace<int> iter_vec(img_vec);
-    VectorKernel vector_kernel(iter_vec, acc_in1_sig, acc_in2_sig, dom);
+    VectorKernel vector_kernel(iter_vec, acc_in1_sig, acc_in2_sig, acc_delta, dom);
     vector_kernel.execute();
     timing += hipacc_last_kernel_timing();
 
