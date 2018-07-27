@@ -693,6 +693,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     bool getUsed(std::string name) {
       return usedVars.find(name) != usedVars.end();
     }
+    bool isFusible() {
+      return OptmOpt == OptimizationOption::KERNEL_FUSE;
+    }
 
     // keep track of functions called within kernel
     void addFunctionCall(FunctionDecl *FD) { deviceFuncs.push_back(FD); }

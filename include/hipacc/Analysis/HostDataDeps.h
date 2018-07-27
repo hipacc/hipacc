@@ -290,10 +290,11 @@ class HostDataDeps : public ManagedAnalysis {
         std::vector<Accessor*> accs_;
         Process *srcProcess;
         std::vector<Process*> dstProcess;
+        bool isShared;
+
       public:
         std::string stream;
         std::vector<std::string> cpyStreams;
-        bool isShared;
         Space(Image *image) : Node(true), image(image), iter(nullptr), srcProcess(nullptr), isShared(false) { }
         Image *getImage() {
           return image;
@@ -314,6 +315,14 @@ class HostDataDeps : public ManagedAnalysis {
 
         std::vector<Process*> getDstProcesses() {
           return dstProcess;
+        }
+
+        void setSpaceShared() {
+          isShared = true;
+        }
+
+        bool isSpaceShared() {
+          return isShared;
         }
 
         void setSrcProcess(Process *proc) {
@@ -446,6 +455,8 @@ class HostDataDeps : public ManagedAnalysis {
 
   public:
     bool isFusible(HipaccKernel *K);
+    bool hasSharedIS(HipaccKernel *K);
+    std::string getSharedISName(HipaccKernel *K);
     bool isSrc(HipaccKernel *K);
     bool isDest(HipaccKernel *K);
     unsigned getNumberOfFusibleKernelList() const;

@@ -1,0 +1,29 @@
+{
+  "kernelConfig": [
+    {
+      "name": "SFXR",
+      "fusibility": "off",
+      "config": "32x21"
+    },
+    {
+      "name": "SFYR",
+      "fusibility": "off",
+      "config": "32x21"
+    },
+    {
+      "name": "SFXC",
+      "fusibility": "off",
+      "config": "32x21"
+    },
+    {
+      "name": "SFYC",
+      "fusibility": "off",
+      "config": "32x21"
+    },
+    {
+      "name": "SFM",
+      "fusibility": "off",
+      "config": "32x21"
+    }
+  ]
+}

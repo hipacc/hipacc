@@ -49,6 +49,7 @@
 #include "hipacc/Vectorization/SIMDTypes.h"
 
 #include <functional>
+#include <queue>
 
 //===----------------------------------------------------------------------===//
 // Statement/expression transformations
@@ -68,7 +69,7 @@ typedef union border_variant {
 } border_variant;
 
 class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
-  protected:
+  private:
     enum TranslationMode {
       CloneAST,
       TranslateAST
@@ -109,6 +110,66 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     NamespaceDecl *hipacc_ns, *hipacc_math_ns;
     TypedefDecl *samplerTy;
     DeclRefExpr *kernelSamplerRef;
+
+    // Kernel Fusion Params
+    class KernelFusionVars {
+      public:
+        bool bSkipGidDecl;
+        Expr *exprOutput;
+        bool bReplaceExprOutput;
+        Expr *exprInput;
+        bool bReplaceExprInput;
+        bool bP2LReplaceExprInputIdx;
+        Expr *exprP2LInputIdx;
+        bool bP2LReplaceInputExprs;
+        Stmt *stmtP2LProducerBody;
+        Expr *exprSharedImgReg;
+        std::string exprSharedImgName;
+        bool bL2LInsertKernelBody;
+        bool bL2LInsertBeforeSmem;
+        Expr *exprL2LIdXShift;
+        Expr *exprL2LIdYShift;
+        int curL2LIdXShift;
+        int curL2LIdYShift;
+        bool bL2LRecordBorder;
+        bool bL2LRecordBody;
+        bool bL2LRecordBorderStmts;
+        unsigned curL2LLiteralCount;
+        bool bL2LReplaceVarAccSizeY;
+        unsigned curL2LVarAccSizeY;
+        bool bL2LReplaceBody;
+        SmallVector<Stmt *, 16> stmtsL2LBorder;
+        std::queue<Stmt *> stmtsL2LProducerKernel;
+        std::queue<Stmt *> stmtsL2LKernel;
+        std::string sKernelParamNameSuffix;
+
+        KernelFusionVars(HipaccKernel *kernel) :
+          bSkipGidDecl(true),
+          exprOutput(nullptr),
+          bReplaceExprOutput(false),
+          exprInput(nullptr),
+          bReplaceExprInput(false),
+          bP2LReplaceExprInputIdx(false),
+          exprP2LInputIdx(nullptr),
+          bP2LReplaceInputExprs(false),
+          stmtP2LProducerBody(nullptr),
+          exprSharedImgReg(nullptr),
+          bL2LInsertKernelBody(false),
+          bL2LInsertBeforeSmem(false),
+          exprL2LIdXShift(nullptr),
+          exprL2LIdYShift(nullptr),
+          curL2LIdXShift(0),
+          curL2LIdYShift(0),
+          bL2LRecordBorder(false),
+          bL2LRecordBody(false),
+          bL2LRecordBorderStmts(false),
+          curL2LLiteralCount(0),
+          bL2LReplaceVarAccSizeY(false),
+          curL2LVarAccSizeY(0),
+          bL2LReplaceBody(false),
+          sKernelParamNameSuffix("_"+kernel->getKernelName()) {}
+    };
+    KernelFusionVars fusionVars;
 
     class BlockingVars {
       public:
@@ -221,14 +282,14 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       }
     }
 
-    virtual VarDecl *CloneVarDecl(VarDecl *VD);
+    VarDecl *CloneVarDecl(VarDecl *VD);
     VarDecl *CloneParmVarDecl(ParmVarDecl *PVD);
     VarDecl *CloneDeclTex(ParmVarDecl *D, std::string prefix);
     void setExprProps(Expr *orig, Expr *clone);
     void setExprPropsClone(Expr *orig, Expr *clone);
     void setCastPath(CastExpr *orig, CXXCastPath &castPath);
     void initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S);
-    virtual void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
+    void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
     void initOpenCL(SmallVector<Stmt *, 16> &kernelBody);
     void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
     void updateTileVars();
@@ -293,9 +354,9 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     FunMapTy KernelFunctionMap;
 
     // BorderHandling.cpp
-    virtual Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
+    Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
         *local_offset_y, HipaccAccessor *Acc);
-    virtual Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
+    Expr *addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x, Expr
         *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
         SmallVector<CompoundStmt *, 16> &bhCStmt);
 
@@ -338,10 +399,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *accessMemShared(DeclRefExpr *LHS, Expr *offset_x=nullptr, Expr
         *offset_y=nullptr);
     Expr *accessMemSharedAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
-    virtual void stageLineToSharedMemory(ParmVarDecl *PVD, SmallVector<Stmt *, 16>
+    void stageLineToSharedMemory(ParmVarDecl *PVD, SmallVector<Stmt *, 16>
         &stageBody, Expr *local_offset_x, Expr *local_offset_y, Expr
         *global_offset_x, Expr *global_offset_y);
-    virtual void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int
+    void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int
         p);
     void stageIterationToSharedMemoryExploration(SmallVector<Stmt *, 16>
         &stageBody);
@@ -399,6 +460,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       outputImage(nullptr),
       retValRef(nullptr),
       writeImageRHS(nullptr),
+      fusionVars(kernel),
       tileVars(),
       lidYRef(nullptr),
       gidYRef(nullptr) {
@@ -437,7 +499,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         // debug
       }
 
-    virtual Stmt *Hipacc(Stmt *S);
+    Stmt *Hipacc(Stmt *S);
 
     Stmt *translateBinning(Stmt *binningFunc) {
       BinningTranslator binning(Ctx, Kernel);
@@ -459,6 +521,23 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     static std::string getInterpolationName(CompilerOptions &compilerOptions,
         HipaccKernel *Kernel, HipaccAccessor *Acc);
 
+    // Kernel Fusion getters and setters
+    void setFusionSkipGidDecl(bool b) { fusionVars.bSkipGidDecl = b; }
+    void setFusionP2PSrcOperator(VarDecl *VD);
+    void setFusionP2PDestOperator(VarDecl *VD);
+    void setFusionP2PIntermOperator(VarDecl *VDIn, VarDecl *VDOut);
+    void setFusionL2PDestOperator(VarDecl *VD, VarDecl *VDSharedImg, std::string nam);
+    void setFusionL2PIntermOperator(VarDecl *VDIn, VarDecl *VDOut, VarDecl *VDSharedImg, std::string nam);
+    void setFusionP2LSrcOperator(VarDecl *VDReg, VarDecl *VDIdx);
+    void setFusionP2LDestOperator(VarDecl *VDReg, VarDecl *VDIdx, Stmt *S);
+    void setFusionL2LSrcOperator(VarDecl *VDRegOut, VarDecl *VDIdX, VarDecl *VDIdY, unsigned szY);
+    void setFusionL2LEndSrcOperator(std::queue<Stmt *> stmtsLocal,
+        VarDecl *VDIdX, VarDecl *VDIdY, unsigned szY);
+    void setFusionL2LDestOperator(std::queue<Stmt *> stmtsLocal,
+        VarDecl *VDRegIn, VarDecl *VDIdX, VarDecl *VDIdY, unsigned szY);
+    std::queue<Stmt *> getFusionLocalKernelBody();
+    Stmt *getFusionSharedInputStmt(VarDecl *VDIn);
+
     // the following list is ordered according to
     // include/clang/Basic/StmtNodes.td
 
@@ -467,9 +546,9 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // ASTTranslate.cpp for translation related to CUDA/OpenCL
 
     #define VISIT_MODE(B, K) \
-    virtual B *Visit##K##Clone(K *k); \
-    virtual B *Visit##K##Translate(K *k); \
-    virtual B *Visit##K(K *k) { \
+    B *Visit##K##Clone(K *k); \
+    B *Visit##K##Translate(K *k); \
+    B *Visit##K(K *k) { \
       if (astMode==CloneAST) return Visit##K##Clone(k); \
       return Visit##K##Translate(k); \
     }

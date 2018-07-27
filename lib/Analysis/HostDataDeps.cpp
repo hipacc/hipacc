@@ -385,7 +385,6 @@ void HostDataDeps::dump() {
     IterationSpace *iter = (*it)->getIterationSpace();
     std::cout << "    - img: " << (*it)->getImage()->getName()
               << ", iter: " << (iter ? iter->getName() : "nullptr")
-              << ", isShared: " << (*it)->isShared
               << std::endl;
   }
 
@@ -456,11 +455,30 @@ void HostDataDeps::markSpace(Space *s) {
          ((DstProcesses.back())->getInSpaces().size() == 1)) {
       // satisfy a linear pattern, data dependency constraints
       // ...-> kernel -> img -> kernel ->...
-      s->isShared = true;
       // record as fusible kernel pair
       SrcProcess->SetWriteDependentProcess(DstProcesses.back());
       DstProcesses.back()->SetReadDependentProcess(SrcProcess);
       recordFusibleProcessPair(SrcProcess, DstProcesses.back());
+    } else if (DstProcesses.size() == 1 &&
+                ((DstProcesses.back())->getInSpaces().size() == 2)) {
+      // get the second input img of the dest p
+      Space *imgExt;
+      if ((DstProcesses.back())->getInSpaces().front() == s) {
+        imgExt = (DstProcesses.back())->getInSpaces().back();
+      } else {
+        imgExt = (DstProcesses.back())->getInSpaces().front();
+      }
+      // get the second input img of the dest p
+      std::vector<Space*> vecImgEnt = SrcProcess->getInSpaces();
+      bool shareExtSpace = (std::find(std::begin(vecImgEnt), std::end(vecImgEnt),
+                             imgExt) != std::end(vecImgEnt)) ? true : false;
+      if (shareExtSpace) {
+        imgExt->setSpaceShared();
+        // record as fusible kernel pair
+        SrcProcess->SetWriteDependentProcess(DstProcesses.back());
+        DstProcesses.back()->SetReadDependentProcess(SrcProcess);
+        recordFusibleProcessPair(SrcProcess, DstProcesses.back());
+      }
     }
     markProcess(SrcProcess);
   }
@@ -543,6 +561,21 @@ bool HostDataDeps::isFusible(HipaccKernel *K) {
   Process *p = processMap_[fullName];
   if (FusibleProcessInfoFinalMap.count(p)) { isFusible = true; }
   return isFusible;
+}
+
+bool HostDataDeps::hasSharedIS(HipaccKernel *K) {
+  std::string fullName = K->getKernelClass()->getName() + K->getName();
+  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
+  std::vector<Space*> spaces = processMap_[fullName]->getInSpaces();
+  return std::any_of(spaces.begin(), spaces.end(), [](Space *s){return s->isSpaceShared();});
+}
+
+std::string HostDataDeps::getSharedISName(HipaccKernel *K) {
+  std::string fullName = K->getKernelClass()->getName() + K->getName();
+  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
+  std::vector<Space*> spaces = processMap_[fullName]->getInSpaces();
+  auto it = std::find_if(spaces.begin(), spaces.end(), [](Space *s){return s->isSpaceShared();});
+  return (*it)->getImage()->getName();
 }
 
 bool HostDataDeps::isSrc(HipaccKernel *K) {

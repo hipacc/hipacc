@@ -1,0 +1,24 @@
+{
+  "kernelConfig": [
+    {
+      "name": "GaussBlur",
+      "fusibility": "off",
+      "config": "128x1"
+    },
+    {
+      "name": "SharpKernel",
+      "fusibility": "off",
+      "config": "128x1"
+    },
+    {
+      "name": "RatioKernel",
+      "fusibility": "off",
+      "config": "128x1"
+    },
+    {
+      "name": "UnsharpKernel",
+      "fusibility": "off",
+      "config": "128x1"
+    }
+  ]
+}

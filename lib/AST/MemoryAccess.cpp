@@ -752,8 +752,20 @@ void ASTTranslate::stageLineToSharedMemory(ParmVarDecl *PVD,
     RHS = accessMem(paramDRE, Acc, READ_ONLY, global_offset_x, global_offset_y);
   }
 
-  stageBody.push_back(createBinaryOperator(Ctx, LHS, RHS, BO_Assign,
-        Acc->getImage()->getType()));
+  if (Kernel->isFusible() && fusionVars.bP2LReplaceInputExprs) {
+    // extract and set global id
+    ArraySubscriptExpr *tempASE = dyn_cast<ArraySubscriptExpr>(RHS);
+    stageBody.push_back(createBinaryOperator(Ctx, fusionVars.exprP2LInputIdx,
+      tempASE->getIdx(), BO_Assign, Acc->getImage()->getType()));
+    // insert the producer body
+    stageBody.push_back(fusionVars.stmtP2LProducerBody);
+    // replace the input
+    stageBody.push_back(createBinaryOperator(Ctx, LHS, fusionVars.exprOutput,
+      BO_Assign, Acc->getImage()->getType()));
+  } else {
+    stageBody.push_back(createBinaryOperator(Ctx, LHS, RHS, BO_Assign,
+          Acc->getImage()->getType()));
+  }
 }
 
 
@@ -764,9 +776,14 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
     if (KernelDeclMapShared[param]) {
       HipaccAccessor *Acc = KernelDeclMapAcc[param];
 
+      unsigned varAccSizeY = Acc->getSizeY();
+      if (fusionVars.bL2LReplaceVarAccSizeY) {
+        varAccSizeY = fusionVars.curL2LVarAccSizeY;
+      }
+
       // check if the bottom apron has to be fetched
       if (p>=static_cast<int>(Kernel->getPixelsPerThread())) {
-        int p_add = static_cast<int>(ceilf((Acc->getSizeY()-1) /
+        int p_add = static_cast<int>(ceilf((varAccSizeY-1) /
               static_cast<float>(Kernel->getNumThreadsY())));
         if (p>=static_cast<int>(Kernel->getPixelsPerThread())+p_add) continue;
       }
@@ -784,35 +801,58 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
       } else {
         SX2 = createIntegerLiteral(Ctx, 0);
       }
-      if (Acc->getSizeY() > 1) {
+      if (varAccSizeY > 1) {
         global_offset_y = createParenExpr(Ctx, createUnaryOperator(Ctx,
               createIntegerLiteral(Ctx,
-                static_cast<int32_t>(Acc->getSizeY()/2)), UO_Minus, Ctx.IntTy));
+                static_cast<int32_t>(varAccSizeY/2)), UO_Minus, Ctx.IntTy));
       } else {
         global_offset_y = nullptr;
       }
 
-      // check if we need to stage right apron
-      size_t num_stages_x = 0;
-      if (Acc->getSizeX() > 1) {
-          num_stages_x = 2;
-      }
-
-      // load row (line)
-      for (size_t i=0; i<=num_stages_x; ++i) {
-        // _smem[lidYRef][(int)threadIdx.x + i*(int)blockDim.x] =
-        //        Image[-SX/2 + i*(int)blockDim.x, -SY/2];
+      if (Kernel->isFusible() && compilerOptions.allowMisAlignedAccess()) {
         Expr *local_offset_x = nullptr;
+        // load line first half
         if (Acc->getSizeX() > 1) {
-          local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                static_cast<int32_t>(i)), tileVars.local_size_x, BO_Mul,
-              Ctx.IntTy);
-          global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
-              BO_Sub, Ctx.IntTy);
+          local_offset_x = createIntegerLiteral(Ctx, static_cast<int32_t>(0));
+          global_offset_x = createParenExpr(Ctx, createUnaryOperator(Ctx,
+                createIntegerLiteral(Ctx,
+                  static_cast<int32_t>(varAccSizeY/2)), UO_Minus, Ctx.IntTy));
         }
-
         stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
             global_offset_x, global_offset_y);
+
+        // load line second half (partially overlap)
+        if (Acc->getSizeX() > 1) {
+          local_offset_x = createIntegerLiteral(Ctx, static_cast<int32_t>(varAccSizeY/2)*2);
+          global_offset_x = createParenExpr(Ctx, createUnaryOperator(Ctx,
+                createIntegerLiteral(Ctx,
+                  static_cast<int32_t>(varAccSizeY/2)), UO_Plus, Ctx.IntTy));
+        }
+        stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
+            global_offset_x, global_offset_y);
+      } else {
+        // check if we need to stage right apron
+        size_t num_stages_x = 0;
+        if (Acc->getSizeX() > 1) {
+            num_stages_x = 2;
+        }
+
+        // load row (line)
+        for (size_t i=0; i<=num_stages_x; ++i) {
+          // _smem[lidYRef][(int)threadIdx.x + i*(int)blockDim.x] =
+          //        Image[-SX/2 + i*(int)blockDim.x, -SY/2];
+          Expr *local_offset_x = nullptr;
+          if (Acc->getSizeX() > 1) {
+            local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
+                  static_cast<int32_t>(i)), tileVars.local_size_x, BO_Mul,
+                Ctx.IntTy);
+            global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
+                BO_Sub, Ctx.IntTy);
+          }
+
+          stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
+              global_offset_x, global_offset_y);
+        }
       }
     }
   }

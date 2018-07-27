@@ -126,15 +126,31 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
   return addBorderHandling(LHS, local_offset_x, local_offset_y, Acc, preStmts,
       preCStmt);
 }
+
 Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     Expr *local_offset_y, HipaccAccessor *Acc, SmallVector<Stmt *, 16> &bhStmts,
     SmallVector<CompoundStmt *, 16> &bhCStmt) {
   Expr *result = nullptr;
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
 
-  std::string gidx_str("_gid_x" + std::to_string(literalCount));
-  std::string gidy_str("_gid_y" + std::to_string(literalCount));
-  std::string tmp_str("_tmp" + std::to_string(literalCount++));
+  bool bRecordStmtsForKernelFusion = false;
+  if (Kernel->isFusible() && fusionVars.bL2LRecordBorder &&
+          fusionVars.bL2LRecordBorderStmts) {
+    bRecordStmtsForKernelFusion = true;
+  }
+
+  std::string gidx_str;
+  std::string gidy_str;
+  std::string tmp_str;
+  if (bRecordStmtsForKernelFusion) {
+    gidx_str = "_gid_x_fusion" + std::to_string(fusionVars.curL2LLiteralCount);
+    gidy_str = "_gid_y_fusion" + std::to_string(fusionVars.curL2LLiteralCount);
+    tmp_str = "_tmp_fusion" + std::to_string(fusionVars.curL2LLiteralCount++);
+  } else {
+    gidx_str = "_gid_x" + std::to_string(literalCount);
+    gidy_str = "_gid_y" + std::to_string(literalCount);
+    tmp_str = "_tmp" + std::to_string(literalCount++);
+  }
 
   Expr *lower_x, *upper_x, *lower_y, *upper_y;
   if (Acc->getOffsetXDecl()) {
@@ -156,10 +172,16 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
 
   Expr *idx_x = tileVars.global_id_x;
   Expr *idx_y = gidYRef;
+  Expr *idx_x_fusion = tileVars.global_id_x;
+  Expr *idx_y_fusion = gidYRef;
 
   // step 0: add local offset: gid_[x|y] + local_offset_[x|y]
   idx_x = addLocalOffset(idx_x, local_offset_x);
   idx_y = addLocalOffset(idx_y, local_offset_y);
+  if (bRecordStmtsForKernelFusion) {
+    idx_x_fusion = addLocalOffset(idx_x_fusion, fusionVars.exprL2LIdXShift);
+    idx_y_fusion = addLocalOffset(idx_y_fusion, fusionVars.exprL2LIdYShift);
+  }
 
   // step 1: remove is_offset and add interpolation & boundary handling
   switch (Acc->getInterpolationMode()) {
@@ -200,12 +222,19 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     }
   }
 
+  if (bRecordStmtsForKernelFusion) {
+    idx_x = idx_x_fusion;
+    idx_y = idx_y_fusion;
+  }
+
   // add temporary variables for updated idx_x and idx_y
   if (local_offset_x) {
     VarDecl *tmp_x = createVarDecl(Ctx, kernelDecl, gidx_str, Ctx.IntTy, idx_x);
     DC->addDecl(tmp_x);
     idx_x = createDeclRefExpr(Ctx, tmp_x);
-    bhStmts.push_back(createDeclStmt(Ctx, tmp_x));
+    Stmt *bhTemp = createDeclStmt(Ctx, tmp_x);
+    if (bRecordStmtsForKernelFusion) (fusionVars.stmtsL2LBorder).push_back(bhTemp);
+    bhStmts.push_back(bhTemp);
     bhCStmt.push_back(curCStmt);
   }
 
@@ -213,7 +242,9 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     VarDecl *tmp_y = createVarDecl(Ctx, kernelDecl, gidy_str, Ctx.IntTy, idx_y);
     DC->addDecl(tmp_y);
     idx_y = createDeclRefExpr(Ctx, tmp_y);
-    bhStmts.push_back(createDeclStmt(Ctx, tmp_y));
+    Stmt *bhTemp = createDeclStmt(Ctx, tmp_y);
+    if (bRecordStmtsForKernelFusion) (fusionVars.stmtsL2LBorder).push_back(bhTemp);
+    bhStmts.push_back(bhTemp);
     bhCStmt.push_back(curCStmt);
   }
 
@@ -226,7 +257,9 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
 
     DC->addDecl(tmp_t);
     DeclRefExpr *tmp_t_ref = createDeclRefExpr(Ctx, tmp_t);
-    bhStmts.push_back(createDeclStmt(Ctx, tmp_t));
+    Stmt *bhTemp = createDeclStmt(Ctx, tmp_t);
+    bhStmts.push_back(bhTemp);
+    if (bRecordStmtsForKernelFusion) (fusionVars.stmtsL2LBorder).push_back(bhTemp);
     bhCStmt.push_back(curCStmt);
 
     Expr *bo_constant = nullptr;
@@ -275,13 +308,17 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
 
     // tmp<0> = RHS;
     if (bo_constant) {
-      bhStmts.push_back(createIfStmt(Ctx, bo_constant, createBinaryOperator(Ctx,
+      Stmt *bhTemp = createIfStmt(Ctx, bo_constant, createBinaryOperator(Ctx,
                       tmp_t_ref, RHS, BO_Assign, tmp_t_ref->getType()), nullptr,
-                  nullptr));
+                        nullptr);
+      bhStmts.push_back(bhTemp);
+      if (bRecordStmtsForKernelFusion) (fusionVars.stmtsL2LBorder).push_back(bhTemp);
       bhCStmt.push_back(curCStmt);
     } else {
-      bhStmts.push_back(createBinaryOperator(Ctx, tmp_t_ref, RHS, BO_Assign,
-            tmp_t_ref->getType()));
+      Stmt *bhTemp = createBinaryOperator(Ctx, tmp_t_ref, RHS, BO_Assign,
+                  tmp_t_ref->getType());
+      bhStmts.push_back(bhTemp);
+      if (bRecordStmtsForKernelFusion) (fusionVars.stmtsL2LBorder).push_back(bhTemp);
       bhCStmt.push_back(curCStmt);
     }
     result = tmp_t_ref;
@@ -313,21 +350,29 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     auto stride_y = getHeightDecl(Acc);
     if (upper_fun) {
       if (bh_variant.borders.right && local_offset_x) {
-        bhStmts.push_back(upper_fun(Ctx, idx_x, upper_x, stride_x));
+        Stmt *bhTemp = upper_fun(Ctx, idx_x, upper_x, stride_x);
+        bhStmts.push_back(bhTemp);
+        if (bRecordStmtsForKernelFusion) (fusionVars.stmtsL2LBorder).push_back(bhTemp);
         bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.bottom && local_offset_y) {
-        bhStmts.push_back(upper_fun(Ctx, idx_y, upper_y, stride_y));
+        Stmt *bhTemp = upper_fun(Ctx, idx_y, upper_y, stride_y);
+        bhStmts.push_back(bhTemp);
+        if (bRecordStmtsForKernelFusion) (fusionVars.stmtsL2LBorder).push_back(bhTemp);
         bhCStmt.push_back(curCStmt);
       }
     }
     if (lower_fun) {
       if (bh_variant.borders.left && local_offset_x) {
-        bhStmts.push_back(lower_fun(Ctx, idx_x, lower_x, stride_x));
+        Stmt *bhTemp = lower_fun(Ctx, idx_x, lower_x, stride_x);
+        bhStmts.push_back(bhTemp);
+        if (bRecordStmtsForKernelFusion) (fusionVars.stmtsL2LBorder).push_back(bhTemp);
         bhCStmt.push_back(curCStmt);
       }
       if (bh_variant.borders.top && local_offset_y) {
-        bhStmts.push_back(lower_fun(Ctx, idx_y, lower_y, stride_y));
+        Stmt *bhTemp = lower_fun(Ctx, idx_y, lower_y, stride_y);
+        bhStmts.push_back(bhTemp);
+        if (bRecordStmtsForKernelFusion) (fusionVars.stmtsL2LBorder).push_back(bhTemp);
         bhCStmt.push_back(curCStmt);
       }
     }
@@ -358,6 +403,20 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
         break;
     }
     setExprProps(LHS, result);
+  }
+
+  if (bRecordStmtsForKernelFusion) {
+    Expr *end_offset_x, *end_offset_y;
+    end_offset_x = createBinaryOperator(Ctx, fusionVars.exprL2LIdXShift,
+                    createBinaryOperator(Ctx, idx_x, tileVars.global_id_x, BO_Sub, Ctx.IntTy),
+                      BO_Assign, Ctx.IntTy);
+    end_offset_y = createBinaryOperator(Ctx, fusionVars.exprL2LIdYShift,
+                    createBinaryOperator(Ctx, idx_y, gidYRef, BO_Sub, Ctx.IntTy),
+                      BO_Assign, Ctx.IntTy);
+    (fusionVars.stmtsL2LBorder).push_back(end_offset_x);
+    (fusionVars.stmtsL2LBorder).push_back(end_offset_y);
+
+    fusionVars.bL2LRecordBorderStmts = false;
   }
 
   return result;

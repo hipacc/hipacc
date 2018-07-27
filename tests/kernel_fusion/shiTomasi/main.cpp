@@ -28,8 +28,8 @@
 #include <iostream>
 #include <vector>
 #include <numeric>
+#include <cmath>
 #include <cstring>
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -38,6 +38,7 @@
 //#define PRINT_RESULT
 
 using namespace hipacc;
+using namespace hipacc::math;
 
 // Harris Corner filter in HIPAcc
 class Sobel : public Kernel<int> {
@@ -127,14 +128,14 @@ class Gauss : public Kernel<int> {
     }
 };
 
-class HarrisCorner : public Kernel<int> {
+class ShiTomasi : public Kernel<int> {
   private:
     Accessor<int> &Dx;
     Accessor<int> &Dy;
     Accessor<int> &Dxy;
 
   public:
-    HarrisCorner(IterationSpace<int> &IS,
+    ShiTomasi(IterationSpace<int> &IS,
             Accessor<int> &Dx, Accessor<int> &Dy, Accessor<int> &Dxy)
           : Kernel(IS),
             Dx(Dx),
@@ -146,16 +147,19 @@ class HarrisCorner : public Kernel<int> {
     }
 
     void kernel() {
-      float k = 0.04f;
-      float threshold = 20000.0f;
+      float threshold = 200.0f;
       int x = Dx();
       int y = Dy();
       int xy = Dxy();
-      float R = 0;
-      R = ((x * y) - (xy * xy)) /* det   */
-          - (k * (x + y) * (x + y)); /* trace */
+      float temp = 0.0;
+      float lambda1 = 0.0;
+      float lambda2 = 0.0;
+      temp = sqrtf((x - y) * (x - y) + 4.0 * xy * xy);
+      lambda1 = 0.5 * (x + y + temp);
+      lambda2 = 0.5 * (x + y - temp);
+
       int out = 0;
-      if (R > threshold)
+      if (min(lambda1, lambda2) > threshold)
         out = 1;
       output() = out;
     }
@@ -290,7 +294,7 @@ int main(int argc, const char **argv) {
     Gauss GaussY(IsGy, AccInClampSy, G);
     Gauss GaussXY(IsGxy, AccInClampSxy, G);
 
-    HarrisCorner HC(IsOut, AccGx, AccGy, AccGxy);
+    ShiTomasi ST(IsOut, AccGx, AccGy, AccGxy);
 
     // kernel invocation
     IN = host_in;
@@ -302,7 +306,7 @@ int main(int argc, const char **argv) {
     GaussX.execute();
     GaussY.execute();
     GaussXY.execute();
-    HC.execute();
+    ST.execute();
 
     // get pointer to result data
     int *output = OUT.data();

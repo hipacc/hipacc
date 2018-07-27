@@ -1,0 +1,19 @@
+{
+  "kernelConfig": [
+    {
+      "name": "AF",
+      "fusibility": "off",
+      "config": "128x1"
+    },
+    {
+      "name": "GG",
+      "fusibility": "off",
+      "config": "128x1"
+    },
+    {
+      "name": "GC",
+      "fusibility": "off",
+      "config": "128x1"
+    }
+  ]
+}

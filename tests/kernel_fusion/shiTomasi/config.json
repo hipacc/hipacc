@@ -1,0 +1,49 @@
+{
+  "kernelConfig": [
+    {
+      "name": "DerivX",
+      "fusibility": "off",
+      "config": "32x21"
+    },
+    {
+      "name": "DerivY",
+      "fusibility": "off",
+      "config": "32x21"
+    },
+    {
+      "name": "SquareX",
+      "fusibility": "off",
+      "config": "128x1"
+    },
+    {
+      "name": "SquareY",
+      "fusibility": "off",
+      "config": "128x1"
+    },
+    {
+      "name": "SquareXY",
+      "fusibility": "off",
+      "config": "128x1"
+    },
+    {
+      "name": "GaussX",
+      "fusibility": "off",
+      "config": "32x21"
+    },
+    {
+      "name": "GaussY",
+      "fusibility": "off",
+      "config": "32x21"
+    },
+    {
+      "name": "GaussXY",
+      "fusibility": "off",
+      "config": "32x21"
+    },
+    {
+      "name": "ST",
+      "fusibility": "off",
+      "config": "128x1"
+    }
+  ]
+}

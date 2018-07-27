@@ -1325,7 +1325,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             }
           }
 
-          // kernel optimization
           if (compilerOptions.fuseKernels() && kernelFuser->parseFusibleKernel(K)) {
             break;
           }
@@ -1668,7 +1667,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         // TODO: handle the case when only reduce function is specified
         //
         // create kernel call string
-        if (compilerOptions.fuseKernels() && dataDeps->isFusible(K)) {
+        if (K->isFusible()) {
           stringCreator.writeFusedKernelCall(K, newStr, kernelFuser);
         } else {
           stringCreator.writeKernelCall(K, newStr);
