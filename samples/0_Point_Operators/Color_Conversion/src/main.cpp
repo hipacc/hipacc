@@ -106,7 +106,7 @@ int main(int argc, const char **argv) {
 
     compare_results(output, ref_out, width, height);
 
-    save_data(width, height, 4, input, "input.jpg");
+    save_data(width, height, 4, (uchar*)input, "input.jpg");
     save_data(width, height, 1, output, "output.jpg");
     show_data(width, height, 1, output, "output.jpg");
 
