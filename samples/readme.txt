@@ -12,7 +12,7 @@ Make sure that "libopencv-dev" is installed:
 On Windows
 
 Download and install latest release from OpenCV's website (https://opencv.org).
-After unpacking <INSTDIR>, set the environment variable "OPENCV_DIR":
+After unpacking to <INSTDIR>, set the environment variable "OPENCV_DIR":
     setx -m OPENCV_DIR <INSTDIR>\opencv\build\x64\vc14
 
 Make sure that "%OPENCV_DIR%\bin" is added to the system's "PATH" variable.
