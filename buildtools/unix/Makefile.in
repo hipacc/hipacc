@@ -85,10 +85,11 @@ cpu cuda opencl-cpu opencl-gpu: main_$$@
 renderscript filterscript: main_$$@
 ifdef ADB
 	$(ADB) shell mkdir -p /data/local/tmp
-	$(ADB) push $@ /data/local/tmp
-	$(ADB) shell /data/local/tmp/$@
+	$(ADB) push main_$@ /data/local/tmp
+	$(ADB) shell /data/local/tmp/main_$@
 else
 	@echo "Abort: Could not find binary 'adb' in PATH"
+	@exit 1
 endif
 
 # Run Hipacc
@@ -105,6 +106,7 @@ ifdef NVCC
 	$(NVCC) $(NVCC_FLAGS) $< $(NVCC_INCLUDE) $(NVCC_LIB_DIR) $(NVCC_LINK) -o $@
 else
 	@echo "Abort: Could not find binary 'nvcc' in PATH"
+	@exit 1
 endif
 
 # Build OpenCL-CPU or OpenCL-GPU
@@ -123,6 +125,7 @@ ifdef NDK_BUILD
 	cp libs/armeabi-v7a/main_renderscript ./$@
 else
 	@echo "Abort: Could not find binary 'ndk-build' in PATH"
+	@exit 1
 endif
 
 clean:
