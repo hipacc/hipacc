@@ -33,11 +33,11 @@
     #error "CUDA 7.0 or higher required!"
 #endif
 
-/* #undef NVML_FOUND */
+#cmakedefine NVML_FOUND
 #ifdef NVML_FOUND
 #include <nvml.h>
 #endif
-#define NVRTC_FOUND
+#cmakedefine NVRTC_FOUND
 #ifdef NVRTC_FOUND
 #include <nvrtc.h>
 #endif
