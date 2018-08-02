@@ -75,8 +75,6 @@ find_program(clang       NAMES clang       PATHS ${LLVM_TOOLS_BINARY_DIR})
 find_package(CUDA)
 find_package(NVML)
 find_package(OpenCL)
-find_package(RenderScript)
-find_package(OpenCV)
 find_package(Threads)
 if(THREADS_HAVE_PTHREAD_ARG)
     set(THREADS_ARG "-pthread")
@@ -94,17 +92,11 @@ if(CUDA_FOUND)
     set(NVCC "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
     set(CU_COMPILER ${NVCC})
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
-    if(APPLE)
-        set(NVCC_LINK "-Xlinker -lnvrtc -Xlinker -framework,CUDA")
-        set(NVCC_COMP "-ccbin ${clang}")
-    else()
-        set(NVCC_LINK "${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} ${NVML_LIBRARIES}")
+    if(not APPLE)
         find_library(CUDA_NVRTC_LIBRARY nvrtc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
         if(CUDA_NVRTC_LIBRARY)
-            set(NVCC_LINK "${NVCC_LINK} ${CUDA_NVRTC_LIBRARY}")
             set(NVRTC_FOUND TRUE)
         endif()
-        set(NVCC_COMP "-I${NVML_INCLUDE_DIRS}")
     endif()
 else()
     set(USE_JIT_ESTIMATE OFF)
@@ -120,8 +112,6 @@ message(STATUS "Configuration summary:")
 message(STATUS "===")
 message(STATUS "CUDA support: ${CUDA_FOUND}")
 message(STATUS "OpenCL support: ${OpenCL_FOUND}")
-message(STATUS "Renderscript support: ${Renderscript_FOUND}")
-message(STATUS "OpenCV support: ${OpenCV_FOUND}")
 message(STATUS "Polly support: ${USE_POLLY}")
 message(STATUS "JIT estimates: ${USE_JIT_ESTIMATE}")
 message(STATUS "===")
@@ -194,34 +184,6 @@ foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
 endforeach()
 
 
-install(DIRECTORY tests
-    DESTINATION .
-    COMPONENT tests
-    PATTERN "*.cmake" EXCLUDE)
-install(DIRECTORY ${CMAKE_BINARY_DIR}/tests/
-    DESTINATION .
-    COMPONENT tests
-    PATTERN "*Makefile_test*" EXCLUDE)
-
-# install Makefiles for test cases
-file(GLOB TEST_DIRS RELATIVE ${CMAKE_SOURCE_DIR}/tests ${CMAKE_SOURCE_DIR}/tests/*)
-foreach(DIR IN LISTS TEST_DIRS)
-    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/${DIR})
-        if(${DIR} MATCHES "opencv_*")
-            install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv
-                DESTINATION tests/${DIR}
-                COMPONENT tests
-                RENAME Makefile)
-        else()
-            install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test
-                DESTINATION tests/${DIR}
-                COMPONENT tests
-                RENAME Makefile)
-        endif()
-    endif()
-endforeach()
-
-
 # Copy system's clang headers to current build dir
 execute_process(
     COMMAND ${clang} -print-file-name=include
@@ -262,7 +224,7 @@ if(CMAKE_BUILD_TYPE MATCHES Release)
     set (CPACK_PACKAGE_CONTACT "https://hipacc-lang.org/#authors")
     set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
-    # Do not package tests component
+    # Set components to package
     set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
     set(CPACK_COMPONENTS_ALL compiler runtime headers_runtime headers_dsl headers_clang libcxx tools samples)
 
@@ -389,12 +351,4 @@ configure_file(runtime/hipacc_cu_standalone.hpp.cmake ${CMAKE_BINARY_DIR}/runtim
 
 # configure build tools
 configure_file(buildtools/unix/Makefile.in ${CMAKE_BINARY_DIR}/buildtools/unix/Makefile)
-
-# configure and install tests
-configure_file(tests/Android.mk.cmake                 ${CMAKE_BINARY_DIR}/tests/Android.mk)
-configure_file(tests/Application.mk.cmake             ${CMAKE_BINARY_DIR}/tests/Application.mk)
-configure_file(tests/Makefile.cmake                   ${CMAKE_BINARY_DIR}/tests/Makefile)
-configure_file(tests/Makefile_test.cmake              ${CMAKE_BINARY_DIR}/tests/Makefile_test)
-configure_file(tests/Makefile_test_opencv.cmake       ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv)
-configure_file(tests/CMakeLists.txt.cmake             ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
 

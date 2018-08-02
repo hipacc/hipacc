@@ -78,26 +78,19 @@ Variable               | Meaning
 `CMAKE_BUILD_TYPE`     | Build type (`Debug` or `Release`)
 `CMAKE_INSTALL_PREFIX` | Installation prefix (this must be an absolute path)
 
-For OpenCL and OpenCV, the installation location can be specified:
+For OpenCL, the installation location can be specified:
 
 Variable         | Meaning
 -----------------|-----------------------------------------------------
 `OpenCL_INC_DIR` | OpenCL include path (e.g. `/usr/local/cuda/include`)
 `OpenCL_LIB_DIR` | OpenCL library path (e.g. `/usr/lib64`)
-`OpenCV_DIR`     | OpenCV installation path (e.g. `/opt/local`)
-
-For Android, the Android NDK and API level have to be specified:
-
-Variable   | Meaning
------------|------------------------------------------------------------
-`NDK_DIR`  | Android NDK directory (e.g. `/opt/android/android-ndk-r16`)
 
 The following options can be enabled or disabled:
 
 Variable           | Meaning
--------------------|-------------------------------------------------------------------
+-------------------|----------------------------------------------------------------------
 `USE_POLLY`        | Use Polly for kernel analysis (e.g. `-DUSE_POLLY=ON`)
-`USE_JIT_ESTIMATE` | Use JIT compilation to get resource estimates (only for GNU/Linux)
+`USE_JIT_ESTIMATE` | Use JIT compilation to get resource estimates (unavailable for macOS)
 
 In the following, all binaries will be installed to `<DST>`.
 
