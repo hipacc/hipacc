@@ -35,6 +35,14 @@
 #include "hipacc_base_standalone.hpp"
 
 
+#ifdef WIN32
+# include <io.h>
+# define popen(x,y)     _popen(x,y)
+# define pclose(x)      _pclose(x)
+# define WEXITSTATUS(x) (x != 0)
+#endif
+
+
 std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
     const char *error_name;
     const char *error_string;
