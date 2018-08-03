@@ -360,7 +360,7 @@ Call un.RemoveFromPath")
 
         # Strip development machine's path from compiler and runtime includes
         set(CU_COMPILER "nvcc.exe")
-        set(CL_COMPILER "%HIPACC_PATH%/bin/cl_compile.exe")
+        set(CL_COMPILER "cl_compile.exe")
         set(RUNTIME_INCLUDES "%HIPACC_PATH%/include")
     endif(WIN32)
 
