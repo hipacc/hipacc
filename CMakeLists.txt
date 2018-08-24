@@ -35,32 +35,16 @@ option(USE_POLLY "Use Polly for analysis" OFF)
 include(CMakeDependentOption)
 cmake_dependent_option(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
-
-# set repository and revision commands
-if(WIN32)
-    set(CMD_GET_REPO git remote get-url origin)
-    set(CMD_GET_VERSION git log -1 --pretty=format:%H)
+# get git repository and revision
+if(EXISTS ${CMAKE_SOURCE_DIR}/.git)
+    execute_process(COMMAND git remote get-url origin     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} TIMEOUT 5 RESULT_VARIABLE git_result OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
+    execute_process(COMMAND git log -1 --pretty=format:%H WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} TIMEOUT 5 RESULT_VARIABLE git_result OUTPUT_VARIABLE HIPACC_GIT_VERSION)
+    string(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
+    string(STRIP ${HIPACC_GIT_VERSION}    HIPACC_GIT_VERSION)
 else()
-    set(CMD_GET_REPO sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_repository_path.sh)
-    set(CMD_GET_VERSION sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_source_version.sh)
+    set(HIPACC_GIT_REPOSITORY "https://github.com/hipacc/hipacc/releases")
+    set(HIPACC_GIT_VERSION    "v${HIPACC_VERSION}")
 endif()
-
-
-# get repository and revision
-execute_process(COMMAND ${CMD_GET_REPO}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    TIMEOUT 5
-    RESULT_VARIABLE git_result
-    OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
-string(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
-
-execute_process(COMMAND ${CMD_GET_VERSION}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    TIMEOUT 5
-    RESULT_VARIABLE git_result
-    OUTPUT_VARIABLE HIPACC_GIT_VERSION)
-string(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
-
 
 # add path for custom modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
