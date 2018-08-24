@@ -64,10 +64,6 @@ string(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
 
 # add path for custom modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
-find_library(RT_LIBRARIES rt)
-if(NOT RT_LIBRARIES)
-    set(RT_LIBRARIES "")
-endif()
 find_package(LLVM REQUIRED CONFIG)
 find_package(Clang REQUIRED)
 find_program(llvm-config NAMES llvm-config PATHS ${LLVM_TOOLS_BINARY_DIR})
