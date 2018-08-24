@@ -5,7 +5,9 @@ set(CPACK_PACKAGE_VERSION_MAJOR ${HIPACC_MAJOR_VERSION})
 set(CPACK_PACKAGE_VERSION_MINOR ${HIPACC_MINOR_VERSION})
 set(CPACK_PACKAGE_VERSION_PATCH ${HIPACC_PATCH_VERSION})
 set(CPACK_PACKAGE_VERSION ${HIPACC_VERSION})
+set(CPACK_PACKAGE_VENDOR "hipacc")
 set(CPACK_PACKAGE_CONTACT "https://hipacc-lang.org/#authors")
+set(CPACK_PACKAGE_ICON ${CMAKE_SOURCE_DIR}/res/hipacc.png)
 set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
 
@@ -13,6 +15,7 @@ set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
 set(CPACK_COMPONENTS_ALL compiler runtime headers_runtime headers_dsl headers_clang libcxx tools samples)
 
+string(TOLOWER "${CPACK_PACKAGE_NAME}" CPACK_PACKAGE_NAME_LOWERCASE)
 
 # Setup Debian packaging options
 if(UNIX AND NOT APPLE)
@@ -36,8 +39,6 @@ if(UNIX AND NOT APPLE)
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
         endif(DPKG_PROGRAM)
     endif(DEFINED PLATFORM)
-
-    string(TOLOWER "${CPACK_PACKAGE_NAME}" CPACK_PACKAGE_NAME_LOWERCASE)
 
     set(CPACK_PACKAGE_FILE_NAME
         "${CPACK_PACKAGE_NAME_LOWERCASE}_${HIPACC_VERSION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
@@ -68,26 +69,30 @@ rm -f /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
     # enable component install for Debian
     set(CPACK_DEB_COMPONENT_INSTALL ON)
 
-    # Strip development machine's path from compiler and runtime includes
+    # strip development machine's path from compiler and runtime includes
     set(CU_COMPILER "nvcc")
     set(CL_COMPILER "${CPACK_PACKAGING_INSTALL_PREFIX}/bin/cl_compile")
     set(RUNTIME_INCLUDES "${CPACK_PACKAGING_INSTALL_PREFIX}/include")
 endif(UNIX AND NOT APPLE)
 
 
-# Setup macOS app bundle
+# Setup macOS productbuild installer
 if(APPLE)
-    set(CPACK_GENERATOR DragNDrop)
-    set(MACOSX_BUNDLE_SHORT_VERSION_STRING ${HIPACC_VERSION})
-    set(MACOSX_BUNDLE_LONG_VERSION_STRING ${HIPACC_VERSION})
-    set(MACOSX_BUNDLE_INFO_STRING "${CPACK_PACKAGE_NAME} ${HIPACC_VERSION}")
+    configure_file(LICENSE ${CMAKE_BINARY_DIR}/LICENSE.txt)
+    configure_file(README.md ${CMAKE_BINARY_DIR}/README.txt)
+    set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_BINARY_DIR}/LICENSE.txt)
+    set(CPACK_RESOURCE_FILE_README ${CMAKE_BINARY_DIR}/README.txt)
+    set(CPACK_GENERATOR productbuild)
 
-    set(MACOSX_BUNDLE_ICON_FILE hipacc.icns)
-    set_source_files_properties(${CMAKE_SOURCE_DIR}/res/hipacc.icns
-        PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    if(NOT HIPACC_PACKAGING_PREFIX)
+        set(HIPACC_PACKAGING_PREFIX "/Developer")
+    endif()
+    set(CPACK_PACKAGING_INSTALL_PREFIX "${HIPACC_PACKAGING_PREFIX}/${CPACK_PACKAGE_NAME_LOWERCASE}-${HIPACC_VERSION}")
 
-    include(BundleUtilities)
-    fixup_bundle("${CMAKE_BINARY_DIR}/${CPACK_PACKAGE_NAME}-${HIPACC_VERSION}.app" "${MAXOSX_LIBRARY_DIRS}" "")
+    # strip development machine's path from compiler and runtime includes
+    set(CU_COMPILER "nvcc")
+    set(CL_COMPILER "${CPACK_PACKAGING_INSTALL_PREFIX}/bin/cl_compile")
+    set(RUNTIME_INCLUDES "${CPACK_PACKAGING_INSTALL_PREFIX}/include")
 endif(APPLE)
 
 
@@ -138,7 +143,7 @@ Call un.RemoveFromEnvVar
 Push \\\"\$INSTDIR/bin\\\"
 Call un.RemoveFromPath")
 
-    # Strip development machine's path from compiler and runtime includes
+    # strip development machine's path from compiler and runtime includes
     set(CU_COMPILER "nvcc.exe")
     set(CL_COMPILER "cl_compile.exe")
     set(RUNTIME_INCLUDES "%HIPACC_PATH%/include")

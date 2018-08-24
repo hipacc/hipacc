@@ -209,9 +209,8 @@ install(DIRECTORY ${LIBCXX_DST}
         DESTINATION include/c++
         COMPONENT libcxx)
 
-
-if(CMAKE_BUILD_TYPE MATCHES Release)
-    # Create packages for Ubuntu/Windows/macOS
+# create release packages for Ubuntu/Windows/macOS
+execute_process(COMMAND ${llvm-config} --shared-mode OUTPUT_VARIABLE LLVM_SHARED_MODE OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(CMAKE_BUILD_TYPE MATCHES Release AND LLVM_SHARED_MODE MATCHES static)
     include(PackageHipacc)
 endif()
-
