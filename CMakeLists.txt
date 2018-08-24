@@ -151,63 +151,45 @@ file(GLOB DSL_HEADERS ${CMAKE_SOURCE_DIR}/dsl/*.hpp)
 file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
                           ${CMAKE_SOURCE_DIR}/runtime/*.tpp
                           ${CMAKE_BINARY_DIR}/runtime/*.hpp)
-install(FILES ${RUNTIME_HEADERS} DESTINATION include
-        COMPONENT headers_runtime)
-install(FILES ${DSL_HEADERS} DESTINATION include/dsl
-        COMPONENT headers_dsl)
+install(FILES ${RUNTIME_HEADERS} DESTINATION include COMPONENT headers_runtime)
+install(FILES ${DSL_HEADERS} DESTINATION include/dsl COMPONENT headers_dsl)
 
 
 # install samples
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/samples
-    DESTINATION .
-    COMPONENT samples)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/samples DESTINATION . COMPONENT samples)
 
 # deploy build tool for samples
 file(GLOB SAMPLE_DIRS RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/samples/[0-9]*/*)
 foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
     if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${SAMPLE_DIR})
         if(UNIX)
-            install(FILES ${CMAKE_BINARY_DIR}/buildtools/unix/Makefile
-                    DESTINATION ${SAMPLE_DIR}
-                    COMPONENT samples)
+            install(FILES ${CMAKE_BINARY_DIR}/buildtools/unix/Makefile DESTINATION ${SAMPLE_DIR} COMPONENT samples)
         elseif(WIN32)
             file(GLOB NMAKE_FILES ${CMAKE_SOURCE_DIR}/buildtools/nmake/*)
             file(GLOB VS2015_FILES ${CMAKE_SOURCE_DIR}/buildtools/vs2015/*)
-            install(FILES ${NMAKE_FILES} ${VS2015_FILES}
-                    DESTINATION ${SAMPLE_DIR}
-                    COMPONENT samples)
+            install(FILES ${NMAKE_FILES} ${VS2015_FILES} DESTINATION ${SAMPLE_DIR} COMPONENT samples)
         endif()
     endif()
 endforeach()
 
 
-# Copy system's clang headers to current build dir
-execute_process(
-    COMMAND ${clang} -print-file-name=include
-    OUTPUT_VARIABLE CLANG_INCLUDE_DIRS
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
+# copy system's clang headers to current build dir
+execute_process(COMMAND ${clang} -print-file-name=include OUTPUT_VARIABLE CLANG_INCLUDE_DIRS OUTPUT_STRIP_TRAILING_WHITESPACE)
 set(CLANG_HEADERS_SRC ${CLANG_INCLUDE_DIRS})
 set(CLANG_HEADERS_DST ${CMAKE_BINARY_DIR}/include/clang)
-execute_process(
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CLANG_HEADERS_DST}
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CLANG_HEADERS_SRC} ${CLANG_HEADERS_DST})
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CLANG_HEADERS_DST}
+                COMMAND ${CMAKE_COMMAND} -E copy_directory ${CLANG_HEADERS_SRC} ${CLANG_HEADERS_DST})
 
-# Add clang headers to package
-install(DIRECTORY ${CLANG_HEADERS_DST}
-        DESTINATION include
-        COMPONENT headers_clang)
+# add clang headers to package
+install(DIRECTORY ${CLANG_HEADERS_DST} DESTINATION include COMPONENT headers_clang)
 
-# Copy system's libcxx to current build dir
+# copy system's libcxx to current build dir
 set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++/v1)
 set(LIBCXX_DST ${CMAKE_BINARY_DIR}/include/c++/v1)
-execute_process(
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST}
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST} COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
 
-# Add libcxx to package
-install(DIRECTORY ${LIBCXX_DST}
-        DESTINATION include/c++
-        COMPONENT libcxx)
+# add libcxx to package
+install(DIRECTORY ${LIBCXX_DST} DESTINATION include/c++ COMPONENT libcxx)
 
 # create release packages for Ubuntu/Windows/macOS
 execute_process(COMMAND ${llvm-config} --shared-mode OUTPUT_VARIABLE LLVM_SHARED_MODE OUTPUT_STRIP_TRAILING_WHITESPACE)

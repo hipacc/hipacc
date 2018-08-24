@@ -1,4 +1,4 @@
-# Setup packaging variables
+# packaging variables
 set(CPACK_PACKAGE_NAME Hipacc)
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "The Hipacc Framework: A Domain-Specific Language and Compiler for Image Processing")
 set(CPACK_PACKAGE_VERSION_MAJOR ${HIPACC_MAJOR_VERSION})
@@ -11,13 +11,13 @@ set(CPACK_PACKAGE_ICON ${CMAKE_SOURCE_DIR}/res/hipacc.png)
 set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
 
-# Set components to package
+# components to package
 set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
 set(CPACK_COMPONENTS_ALL compiler runtime headers_runtime headers_dsl headers_clang libcxx tools samples)
 
 string(TOLOWER "${CPACK_PACKAGE_NAME}" CPACK_PACKAGE_NAME_LOWERCASE)
 
-# Setup Debian packaging options
+# Debian packaging options
 if(UNIX AND NOT APPLE)
     set(CPACK_GENERATOR DEB)
     set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
@@ -33,15 +33,11 @@ if(UNIX AND NOT APPLE)
     else(DEFINED PLATFORM)
         find_program(DPKG_PROGRAM dpkg DOC "dpkg program of Debian-based systems")
         if(DPKG_PROGRAM)
-            execute_process(
-                COMMAND ${DPKG_PROGRAM} --print-architecture
-                OUTPUT_VARIABLE CPACK_DEBIAN_PACKAGE_ARCHITECTURE
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
+            execute_process(COMMAND ${DPKG_PROGRAM} --print-architecture OUTPUT_VARIABLE CPACK_DEBIAN_PACKAGE_ARCHITECTURE OUTPUT_STRIP_TRAILING_WHITESPACE)
         endif(DPKG_PROGRAM)
     endif(DEFINED PLATFORM)
 
-    set(CPACK_PACKAGE_FILE_NAME
-        "${CPACK_PACKAGE_NAME_LOWERCASE}_${HIPACC_VERSION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
+    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME_LOWERCASE}_${HIPACC_VERSION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
 
     if(NOT HIPACC_PACKAGING_PREFIX)
         set(HIPACC_PACKAGING_PREFIX "/usr/local")
@@ -62,9 +58,7 @@ rm -f ${HIPACC_PACKAGE_SYMLINK}
 rm -f /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
 
     # add extra scripts
-    set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
-        ${CMAKE_CURRENT_BINARY_DIR}/postinst;
-        ${CMAKE_CURRENT_BINARY_DIR}/postrm)
+    set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA ${CMAKE_CURRENT_BINARY_DIR}/postinst;${CMAKE_CURRENT_BINARY_DIR}/postrm)
 
     # enable component install for Debian
     set(CPACK_DEB_COMPONENT_INSTALL ON)
@@ -76,7 +70,7 @@ rm -f /etc/profile.d/${CPACK_PACKAGE_NAME_LOWERCASE}.sh")
 endif(UNIX AND NOT APPLE)
 
 
-# Setup macOS productbuild installer
+# macOS productbuild installer
 if(APPLE)
     configure_file(LICENSE ${CMAKE_BINARY_DIR}/LICENSE.txt)
     configure_file(README.md ${CMAKE_BINARY_DIR}/README.txt)
@@ -96,30 +90,26 @@ if(APPLE)
 endif(APPLE)
 
 
-# Setup Windows Nullsoft Scriptable Install System
+# Windows Nullsoft Scriptable Install System
 if(WIN32)
     set(CPACK_GENERATOR NSIS)
-    set(CPACK_PACKAGE_INSTALL_DIRECTORY
-        ${CPACK_PACKAGE_NAME}-${HIPACC_VERSION})
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME}-${HIPACC_VERSION})
     list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/templates)
 
     # setup icons and banner
     set(CPACK_NSIS_MUI_ICON ${CMAKE_SOURCE_DIR}/res/hipacc.ico)
     set(CPACK_NSIS_MUI_UNIICON ${CMAKE_SOURCE_DIR}/res/hipacc.ico)
     set(CPACK_NSIS_MUI_HEADERIMAGE ${CMAKE_SOURCE_DIR}/res/hipacc_banner.bmp)
-    string(REPLACE "/" "\\\\"
-           CPACK_NSIS_MUI_HEADERIMAGE "${CPACK_NSIS_MUI_HEADERIMAGE}")
+    string(REPLACE "/" "\\\\" CPACK_NSIS_MUI_HEADERIMAGE "${CPACK_NSIS_MUI_HEADERIMAGE}")
 
     # find and add Visual Studio redistributables
     include(InstallRequiredSystemLibraries)
     set(MSVC_REDIST_NAME "vcredist_${CMAKE_MSVC_ARCH}.exe")
-    find_program(MSVC_REDIST NAMES ${MSVC_REDIST_NAME}
-                 PATHS "${MSVC_REDIST_DIR}" "${MSVC_REDIST_DIR}/*")
+    find_program(MSVC_REDIST NAMES ${MSVC_REDIST_NAME} PATHS "${MSVC_REDIST_DIR}" "${MSVC_REDIST_DIR}/*")
     if(MSVC_REDIST)
         install(FILES ${MSVC_REDIST} DESTINATION . COMPONENT vcredist)
         list(APPEND CPACK_COMPONENTS_ALL vcredist)
-        set(CMAKE_NSIS_MSVC_REDIST_INSTALL
-            "ExecWait \\\"\$INSTDIR\\\\${MSVC_REDIST_NAME} /passive\\\"")
+        set(CMAKE_NSIS_MSVC_REDIST_INSTALL "ExecWait \\\"\$INSTDIR\\\\${MSVC_REDIST_NAME} /passive\\\"")
     else(MSVC_REDIST)
         message(WARNING "Could not find Visual Studio redistributables!")
     endif(MSVC_REDIST)
@@ -148,6 +138,5 @@ Call un.RemoveFromPath")
     set(CL_COMPILER "cl_compile.exe")
     set(RUNTIME_INCLUDES "%HIPACC_PATH%/include")
 endif(WIN32)
-
 
 include(CPack)
