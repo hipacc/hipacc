@@ -30,6 +30,7 @@ endif
 ################################################################################
 
 # Set compiler options
+OS           := $(shell uname)
 CXX_FLAGS     = -std=c++11 -O2
 CXX_INCLUDE   = -I ../../common \
                 -I $(HIPACC_PATH)/include
@@ -38,7 +39,11 @@ CXX_LINK      = -lhipaccRuntime
 
 OCL_INCLUDE   = $(CXX_INCLUDE)
 OCL_LIB_DIR   = $(CXX_LIB_DIR)
+ifeq ($(OS),Darwin)
+OCL_LINK      = $(CXX_LINK) -framework OpenCL
+else
 OCL_LINK      = $(CXX_LINK) -lOpenCL
+endif
 
 ifdef NVCC
 NVCC_FLAGS    = $(CXX_FLAGS) -x cu
