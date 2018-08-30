@@ -2433,21 +2433,22 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
 
 Stmt *ASTTranslate::BinningTranslator::traverseStmt(Stmt *S) {
-  for (auto stmt = S->child_begin(); stmt != S->child_end(); ++stmt) {
-    if (*stmt != nullptr) {
+  for (auto& stmt : S->children()) {
+    if (stmt != nullptr) {
       // traverse recursively from bottom up
-      traverseStmt(*stmt);
+      traverseStmt(stmt);
 
       // translate statements
-      if (isa<BinaryOperator>(*stmt)) {
+      if (isa<BinaryOperator>(stmt)) {
         // look for "bin(idx) = val"
-        *stmt = translateBinaryOperator(dyn_cast<BinaryOperator>(*stmt));
-      } else if (isa<CXXMemberCallExpr>(*stmt)) {
+        stmt = translateBinaryOperator(dyn_cast<BinaryOperator>(stmt));
+      } else if (isa<CXXMemberCallExpr>(stmt)) {
         // look for "num_hist()"
-        *stmt = translateCXXMemberCallExpr(dyn_cast<CXXMemberCallExpr>(*stmt));
+        stmt = translateCXXMemberCallExpr(dyn_cast<CXXMemberCallExpr>(stmt));
       }
     }
   }
+
   return S;
 }
 
