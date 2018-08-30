@@ -65,19 +65,10 @@ if(CUDA_FOUND)
     set(NVCC "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
     set(CU_COMPILER ${NVCC})
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
-    if(NOT APPLE)
-        if(WIN32)
-            find_library(CUDA_NVRTC_LIBRARY nvrtc
-                HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32
-                      ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
-        else()
-            find_library(CUDA_NVRTC_LIBRARY nvrtc
-                HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib
-                      ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
-        endif()
-        if(CUDA_NVRTC_LIBRARY)
-            set(NVRTC_FOUND TRUE)
-        endif()
+    find_library(CUDA_NVRTC_LIBRARY nvrtc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib       ${CUDA_TOOLKIT_ROOT_DIR}/lib64
+                                                ${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32 ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
+    if(CUDA_NVRTC_LIBRARY)
+        set(NVRTC_FOUND TRUE)
     endif()
 else()
     set(USE_JIT_ESTIMATE OFF)
