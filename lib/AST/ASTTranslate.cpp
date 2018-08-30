@@ -1485,10 +1485,8 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *PVD, std::string prefix) {
 
 
 Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
-  CompoundStmt *result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
-      S->getLBracLoc(), S->getLBracLoc());
-
   SmallVector<Stmt *, 16> body;
+
   for (auto stmt : S->body()) {
     curCStmt = S;
     Stmt *newS = Clone(stmt);
@@ -1525,9 +1523,7 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
     }
   }
 
-  result->setStmts(Ctx, body);
-
-  return result;
+  return CompoundStmt::Create(Ctx, body, S->getLBracLoc(), S->getLBracLoc());
 }
 
 

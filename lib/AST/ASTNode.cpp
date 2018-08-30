@@ -255,7 +255,7 @@ MemberExpr *createMemberExpr(ASTContext &Ctx, Expr *base, bool isArrow,
 
 
 CompoundStmt *createCompoundStmt(ASTContext &Ctx, ArrayRef<Stmt *> Stmts) {
-  return new (Ctx) CompoundStmt(Ctx, Stmts, SourceLocation(), SourceLocation());
+  return CompoundStmt::Create(Ctx, Stmts, SourceLocation(), SourceLocation());
 }
 
 
