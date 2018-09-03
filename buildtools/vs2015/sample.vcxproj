@@ -1,0 +1,120 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main_cpu.cc">
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Level2</WarningLevel>
+    </ClCompile>
+    <CustomBuild Include="src\main.cpp">
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename)_cpu.cc</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F06CB286-FC65-454B-B42B-3E3CE6A171E6}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>hipacctest</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <ProjectName>sample</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level2</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <UseOpenCV Condition="'$(OPENCV_DIR)'!=''">USE_OPENCV</UseOpenCV>
+      <PreprocessorDefinitions>%(UseOpenCV);_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\common;"%HIPACC_PATH%\include";"%OPENCV_DIR%\..\..\include"</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>"%HIPACC_PATH%\lib";"%OPENCV_DIR%\lib"</AdditionalLibraryDirectories>
+      <OpenCVLib Condition="'$(OPENCV_DIR)'!=''">%OPENCV_DIR%\lib\opencv_world*d.lib;%OPENCV_DIR%\lib\opencv_core*d.lib;%OPENCV_DIR%\lib\opencv_highgui*d.lib;%OPENCV_DIR%\lib\opencv_imgproc*d.lib</OpenCVLib>
+      <AdditionalDependencies>hipaccRuntime.lib;%(OpenCVLib);kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuild>
+      <Command>"%HIPACC_PATH%/bin/hipacc.exe" -std=c++11 -emit-cpu "%(FullPath)" -o "%(Filename)_cpu.cc" -I "%HIPACC_PATH%/include/dsl" -I "%HIPACC_PATH%/include/c++/v1" -I "%HIPACC_PATH%/include/clang" -I ../../common</Command>
+    </CustomBuild>
+    <CustomBuild>
+      <Message>Run Hipacc Compiler</Message>
+      <Outputs>%(Filename)_cpu.cc</Outputs>
+      <LinkObjects>false</LinkObjects>
+      <TreatOutputAsContent>true</TreatOutputAsContent>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level2</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <UseOpenCV Condition="'$(OPENCV_DIR)'!=''">USE_OPENCV</UseOpenCV>
+      <PreprocessorDefinitions>%(UseOpenCV);NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\common;"%HIPACC_PATH%\include";"%OPENCV_DIR%\..\..\include"</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>"%HIPACC_PATH%\lib";"%OPENCV_DIR%\lib"</AdditionalLibraryDirectories>
+      <OpenCVLib Condition="'$(OPENCV_DIR)'!=''">%OPENCV_DIR%\lib\opencv_world*.lib;%OPENCV_DIR%\lib\opencv_core*.lib;%OPENCV_DIR%\lib\opencv_highgui*.lib;%OPENCV_DIR%\lib\opencv_imgproc*.lib</OpenCVLib>
+      <AdditionalDependencies>hipaccRuntime.lib;%(OpenCVLib);kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <CustomBuild>
+      <Command>"%HIPACC_PATH%/bin/hipacc.exe" -std=c++11 -emit-cpu "%(FullPath)" -o "%(Filename)_cpu.cc" -I "%HIPACC_PATH%/include/dsl" -I "%HIPACC_PATH%/include/c++/v1" -I "%HIPACC_PATH%/include/clang" -I ../../common</Command>
+    </CustomBuild>
+    <CustomBuild>
+      <Message>Run Hipacc Compiler</Message>
+      <Outputs>%(Filename)_cpu.cc</Outputs>
+      <LinkObjects>false</LinkObjects>
+      <TreatOutputAsContent>true</TreatOutputAsContent>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

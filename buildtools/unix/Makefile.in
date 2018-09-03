@@ -1,0 +1,145 @@
+# Search binaries
+CXX        := $(shell which c++)
+NVCC       := $(shell which nvcc)
+ADB        := $(shell which adb)
+NDK_BUILD  := $(shell which ndk-build)
+PKG_CONFIG := $(shell which pkg-config)
+
+################################################################################
+
+# Search Hipacc (prefer relative path over package path over PATH env var)
+HIPACC := $(shell if [ -f $(CURDIR)/../../../bin/hipacc ]; then \
+                    echo $(CURDIR)/../../../bin/hipacc; \
+                  elif [ -f @CPACK_PACKAGING_INSTALL_PREFIX@/bin/hipacc ]; then \
+                    echo @CPACK_PACKAGING_INSTALL_PREFIX@/bin/hipacc; \
+                  else \
+                    echo $$(which hipacc); \
+                  fi)
+ifndef HIPACC
+  $(error "Error: Could not find binary 'hipacc' in PATH")
+endif
+
+################################################################################
+
+# Set paths for build tools
+HIPACC_PATH := $(shell dirname $(HIPACC))/..
+ifdef NVCC
+CUDA_PATH   := $(shell dirname $(NVCC))/..
+endif
+
+################################################################################
+
+# Set compiler options
+OS           := $(shell uname)
+CXX_FLAGS     = -std=c++11 -O2
+CXX_INCLUDE   = -I ../../common \
+                -I $(HIPACC_PATH)/include
+CXX_LIB_DIR   = -L $(HIPACC_PATH)/lib
+CXX_LINK      = -lhipaccRuntime
+
+OCL_INCLUDE   = $(CXX_INCLUDE)
+OCL_LIB_DIR   = $(CXX_LIB_DIR)
+ifeq ($(OS),Darwin)
+OCL_LINK      = $(CXX_LINK) -framework OpenCL
+else
+OCL_LINK      = $(CXX_LINK) -lOpenCL
+endif
+
+ifdef NVCC
+NVCC_FLAGS    = $(CXX_FLAGS) -x cu
+NVCC_INCLUDE  = $(CXX_INCLUDE)
+NVCC_LIB_DIR  = $(CXX_LIB_DIR)
+ifeq ($(OS),Darwin)
+NVCC_LINK     = -Xlinker $(CXX_LINK) -Xlinker -lnvrtc -Xlinker -framework,CUDA
+else
+NVCC_LINK     = $(CXX_LINK) -lcuda -lcudart -lnvrtc -lnvidia-ml
+OCL_INCLUDE  += -I $(CUDA_PATH)/include
+OCL_LIB_DIR  += -L $(CUDA_PATH)/lib64
+endif
+endif
+
+HIPACC_FLAGS   = -std=c++11 -nostdinc++
+HIPACC_INCLUDE = -I ../../common \
+                 -I $(HIPACC_PATH)/include/dsl \
+                 -I $(HIPACC_PATH)/include/c++/v1 \
+                 -I $(HIPACC_PATH)/include/clang
+
+ifdef PKG_CONFIG
+# Check for OpenCV
+ifeq ($(shell if $(PKG_CONFIG) --exists opencv; then echo true; fi),true)
+CXX_FLAGS   += $(shell $(PKG_CONFIG) --cflags-only-other opencv) -DUSE_OPENCV
+CXX_INCLUDE += $(shell $(PKG_CONFIG) --cflags-only-I opencv)
+CXX_LIB_DIR += $(shell $(PKG_CONFIG) --libs-only-L opencv)
+CXX_LINK    += $(shell $(PKG_CONFIG) --libs-only-l opencv)
+endif
+endif
+
+################################################################################
+
+# Turn on GNU Make feature for using automatic variables in dependencies
+.SECONDEXPANSION:
+.PHONY: cpu cuda opencl-cpu opencl-gpu renderscript filterscript
+.PRECIOUS: main_%.cc
+
+################################################################################
+
+# Target rules
+all: cpu
+
+# Run CPU/CUDA/OpenCL binary
+cpu cuda opencl-cpu opencl-gpu: main_$$@
+	./main_$@
+
+# Run Renderscript/Filterscript binary on Android device
+renderscript filterscript: main_$$@
+ifdef ADB
+	$(ADB) shell mkdir -p /data/local/tmp
+	$(ADB) push main_$@ /data/local/tmp
+	$(ADB) shell /data/local/tmp/main_$@
+else
+	@echo "Abort: Could not find binary 'adb' in PATH"
+	@exit 1
+endif
+
+# Run Hipacc
+main_%.cc: src/main.cpp
+	$(HIPACC) -emit-$* $(HIPACC_FLAGS) $(HIPACC_INCLUDE) $(CURDIR)/$< -o $@
+
+# Build CPU
+main_cpu: $$@.cc
+	$(CXX) $(CXX_FLAGS) $< $(CXX_INCLUDE) $(CXX_LIB_DIR) $(CXX_LINK) -o $@
+
+# Build CUDA
+main_cuda: $$@.cc
+ifdef NVCC
+	$(NVCC) $(NVCC_FLAGS) $< $(NVCC_INCLUDE) $(NVCC_LIB_DIR) $(NVCC_LINK) -o $@
+else
+	@echo "Abort: Could not find binary 'nvcc' in PATH"
+	@exit 1
+endif
+
+# Build OpenCL-CPU or OpenCL-GPU
+main_opencl-%: $$@.cc
+	$(CXX) $(CXX_FLAGS) $< $(OCL_INCLUDE) $(OCL_LIB_DIR) $(OCL_LINK) -o $@
+
+# Build Renderscript or Filterscript
+main_%: $$@.cc
+	mkdir -p jni
+	cp ../../common/Android.mk jni/Android.mk
+	cp ../../common/Application.mk jni/Application.mk
+ifdef NDK_BUILD
+	export HIPACC_MAIN=$@.cc; \
+	export HIPACC_INCLUDE=$(HIPACC_PATH)/include; \
+	$(NDK_BUILD) -B
+	cp libs/armeabi-v7a/main_renderscript ./$@
+else
+	@echo "Abort: Could not find binary 'ndk-build' in PATH"
+	@exit 1
+endif
+
+clean:
+	rm -rf jni libs obj
+	rm -f *cc *.cu *.cubin *.rs *.fs *.jpg
+
+distclean: clean
+	rm -f main_* *.cl

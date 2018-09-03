@@ -34,7 +34,9 @@
 #include <iostream>
 #include <sstream>
 
-#include <unistd.h>
+#ifndef WIN32
+# include <unistd.h>
+#endif
 
 #include "hipacc_cl_standalone.hpp"
 
@@ -50,6 +52,7 @@ int main(int argc, char *argv[]) {
     cl_platform_name platform_name = ALL;
     size_t memory_size = 64*(1 << 20);      //64 M
 
+#ifndef WIN32
     // scan command-line options
     while ((option = getopt(argc, (char * const *)argv, "hd:p:s:")) != -1) {
         switch (option) {
@@ -81,6 +84,7 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
         }
     }
+#endif
 
     // initialize all devices
     hipaccInitPlatformsAndDevices(device_type, platform_name);

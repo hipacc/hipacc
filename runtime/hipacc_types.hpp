@@ -56,9 +56,14 @@ typedef double          double4 __attribute__ ((ext_vector_type(4)));
     MAKE_TYPE(NEW_TYPE, BASIC_TYPE)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)
-#elif defined __GNUC__
+#elif defined __GNUC__ || _MSC_VER >= 1900
+# ifdef _MSC_VER
+#   define PRAGMA(x) __pragma(x)
+# else
+#   define PRAGMA(x) _Pragma(x)
+# endif
 #define MAKE_TYPEDEF(NEW_TYPE, BASIC_TYPE) \
-_Pragma("pack(push, 1)") \
+PRAGMA("pack(push, 1)") \
 struct NEW_TYPE { \
     BASIC_TYPE x, y, z, w; \
     void operator=(BASIC_TYPE b) { \
@@ -66,7 +71,7 @@ struct NEW_TYPE { \
     } \
 }; \
 typedef struct NEW_TYPE NEW_TYPE; \
-_Pragma("pack(pop)")
+PRAGMA("pack(pop)")
 MAKE_TYPEDEF(char4,     char)
 MAKE_TYPEDEF(uchar4,    uchar)
 MAKE_TYPEDEF(short4,    short)

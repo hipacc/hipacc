@@ -315,8 +315,8 @@ void HipaccKernel::calcConfig() {
     int major = getTargetCC()/10;
     int minor = getTargetCC()%10;
     if (isAMDGPU()) {
-      // set architecture to "Fermi"
-      major = 2;
+      // set architecture to "Maxwell"
+      major = 5;
       minor = 0;
     }
 
@@ -340,25 +340,9 @@ void HipaccKernel::calcConfig() {
 
     size_t dynamic_smem_bytes = 0;
     cudaOccResult fun_occ;
-
-    int active_warps, max_warps;
-    if (!isNVIDIAGPU()) {
-      cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
-      int active_blocks = fun_occ.activeBlocksPerMultiprocessor;
-      int min_grid_size, opt_block_size;
-      cudaOccMaxPotentialOccupancyBlockSize(&min_grid_size, &opt_block_size, &dev_props, &fun_attrs, &dev_state, 0, dynamic_smem_bytes);
-      active_warps = active_blocks * (num_threads/max_threads_per_warp);
-      // re-compute with optimal block size
-      cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, opt_block_size, dynamic_smem_bytes);
-      int max_blocks = std::min(fun_occ.blockLimitRegs, std::min(fun_occ.blockLimitSharedMem, std::min(fun_occ.blockLimitWarps, fun_occ.blockLimitBlocks)));
-      max_warps = max_blocks * (opt_block_size/max_threads_per_warp);
-    } else { // TODO, comply result from excel sheet calculation
-      cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
-      int active_blocks = fun_occ.activeBlocksPerMultiprocessor;
-      active_warps = active_blocks * (num_threads/max_threads_per_warp);
-      max_warps = 64;
-    }
-    float occupancy = (float)active_warps/(float)max_warps;
+    cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
+    int active_warps = fun_occ.activeBlocksPerMultiprocessor * (num_threads / max_threads_per_warp);
+    float occupancy = (float)active_warps / (float)max_warps_per_multiprocessor;
     occVec.emplace_back(num_threads, occupancy);
     num_threads += max_threads_per_warp;
   }

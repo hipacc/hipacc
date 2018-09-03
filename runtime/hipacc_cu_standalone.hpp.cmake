@@ -35,6 +35,14 @@
 #include "hipacc_base_standalone.hpp"
 
 
+#ifdef WIN32
+# include <io.h>
+# define popen(x,y)     _popen(x,y)
+# define pclose(x)      _pclose(x)
+# define WEXITSTATUS(x) (x != 0)
+#endif
+
+
 std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
     const char *error_name;
     const char *error_string;
@@ -285,7 +293,7 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
 
     int offset = 2;
     int num_options = build_options.size() + offset;
-    const char *options[num_options];
+    const char **options = new const char*[num_options];
     std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
     options[0] = compute_arch.c_str();
     options[1] = "-std=c++11";
@@ -316,10 +324,12 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, 
     checkErrNVRTC(err, "nvrtcDestroyProgram()");
 
     hipaccCreateModule(module, ptx.c_str(), cc);
+
+    delete[] options;
 }
 #else
 void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc, std::vector<std::string> &build_options) {
-    std::string command = "${NVCC} -O4 -ptx -arch=compute_" + std::to_string(cc) + " ";
+    std::string command = "${CU_COMPILER} -O4 -ptx -arch=compute_" + std::to_string(cc) + " ";
     for (auto option : build_options)
         command += option + " ";
     command += file_name + " -o " + file_name + ".ptx 2>&1";
@@ -362,39 +372,29 @@ void hipaccGetKernel(CUfunction &function, CUmodule &module, std::string kernel_
 
 
 // Computes occupancy for kernel function
-size_t blockSizeToSmemSize(int blockSize) { return 0; } // TODO: provide proper function to estimate smem usage
 void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x, int tile_size_y) {
     CUresult err = CUDA_SUCCESS;
     CUdevice dev = 0;
-    int warp_size;
     int block_size = tile_size_x*tile_size_y;
     size_t dynamic_smem_bytes = 0;
-    int block_size_limit = 0;
 
+    int warp_size;
     err = cuDeviceGetAttribute(&warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, dev);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
+    int max_threads_per_multiprocessor;
+    err = cuDeviceGetAttribute(&max_threads_per_multiprocessor, CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR, dev);
     checkErrDrv(err, "cuDeviceGetAttribute()");
 
     int active_blocks;
-    int min_grid_size, opt_block_size;
     err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&active_blocks, fun, block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
-    err = cuOccupancyMaxPotentialBlockSize(&min_grid_size, &opt_block_size, fun, &blockSizeToSmemSize, dynamic_smem_bytes, block_size_limit);
-    checkErrDrv(err, "cuOccupancyMaxPotentialBlockSize()");
+    int active_warps = active_blocks * (block_size / warp_size);
+    int max_warps_per_multiprocessor = max_threads_per_multiprocessor / warp_size;
+    float occupancy = (float)active_warps / (float)max_warps_per_multiprocessor;
 
-    // re-compute with optimal block size
-    int max_blocks;
-    err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&max_blocks, fun, opt_block_size, dynamic_smem_bytes);
-    checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
-
-    block_size = ((block_size + warp_size - 1) / warp_size) * warp_size;
-    int max_warps = max_blocks * (opt_block_size/warp_size);
-    int active_warps = active_blocks * (block_size/warp_size);
-    float occupancy = (float)active_warps/(float)max_warps;
     std::cerr << ";  occupancy: "
               << std::fixed << std::setprecision(2) << occupancy << " ("
-              << active_warps << " out of " << max_warps << " warps"
-              //<< "; optimal block size: " << opt_block_size
-              << ")" << std::endl;
+              << active_warps << " out of " << max_warps_per_multiprocessor << " warps)" << std::endl;
 }
 
 

@@ -31,7 +31,13 @@
 #include <algorithm>
 #include <iostream>
 
-#include <unistd.h>
+#ifdef WIN32
+# include <io.h>
+# define popen(x,y)    _popen(x,y)
+# define pclose(x)     _pclose(x)
+#else
+# include <unistd.h>
+#endif
 
 #include "hipacc_cl_standalone.hpp"
 
@@ -51,6 +57,7 @@ int main(int argc, char *argv[]) {
     std::string build_includes = "";
     bool found_kernel_name = false, found_file_name = false, print_compile_progress = false, dump_binary = false, print_log = true;
 
+#ifndef WIN32
     // scan command-line options
     while ((option = getopt(argc, (char * const *)argv, "hd:p:k:f:i:")) != -1) {
         switch (option) {
@@ -92,6 +99,7 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
         }
     }
+#endif
 
     if (!found_file_name) {
         std::cout << "No OpenCL input file specified ..." << std::endl;

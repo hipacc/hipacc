@@ -59,9 +59,13 @@ HipaccImageAndroid::HipaccImageAndroid(size_t width, size_t height, size_t
 }
 
 template<typename F>
-hipacc_script_arg<F>::hipacc_script_arg(void(F::*setter)(sp<const Allocation>),
-    sp<const Allocation> const *arg)
-      : id(20), memptr((void(F::*)())setter), valptr((void*)arg) {
+int hipacc_script_arg<F>::getId() const {
+    return id;
+}
+
+template<typename F>
+hipacc_script_arg<F>::hipacc_script_arg(void(F::*setter)(sp<const Allocation>), sp<const Allocation> const *arg)
+      : id(22), memptr((void(F::*)())setter), valptr((void*)arg) {
 }
 
 template<typename F>

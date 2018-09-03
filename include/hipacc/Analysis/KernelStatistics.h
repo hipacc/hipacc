@@ -41,7 +41,7 @@
 #include "hipacc/Device/TargetDescription.h"
 #include "hipacc/DSL/CompilerKnownClasses.h"
 
-#include <clang/Analysis/AnalysisContext.h>
+#include <clang/Analysis/AnalysisDeclContext.h>
 
 namespace clang {
 namespace hipacc {
