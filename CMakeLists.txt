@@ -143,19 +143,21 @@ add_subdirectory(tools)
 
 
 # configure header files to pass some of the CMake settings to the source code
-configure_file(include/hipacc/Config/config.h.cmake ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
-configure_file(runtime/hipacc_cu.hpp.cmake          ${CMAKE_BINARY_DIR}/runtime/hipacc_cu.hpp)
-configure_file(tests/Android.mk.cmake               ${CMAKE_BINARY_DIR}/tests/Android.mk)
-configure_file(tests/Application.mk.cmake           ${CMAKE_BINARY_DIR}/tests/Application.mk)
-configure_file(tests/Makefile.cmake                 ${CMAKE_BINARY_DIR}/tests/Makefile)
-configure_file(tests/Makefile_test.cmake            ${CMAKE_BINARY_DIR}/tests/Makefile_test)
-configure_file(tests/Makefile_test_opencv.cmake     ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv)
-configure_file(tests/CMakeLists.txt.cmake           ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
+configure_file(include/hipacc/Config/config.h.cmake   ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
+configure_file(runtime/hipacc_cu_standalone.hpp.cmake ${CMAKE_BINARY_DIR}/runtime/hipacc_cu_standalone.hpp)
+configure_file(tests/Android.mk.cmake                 ${CMAKE_BINARY_DIR}/tests/Android.mk)
+configure_file(tests/Application.mk.cmake             ${CMAKE_BINARY_DIR}/tests/Application.mk)
+configure_file(tests/Makefile.cmake                   ${CMAKE_BINARY_DIR}/tests/Makefile)
+configure_file(tests/Makefile_test.cmake              ${CMAKE_BINARY_DIR}/tests/Makefile_test)
+configure_file(tests/Makefile_test_opencv.cmake       ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv)
+configure_file(tests/CMakeLists.txt.cmake             ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
 
 
 # install dsl and runtime header files
 file(GLOB DSL_HEADERS ${CMAKE_SOURCE_DIR}/dsl/*.hpp)
-file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp ${CMAKE_BINARY_DIR}/runtime/*.hpp)
+file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
+                          ${CMAKE_SOURCE_DIR}/runtime/*.tpp
+                          ${CMAKE_BINARY_DIR}/runtime/*.hpp)
 install(FILES ${RUNTIME_HEADERS} DESTINATION include)
 install(FILES ${DSL_HEADERS} DESTINATION include/dsl)
 
