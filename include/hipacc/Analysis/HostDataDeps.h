@@ -38,7 +38,7 @@
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/StmtVisitor.h>
-#include <clang/Analysis/AnalysisContext.h>
+#include <clang/Analysis/AnalysisDeclContext.h>
 #include <clang/Analysis/Analyses/PostOrderCFGView.h>
 #include <clang/Basic/Diagnostic.h>
 

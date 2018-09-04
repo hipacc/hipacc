@@ -351,7 +351,6 @@ void HostDataDeps::runKernel(ValueDecl *VD) {
 
 void HostDataDeps::dump(Process *proc) {
   std::cout << " <- " << proc->getKernel()->getName();
-
   std::vector<Space*> spaces = proc->getInSpaces();
   for (auto it = spaces.begin(); it != spaces.end(); ++it) {
     dump(*it);
@@ -491,14 +490,11 @@ void HostDataDeps::recordFusibleProcessPair(Process *pSrc, Process *pDest) {
       fusibleProcesses_.push_back(pSrc);
 }
 
-// generate fusible kernel lists by data deps analysis
 void HostDataDeps::createSchedule() {
   std::vector<Space*> outSpaces = getOutputSpaces();
 
   // generate all the fusible kernel pairs
-  for (auto it = outSpaces.begin(); it != outSpaces.end(); ++it) {
-    markSpace(*it);
-  }
+  for (auto S : getOutputSpaces()) { markSpace(S); }
 
   // create an initial set of fusion lists
   for (auto p : fusibleProcesses_) {
