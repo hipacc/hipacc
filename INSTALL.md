@@ -69,7 +69,7 @@ git apply <SRC>/hipacc/patches/clang-<rev>.patch
 ```
 
 ### Compile the Sources
-The build system of Hipacc uses **CMake** (3.1 or later), **Git** (2.7 or later),
+The build system of Hipacc uses **CMake** (3.4.3 or later), **Git** (2.7 or later),
 and requires installation to an absolute path. To configure Hipacc, call `cmake`
 in the root directory. A working installation of Clang/LLVM (and Polly) is 
 required. The `llvm-config` tool will be used to determine the configuration for
