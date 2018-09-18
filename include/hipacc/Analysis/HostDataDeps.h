@@ -44,6 +44,7 @@
 
 #include "hipacc/Analysis/KernelStatistics.h"
 #include "hipacc/Device/TargetDescription.h"
+#include "hipacc/Device/Builtins.h"
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/DSL/CompilerKnownClasses.h"
 #include "hipacc/DSL/ClassRepresentation.h"
@@ -76,6 +77,7 @@ class DependencyTracker : public StmtVisitor<DependencyTracker> {
     llvm::DenseMap<ValueDecl *, HipaccImage *> imgDeclMap_;
     llvm::DenseMap<ValueDecl *, HipaccIterationSpace *> iterDeclMap_;
     llvm::DenseMap<ValueDecl *, HipaccBoundaryCondition *> bcDeclMap_;
+    llvm::DenseMap<ValueDecl *, HipaccMask *> maskDeclMap_;
 
   public:
     DependencyTracker(ASTContext &Context,
@@ -116,6 +118,7 @@ class HostDataDeps : public ManagedAnalysis {
     class Process;
     class Accessor;
     class Image;
+    class Mask;
     class IterationSpace;
     class BoundaryCondition;
     class Kernel;
@@ -126,6 +129,7 @@ class HostDataDeps : public ManagedAnalysis {
 
     llvm::DenseMap<ValueDecl *, Accessor *> accMap_;
     llvm::DenseMap<ValueDecl *, Image *> imgMap_;
+    llvm::DenseMap<ValueDecl *, Mask *> maskMap_;
     llvm::DenseMap<ValueDecl *, IterationSpace *> iterMap_;
     llvm::DenseMap<ValueDecl *, BoundaryCondition *> bcMap_;
     llvm::DenseMap<ValueDecl *, Kernel *> kernelMap_;
@@ -135,10 +139,28 @@ class HostDataDeps : public ManagedAnalysis {
     std::vector<Process*> processes_;
     std::vector<Process*> fusibleProcesses_;
     llvm::DenseMap<RecordDecl *, HipaccKernelClass *> KernelClassDeclMap;
+
+    // KF
     std::map<Process *, std::list<Process*> *> FusibleKernelListsMap;
-    std::vector<std::list<Process*> *> vecFusibleKernelLists;
     std::map<Process *, std::tuple<unsigned, unsigned>> FusibleProcessInfoFinalMap;
     std::map<Process *, unsigned> FusibleProcessListSizeFinalMap;
+    std::vector<std::list<Process*> *> vecFusibleKernelLists;
+
+    // TODO: new stuff
+    using partitionBlock = std::vector<std::list<Process*> *>;
+    partitionBlock applicationGraph;
+    std::map<Process *, bool> processVisitorMap_;
+    std::map<std::pair<Process *, Process *>, unsigned> edgeWeightMap_;
+
+    //using partitionBlockNames = std::vector<std::list<std::string>>;
+
+    // TODO, move to device*.h
+    const unsigned GAMMA = 1;
+    const unsigned EPSILON = 1;
+    const unsigned TG = 400;
+    const unsigned TS = 4;
+    const unsigned CALU = 4;
+    const unsigned CSFU = 16;
 
     // inner class definitions
     class IterationSpace {
@@ -183,6 +205,14 @@ class HostDataDeps : public ManagedAnalysis {
           return acc->getName();
         }
 
+        unsigned getSizeX() {
+          return acc->getSizeX();
+        }
+
+        unsigned getSizeY() {
+          return acc->getSizeY();
+        }
+
         Image *getImage() {
           return image;
         }
@@ -214,6 +244,20 @@ class HostDataDeps : public ManagedAnalysis {
 
         std::string getName() {
           return img->getName();
+        }
+    };
+
+    class Mask {
+      private:
+        HipaccMask *mask;
+
+      public:
+        Mask(HipaccMask *mask)
+            : mask(mask) {
+        }
+
+        std::string getName() {
+          return mask->getName();
         }
     };
 
@@ -349,9 +393,7 @@ class HostDataDeps : public ManagedAnalysis {
         Space *outSpace;
         std::vector<Space*> inSpaces;
         Process* readDependentProcess;
-        bool isReadDependentProcess;
         Process* writeDependentProcess;
-        bool isWriteDependentProcess;
 
       public:
         Process(Kernel *kernel, Space *outSpace)
@@ -359,9 +401,7 @@ class HostDataDeps : public ManagedAnalysis {
               kernel(kernel),
               outSpace(outSpace),
               readDependentProcess(nullptr),
-              isReadDependentProcess(false),
-              writeDependentProcess(nullptr),
-              isWriteDependentProcess(false)
+              writeDependentProcess(nullptr)
         {
           outSpace->srcProcess = this;
         }
@@ -384,28 +424,18 @@ class HostDataDeps : public ManagedAnalysis {
 
         void SetReadDependentProcess(Process *p) {
           readDependentProcess = p;
-          isReadDependentProcess = true;
         }
 
         void SetWriteDependentProcess(Process *p) {
           writeDependentProcess = p;
-          isWriteDependentProcess = true;
         }
 
-        Process *GetReadDependentProcess() const {
+        Process *getReadDependentProcess() const {
           return readDependentProcess;
         }
 
-        Process *GetWriteDependentProcess() const {
+        Process *getWriteDependentProcess() const {
           return writeDependentProcess;
-        }
-
-        bool hasReadDependentProcess() const {
-          return isReadDependentProcess;
-        }
-
-        bool hasWriteDependentProcess() const {
-          return isWriteDependentProcess;
         }
     };
 
@@ -427,23 +457,25 @@ class HostDataDeps : public ManagedAnalysis {
     }
 
     void addImage(ValueDecl *VD, HipaccImage *img);
+    void addMask(ValueDecl *VD, HipaccMask *mask);
     void addBoundaryCondition(ValueDecl *BCVD, HipaccBoundaryCondition *BC, ValueDecl *IVD);
     void addKernel(ValueDecl *KVD, ValueDecl *ISVD, std::vector<ValueDecl*> AVDS);
     void addAccessor(ValueDecl *AVD, HipaccAccessor *acc, ValueDecl* IVD);
     void addIterationSpace(ValueDecl *ISVD, HipaccIterationSpace *iter, ValueDecl *IVD);
     void runKernel(ValueDecl *VD);
 
-    void dump(Process *proc);
-    void dump(Space *space);
+    //void dump(Process *proc);
+    //void dump(Space *space);
     void dump();
 
     std::vector<Space*> getInputSpaces();
     std::vector<Space*> getOutputSpaces();
     void markProcess(Process *t);
     void markSpace(Space *s);
-    void recordFusibleProcessPair(Process *pSrc, Process *pDest);
     void createSchedule();
     void fusibilityAnalysis();
+    void minCutGlobal(partitionBlock PB, partitionBlock &PBRet0, partitionBlock &PBRet1);
+    bool isLegal(partitionBlock &PB);
     void recordFusibleKernelListInfo();
     std::string declareFifo(std::string type, std::string name);
     std::string getEntrySignature(
@@ -475,15 +507,15 @@ class HostDataDeps : public ManagedAnalysis {
       dataDeps.KernelClassDeclMap = KernelClassDeclMap;
       DependencyTracker DT(Context, analysisContext, compilerClasses, dataDeps);
 
+      dataDeps.createSchedule();
+      dataDeps.fusibilityAnalysis();
+      dataDeps.recordFusibleKernelListInfo();
+
       if (DEBUG) {
         std::cout << "Result of data dependency analysis:" << std::endl;
         dataDeps.dump();
         std::cout << std::endl;
       }
-
-      dataDeps.createSchedule();
-      dataDeps.fusibilityAnalysis();
-      dataDeps.recordFusibleKernelListInfo();
       return &dataDeps;
     }
 };

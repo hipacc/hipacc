@@ -367,8 +367,8 @@ void HipaccKernel::calcConfig() {
   llvm::errs() << "  optimal configuration: " << num_threads_x_opt << "x"
                << num_threads_y_opt << "(x" << getPixelsPerThread() << ")\n";
   for (auto map : occVec) {
-    llvm::errs() << "    " << llvm::format("%5d", map.first) << " threads:"
-                 << " occupancy = " << llvm::format("%*.2f", 6, map.second*100) << "%";
+    //llvm::errs() << "    " << llvm::format("%5d", map.first) << " threads:"
+    //             << " occupancy = " << llvm::format("%*.2f", 6, map.second*100) << "%";
 
     unsigned num_threads_x = max_threads_per_warp;
     unsigned num_threads_y = 1;
@@ -389,9 +389,9 @@ void HipaccKernel::calcConfig() {
         num_threads_x = map.first;
       }
     }
-    llvm::errs() << " -> " << llvm::format("%4d", num_threads_x)
-                 << "x" << llvm::format("%-2d", num_threads_y)
-                 << "(x" << getPixelsPerThread() << ")\n";
+    //llvm::errs() << " -> " << llvm::format("%4d", num_threads_x)
+    //             << "x" << llvm::format("%-2d", num_threads_y)
+    //             << "(x" << getPixelsPerThread() << ")\n";
   }
 
 

@@ -54,6 +54,10 @@ void DependencyTracker::VisitDeclStmt(DeclStmt *S) {
 
         HipaccImage *Img = new HipaccImage(Context, VD,
             compilerClasses.getFirstTemplateType(VD->getType()));
+        
+        //// get the text string for the image width and height
+        //std::string width_str  = convertToString(CCE->getArg(0));
+        //std::string height_str = convertToString(CCE->getArg(1));
 
         // store Image definition
         imgDeclMap_[VD] = Img;
@@ -70,19 +74,71 @@ void DependencyTracker::VisitDeclStmt(DeclStmt *S) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
         HipaccBoundaryCondition *BC = nullptr;
         HipaccImage *Img = nullptr;
+        size_t size_args = 0;
 
-        // check if the first argument is an Image
-        if (isa<DeclRefExpr>(CCE->getArg(0))) {
-          DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
+        for (size_t i=0, e=CCE->getNumArgs(); i!=e; ++i) {
+          auto arg = CCE->getArg(i)->IgnoreParenCasts();
 
-          // get the Image from the DRE if we have one
-          if (imgDeclMap_.count(DRE->getDecl())) {
-            Img = imgDeclMap_[DRE->getDecl()];
-            BC = new HipaccBoundaryCondition(VD, Img);
+          auto dsl_arg = arg;
+          if (auto call = dyn_cast<CXXOperatorCallExpr>(arg)) {
+            // for pyramid call use the first argument
+            dsl_arg = call->getArg(0);
+          }
 
-            dataDeps.addBoundaryCondition(VD, BC, DRE->getDecl());
+          // match for DSL arguments
+          if (auto DRE = dyn_cast<DeclRefExpr>(dsl_arg)) {
+            // check if the argument specifies the image
+            if (imgDeclMap_.count(DRE->getDecl())) {
+              Img = imgDeclMap_[DRE->getDecl()];
+              BC = new HipaccBoundaryCondition(VD, Img);
+              bcDeclMap_[VD] = BC;
+              dataDeps.addBoundaryCondition(VD, BC, DRE->getDecl());
+              continue;
+            }
+
+            // check if the argument is a Mask
+            if (maskDeclMap_.count(DRE->getDecl())) {
+              HipaccMask *Mask = maskDeclMap_[DRE->getDecl()];
+              BC->setSizeX(Mask->getSizeX());
+              BC->setSizeY(Mask->getSizeY());
+              continue;
+            }
+
+            // check if the argument specifies the boundary mode
+            if (DRE->getDecl()->getKind() == Decl::EnumConstant &&
+                DRE->getDecl()->getType().getAsString() ==
+                "enum hipacc::Boundary") {
+              auto lval = arg->EvaluateKnownConstInt(Context);
+              auto cval = static_cast<std::underlying_type<Boundary>::type>(Boundary::CONSTANT);
+              assert(lval.isNonNegative() && lval.getZExtValue() <= cval &&
+                     "invalid Boundary mode");
+              auto mode = static_cast<Boundary>(lval.getZExtValue());
+              BC->setBoundaryMode(mode);
+
+              if (mode == Boundary::CONSTANT) {
+                // check if the parameter can be resolved to a constant
+                auto const_arg = CCE->getArg(++i);
+                if (!const_arg->isEvaluatable(Context)) {
+                  //Diags.Report(arg->getExprLoc(), IDConstMode) << VD->getName();
+                } else {
+                  Expr::EvalResult val;
+                  const_arg->EvaluateAsRValue(val, Context);
+                  BC->setConstVal(val.Val, Context);
+                }
+              }
+              continue;
+            }
+          }
+
+          // check if the argument can be resolved to a constant
+          if (size_args++ == 0) {
+            BC->setSizeX(arg->EvaluateKnownConstInt(Context).getSExtValue());
+            BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
+          } else {
+            BC->setSizeY(arg->EvaluateKnownConstInt(Context).getSExtValue());
           }
         }
+
         break;
       }
 
@@ -96,43 +152,48 @@ void DependencyTracker::VisitDeclStmt(DeclStmt *S) {
         HipaccAccessor *Acc = nullptr;
         HipaccBoundaryCondition *BC = nullptr;
         HipaccImage *Img = nullptr;
+        Interpolate mode = Interpolate::NO;
 
         // check if the first argument is an Image
         DeclRefExpr *DRE = nullptr;
 
-        if (isa<DeclRefExpr>(CCE->getArg(0))) {
-          DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0));
+        for (auto arg : CCE->arguments()) {
+          auto dsl_arg = arg->IgnoreParenCasts();
+          if (isa<CXXDefaultArgExpr>(dsl_arg))
+            continue;
 
-          // get the BoundaryCondition from the DRE if we have one
-          if (bcDeclMap_.count(DRE->getDecl())) {
-            if (DEBUG) std::cout << "    -> Based on BoundaryCondition: "
-                    << DRE->getNameInfo().getAsString() << std::endl;
-
-            BC = bcDeclMap_[DRE->getDecl()];
+          if (auto call = dyn_cast<CXXOperatorCallExpr>(dsl_arg)) {
+            // for pyramid call use the first argument
+            dsl_arg = call->getArg(0);
           }
+          // match for DSL arguments
+          if (isa<DeclRefExpr>(dsl_arg)) {
+            DRE = dyn_cast<DeclRefExpr>(dsl_arg);
+            // check if the argument specifies the boundary condition
+            if (bcDeclMap_.count(DRE->getDecl())) {
+              BC = bcDeclMap_[DRE->getDecl()];
+              continue;
+            }
 
-          // in case we have no BoundaryCondition, check if an Image is
-          // specified and construct a BoundaryCondition
-          if (!BC && imgDeclMap_.count(DRE->getDecl())) {
-            if (DEBUG) std::cout << "    -> Based on Image: "
-                    << DRE->getNameInfo().getAsString() << std::endl;
-
-            Img = imgDeclMap_[DRE->getDecl()];
-            BC = new HipaccBoundaryCondition(VD, Img);
-
-            bcDeclMap_[VD] = BC;
+            // check if the argument specifies the image
+            //if (!BC && imgDeclMap_.count(DRE->getDecl())) 
+            if (imgDeclMap_.count(DRE->getDecl())) {
+              Img = imgDeclMap_[DRE->getDecl()];
+              BC = new HipaccBoundaryCondition(VD, Img);
+              BC->setSizeX(1);
+              BC->setSizeY(1);
+              BC->setBoundaryMode(Boundary::CLAMP);
+              continue;
+            }
           }
         }
 
-        // TODO: Read from arguments
-        Interpolate mode = Interpolate::NO;
+        assert(DRE != nullptr && "First Accessor argument is not a BC or Image");
+        assert(BC != nullptr && "Expected BoundaryCondition in HostDataDep");
 
         Acc = new HipaccAccessor(VD, BC, mode, false);
-
         // store Accessor definition
         accDeclMap_[VD] = Acc;
-
-        assert(DRE != nullptr && "First Accessor argument is not a BC or Image");
         dataDeps.addAccessor(VD, Acc, DRE->getDecl());
         break;
       }
@@ -142,7 +203,6 @@ void DependencyTracker::VisitDeclStmt(DeclStmt *S) {
             compilerClasses.IterationSpace)) {
         if (DEBUG) std::cout << "  Tracked IterationSpace declaration: "
                 << VD->getNameAsString() << std::endl;
-
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
         HipaccIterationSpace *IS = nullptr;
@@ -169,16 +229,57 @@ void DependencyTracker::VisitDeclStmt(DeclStmt *S) {
         break;
       }
 
-      // TODO, not yet used
       // found Mask decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Mask)) {
+        if (DEBUG) std::cout << "  Tracked Mask declaration: "
+                  << VD->getNameAsString() << std::endl;
+        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+
+        QualType QT = compilerClasses.getFirstTemplateType(VD->getType());
+        HipaccMask *Mask = new HipaccMask(VD, QT, HipaccMask::MaskType::Mask);
+
+        // get initializer
+        DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreParenCasts());
+        assert(DRE && "Mask must be initialized using a variable");
+        VarDecl *V = dyn_cast_or_null<VarDecl>(DRE->getDecl());
+        assert(V && "Mask must be initialized using a variable");
+        bool isMaskConstant = V->getType().isConstant(Context);
+
+        // extract size_y and size_x from type
+        auto Array = Context.getAsConstantArrayType(V->getType());
+        Mask->setSizeY(Array->getSize().getSExtValue());
+        Array = Context.getAsConstantArrayType(Array->getElementType());
+        Mask->setSizeX(Array->getSize().getSExtValue());
+
+        // loop over initializers and check if each initializer is a constant
+        if (isMaskConstant) {
+          if (auto ILEY = dyn_cast<InitListExpr>(V->getInit())) {
+            Mask->setInitList(ILEY);
+            for (auto yinit : *ILEY) {
+              auto ILEX = dyn_cast<InitListExpr>(yinit);
+              for (auto xinit : *ILEX) {
+                auto xexpr = dyn_cast<Expr>(xinit);
+                if (!xexpr->isConstantInitializer(Context, false)) {
+                  isMaskConstant = false;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        Mask->setIsConstant(isMaskConstant);
+        Mask->setHostMemName(V->getName());
+      
+        // store Mask definition
+        maskDeclMap_[VD] = Mask;
+        dataDeps.addMask(VD, Mask);
         break;
       }
 
       // found Domain decl
       if (compilerClasses.isTypeOfClass(VD->getType(),
-                                        compilerClasses.Domain)) {
+          compilerClasses.Domain)) {
         break;
       }
 
@@ -249,6 +350,12 @@ void DependencyTracker::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 void HostDataDeps::addImage(ValueDecl *VD, HipaccImage *img) {
   assert(!imgMap_.count(VD) && "Duplicate Image declaration");
   imgMap_[VD] = new Image(img);
+}
+
+
+void HostDataDeps::addMask(ValueDecl *VD, HipaccMask *mask) {
+  assert(!maskMap_.count(VD) && "Duplicate BoundaryCondition declaration");
+  maskMap_[VD] = new Mask(mask);
 }
 
 
@@ -324,6 +431,7 @@ void HostDataDeps::runKernel(ValueDecl *VD) {
   assert(!processMap_.count(kernel->getName()) &&
           "Duplicate process declaration, kernel name exists");
   processMap_[kernel->getName()] = proc;
+  processVisitorMap_[proc] = false;
   assert(!spaceMap_.count(kernel->getIterationSpace()->getImage()->getName()) &&
           "Duplicate space declaration, image name exists");
   spaceMap_[kernel->getIterationSpace()->getImage()->getName()] = space;
@@ -349,77 +457,88 @@ void HostDataDeps::runKernel(ValueDecl *VD) {
 }
 
 
-void HostDataDeps::dump(Process *proc) {
-  std::cout << " <- " << proc->getKernel()->getName();
-  std::vector<Space*> spaces = proc->getInSpaces();
-  for (auto it = spaces.begin(); it != spaces.end(); ++it) {
-    dump(*it);
-    if (it+1 != spaces.end()) {
-      std::cout << std::endl << "            ";
-      for (size_t i = 0; i < proc->getKernel()->getName().size(); ++i) {
-        std::cout << " ";
-      }
-      std::cout << "|";
-    }
-  }
-}
-
-
-void HostDataDeps::dump(Space *space) {
-  if (space->getAccessors().size() > 0) {
-    std::cout << " <- ";
-  }
-  std::cout << space->getImage()->getName();
-
-  Process *proc = space->getSrcProcess();
-  if (proc != nullptr) {
-    dump(proc);
-  }
-}
+//void HostDataDeps::dump(Process *proc) {
+//  std::cout << " <- " << proc->getKernel()->getName();
+//  std::vector<Space*> spaces = proc->getInSpaces();
+//  for (auto it = spaces.begin(); it != spaces.end(); ++it) {
+//    dump(*it);
+//    if (it+1 != spaces.end()) {
+//      std::cout << std::endl << "            ";
+//      for (size_t i = 0; i < proc->getKernel()->getName().size(); ++i) {
+//        std::cout << " ";
+//      }
+//      std::cout << "|";
+//    }
+//  }
+//}
+//
+//
+//void HostDataDeps::dump(Space *space) {
+//  if (space->getAccessors().size() > 0) {
+//    std::cout << " <- ";
+//  }
+//  std::cout << space->getImage()->getName();
+//
+//  Process *proc = space->getSrcProcess();
+//  if (proc != nullptr) {
+//    dump(proc);
+//  }
+//}
 
 
 void HostDataDeps::dump() {
-  std::cout << "  Spaces:" << std::endl;
-  for (auto it = spaces_.begin(); it != spaces_.end(); ++it) {
-    IterationSpace *iter = (*it)->getIterationSpace();
-    std::cout << "    - img: " << (*it)->getImage()->getName()
-              << ", iter: " << (iter ? iter->getName() : "nullptr")
-              << std::endl;
-  }
-
-  std::cout << "  Processes:" << std::endl;
-  for (auto it = processes_.begin(); it != processes_.end(); ++it) {
-    std::cout << "    - kernel: " << (*it)->getKernel()->getName()
-              << ", out: " << (*it)->getOutSpace()->getImage()->getName()
-              << ", read dependent on: " << ((*it)->GetReadDependentProcess() ?
-                  ((*it)->GetReadDependentProcess())->getKernel()->getName() : "nullptr")
-              << ", write dependent on: " << ((*it)->GetWriteDependentProcess() ?
-                  ((*it)->GetWriteDependentProcess())->getKernel()->getName() : "nullptr")
-              << std::endl;
-  }
-
-  std::cout << "  Dependency Tree:" << std::endl;
-  int id = 1;
-  std::vector<Image*> done;
-  for (auto it = spaces_.begin(); it != spaces_.end(); ++it) {
-    if (!findVector(done, (*it)->getImage()) &&
-        (*it)->getAccessors().size() == 0) {
-      std::cout << "    " << id << ":";
-      dump(*it);
-      std::cout << std::endl;
-      ++id;
-      done.push_back((*it)->getImage());
+  std::cout << "  Application Graph:" << std::endl;
+  for (auto pL : applicationGraph) {
+    for (auto p : *pL) {
+      std::cout << " --> " << p->getKernel()->getName();
     }
+    std::cout << std::endl;
   }
+
+  std::cout << "  Weight:" << std::endl;
+  for (auto we : edgeWeightMap_) {
+    std::cout << " " << (we.first.first)->getKernel()->getName() << " - "  << 
+      (we.second) << " -> " << (we.first.second)->getKernel()->getName() << std::endl;
+  }
+
+  //for (auto it = spaces_.begin(); it != spaces_.end(); ++it) {
+  //  IterationSpace *iter = (*it)->getIterationSpace();
+  //  std::cout << "    - img: " << (*it)->getImage()->getName()
+  //            << ", iter: " << (iter ? iter->getName() : "nullptr")
+  //            << std::endl;
+  //}
+
+  //std::cout << "  Processes:" << std::endl;
+  //for (auto it = processes_.begin(); it != processes_.end(); ++it) {
+  //  std::cout << "    - kernel: " << (*it)->getKernel()->getName()
+  //            << ", out: " << (*it)->getOutSpace()->getImage()->getName()
+  //            << ", read dependent on: " << ((*it)->getReadDependentProcess() ?
+  //                ((*it)->getReadDependentProcess())->getKernel()->getName() : "nullptr")
+  //            << ", write dependent on: " << ((*it)->getWriteDependentProcess() ?
+  //                ((*it)->getWriteDependentProcess())->getKernel()->getName() : "nullptr")
+  //            << std::endl;
+  //}
+
+  //std::cout << "  Dependency Tree:" << std::endl;
+  //int id = 1;
+  //std::vector<Image*> done;
+  //for (auto it = spaces_.begin(); it != spaces_.end(); ++it) {
+  //  if (!findVector(done, (*it)->getImage()) &&
+  //      (*it)->getAccessors().size() == 0) {
+  //    std::cout << "    " << id << ":";
+  //    dump(*it);
+  //    std::cout << std::endl;
+  //    ++id;
+  //    done.push_back((*it)->getImage());
+  //  }
+  //}
 }
 
 
 std::vector<HostDataDeps::Space*> HostDataDeps::getInputSpaces() {
   std::vector<Space*> ret;
   for (auto it = spaces_.begin(); it != spaces_.end(); ++it) {
-    if ((*it)->getSrcProcess() == nullptr) {
-      ret.push_back(*it);
-    }
+    if ((*it)->getSrcProcess() == nullptr) { ret.push_back(*it); }
   }
   return ret;
 }
@@ -428,108 +547,185 @@ std::vector<HostDataDeps::Space*> HostDataDeps::getInputSpaces() {
 std::vector<HostDataDeps::Space*> HostDataDeps::getOutputSpaces() {
   std::vector<Space*> ret;
   for (auto it = spaces_.rbegin(); it != spaces_.rend(); ++it) {
-    if ((*it)->getDstProcesses().empty()) {
-      ret.push_back(*it);
-    }
+    if ((*it)->getDstProcesses().empty()) { ret.push_back(*it); }
   }
   return ret;
 }
 
 
-// Fusibility analysis by traversing the DAG
 void HostDataDeps::markProcess(Process *t) {
-  std::vector<Space*> spaces = t->getInSpaces();
-  for (auto it = spaces.begin(); it != spaces.end(); ++it) {
-    Space *s = *it;
-    // all successors of p are planned
-    if (s->getDstProcesses().size() == 1)   markSpace(s);
-  }
+  for (auto S: t->getInSpaces()) { markSpace(S); }
 }
+
 
 void HostDataDeps::markSpace(Space *s) {
   std::vector<Process*> DstProcesses = s->getDstProcesses();
   Process *SrcProcess = s->getSrcProcess();
-  if (SrcProcess != nullptr) {  // not input image
-    if (DstProcesses.size() == 1 &&
-         ((DstProcesses.back())->getInSpaces().size() == 1)) {
-      // satisfy a linear pattern, data dependency constraints
-      // ...-> kernel -> img -> kernel ->...
-      // record as fusible kernel pair
-      SrcProcess->SetWriteDependentProcess(DstProcesses.back());
-      DstProcesses.back()->SetReadDependentProcess(SrcProcess);
-      recordFusibleProcessPair(SrcProcess, DstProcesses.back());
-    } else if (DstProcesses.size() == 1 &&
-                ((DstProcesses.back())->getInSpaces().size() == 2)) {
-      // get the second input img of the dest p
-      Space *imgExt;
-      if ((DstProcesses.back())->getInSpaces().front() == s) {
-        imgExt = (DstProcesses.back())->getInSpaces().back();
-      } else {
-        imgExt = (DstProcesses.back())->getInSpaces().front();
-      }
-      // get the second input img of the dest p
-      std::vector<Space*> vecImgEnt = SrcProcess->getInSpaces();
-      bool shareExtSpace = (std::find(std::begin(vecImgEnt), std::end(vecImgEnt),
-                             imgExt) != std::end(vecImgEnt)) ? true : false;
-      if (shareExtSpace) {
-        imgExt->setSpaceShared();
-        // record as fusible kernel pair
-        SrcProcess->SetWriteDependentProcess(DstProcesses.back());
-        DstProcesses.back()->SetReadDependentProcess(SrcProcess);
-        recordFusibleProcessPair(SrcProcess, DstProcesses.back());
-      }
+  if (SrcProcess) {
+    if (!processVisitorMap_[SrcProcess]) {
+      std::list<Process*> *list = new std::list<Process*>;
+      list->push_back(SrcProcess);
+      for (auto dp : DstProcesses) { list->push_back(dp); }
+      applicationGraph.push_back(list);
+      processVisitorMap_[SrcProcess] = true;
     }
     markProcess(SrcProcess);
+
+    //if (DstProcesses.size() == 1 &&
+    //     ((DstProcesses.back())->getInSpaces().size() == 1)) {
+    //  SrcProcess->SetWriteDependentProcess(DstProcesses.back());
+    //  DstProcesses.back()->SetReadDependentProcess(SrcProcess);
+    //  recordFusibleProcessPair(SrcProcess, DstProcesses.back());
+    //} else if (DstProcesses.size() == 1 &&
+    //            ((DstProcesses.back())->getInSpaces().size() == 2)) {
+    //  // get the second input img of the dest p
+    //  Space *imgExt;
+    //  if ((DstProcesses.back())->getInSpaces().front() == s) {
+    //    imgExt = (DstProcesses.back())->getInSpaces().back();
+    //  } else {
+    //    imgExt = (DstProcesses.back())->getInSpaces().front();
+    //  }
+    //  // get the second input img of the dest p
+    //  std::vector<Space*> vecImgEnt = SrcProcess->getInSpaces();
+    //  bool shareExtSpace = (std::find(std::begin(vecImgEnt), std::end(vecImgEnt),
+    //                         imgExt) != std::end(vecImgEnt)) ? true : false;
+    //  if (shareExtSpace) {
+    //    imgExt->setSpaceShared();
+    //    // record as fusible kernel pair
+    //    SrcProcess->SetWriteDependentProcess(DstProcesses.back());
+    //    DstProcesses.back()->SetReadDependentProcess(SrcProcess);
+    //    recordFusibleProcessPair(SrcProcess, DstProcesses.back());
+    //  }
+    //}
   }
 }
 
-void HostDataDeps::recordFusibleProcessPair(Process *pSrc, Process *pDest) {
-  if (std::find(fusibleProcesses_.begin(), fusibleProcesses_.end(), pDest) == fusibleProcesses_.end())
-      fusibleProcesses_.push_back(pDest);
-  if (std::find(fusibleProcesses_.begin(), fusibleProcesses_.end(), pSrc) == fusibleProcesses_.end())
-      fusibleProcesses_.push_back(pSrc);
-}
+//void HostDataDeps::recordFusibleProcessPair(Process *pSrc, Process *pDest) {
+//  if (std::find(fusibleProcesses_.begin(), fusibleProcesses_.end(), pDest) == fusibleProcesses_.end())
+//      fusibleProcesses_.push_back(pDest);
+//  if (std::find(fusibleProcesses_.begin(), fusibleProcesses_.end(), pSrc) == fusibleProcesses_.end())
+//      fusibleProcesses_.push_back(pSrc);
+//}
 
 void HostDataDeps::createSchedule() {
-  std::vector<Space*> outSpaces = getOutputSpaces();
+  for (auto S : getOutputSpaces()) { 
+    markSpace(S); 
+  }
 
-  // generate all the fusible kernel pairs
-  for (auto S : getOutputSpaces()) { markSpace(S); }
+  // weight computation and assignment 
+  for (auto pL : applicationGraph) {
+    Process *srcProcess = *(pL->begin());
+    unsigned nALU = srcProcess->getKernel()->getKernelClass()->getKernelStatistics().getNumOpALUs(); 
+    unsigned nSFU = srcProcess->getKernel()->getKernelClass()->getKernelStatistics().getNumOpSFUs(); 
+    unsigned costOP = CALU * nALU + CSFU * nSFU;
+    unsigned ISks = srcProcess->getKernel()->getKernelClass()->getKernelStatistics().getNumImgLoads();
 
-  // create an initial set of fusion lists
-  for (auto p : fusibleProcesses_) {
-    if (p->hasReadDependentProcess() && !p->hasWriteDependentProcess()) {
-      std::list<Process*> *list = new std::list<Process*>;
-      list->push_back(p);
-      FusibleKernelListsMap[p] = list;
-    } else if (p->hasWriteDependentProcess()) {
-      Process *pw = p->GetWriteDependentProcess();
-      std::list<Process*> *list = FusibleKernelListsMap[pw];
-      auto it = std::find(list->begin(), list->end(), pw);
-      assert((it != list->end()) && "cannot find write dependent process for kernel fusion");
-      list->insert(it, p);
-      FusibleKernelListsMap[p] = list;
+    for (auto itEdge = std::next(pL->begin()); itEdge != pL->end(); ++itEdge) {
+      Process *destProcess = *itEdge;
+      unsigned w = 0;
+      if ((srcProcess->getOutSpace()->getDstProcesses()).size() > 1 || 
+          (destProcess->getInSpaces()).size() > 1) {        //illegal
+        w = EPSILON;
+      } else if (destProcess->getKernel()->getKernelClass()->getKernelType() == 
+          PointOperator) {                                  // point-based
+        w = TG;
+      } else if (srcProcess->getKernel()->getKernelClass()->getKernelType() == 
+          PointOperator) {                                  // point-to-local
+        auto acc = destProcess->getKernel()->getAccessors().back();
+        unsigned szKd =acc->getSizeX() * acc->getSizeY(); 
+        unsigned costComp = costOP * ISks * szKd;
+        w = TG - costComp;
+      } else if (srcProcess->getKernel()->getKernelClass()->getKernelType() == 
+          LocalOperator) {                                  // local-to-local
+        auto accSrc = srcProcess->getKernel()->getAccessors().back();
+        auto accDest = destProcess->getKernel()->getAccessors().back();
+        auto szKf = (accDest->getSizeX() + static_cast<unsigned>(floor(accSrc->getSizeX() / 2)) * 2) *
+                    (accDest->getSizeX() + static_cast<unsigned>(floor(accSrc->getSizeX() / 2)) * 2);
+        unsigned costComp = costOP * ISks * szKf;
+        w = TS - costComp;
+      } else {                                              // unsupported scenario
+        w = EPSILON;
+      }
+      unsigned we = std::max(w + GAMMA, EPSILON);
+      edgeWeightMap_[std::make_pair(srcProcess, destProcess)] = we;
     }
   }
-  for (auto pair: FusibleKernelListsMap) {
-    bool merge = true;
-    for (auto l: vecFusibleKernelLists) {
-      if (l == pair.second) { merge = false; break;}
-    }
-    if (merge) vecFusibleKernelLists.push_back(pair.second);
-  }
+
+  //// create an initial set of fusion lists
+  //for (auto p : fusibleProcesses_) {
+  //  if (p->getReadDependentProcess() && !p->getWriteDependentProcess()) {
+  //    std::list<Process*> *list = new std::list<Process*>;
+  //    list->push_back(p);
+  //    FusibleKernelListsMap[p] = list;
+  //  } else if (p->getWriteDependentProcess()) {
+  //    Process *pw = p->getWriteDependentProcess();
+  //    std::list<Process*> *list = FusibleKernelListsMap[pw];
+  //    auto it = std::find(list->begin(), list->end(), pw);
+  //    assert((it != list->end()) && "cannot find write dependent process for kernel fusion");
+  //    list->insert(it, p);
+  //    FusibleKernelListsMap[p] = list;
+  //  }
+  //}
+  //for (auto pair: FusibleKernelListsMap) {
+  //  bool merge = true;
+  //  for (auto l: vecFusibleKernelLists) {
+  //    if (l == pair.second) { merge = false; break;}
+  //  }
+  //  if (merge) vecFusibleKernelLists.push_back(pair.second);
+  //}
 }
 
-// TODO performance projection model
+
+void HostDataDeps::minCutGlobal(partitionBlock PB, partitionBlock &PBRet0, 
+                                partitionBlock &PBRet1) {
+  // Stoer-Wagner Minimum Cut
+  PBRet1.push_back(PB.back());
+  PB.pop_back();
+  PBRet0 = PB;
+}
+
+
+bool HostDataDeps::isLegal(partitionBlock &PB) {
+  // external dependency detection
+  
+  return false;
+}
+
+
 void HostDataDeps::fusibilityAnalysis() {
-  for (auto l : vecFusibleKernelLists) {
-    for (auto p : *l) {
-      if (p->getKernel()->getKernelClass()->getKernelType() == GlobalOperator) {
-        assert(0 && "global operators not yet supported for kernel fusion");
+  std::set<partitionBlock> readySet;
+  std::set<partitionBlock> workingSet;
+
+  // initialization
+  workingSet.insert(applicationGraph);
+  while(!workingSet.empty()) {
+    for (auto PB : workingSet) {
+      if ((PB.size() == 1) || isLegal(PB)) {
+        readySet.insert(PB);
+        workingSet.erase(PB);
+      } else {
+        partitionBlock PBRet0, PBRet1;
+        //llvm::errs() << "\n";
+        //llvm::errs() << "before cut\n";
+        //llvm::errs() << "PB size: " << PB.size();
+        //llvm::errs() << "  PBRet0 size: " << PBRet0.size();
+        //llvm::errs() << "  PBRet1 size: " << PBRet1.size();
+        //llvm::errs() << "\n";
+        minCutGlobal(PB, PBRet0, PBRet1);
+        //llvm::errs() << "\n";
+        //llvm::errs() << "after cut\n";
+        //llvm::errs() << "PB size: " << PB.size();
+        //llvm::errs() << "  PBRet0 size: " << PBRet0.size();
+        //llvm::errs() << "  PBRet1 size: " << PBRet1.size();
+        //llvm::errs() << "\n";
+        workingSet.insert(PBRet0);
+        workingSet.insert(PBRet1);
+        workingSet.erase(PB);
       }
     }
   }
 }
+
 
 void HostDataDeps::recordFusibleKernelListInfo() {
   unsigned posCnt;
@@ -549,6 +745,7 @@ void HostDataDeps::recordFusibleKernelListInfo() {
   }
   llvm::errs() << "\n";
 }
+
 
 bool HostDataDeps::isFusible(HipaccKernel *K) {
   bool isFusible = false;

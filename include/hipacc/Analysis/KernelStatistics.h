@@ -80,6 +80,9 @@ class KernelStatistics : public ManagedAnalysis {
     VectorInfo getVectorizeInfo(const VarDecl *VD);
     VarDecl *getVarDeclByName(std::string name);
     KernelType getKernelType();
+    unsigned getNumOpALUs();
+    unsigned getNumOpSFUs();
+    unsigned getNumImgLoads();
 
     ~KernelStatistics() override;
 

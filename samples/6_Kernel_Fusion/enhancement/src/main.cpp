@@ -43,6 +43,8 @@
 #include "hipacc.hpp"
 
 //#define PRINT_RESULT
+#define WIDTH  4032
+#define HEIGHT 3024
 
 using namespace hipacc;
 using namespace hipacc::math;

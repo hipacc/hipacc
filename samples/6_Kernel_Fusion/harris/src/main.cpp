@@ -36,6 +36,8 @@
 #include "hipacc.hpp"
 
 //#define PRINT_RESULT
+#define HEIGHT 2048
+#define WIDTH 2048
 
 using namespace hipacc;
 

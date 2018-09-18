@@ -299,6 +299,17 @@ KernelType KernelStatistics::getKernelType() {
   return getImpl(impl).kernelType;
 }
 
+unsigned KernelStatistics::getNumOpALUs() {
+  return getImpl(impl).num_ops;
+}
+
+unsigned KernelStatistics::getNumOpSFUs() {
+  return getImpl(impl).num_sops;
+}
+
+unsigned KernelStatistics::getNumImgLoads() {
+  return getImpl(impl).num_img_loads;
+}
 
 MemoryPattern TransferFunctions::checkStride(Expr *EX, Expr *EY) {
   bool stride_x=true, stride_y=true;
