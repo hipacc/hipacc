@@ -392,6 +392,7 @@ class HostDataDeps : public ManagedAnalysis {
         Kernel *kernel;
         Space *outSpace;
         std::vector<Space*> inSpaces;
+        // todo 
         Process* readDependentProcess;
         Process* writeDependentProcess;
 
@@ -422,21 +423,21 @@ class HostDataDeps : public ManagedAnalysis {
           inSpaces.push_back(space);
         }
 
-        void SetReadDependentProcess(Process *p) {
-          readDependentProcess = p;
-        }
+        //void SetReadDependentProcess(Process *p) {
+        //  readDependentProcess = p;
+        //}
 
-        void SetWriteDependentProcess(Process *p) {
-          writeDependentProcess = p;
-        }
+        //void SetWriteDependentProcess(Process *p) {
+        //  writeDependentProcess = p;
+        //}
 
-        Process *getReadDependentProcess() const {
-          return readDependentProcess;
-        }
+        //Process *getReadDependentProcess() const {
+        //  return readDependentProcess;
+        //}
 
-        Process *getWriteDependentProcess() const {
-          return writeDependentProcess;
-        }
+        //Process *getWriteDependentProcess() const {
+        //  return writeDependentProcess;
+        //}
     };
 
     template<class T>
@@ -475,7 +476,7 @@ class HostDataDeps : public ManagedAnalysis {
     void createSchedule();
     void fusibilityAnalysis();
     void minCutGlobal(partitionBlock PB, partitionBlock &PBRet0, partitionBlock &PBRet1);
-    bool isLegal(partitionBlock &PB);
+    bool isLegal(partitionBlock PB);
     void recordFusibleKernelListInfo();
     std::string declareFifo(std::string type, std::string name);
     std::string getEntrySignature(
@@ -491,6 +492,10 @@ class HostDataDeps : public ManagedAnalysis {
     std::string getSharedISName(HipaccKernel *K);
     bool isSrc(HipaccKernel *K);
     bool isDest(HipaccKernel *K);
+
+    bool isSrc(Process *P);
+    bool isDest(Process *P);
+
     unsigned getNumberOfFusibleKernelList() const;
     unsigned getKernelListIndex(HipaccKernel *K);
     unsigned getKernelListSize(HipaccKernel *K);
@@ -512,6 +517,7 @@ class HostDataDeps : public ManagedAnalysis {
       dataDeps.recordFusibleKernelListInfo();
 
       if (DEBUG) {
+      //if (1) {
         std::cout << "Result of data dependency analysis:" << std::endl;
         dataDeps.dump();
         std::cout << std::endl;

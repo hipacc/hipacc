@@ -685,10 +685,32 @@ void HostDataDeps::minCutGlobal(partitionBlock PB, partitionBlock &PBRet0,
 }
 
 
-bool HostDataDeps::isLegal(partitionBlock &PB) {
+bool HostDataDeps::isLegal(partitionBlock const PB) {
   // external dependency detection
-  
-  return false;
+  if (PB.size() == 1) { return true; } 
+  bool isLegal = true;
+  std::vector<Space*> vecSrcSpaces;
+
+  for (auto pL : PB) {
+    Process *p = pL->begin();
+    if (isDest(p)) {
+      num_destP++;
+    } else if (isSrc(p)) { // all src kernels can share the same input
+      if (vecSrcSpaces.empty()) {
+        vecSrcSpaces = p->getInSpaces();
+      } else if (vecSrcSpaces != p->getInSpaces()) {
+        isLegal = false; break;
+      }
+    } else {
+      for (auto dp : p->getOutSpace()->getDstProcesses()) {
+
+
+      }
+    }
+  }
+
+  if (num_destP > 1) { isLegal = false; }
+  return isLegal;
 }
 
 
@@ -746,7 +768,18 @@ void HostDataDeps::recordFusibleKernelListInfo() {
   llvm::errs() << "\n";
 }
 
+// new
+bool HostDataDeps::isSrc(Process *P) {
+  std::vector<Space*> S = P->getInSpaces();
+  return std::any_of(S.begin(), S.end(), [](Space *s){return s->getSrcProcess() == nullptr;}) 
+}
 
+bool HostDataDeps::isDest(Process *P) {
+  Space *s = P->getOutSpace();
+  return s->getDstProcesses().empty();
+}
+
+// old TODO
 bool HostDataDeps::isFusible(HipaccKernel *K) {
   bool isFusible = false;
   std::string fullName = K->getKernelClass()->getName() + K->getName();
