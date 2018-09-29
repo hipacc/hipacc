@@ -1,0 +1,24 @@
+diff --git a/lib/AST/TypePrinter.cpp b/lib/AST/TypePrinter.cpp
+index c28ada7dcb..79e7f4b8ea 100644
+--- a/lib/AST/TypePrinter.cpp
++++ b/lib/AST/TypePrinter.cpp
+@@ -1661,16 +1661,16 @@ void Qualifiers::print(raw_ostream &OS, const PrintingPolicy& Policy,
+         break;
+       case LangAS::opencl_constant:
+       case LangAS::cuda_constant:
+-        OS << "__constant";
++        OS << "__constant__";
+         break;
+       case LangAS::opencl_generic:
+         OS << "__generic";
+         break;
+       case LangAS::cuda_device:
+-        OS << "__device";
++        OS << "__device__";
+         break;
+       case LangAS::cuda_shared:
+-        OS << "__shared";
++        OS << "__shared__";
+         break;
+       default:
+         OS << "__attribute__((address_space(";

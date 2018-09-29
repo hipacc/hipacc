@@ -46,13 +46,18 @@ enum class Reduce : uint8_t {
     MEDIAN
 };
 
-template<typename data_t>
+template<typename data_t, typename bin_t = data_t>
 class Kernel {
     private:
         const IterationSpace<data_t> &iteration_space_;
         Accessor<data_t> output_;
         std::vector<AccessorBase *> inputs_;
         data_t reduction_result_;
+        bin_t bin_val_;
+        unsigned int bin_idx_;
+        unsigned int num_bins_;
+        bool executed_ = false;
+        bool reduced_ = false;
 
     public:
         explicit Kernel(IterationSpace<data_t> &iteration_space) :
@@ -64,65 +69,117 @@ class Kernel {
 
         virtual ~Kernel() {}
         virtual void kernel() = 0;
-        virtual data_t reduce(data_t left, data_t right) const { return left; }
+        virtual bin_t reduce(bin_t left, bin_t right) const {
+            assert(false && "No reduce method specified");
+        }
+        virtual void binning(unsigned int x, unsigned int y, data_t pixel) {
+            assert(false && "No binning method specified");
+        }
 
         void add_accessor(AccessorBase *acc) { inputs_.push_back(acc); }
 
         void execute() {
-            auto end  = iteration_space_.end();
-            auto iter = iteration_space_.begin();
-            // register input & output accessors
-            for (auto acc : inputs_)
-                acc->set_iterator(&iter);
-            output_.set_iterator(&iter);
+            if (!executed_) {
+                auto end  = iteration_space_.end();
+                auto iter = iteration_space_.begin();
+                // register input & output accessors
+                for (auto acc : inputs_)
+                    acc->set_iterator(&iter);
+                output_.set_iterator(&iter);
 
-            // advance iterator and apply kernel to whole iteration space
-            auto start_time = hipacc_time_micro();
-            while (iter != end) {
-                kernel();
-                ++iter;
+                // apply kernel for whole iteration space
+                auto start_time = hipacc_time_micro();
+                while (iter != end) {
+                    kernel();
+                    ++iter;
+                }
+                auto end_time = hipacc_time_micro();
+                hipacc_last_timing = (float)(end_time - start_time)/1000.0f;
+
+                // de-register input & output accessors
+                for (auto acc : inputs_)
+                    acc->set_iterator(nullptr);
+                output_.set_iterator(nullptr);
+
+                executed_ = true;
             }
-            auto end_time = hipacc_time_micro();
-            hipacc_last_timing = (float)(end_time - start_time)/1000.0f;
-
-            // de-register input & output accessors
-            for (auto acc : inputs_)
-                acc->set_iterator(nullptr);
-            output_.set_iterator(nullptr);
-
-            // apply reduction
-            reduce();
         }
 
         void reduce() {
+            if (!executed_)
+                execute();
+
+            if (!reduced_) {
+                auto end  = iteration_space_.end();
+                auto iter = iteration_space_.begin();
+
+                // register output accessor
+                output_.set_iterator(&iter);
+
+                // first element
+                data_t result = output_();
+
+                // apply reduction for remaining iteration space
+                while (++iter != end)
+                    result = reduce(result, output_());
+
+                // de-register output accessor
+                output_.set_iterator(nullptr);
+
+                reduction_result_ = result;
+
+                reduced_ = true;
+            }
+        }
+
+        data_t reduced_data() {
+            // apply reduction
+            reduce();
+
+            return reduction_result_;
+        }
+
+        bin_t* binned_data(const unsigned int bin_size) {
+            if (!executed_)
+                execute();
+
+            num_bins_ = bin_size;
+
             auto end  = iteration_space_.end();
             auto iter = iteration_space_.begin();
 
             // register output accessor
             output_.set_iterator(&iter);
 
-            // first element
-            data_t result = output_();
+            bin_t *binned_result = new bin_t[bin_size]();
 
-            // advance iterator and apply kernel to whole iteration space
-            while (++iter != end) {
-                result = reduce(result, output_());
+            // apply binning for whole iteration space
+            while (iter != end) {
+                binning(x(), y(), output_());
+
+                assert(bin_idx_ < bin_size && "Bin index out of range");
+
+                binned_result[bin_idx_] = reduce(binned_result[bin_idx_], bin_val_);
+
+                ++iter;
             }
 
             // de-register output accessor
             output_.set_iterator(nullptr);
 
-            reduction_result_ = result;
-        }
-
-        data_t reduced_data() const {
-            return reduction_result_;
+            return binned_result;
         }
 
 
         // access output image
         data_t &output() {
             return output_();
+        }
+
+        // access output bin
+        bin_t &bin(const unsigned int idx) {
+            bin_idx_ = idx;
+            return bin_val_;
         }
 
 
@@ -141,6 +198,10 @@ class Kernel {
             return output_.y();
         }
 
+        unsigned int num_bins() const {
+          return num_bins_;
+        }
+
         // built-in functions: convolve, iterate, and reduce
         template <typename data_m, typename Function>
         auto convolve(Mask<data_m> &mask, Reduce mode, const Function& fun) -> decltype(fun());
@@ -151,8 +212,8 @@ class Kernel {
 };
 
 
-template <typename data_t> template <typename data_m, typename Function>
-auto Kernel<data_t>::convolve(Mask<data_m> &mask, Reduce mode, const Function& fun) -> decltype(fun()) {
+template <typename data_t, typename bin_t> template <typename data_m, typename Function>
+auto Kernel<data_t, bin_t>::convolve(Mask<data_m> &mask, Reduce mode, const Function& fun) -> decltype(fun()) {
     auto end  = mask.end();
     auto iter = mask.begin();
 
@@ -180,8 +241,8 @@ auto Kernel<data_t>::convolve(Mask<data_m> &mask, Reduce mode, const Function& f
 }
 
 
-template <typename data_t> template <typename Function>
-auto Kernel<data_t>::reduce(Domain &domain, Reduce mode, const Function &fun) -> decltype(fun()) {
+template <typename data_t, typename bin_t> template <typename Function>
+auto Kernel<data_t, bin_t>::reduce(Domain &domain, Reduce mode, const Function &fun) -> decltype(fun()) {
     auto end  = domain.end();
     auto iter = domain.begin();
 
@@ -209,8 +270,8 @@ auto Kernel<data_t>::reduce(Domain &domain, Reduce mode, const Function &fun) ->
 }
 
 
-template <typename data_t> template <typename Function>
-void Kernel<data_t>::iterate(Domain &domain, const Function &fun) {
+template <typename data_t, typename bin_t> template <typename Function>
+void Kernel<data_t, bin_t>::iterate(Domain &domain, const Function &fun) {
     auto end  = domain.end();
     auto iter = domain.begin();
 

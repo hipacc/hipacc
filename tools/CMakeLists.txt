@@ -4,13 +4,13 @@ if(OpenCL_FOUND)
 
     set(cl_compile_SOURCES cl_compile.cc)
     add_executable(cl_compile ${cl_compile_SOURCES})
-    target_link_libraries(cl_compile ${OpenCL_LIBRARIES} ${RT_LIBRARIES})
+    target_link_libraries(cl_compile ${OpenCL_LIBRARIES})
 
-    install(TARGETS cl_compile RUNTIME DESTINATION bin)
+    install(TARGETS cl_compile RUNTIME DESTINATION bin COMPONENT tools)
 
     set(cl_bandwidth_test_SOURCES cl_bandwidth_test.cc)
     add_executable(cl_bandwidth_test ${cl_bandwidth_test_SOURCES})
-    target_link_libraries(cl_bandwidth_test ${OpenCL_LIBRARIES} ${RT_LIBRARIES})
+    target_link_libraries(cl_bandwidth_test ${OpenCL_LIBRARIES})
 
-    install(TARGETS cl_bandwidth_test RUNTIME DESTINATION bin)
+    install(TARGETS cl_bandwidth_test RUNTIME DESTINATION bin COMPONENT tools)
 endif()

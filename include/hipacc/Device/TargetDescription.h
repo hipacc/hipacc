@@ -379,12 +379,12 @@ class HipaccDevice : public HipaccDeviceOptions {
         emitCUDA) {
       if (emitCUDA) {
         return std::string(CU_COMPILER) +
-          " -I " + std::string(RUNTIME_INCLUDES) +
+          " -I \"" + std::string(RUNTIME_INCLUDES) + "\"" +
           " -arch=sm_" + std::to_string(getTargetCC()) +
           " -cubin -res-usage " + file + ".cu 2>&1";
       }
       std::string command = std::string(CL_COMPILER) +
-        " -i " + std::string(RUNTIME_INCLUDES) +
+        " -i \"" + std::string(RUNTIME_INCLUDES) + "\"" +
         " -k " + kernel + " -f " + file + ".cl ";
       if (isAMDGPU())    command += "-p AMD    -d GPU 2>&1";
       if (isARMGPU())    command += "-p ARM    -d GPU 2>&1";

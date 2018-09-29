@@ -145,10 +145,70 @@ IntegerLiteral *createIntegerLiteral(ASTContext &Ctx, uint64_t val) {
 }
 
 
+size_t getBuiltinTypeSize(const BuiltinType *BT) {
+  size_t size = 1;
+
+  switch (BT->getKind()) {
+    case BuiltinType::Char_U:
+    case BuiltinType::UChar:
+    case BuiltinType::Char_S:
+    case BuiltinType::SChar:
+      size = 8;
+      break;
+    case BuiltinType::Char16:
+    case BuiltinType::Short:
+    case BuiltinType::UShort:
+    case BuiltinType::Half:
+      size = 16;
+      break;
+    case BuiltinType::Char32:
+    case BuiltinType::Int:
+    case BuiltinType::UInt:
+    case BuiltinType::Float:
+      size = 32;
+      break;
+    case BuiltinType::Long:
+    case BuiltinType::ULong:
+    case BuiltinType::Double:
+      size = 64;
+      break;
+    case BuiltinType::LongLong:
+    case BuiltinType::ULongLong:
+    case BuiltinType::Int128:
+    case BuiltinType::UInt128:
+    //case BuiltinType::LongDouble: //???
+      size = 128;
+      break;
+    default:
+      assert(false && "Type not supported");
+      break;
+  }
+
+  return size;
+}
+
+
+VectorTypeInfo createVectorTypeInfo(const VectorType *VT) {
+  VectorTypeInfo info;
+  info.elementType = VT->getElementType().getAsString();
+  info.elementCount = VT->getNumElements();
+  info.elementWidth = 0;
+
+  if (isa<BuiltinType>(VT->getElementType())) {
+    info.elementWidth =
+      getBuiltinTypeSize(dyn_cast<BuiltinType>(VT->getElementType()));
+  }
+
+  return info;
+}
+
+
 FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, float val) {
   return FloatingLiteral::Create(Ctx, llvm::APFloat(val), false, Ctx.FloatTy,
       SourceLocation());
 }
+
+
 FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, double val) {
   return FloatingLiteral::Create(Ctx, llvm::APFloat(val), false, Ctx.DoubleTy,
       SourceLocation());
@@ -207,7 +267,7 @@ MemberExpr *createMemberExpr(ASTContext &Ctx, Expr *base, bool isArrow,
 
 
 CompoundStmt *createCompoundStmt(ASTContext &Ctx, ArrayRef<Stmt *> Stmts) {
-  return new (Ctx) CompoundStmt(Ctx, Stmts, SourceLocation(), SourceLocation());
+  return CompoundStmt::Create(Ctx, Stmts, SourceLocation(), SourceLocation());
 }
 
 

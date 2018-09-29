@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.4.3 FATAL_ERROR)
 
 project(hipacc)
 
 set(HIPACC_MAJOR_VERSION 0)
 set(HIPACC_MINOR_VERSION 8)
-set(HIPACC_PATCH_VERSION 2)
+set(HIPACC_PATCH_VERSION 3)
 set(HIPACC_VERSION ${HIPACC_MAJOR_VERSION}.${HIPACC_MINOR_VERSION}.${HIPACC_PATCH_VERSION})
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -15,7 +15,11 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_definitions("-Wall -Wunused")
+if(WIN32)
+    add_definitions("/W2")
+else()
+    add_definitions("-Wall -Wunused")
+endif()
 
 # provide only Debug and Release configurations
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "build config types" FORCE)
@@ -31,36 +35,19 @@ option(USE_POLLY "Use Polly for analysis" OFF)
 include(CMakeDependentOption)
 cmake_dependent_option(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
-
-# Select the correct script file extension (for repository path and revision) depending on the currently used OS
-IF(WIN32)
-    SET(SHELL_SCRIPT_EXTENSION "bat")
-ELSE(WIN32)
-    SET(SHELL_SCRIPT_EXTENSION "sh")
-ENDIF(WIN32)
-
-# get repository and revision
-execute_process(COMMAND sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_repository_path.${SHELL_SCRIPT_EXTENSION}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    TIMEOUT 5
-    RESULT_VARIABLE git_result
-    OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
-string(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
-
-execute_process(COMMAND sh ${CMAKE_SOURCE_DIR}/cmake/scripts/get_source_version.${SHELL_SCRIPT_EXTENSION}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    TIMEOUT 5
-    RESULT_VARIABLE git_result
-    OUTPUT_VARIABLE HIPACC_GIT_VERSION)
-string(STRIP ${HIPACC_GIT_VERSION} HIPACC_GIT_VERSION)
-
+# get git repository and revision
+if(EXISTS ${CMAKE_SOURCE_DIR}/.git)
+    execute_process(COMMAND git remote get-url origin     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} TIMEOUT 5 RESULT_VARIABLE git_result OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
+    execute_process(COMMAND git log -1 --pretty=format:%H WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} TIMEOUT 5 RESULT_VARIABLE git_result OUTPUT_VARIABLE HIPACC_GIT_VERSION)
+    string(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
+    string(STRIP ${HIPACC_GIT_VERSION}    HIPACC_GIT_VERSION)
+else()
+    set(HIPACC_GIT_REPOSITORY "https://github.com/hipacc/hipacc/releases")
+    set(HIPACC_GIT_VERSION    "v${HIPACC_VERSION}")
+endif()
 
 # add path for custom modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
-find_library(RT_LIBRARIES rt)
-if(NOT RT_LIBRARIES)
-    set(RT_LIBRARIES "")
-endif()
 find_package(LLVM REQUIRED CONFIG)
 find_package(Clang REQUIRED)
 find_program(llvm-config NAMES llvm-config PATHS ${LLVM_TOOLS_BINARY_DIR})
@@ -68,15 +55,6 @@ find_program(clang       NAMES clang       PATHS ${LLVM_TOOLS_BINARY_DIR})
 find_package(CUDA)
 find_package(NVML)
 find_package(OpenCL)
-find_package(RenderScript)
-find_package(OpenCV)
-find_package(Threads)
-if(THREADS_HAVE_PTHREAD_ARG)
-    set(THREADS_ARG "-pthread")
-endif()
-if(CMAKE_THREAD_LIBS_INIT)
-    set(THREADS_LINK "${CMAKE_THREAD_LIBS_INIT}")
-endif()
 
 if(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "7.0")
     message(WARNING "At least CUDA version 7.0 required, but found CUDA version ${CUDA_VERSION}.")
@@ -85,18 +63,12 @@ endif()
 
 if(CUDA_FOUND)
     set(NVCC "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
+    set(CU_COMPILER ${NVCC})
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
-    if(APPLE)
-        set(NVCC_LINK "-Xlinker -lnvrtc -Xlinker -framework,CUDA")
-        set(NVCC_COMP "-ccbin ${clang}")
-    else()
-        set(NVCC_LINK "${CUDA_CUDART_LIBRARY} ${CUDA_CUDA_LIBRARY} ${NVML_LIBRARIES}")
-        find_library(CUDA_NVRTC_LIBRARY nvrtc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
-        if(CUDA_NVRTC_LIBRARY)
-            set(NVCC_LINK "${NVCC_LINK} ${CUDA_NVRTC_LIBRARY}")
-            set(NVRTC_FOUND TRUE)
-        endif()
-        set(NVCC_COMP "-I${NVML_INCLUDE_DIRS}")
+    find_library(CUDA_NVRTC_LIBRARY nvrtc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib       ${CUDA_TOOLKIT_ROOT_DIR}/lib64
+                                                ${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32 ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
+    if(CUDA_NVRTC_LIBRARY)
+        set(NVRTC_FOUND TRUE)
     endif()
 else()
     set(USE_JIT_ESTIMATE OFF)
@@ -106,12 +78,12 @@ if(OpenCL_FOUND)
     set(CL_COMPILER "${CMAKE_INSTALL_PREFIX}/bin/cl_compile")
 endif()
 
+set(RUNTIME_INCLUDES "${CMAKE_INSTALL_PREFIX}/include")
+
 message(STATUS "Configuration summary:")
 message(STATUS "===")
 message(STATUS "CUDA support: ${CUDA_FOUND}")
 message(STATUS "OpenCL support: ${OpenCL_FOUND}")
-message(STATUS "Renderscript support: ${Renderscript_FOUND}")
-message(STATUS "OpenCV support: ${OpenCV_FOUND}")
 message(STATUS "Polly support: ${USE_POLLY}")
 message(STATUS "JIT estimates: ${USE_JIT_ESTIMATE}")
 message(STATUS "===")
@@ -211,43 +183,62 @@ add_subdirectory(compiler)
 add_subdirectory(tools)
 
 
+# create release packages for Ubuntu/Windows/macOS
+execute_process(COMMAND ${llvm-config} --shared-mode OUTPUT_VARIABLE LLVM_SHARED_MODE OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(CMAKE_BUILD_TYPE MATCHES Release AND LLVM_SHARED_MODE MATCHES static)
+    include(PackageHipacc)
+endif()
+
 # configure header files to pass some of the CMake settings to the source code
-configure_file(include/hipacc/Config/config.h.cmake ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
-configure_file(runtime/hipacc_cu.hpp.cmake          ${CMAKE_BINARY_DIR}/runtime/hipacc_cu.hpp)
-configure_file(tests/Android.mk.cmake               ${CMAKE_BINARY_DIR}/tests/Android.mk)
-configure_file(tests/Application.mk.cmake           ${CMAKE_BINARY_DIR}/tests/Application.mk)
-configure_file(tests/Makefile.cmake                 ${CMAKE_BINARY_DIR}/tests/Makefile)
-configure_file(tests/Makefile_test.cmake            ${CMAKE_BINARY_DIR}/tests/Makefile_test)
-configure_file(tests/Makefile_test_opencv.cmake     ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv)
-configure_file(tests/CMakeLists.txt.cmake           ${CMAKE_BINARY_DIR}/tests/CMakeLists.txt @ONLY)
+configure_file(include/hipacc/Config/config.h.cmake   ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
+configure_file(runtime/hipacc_cu.hpp.cmake            ${CMAKE_BINARY_DIR}/runtime/hipacc_cu.hpp)
+configure_file(runtime/hipacc_cu_standalone.hpp.cmake ${CMAKE_BINARY_DIR}/runtime/hipacc_cu_standalone.hpp)
+
+# configure build tools
+configure_file(buildtools/unix/Makefile.in ${CMAKE_BINARY_DIR}/buildtools/unix/Makefile)
 
 
 # install dsl and runtime header files
 file(GLOB DSL_HEADERS ${CMAKE_SOURCE_DIR}/dsl/*.hpp)
-file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp ${CMAKE_BINARY_DIR}/runtime/*.hpp)
-install(FILES ${RUNTIME_HEADERS} DESTINATION include)
-install(FILES ${DSL_HEADERS} DESTINATION include/dsl)
+file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
+                          ${CMAKE_SOURCE_DIR}/runtime/*.tpp
+                          ${CMAKE_BINARY_DIR}/runtime/*.hpp)
+install(FILES ${RUNTIME_HEADERS} DESTINATION include COMPONENT headers_runtime)
+install(FILES ${DSL_HEADERS} DESTINATION include/dsl COMPONENT headers_dsl)
 
-# install tests
-install(DIRECTORY tests
-    DESTINATION ${CMAKE_INSTALL_PREFIX}
-    PATTERN "*.cmake" EXCLUDE)
-install(DIRECTORY ${CMAKE_BINARY_DIR}/tests/
-    DESTINATION ${CMAKE_INSTALL_PREFIX}
-    PATTERN "*Makefile_test*" EXCLUDE)
 
-# install Makefiles for test cases
-file(GLOB TEST_DIRS RELATIVE ${CMAKE_SOURCE_DIR}/tests ${CMAKE_SOURCE_DIR}/tests/*)
-foreach(DIR IN LISTS TEST_DIRS)
-    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/${DIR})
-        if(${DIR} MATCHES "opencv_*")
-            install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test_opencv
-                DESTINATION tests/${DIR}
-                RENAME Makefile)
-        else()
-            install(FILES ${CMAKE_BINARY_DIR}/tests/Makefile_test
-                DESTINATION tests/${DIR}
-                RENAME Makefile)
+# install samples
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/samples DESTINATION . COMPONENT samples)
+
+# deploy build tool for samples
+file(GLOB SAMPLE_DIRS RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/samples/[0-9]*/*)
+foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
+    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${SAMPLE_DIR})
+        if(UNIX)
+            install(FILES ${CMAKE_BINARY_DIR}/buildtools/unix/Makefile DESTINATION ${SAMPLE_DIR} COMPONENT samples)
+        elseif(WIN32)
+            file(GLOB NMAKE_FILES ${CMAKE_SOURCE_DIR}/buildtools/nmake/*)
+            file(GLOB VS2015_FILES ${CMAKE_SOURCE_DIR}/buildtools/vs2015/*)
+            install(FILES ${NMAKE_FILES} ${VS2015_FILES} DESTINATION ${SAMPLE_DIR} COMPONENT samples)
         endif()
     endif()
 endforeach()
+
+
+# copy system's clang headers to current build dir
+execute_process(COMMAND ${clang} -print-file-name=include OUTPUT_VARIABLE CLANG_INCLUDE_DIRS OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(CLANG_HEADERS_SRC ${CLANG_INCLUDE_DIRS})
+set(CLANG_HEADERS_DST ${CMAKE_BINARY_DIR}/include/clang)
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${CLANG_HEADERS_DST}
+                COMMAND ${CMAKE_COMMAND} -E copy_directory ${CLANG_HEADERS_SRC} ${CLANG_HEADERS_DST})
+
+# add clang headers to package
+install(DIRECTORY ${CLANG_HEADERS_DST} DESTINATION include COMPONENT headers_clang)
+
+# copy system's libcxx to current build dir
+set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++/v1)
+set(LIBCXX_DST ${CMAKE_BINARY_DIR}/include/c++/v1)
+execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST} COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
+
+# add libcxx to package
+install(DIRECTORY ${LIBCXX_DST} DESTINATION include/c++ COMPONENT libcxx)

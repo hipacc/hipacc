@@ -44,4 +44,4 @@ set_target_properties(hipacc
     PROPERTIES
     VERSION ${HIPACC_VERSION})
 
-install(TARGETS hipacc RUNTIME DESTINATION bin)
+install(TARGETS hipacc RUNTIME DESTINATION bin COMPONENT compiler)
