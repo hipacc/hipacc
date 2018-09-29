@@ -84,10 +84,10 @@ Variable               | Meaning
 
 For OpenCL, the installation location can be specified:
 
-Variable         | Meaning
------------------|-----------------------------------------------------
-`OpenCL_INC_DIR` | OpenCL include path (e.g. `/usr/local/cuda/include`)
-`OpenCL_LIB_DIR` | OpenCL library path (e.g. `/usr/lib64`)
+Variable             | Meaning
+---------------------|-----------------------------------------------------
+`OpenCL_INCLUDE_DIR` | OpenCL include path (e.g. `/usr/local/cuda/include`)
+`OpenCL_LIBRARY`     | OpenCL library path (e.g. `/usr/lib64/libOpenCL.so`)
 
 The following options can be enabled or disabled:
 
