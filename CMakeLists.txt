@@ -121,6 +121,12 @@ add_subdirectory(compiler)
 add_subdirectory(tools)
 
 
+# create release packages for Ubuntu/Windows/macOS
+execute_process(COMMAND ${llvm-config} --shared-mode OUTPUT_VARIABLE LLVM_SHARED_MODE OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(CMAKE_BUILD_TYPE MATCHES Release AND LLVM_SHARED_MODE MATCHES static)
+    include(PackageHipacc)
+endif()
+
 # configure header files to pass some of the CMake settings to the source code
 configure_file(include/hipacc/Config/config.h.cmake   ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
 configure_file(runtime/hipacc_cu.hpp.cmake            ${CMAKE_BINARY_DIR}/runtime/hipacc_cu.hpp)
@@ -174,9 +180,3 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST} COMMAND
 
 # add libcxx to package
 install(DIRECTORY ${LIBCXX_DST} DESTINATION include/c++ COMPONENT libcxx)
-
-# create release packages for Ubuntu/Windows/macOS
-execute_process(COMMAND ${llvm-config} --shared-mode OUTPUT_VARIABLE LLVM_SHARED_MODE OUTPUT_STRIP_TRAILING_WHITESPACE)
-if(CMAKE_BUILD_TYPE MATCHES Release AND LLVM_SHARED_MODE MATCHES static)
-    include(PackageHipacc)
-endif()
