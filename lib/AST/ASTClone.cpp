@@ -74,7 +74,7 @@ Stmt *ASTTranslate::VisitCompoundStmtClone(CompoundStmt *S) {
   for (auto stmt : S->body())
     body.push_back(Clone(stmt));
 
-  return new (Ctx) CompoundStmt(Ctx, body, S->getLBracLoc(), S->getLBracLoc());
+  return CompoundStmt::Create(Ctx, body, S->getLBracLoc(), S->getLBracLoc());
 }
 
 Stmt *ASTTranslate::VisitLabelStmt(LabelStmt *S) {
@@ -236,8 +236,8 @@ Stmt *ASTTranslate::VisitCXXCatchStmt(CXXCatchStmt *S) {
 Stmt *ASTTranslate::VisitCXXTryStmt(CXXTryStmt *S) {
   SmallVector<Stmt *, 16> handlers;
 
-  for (size_t I=0, N=S->getNumHandlers(); I!=N; ++I)
-    handlers.push_back(Clone(S->getHandler(I)));
+  for (auto child : S->children())
+    handlers.push_back(Clone(child));
 
   return CXXTryStmt::Create(Ctx, S->getTryLoc(), Clone(S->getTryBlock()),
       handlers);
@@ -508,8 +508,8 @@ Expr *ASTTranslate::VisitExtVectorElementExpr(ExtVectorElementExpr *E) {
 Expr *ASTTranslate::VisitInitListExpr(InitListExpr *E) {
   SmallVector<Expr *, 16> init_exprs;
 
-  for (auto init : *E)
-    init_exprs.push_back((Expr *)Clone(init));
+  for (auto init : E->inits())
+    init_exprs.push_back(Clone(init));
 
   InitListExpr *result = new (Ctx) InitListExpr(Ctx, E->getLBraceLoc(),
       init_exprs, E->getRBraceLoc());

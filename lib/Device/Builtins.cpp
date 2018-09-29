@@ -188,7 +188,8 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
         char *End;
         unsigned AddrSpace = strtoul(Str, &End, 10);
         if (End != Str && AddrSpace != 0) {
-          Type = Ctx.getAddrSpaceQualType(Type, AddrSpace);
+          Type = Ctx.getAddrSpaceQualType(Type,
+                                          getLangASFromTargetAS(AddrSpace));
           Str = End;
         }
         if (c == '*')

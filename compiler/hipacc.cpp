@@ -112,6 +112,9 @@ void printUsage() {
     << "                            'KnightsCorner' for Knights Corner Many Integrated Cores architecture.\n"
     << "  -explore-config         Emit code that explores all possible kernel configuration and print its performance\n"
     << "  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1\n"
+    << "  -reduce-config <nxm>    Emit code that uses a multi-dimensional reduction configuration of\n"
+    << "                            n warps per block    (affects block size and shared memory size)\n"
+    << "                            m partial histograms (affects number of blocks)\n"
     << "  -time-kernels           Emit code that executes each kernel multiple times to get accurate timings\n"
     << "  -use-textures <o>       Enable/disable usage of textures (cached) in CUDA/OpenCL to read/write image pixels - for GPU devices only\n"
     << "                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', 'Array2D', and 'Ldg'\n"
@@ -190,7 +193,7 @@ int main(int argc, char *argv[]) {
 
 
   // Sanity check - Invalid specification for kernel configuration
-  if (compilerOptions.useKernelConfig(USER_ON)) {
+  if (compilerOptions.useKernelConfig(USER_ON) && !compilerOptions.emitC99()) {
     if (compilerOptions.getKernelConfigX()*compilerOptions.getKernelConfigY() >
         (int)targetDevice.max_threads_per_block) {
       llvm::errs() << "ERROR: Invalid kernel configuration: maximum threads for target device are "

@@ -66,6 +66,9 @@ class HipaccDeviceOptions {
       default_num_threads_y(1)
     {
       switch (options.getTargetDevice()) {
+        case Device::CPU:
+          alignment = 8;
+          break;
         case Device::Fermi_20:
         case Device::Fermi_21:
         case Device::Kepler_30:
@@ -214,6 +217,8 @@ class HipaccDevice : public HipaccDeviceOptions {
       num_sfus(0)
     {
       switch (target_device) {
+        case Device::CPU:
+          break;
         case Device::Fermi_20:
           max_threads_per_block = 1024;
           max_warps_per_multiprocessor = 48;
@@ -342,7 +347,7 @@ class HipaccDevice : public HipaccDeviceOptions {
 
     std::string getTargetDeviceName() {
       switch (target_device) {
-        //case Device::CPU:             return "x86_64 CPU";
+        case Device::CPU:             return "x86_64 CPU";
         case Device::Fermi_20:        return "NVIDIA Fermi (20)";
         case Device::Fermi_21:        return "NVIDIA Fermi (21)";
         case Device::Kepler_30:       return "NVIDIA Kepler (30)";
@@ -357,6 +362,7 @@ class HipaccDevice : public HipaccDeviceOptions {
         //case Device::SouthernIsland:  return "AMD Southern Island";
         case Device::Midgard:         return "ARM Midgard: Mali-T6xx";
         case Device::KnightsCorner:   return "Intel MIC: Knights Corner";
+        default:                      return "Unknown";
       }
     }
 
@@ -373,12 +379,12 @@ class HipaccDevice : public HipaccDeviceOptions {
         emitCUDA) {
       if (emitCUDA) {
         return std::string(CU_COMPILER) +
-          " -I " + std::string(RUNTIME_INCLUDES) +
+          " -I \"" + std::string(RUNTIME_INCLUDES) + "\"" +
           " -arch=sm_" + std::to_string(getTargetCC()) +
           " -cubin -res-usage " + file + ".cu 2>&1";
       }
       std::string command = std::string(CL_COMPILER) +
-        " -i " + std::string(RUNTIME_INCLUDES) +
+        " -i \"" + std::string(RUNTIME_INCLUDES) + "\"" +
         " -k " + kernel + " -f " + file + ".cl ";
       if (isAMDGPU())    command += "-p AMD    -d GPU 2>&1";
       if (isARMGPU())    command += "-p ARM    -d GPU 2>&1";

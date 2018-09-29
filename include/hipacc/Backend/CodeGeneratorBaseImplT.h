@@ -277,7 +277,7 @@ namespace Backend
       return vecKnownSwitches;
     }
 
-    virtual void Configure(CommonDefines::ArgumentVectorType & rvecArguments) final override
+    virtual void Configure(CommonDefines::ArgumentVectorType & rvecArguments) override
     {
       // Set the target code for this code generator
       GetCompilerOptions().setTargetLang(_Descriptor.TargetLang());
@@ -297,7 +297,9 @@ namespace Backend
               i++;
             }
           } else {
-            throw RuntimeErrors::UnknownSwitchException(strSwitch, GetName());
+            llvm::errs() << "WARNING: Switch " << strSwitch
+                << " is not supported for target " << GetName() << "\n";
+            //throw RuntimeErrors::UnknownSwitchException(strSwitch, GetName());
           }
         } else {
           i = _HandleSwitch(itSwitchEntry->second.GetSwitchType(), rvecArguments, i);

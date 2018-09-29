@@ -26,13 +26,9 @@
 #ifndef __HIPACC_CPU_HPP__
 #define __HIPACC_CPU_HPP__
 
-#include <math.h>
-#include <stddef.h>
-#include <stdlib.h>
-
+#include <cmath>
 #include <cstring>
 #include <iostream>
-#include <string>
 
 #include "hipacc_base.hpp"
 
@@ -45,142 +41,45 @@
 
 class HipaccContext : public HipaccContextBase {
     public:
-        static HipaccContext &getInstance() {
-            static HipaccContext instance;
-
-            return instance;
-        }
+        static HipaccContext &getInstance();
 };
 
-long start_time = 0L;
-long end_time = 0L;
+class HipaccImageCPU : public HipaccImageBase {
+    private:
+        char *mem;
+    public:
+        HipaccImageCPU(size_t width, size_t height, size_t stride,
+                       size_t alignment, size_t pixel_size, void* mem,
+                       hipaccMemoryType mem_type=Global);
+        ~HipaccImageCPU();
+};
 
-void hipaccStartTiming() {
-    start_time = hipacc_time_micro();
-}
+extern long start_time;
+extern long end_time;
 
-void hipaccStopTiming() {
-    end_time = hipacc_time_micro();
-    last_gpu_timing = (end_time - start_time) * 1.0e-3f;
 
-    std::cerr << "<HIPACC:> Kernel timing: "
-              << last_gpu_timing << "(ms)" << std::endl;
-}
+void hipaccStartTiming();
+void hipaccStopTiming();
+void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst);
+void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst);
 
 
 template<typename T>
-HipaccImage createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global) {
-    HipaccImage img = HipaccImage(width, height, stride, alignment, sizeof(T), mem, mem_type);
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    Ctx.add_image(img);
-    hipaccWriteMemory(img, host_mem ? host_mem : (T*)img.host);
-
-    return img;
-}
-
-
-// Allocate memory with alignment specified
+HipaccImage createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride, size_t alignment, hipaccMemoryType mem_type=Global);
 template<typename T>
-HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height, size_t alignment) {
-    // alignment has to be a multiple of sizeof(T)
-    alignment = (int)ceilf((float)alignment/sizeof(T)) * sizeof(T);
-    int stride = (int)ceilf((float)(width)/(alignment/sizeof(T))) * (alignment/sizeof(T));
-
-    T *mem = new T[stride*height];
-    return createImage(host_mem, (void *)mem, width, height, stride, alignment);
-}
-
-
-// Allocate memory without any alignment considerations
+HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height, size_t alignment);
 template<typename T>
-HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height) {
-    T *mem = new T[width*height];
-    return createImage(host_mem, (void *)mem, width, height, width, 0);
-}
-
-
-// Release memory
+HipaccImage hipaccCreateMemory(T *host_mem, size_t width, size_t height);
 template<typename T>
-void hipaccReleaseMemory(HipaccImage &img) {
-    HipaccContext &Ctx = HipaccContext::getInstance();
-    delete[] (T*)img.mem;
-    Ctx.del_image(img);
-}
-
-
-// Write to memory
+void hipaccWriteMemory(HipaccImage &img, T *host_mem);
 template<typename T>
-void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
-    if (host_mem == NULL) return;
-
-    size_t width  = img.width;
-    size_t height = img.height;
-    size_t stride = img.stride;
-
-    if ((char *)host_mem != img.host)
-        std::copy(host_mem, host_mem + width*height, (T*)img.host);
-
-    if (stride > width) {
-        for (size_t i=0; i<height; ++i) {
-            std::memcpy(&((T*)img.mem)[i*stride], &host_mem[i*width], sizeof(T)*width);
-        }
-    } else {
-        std::memcpy(img.mem, host_mem, sizeof(T)*width*height);
-    }
-}
-
-
-// Read from memory
+T *hipaccReadMemory(const HipaccImage &img);
 template<typename T>
-T *hipaccReadMemory(HipaccImage &img) {
-    size_t width  = img.width;
-    size_t height = img.height;
-    size_t stride = img.stride;
-
-    if (stride > width) {
-        for (size_t i=0; i<height; ++i) {
-            std::memcpy(&((T*)img.host)[i*width], &((T*)img.mem)[i*stride], sizeof(T)*width);
-        }
-    } else {
-        std::memcpy((T*)img.host, img.mem, sizeof(T)*width*height);
-    }
-
-    return (T*)img.host;
-}
+void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem);
 
 
-// Copy from memory to memory
-void hipaccCopyMemory(HipaccImage &src, HipaccImage &dst) {
-    size_t height = src.height;
-    size_t stride = src.stride;
-    std::memcpy(dst.mem, src.mem, src.pixel_size*stride*height);
-}
+#include "hipacc_cpu.tpp"
 
-
-// Infer non-const Domain from non-const Mask
-template<typename T>
-void hipaccWriteDomainFromMask(HipaccImage &dom, T* host_mem) {
-    size_t size = dom.width * dom.height;
-    uchar *dom_mem = new uchar[size];
-
-    for (size_t i=0; i<size; ++i) {
-        dom_mem[i] = (host_mem[i] == T(0) ? 0 : 1);
-    }
-
-    hipaccWriteMemory(dom, dom_mem);
-
-    delete[] dom_mem;
-}
-
-
-// Copy from memory region to memory region
-void hipaccCopyMemoryRegion(const HipaccAccessor &src, const HipaccAccessor &dst) {
-    for (size_t i=0; i<dst.height; ++i) {
-        std::memcpy(&((uchar*)dst.img.mem)[dst.offset_x*dst.img.pixel_size + (dst.offset_y + i)*dst.img.stride*dst.img.pixel_size],
-                    &((uchar*)src.img.mem)[src.offset_x*src.img.pixel_size + (src.offset_y + i)*src.img.stride*src.img.pixel_size],
-                    src.width*src.img.pixel_size);
-    }
-}
 
 #endif  // __HIPACC_CPU_HPP__
 

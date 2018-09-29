@@ -276,4 +276,3 @@ DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int
 }
 
 #endif  // __HIPACC_CL_INTERPOLATE_HPP__
-

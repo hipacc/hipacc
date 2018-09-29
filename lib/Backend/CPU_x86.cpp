@@ -2884,6 +2884,7 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageDeclarations(:
 // Implementation of class CPU_x86::CodeGenerator
 CPU_x86::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions) : BaseType(pCompilerOptions, Descriptor())
 {
+  _InitSwitch< KnownSwitches::EmitPadding       >( CompilerSwitchTypeEnum::EmitPadding );
   _InitSwitch<KnownSwitches::InstructionSet   >(CompilerSwitchTypeEnum::InstructionSet);
   _InitSwitch<KnownSwitches::Parallelize      >(CompilerSwitchTypeEnum::Parallelize);
   _InitSwitch<KnownSwitches::UnrollVectorLoops>(CompilerSwitchTypeEnum::UnrollVectorLoops);
@@ -2904,6 +2905,12 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
 
   switch (eSwitch)
   {
+  case CompilerSwitchTypeEnum::EmitPadding:
+    {
+      GetCompilerOptions().setPadding(_ParseOption< KnownSwitches::EmitPadding >(rvecArguments, szCurrentIndex));
+      ++szReturnIndex;
+    }
+    break;
   case CompilerSwitchTypeEnum::InstructionSet:
     _eInstructionSet = _ParseOption<KnownSwitches::InstructionSet>(rvecArguments, szCurrentIndex);
     ++szReturnIndex;
@@ -2921,8 +2928,14 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
     }
     break;
   case CompilerSwitchTypeEnum::VectorizeKernel:
-    _bVectorizeKernel = true;
-    GetCompilerOptions().setVectorizeKernels(USER_ON);
+    {
+      ::clang::hipacc::CompilerOption eOption = _ParseOption< KnownSwitches::VectorizeKernel >(rvecArguments, szCurrentIndex);
+      if (eOption == USER_ON) {
+        GetCompilerOptions().setVectorizeKernels(USER_ON);
+        _bVectorizeKernel = true;
+      }
+      ++szReturnIndex;
+    }
     break;
   case CompilerSwitchTypeEnum::VectorWidth:
     {
@@ -3395,6 +3408,13 @@ FunctionDecl *CPU_x86::CodeGenerator::_CreateKernelFunctionWithoutBH(FunctionDec
   delete pKernelNoBH;
 
   return pKernelFunctionNoBH;
+}
+
+
+void CPU_x86::CodeGenerator::Configure(CommonDefines::ArgumentVectorType & rvecArguments)
+{
+  GetCompilerOptions().setTargetDevice(Device::CPU);
+  CodeGeneratorBaseImplT::Configure(rvecArguments);
 }
 
 

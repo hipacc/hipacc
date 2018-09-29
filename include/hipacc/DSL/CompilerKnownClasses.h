@@ -112,7 +112,7 @@ class CompilerKnownClasses {
       return false;
     }
 
-    QualType getFirstTemplateType(QualType QT) {
+    unsigned getNumberOfTemplateArguments(QualType QT) {
       if (QT->isReferenceType()) {
         QT = QT->getPointeeType();
       }
@@ -126,7 +126,28 @@ class CompilerKnownClasses {
           "instance of template class expected");
       auto TST = dyn_cast<TemplateSpecializationType>(QT);
 
-      return TST->getArg(0).getAsType();
+      return TST->getNumArgs();
+    }
+
+    QualType getTemplateType(QualType QT, unsigned id) {
+      if (QT->isReferenceType()) {
+        QT = QT->getPointeeType();
+      }
+
+      if (QT->getTypeClass() == Type::Elaborated) {
+        QT = cast<ElaboratedType>(QT)->getNamedType();
+      }
+
+      // class<type> ...
+      assert(QT->getTypeClass() == Type::TemplateSpecialization &&
+          "instance of template class expected");
+      auto TST = dyn_cast<TemplateSpecializationType>(QT);
+
+      return TST->getArg(id).getAsType();
+    }
+
+    QualType getFirstTemplateType(QualType QT) {
+      return getTemplateType(QT, 0);
     }
 };
 } // namespace hipacc

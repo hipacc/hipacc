@@ -855,8 +855,16 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       switch (compilerOptions.getTargetLang()) {
         default: break;
         case Language::CUDA:
+#ifndef WIN32
+          // generates GNU style attributes, which are not supported by MSVC
           VD = createVarDecl(Ctx, DC, sharedName, QT, nullptr);
           VD->addAttr(CUDASharedAttr::CreateImplicit(Ctx));
+#else // WIN32
+          // needs patching clang (line 1685 in 'lib\AST\TypePrinter.cpp')
+          // because of missing trailing underscores
+          VD = createVarDecl(Ctx, DC, sharedName, Ctx.getAddrSpaceQualType(QT,
+                LangAS::cuda_shared), nullptr);
+#endif // WIN32
           break;
         case Language::OpenCLACC:
         case Language::OpenCLCPU:
@@ -1491,10 +1499,8 @@ VarDecl *ASTTranslate::CloneDeclTex(ParmVarDecl *PVD, std::string prefix) {
 
 
 Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
-  CompoundStmt *result = new (Ctx) CompoundStmt(Ctx, MultiStmtArg(),
-      S->getLBracLoc(), S->getLBracLoc());
-
   SmallVector<Stmt *, 16> body;
+
   for (auto stmt : S->body()) {
     curCStmt = S;
     Stmt *newS = Clone(stmt);
@@ -1531,9 +1537,7 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
     }
   }
 
-  result->setStmts(Ctx, body);
-
-  return result;
+  return CompoundStmt::Create(Ctx, body, S->getLBracLoc(), S->getLBracLoc());
 }
 
 
@@ -2323,6 +2327,11 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     if (ME->getMemberNameInfo().getAsString() == "output_at") {
       return mem_at_fun(acc, LHS, mem_acc);
     }
+
+    if (ME->getMemberNameInfo().getAsString() == "bin") {
+      //ME->dump();
+      // TODO: INSERT BINNING
+    }
   }
 
   if (auto base = dyn_cast<MemberExpr>(ME->getBase()->IgnoreImpCasts())) {
@@ -2380,28 +2389,52 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           }
         }
 
-        assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
-                                "within reduction lambda-function.");
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "x") {
+          assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
+                                  "within reduction lambda-function.");
           return createIntegerLiteral(Ctx, redIdxX[redDepth] -
               static_cast<int>(redDomains[redDepth]->getSizeX()/2));
-        }
-        if (ME->getMemberNameInfo().getAsString() == "y") {
+        } else if (ME->getMemberNameInfo().getAsString() == "y") {
+          assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
+                                  "within reduction lambda-function.");
           return createIntegerLiteral(Ctx, redIdxY[redDepth] -
               static_cast<int>(redDomains[redDepth]->getSizeY()/2));
+        } else if (ME->getMemberNameInfo().getAsString() == "size_x") {
+          assert(mask->isConstant() && "Domain size x must be constant.");
+          return createIntegerLiteral(Ctx,
+              static_cast<int>(mask->getSizeX()));
+        } else if (ME->getMemberNameInfo().getAsString() == "size_y") {
+          assert(mask->isConstant() && "Domain size y must be constant.");
+          return createIntegerLiteral(Ctx,
+              static_cast<int>(mask->getSizeY()));
+        } else {
+          assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
+                                  "within reduction lambda-function.");
         }
       } else {
-        assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
-                                   "allowed within convolution lambda-function.");
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "x") {
+          assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
+                                     "allowed within convolution lambda-function.");
           return createIntegerLiteral(Ctx, convIdxX -
               static_cast<int>(mask->getSizeX()/2));
-        }
-        if (ME->getMemberNameInfo().getAsString() == "y") {
+        } else if (ME->getMemberNameInfo().getAsString() == "y") {
+          assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
+                                     "allowed within convolution lambda-function.");
           return createIntegerLiteral(Ctx, convIdxY -
               static_cast<int>(mask->getSizeY()/2));
+        } else if (ME->getMemberNameInfo().getAsString() == "size_x") {
+          assert(mask->isConstant() && "Mask size x must be constant.");
+          return createIntegerLiteral(Ctx,
+              static_cast<int>(mask->getSizeX()));
+        } else if (ME->getMemberNameInfo().getAsString() == "size_y") {
+          assert(mask->isConstant() && "Mask size y must be constant.");
+          return createIntegerLiteral(Ctx,
+              static_cast<int>(mask->getSizeY()));
+        } else {
+          assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
+                                     "allowed within convolution lambda-function.");
         }
       }
     }
@@ -2411,6 +2444,77 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
   E->dump();
   std::abort();
 }
+
+
+Stmt *ASTTranslate::BinningTranslator::traverseStmt(Stmt *S) {
+  for (auto& stmt : S->children()) {
+    if (stmt != nullptr) {
+      // traverse recursively from bottom up
+      traverseStmt(stmt);
+
+      // translate statements
+      if (isa<BinaryOperator>(stmt)) {
+        // look for "bin(idx) = val"
+        stmt = translateBinaryOperator(dyn_cast<BinaryOperator>(stmt));
+      } else if (isa<CXXMemberCallExpr>(stmt)) {
+        // look for "num_hist()"
+        stmt = translateCXXMemberCallExpr(dyn_cast<CXXMemberCallExpr>(stmt));
+      }
+    }
+  }
+
+  return S;
+}
+
+
+Stmt *ASTTranslate::BinningTranslator::translateBinaryOperator(BinaryOperator *E) {
+  if (CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getLHS())) {
+    assert(isa<MemberExpr>(MCE->getCallee()) &&
+        "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
+    MemberExpr *ME = cast<MemberExpr>(MCE->getCallee());
+
+    // convert "bin(IDX) = RHS";
+    if (ME->getMemberNameInfo().getAsString() == "bin") {
+      // create variable initialization "BIN_TYPE _tmp = RHS;"
+      VarDecl *declTmp =
+          createVarDecl(ctx_, funcBinning_, "_tmp", typeBin_, E->getRHS());
+      DeclRefExpr *tmp = createDeclRefExpr(ctx_, declTmp);
+      DeclStmt *initTmp = createDeclStmt(ctx_, declTmp);
+
+      // create binPut function call "binPut(_lmem, _offset, IDX, _tmp)";
+      SmallVector<Expr *, 16> args;
+      args.push_back(lmem_);
+      args.push_back(offset_);
+      args.push_back(MCE->getArg(0));
+      args.push_back(tmp);
+      CallExpr *callBinPut = createFunctionCall(ctx_, funcBinPut_, args);
+
+      // combine both in new scope
+      SmallVector<Stmt *, 2> stmts;
+      stmts.push_back(initTmp);
+      stmts.push_back(callBinPut);
+      CompoundStmt *compStmt = createCompoundStmt(ctx_, stmts);
+
+      return compStmt;
+    }
+  }
+
+  return E;
+}
+
+
+Expr *ASTTranslate::BinningTranslator::translateCXXMemberCallExpr(CXXMemberCallExpr *E) {
+  assert(isa<MemberExpr>(E->getCallee()) &&
+      "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
+  MemberExpr *ME = cast<MemberExpr>(E->getCallee());
+
+  if (ME->getMemberNameInfo().getAsString() == "num_bins") {
+    return num_bins_;
+  }
+
+  return E;
+}
+
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

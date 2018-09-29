@@ -59,6 +59,7 @@ namespace Backend
     /** \brief  Contains the IDs of all supported specific compiler switches for this backend. */
     enum class CompilerSwitchTypeEnum
     {
+      EmitPadding,          //!< ID of the "image padding" switch
       InstructionSet,       //!< ID of the "select instruction set" switch.
       Parallelize,          //!< ID of the "OpenMP multi-thread parallelization" switch.
       UnrollVectorLoops,    //!< ID of the "unroll vector array loops" switch.
@@ -132,6 +133,22 @@ namespace Backend
     class KnownSwitches final
     {
     public:
+
+      /** \brief  The switch type for the "image padding" switch. */
+      struct EmitPadding final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-emit-padding"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return "<n>"; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "Emit image padding, using alignment of <n> bytes for CPU devices"; }
+
+
+        typedef CommonDefines::OptionParsers::Integer   OptionParser;   //!< Type definition for the option parser for this switch.
+      };
 
       /** \brief  The switch type for the "select instruction set" switch. */
       struct InstructionSet final
@@ -232,13 +249,24 @@ namespace Backend
       struct VectorizeKernel final
       {
         /** \brief  Returns the command argument for this switch. */
-        inline static std::string Key()                 { return "-v"; }
+        inline static std::string Key()                 { return "-vectorize"; }
 
         /** \brief  Returns the additional options string for this switch. */
-        inline static std::string AdditionalOptions()   { return ""; }
+        inline static std::string AdditionalOptions()   { return "<o>"; }
 
         /** \brief  Returns the description for this switch. */
-        inline static std::string Description()         { return "Run a whole function vectorization on the kernel function"; }
+        inline static std::string Description()
+        {
+          std::string strDescription("");
+
+          strDescription += "Enable/disable whole-function vectorization on the kernel function\n";
+          strDescription += "Valid values: 'on' and 'off'";
+
+          return strDescription;
+        }
+
+
+        typedef CommonDefines::OptionParsers::OnOff   OptionParser;   //!< Type definition for the option parser for this switch.
       };
 
       /** \brief  The switch type for the "set vector width" switch. */
@@ -765,6 +793,8 @@ namespace Backend
 
       /** \name ICodeGenerator members */
       //@{
+
+      virtual void Configure(CommonDefines::ArgumentVectorType & rvecArguments) final override;
 
       virtual CommonDefines::ArgumentVectorType GetAdditionalClangArguments() const final override;
 

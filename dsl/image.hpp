@@ -271,7 +271,7 @@ class Interpolation {
             }
         }
 
-        constexpr double pi() const { return std::atan(1)*4; }
+        constexpr double pi() const { return std::atan(1.0)*4; }
 
         float lanczos(float diff) const {
             // Digital image processing: an algorithmic introduction using Java
@@ -423,7 +423,7 @@ class AccessorBase {
             EI(nullptr)
         {}
 
-    template<typename> friend class Kernel;
+    template<typename, typename> friend class Kernel;
 };
 
 
@@ -573,7 +573,7 @@ class Accessor : public AccessorBase, BoundaryCondition<data_t>, Interpolation<d
         }
 
     template<typename> friend class Image;
-    template<typename> friend class Kernel;
+    template<typename, typename> friend class Kernel;
 };
 
 } // end namespace hipacc

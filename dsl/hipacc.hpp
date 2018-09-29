@@ -24,6 +24,12 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+
+#ifdef _MSC_VER
+# define NOMINMAX
+#endif
+
+
 #include <cassert>
 #include <chrono>
 

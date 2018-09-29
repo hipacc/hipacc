@@ -129,6 +129,74 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *lidYRef, *gidYRef;
 
 
+    // BinningTranslater for translating binning(uint x, uint y, data_t pixel)
+    // independently of kernel() method.
+    class BinningTranslator {
+      private:
+        ASTContext &ctx_;
+        HipaccKernel *kernel_;
+        Expr *lmem_, *offset_, *num_bins_;
+        FunctionDecl *funcBinPut_, *funcBinning_;
+        QualType typeIdx_, typeBin_;
+
+        void createBinningArguments() {
+          VarDecl *declLMem = nullptr,
+                  *declOffset = nullptr,
+                  *declNumBins = nullptr;
+
+          funcBinning_ = kernel_->getKernelClass()->getBinningFunction();
+
+          declLMem = ASTNode::createVarDecl(ctx_, funcBinning_, "_lmem",
+              typeBin_, nullptr);
+          declOffset = ASTNode::createVarDecl(ctx_, funcBinning_, "_offset",
+              typeIdx_, nullptr);
+          declNumBins = ASTNode::createVarDecl(ctx_, funcBinning_, "_num_bins",
+              typeIdx_, nullptr);
+
+          lmem_ = ASTNode::createDeclRefExpr(ctx_, declLMem);
+          offset_ = ASTNode::createDeclRefExpr(ctx_, declOffset);
+          num_bins_ = ASTNode::createDeclRefExpr(ctx_, declNumBins);
+        }
+
+        void createBinningPutDeclaration() {
+          createBinningArguments();
+
+          SmallVector<QualType, 16> argTypes;
+          SmallVector<std::string, 16> argNames;
+
+          argTypes.push_back(lmem_->getType());
+          argNames.push_back("_lmem");
+          argTypes.push_back(offset_->getType());
+          argNames.push_back("_offset");
+          argTypes.push_back(typeIdx_);
+          argNames.push_back("index");
+          argTypes.push_back(typeBin_);
+          argNames.push_back("value");
+
+          funcBinPut_ = ASTNode::createFunctionDecl(ctx_,
+              ctx_.getTranslationUnitDecl(), kernel_->getBinningName() + "Put",
+              ctx_.VoidTy, argTypes, argNames);
+        }
+
+        Stmt *traverseStmt(Stmt *S);
+        Stmt *translateBinaryOperator(BinaryOperator *E);
+        Expr *translateCXXMemberCallExpr(CXXMemberCallExpr *E);
+
+      public:
+        BinningTranslator(ASTContext &ctx, HipaccKernel *kernel)
+            : ctx_(ctx), kernel_(kernel) {
+          typeIdx_ = ctx_.UnsignedIntTy;
+          typeBin_ = kernel_->getKernelClass()->getBinType();
+
+          createBinningPutDeclaration();
+        }
+
+        Stmt* translate(Stmt* S) {
+          return traverseStmt(S);
+        }
+    };
+
+
     template<class T> T *Clone(T *S) {
       if (S==nullptr)
         return nullptr;
@@ -370,6 +438,13 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       }
 
     Stmt *Hipacc(Stmt *S);
+
+    Stmt *translateBinning(Stmt *binningFunc) {
+      BinningTranslator binning(Ctx, Kernel);
+      Stmt *binningStmts = binning.translate(binningFunc);
+      return binningStmts;
+    }
+
 
   public:
     // dump all available statement visitors
