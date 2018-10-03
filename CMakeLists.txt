@@ -183,19 +183,10 @@ add_subdirectory(compiler)
 add_subdirectory(tools)
 
 
-# create release packages for Ubuntu/Windows/macOS
-execute_process(COMMAND ${llvm-config} --shared-mode OUTPUT_VARIABLE LLVM_SHARED_MODE OUTPUT_STRIP_TRAILING_WHITESPACE)
-if(CMAKE_BUILD_TYPE MATCHES Release AND LLVM_SHARED_MODE MATCHES static)
-    include(PackageHipacc)
-endif()
-
 # configure header files to pass some of the CMake settings to the source code
 configure_file(include/hipacc/Config/config.h.cmake   ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
 configure_file(runtime/hipacc_cu.hpp.cmake            ${CMAKE_BINARY_DIR}/runtime/hipacc_cu.hpp)
 configure_file(runtime/hipacc_cu_standalone.hpp.cmake ${CMAKE_BINARY_DIR}/runtime/hipacc_cu_standalone.hpp)
-
-# configure build tools
-configure_file(buildtools/unix/Makefile.in ${CMAKE_BINARY_DIR}/buildtools/unix/Makefile)
 
 
 # install dsl and runtime header files
@@ -205,24 +196,6 @@ file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
                           ${CMAKE_BINARY_DIR}/runtime/*.hpp)
 install(FILES ${RUNTIME_HEADERS} DESTINATION include COMPONENT headers_runtime)
 install(FILES ${DSL_HEADERS} DESTINATION include/dsl COMPONENT headers_dsl)
-
-
-# install samples
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/samples DESTINATION . COMPONENT samples)
-
-# deploy build tool for samples
-file(GLOB SAMPLE_DIRS RELATIVE ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/samples/[0-9]*/*)
-foreach(SAMPLE_DIR IN LISTS SAMPLE_DIRS)
-    if(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/${SAMPLE_DIR})
-        if(UNIX)
-            install(FILES ${CMAKE_BINARY_DIR}/buildtools/unix/Makefile DESTINATION ${SAMPLE_DIR} COMPONENT samples)
-        elseif(WIN32)
-            file(GLOB NMAKE_FILES ${CMAKE_SOURCE_DIR}/buildtools/nmake/*)
-            file(GLOB VS2015_FILES ${CMAKE_SOURCE_DIR}/buildtools/vs2015/*)
-            install(FILES ${NMAKE_FILES} ${VS2015_FILES} DESTINATION ${SAMPLE_DIR} COMPONENT samples)
-        endif()
-    endif()
-endforeach()
 
 
 # copy system's clang headers to current build dir
@@ -242,3 +215,16 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST} COMMAND
 
 # add libcxx to package
 install(DIRECTORY ${LIBCXX_DST} DESTINATION include/c++ COMPONENT libcxx)
+
+
+# create release packages for Ubuntu/Windows/macOS
+execute_process(COMMAND ${llvm-config} --shared-mode OUTPUT_VARIABLE LLVM_SHARED_MODE OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(CMAKE_BUILD_TYPE MATCHES Release AND LLVM_SHARED_MODE MATCHES static)
+    include(PackageHipacc)
+endif()
+
+
+# add samples if available
+if(EXISTS ${CMAKE_SOURCE_DIR}/samples/CMakeLists.txt)
+    add_subdirectory(samples)
+endif()
