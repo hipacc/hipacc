@@ -109,47 +109,6 @@ endif()
 # debug and release builds
 string(TOUPPER "${CMAKE_BUILD_TYPE}" build)
 
-# Set compiler-specific flags
-if (MSVC)
-    # Disable generation of runtime type information
-    string(REPLACE "/GR " "/GR- " LLVM_CXXFLAGS "${LLVM_CXXFLAGS}")
-
-    # Remove invalid compiler flags
-    string(REPLACE " -w14062" "" LLVM_CXXFLAGS "${LLVM_CXXFLAGS}")
-
-    # Add required include directories
-    if (NOT LLVM_SOURCE_DIR)
-        message(FATAL_ERROR "LLVM_SOURCE_DIR has to be an absolute path!")
-    ENDIF()
-    if (NOT LLVM_BUILD_DIR)
-        message(FATAL_ERROR "LLVM_BUILD_DIR has to be an absolute path!")
-    endif()
-    set(CLANG_INCLUDE_DIR "tools/clang/include")
-    set(LLVM_CXXFLAGS "/I${LLVM_BUILD_DIR}/${CLANG_INCLUDE_DIR} ${LLVM_CXXFLAGS}")
-    set(LLVM_CXXFLAGS "/I${LLVM_SOURCE_DIR}/${CLANG_INCLUDE_DIR} ${LLVM_CXXFLAGS}")
-
-
-    if (build STREQUAL "RELEASE")
-        SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-    else()
-        SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-    endif()
-endif()
-
-# Set other platform specific settings
-if (MSVC)
-    if (${MSVC_VERSION} MATCHES 1700)
-        set(VISUAL_STUDIO_COMMON_TOOLS_PATH "$ENV{VS110COMNTOOLS}")
-    elseif(${MSVC_VERSION} MATCHES 1800)
-        set(VISUAL_STUDIO_COMMON_TOOLS_PATH "$ENV{VS120COMNTOOLS}")
-    else()
-        message(FATAL_ERROR "The currently selected version of Visual Studio is not supported!")
-    endif()
-
-    string(REPLACE "\\" "/" VISUAL_STUDIO_COMMON_TOOLS_PATH "${VISUAL_STUDIO_COMMON_TOOLS_PATH}")
-    string(REPLACE "Common7/Tools/" "" HOST_COMPILER_INSTALL_PREFIX "${VISUAL_STUDIO_COMMON_TOOLS_PATH}")
-endif(MSVC)
-
 
 # from LLVM CMake to enable / disable RTTI
 if(NOT DEFINED LLVM_COMPILER_IS_GCC_COMPATIBLE)
@@ -164,6 +123,7 @@ if(NOT DEFINED LLVM_COMPILER_IS_GCC_COMPATIBLE)
     endif()
 endif()
 
+# from LLVM CMake to enable / disable RTTI
 if(NOT LLVM_ENABLE_RTTI)
     if(LLVM_COMPILER_IS_GCC_COMPATIBLE)
         list(APPEND CMAKE_CXX_FLAGS "-fno-rtti")
@@ -173,7 +133,6 @@ if(NOT LLVM_ENABLE_RTTI)
 elseif(MSVC)
     list(APPEND CMAKE_CXX_FLAGS "/GR")
 endif()
-# from LLVM CMake to enable / disable RTTI
 
 
 # set include directory, add src directories
