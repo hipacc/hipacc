@@ -207,10 +207,6 @@ int main(int argc, char *argv[]) {
   compilerOptions.printSummary(targetDevice.getTargetDeviceName());
 
 
-  // setup and initialize compiler instance
-  void *mainAddr = (void *) (intptr_t) getExecutablePath;
-  std::string Path = getExecutablePath(argv[0]);
-
   std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
 
@@ -218,11 +214,23 @@ int main(int argc, char *argv[]) {
   TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
   DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagsBuffer);
 
+  // use the Driver (from Tooling.cpp)
+  driver::Driver Driver(Args[0], llvm::sys::getDefaultTargetTriple(),
+      Diags);
+
+  const std::unique_ptr<driver::Compilation> Compilation(
+      Driver.BuildCompilation(Args));
+
+  // use the flags from the first job
+  const driver::JobList &Jobs = Compilation->getJobs();
+  const driver::Command &Cmd = cast<driver::Command>(*Jobs.begin());
+  const llvm::opt::ArgStringList cc1_args = Cmd.getArguments();
+
   // initialize a compiler invocation object from the arguments
   bool success;
   success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(),
-      const_cast<const char **>(Args.data()),
-      const_cast<const char **>(Args.data()) + Args.size(), Diags);
+      const_cast<const char **>(cc1_args.data()),
+      const_cast<const char **>(cc1_args.data()) + cc1_args.size(), Diags);
 
   // infer the builtin include path if unspecified
   if (Clang->getHeaderSearchOpts().UseBuiltinIncludes &&
