@@ -396,13 +396,15 @@ void BackendConfigurationManager::Configure(CommonDefines::ArgumentVectorType & 
   }
 }
 
-CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments()
+CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments(std::string strBinPath)
 {
   CommonDefines::ArgumentVectorType vecClangArguments;
 
-  // Add HIPAcc runtime include paths
-  vecClangArguments.push_back(std::string("-I") + std::string(RUNTIME_INCLUDES));
-  vecClangArguments.push_back(std::string("-I") + std::string(RUNTIME_INCLUDES) + std::string("/dsl"));
+  // Add Hipacc include paths
+  vecClangArguments.push_back(std::string("-I") + strBinPath + std::string("/../include"));
+  vecClangArguments.push_back(std::string("-I") + strBinPath + std::string("/../include/dsl"));
+  vecClangArguments.push_back(std::string("-I") + strBinPath + std::string("/../include/c++/v1"));
+  vecClangArguments.push_back(std::string("-I") + strBinPath + std::string("/../include/clang"));
 
   // Add additional clang arguments
   if (!_vecClangArguments.empty()) {
@@ -437,6 +439,7 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
 
   // Set C++ 11 support
   vecClangArguments.push_back("-std=c++11");
+  vecClangArguments.push_back("-nostdinc++");
 
   // Add output file
   vecClangArguments.push_back("-o");

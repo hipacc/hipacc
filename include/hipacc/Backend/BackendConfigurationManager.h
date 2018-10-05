@@ -344,8 +344,9 @@ namespace Backend
      *  \remarks  This method also selects the user-defined code generator and launches its Configure() method. */
     void Configure(CommonDefines::ArgumentVectorType &rvecArguments);
 
-    /** \brief  Returns the command arguments vector required for the clang frontend invocation. */
-    CommonDefines::ArgumentVectorType GetClangArguments();
+    /** \brief  Returns the command arguments vector required for the clang frontend invocation.
+     *  \param  strBinPath The path to hipacc binary. */
+    CommonDefines::ArgumentVectorType GetClangArguments(std::string strBinPath="");
 
     /** \brief  Returns the output file name. */
     std::string GetOutputFile();

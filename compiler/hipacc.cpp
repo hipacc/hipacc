@@ -72,7 +72,22 @@ std::string getExecutablePath(const char *argv0) {
   // this just needs to be some symbol in the binary; C++ doesn't
   // allow taking the address of ::main however
   void *mainAddr = (void *) (intptr_t) getExecutablePath;
-  return llvm::sys::fs::getMainExecutable(argv0, mainAddr);
+  std::string execPath = llvm::sys::fs::getMainExecutable(argv0, mainAddr);
+
+  // search for separator of dirname and basename
+  size_t pos = execPath.rfind('/', execPath.length());
+  if (pos == std::string::npos) {
+    // try backslash on windows
+    pos = execPath.rfind('\\', execPath.length());
+
+    if (pos == std::string::npos) {
+      llvm::errs() << "ERROR: Could not determine path to Hipacc executable.";
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // strip basename from path
+  return execPath.substr(0, pos);
 }
 
 
@@ -146,6 +161,10 @@ int main(int argc, char *argv[]) {
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
   llvm::PrettyStackTraceProgram X(argc, argv);
 
+  // setup and initialize compiler instance
+  void *mainAddr = (void *) (intptr_t) getExecutablePath;
+  std::string Path = getExecutablePath(argv[0]);
+
   // argument list for CompilerInvocation after removing our compiler flags
   SmallVector<const char *, 16> Args;
   CompilerOptions compilerOptions = CompilerOptions();
@@ -167,7 +186,7 @@ int main(int argc, char *argv[]) {
     out = BackendConfigManager.GetOutputFile();
 
     // Fetch the commands vector the clang invocation and convert it to clang's format
-    vecArguments = BackendConfigManager.GetClangArguments();
+    vecArguments = BackendConfigManager.GetClangArguments(Path);
     for (auto itArgument : vecArguments)
     {
       char *pcArgument = (char*) calloc(itArgument.size() + 1, sizeof(char));
