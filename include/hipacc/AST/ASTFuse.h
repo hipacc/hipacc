@@ -104,6 +104,11 @@ class ASTFuse {
     };
     std::map<HipaccKernel *, FusionTypeTags *> FusibleKernelSubListPosMap;
 
+    // new
+    std::map<std::string, std::tuple<unsigned, unsigned, unsigned>> FusibleKernelBlockLocation;
+    std::set<std::vector<std::list<std::string>>> fusibleSetNames;
+    std::vector<std::vector<std::list<HipaccKernel*>>> fusibleKernelSet;
+
     // member functions
     void setFusedKernelConfiguration(std::list<HipaccKernel *>& l);
     void printFusedKernelFunction(std::list<HipaccKernel *>& l);
@@ -134,18 +139,33 @@ class ASTFuse {
       fusionRegVarCount(0),
       fusionIdxVarCount(0)
       {
-        // prepare the fusible kernel lists
-        for (unsigned i=0; i<dataDeps->getNumberOfFusibleKernelList(); ++i) {
-          std::list<HipaccKernel *> list;
-          vecFusibleKernelLists.push_back(list);
+        fusibleSetNames = dataDeps->getFusibleSetNames();
+        unsigned blockCnt, vectorCnt, listCnt;
+        blockCnt = 0;
+        for (auto PBN : fusibleSetNames) { // block level
+          vectorCnt = 0;
+          std::vector<std::list<HipaccKernel*>> kv;
+          for (auto sL : PBN) {              // vector level 
+            listCnt = 0;
+            std::list<HipaccKernel*> kl;
+            for (auto nam : sL) {              // list level
+              auto pos = std::make_tuple(blockCnt, vectorCnt, listCnt);
+              FusibleKernelBlockLocation[nam] = pos;
+              listCnt++;
+            }
+            kv.push_back(kl);
+            vectorCnt++;
+          }
+          fusibleKernelSet.push_back(kv); 
+          blockCnt++;
         }
       }
 
     // Called by Rewriter
     bool parseFusibleKernel(HipaccKernel *K);
     SmallVector<std::string, 16> getFusedFileNamesAll() const;
-    bool isSrcKernel(HipaccKernel *K) const;
-    bool isDestKernel(HipaccKernel *K) const;
+    bool isSrcKernel(HipaccKernel *K);
+    bool isDestKernel(HipaccKernel *K);
     HipaccKernel *getProducerKernel(HipaccKernel *K);
     std::string getFusedKernelName(HipaccKernel *K);
     unsigned getNewYSizeLocalKernel(HipaccKernel *K);

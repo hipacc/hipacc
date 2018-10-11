@@ -457,81 +457,23 @@ void HostDataDeps::runKernel(ValueDecl *VD) {
 }
 
 
-//void HostDataDeps::dump(Process *proc) {
-//  std::cout << " <- " << proc->getKernel()->getName();
-//  std::vector<Space*> spaces = proc->getInSpaces();
-//  for (auto it = spaces.begin(); it != spaces.end(); ++it) {
-//    dump(*it);
-//    if (it+1 != spaces.end()) {
-//      std::cout << std::endl << "            ";
-//      for (size_t i = 0; i < proc->getKernel()->getName().size(); ++i) {
-//        std::cout << " ";
-//      }
-//      std::cout << "|";
-//    }
-//  }
-//}
-//
-//
-//void HostDataDeps::dump(Space *space) {
-//  if (space->getAccessors().size() > 0) {
-//    std::cout << " <- ";
-//  }
-//  std::cout << space->getImage()->getName();
-//
-//  Process *proc = space->getSrcProcess();
-//  if (proc != nullptr) {
-//    dump(proc);
-//  }
-//}
+void HostDataDeps::dump(edgeWeight &wMap) {
+  std::cout << "  Weight:" << std::endl;
+  for (auto we : wMap) {
+    std::cout << " " << (we.first.first)->getKernel()->getName() << " - "  << 
+      (we.second) << " -> " << (we.first.second)->getKernel()->getName() << std::endl;
+  }
+}
 
 
-void HostDataDeps::dump() {
+void HostDataDeps::dump(partitionBlock &PB) {
   std::cout << "  Application Graph:" << std::endl;
-  for (auto pL : applicationGraph) {
+  for (auto pL : PB) {
     for (auto p : *pL) {
       std::cout << " --> " << p->getKernel()->getName();
     }
     std::cout << std::endl;
   }
-
-  std::cout << "  Weight:" << std::endl;
-  for (auto we : edgeWeightMap_) {
-    std::cout << " " << (we.first.first)->getKernel()->getName() << " - "  << 
-      (we.second) << " -> " << (we.first.second)->getKernel()->getName() << std::endl;
-  }
-
-  //for (auto it = spaces_.begin(); it != spaces_.end(); ++it) {
-  //  IterationSpace *iter = (*it)->getIterationSpace();
-  //  std::cout << "    - img: " << (*it)->getImage()->getName()
-  //            << ", iter: " << (iter ? iter->getName() : "nullptr")
-  //            << std::endl;
-  //}
-
-  //std::cout << "  Processes:" << std::endl;
-  //for (auto it = processes_.begin(); it != processes_.end(); ++it) {
-  //  std::cout << "    - kernel: " << (*it)->getKernel()->getName()
-  //            << ", out: " << (*it)->getOutSpace()->getImage()->getName()
-  //            << ", read dependent on: " << ((*it)->getReadDependentProcess() ?
-  //                ((*it)->getReadDependentProcess())->getKernel()->getName() : "nullptr")
-  //            << ", write dependent on: " << ((*it)->getWriteDependentProcess() ?
-  //                ((*it)->getWriteDependentProcess())->getKernel()->getName() : "nullptr")
-  //            << std::endl;
-  //}
-
-  //std::cout << "  Dependency Tree:" << std::endl;
-  //int id = 1;
-  //std::vector<Image*> done;
-  //for (auto it = spaces_.begin(); it != spaces_.end(); ++it) {
-  //  if (!findVector(done, (*it)->getImage()) &&
-  //      (*it)->getAccessors().size() == 0) {
-  //    std::cout << "    " << id << ":";
-  //    dump(*it);
-  //    std::cout << std::endl;
-  //    ++id;
-  //    done.push_back((*it)->getImage());
-  //  }
-  //}
 }
 
 
@@ -570,42 +512,9 @@ void HostDataDeps::markSpace(Space *s) {
       processVisitorMap_[SrcProcess] = true;
     }
     markProcess(SrcProcess);
-
-    //if (DstProcesses.size() == 1 &&
-    //     ((DstProcesses.back())->getInSpaces().size() == 1)) {
-    //  SrcProcess->SetWriteDependentProcess(DstProcesses.back());
-    //  DstProcesses.back()->SetReadDependentProcess(SrcProcess);
-    //  recordFusibleProcessPair(SrcProcess, DstProcesses.back());
-    //} else if (DstProcesses.size() == 1 &&
-    //            ((DstProcesses.back())->getInSpaces().size() == 2)) {
-    //  // get the second input img of the dest p
-    //  Space *imgExt;
-    //  if ((DstProcesses.back())->getInSpaces().front() == s) {
-    //    imgExt = (DstProcesses.back())->getInSpaces().back();
-    //  } else {
-    //    imgExt = (DstProcesses.back())->getInSpaces().front();
-    //  }
-    //  // get the second input img of the dest p
-    //  std::vector<Space*> vecImgEnt = SrcProcess->getInSpaces();
-    //  bool shareExtSpace = (std::find(std::begin(vecImgEnt), std::end(vecImgEnt),
-    //                         imgExt) != std::end(vecImgEnt)) ? true : false;
-    //  if (shareExtSpace) {
-    //    imgExt->setSpaceShared();
-    //    // record as fusible kernel pair
-    //    SrcProcess->SetWriteDependentProcess(DstProcesses.back());
-    //    DstProcesses.back()->SetReadDependentProcess(SrcProcess);
-    //    recordFusibleProcessPair(SrcProcess, DstProcesses.back());
-    //  }
-    //}
   }
 }
 
-//void HostDataDeps::recordFusibleProcessPair(Process *pSrc, Process *pDest) {
-//  if (std::find(fusibleProcesses_.begin(), fusibleProcesses_.end(), pDest) == fusibleProcesses_.end())
-//      fusibleProcesses_.push_back(pDest);
-//  if (std::find(fusibleProcesses_.begin(), fusibleProcesses_.end(), pSrc) == fusibleProcesses_.end())
-//      fusibleProcesses_.push_back(pSrc);
-//}
 
 void HostDataDeps::createSchedule() {
   for (auto S : getOutputSpaces()) { 
@@ -650,67 +559,246 @@ void HostDataDeps::createSchedule() {
       edgeWeightMap_[std::make_pair(srcProcess, destProcess)] = we;
     }
   }
+}
 
-  //// create an initial set of fusion lists
-  //for (auto p : fusibleProcesses_) {
-  //  if (p->getReadDependentProcess() && !p->getWriteDependentProcess()) {
-  //    std::list<Process*> *list = new std::list<Process*>;
-  //    list->push_back(p);
-  //    FusibleKernelListsMap[p] = list;
-  //  } else if (p->getWriteDependentProcess()) {
-  //    Process *pw = p->getWriteDependentProcess();
-  //    std::list<Process*> *list = FusibleKernelListsMap[pw];
-  //    auto it = std::find(list->begin(), list->end(), pw);
-  //    assert((it != list->end()) && "cannot find write dependent process for kernel fusion");
-  //    list->insert(it, p);
-  //    FusibleKernelListsMap[p] = list;
-  //  }
-  //}
-  //for (auto pair: FusibleKernelListsMap) {
-  //  bool merge = true;
-  //  for (auto l: vecFusibleKernelLists) {
-  //    if (l == pair.second) { merge = false; break;}
-  //  }
-  //  if (merge) vecFusibleKernelLists.push_back(pair.second);
-  //}
+
+unsigned HostDataDeps::minCutPhase(partitionBlock &PB, edgeWeight &curEdgeWeightMap, std::pair<Process *, Process *> &ST) {
+  // Stoer-Wagner Minimum Cut Phase :: contract
+  Process *a = PB.front()->front();
+  // max adjacency search
+  std::vector<Process*> A;
+  A.push_back(a);
+  while(A.size() != PB.size()) {          
+    unsigned wAdjMax = 0;
+    Process *pAdjMax;
+    for (auto pL : PB) {
+      if (std::find(A.begin(), A.end(), pL->front())==A.end()) {
+        unsigned wTmp = 0;
+        for (auto we : curEdgeWeightMap) {
+          if ((we.first.first == pL->front()) && (std::find(A.begin(), A.end(), we.first.second)!=A.end())) {
+            wTmp += we.second;
+          } else if ((we.first.second == pL->front()) && (std::find(A.begin(), A.end(), we.first.first)!=A.end())) {
+            wTmp += we.second;
+          }
+        }
+        if (wTmp > wAdjMax) {
+          wAdjMax = wTmp;
+          pAdjMax = pL->front();
+        }
+      }
+    }
+    A.push_back(pAdjMax);
+  }
+
+  // cutting and weighting t 
+  Process *t = A.back();
+  A.pop_back();
+  Process *s = A.back();
+  ST = std::make_pair(s, t);
+  unsigned wCut = 0;
+  for (auto we : curEdgeWeightMap) {
+    if ((we.first.first == t) || (we.first.second == t)) {
+      wCut += we.second;
+    }
+  }
+
+  // updating PB by merging s and t
+  bool runST = false;
+  std::list<Process*> *pSTList = nullptr;
+  std::list<Process*> *pSTListOld = nullptr;
+  for (auto pL : PB) {
+    if (pL->front() == t) {
+      pL->remove_if([&](Process* p){return p == s;});
+      if (!runST) {
+        pL->front() = s;
+        runST = true;
+        pSTList = pL;
+      } else {
+        pL->remove_if([&](Process* p){return p == t;});
+        pSTList->insert(pSTList->end(), pL->begin(), pL->end());
+        pSTListOld = pL;
+      }
+    } else if (pL->front() == s) {
+      pL->remove_if([&](Process* p){return p == t;});
+      if (!runST) {
+        runST = true;
+        pSTList = pL;
+      } else {
+        pL->remove_if([&](Process* p){return p == s;});
+        pSTList->insert(pSTList->end(), pL->begin(), pL->end());
+        pSTListOld = pL;
+      }
+    } else {
+      std::replace(pL->begin(), pL->end(), t, s);
+      pL->unique();
+    }
+  }
+  PB.erase(std::remove_if(PB.begin(), PB.end(), [&](std::list<Process*> *pL0){return pSTListOld == pL0;}), PB.end());
+
+  // updating t edges in curEdgeWeightMap 
+  for (auto we : curEdgeWeightMap) {
+    if ((we.first.first == t) && (we.first.second == s)) {
+      curEdgeWeightMap.erase(we.first);
+    } else if ((we.first.first == s) && (we.first.second == t)) {
+      curEdgeWeightMap.erase(we.first);
+    } else if ((we.first.first == t) && (we.first.second != s)) {
+      auto it = curEdgeWeightMap.find(std::make_pair(s, we.first.second));
+      if ( it != curEdgeWeightMap.end()) {
+        (*it).second += we.second; 
+      } else {
+        auto value = we.second;
+        auto key = std::make_pair(s, we.first.second);
+        curEdgeWeightMap[key] = value;
+      }
+      curEdgeWeightMap.erase(we.first);
+    } else if ((we.first.first != s) && (we.first.second == t)) {
+      auto it = curEdgeWeightMap.find(std::make_pair(we.first.first, s));
+      if ( it != curEdgeWeightMap.end()) {
+        (*it).second += we.second; 
+      } else {
+        auto value = we.second;
+        auto key = std::make_pair(we.first.first, s);
+        curEdgeWeightMap[key] = value;
+      }
+      curEdgeWeightMap.erase(we.first);
+    }
+  }
+  return wCut;
 }
 
 
 void HostDataDeps::minCutGlobal(partitionBlock PB, partitionBlock &PBRet0, 
                                 partitionBlock &PBRet1) {
   // Stoer-Wagner Minimum Cut
-  PBRet1.push_back(PB.back());
-  PB.pop_back();
-  PBRet0 = PB;
-}
-
-
-bool HostDataDeps::isLegal(partitionBlock const PB) {
-  // external dependency detection
-  if (PB.size() == 1) { return true; } 
-  bool isLegal = true;
-  std::vector<Space*> vecSrcSpaces;
-
+  // initialization
+  partitionBlock PBOrig;
   for (auto pL : PB) {
-    Process *p = pL->begin();
-    if (isDest(p)) {
-      num_destP++;
-    } else if (isSrc(p)) { // all src kernels can share the same input
-      if (vecSrcSpaces.empty()) {
-        vecSrcSpaces = p->getInSpaces();
-      } else if (vecSrcSpaces != p->getInSpaces()) {
-        isLegal = false; break;
-      }
+    std::list<Process*> *lPLocal = new std::list<Process*>;
+    for (auto p : *pL) { lPLocal->push_back(p); }
+    PBOrig.push_back(lPLocal);
+  }
+
+  edgeWeight curEdgeWeightMap;
+  for (auto we : edgeWeightMap_) {
+    if (std::any_of(PB.begin(), PB.end(), [&](std::list<Process*> *pL0){
+          return (pL0->front() == we.first.first) && 
+            (std::find(pL0->begin(), pL0->end(), we.first.second) != pL0->end());})) {
+      auto value = we.second;
+      auto key = we.first;
+      curEdgeWeightMap[key] = value;
+    }
+  }
+
+  // min cut 
+  unsigned wMin = 10000000; 
+  partitionBlock PBContr;
+  std::pair<Process *, Process *> STPair;
+  for (auto i = PBOrig.size(); i != 1; i--) {
+    unsigned wCur = minCutPhase(PB, curEdgeWeightMap, STPair);
+    auto it = std::find_if(PBContr.begin(), PBContr.end(), [&](std::list<Process*> *pL0){return pL0->front() == STPair.first;});
+    if (it == PBContr.end()) {
+      std::list<Process*> *lPLocal = new std::list<Process*>;
+      lPLocal->push_back(STPair.first); 
+      lPLocal->push_back(STPair.second); 
+      PBContr.push_back(lPLocal);
     } else {
-      for (auto dp : p->getOutSpace()->getDstProcesses()) {
+      (*it)->push_back(STPair.second);
+    }
 
-
+    if (wCur < wMin) {
+      wMin = wCur;
+      PBRet0.clear();
+      // compute PBRet0
+      // get t and its represent nodes
+      std::set<Process*> Ts;
+      Ts.insert(STPair.second);
+      for (auto pL : PBContr) {
+        if (pL->front() == STPair.second) {
+          for (auto p:*pL) {
+            if (p != STPair.second) {Ts.insert(p);}
+          }
+        }
+      }
+      for (auto pL : PBOrig) {
+        if (Ts.count(pL->front())==0) {
+          std::list<Process*> *lPLocal = new std::list<Process*>;
+          for (auto p: *pL) {
+            if (Ts.count(p)==0) { lPLocal->push_back(p); }
+          }
+          PBRet0.push_back(lPLocal);
+        }
       }
     }
   }
 
-  if (num_destP > 1) { isLegal = false; }
-  return isLegal;
+  // partitioning
+  for (auto pL : PBOrig) {
+    if (std::none_of(PBRet0.begin(), PBRet0.end(), [&](std::list<Process*> *pL0){return pL0->front() == pL->front();})) {
+      std::list<Process*> *lPLocal = new std::list<Process*>;
+      for (auto p: *pL) {
+        if (std::none_of(PBRet0.begin(), PBRet0.end(), [&](std::list<Process*> *pL0){return pL0->front() == p;})) { 
+          lPLocal->push_back(p); 
+        }
+      }
+      PBRet1.push_back(lPLocal);
+    } 
+  }
+  PBRet1.erase(std::remove_if(PBRet1.begin(), PBRet1.end(), [&](std::list<Process*> *pL0){return pL0->size() == 1 && 
+        (std::any_of(PBRet1.begin(), PBRet1.end(), [&](std::list<Process*> *pL1){return pL1->size() > 1 &&
+          (std::find(pL1->begin(), pL1->end(), pL0->front()) != pL1->end());}));}), PBRet1.end());
+}
+
+
+bool HostDataDeps::isLegal(const partitionBlock &PB) {
+  if (PB.size() == 1) { return true; } 
+
+  // external dependency detection
+  bool isLegalDependency = true;
+  unsigned numDepOut=0;
+  unsigned numDepIn=0;
+  std::vector<Space*> vecSrcSpaces;
+
+  for (auto pL : PB) {
+    Process *p = pL->front();
+    for (auto dp : p->getOutSpace()->getDstProcesses()) {
+      if (std::count_if(PB.begin(), PB.end(), 
+            [&](std::list<Process*> *pLL){return pLL->front() == dp;}) == 0) {
+        numDepOut++;
+      }
+    }
+    for (auto ds : p->getInSpaces()) {
+      if (std::count_if(PB.begin(), PB.end(), 
+            [&](std::list<Process*> *pLL){return pLL->front() == ds->getSrcProcess();}) == 0) {
+        numDepIn++;
+      }
+    }
+
+    // src and dest kernel in the block
+    if (isDest(p)) { numDepOut++; } 
+    else if (isSrc(p)) {
+      numDepIn++;
+      if (vecSrcSpaces.empty()) {
+        vecSrcSpaces = p->getInSpaces();
+      } else if (vecSrcSpaces != p->getInSpaces()) {
+        isLegalDependency = false;
+      }
+    }
+  }
+  if (numDepOut > 1 || numDepIn > 1) { isLegalDependency = false; }
+
+  // resource constraints
+  unsigned YSizeAcc = 1;
+  unsigned YSizeAccMax = 1;
+  for (auto pL : PB) {
+    Process *p = pL->front();
+    if (p->getKernel()->getKernelClass()->getKernelType() == LocalOperator) {
+      auto acc = p->getKernel()->getAccessors().back();
+      YSizeAcc = YSizeAcc + acc->getSizeY() - 1; //TODO, SMem esmt
+      YSizeAccMax = std::max(YSizeAccMax, acc->getSizeY());
+    }
+  }
+  bool isLegalResource = ((static_cast<float>(YSizeAcc) / YSizeAccMax) < CMS) ? true : false;
+  return (isLegalResource && isLegalDependency) ? true : false;
 }
 
 
@@ -720,58 +808,56 @@ void HostDataDeps::fusibilityAnalysis() {
 
   // initialization
   workingSet.insert(applicationGraph);
+  if (DEBUG) {
+    dump(applicationGraph);
+  }
   while(!workingSet.empty()) {
+    std::set<partitionBlock> legalSet;
+    std::set<partitionBlock> illegalSet;
     for (auto PB : workingSet) {
       if ((PB.size() == 1) || isLegal(PB)) {
-        readySet.insert(PB);
-        workingSet.erase(PB);
+        legalSet.insert(PB);
       } else {
-        partitionBlock PBRet0, PBRet1;
-        //llvm::errs() << "\n";
-        //llvm::errs() << "before cut\n";
-        //llvm::errs() << "PB size: " << PB.size();
-        //llvm::errs() << "  PBRet0 size: " << PBRet0.size();
-        //llvm::errs() << "  PBRet1 size: " << PBRet1.size();
-        //llvm::errs() << "\n";
-        minCutGlobal(PB, PBRet0, PBRet1);
-        //llvm::errs() << "\n";
-        //llvm::errs() << "after cut\n";
-        //llvm::errs() << "PB size: " << PB.size();
-        //llvm::errs() << "  PBRet0 size: " << PBRet0.size();
-        //llvm::errs() << "  PBRet1 size: " << PBRet1.size();
-        //llvm::errs() << "\n";
-        workingSet.insert(PBRet0);
-        workingSet.insert(PBRet1);
-        workingSet.erase(PB);
+        illegalSet.insert(PB);
       }
     }
-  }
-}
 
-
-void HostDataDeps::recordFusibleKernelListInfo() {
-  unsigned posCnt;
-  unsigned listPosCnt = 0;
-  llvm::errs() << "Fusibility analysis for Kernel Fusion: \n";
-  for (auto l : vecFusibleKernelLists) {
-    llvm::errs() << "  Fusible kernel list " << listPosCnt << ": \n";
-    posCnt = 0;
-    for (auto p : *l) {
-      FusibleProcessInfoFinalMap[p] = std::make_tuple(listPosCnt, posCnt);
-      FusibleProcessListSizeFinalMap[p] = l->size();
-      posCnt++;
-      llvm::errs() << "  --->  " << p->getKernel()->getName();
+    for (auto PB : legalSet) {
+      workingSet.erase(PB);
+      readySet.insert(PB);
     }
-    llvm::errs() << "\n";
-    listPosCnt++;
+    for (auto PB : illegalSet) {
+      partitionBlock PBRet0, PBRet1;
+      minCutGlobal(PB, PBRet0, PBRet1);
+      workingSet.insert(PBRet0);
+      workingSet.insert(PBRet1);
+      workingSet.erase(PB);
+    }
   }
-  llvm::errs() << "\n";
+
+  // recording analysis result   
+  llvm::errs() << "Fusible Kernels: \n";
+  for (auto PB : readySet) {
+    partitionBlockNames PBNam;
+    for (auto pL : PB) {
+      std::list<std::string> lNam;
+      for (auto p : *pL) {
+        std::string kname = p->getKernel()->getName();
+        llvm::errs() << " --> " << kname;
+        lNam.push_back(kname);
+      }
+      llvm::errs() << "\n";
+      PBNam.push_back(lNam);
+    }
+    fusibleSetNames.insert(PBNam);
+  }
 }
+
 
 // new
 bool HostDataDeps::isSrc(Process *P) {
   std::vector<Space*> S = P->getInSpaces();
-  return std::any_of(S.begin(), S.end(), [](Space *s){return s->getSrcProcess() == nullptr;}) 
+  return std::any_of(S.begin(), S.end(), [](Space *s){return s->getSrcProcess() == nullptr;}); 
 }
 
 bool HostDataDeps::isDest(Process *P) {
@@ -779,16 +865,27 @@ bool HostDataDeps::isDest(Process *P) {
   return s->getDstProcesses().empty();
 }
 
-// old TODO
+std::set<HostDataDeps::partitionBlockNames> HostDataDeps::getFusibleSetNames() const {
+  return fusibleSetNames;
+}
+
 bool HostDataDeps::isFusible(HipaccKernel *K) {
   bool isFusible = false;
   std::string fullName = K->getKernelClass()->getName() + K->getName();
   assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
-  Process *p = processMap_[fullName];
-  if (FusibleProcessInfoFinalMap.count(p)) { isFusible = true; }
+  // get Kernel Partition Block
+  for (auto PBN : fusibleSetNames) {
+    if (std::any_of(PBN.begin(), PBN.end(), [&](std::list<std::string> lNam){
+        return (std::find(lNam.begin(), lNam.end(), fullName) != lNam.end()) && (lNam.size() > 1);})) {
+      isFusible = true;
+      break;
+    }
+  }
   return isFusible;
 }
 
+
+// old TODO
 bool HostDataDeps::hasSharedIS(HipaccKernel *K) {
   std::string fullName = K->getKernelClass()->getName() + K->getName();
   assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
@@ -802,55 +899,6 @@ std::string HostDataDeps::getSharedISName(HipaccKernel *K) {
   std::vector<Space*> spaces = processMap_[fullName]->getInSpaces();
   auto it = std::find_if(spaces.begin(), spaces.end(), [](Space *s){return s->isSpaceShared();});
   return (*it)->getImage()->getName();
-}
-
-bool HostDataDeps::isSrc(HipaccKernel *K) {
-  bool isSrc = false;
-  std::string fullName = K->getKernelClass()->getName() + K->getName();
-  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
-  Process *p = processMap_[fullName];
-  if (std::get<1>(FusibleProcessInfoFinalMap[p]) == 0) { isSrc = true; }
-  return isSrc;
-}
-
-bool HostDataDeps::isDest(HipaccKernel *K) {
-  bool isDest = false;
-  std::string fullName = K->getKernelClass()->getName() + K->getName();
-  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
-  Process *p = processMap_[fullName];
-  if (std::get<1>(FusibleProcessInfoFinalMap[p]) ==
-        FusibleProcessListSizeFinalMap[p]-1) {
-    isDest = true;
-  }
-  return isDest;
-}
-
-unsigned HostDataDeps::getNumberOfFusibleKernelList() const {
-  return vecFusibleKernelLists.size();
-}
-
-unsigned HostDataDeps::getKernelListIndex(HipaccKernel *K) {
-  std::string fullName = K->getKernelClass()->getName() + K->getName();
-  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
-  Process *p = processMap_[fullName];
-  assert(FusibleProcessInfoFinalMap.count(p) && "Kernel has no corresponding fusible process");
-  return std::get<0>(FusibleProcessInfoFinalMap[p]);
-}
-
-unsigned HostDataDeps::getKernelIndex(HipaccKernel *K) {
-  std::string fullName = K->getKernelClass()->getName() + K->getName();
-  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
-  Process *p = processMap_[fullName];
-  assert(FusibleProcessInfoFinalMap.count(p) && "Kernel has no corresponding fusible process");
-  return std::get<1>(FusibleProcessInfoFinalMap[p]);
-}
-
-unsigned HostDataDeps::getKernelListSize(HipaccKernel *K) {
-  std::string fullName = K->getKernelClass()->getName() + K->getName();
-  assert(processMap_.count(fullName) && "Kernel name has no corresponding process");
-  Process *p = processMap_[fullName];
-  assert(FusibleProcessListSizeFinalMap.count(p) && "Kernel has no corresponding fusible process");
-  return FusibleProcessListSizeFinalMap[p];
 }
 
 

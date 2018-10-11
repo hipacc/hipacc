@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2018, University of Erlangen-Nuremberg
 // Copyright (c) 2012, University of Erlangen-Nuremberg
 // Copyright (c) 2012, Siemens AG

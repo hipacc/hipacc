@@ -142,17 +142,18 @@ class HostDataDeps : public ManagedAnalysis {
 
     // KF
     std::map<Process *, std::list<Process*> *> FusibleKernelListsMap;
-    std::map<Process *, std::tuple<unsigned, unsigned>> FusibleProcessInfoFinalMap;
     std::map<Process *, unsigned> FusibleProcessListSizeFinalMap;
     std::vector<std::list<Process*> *> vecFusibleKernelLists;
 
     // TODO: new stuff
     using partitionBlock = std::vector<std::list<Process*> *>;
+    using partitionBlockNames = std::vector<std::list<std::string>>;
     partitionBlock applicationGraph;
+    std::set<partitionBlockNames> fusibleSetNames;
     std::map<Process *, bool> processVisitorMap_;
-    std::map<std::pair<Process *, Process *>, unsigned> edgeWeightMap_;
+    using edgeWeight = std::map<std::pair<Process *, Process *>, unsigned>;
+    edgeWeight edgeWeightMap_;
 
-    //using partitionBlockNames = std::vector<std::list<std::string>>;
 
     // TODO, move to device*.h
     const unsigned GAMMA = 1;
@@ -161,6 +162,7 @@ class HostDataDeps : public ManagedAnalysis {
     const unsigned TS = 4;
     const unsigned CALU = 4;
     const unsigned CSFU = 16;
+    const unsigned CMS = 2;
 
     // inner class definitions
     class IterationSpace {
@@ -397,6 +399,7 @@ class HostDataDeps : public ManagedAnalysis {
         Process* writeDependentProcess;
 
       public:
+        Process();
         Process(Kernel *kernel, Space *outSpace)
             : Node(false),
               kernel(kernel),
@@ -464,11 +467,8 @@ class HostDataDeps : public ManagedAnalysis {
     void addAccessor(ValueDecl *AVD, HipaccAccessor *acc, ValueDecl* IVD);
     void addIterationSpace(ValueDecl *ISVD, HipaccIterationSpace *iter, ValueDecl *IVD);
     void runKernel(ValueDecl *VD);
-
-    //void dump(Process *proc);
-    //void dump(Space *space);
-    void dump();
-
+    void dump(partitionBlock &PB);
+    void dump(edgeWeight &wMap);
     std::vector<Space*> getInputSpaces();
     std::vector<Space*> getOutputSpaces();
     void markProcess(Process *t);
@@ -476,30 +476,16 @@ class HostDataDeps : public ManagedAnalysis {
     void createSchedule();
     void fusibilityAnalysis();
     void minCutGlobal(partitionBlock PB, partitionBlock &PBRet0, partitionBlock &PBRet1);
-    bool isLegal(partitionBlock PB);
-    void recordFusibleKernelListInfo();
-    std::string declareFifo(std::string type, std::string name);
-    std::string getEntrySignature(
-        std::map<std::string,std::vector<std::pair<std::string,std::string>>> args,
-        bool withTypes=false);
-    std::string prettyPrint(
-        std::map<std::string,std::vector<std::pair<std::string,std::string>>> args,
-        bool print=false);
+    unsigned minCutPhase(partitionBlock &PB, edgeWeight &curEdgeWeightMap, std::pair<Process *, Process *> &ST);
+    bool isLegal(const partitionBlock &PB);
 
   public:
     bool isFusible(HipaccKernel *K);
     bool hasSharedIS(HipaccKernel *K);
     std::string getSharedISName(HipaccKernel *K);
-    bool isSrc(HipaccKernel *K);
-    bool isDest(HipaccKernel *K);
-
     bool isSrc(Process *P);
     bool isDest(Process *P);
-
-    unsigned getNumberOfFusibleKernelList() const;
-    unsigned getKernelListIndex(HipaccKernel *K);
-    unsigned getKernelListSize(HipaccKernel *K);
-    unsigned getKernelIndex(HipaccKernel *K);
+    std::set<partitionBlockNames> getFusibleSetNames() const;
 
     static HostDataDeps *parse(ASTContext &Context,
         AnalysisDeclContext &analysisContext,
@@ -514,14 +500,6 @@ class HostDataDeps : public ManagedAnalysis {
 
       dataDeps.createSchedule();
       dataDeps.fusibilityAnalysis();
-      dataDeps.recordFusibleKernelListInfo();
-
-      if (DEBUG) {
-      //if (1) {
-        std::cout << "Result of data dependency analysis:" << std::endl;
-        dataDeps.dump();
-        std::cout << std::endl;
-      }
       return &dataDeps;
     }
 };
