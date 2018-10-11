@@ -63,6 +63,12 @@ HIPACC_INCLUDE = -I ../../common \
                  -I $(HIPACC_PATH)/include/dsl \
                  -I $(HIPACC_PATH)/include/c++/v1 \
                  -I $(HIPACC_PATH)/include/clang
+HIPACC_OPTS    = -emit-$(1) \
+                 $(shell if [ -f $(1).conf ]; then \
+                           cat $(1).conf | xargs; \
+                         elif [ -f ../../common/config/$(1).conf ]; then \
+                           cat ../../common/config/$(1).conf | xargs; \
+                         fi)
 
 ifdef PKG_CONFIG
 # Check for OpenCV
@@ -103,7 +109,7 @@ endif
 
 # Run Hipacc
 main_%.cc: src/main.cpp
-	$(HIPACC) -emit-$* $(HIPACC_FLAGS) $(HIPACC_INCLUDE) $(CURDIR)/$< -o $@
+	$(HIPACC) $(HIPACC_FLAGS) $(call HIPACC_OPTS,$*) $(HIPACC_INCLUDE) $(CURDIR)/$< -o $@
 
 # Build CPU
 main_cpu: $$@.cc

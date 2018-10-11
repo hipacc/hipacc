@@ -39,11 +39,19 @@
 
 
 :cpu
+@if exist cpu.conf (set CONFIG_FILE=cpu.conf) else (set CONFIG_FILE=..\..\common\config\cpu.conf)
+@setlocal enabledelayedexpansion
+@set HIPACC_OPTS=
+@for /f "delims=" %%x in (%CONFIG_FILE%) do set HIPACC_OPTS=!HIPACC_OPTS! %%x
 nmake.exe /f sample.mak cpu
 @goto end
 
 :cuda
 @if "%CUDA_PATH%"=="" goto error_cuda
+@if exist cuda.conf (set CONFIG_FILE=cuda.conf) else (set CONFIG_FILE=..\..\common\config\cuda.conf)
+@setlocal enabledelayedexpansion
+@set HIPACC_OPTS=
+@for /f "delims=" %%x in (%CONFIG_FILE%) do set HIPACC_OPTS=!HIPACC_OPTS! %%x
 nmake.exe /f sample.mak cuda
 @goto end
 
