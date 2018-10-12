@@ -2884,9 +2884,10 @@ void CPU_x86::CodeGenerator::ImageAccessTranslator::TranslateImageDeclarations(:
 // Implementation of class CPU_x86::CodeGenerator
 CPU_x86::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions) : BaseType(pCompilerOptions, Descriptor())
 {
-  _InitSwitch< KnownSwitches::EmitPadding       >( CompilerSwitchTypeEnum::EmitPadding );
+  _InitSwitch<KnownSwitches::EmitPadding      >(CompilerSwitchTypeEnum::EmitPadding);
   _InitSwitch<KnownSwitches::InstructionSet   >(CompilerSwitchTypeEnum::InstructionSet);
   _InitSwitch<KnownSwitches::Parallelize      >(CompilerSwitchTypeEnum::Parallelize);
+  _InitSwitch<KnownSwitches::RowsPerThread    >(CompilerSwitchTypeEnum::RowsPerThread);
   _InitSwitch<KnownSwitches::UnrollVectorLoops>(CompilerSwitchTypeEnum::UnrollVectorLoops);
   _InitSwitch<KnownSwitches::VectorizeKernel  >(CompilerSwitchTypeEnum::VectorizeKernel);
   _InitSwitch<KnownSwitches::VectorWidth      >(CompilerSwitchTypeEnum::VectorWidth);
@@ -2917,6 +2918,12 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
     break;
   case CompilerSwitchTypeEnum::Parallelize:
     _bParallelize = true;
+    break;
+  case CompilerSwitchTypeEnum::RowsPerThread:
+    {
+      GetCompilerOptions().setPixelsPerThread(_ParseOption<KnownSwitches::RowsPerThread>(rvecArguments, szCurrentIndex));
+      ++szReturnIndex;
+    }
     break;
   case CompilerSwitchTypeEnum::UnrollVectorLoops:
     {

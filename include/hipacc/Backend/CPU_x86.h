@@ -62,6 +62,7 @@ namespace Backend
       EmitPadding,          //!< ID of the "image padding" switch
       InstructionSet,       //!< ID of the "select instruction set" switch.
       Parallelize,          //!< ID of the "OpenMP multi-thread parallelization" switch.
+      RowsPerThread,        //!< ID of the "rows per thread" switch
       UnrollVectorLoops,    //!< ID of the "unroll vector array loops" switch.
       VectorizeKernel,      //!< ID of the "kernel function vectorization" switch.
       VectorWidth           //!< ID of the "set vector width" switch.
@@ -219,6 +220,22 @@ namespace Backend
 
         /** \brief  Returns the description for this switch. */
         inline static std::string Description()         { return "Parallelizes the iteration space across multiple threads via OpenMP."; }
+      };
+
+      /** \brief  The switch type for the "rows per thread" switch. */
+      struct RowsPerThread final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-rows-per-thread"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return "<n>"; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "Specify how many rows should be calculated per thread"; }
+
+
+        typedef CommonDefines::OptionParsers::Integer   OptionParser;   //!< Type definition for the option parser for this switch.
       };
 
       /** \brief  The switch type for the "unroll vector array loops" switch. */
