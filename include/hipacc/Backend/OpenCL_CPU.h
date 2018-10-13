@@ -52,6 +52,9 @@ namespace Backend
     enum class CompilerSwitchTypeEnum
     {
       ExploreConfig,    //!< ID of the "kernel configuration exploration" switch
+      PixelsPerThread,  //!< ID of the "pixels per thread" switch
+      ReduceConfig,     //!< ID of the "reduce configuration selection" switch
+      UseConfig,        //!< ID of the "kernel configuration selection" switch
       UseLocal,         //!< ID of the "use local/shared memory" switch
       Vectorize         //!< ID of the "kernel vectorization" switch
     };

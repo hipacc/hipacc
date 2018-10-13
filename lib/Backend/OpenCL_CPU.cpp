@@ -45,9 +45,12 @@ OpenCL_CPU::CodeGenerator::Descriptor::Descriptor()
 
 OpenCL_CPU::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions)  : BaseType(pCompilerOptions, Descriptor())
 {
-  _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig>(CompilerSwitchTypeEnum::ExploreConfig);
-  _InitSwitch<AcceleratorDeviceSwitches::UseLocal     >(CompilerSwitchTypeEnum::UseLocal);
-  _InitSwitch<AcceleratorDeviceSwitches::Vectorize    >(CompilerSwitchTypeEnum::Vectorize);
+  _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig  >(CompilerSwitchTypeEnum::ExploreConfig);
+  _InitSwitch<AcceleratorDeviceSwitches::PixelsPerThread>(CompilerSwitchTypeEnum::PixelsPerThread);
+  _InitSwitch<AcceleratorDeviceSwitches::ReduceConfig   >(CompilerSwitchTypeEnum::ReduceConfig);
+  _InitSwitch<AcceleratorDeviceSwitches::UseConfig      >(CompilerSwitchTypeEnum::UseConfig);
+  _InitSwitch<AcceleratorDeviceSwitches::UseLocal       >(CompilerSwitchTypeEnum::UseLocal);
+  _InitSwitch<AcceleratorDeviceSwitches::Vectorize      >(CompilerSwitchTypeEnum::Vectorize);
 }
 
 
@@ -60,6 +63,32 @@ size_t OpenCL_CPU::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, 
   {
   case CompilerSwitchTypeEnum::ExploreConfig:
     GetCompilerOptions().setExploreConfig(USER_ON);
+    break;
+  case CompilerSwitchTypeEnum::PixelsPerThread:
+    {
+      GetCompilerOptions().setPixelsPerThread(_ParseOption<AcceleratorDeviceSwitches::PixelsPerThread>(rvecArguments, szCurrentIndex));
+      ++szReturnIndex;
+    }
+    break;
+  case CompilerSwitchTypeEnum::ReduceConfig:
+    {
+      typedef AcceleratorDeviceSwitches::ReduceConfig  SwitchType;
+
+      SwitchType::OptionParser::ReturnType  Value = _ParseOption<SwitchType>(rvecArguments, szCurrentIndex);
+
+      GetCompilerOptions().setReduceConfig(Value.first, Value.second);
+      ++szReturnIndex;
+    }
+    break;
+  case CompilerSwitchTypeEnum::UseConfig:
+    {
+      typedef AcceleratorDeviceSwitches::UseConfig  SwitchType;
+
+      SwitchType::OptionParser::ReturnType  Value = _ParseOption<SwitchType>(rvecArguments, szCurrentIndex);
+
+      GetCompilerOptions().setKernelConfig(Value.first, Value.second);
+      ++szReturnIndex;
+    }
     break;
   case CompilerSwitchTypeEnum::UseLocal:
     {

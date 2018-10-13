@@ -54,6 +54,7 @@ namespace Backend
       EmitPadding,        //!< ID of the "image padding" switch
       ExploreConfig,      //!< ID of the "kernel configuration exploration" switch
       PixelsPerThread,    //!< ID of the "pixels per thread" switch
+      ReduceConfig,       //!< ID of the "reduce configuration selection" switch
       Target,             //!< ID of the "target device selection" switch
       TimeKernels,        //!< ID of the "kernel timing" switch
       UseConfig,          //!< ID of the "kernel configuration selection" switch

@@ -48,6 +48,7 @@ CUDA::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOp
   _InitSwitch<AcceleratorDeviceSwitches::EmitPadding    >(CompilerSwitchTypeEnum::EmitPadding);
   _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig  >(CompilerSwitchTypeEnum::ExploreConfig);
   _InitSwitch<AcceleratorDeviceSwitches::PixelsPerThread>(CompilerSwitchTypeEnum::PixelsPerThread);
+  _InitSwitch<AcceleratorDeviceSwitches::ReduceConfig   >(CompilerSwitchTypeEnum::ReduceConfig);
   _InitSwitch<AcceleratorDeviceSwitches::Target         >(CompilerSwitchTypeEnum::Target);
   _InitSwitch<AcceleratorDeviceSwitches::TimeKernels    >(CompilerSwitchTypeEnum::TimeKernels);
   _InitSwitch<AcceleratorDeviceSwitches::UseConfig      >(CompilerSwitchTypeEnum::UseConfig);
@@ -76,6 +77,16 @@ size_t CUDA::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Common
   case CompilerSwitchTypeEnum::PixelsPerThread:
     {
       GetCompilerOptions().setPixelsPerThread(_ParseOption<AcceleratorDeviceSwitches::PixelsPerThread>(rvecArguments, szCurrentIndex));
+      ++szReturnIndex;
+    }
+    break;
+  case CompilerSwitchTypeEnum::ReduceConfig:
+    {
+      typedef AcceleratorDeviceSwitches::ReduceConfig  SwitchType;
+
+      SwitchType::OptionParser::ReturnType  Value = _ParseOption<SwitchType>(rvecArguments, szCurrentIndex);
+
+      GetCompilerOptions().setReduceConfig(Value.first, Value.second);
       ++szReturnIndex;
     }
     break;

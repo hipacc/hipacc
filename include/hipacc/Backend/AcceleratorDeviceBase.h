@@ -164,6 +164,48 @@ namespace Backend
         };
       };
 
+      /** \brief  The switch type for the "reduce configuration selection" switch. */
+      struct ReduceConfig final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-reduce-config"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return "<nxm>"; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description() {
+          std::string strDescription("");
+
+          strDescription += "Emit code that uses a multi-dimensional reduction configuration of\n";
+          strDescription += "  'n' warps per block    (affects block size and shared memory size)\n";
+          strDescription += "  'm' partial histograms (affects number of blocks)\n";
+
+          return strDescription;
+        }
+
+
+        /** \brief  The option parser for this switch. */
+        struct OptionParser final
+        {
+          typedef std::pair<int, int> ReturnType;   //!< The type of the parsed option.
+
+          /** \brief  Converts the reduce configuration string <b>"NxM"</b> into a pair of integers.
+           *  \param  strOption   The command line option as a string.
+           *  \return If successful, the selected reduce configuration. */
+          inline static ReturnType Parse(std::string strOption)
+          {
+            int x = 0, y = 0;
+            if (sscanf(strOption.c_str(), "%dx%d", &x, &y) != 2)
+            {
+              throw RuntimeErrors::InvalidOptionException(Key(), strOption);
+            }
+
+            return ReturnType(x, y);
+          }
+        };
+      };
+
       /** \brief  The switch type for the "kernel timing" switch. */
       struct TimeKernels final
       {
