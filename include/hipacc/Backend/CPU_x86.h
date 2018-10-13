@@ -155,7 +155,7 @@ namespace Backend
       struct InstructionSet final
       {
         /** \brief  Returns the command argument for this switch. */
-        inline static std::string Key()                 { return "-i-s"; }
+        inline static std::string Key()                 { return "-instruction-set"; }
 
         /** \brief  Returns the additional options string for this switch. */
         inline static std::string AdditionalOptions()   { return "<o>"; }
@@ -252,7 +252,7 @@ namespace Backend
       struct UnrollVectorLoops final
       {
         /** \brief  Returns the command argument for this switch. */
-        inline static std::string Key()                 { return "-u"; }
+        inline static std::string Key()                 { return "-unroll"; }
 
         /** \brief  Returns the additional options string for this switch. */
         inline static std::string AdditionalOptions()   { return "<o>"; }
@@ -300,7 +300,7 @@ namespace Backend
       struct VectorWidth final
       {
         /** \brief  Returns the command argument for this switch. */
-        inline static std::string Key()                 { return "-v-w"; }
+        inline static std::string Key()                 { return "-vector-width"; }
 
         /** \brief  Returns the additional options string for this switch. */
         inline static std::string AdditionalOptions()   { return "<n>"; }
