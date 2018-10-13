@@ -2908,7 +2908,7 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
   {
   case CompilerSwitchTypeEnum::EmitPadding:
     {
-      GetCompilerOptions().setPadding(_ParseOption< KnownSwitches::EmitPadding >(rvecArguments, szCurrentIndex));
+      GetCompilerOptions().setPadding(_ParseOption<KnownSwitches::EmitPadding>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;
@@ -2917,7 +2917,12 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
     ++szReturnIndex;
     break;
   case CompilerSwitchTypeEnum::Parallelize:
-    _bParallelize = true;
+    {
+      ::clang::hipacc::CompilerOption eOption = _ParseOption<KnownSwitches::UnrollVectorLoops>(rvecArguments, szCurrentIndex);
+
+      _bParallelize = (eOption == USER_ON);
+      ++szReturnIndex;
+    }
     break;
   case CompilerSwitchTypeEnum::RowsPerThread:
     {

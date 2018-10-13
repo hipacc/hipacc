@@ -216,10 +216,20 @@ namespace Backend
         inline static std::string Key()                 { return "-omp"; }
 
         /** \brief  Returns the additional options string for this switch. */
-        inline static std::string AdditionalOptions()   { return ""; }
+        inline static std::string AdditionalOptions()   { return "<o>"; }
 
         /** \brief  Returns the description for this switch. */
-        inline static std::string Description()         { return "Parallelizes the iteration space across multiple threads via OpenMP."; }
+        inline static std::string Description()         {
+          std::string strDescription("");
+
+          strDescription += "Parallelizes the iteration space across multiple threads via OpenMP.\n";
+          strDescription += std::string("  Valid values for ") + AdditionalOptions() + std::string(" are \"on\" or \"off\".");
+
+          return strDescription;
+        }
+
+
+        typedef CommonDefines::OptionParsers::OnOff   OptionParser;   //!< Type definition for the option parser for this switch.
       };
 
       /** \brief  The switch type for the "rows per thread" switch. */
