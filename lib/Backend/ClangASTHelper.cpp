@@ -223,9 +223,32 @@ WhileStmt* ClangASTHelper::CreateLoopWhile(Expr *pCondition, Stmt *pBody)
   return ASTNode::createWhileStmt(GetASTContext(), nullptr, pCondition, pBody);
 }
 
-Stmt* ClangASTHelper::CreateOpenMPDirectiveParallelFor()
+Stmt* ClangASTHelper::CreateOpenMPDirectiveParallelFor(int nChunkSize)
 {
-  return OMPParallelForDirective::Create( GetASTContext(), SourceLocation(), SourceLocation(), 0, std::vector<OMPClause*>(), nullptr, OMPLoopDirective::HelperExprs(), false);
+  ASTContext& Context = GetASTContext();
+  std::vector<OMPClause*> vecClauses;
+
+	if (nChunkSize > 1) {
+		Expr* pChunkSize = ASTNode::createIntegerLiteral(Context, nChunkSize);
+
+		// we need a valid SourceLocation
+		SourceManager &SM = Context.getSourceManager();
+		FileID mainFileID = SM.getMainFileID();
+		SourceLocation validLoc = SM.getLocForStartOfFile(mainFileID);
+
+		// create OMP schedule clause with chunk size
+		OMPScheduleClause* pClause = new (Context) OMPScheduleClause(
+				validLoc, validLoc, validLoc, validLoc, validLoc,
+				OMPC_SCHEDULE_static, pChunkSize, nullptr,
+				OMPC_SCHEDULE_MODIFIER_unknown, validLoc,
+				OMPC_SCHEDULE_MODIFIER_unknown, validLoc);
+
+		vecClauses.push_back(pClause);
+	}
+
+	return OMPParallelForDirective::Create(Context, SourceLocation(),
+      SourceLocation(), 0, vecClauses, nullptr, OMPLoopDirective::HelperExprs(),
+      false);
 }
 
 ParenExpr* ClangASTHelper::CreateParenthesisExpression(Expr *pSubExpression)

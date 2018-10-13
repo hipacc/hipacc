@@ -3670,7 +3670,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
     // Add an OpenMP parallel for directive right in front of the outer iteration space loop if parallelization is activated
     if (_bParallelize)
     {
-      vecKernelFunctionBody.insert( vecKernelFunctionBody.end() - 1, ASTHelper.CreateOpenMPDirectiveParallelFor() );
+      vecKernelFunctionBody.insert( vecKernelFunctionBody.end() - 1, ASTHelper.CreateOpenMPDirectiveParallelFor(GetCompilerOptions().getPixelsPerThread()) );
     }
 
     pKernelFunction->setBody( ASTHelper.CreateCompoundStatement(vecKernelFunctionBody) );
