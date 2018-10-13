@@ -2918,9 +2918,10 @@ size_t CPU_x86::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Com
     break;
   case CompilerSwitchTypeEnum::Parallelize:
     {
-      ::clang::hipacc::CompilerOption eOption = _ParseOption<KnownSwitches::UnrollVectorLoops>(rvecArguments, szCurrentIndex);
+      ::clang::hipacc::CompilerOption eOption = _ParseOption<KnownSwitches::Parallelize>(rvecArguments, szCurrentIndex);
 
       _bParallelize = (eOption == USER_ON);
+      GetCompilerOptions().setOpenMP(_bParallelize);
       ++szReturnIndex;
     }
     break;

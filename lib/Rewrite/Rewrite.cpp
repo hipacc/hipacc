@@ -2062,6 +2062,9 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   }
   switch (compilerOptions.getTargetLang()) {
     case Language::C99:
+      if (compilerOptions.useOpenMP()) {
+        OS << "#define USE_OPENMP\n";
+      }
       OS << "#include \"hipacc_cpu_red.hpp\"\n\n";
       break;
     case Language::OpenCLACC:

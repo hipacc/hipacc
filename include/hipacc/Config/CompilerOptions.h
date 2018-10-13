@@ -97,6 +97,7 @@ class CompilerOptions {
     int pixels_per_thread;
     Texture texture_type;
     std::string rs_package_name, rs_directory;
+    bool use_openmp;
 
     // The selected code generator
     Backend::ICodeGeneratorPtr  _spCodeGenerator;
@@ -144,6 +145,7 @@ class CompilerOptions {
       texture_type(Texture::None),
       rs_package_name("org.hipacc.rs"),
       rs_directory("/data/local/tmp"),
+      use_openmp(false),
       _spCodeGenerator(nullptr)
     {}
 
@@ -206,6 +208,7 @@ class CompilerOptions {
     int getPixelsPerThread() { return pixels_per_thread; }
     std::string getRSPackageName() { return rs_package_name; }
     std::string getRSDirectory() { return rs_directory; }
+    bool useOpenMP() { return use_openmp; }
 
     void setTargetLang(Language lang) { target_lang = lang; }
     void setTargetDevice(Device td) { target_device = td; }
@@ -247,6 +250,10 @@ class CompilerOptions {
     void setRSPackageName(std::string name) {
       rs_package_name = name;
       rs_directory = "/data/data/" + name;
+    }
+
+    void setOpenMP(bool flag) {
+      use_openmp = flag;
     }
 
     std::string getTargetPrefix() {
