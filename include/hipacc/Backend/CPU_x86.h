@@ -213,7 +213,7 @@ namespace Backend
       struct Parallelize final
       {
         /** \brief  Returns the command argument for this switch. */
-        inline static std::string Key()                 { return "-omp"; }
+        inline static std::string Key()                 { return "-multi-threading"; }
 
         /** \brief  Returns the additional options string for this switch. */
         inline static std::string AdditionalOptions()   { return "<o>"; }
