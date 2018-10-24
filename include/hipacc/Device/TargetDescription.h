@@ -218,6 +218,7 @@ class HipaccDevice : public HipaccDeviceOptions {
     {
       switch (target_device) {
         case Device::CPU:
+          max_threads_per_warp = 1;
           break;
         case Device::Fermi_20:
           max_threads_per_block = 1024;
@@ -294,7 +295,7 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_sfus = 1; // 1 sfu -> 1 alu
           break;
         case Device::Midgard:
-          max_threads_per_warp = 4,
+          max_threads_per_warp = 1;
           // max_blocks_per_multiprocessor - unknown
           max_threads_per_block = 256;
           max_warps_per_multiprocessor = 64; // unknown
@@ -305,7 +306,7 @@ class HipaccDevice : public HipaccDeviceOptions {
           num_sfus = 1; // just a guess
           break;
         case Device::KnightsCorner:
-          max_threads_per_warp = 4,
+          max_threads_per_warp = 4;
           // max_blocks_per_multiprocessor - unknown
           max_threads_per_block = 8192;
           max_warps_per_multiprocessor = 64; // unknown
