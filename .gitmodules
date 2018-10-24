@@ -2,6 +2,3 @@
 	path = samples
 	url = https://github.com/hipacc/samples.git
 	branch = master
-[submodule "submodules/json"]
-	path = submodules/json
-	url = https://github.com/nlohmann/json.git
