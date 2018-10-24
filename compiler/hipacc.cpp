@@ -36,7 +36,7 @@
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDescription.h"
 #include "hipacc/Rewrite/Rewrite.h"
-#include "json/single_include/nlohmann/json.hpp"
+#include "jsoncpp/json/json.h"
 
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
@@ -50,7 +50,6 @@
 
 using namespace clang;
 using namespace hipacc;
-using json = nlohmann::json;
 
 void printCopyright() {
   llvm::errs() << "\n"
@@ -237,14 +236,18 @@ int main(int argc, char *argv[]) {
     if (StringRef(argv[i]) == "-use-lconfig") {
       assert(i<(argc-1) && "Mandatory local configuration file for -use-lconfig switch missing.");
       if (StringRef(argv[i+1]) == "on") {
-        std::ifstream jfile(StringRef(argv[i+2]));
-        auto j = json::parse(jfile);
-        for (json::iterator it = j["kernelConfig"].begin(); it != j["kernelConfig"].end(); ++it) {
-          std::string kernelName = (*it)["name"];
+        std::ifstream ifs("src/config.json");
+        assert(ifs.is_open() && "config.json missing for local config.\n\n");
+        Json::Reader reader;
+        Json::Value obj;
+        reader.parse(ifs, obj);
+        const Json::Value& characters = obj["kernels"];
+        for (unsigned i=0; i<characters.size(); i++) {
+          std::string kernelName = characters[i]["name"].asString();
           SKernelLocalConfig *KConfig = new SKernelLocalConfig;
-          KConfig->kernel_fusibility = ((*it)["fusibility"] == "off") ? false : true;
+          KConfig->kernel_fusibility = (characters[i]["fusibility"].asString() == "off") ? false : true;
           int x=0, y=0, ret=0;
-          std::string kernelConfigStr = (*it)["config"];
+          std::string kernelConfigStr = characters[i]["config"].asString();
           ret = sscanf(kernelConfigStr.c_str(), "%dx%d", &x, &y);
           if (ret!=2) {
             llvm::errs() << "ERROR: Expected valid configuration specification for -use-lconfig.\n\n";
@@ -260,7 +263,7 @@ int main(int argc, char *argv[]) {
         printUsage();
         return EXIT_FAILURE;
       }
-      i = i + 2;
+      ++i;
       continue;
     }
     if (StringRef(argv[i]) == "-reduce-config") {

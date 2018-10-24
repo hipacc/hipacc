@@ -28,7 +28,7 @@ list(APPEND HIPACC_LIBS
 set(hipacc_SOURCES hipacc.cpp)
 add_executable(hipacc ${hipacc_SOURCES})
 
-target_link_libraries(hipacc ${HIPACC_LIBS} ${CLANG_LIBRARIES} ${LLVM_LIBRARIES})
+target_link_libraries(hipacc ${HIPACC_LIBS} ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} -ljsoncpp)
 add_dependencies(hipacc ${HIPACC_LIBS})
 
 
