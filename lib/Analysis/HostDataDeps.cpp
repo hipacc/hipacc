@@ -669,6 +669,9 @@ unsigned HostDataDeps::minCutPhase(partitionBlock &PB, edgeWeight &curEdgeWeight
 
 void HostDataDeps::minCutGlobal(partitionBlock PB, partitionBlock &PBRet0, 
                                 partitionBlock &PBRet1) {
+//  llvm::errs() << "\nminCutGlobal start";
+//  llvm::errs() << "\ninput PB, size: " << PB.size() << "\n";
+//  dump(PB);
   // Stoer-Wagner Minimum Cut
   // initialization
   partitionBlock PBOrig;
@@ -731,6 +734,8 @@ void HostDataDeps::minCutGlobal(partitionBlock PB, partitionBlock &PBRet0,
     }
   }
 
+//  llvm::errs() << "\noutput PB0, size: " << PB0.size() << "\n";
+//  dump(PBRet0);
   // partitioning
   for (auto pL : PBOrig) {
     if (std::none_of(PBRet0.begin(), PBRet0.end(), [&](std::list<Process*> *pL0){return pL0->front() == pL->front();})) {
@@ -743,13 +748,22 @@ void HostDataDeps::minCutGlobal(partitionBlock PB, partitionBlock &PBRet0,
       PBRet1.push_back(lPLocal);
     } 
   }
-  PBRet1.erase(std::remove_if(PBRet1.begin(), PBRet1.end(), [&](std::list<Process*> *pL0){return pL0->size() == 1 && 
-        (std::any_of(PBRet1.begin(), PBRet1.end(), [&](std::list<Process*> *pL1){return pL1->size() > 1 &&
-          (std::find(pL1->begin(), pL1->end(), pL0->front()) != pL1->end());}));}), PBRet1.end());
+//  llvm::errs() << "\nnoutput PB1, size: " << PB1.size() << "\n";
+//  dump(PBRet1);
+  //PBRet1.erase(std::remove_if(PBRet1.begin(), PBRet1.end(), [&](std::list<Process*> *pL0){return pL0->size() == 1 && 
+  //      (std::any_of(PBRet1.begin(), PBRet1.end(), [&](std::list<Process*> *pL1){return pL1->size() > 1 &&
+  //        (std::find(pL1->begin(), pL1->end(), pL0->front()) != pL1->end());}));}), PBRet1.end());
+  //llvm::errs() << "\noutput updated PB1\n";
+  //dump(PBRet1);
+//  llvm::errs() << "\nminCutGlobal finishes\n";
 }
 
 
 bool HostDataDeps::isLegal(const partitionBlock &PB) {
+  //llvm::errs() << "\nisLegal*******\n";
+  //partitionBlock dmpPB = PB;
+  //dump(dmpPB);
+
   if (PB.size() == 1) { return true; } 
 
   // external dependency detection
@@ -760,19 +774,26 @@ bool HostDataDeps::isLegal(const partitionBlock &PB) {
 
   for (auto pL : PB) {
     Process *p = pL->front();
+  //llvm::errs() << "\np: " << p->getKernel()->getName();
     for (auto dp : p->getOutSpace()->getDstProcesses()) {
       if (std::count_if(PB.begin(), PB.end(), 
             [&](std::list<Process*> *pLL){return pLL->front() == dp;}) == 0) {
         numDepOut++;
+  //llvm::errs() << "\nout++\n";
       }
     }
+    // TODO, this is wrong here,
     for (auto ds : p->getInSpaces()) {
-      if (std::count_if(PB.begin(), PB.end(), 
+      if (ds->getSrcProcess() && std::count_if(PB.begin(), PB.end(), 
             [&](std::list<Process*> *pLL){return pLL->front() == ds->getSrcProcess();}) == 0) {
         numDepIn++;
+        break;
+  //llvm::errs() << "\nin++\n";
       }
     }
 
+  //llvm::errs() << "\nnumDepIn: " << numDepIn;
+  //llvm::errs() << "\nnumDepOut: " << numDepOut;
     // src and dest kernel in the block
     if (isDest(p)) { numDepOut++; } 
     else if (isSrc(p)) {
@@ -783,21 +804,28 @@ bool HostDataDeps::isLegal(const partitionBlock &PB) {
         isLegalDependency = false;
       }
     }
+  //llvm::errs() << "\nnumDepInend: " << numDepIn;
+  //llvm::errs() << "\nnumDepOutend: " << numDepOut;
   }
   if (numDepOut > 1 || numDepIn > 1) { isLegalDependency = false; }
 
   // resource constraints
   unsigned YSizeAcc = 1;
   unsigned YSizeAccMax = 1;
+  std::set<Process*> setVisitedPro;
   for (auto pL : PB) {
     Process *p = pL->front();
-    if (p->getKernel()->getKernelClass()->getKernelType() == LocalOperator) {
+    if (setVisitedPro.count(p) == 0 && p->getKernel()->getKernelClass()->getKernelType() == LocalOperator) {
       auto acc = p->getKernel()->getAccessors().back();
       YSizeAcc = YSizeAcc + acc->getSizeY() - 1; //TODO, SMem esmt
       YSizeAccMax = std::max(YSizeAccMax, acc->getSizeY());
+      setVisitedPro.insert(p);
     }
   }
   bool isLegalResource = ((static_cast<float>(YSizeAcc) / YSizeAccMax) < CMS) ? true : false;
+  //llvm::errs() << "\nresource " << isLegalResource;
+  //llvm::errs() << "\ndependence " << isLegalDependency;
+  //llvm::errs() << "\n*******\n";
   return (isLegalResource && isLegalDependency) ? true : false;
 }
 
@@ -812,31 +840,42 @@ void HostDataDeps::fusibilityAnalysis() {
     dump(applicationGraph);
   }
   while(!workingSet.empty()) {
+  //llvm::errs() << "\nworking set working----------------------------------------\n";
+  //llvm::errs() << "\n" << readySet.size();
+  //llvm::errs() << "\n" << workingSet.size();
+  //llvm::errs() << "\n";
+
     std::set<partitionBlock> legalSet;
     std::set<partitionBlock> illegalSet;
     for (auto PB : workingSet) {
+      //llvm::errs() << "\nthis pb is --------\n";
       if ((PB.size() == 1) || isLegal(PB)) {
+      //llvm::errs() << "legal--\n";
         legalSet.insert(PB);
       } else {
+      //llvm::errs() << "illegal--\n";
         illegalSet.insert(PB);
       }
     }
 
     for (auto PB : legalSet) {
+    //llvm::errs() << "\nlegal erase and insert\n";
       workingSet.erase(PB);
       readySet.insert(PB);
     }
     for (auto PB : illegalSet) {
+    //llvm::errs() << "\nillegal cut\n";
       partitionBlock PBRet0, PBRet1;
       minCutGlobal(PB, PBRet0, PBRet1);
       workingSet.insert(PBRet0);
       workingSet.insert(PBRet1);
       workingSet.erase(PB);
     }
+  //llvm::errs() << "\nworking set not working----------------------------------------\n";
   }
 
   // recording analysis result   
-  llvm::errs() << "Fusible Kernels: \n";
+  llvm::errs() << "  Fusible Kernels: \n";
   for (auto PB : readySet) {
     partitionBlockNames PBNam;
     for (auto pL : PB) {
@@ -849,6 +888,7 @@ void HostDataDeps::fusibilityAnalysis() {
       llvm::errs() << "\n";
       PBNam.push_back(lNam);
     }
+      llvm::errs() << "\n";
     fusibleSetNames.insert(PBNam);
   }
 }

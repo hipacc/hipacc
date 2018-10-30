@@ -105,9 +105,9 @@ class ASTFuse {
     std::map<HipaccKernel *, FusionTypeTags *> FusibleKernelSubListPosMap;
 
     // new
-    std::map<std::string, std::tuple<unsigned, unsigned, unsigned>> FusibleKernelBlockLocation;
+    std::map<std::string, std::tuple<unsigned, unsigned>> FusibleKernelBlockLocation;
     std::set<std::vector<std::list<std::string>>> fusibleSetNames;
-    std::vector<std::vector<std::list<HipaccKernel*>>> fusibleKernelSet;
+    std::vector<std::list<HipaccKernel*>> fusibleKernelSet;
 
     // member functions
     void setFusedKernelConfiguration(std::list<HipaccKernel *>& l);
@@ -140,23 +140,18 @@ class ASTFuse {
       fusionIdxVarCount(0)
       {
         fusibleSetNames = dataDeps->getFusibleSetNames();
-        unsigned blockCnt, vectorCnt, listCnt;
+        unsigned blockCnt, listCnt;
         blockCnt = 0;
         for (auto PBN : fusibleSetNames) { // block level
-          vectorCnt = 0;
-          std::vector<std::list<HipaccKernel*>> kv;
-          for (auto sL : PBN) {              // vector level 
-            listCnt = 0;
-            std::list<HipaccKernel*> kl;
-            for (auto nam : sL) {              // list level
-              auto pos = std::make_tuple(blockCnt, vectorCnt, listCnt);
-              FusibleKernelBlockLocation[nam] = pos;
-              listCnt++;
-            }
-            kv.push_back(kl);
-            vectorCnt++;
+          listCnt = 0;
+          std::list<HipaccKernel*> kl;
+          for (auto sL : PBN) {              // list level 
+            auto pos = std::make_tuple(blockCnt, listCnt);
+            auto nam = sL.front();
+            FusibleKernelBlockLocation[nam] = pos;
+            listCnt++;
           }
-          fusibleKernelSet.push_back(kv); 
+          fusibleKernelSet.push_back(kl); 
           blockCnt++;
         }
       }

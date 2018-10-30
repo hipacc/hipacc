@@ -58,24 +58,27 @@ void ASTFuse::insertEpilogFusedKernel() {
 void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
   // find number of local operators in the list
   SmallVector<unsigned, 16> vecLocalKernelIndices;
-  vecLocalKernelIndices.clear();
+  unsigned kLocalCnt = 0;
   for (auto K : l) {
     HipaccKernelClass *KC = K->getKernelClass();
     if (KC->getKernelType() == LocalOperator) {
-  unsigned kIndex = std::get<1>(FusibleKernelBlockLocation[K->getKernelClass()->getName() + K->getName()]);
-      vecLocalKernelIndices.push_back(kIndex);
+      vecLocalKernelIndices.push_back(kLocalCnt);
     }
     FusionTypeTags *tags = new FusionTypeTags;
     FusibleKernelSubListPosMap[K] = tags;
+    kLocalCnt++;
   }
 
+  // container for sublists
   std::list<HipaccKernel *> pointKernelList;
   SmallVector<std::list<HipaccKernel *>, 16> vecLocalKernelLists;
-  if (vecLocalKernelIndices.size() == 0) {
-    // scenario 1: no local kernel sublists
-    // e.g. p -> p -> ... -> p
+
+  // analyze the kernel position in the fusion list
+  if (vecLocalKernelIndices.empty()) {
+    // scenario 1: no local kernels. e.g. p -> p -> ... -> p
     // sublisting
     pointKernelList.assign(l.begin(), l.end());
+
     // tag generation
     for (auto it = (pointKernelList.begin()); it != pointKernelList.end(); ++it) {
       HipaccKernel *K = *it;
@@ -91,8 +94,7 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
       }
     }
   } else if (vecLocalKernelIndices.front() == 0) {
-    // scenario 2: no point kernel sublist
-    // e.g. l -> p -> ... -> l -> p -> ...
+    // scenario 2: first kernel is local e.g. l -> p -> ... -> l -> p -> ...
     // sublisting
     for (auto it = (vecLocalKernelIndices.begin()); it != vecLocalKernelIndices.end(); ++it) {
       std::list<HipaccKernel *> localKernelList;
@@ -109,6 +111,7 @@ void ASTFuse::markKernelPositionSublist(std::list<HipaccKernel *> &l) {
       }
       vecLocalKernelLists.push_back(localKernelList);
     }
+
     // tag generation
     for (auto itLists = (vecLocalKernelLists.begin()); itLists != vecLocalKernelLists.end(); ++itLists) {
       std::list<HipaccKernel *> listLocal = *itLists;
@@ -548,65 +551,65 @@ void ASTFuse::setFusedKernelConfiguration(std::list<HipaccKernel *>& l) {
 
 
 bool ASTFuse::parseFusibleKernel(HipaccKernel *K) {
-  if (!dataDeps->isFusible(K)) {
-    return false;
-  }
+  if (!dataDeps->isFusible(K)) { return false; }
 
   // prepare fusible kernel set 
-  unsigned blockCnt, vectorCnt, listCnt;
+  unsigned blockCnt, listCnt;
   std::string kernelName = K->getKernelClass()->getName() + K->getName();
   assert(FusibleKernelBlockLocation.count(kernelName) && "Kernel name has no record");
-  std::tie(blockCnt, vectorCnt, listCnt) = FusibleKernelBlockLocation[kernelName];
-  auto PB = fusibleKernelSet[blockCnt];
-  auto kList = PB[vectorCnt];
-  auto it = kList.begin(); std::advance(it, listCnt); kList.insert(it, K);
-  PB[vectorCnt] = kList;
-  fusibleKernelSet[blockCnt] = PB;
+  std::tie(blockCnt, listCnt) = FusibleKernelBlockLocation[kernelName];
+  auto PBl = fusibleKernelSet[blockCnt];
+  auto it = PBl.begin(); std::advance(it, listCnt); PBl.insert(it, K);
+  fusibleKernelSet[blockCnt] = PBl;
 
   // fusion starts whenever a fusible block is ready
   auto PBNam = *std::next(fusibleSetNames.begin(), blockCnt);
-  if (std::equal(PB.begin(), PB.end(), PBNam.begin(), 
-        [](std::list<HipaccKernel*> kl, std::list<std::string> sl){return kl.size() == sl.size();})) {
-    // TODO enlarge list to block
-    setFusedKernelConfiguration(kList);
-    HipaccFusion(kList);
-    printFusedKernelFunction(kList); // write fused kernel to file
+  if (PBl.size() == PBNam.size()) {
+    PBl.sort([&](HipaccKernel *ka, HipaccKernel *kb){
+        std::string kaNam = ka->getKernelClass()->getName() + ka->getName();
+        std::string kbNam = kb->getKernelClass()->getName() + kb->getName();
+        return std::none_of(PBNam.begin(), PBNam.end(), [&](std::list<std::string> ls){return ls.front() == kbNam && 
+               std::find(ls.begin(), ls.end(), kaNam) != ls.end();});
+        });
+    fusibleKernelSet[blockCnt] = PBl;
+    setFusedKernelConfiguration(PBl);
+    HipaccFusion(PBl);
+    printFusedKernelFunction(PBl); // write fused kernel to file
   }
-
   return true;
 }
 
 // getters
 bool ASTFuse::isSrcKernel(HipaccKernel *K) {
-  unsigned blockCnt, vectorCnt, listCnt;
+  unsigned blockCnt, listCnt;
   std::string kernelName = K->getKernelClass()->getName() + K->getName();
   assert(FusibleKernelBlockLocation.count(kernelName) && "Kernel name has no record");
-  std::tie(blockCnt, vectorCnt, listCnt) = FusibleKernelBlockLocation[kernelName];
-  return listCnt == 0 ? true : false;
+  std::tie(blockCnt, listCnt) = FusibleKernelBlockLocation[kernelName];
+  return fusibleKernelSet[blockCnt].front() == K;
 }
+
 bool ASTFuse::isDestKernel(HipaccKernel *K) { 
-  unsigned blockCnt, vectorCnt, listCnt;
+  unsigned blockCnt, listCnt;
   std::string kernelName = K->getKernelClass()->getName() + K->getName();
   assert(FusibleKernelBlockLocation.count(kernelName) && "Kernel name has no record");
-  std::tie(blockCnt, vectorCnt, listCnt) = FusibleKernelBlockLocation[kernelName];
-  auto PB = fusibleKernelSet[blockCnt];
-  auto kList = PB[vectorCnt];
-  return listCnt == (kList.size()-1) ? true : false;
+  std::tie(blockCnt, listCnt) = FusibleKernelBlockLocation[kernelName];
+  return fusibleKernelSet[blockCnt].back() == K;
 }
-// TODO check usability
+
 HipaccKernel *ASTFuse::getProducerKernel(HipaccKernel *K) {
-  unsigned blockCnt, vectorCnt, listCnt;
+  unsigned blockCnt, listCnt;
   std::string kernelName = K->getKernelClass()->getName() + K->getName();
   assert(FusibleKernelBlockLocation.count(kernelName) && "Kernel name has no record");
-  std::tie(blockCnt, vectorCnt, listCnt) = FusibleKernelBlockLocation[kernelName];
-  auto PB = fusibleKernelSet[blockCnt];
-  auto kList = PB[vectorCnt];
-  auto it = kList.begin(); std::advance(it, listCnt-1);
-  return *it;
+  std::tie(blockCnt, listCnt) = FusibleKernelBlockLocation[kernelName];
+  auto PBl = fusibleKernelSet[blockCnt];
+  auto it = std::find(PBl.begin(), PBl.end(), K);
+  return (it == PBl.begin()) ? nullptr : *std::prev(it); 
 }
+
 SmallVector<std::string, 16> ASTFuse::getFusedFileNamesAll() const {
   return fusedFileNamesAll;
 }
+
 std::string ASTFuse::getFusedKernelName(HipaccKernel *K) { return fusedKernelNameMap[K]; }
 unsigned ASTFuse::getNewYSizeLocalKernel(HipaccKernel *K) { return std::get<1>(fusedLocalKernelMemorySizeMap[K]); }
 
