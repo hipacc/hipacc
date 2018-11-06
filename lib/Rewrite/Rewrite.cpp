@@ -1811,129 +1811,129 @@ bool Rewrite::VisitCallExpr (CallExpr *E) {
 
 
 void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
-  #ifdef USE_JIT_ESTIMATE
-  switch (compilerOptions.getTargetLang()) {
-    default: return K->setDefaultConfig();
-    case Language::CUDA:
-    case Language::OpenCLGPU:
-      if (!targetDevice.isARMGPU())
-        break;
-  }
-
-  // write kernel file to estimate resource usage
-  // kernel declaration for CUDA
-  FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
-      Context.getTranslationUnitDecl(), K->getKernelName(), Context.VoidTy,
-      K->getArgTypes(), K->getDeviceArgNames());
-
-  // create kernel body
-  ASTTranslate *HipaccEst = new ASTTranslate(Context, kernelDeclEst, K, KC,
-      builtins, compilerOptions, true);
-  Stmt *kernelStmtsEst = HipaccEst->Hipacc(KC->getKernelFunction()->getBody());
-  kernelDeclEst->setBody(kernelStmtsEst);
-
-  // write kernel to file
-  printKernelFunction(kernelDeclEst, KC, K, K->getFileName(), false);
-
-  // compile kernel in order to get resource usage
-  std::string command = K->getCompileCommand(K->getKernelName(),
-      K->getFileName(), compilerOptions.emitCUDA());
-
-  int reg=0, lmem=0, smem=0, cmem=0;
-  char line[FILENAME_MAX];
-  SmallVector<std::string, 16> lines;
-  FILE *fpipe;
-
-  if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
-    perror("Problems with pipe");
-    exit(EXIT_FAILURE);
-  }
-
-  while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
-    lines.push_back(std::string(line));
-
-    if (targetDevice.isNVIDIAGPU()) {
-      char *ptr = line;
-      char mem_type = 'x';
-      int val1 = 0, val2 = 0;
-
-      if (sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type) == 2) {
-        if (mem_type == 's') {
-          lmem = val1;
-          continue;
-        }
-      }
-
-      if (sscanf(line, "ptxas info : Used %d registers", &reg) == 0)
-        continue;
-
-      while ((ptr = strchr(ptr, ','))) {
-        ptr++;
-
-        if (sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type) == 3) {
-          switch (mem_type) {
-            default: llvm::errs() << "wrong memory specifier '" << mem_type
-                                  << "': " << ptr; break;
-            case 'c': cmem += val1 + val2; break;
-            case 'l': lmem += val1 + val2; break;
-            case 's': smem += val1 + val2; break;
-          }
-          continue;
-        }
-
-        if (sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type) == 2) {
-          switch (mem_type) {
-            default: llvm::errs() << "wrong memory specifier '" << mem_type
-                                  << "': " << ptr; break;
-            case 'c': cmem += val1; break;
-            case 'l': lmem += val1; break;
-            case 's': smem += val1; break;
-          }
-          continue;
-        }
-
-        if (sscanf(ptr, "%d texture %1c", &val1, &mem_type) == 2)
-          continue;
-        if (sscanf(ptr, "%d sampler %1c", &val1, &mem_type) == 2)
-          continue;
-        if (sscanf(ptr, "%d surface %1c", &val1, &mem_type) == 2)
-          continue;
-
-        // no match found
-        llvm::errs() << "Unexpected memory usage specification: '" << ptr;
-      }
-    } else if (targetDevice.isAMDGPU()) {
-      sscanf(line, "isa info : Used %d gprs, %d bytes lds", &reg, &smem);
-    }
-  }
-  pclose(fpipe);
-
-  if (reg == 0) {
-    unsigned DiagIDCompile = Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-        "Compiling kernel in file '%0.%1' failed, using default kernel configuration:\n%2");
-    Diags.Report(DiagIDCompile)
-      << K->getFileName() << (const char*)(compilerOptions.emitCUDA()?"cu":"cl")
-      << command.c_str();
-    for (auto line : lines)
-      llvm::errs() << line;
-  } else {
-    if (targetDevice.isNVIDIAGPU()) {
-      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
-                   << ": " << reg << " registers, "
-                   << lmem << " bytes lmem, "
-                   << smem << " bytes smem, "
-                   << cmem << " bytes cmem\n";
-    } else if (targetDevice.isAMDGPU()) {
-      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
-                   << ": " << reg << " gprs, "
-                   << smem << " bytes lds\n";
-    }
-  }
-
-  K->setResourceUsage(reg, lmem, smem, cmem);
-  #else
+//  #ifdef USE_JIT_ESTIMATE
+//  switch (compilerOptions.getTargetLang()) {
+//    default: return K->setDefaultConfig();
+//    case Language::CUDA:
+//    case Language::OpenCLGPU:
+//      if (!targetDevice.isARMGPU())
+//        break;
+//  }
+//
+//  // write kernel file to estimate resource usage
+//  // kernel declaration for CUDA
+//  FunctionDecl *kernelDeclEst = createFunctionDecl(Context,
+//      Context.getTranslationUnitDecl(), K->getKernelName(), Context.VoidTy,
+//      K->getArgTypes(), K->getDeviceArgNames());
+//
+//  // create kernel body
+//  ASTTranslate *HipaccEst = new ASTTranslate(Context, kernelDeclEst, K, KC,
+//      builtins, compilerOptions, true);
+//  Stmt *kernelStmtsEst = HipaccEst->Hipacc(KC->getKernelFunction()->getBody());
+//  kernelDeclEst->setBody(kernelStmtsEst);
+//
+//  // write kernel to file
+//  printKernelFunction(kernelDeclEst, KC, K, K->getFileName(), false);
+//
+//  // compile kernel in order to get resource usage
+//  std::string command = K->getCompileCommand(K->getKernelName(),
+//      K->getFileName(), compilerOptions.emitCUDA());
+//
+//  int reg=0, lmem=0, smem=0, cmem=0;
+//  char line[FILENAME_MAX];
+//  SmallVector<std::string, 16> lines;
+//  FILE *fpipe;
+//
+//  if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
+//    perror("Problems with pipe");
+//    exit(EXIT_FAILURE);
+//  }
+//
+//  while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
+//    lines.push_back(std::string(line));
+//
+//    if (targetDevice.isNVIDIAGPU()) {
+//      char *ptr = line;
+//      char mem_type = 'x';
+//      int val1 = 0, val2 = 0;
+//
+//      if (sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type) == 2) {
+//        if (mem_type == 's') {
+//          lmem = val1;
+//          continue;
+//        }
+//      }
+//
+//      if (sscanf(line, "ptxas info : Used %d registers", &reg) == 0)
+//        continue;
+//
+//      while ((ptr = strchr(ptr, ','))) {
+//        ptr++;
+//
+//        if (sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type) == 3) {
+//          switch (mem_type) {
+//            default: llvm::errs() << "wrong memory specifier '" << mem_type
+//                                  << "': " << ptr; break;
+//            case 'c': cmem += val1 + val2; break;
+//            case 'l': lmem += val1 + val2; break;
+//            case 's': smem += val1 + val2; break;
+//          }
+//          continue;
+//        }
+//
+//        if (sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type) == 2) {
+//          switch (mem_type) {
+//            default: llvm::errs() << "wrong memory specifier '" << mem_type
+//                                  << "': " << ptr; break;
+//            case 'c': cmem += val1; break;
+//            case 'l': lmem += val1; break;
+//            case 's': smem += val1; break;
+//          }
+//          continue;
+//        }
+//
+//        if (sscanf(ptr, "%d texture %1c", &val1, &mem_type) == 2)
+//          continue;
+//        if (sscanf(ptr, "%d sampler %1c", &val1, &mem_type) == 2)
+//          continue;
+//        if (sscanf(ptr, "%d surface %1c", &val1, &mem_type) == 2)
+//          continue;
+//
+//        // no match found
+//        llvm::errs() << "Unexpected memory usage specification: '" << ptr;
+//      }
+//    } else if (targetDevice.isAMDGPU()) {
+//      sscanf(line, "isa info : Used %d gprs, %d bytes lds", &reg, &smem);
+//    }
+//  }
+//  pclose(fpipe);
+//
+//  if (reg == 0) {
+//    unsigned DiagIDCompile = Diags.getCustomDiagID(DiagnosticsEngine::Warning,
+//        "Compiling kernel in file '%0.%1' failed, using default kernel configuration:\n%2");
+//    Diags.Report(DiagIDCompile)
+//      << K->getFileName() << (const char*)(compilerOptions.emitCUDA()?"cu":"cl")
+//      << command.c_str();
+//    for (auto line : lines)
+//      llvm::errs() << line;
+//  } else {
+//    if (targetDevice.isNVIDIAGPU()) {
+//      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
+//                   << ": " << reg << " registers, "
+//                   << lmem << " bytes lmem, "
+//                   << smem << " bytes smem, "
+//                   << cmem << " bytes cmem\n";
+//    } else if (targetDevice.isAMDGPU()) {
+//      llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
+//                   << ": " << reg << " gprs, "
+//                   << smem << " bytes lds\n";
+//    }
+//  }
+//
+//  K->setResourceUsage(reg, lmem, smem, cmem);
+//  #else
   K->setDefaultConfig();
-  #endif
+//  #endif
 }
 
 

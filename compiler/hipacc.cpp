@@ -36,7 +36,6 @@
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDescription.h"
 #include "hipacc/Rewrite/Rewrite.h"
-#include "jsoncpp/json/json.h"
 
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>
@@ -230,39 +229,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
       }
       compilerOptions.setKernelConfig(x, y);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-use-lconfig") {
-      assert(i<(argc-1) && "Mandatory local configuration file for -use-lconfig switch missing.");
-      if (StringRef(argv[i+1]) == "on") {
-        std::ifstream ifs("src/config.json");
-        assert(ifs.is_open() && "config.json missing for local config.\n\n");
-        Json::Reader reader;
-        Json::Value obj;
-        reader.parse(ifs, obj);
-        const Json::Value& characters = obj["kernels"];
-        for (unsigned i=0; i<characters.size(); i++) {
-          std::string kernelName = characters[i]["name"].asString();
-          SKernelLocalConfig *KConfig = new SKernelLocalConfig;
-          KConfig->kernel_fusibility = (characters[i]["fusibility"].asString() == "off") ? false : true;
-          int x=0, y=0, ret=0;
-          std::string kernelConfigStr = characters[i]["config"].asString();
-          ret = sscanf(kernelConfigStr.c_str(), "%dx%d", &x, &y);
-          if (ret!=2) {
-            llvm::errs() << "ERROR: Expected valid configuration specification for -use-lconfig.\n\n";
-            printUsage();
-            return EXIT_FAILURE;
-          }
-          KConfig->kernel_config_x = x;
-          KConfig->kernel_config_y = y;
-          compilerOptions.setKernelLocalConfig(kernelName, KConfig);
-        }
-      } else if (!(StringRef(argv[i+1]) == "off")) {
-        llvm::errs() << "ERROR: Expected valid configuration specification for -use-lconfig switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
       ++i;
       continue;
     }

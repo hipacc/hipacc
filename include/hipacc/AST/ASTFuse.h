@@ -145,13 +145,13 @@ class ASTFuse {
         for (auto PBN : fusibleSetNames) { // block level
           listCnt = 0;
           std::list<HipaccKernel*> kl;
-          for (auto sL : PBN) {              // list level 
+          for (auto sL : PBN) {              // list level
             auto pos = std::make_tuple(blockCnt, listCnt);
             auto nam = sL.front();
             FusibleKernelBlockLocation[nam] = pos;
             listCnt++;
           }
-          fusibleKernelSet.push_back(kl); 
+          fusibleKernelSet.push_back(kl);
           blockCnt++;
         }
       }

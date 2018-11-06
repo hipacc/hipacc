@@ -309,7 +309,6 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *>& l) {
     ASTTranslate *Hipacc = new ASTTranslate(Ctx, kernelDecl, K, KC,
         builtins, compilerOptions);
 
-    // TODO, enable the composition of multiple fusions
     // domain-specific translation and fusion
     switch(KTag->Point2PointLoc) {
       default: break;
@@ -340,7 +339,6 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *>& l) {
         createReg4FusionVarDecl(KC->getOutField()->getType());
         Hipacc->setFusionP2PSrcOperator(fusionRegVarDecls.back());
         curFusionBody = Hipacc->Hipacc(KC->getKernelFunction()->getBody());
-
         if (dataDeps->hasSharedIS(K)) {
           fusionRegSharedStmts.push_back(Hipacc->getFusionSharedInputStmt(regVDSImg));
         }
@@ -438,122 +436,16 @@ void ASTFuse::HipaccFusion(std::list<HipaccKernel *>& l) {
 }
 
 void ASTFuse::setFusedKernelConfiguration(std::list<HipaccKernel *>& l) {
-//  #ifdef USE_JIT_ESTIMATE
-//  HipaccFusion(l);
-//  printFusedKernelFunction(l); // write fused kernel to file
-//
-//  // JIT compile kernel in order to get resource usage
-//  std::string command = (l.back())->getCompileCommand(fusedKernelName,
-//      fusedFileName, compilerOptions.emitCUDA());
-//
-//  int reg=0, lmem=0, smem=0, cmem=0;
-//  char line[FILENAME_MAX];
-//  SmallVector<std::string, 16> lines;
-//  FILE *fpipe;
-//
-//  if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
-//    perror("Problems with pipe");
-//    exit(EXIT_FAILURE);
-//  }
-//
-//  while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
-//    lines.push_back(std::string(line));
-//
-//    if (targetDevice.isNVIDIAGPU()) {
-//      char *ptr = line;
-//      char mem_type = 'x';
-//      int val1 = 0, val2 = 0;
-//
-//      if (sscanf(ptr, "%d bytes %1c tack frame", &val1, &mem_type) == 2) {
-//        if (mem_type == 's') {
-//          lmem = val1;
-//          continue;
-//        }
-//      }
-//
-//      if (sscanf(line, "ptxas info : Used %d registers", &reg) == 0)
-//        continue;
-//
-//      while ((ptr = strchr(ptr, ','))) {
-//        ptr++;
-//
-//        if (sscanf(ptr, "%d+%d bytes %1c mem", &val1, &val2, &mem_type) == 3) {
-//          switch (mem_type) {
-//            default: llvm::errs() << "wrong memory specifier '" << mem_type
-//                                  << "': " << ptr; break;
-//            case 'c': cmem += val1 + val2; break;
-//            case 'l': lmem += val1 + val2; break;
-//            case 's': smem += val1 + val2; break;
-//          }
-//          continue;
-//        }
-//
-//        if (sscanf(ptr, "%d bytes %1c mem", &val1, &mem_type) == 2) {
-//          switch (mem_type) {
-//            default: llvm::errs() << "wrong memory specifier '" << mem_type
-//                                  << "': " << ptr; break;
-//            case 'c': cmem += val1; break;
-//            case 'l': lmem += val1; break;
-//            case 's': smem += val1; break;
-//          }
-//          continue;
-//        }
-//
-//        if (sscanf(ptr, "%d texture %1c", &val1, &mem_type) == 2)
-//          continue;
-//        if (sscanf(ptr, "%d sampler %1c", &val1, &mem_type) == 2)
-//          continue;
-//        if (sscanf(ptr, "%d surface %1c", &val1, &mem_type) == 2)
-//          continue;
-//
-//        // no match found
-//        llvm::errs() << "Unexpected memory usage specification: '" << ptr;
-//      }
-//    } else if (targetDevice.isAMDGPU()) {
-//      sscanf(line, "isa info : Used %d gprs, %d bytes lds", &reg, &smem);
-//    }
-//  }
-//  pclose(fpipe);
-//
-//  if (reg == 0) {
-//    unsigned DiagIDCompile = Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-//        "Compiling kernel in file '%0.%1' failed, using default kernel configuration:\n%2");
-//    Diags.Report(DiagIDCompile)
-//      << fusedFileName << (const char*)(compilerOptions.emitCUDA()?"cu":"cl")
-//      << command.c_str();
-//    for (auto line : lines)
-//      llvm::errs() << line;
-//  } else {
-//    if (targetDevice.isNVIDIAGPU()) {
-//      llvm::errs() << "Resource usage for kernel '" << fusedKernelName << "'"
-//                   << ": " << reg << " registers, "
-//                   << lmem << " bytes lmem, "
-//                   << smem << " bytes smem, "
-//                   << cmem << " bytes cmem\n";
-//    } else if (targetDevice.isAMDGPU()) {
-//      llvm::errs() << "Resource usage for kernel '" << fusedKernelName << "'"
-//                   << ": " << reg << " gprs, "
-//                   << smem << " bytes lds\n";
-//    }
-//  }
-//
-//  for (auto K : l) {
-//    K->updateFusionSizeX(std::get<1>(localKernelMaxAccSizeUpdated));
-//    K->updateFusionSizeY(std::get<1>(localKernelMaxAccSizeUpdated));
-//    K->setResourceUsage(reg, lmem, smem, cmem);
-//  }
-//  #else
   for (auto K : l) {
     K->setDefaultConfig();
   }
-//  #endif
 }
 
 
 bool ASTFuse::parseFusibleKernel(HipaccKernel *K) {
   if (!dataDeps->isFusible(K)) { return false; }
 
-  // prepare fusible kernel set 
+  // prepare fusible kernel set
   unsigned blockCnt, listCnt;
   std::string kernelName = K->getKernelClass()->getName() + K->getName();
   assert(FusibleKernelBlockLocation.count(kernelName) && "Kernel name has no record");
@@ -568,7 +460,7 @@ bool ASTFuse::parseFusibleKernel(HipaccKernel *K) {
     PBl.sort([&](HipaccKernel *ka, HipaccKernel *kb){
         std::string kaNam = ka->getKernelClass()->getName() + ka->getName();
         std::string kbNam = kb->getKernelClass()->getName() + kb->getName();
-        return std::none_of(PBNam.begin(), PBNam.end(), [&](std::list<std::string> ls){return ls.front() == kbNam && 
+        return std::none_of(PBNam.begin(), PBNam.end(), [&](std::list<std::string> ls){return ls.front() == kbNam &&
                std::find(ls.begin(), ls.end(), kaNam) != ls.end();});
         });
     fusibleKernelSet[blockCnt] = PBl;
@@ -588,7 +480,7 @@ bool ASTFuse::isSrcKernel(HipaccKernel *K) {
   return fusibleKernelSet[blockCnt].front() == K;
 }
 
-bool ASTFuse::isDestKernel(HipaccKernel *K) { 
+bool ASTFuse::isDestKernel(HipaccKernel *K) {
   unsigned blockCnt, listCnt;
   std::string kernelName = K->getKernelClass()->getName() + K->getName();
   assert(FusibleKernelBlockLocation.count(kernelName) && "Kernel name has no record");
@@ -603,7 +495,7 @@ HipaccKernel *ASTFuse::getProducerKernel(HipaccKernel *K) {
   std::tie(blockCnt, listCnt) = FusibleKernelBlockLocation[kernelName];
   auto PBl = fusibleKernelSet[blockCnt];
   auto it = std::find(PBl.begin(), PBl.end(), K);
-  return (it == PBl.begin()) ? nullptr : *std::prev(it); 
+  return (it == PBl.begin()) ? nullptr : *std::prev(it);
 }
 
 SmallVector<std::string, 16> ASTFuse::getFusedFileNamesAll() const {
@@ -811,7 +703,6 @@ void ASTFuse::printFusedKernelFunction(std::list<HipaccKernel *>& l) {
       break;
     case Language::CUDA:
       OS << "__global__ ";
-      // TODO, configure the fused kernel, currently use the destination kernel config
       //if (compilerOptions.exploreConfig() && emitHints) {
       //  OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";
       //} else {

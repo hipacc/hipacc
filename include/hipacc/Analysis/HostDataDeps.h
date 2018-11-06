@@ -140,12 +140,10 @@ class HostDataDeps : public ManagedAnalysis {
     std::vector<Process*> fusibleProcesses_;
     llvm::DenseMap<RecordDecl *, HipaccKernelClass *> KernelClassDeclMap;
 
-    // KF
     std::map<Process *, std::list<Process*> *> FusibleKernelListsMap;
     std::map<Process *, unsigned> FusibleProcessListSizeFinalMap;
     std::vector<std::list<Process*> *> vecFusibleKernelLists;
 
-    // TODO: new stuff
     using partitionBlock = std::vector<std::list<Process*> *>;
     using partitionBlockNames = std::vector<std::list<std::string>>;
     partitionBlock applicationGraph;
@@ -154,15 +152,15 @@ class HostDataDeps : public ManagedAnalysis {
     using edgeWeight = std::map<std::pair<Process *, Process *>, unsigned>;
     edgeWeight edgeWeightMap_;
 
-
     // TODO, move to device*.h
     const unsigned GAMMA = 1;
     const unsigned EPSILON = 1;
-    const unsigned TG = 400;
-    const unsigned TS = 4;
-    const unsigned CALU = 4;
+    const unsigned TG = 800;
+    const unsigned TS = 2;
+    const unsigned CALU = 2;
     const unsigned CSFU = 16;
     const unsigned CMS = 2;
+    float CMSf = 1.5;
 
     // inner class definitions
     class IterationSpace {
@@ -394,7 +392,7 @@ class HostDataDeps : public ManagedAnalysis {
         Kernel *kernel;
         Space *outSpace;
         std::vector<Space*> inSpaces;
-        // todo 
+        // todo
         Process* readDependentProcess;
         Process* writeDependentProcess;
 
