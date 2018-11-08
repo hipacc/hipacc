@@ -62,10 +62,6 @@ git clone --branch <rev> http://llvm.org/git/llvm.git
 # Get Clang
 cd <SRC>/llvm/tools
 git clone --branch <rev> http://llvm.org/git/clang.git
-
-# Apply patches if present
-cd <SRC>/llvm/tools/clang
-git apply <SRC>/hipacc/patches/clang-<rev>.patch
 ```
 
 ### Compile the Sources
