@@ -841,16 +841,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       switch (compilerOptions.getTargetLang()) {
         default: break;
         case Language::CUDA:
-#ifndef _WIN32
-          // generates GNU style attributes, which are not supported by MSVC
-          VD = createVarDecl(Ctx, DC, sharedName, QT, nullptr);
-          VD->addAttr(CUDASharedAttr::CreateImplicit(Ctx));
-#else // _WIN32
-          // needs patching clang (line 1685 in 'lib\AST\TypePrinter.cpp')
-          // because of missing trailing underscores
           VD = createVarDecl(Ctx, DC, sharedName, Ctx.getAddrSpaceQualType(QT,
                 LangAS::cuda_shared), nullptr);
-#endif // _WIN32
           break;
         case Language::OpenCLACC:
         case Language::OpenCLCPU:

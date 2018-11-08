@@ -2262,6 +2262,13 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case Language::CUDA:
       OS << "#include \"hipacc_types.hpp\"\n"
          << "#include \"hipacc_math_functions.hpp\"\n\n";
+      // TODO: remove when fixed upstream
+      // https://reviews.llvm.org/D54258
+      OS << "#ifndef __shared\n"
+         << "#define __device __device__\n"
+         << "#define __constant __constant__\n"
+         << "#define __shared __shared__\n"
+         << "#endif\n\n";
       break;
     case Language::Renderscript:
     case Language::Filterscript:
