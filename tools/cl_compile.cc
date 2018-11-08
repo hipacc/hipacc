@@ -31,7 +31,7 @@
 #include <algorithm>
 #include <iostream>
 
-#ifdef WIN32
+#ifdef _WIN32
 # include <io.h>
 # define popen(x,y)    _popen(x,y)
 # define pclose(x)     _pclose(x)
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     std::string build_includes = "";
     bool found_kernel_name = false, found_file_name = false, print_compile_progress = false, dump_binary = false, print_log = true;
 
-#ifndef WIN32
+#ifndef _WIN32
     // scan command-line options
     while ((option = getopt(argc, (char * const *)argv, "hd:p:k:f:i:")) != -1) {
         switch (option) {

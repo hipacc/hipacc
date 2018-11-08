@@ -35,7 +35,7 @@
 #include "hipacc_base_standalone.hpp"
 
 
-#ifdef WIN32
+#ifdef _WIN32
 # include <io.h>
 # define popen(x,y)     _popen(x,y)
 # define pclose(x)      _pclose(x)

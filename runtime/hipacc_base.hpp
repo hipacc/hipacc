@@ -39,7 +39,7 @@
 
 #define HIPACC_NUM_ITERATIONS 10
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 # define setenv(a,b,c) _putenv_s(a,b)
 #endif
 

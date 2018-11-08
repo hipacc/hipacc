@@ -51,10 +51,11 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 # include <io.h>
-# define popen(x,y)    _popen(x,y)
-# define pclose(x)     _pclose(x)
+# define popen(x,y) _popen(x,y)
+# define pclose(x)  _pclose(x)
+# define fsync(x)
 #else
 # include <unistd.h>
 #endif
@@ -2664,9 +2665,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   OS << "#endif //" + ifdef + "\n";
   OS << "\n";
   OS.flush();
-#ifndef WIN32
   fsync(fd);
-#endif
   close(fd);
 }
 
