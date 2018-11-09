@@ -171,6 +171,7 @@ int main(int argc, char *argv[]) {
       assert(i<(argc-1) && "Mandatory code name parameter for -target switch missing.");
 
       if (!compilerOptions.emitCUDA() &&
+          !compilerOptions.emitOpenCLACC() &&
           !compilerOptions.emitOpenCLGPU() &&
           !compilerOptions.emitRenderscript() &&
           !compilerOptions.emitFilterscript()) {
@@ -376,7 +377,7 @@ int main(int argc, char *argv[]) {
   if (compilerOptions.emitOpenCLCPU() && compilerOptions.useTextureMemory(USER_ON)) {
       llvm::errs() << "Warning: image support is only available on some CPU devices!\n";
   }
-  // Textures in OpenCL - only supported on some CPU platforms
+  // Textures in OpenCL - only supported on GPU & some CPU platforms
   if (compilerOptions.emitOpenCLACC() && compilerOptions.useTextureMemory(USER_ON)) {
       llvm::errs() << "ERROR: image support is not available on ACC devices!\n\n";
       printUsage();
