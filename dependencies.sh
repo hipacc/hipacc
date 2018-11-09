@@ -3,7 +3,7 @@ llvm_revision=release_60
 compiler_rt_revision=release_60
 libcxx_revision=release_60
 polly_revision=release_60
-ndk_version=android-ndk-r17
+ndk_version=android-ndk-r18
 
 clang_repository=http://llvm.org/git/clang.git
 llvm_repository=http://llvm.org/git/llvm.git
