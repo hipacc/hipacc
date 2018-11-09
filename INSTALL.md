@@ -51,7 +51,7 @@ directory `<SRC>`:
 cd <SRC>
 
 # Get Hipacc
-git clone https://github.com/hipacc/hipacc.git
+git clone --recursive https://github.com/hipacc/hipacc.git
 
 # Get libc++
 git clone --branch <rev> https://llvm.org/git/libcxx.git
