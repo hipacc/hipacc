@@ -54,14 +54,14 @@ cd <SRC>
 git clone https://github.com/hipacc/hipacc.git
 
 # Get libc++
-git clone --branch <rev> http://llvm.org/git/libcxx.git
+git clone --branch <rev> https://llvm.org/git/libcxx.git
 
 # Get LLVM
-git clone --branch <rev> http://llvm.org/git/llvm.git
+git clone --branch <rev> https://llvm.org/git/llvm.git
 
 # Get Clang
 cd <SRC>/llvm/tools
-git clone --branch <rev> http://llvm.org/git/clang.git
+git clone --branch <rev> https://llvm.org/git/clang.git
 ```
 
 ### Compile the Sources
