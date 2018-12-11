@@ -211,7 +211,6 @@ int main(int argc, char *argv[]) {
   HipaccDevice targetDevice(compilerOptions);
 
 
-  // Sanity check - Invalid specification for kernel configuration
   if (compilerOptions.useKernelConfig(USER_ON) && !compilerOptions.emitC99()) {
     if (compilerOptions.getKernelConfigX()*compilerOptions.getKernelConfigY() >
         (int)targetDevice.max_threads_per_block) {

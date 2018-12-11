@@ -34,7 +34,7 @@
 #include <iostream>
 #include <sstream>
 
-#ifndef WIN32
+#ifndef _WIN32
 # include <unistd.h>
 #endif
 
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     cl_platform_name platform_name = ALL;
     size_t memory_size = 64*(1 << 20);      //64 M
 
-#ifndef WIN32
+#ifndef _WIN32
     // scan command-line options
     while ((option = getopt(argc, (char * const *)argv, "hd:p:s:")) != -1) {
         switch (option) {

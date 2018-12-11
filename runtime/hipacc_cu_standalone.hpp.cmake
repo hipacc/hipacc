@@ -35,7 +35,7 @@
 #include "hipacc_base_standalone.hpp"
 
 
-#ifdef WIN32
+#ifdef _WIN32
 # include <io.h>
 # define popen(x,y)     _popen(x,y)
 # define pclose(x)      _pclose(x)
@@ -217,7 +217,7 @@ void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 grid, 
     cudaError_t err = cudaLaunchKernel(kernel, grid, block, args, 0, 0);
     checkErr(err, "cudaLaunchKernel(" + kernel_name + ")");
 
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     err = cudaGetLastError();
     checkErr(err, "cudaLaunchKernel(" + kernel_name + ")");
 

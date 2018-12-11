@@ -51,21 +51,17 @@ directory `<SRC>`:
 cd <SRC>
 
 # Get Hipacc
-git clone https://github.com/hipacc/hipacc.git
+git clone --recursive https://github.com/hipacc/hipacc.git
 
 # Get libc++
-git clone --branch <rev> http://llvm.org/git/libcxx.git
+git clone --branch <rev> https://llvm.org/git/libcxx.git
 
 # Get LLVM
-git clone --branch <rev> http://llvm.org/git/llvm.git
+git clone --branch <rev> https://llvm.org/git/llvm.git
 
 # Get Clang
 cd <SRC>/llvm/tools
-git clone --branch <rev> http://llvm.org/git/clang.git
-
-# Apply patches if present
-cd <SRC>/llvm/tools/clang
-git apply <SRC>/hipacc/patches/clang-<rev>.patch
+git clone --branch <rev> https://llvm.org/git/clang.git
 ```
 
 ### Compile the Sources

@@ -52,10 +52,11 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 # include <io.h>
-# define popen(x,y)    _popen(x,y)
-# define pclose(x)     _pclose(x)
+# define popen(x,y) _popen(x,y)
+# define pclose(x)  _pclose(x)
+# define fsync(x)
 #else
 # include <unistd.h>
 #endif
@@ -2250,6 +2251,13 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case Language::CUDA:
       OS << "#include \"hipacc_types.hpp\"\n"
          << "#include \"hipacc_math_functions.hpp\"\n\n";
+      // TODO: remove when fixed upstream
+      // https://reviews.llvm.org/D54258
+      OS << "#ifndef __shared\n"
+         << "#define __device __device__\n"
+         << "#define __constant __constant__\n"
+         << "#define __shared __shared__\n"
+         << "#endif\n\n";
       break;
     case Language::Renderscript:
     case Language::Filterscript:
@@ -2660,9 +2668,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   OS << "#endif //" + ifdef + "\n";
   OS << "\n";
   OS.flush();
-#ifndef WIN32
   fsync(fd);
-#endif
   close(fd);
 }
 
