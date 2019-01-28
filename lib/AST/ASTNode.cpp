@@ -319,7 +319,7 @@ WhileStmt *createWhileStmt(ASTContext &Ctx, VarDecl *Var, Expr *Cond, Stmt
 UnaryOperator *createUnaryOperator(ASTContext &Ctx, Expr *input,
     UnaryOperator::Opcode opc, QualType type) {
   return new (Ctx) UnaryOperator(input, opc, type, VK_RValue, OK_Ordinary,
-      SourceLocation());
+      SourceLocation(), false);
 }
 
 

@@ -524,6 +524,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *VisitPredefinedExpr(PredefinedExpr *E);
     Expr *VisitDeclRefExpr(DeclRefExpr *E);
     Expr *VisitIntegerLiteral(IntegerLiteral *E);
+    Expr *VisitFixedPointLiteral(FixedPointLiteral *E);
     Expr *VisitFloatingLiteral(FloatingLiteral *E);
     Expr *VisitImaginaryLiteral(ImaginaryLiteral *E);
     Expr *VisitStringLiteral(StringLiteral *E);

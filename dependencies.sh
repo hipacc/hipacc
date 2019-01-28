@@ -1,8 +1,8 @@
-clang_revision=release_60
-llvm_revision=release_60
-compiler_rt_revision=release_60
-libcxx_revision=release_60
-polly_revision=release_60
+clang_revision=release_70
+llvm_revision=release_70
+compiler_rt_revision=release_70
+libcxx_revision=release_70
+polly_revision=release_70
 ndk_version=android-ndk-r18
 
 clang_repository=http://llvm.org/git/clang.git

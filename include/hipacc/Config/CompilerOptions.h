@@ -41,8 +41,8 @@
 
 #include <string>
 
-#if CLANG_VERSION_MAJOR != 6
-#error "Clang Version 6.x required!"
+#if CLANG_VERSION_MAJOR != 7
+#error "Clang Version 7.x required!"
 #endif
 
 namespace clang {

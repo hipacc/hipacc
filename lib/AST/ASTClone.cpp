@@ -287,6 +287,15 @@ Expr *ASTTranslate::VisitIntegerLiteral(IntegerLiteral *E) {
   return result;
 }
 
+Expr *ASTTranslate::VisitFixedPointLiteral(FixedPointLiteral *E) {
+  Expr *result = FixedPointLiteral::CreateFromRawInt(Ctx, E->getValue(),
+      E->getType(), E->getLocation(), Ctx.getFixedPointScale(E->getType()));
+
+  setExprPropsClone(E, result);
+
+  return result;
+}
+
 Expr *ASTTranslate::VisitFloatingLiteral(FloatingLiteral *E) {
   Expr *result = FloatingLiteral::Create(Ctx, E->getValue(), E->isExact(),
       E->getType(), E->getLocation());
@@ -338,7 +347,8 @@ Expr *ASTTranslate::VisitParenExpr(ParenExpr *E) {
 
 Expr *ASTTranslate::VisitUnaryOperator(UnaryOperator *E) {
   Expr *result = new (Ctx) UnaryOperator(Clone(E->getSubExpr()), E->getOpcode(),
-      E->getType(), E->getValueKind(), E->getObjectKind(), E->getOperatorLoc());
+      E->getType(), E->getValueKind(), E->getObjectKind(), E->getOperatorLoc(),
+      E->canOverflow());
 
   setExprPropsClone(E, result);
 
