@@ -178,14 +178,10 @@ Expr *ASTTranslate::getInitExpr(Reduce mode, QualType QT) {
   }
 
   if (isVecType) {
-    SmallVector<Expr *, 16> initExprs;
-    unsigned lanes = QT->getAs<VectorType>()->getNumElements();
+    auto lanes = QT->getAs<VectorType>()->getNumElements();
+    SmallVector<Expr *, 16> init_exprs(lanes, initExpr);
 
-    for (unsigned i=0, e=lanes; i!=e; ++i) {
-      initExprs.push_back(initExpr);
-    }
-
-    result = new (Ctx) InitListExpr(Ctx, SourceLocation(), initExprs,
+    result = new (Ctx) InitListExpr(Ctx, SourceLocation(), init_exprs,
         SourceLocation());
     result->setType(QT);
   } else {
