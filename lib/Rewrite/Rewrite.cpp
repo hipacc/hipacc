@@ -1384,6 +1384,13 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   // j) Pyr(x) = Acc;
   // k) Pyr(x) = Pyr(x);
   // l) Domain(x, y) = literal; (return type of ()-operator is DomainSetter)
+
+  auto skip_mte = [&] (Expr *expr) -> Expr * {
+    if (auto mte = dyn_cast<MaterializeTemporaryExpr>(expr))
+      return mte->GetTemporaryExpr();
+    return expr;
+  };
+
   if (E->getOperator() == OO_Equal) {
     if (E->getNumArgs() != 2)
       return true;
@@ -1405,7 +1412,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       if (AccDeclMap.count(DRE->getDecl())) {
         AccLHS = AccDeclMap[DRE->getDecl()];
       }
-    } else if (auto call = dyn_cast<CXXOperatorCallExpr>(E->getArg(0))) {
+    } else if (auto call = dyn_cast<CXXOperatorCallExpr>(skip_mte(E->getArg(0)))) {
       // check if we have an Pyramid or Domain call at the LHS
       if (auto DRE = dyn_cast<DeclRefExpr>(call->getArg(0))) {
         // get the Pyramid from the DRE if we have one
