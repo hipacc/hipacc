@@ -1317,8 +1317,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
               Context.getTranslationUnitDecl(), K->getKernelName(),
               Context.VoidTy, K->getArgTypes(), K->getDeviceArgNames());
 
-          // write CUDA/OpenCL kernel function to file clone old body,
-          // replacing member variables
+          // translate kernel function, replaces member variables
           ASTTranslate *Hipacc = new ASTTranslate(Context, kernelDecl, K, KC,
               builtins, compilerOptions);
           Stmt *kernelStmts =

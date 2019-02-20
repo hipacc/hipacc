@@ -633,47 +633,16 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     }
   }
 
-  // in case no stride was found, use image width as fallback
-  for (auto img : KernelClass->getImgFields()) {
-    HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
-
-    if (Acc->getStrideDecl() == nullptr) {
-      Acc->setStrideDecl(Acc->getWidthDecl());
-    }
-  }
-
-  // initialize target-specific variables and add gid_x and gid_y declarations
-  // to kernel body
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
   SmallVector<Stmt *, 16> kernelBody;
-  FunctionDecl *barrier;
-  switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
-      initCPU(kernelBody, S);
-      return createCompoundStmt(Ctx, kernelBody);
-      break;
-    case Language::CUDA:
-      initCUDA(kernelBody);
-      // void __syncthreads();
-      barrier = builtins.getBuiltinFunction(CUDABI__syncthreads);
-      break;
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
-      initOpenCL(kernelBody);
-      // void barrier(cl_mem_fence_flags);
-      barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      initRenderscript(kernelBody);
-      break;
-  }
-  lidYRef = tileVars.local_id_y;
-  gidYRef = tileVars.global_id_y;
 
+  // set stride and scale factor for images
   for (auto img : KernelClass->getImgFields()) {
     HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
+
+    // in case no stride was found, use image width as fallback
+    if (Acc->getStrideDecl() == nullptr)
+      Acc->setStrideDecl(Acc->getWidthDecl());
 
     // add scale factor calculations for interpolation:
     // float acc_scale_x = (float)acc_width/is_width;
@@ -699,6 +668,33 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       Acc->setScaleYDecl(createDeclRefExpr(Ctx, scaleDeclY));
     }
   }
+
+  // initialize target-specific variables, add gid_x and gid_y declarations
+  FunctionDecl *barrier;
+  switch (compilerOptions.getTargetLang()) {
+    case Language::C99:
+      initCPU(kernelBody, S);
+      return createCompoundStmt(Ctx, kernelBody);
+      break;
+    case Language::CUDA:
+      initCUDA(kernelBody);
+      // void __syncthreads();
+      barrier = builtins.getBuiltinFunction(CUDABI__syncthreads);
+      break;
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
+      initOpenCL(kernelBody);
+      // void barrier(cl_mem_fence_flags);
+      barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
+      break;
+    case Language::Renderscript:
+    case Language::Filterscript:
+      initRenderscript(kernelBody);
+      break;
+  }
+  lidYRef = tileVars.local_id_y;
+  gidYRef = tileVars.global_id_y;
 
   // clear all stored decls before cloning, otherwise existing VarDecls will
   // be reused and we will miss declarations
