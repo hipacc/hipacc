@@ -457,7 +457,6 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
       break;
     case Method::Iterate:
       redDomains.pop_back();
-      redTmps.pop_back();
       break;
   }
 
