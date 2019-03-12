@@ -815,8 +815,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         llvm::APInt SX, SY;
         SX = llvm::APInt(32, Kernel->getNumThreadsX());
         if (Acc->getSizeX() > 1) {
-          // 3*BSX
-          SX *= llvm::APInt(32, 3);
+          SX = (compilerOptions.allowMisAlignedAccess()) ?
+            SX + llvm::APInt(32, static_cast<int32_t>(Acc->getSizeX()/2)) * llvm::APInt(32, 2) :
+            SX * llvm::APInt(32, 3);
         }
         // add padding to avoid bank conflicts
         SX += llvm::APInt(32, 1);
@@ -2073,6 +2074,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
     if (acc->getSizeX() > 1) {
       if (compilerOptions.exploreConfig()) {
         TX = tileVars.local_size_x;
+      } else if (compilerOptions.allowMisAlignedAccess()) {
+        TX = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeX()/2));
       } else {
         TX = createIntegerLiteral(Ctx,
             static_cast<int>(Kernel->getNumThreadsX()));
