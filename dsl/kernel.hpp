@@ -113,7 +113,9 @@ class Kernel {
         }
 
         void reduce() {
-            if (!executed_)
+            if (executed_)
+                hipacc_last_timing = 0.0f;
+            else
                 execute();
 
             if (!reduced_) {
@@ -127,8 +129,11 @@ class Kernel {
                 data_t result = output_();
 
                 // apply reduction for remaining iteration space
+                auto start_time = hipacc_time_micro();
                 while (++iter != end)
                     result = reduce(result, output_());
+                auto end_time = hipacc_time_micro();
+                hipacc_last_timing += (float)(end_time - start_time)/1000.0f;
 
                 // de-register output accessor
                 output_.set_iterator(nullptr);
@@ -147,7 +152,9 @@ class Kernel {
         }
 
         bin_t* binned_data(const unsigned int bin_size) {
-            if (!executed_)
+            if (executed_)
+                hipacc_last_timing = 0.0f;
+            else
                 execute();
 
             num_bins_ = bin_size;
@@ -161,6 +168,7 @@ class Kernel {
             bin_t *binned_result = new bin_t[bin_size]();
 
             // apply binning for whole iteration space
+            auto start_time = hipacc_time_micro();
             while (iter != end) {
                 binning(x(), y(), output_());
 
@@ -170,6 +178,8 @@ class Kernel {
 
                 ++iter;
             }
+            auto end_time = hipacc_time_micro();
+            hipacc_last_timing += (float)(end_time - start_time)/1000.0f;
 
             // de-register output accessor
             output_.set_iterator(nullptr);
