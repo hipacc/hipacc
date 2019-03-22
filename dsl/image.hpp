@@ -29,6 +29,7 @@
 #define __IMAGE_HPP__
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 
 #include "iterationspace.hpp"

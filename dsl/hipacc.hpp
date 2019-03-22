@@ -24,18 +24,12 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#ifndef __HIPACC_HPP__
+#define __HIPACC_HPP__
 
 #ifdef _WIN32
 # define NOMINMAX
 #endif
-
-
-#include <cassert>
-#include <chrono>
-
-namespace hipacc {
-float hipacc_last_timing = 0.0f;
-}
 
 // include all other Hipacc headers
 #include "types.hpp"
@@ -47,10 +41,8 @@ float hipacc_last_timing = 0.0f;
 #include "pyramid.hpp"
 
 namespace hipacc {
-float hipacc_last_kernel_timing() {
-    return hipacc_last_timing;
-}
-
 class HipaccEoP{};
 } // end namespace hipacc
+
+#endif // __HIPACC_HPP__
 

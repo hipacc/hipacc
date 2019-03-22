@@ -28,13 +28,20 @@
 #ifndef __KERNEL_HPP__
 #define __KERNEL_HPP__
 
+#include <cassert>
+#include <chrono>
 #include <vector>
 
 #include "iterationspace.hpp"
 
 namespace hipacc {
 
-int64_t hipacc_time_micro() {
+float hipacc_last_timing = 0.0f;
+float hipacc_last_kernel_timing() {
+    return hipacc_last_timing;
+}
+
+inline int64_t hipacc_time_micro() {
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 
@@ -199,7 +206,7 @@ class Kernel {
         }
 
         unsigned int num_bins() const {
-          return num_bins_;
+            return num_bins_;
         }
 
         // built-in functions: convolve, iterate, and reduce
@@ -287,6 +294,7 @@ void Kernel<data_t, bin_t>::iterate(Domain &domain, const Function &fun) {
     // de-register domain
     domain.set_iterator(nullptr);
 }
+
 } // end namespace hipacc
 
 #endif // __KERNEL_HPP__

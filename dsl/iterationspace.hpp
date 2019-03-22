@@ -31,6 +31,7 @@
 #include "image.hpp"
 
 namespace hipacc {
+
 // forward declaration
 template<typename data_t> class Image;
 
@@ -138,6 +139,7 @@ class IterationSpace : public IterationSpaceBase {
 
 // provide shortcut for ElementIterator
 using ElementIterator = IterationSpaceBase::ElementIterator;
+
 } // end namespace hipacc
 
 #endif // __ITERATIONSPACE_HPP__
