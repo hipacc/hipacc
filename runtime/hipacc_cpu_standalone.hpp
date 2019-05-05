@@ -54,8 +54,8 @@ HipaccImageCPU::~HipaccImageCPU() {
     delete[] mem;
 }
 
-long start_time = 0L;
-long end_time = 0L;
+int64_t start_time = 0;
+int64_t end_time = 0;
 
 void hipaccStartTiming() {
     start_time = hipacc_time_micro();

@@ -47,8 +47,8 @@ class HipaccImageCPU : public HipaccImageBase {
         ~HipaccImageCPU();
 };
 
-extern long start_time;
-extern long end_time;
+extern int64_t start_time;
+extern int64_t end_time;
 
 
 void hipaccStartTiming();
