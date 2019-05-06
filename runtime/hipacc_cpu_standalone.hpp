@@ -63,10 +63,10 @@ void hipaccStartTiming() {
 
 void hipaccStopTiming() {
     end_time = hipacc_time_micro();
-    last_gpu_timing = (end_time - start_time) * 1.0e-3f;
+    hipacc_last_timing = (end_time - start_time) * 1.0e-3f;
 
     std::cerr << "<HIPACC:> Kernel timing: "
-              << last_gpu_timing << "(ms)" << std::endl;
+              << hipacc_last_timing << "(ms)" << std::endl;
 }
 
 

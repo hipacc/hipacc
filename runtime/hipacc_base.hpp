@@ -43,8 +43,7 @@
 # define setenv(a,b,c) _putenv_s(a,b)
 #endif
 
-extern float last_gpu_timing;
-
+extern float hipacc_last_timing;
 float hipacc_last_kernel_timing();
 int64_t hipacc_time_micro();
 unsigned int nextPow2(unsigned int x);

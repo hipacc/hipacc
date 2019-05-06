@@ -358,7 +358,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
             }
 
             hipaccLaunchKernel(exploreReduction2D, global_work_size, local_work_size, false);
-            float total_time = last_gpu_timing;
+            float total_time = hipacc_last_timing;
 
             // second step: reduce partial blocks on GPU
             global_work_size[1] = 1;
@@ -373,7 +373,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
                 hipaccSetKernelArg(exploreReduction1D, 3, sizeof(unsigned int), &ppt);
 
                 hipaccLaunchKernel(exploreReduction1D, global_work_size, local_work_size, false);
-                total_time += last_gpu_timing;
+                total_time += hipacc_last_timing;
 
                 num_blocks = global_work_size[0]/local_work_size[0];
             }
@@ -381,17 +381,17 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
         }
 
         std::sort(times.begin(), times.end());
-        last_gpu_timing = times[times.size()/2];
+        hipacc_last_timing = times[times.size()/2];
 
-        if (last_gpu_timing < opt_time) {
-            opt_time = last_gpu_timing;
+        if (hipacc_last_timing < opt_time) {
+            opt_time = hipacc_last_timing;
             opt_ppt = ppt;
         }
 
         // print timing
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
-                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                   << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
 
         // release kernels
@@ -400,7 +400,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
         err = clReleaseKernel(exploreReduction1D);
         checkErr(err, "clReleaseKernel()");
     }
-    last_gpu_timing = opt_time;
+    hipacc_last_timing = opt_time;
     std::cerr << "<HIPACC:> Best unroll factor for reduction kernel '"
               << kernel2D << "/" << kernel1D << "': "
               << opt_ppt << ": " << opt_time << " ms" << std::endl;

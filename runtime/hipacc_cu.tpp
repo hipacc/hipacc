@@ -478,7 +478,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
             } else {
                 hipaccLaunchKernel(exploreReduction2D, kernel2D, grid, block, argsReduction2D, false);
             }
-            float total_time = last_gpu_timing;
+            float total_time = hipacc_last_timing;
 
 
             // second step: reduce partial blocks on GPU
@@ -496,7 +496,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
                 };
 
                 hipaccLaunchKernel(exploreReduction1D, kernel1D, grid, block, argsReduction1D, false);
-                total_time += last_gpu_timing;
+                total_time += hipacc_last_timing;
 
                 num_blocks = grid.x;
             }
@@ -504,24 +504,24 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
         }
 
         std::sort(times.begin(), times.end());
-        last_gpu_timing = times[times.size()/2];
+        hipacc_last_timing = times[times.size()/2];
 
-        if (last_gpu_timing < opt_time) {
-            opt_time = last_gpu_timing;
+        if (hipacc_last_timing < opt_time) {
+            opt_time = hipacc_last_timing;
             opt_ppt = ppt;
         }
 
         // print timing
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
-                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                   << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
 
         // cleanup
         CUresult err = cuModuleUnload(modReduction);
         checkErrDrv(err, "cuModuleUnload()");
     }
-    last_gpu_timing = opt_time;
+    hipacc_last_timing = opt_time;
     std::cerr << "<HIPACC:> Best unroll factor for reduction kernel '"
               << kernel2D << "/" << kernel1D << "': "
               << opt_ppt << ": " << opt_time << " ms" << std::endl;
