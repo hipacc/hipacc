@@ -113,6 +113,24 @@ elseif(MSVC)
 endif()
 # from LLVM CMake to enable / disable RTTI
 
+# from LLVM CMake to set visibility
+include(CheckCXXCompilerFlag)
+
+function(append_if condition value)
+  if (${condition})
+    foreach(variable ${ARGN})
+      set(${variable} "${${variable}} ${value}" PARENT_SCOPE)
+    endforeach(variable)
+  endif()
+endfunction()
+
+if(NOT WIN32 AND NOT CYGWIN)
+    # MinGW warns if -fvisibility-inlines-hidden is used.
+    check_cxx_compiler_flag("-fvisibility-inlines-hidden" SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG)
+    append_if(SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG "-fvisibility-inlines-hidden" CMAKE_CXX_FLAGS)
+endif()
+# from LLVM CMake to set visibility
+
 
 # set include directory, add src directories
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/include)
