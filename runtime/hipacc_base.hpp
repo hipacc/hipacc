@@ -46,7 +46,6 @@
 extern float hipacc_last_timing;
 float hipacc_last_kernel_timing();
 int64_t hipacc_time_micro();
-unsigned int nextPow2(unsigned int x);
 
 enum hipaccMemoryType {
     Global,

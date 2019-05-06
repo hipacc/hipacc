@@ -44,22 +44,6 @@ int64_t hipacc_time_micro() {
 }
 
 
-unsigned int nextPow2(unsigned int x) {
-    --x;
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    ++x;
-
-    // get at least the warp size
-    if (x < 32) x = 32;
-
-    return x;
-}
-
-
 HipaccImageBase::HipaccImageBase(size_t width, size_t height, size_t stride,
     size_t alignment, size_t pixel_size, void *mem, hipaccMemoryType mem_type)
     : width(width), height(height), stride(stride), alignment(alignment),

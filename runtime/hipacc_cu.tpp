@@ -277,8 +277,8 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
     // second step: reduce partial blocks on GPU
     // this is done in one shot, so no additional memory is required, i.e. the
     // same array can be used for the input and output array
-    // block.x is fixed, either max_threads or power of two
-    block.x = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2) : max_threads;
+    // block.x is fixed, either max_threads or multiple of 32
+    block.x = (num_blocks < max_threads) ? ((num_blocks + 32 - 1) / 32) * 32 : max_threads;
     grid.x = 1;
     grid.y = 1;
     // calculate the number of pixels reduced per thread
@@ -484,8 +484,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
             // second step: reduce partial blocks on GPU
             grid.y = 1;
             while (num_blocks > 1) {
-                block.x = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2) :
-                    max_threads;
+                block.x = (num_blocks < max_threads) ? ((num_blocks + 32 - 1) / 32) * 32 : max_threads;
                 grid.x = (int)ceilf((float)(num_blocks)/(block.x*ppt));
 
                 void *argsReduction1D[] = {
