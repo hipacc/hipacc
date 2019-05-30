@@ -138,7 +138,6 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     void HandleTranslationUnit(ASTContext &) override;
     bool HandleTopLevelDecl(DeclGroupRef D) override;
     void Initialize(ASTContext &Context) override {
-      // get the ID and start/end of the main file.
       mainFileID = SM.getMainFileID();
       TextRewriter.setSourceMgr(SM, Context.getLangOpts());
       TextRewriteOptions.RemoveLineIfEmpty = true;
@@ -151,6 +150,19 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       llvm::raw_string_ostream S(SS);
       from->printPretty(S, nullptr, Policy);
       return S.str();
+    }
+
+    void removeText(SourceLocation beg, SourceLocation end, const char add) {
+      const char *beg_ptr = SM.getCharacterData(beg);
+      const char *end_ptr = strchr(SM.getCharacterData(end), add);
+      TextRewriter.RemoveText(beg, end_ptr-beg_ptr+1, TextRewriteOptions);
+    }
+
+    void replaceText(SourceLocation beg, SourceLocation end, const char add,
+        std::string str) {
+      const char *beg_ptr = SM.getCharacterData(beg);
+      const char *end_ptr = strchr(SM.getCharacterData(end), add);
+      TextRewriter.ReplaceText(beg, end_ptr-beg_ptr+1, str);
     }
 
     LangOptions getLangOpts(CompilerOptions &options) {
@@ -227,54 +239,49 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   size_t hipaccLen = strlen("hipacc");
 
   // loop over the whole file, looking for includes
-  for (const char *bufPtr = mainFileStart; bufPtr < mainFileEnd; ++bufPtr) {
-    if (*bufPtr == '#') {
-      const char *startPtr = bufPtr;
-      if (++bufPtr == mainFileEnd)
+  for (const char *buf_ptr = mainFileStart; buf_ptr < mainFileEnd; ++buf_ptr) {
+    if (*buf_ptr == '#') {
+      const char *beg_ptr = buf_ptr;
+      if (++buf_ptr == mainFileEnd)
         break;
-      while (*bufPtr == ' ' || *bufPtr == '\t')
-        if (++bufPtr == mainFileEnd)
+      while (*buf_ptr == ' ' || *buf_ptr == '\t')
+        if (++buf_ptr == mainFileEnd)
           break;
-      if (!strncmp(bufPtr, "include", includeLen)) {
-        const char *endPtr = bufPtr + includeLen;
-        while (*endPtr == ' ' || *endPtr == '\t')
-          if (++endPtr == mainFileEnd)
+      if (!strncmp(buf_ptr, "include", includeLen)) {
+        const char *end_ptr = buf_ptr + includeLen;
+        while (*end_ptr == ' ' || *end_ptr == '\t')
+          if (++end_ptr == mainFileEnd)
             break;
-        if (*endPtr == '"') {
-          if (!strncmp(endPtr+1, "hipacc.hpp", hipaccHdrLen)) {
-            endPtr = strchr(endPtr+1, '"');
+        if (*end_ptr == '"') {
+          if (!strncmp(end_ptr+1, "hipacc.hpp", hipaccHdrLen)) {
             // remove hipacc include
-            SourceLocation includeLoc =
-              locStart.getLocWithOffset(startPtr-mainFileStart);
-            TextRewriter.RemoveText(includeLoc, endPtr-startPtr+1,
-                TextRewriteOptions);
-            bufPtr += endPtr-startPtr;
+            end_ptr = strchr(end_ptr+1, '"');
+            removeText(locStart.getLocWithOffset(beg_ptr-mainFileStart),
+                       locStart.getLocWithOffset(end_ptr-mainFileStart), '"');
+            buf_ptr += end_ptr-beg_ptr;
           }
         }
       }
     }
-    if (*bufPtr == 'u') {
-      const char *startPtr = bufPtr;
-      if (!strncmp(bufPtr, "using", usingLen)) {
-        const char *endPtr = bufPtr + usingLen;
-        while (*endPtr == ' ' || *endPtr == '\t')
-          if (++endPtr == mainFileEnd)
+    if (*buf_ptr == 'u') {
+      const char *beg_ptr = buf_ptr;
+      if (!strncmp(buf_ptr, "using", usingLen)) {
+        const char *end_ptr = buf_ptr + usingLen;
+        while (*end_ptr == ' ' || *end_ptr == '\t')
+          if (++end_ptr == mainFileEnd)
             break;
-        if (*endPtr == 'n') {
-          if (!strncmp(endPtr, "namespace", namespaceLen)) {
-            endPtr += namespaceLen;
-            while (*endPtr == ' ' || *endPtr == '\t')
-              if (++endPtr == mainFileEnd)
+        if (*end_ptr == 'n') {
+          if (!strncmp(end_ptr, "namespace", namespaceLen)) {
+            end_ptr += namespaceLen;
+            while (*end_ptr == ' ' || *end_ptr == '\t')
+              if (++end_ptr == mainFileEnd)
                 break;
-            if (*endPtr == 'h') {
-              if (!strncmp(endPtr, "hipacc", hipaccLen)) {
-                endPtr = strchr(endPtr+1, ';');
+            if (*end_ptr == 'h') {
+              if (!strncmp(end_ptr, "hipacc", hipaccLen)) {
                 // remove using namespace line
-                SourceLocation includeLoc =
-                  locStart.getLocWithOffset(startPtr-mainFileStart);
-                TextRewriter.RemoveText(includeLoc, endPtr-startPtr+1,
-                    TextRewriteOptions);
-                bufPtr += endPtr-startPtr;
+                removeText(locStart.getLocWithOffset(beg_ptr-mainFileStart),
+                           locStart.getLocWithOffset(end_ptr-mainFileStart), ';');
+                buf_ptr += end_ptr-beg_ptr;
               }
             }
           }
@@ -396,13 +403,13 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
               HOST_TO_DEVICE, newStr);
         }
 
-        TextRewriter.InsertTextBefore(mask->getDecl()->getLocStart(), newStr);
+        TextRewriter.InsertTextBefore(mask->getDecl()->getBeginLoc(), newStr);
       }
     }
   }
 
   // insert initialization before first statement
-  TextRewriter.InsertTextBefore(CS->body_front()->getLocStart(), initStr);
+  TextRewriter.InsertTextBefore(CS->body_front()->getBeginLoc(), initStr);
 
   // get buffer of main file id. If we haven't changed it, then we are done.
   if (auto RewriteBuf = TextRewriter.getRewriteBufferFor(mainFileID)) {
@@ -490,13 +497,8 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
         KC->setBinType(compilerClasses.getTemplateType(base.getType(),
               compilerClasses.getNumberOfTemplateArguments(base.getType())-1));
         KernelClassDeclMap[D] = KC;
-        // remove user kernel class (semicolon doesn't count to SourceRange)
-        SourceLocation startLoc = D->getLocStart();
-        SourceLocation endLoc = D->getLocEnd();
-        const char *startBuf = SM.getCharacterData(startLoc);
-        const char *endBuf = SM.getCharacterData(endLoc);
-        const char *semiPtr = strchr(endBuf, ';');
-        TextRewriter.RemoveText(startLoc, semiPtr-startBuf+1, TextRewriteOptions);
+        // remove user kernel class
+        removeText(D->getBeginLoc(), D->getEndLoc(), ';');
 
         break;
       }
@@ -722,11 +724,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             init_str, newStr);
 
         // rewrite Image definition
-        // get the start location and compute the semi location.
-        SourceLocation startLoc = D->getLocStart();
-        const char *startBuf = SM.getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+        replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
 
         // store Image definition
         ImgDeclMap[VD] = Img;
@@ -755,11 +753,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             image_str, depth_str, newStr);
 
         // rewrite Pyramid definition
-        // get the start location and compute the semi location.
-        SourceLocation startLoc = D->getLocStart();
-        const char *startBuf = SM.getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+        replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
 
         // store Pyramid definition
         PyrDeclMap[VD] = Pyr;
@@ -974,11 +968,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         newStr = "HipaccAccessor " + Acc->getName() + "(" + parms + ");";
 
         // replace Accessor decl by variables for width/height and offsets
-        // get the start location and compute the semi location.
-        SourceLocation startLoc = D->getLocStart();
-        const char *startBuf = SM.getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+        replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
 
         // store Accessor definition
         AccDeclMap[VD] = Acc;
@@ -1044,13 +1034,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         std::string newStr;
         newStr = "HipaccAccessor " + IS->getName() + "(" + parms + ");";
 
-        // replace iteration space decl by variables for width/height, and
-        // offset
-        // get the start location and compute the semi location.
-        SourceLocation startLoc = D->getLocStart();
-        const char *startBuf = SM.getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+        // replace iteration space decl by variables for width/height and offset
+        replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
 
         break;
       }
@@ -1241,11 +1226,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         }
 
         // replace Mask declaration by Buffer allocation
-        // get the start location and compute the semi location.
-        SourceLocation startLoc = D->getLocStart();
-        const char *startBuf = SM.getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+        replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
 
         // store Mask definition
         MaskDeclMap[VD] = Buf;
@@ -1473,10 +1454,8 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       DomLHS->setDomainDefined(DomIdxX, DomIdxY,
           dyn_cast<IntegerLiteral>(arg)->getValue() != 0);
 
-      SourceLocation startLoc = E->getLocStart();
-      const char *startBuf = SM.getCharacterData(startLoc);
-      const char *semiPtr = strchr(startBuf, ';');
-      TextRewriter.RemoveText(startLoc, semiPtr-startBuf+1);
+      // remove domain value assignment
+      removeText(E->getBeginLoc(), E->getEndLoc(), ';');
 
       return true;
     }
@@ -1593,11 +1572,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       }
 
       // rewrite Image assignment to memory transfer
-      // get the start location and compute the semi location.
-      SourceLocation startLoc = E->getLocStart();
-      const char *startBuf = SM.getCharacterData(startLoc);
-      const char *semiPtr = strchr(startBuf, ';');
-      TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+      replaceText(E->getBeginLoc(), E->getEndLoc(), ';', newStr);
 
       return true;
     }
@@ -1652,11 +1627,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
         stringCreator.writeKernelCall(K, newStr);
 
         // rewrite kernel invocation
-        // get the start location and compute the semi location.
-        SourceLocation startLoc = E->getLocStart();
-        const char *startBuf = SM.getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, ';');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+        replaceText(E->getBeginLoc(), E->getBeginLoc(), ';', newStr);
       }
     }
   }
@@ -1700,7 +1671,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           }
 
           // insert reduction call in the line before
-          unsigned fileNum = SM.getSpellingLineNumber(E->getLocStart(), nullptr);
+          unsigned fileNum = SM.getSpellingLineNumber(E->getBeginLoc(), nullptr);
           SourceLocation callLoc = SM.translateLineCol(mainFileID, fileNum, 1);
           TextRewriter.InsertText(callLoc, callStr);
 
@@ -1708,7 +1679,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           // TODO: make sure that kernel was executed before *_data call
           //
           // replace member function invocation
-          SourceRange range(E->getLocStart(), E->getLocEnd());
+          SourceRange range(E->getBeginLoc(), E->getEndLoc());
           TextRewriter.ReplaceText(range, resultStr);
 
           return true;
@@ -1728,11 +1699,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           stringCreator.writeMemoryTransfer(Img, "NULL", DEVICE_TO_HOST,
               newStr);
           // rewrite Image assignment to memory transfer
-          // get the start location and compute the semi location.
-          SourceLocation startLoc = E->getLocStart();
-          const char *startBuf = SM.getCharacterData(startLoc);
-          const char *semiPtr = strchr(startBuf, ';');
-          TextRewriter.ReplaceText(startLoc, semiPtr-startBuf+1, newStr);
+          replaceText(E->getBeginLoc(), E->getEndLoc(), ';', newStr);
 
           return true;
         }
@@ -1756,7 +1723,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
 
       if (!newStr.empty()) {
         // replace member function invocation
-        SourceRange range(ME->getOperatorLoc(), E->getLocEnd());
+        SourceRange range(ME->getOperatorLoc(), E->getEndLoc());
         TextRewriter.ReplaceText(range, newStr);
       }
     }
@@ -1771,10 +1738,9 @@ bool Rewrite::VisitCallExpr (CallExpr *E) {
   if (auto ICE = dyn_cast<ImplicitCastExpr>(E->getCallee())) {
     if (auto DRE = dyn_cast<DeclRefExpr>(ICE->getSubExpr())) {
       if (DRE->getDecl()->getNameAsString() == "traverse") {
-        SourceLocation startLoc = E->getLocStart();
-        const char *startBuf = SM.getCharacterData(startLoc);
-        const char *semiPtr = strchr(startBuf, '(');
-        TextRewriter.ReplaceText(startLoc, semiPtr-startBuf, "hipaccTraverse");
+        SourceRange range(E->getBeginLoc(),
+                          E->getBeginLoc().getLocWithOffset(std::string("traverse").length()-1));
+        TextRewriter.ReplaceText(range, "hipaccTraverse");
       }
     }
   }

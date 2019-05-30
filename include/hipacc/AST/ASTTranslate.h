@@ -496,12 +496,12 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Stmt *VisitDefaultStmt(DefaultStmt *S);
     Stmt *VisitCapturedStmt(CapturedStmt *S);
 
-    // Asm Statements
+    // Asm statements
     HIPACC_UNSUPPORTED_STMT_BASE_CLASS( AsmStmt )
     Stmt *VisitGCCAsmStmt(GCCAsmStmt *S);
     HIPACC_UNSUPPORTED_STMT( MSAsmStmt )
 
-    // Obj-C Statements
+    // Obj-C statements
     HIPACC_UNSUPPORTED_STMT( ObjCAtTryStmt )
     HIPACC_UNSUPPORTED_STMT( ObjCAtCatchStmt )
     HIPACC_UNSUPPORTED_STMT( ObjCAtFinallyStmt )
@@ -510,7 +510,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_STMT( ObjCForCollectionStmt )
     HIPACC_UNSUPPORTED_STMT( ObjCAutoreleasePoolStmt )
 
-    // C++ Statements
+    // C++ statements
     Stmt *VisitCXXCatchStmt(CXXCatchStmt *S);
     Stmt *VisitCXXTryStmt(CXXTryStmt *S);
     HIPACC_UNSUPPORTED_STMT( CXXForRangeStmt )
@@ -560,16 +560,20 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_EXPR( GenericSelectionExpr )
     HIPACC_UNSUPPORTED_EXPR( PseudoObjectExpr )
 
-    // Atomic Expressions
+    // Wrapper expressions
+    HIPACC_UNSUPPORTED_EXPR_BASE_CLASS( FullExpr )
+    HIPACC_UNSUPPORTED_EXPR_BASE_CLASS( ConstantExpr )
+
+    // Atomic expressions
     Expr *VisitAtomicExpr(AtomicExpr *E);
 
-    // GNU Extensions
+    // GNU extensions
     Expr *VisitAddrLabelExpr(AddrLabelExpr *E);
     Expr *VisitStmtExpr(StmtExpr *E);
     Expr *VisitChooseExpr(ChooseExpr *E);
     Expr *VisitGNUNullExpr(GNUNullExpr *E);
 
-    // C++ Expressions
+    // C++ expressions
     VISIT_MODE(Expr, CXXOperatorCallExpr)
     VISIT_MODE(Expr, CXXMemberCallExpr)
     HIPACC_UNSUPPORTED_EXPR( CXXNamedCastExpr )
@@ -621,7 +625,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_EXPR( DependentCoawaitExpr )
     HIPACC_UNSUPPORTED_EXPR( CoyieldExpr )
 
-    // Obj-C Expressions
+    // Obj-C expressions
     HIPACC_UNSUPPORTED_EXPR( ObjCStringLiteral )
     HIPACC_UNSUPPORTED_EXPR( ObjCBoxedExpr )
     HIPACC_UNSUPPORTED_EXPR( ObjCArrayLiteral )
@@ -638,20 +642,20 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_EXPR( ObjCSubscriptRefExpr )
     HIPACC_UNSUPPORTED_EXPR( ObjCAvailabilityCheckExpr )
 
-    // Obj-C ARC Expressions
+    // Obj-C ARC expressions
     HIPACC_UNSUPPORTED_EXPR( ObjCBridgedCastExpr )
 
-    // CUDA Expressions
+    // CUDA expressions
     Expr *VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E);
 
-    // Clang Extensions
+    // Clang extensions
     Expr *VisitShuffleVectorExpr(ShuffleVectorExpr *E);
     Expr *VisitConvertVectorExpr(ConvertVectorExpr *E);
     HIPACC_UNSUPPORTED_EXPR( BlockExpr )
     HIPACC_UNSUPPORTED_EXPR( OpaqueValueExpr )
     HIPACC_UNSUPPORTED_EXPR( TypoExpr )
 
-    // Microsoft Extensions
+    // Microsoft extensions
     HIPACC_UNSUPPORTED_EXPR( MSPropertyRefExpr )
     HIPACC_UNSUPPORTED_EXPR( MSPropertySubscriptExpr )
     HIPACC_UNSUPPORTED_EXPR( CXXUuidofExpr )
@@ -661,10 +665,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     HIPACC_UNSUPPORTED_STMT( SEHLeaveStmt )
     HIPACC_UNSUPPORTED_STMT( MSDependentExistsStmt )
 
-    // OpenCL Expressions
+    // OpenCL expressions
     Expr *VisitAsTypeExpr(AsTypeExpr *E);
 
-    // OpenMP Directives
+    // OpenMP directives
     HIPACC_UNSUPPORTED_STMT( OMPExecutableDirective )
     HIPACC_UNSUPPORTED_STMT( OMPLoopDirective )
     HIPACC_UNSUPPORTED_STMT( OMPParallelDirective )

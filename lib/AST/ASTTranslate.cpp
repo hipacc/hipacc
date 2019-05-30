@@ -72,7 +72,7 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
       unsigned DiagIDRetType = Diags.getCustomDiagID(DiagnosticsEngine::Error,
             "Cannot convert function '%0' for execution on device. "
             "Return type is no not supported: ");
-      Diags.Report(FD->getLocStart(), DiagIDRetType) << FD->getNameAsString();
+      Diags.Report(FD->getBeginLoc(), DiagIDRetType) << FD->getNameAsString();
       exit(EXIT_FAILURE);
     }
 
@@ -1523,7 +1523,8 @@ Stmt *ASTTranslate::VisitReturnStmtTranslate(ReturnStmt *S) {
   if (!redDomains.empty() && !redTmps.empty())
     return getConvolutionStmt(redModes.back(), redTmps.back(),
                               Clone(S->getRetValue()));
-  return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
+  return ReturnStmt::Create(Ctx, S->getReturnLoc(), Clone(S->getRetValue()),
+      S->getNRVOCandidate());
 }
 
 
@@ -1629,13 +1630,13 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
         createDeclRefExpr(Ctx, targetFD), nullptr, VK_RValue);
 
     // create CallExpr
-    CallExpr *result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(),
-        E->getType(), E->getValueKind(), E->getRParenLoc());
+    SmallVector<Expr *, 16> args;
 
-    result->setNumArgs(Ctx, E->getNumArgs());
-    size_t num_arg = 0;
     for (auto arg : E->arguments())
-      result->setArg(num_arg++, Clone(arg));
+      args.push_back(Clone(arg));
+
+    CallExpr *result = CallExpr::Create(Ctx, ICE, args, E->getType(),
+        E->getValueKind(), E->getRParenLoc());
 
     setExprProps(E, result);
 
@@ -1646,10 +1647,8 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
           createDeclRefExpr(Ctx, convert), nullptr, VK_RValue);
 
       // create CallExpr
-      CallExpr *conv_result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(),
+      CallExpr *conv_result = CallExpr::Create(Ctx, ICE, { result },
           E->getType(), E->getValueKind(), E->getRParenLoc());
-      conv_result->setNumArgs(Ctx, 1);
-      conv_result->setArg(0, result);
       result = conv_result;
       setExprProps(E, result);
     }

@@ -331,7 +331,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
         // access to Image
         if (KS.compilerClasses.isTypeOfTemplateClass(FD->getType(),
               KS.compilerClasses.Image)) {
-          KS.Diags.Report(E->getLocStart(), KS.DiagIDImageAccess) <<
+          KS.Diags.Report(E->getExprLoc(), KS.DiagIDImageAccess) <<
             FD->getNameAsString();
 
           exit(EXIT_FAILURE);

@@ -88,14 +88,14 @@ Stmt *ASTTranslate::VisitAttributedStmt(AttributedStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitIfStmt(IfStmt *S) {
-  return new (Ctx) IfStmt(Ctx, S->getIfLoc(), S->isConstexpr(),
+  return IfStmt::Create(Ctx, S->getIfLoc(), S->isConstexpr(),
       Clone(S->getInit()), CloneDecl(S->getConditionVariable()),
       Clone(S->getCond()), Clone(S->getThen()), S->getElseLoc(),
       Clone(S->getElse()));
 }
 
 Stmt *ASTTranslate::VisitSwitchStmt(SwitchStmt *S) {
-  SwitchStmt *result = new (Ctx) SwitchStmt(Ctx, Clone(S->getInit()),
+  SwitchStmt *result = SwitchStmt::Create(Ctx, Clone(S->getInit()),
       CloneDecl(S->getConditionVariable()), Clone(S->getCond()));
 
   result->setBody(Clone(S->getBody()));
@@ -105,7 +105,7 @@ Stmt *ASTTranslate::VisitSwitchStmt(SwitchStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitWhileStmt(WhileStmt *S) {
-  return new (Ctx) WhileStmt(Ctx, CloneDecl(S->getConditionVariable()),
+  return WhileStmt::Create(Ctx, CloneDecl(S->getConditionVariable()),
       Clone(S->getCond()), Clone(S->getBody()), S->getWhileLoc());
 }
 
@@ -139,7 +139,8 @@ Stmt *ASTTranslate::VisitBreakStmt(BreakStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitReturnStmtClone(ReturnStmt *S) {
-  return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
+  return ReturnStmt::Create(Ctx, S->getReturnLoc(), Clone(S->getRetValue()),
+      S->getNRVOCandidate());
 }
 
 Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
@@ -157,12 +158,13 @@ Stmt *ASTTranslate::VisitDeclStmt(DeclStmt *S) {
           decl_group.size()));
   }
 
-  return new (Ctx) DeclStmt(decls, S->getStartLoc(), S->getEndLoc());
+  return new (Ctx) DeclStmt(decls, S->getBeginLoc(), S->getEndLoc());
 }
 
 Stmt *ASTTranslate::VisitCaseStmt(CaseStmt *S) {
-  CaseStmt *result = new (Ctx) CaseStmt(Clone(S->getLHS()), Clone(S->getRHS()),
-      S->getCaseLoc(), S->getEllipsisLoc(), S->getColonLoc());
+  CaseStmt *result = CaseStmt::Create(Ctx, Clone(S->getLHS()),
+      Clone(S->getRHS()), S->getCaseLoc(), S->getEllipsisLoc(),
+      S->getColonLoc());
 
   result->setSubStmt(Clone(S->getSubStmt()));
 
@@ -246,8 +248,8 @@ Stmt *ASTTranslate::VisitCXXTryStmt(CXXTryStmt *S) {
 
 // Expressions
 Expr *ASTTranslate::VisitPredefinedExpr(PredefinedExpr *E) {
-  Expr *result = new (Ctx) PredefinedExpr(E->getLocation(), E->getType(),
-      E->getIdentType(), E->getFunctionName());
+  Expr *result = PredefinedExpr::Create(Ctx, E->getLocation(), E->getType(),
+      E->getIdentKind(), E->getFunctionName());
 
   setExprPropsClone(E, result);
 
@@ -409,7 +411,7 @@ Expr *ASTTranslate::VisitCallExprClone(CallExpr *E) {
   for (auto arg : E->arguments())
     args.push_back(Clone(arg));
 
-  CallExpr *result = new (Ctx) CallExpr(Ctx, Clone(E->getCallee()), args,
+  CallExpr *result = CallExpr::Create(Ctx, Clone(E->getCallee()), args,
       E->getType(), E->getValueKind(), E->getRParenLoc());
 
   setExprPropsClone(E, result);
@@ -549,7 +551,7 @@ Expr *ASTTranslate::VisitDesignatedInitExpr(DesignatedInitExpr *E) {
 
 Expr *ASTTranslate::VisitDesignatedInitUpdateExpr(DesignatedInitUpdateExpr *E) {
   DesignatedInitUpdateExpr *result = new (Ctx) DesignatedInitUpdateExpr(Ctx,
-      E->getLocStart(), E->getBase(), E->getLocEnd());
+      E->getBeginLoc(), E->getBase(), E->getEndLoc());
   result->setUpdater(E->getUpdater());
 
   setExprPropsClone(E, result);
@@ -596,7 +598,7 @@ Expr *ASTTranslate::VisitParenListExpr(ParenListExpr *E) {
   for (auto expr : E->exprs())
     exprs.push_back(Clone(expr));
 
-  Expr *result = new (Ctx) ParenListExpr(Ctx, E->getLParenLoc(), exprs,
+  Expr *result = ParenListExpr::Create(Ctx, E->getLParenLoc(), exprs,
       E->getRParenLoc());
 
   setExprPropsClone(E, result);
@@ -677,7 +679,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprClone(CXXOperatorCallExpr *E) {
   for (auto arg : E->arguments())
     args.push_back(Clone(arg));
 
-  CXXOperatorCallExpr *result = new (Ctx) CXXOperatorCallExpr(Ctx,
+  CXXOperatorCallExpr *result = CXXOperatorCallExpr::Create(Ctx,
       E->getOperator(), Clone(E->getCallee()), args, E->getType(),
       E->getValueKind(), E->getRParenLoc(), E->getFPFeatures());
 
@@ -692,7 +694,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprClone(CXXMemberCallExpr *E) {
   for (auto arg : E->arguments())
     args.push_back(Clone(arg));
 
-  CXXMemberCallExpr *result = new (Ctx) CXXMemberCallExpr(Ctx,
+  CXXMemberCallExpr *result = CXXMemberCallExpr::Create(Ctx,
       Clone(E->getCallee()), args, E->getType(), E->getValueKind(),
       E->getRParenLoc());
 
@@ -874,7 +876,7 @@ Expr *ASTTranslate::VisitLambdaExpr(LambdaExpr *E) {
   LambdaExpr *result = LambdaExpr::Create(Ctx, E->getLambdaClass(),
       E->getIntroducerRange(), E->getCaptureDefault(),
       E->getCaptureDefaultLoc(), captures, E->hasExplicitParameters(),
-      E->hasExplicitResultType(), capture_inits, E->getBody()->getLocEnd(),
+      E->hasExplicitResultType(), capture_inits, E->getBody()->getEndLoc(),
       E->containsUnexpandedParameterPack());
 
   setExprPropsClone(E, result);
@@ -890,7 +892,7 @@ Expr *ASTTranslate::VisitCUDAKernelCallExpr(CUDAKernelCallExpr *E) {
   for (auto arg : E->arguments())
     args.push_back(Clone(arg));
 
-  Expr *result = new (Ctx) CUDAKernelCallExpr(Ctx, Clone(E->getCallee()),
+  Expr *result = CUDAKernelCallExpr::Create(Ctx, Clone(E->getCallee()),
       Clone(E->getConfig()), args, E->getType(), E->getValueKind(),
       E->getRParenLoc());
 
