@@ -171,8 +171,9 @@ void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst) {
     size_t stride = src->stride;
 
     if (src->mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpyArrayToArray((cudaArray *)dst->mem, 0, 0, (cudaArray *)src->mem, 0, 0, stride*height*src->pixel_size, cudaMemcpyDeviceToDevice);
-        checkErr(err, "cudaMemcpyArrayToArray()");
+        cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst->mem, 0, 0,
+	(cudaArray *)src->mem, 0, 0, stride*src->pixel_size, height*src->pixel_size, cudaMemcpyDeviceToDevice);
+        checkErr(err, "cudaMemcpy2DArrayToArray()");
     } else {
         cudaError_t err = cudaMemcpy(dst->mem, src->mem, src->pixel_size*stride*height, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpy()");
