@@ -108,8 +108,7 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
         std::copy(host_mem, host_mem + width*height, (T*)img->host);
 
     if (img->mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpy2DToArray((cudaArray *)img->mem, 0, 0,
-	host_mem, sizeof(T)*stride, sizeof(T)*width, sizeof(T)*height, cudaMemcpyHostToDevice);
+        cudaError_t err = cudaMemcpy2DToArray((cudaArray *)img->mem, 0, 0, host_mem, sizeof(T)*stride, sizeof(T)*width, sizeof(T)*height, cudaMemcpyHostToDevice);
         checkErr(err, "cudaMemcpy2DToArray()");
     } else {
         if (stride > width) {
@@ -131,8 +130,7 @@ T *hipaccReadMemory(const HipaccImage &img) {
     size_t stride = img->stride;
 
     if (img->mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpy2DFromArray((T*)img->host, stride*sizeof(T), (cudaArray
-	*)img->mem, 0, 0, sizeof(T)*width, sizeof(T)*height, cudaMemcpyDeviceToHost);
+        cudaError_t err = cudaMemcpy2DFromArray((T*)img->host, stride*sizeof(T), (cudaArray *)img->mem, 0, 0, sizeof(T)*width, sizeof(T)*height, cudaMemcpyDeviceToHost);
         checkErr(err, "cudaMemcpy2DFromArray()");
     } else {
         if (stride > width) {
