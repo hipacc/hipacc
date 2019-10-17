@@ -258,9 +258,8 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D, const HipaccAcces
     // second step: reduce partial blocks on GPU
     // this is done in one shot, so no additional memory is required, i.e. the
     // same array can be used for the input and output array
-    // block.x is fixed, either max_threads or power of two
-    local_work_size[0] = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2)
-        : max_threads;
+    // local_work_size[0] is fixed, either max_threads or next multiple of 32
+    local_work_size[0] = (num_blocks < max_threads) ? ((num_blocks + 32 - 1) / 32) * 32 : max_threads;
     global_work_size[0] = local_work_size[0];
     global_work_size[1] = 1;
     // calculate the number of pixels reduced per thread
@@ -358,13 +357,12 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
             }
 
             hipaccLaunchKernel(exploreReduction2D, global_work_size, local_work_size, false);
-            float total_time = last_gpu_timing;
+            float total_time = hipacc_last_timing;
 
             // second step: reduce partial blocks on GPU
             global_work_size[1] = 1;
             while (num_blocks > 1) {
-                local_work_size[0] = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2) :
-                    max_threads;
+                local_work_size[0] = (num_blocks < max_threads) ? ((num_blocks + 32 - 1) / 32) * 32 : max_threads;
                 global_work_size[0] = (int)ceilf((float)(num_blocks)/(local_work_size[0]*ppt))*local_work_size[0];
 
                 hipaccSetKernelArg(exploreReduction1D, 0, sizeof(cl_mem), &output);
@@ -373,7 +371,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
                 hipaccSetKernelArg(exploreReduction1D, 3, sizeof(unsigned int), &ppt);
 
                 hipaccLaunchKernel(exploreReduction1D, global_work_size, local_work_size, false);
-                total_time += last_gpu_timing;
+                total_time += hipacc_last_timing;
 
                 num_blocks = global_work_size[0]/local_work_size[0];
             }
@@ -381,17 +379,17 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
         }
 
         std::sort(times.begin(), times.end());
-        last_gpu_timing = times[times.size()/2];
+        hipacc_last_timing = times[times.size()/2];
 
-        if (last_gpu_timing < opt_time) {
-            opt_time = last_gpu_timing;
+        if (hipacc_last_timing < opt_time) {
+            opt_time = hipacc_last_timing;
             opt_ppt = ppt;
         }
 
         // print timing
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
-                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                   << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
 
         // release kernels
@@ -400,7 +398,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
         err = clReleaseKernel(exploreReduction1D);
         checkErr(err, "clReleaseKernel()");
     }
-    last_gpu_timing = opt_time;
+    hipacc_last_timing = opt_time;
     std::cerr << "<HIPACC:> Best unroll factor for reduction kernel '"
               << kernel2D << "/" << kernel1D << "': "
               << opt_ppt << ": " << opt_time << " ms" << std::endl;

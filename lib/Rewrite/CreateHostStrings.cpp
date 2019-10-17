@@ -671,7 +671,7 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
       // set kernel arguments
       switch (options.getTargetLang()) {
         case Language::C99:
-          if (i==0) {
+          if (cur_arg++ == 0) {
             resultStr += "hipaccStartTiming();\n";
             resultStr += indent;
             resultStr += kernel_name + "(";

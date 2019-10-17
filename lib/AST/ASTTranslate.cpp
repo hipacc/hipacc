@@ -72,7 +72,7 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
       unsigned DiagIDRetType = Diags.getCustomDiagID(DiagnosticsEngine::Error,
             "Cannot convert function '%0' for execution on device. "
             "Return type is no not supported: ");
-      Diags.Report(FD->getLocStart(), DiagIDRetType) << FD->getNameAsString();
+      Diags.Report(FD->getBeginLoc(), DiagIDRetType) << FD->getNameAsString();
       exit(EXIT_FAILURE);
     }
 
@@ -647,47 +647,16 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     }
   }
 
-  // in case no stride was found, use image width as fallback
-  for (auto img : KernelClass->getImgFields()) {
-    HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
-
-    if (Acc->getStrideDecl() == nullptr) {
-      Acc->setStrideDecl(Acc->getWidthDecl());
-    }
-  }
-
-  // initialize target-specific variables and add gid_x and gid_y declarations
-  // to kernel body
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
   SmallVector<Stmt *, 16> kernelBody;
-  FunctionDecl *barrier;
-  switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
-      initCPU(kernelBody, S);
-      return createCompoundStmt(Ctx, kernelBody);
-      break;
-    case Language::CUDA:
-      initCUDA(kernelBody);
-      // void __syncthreads();
-      barrier = builtins.getBuiltinFunction(CUDABI__syncthreads);
-      break;
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
-      initOpenCL(kernelBody);
-      // void barrier(cl_mem_fence_flags);
-      barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      initRenderscript(kernelBody);
-      break;
-  }
-  lidYRef = tileVars.local_id_y;
-  gidYRef = tileVars.global_id_y;
 
+  // set stride and scale factor for images
   for (auto img : KernelClass->getImgFields()) {
     HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
+
+    // in case no stride was found, use image width as fallback
+    if (Acc->getStrideDecl() == nullptr)
+      Acc->setStrideDecl(Acc->getWidthDecl());
 
     // add scale factor calculations for interpolation:
     // float acc_scale_x = (float)acc_width/is_width;
@@ -713,6 +682,33 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       Acc->setScaleYDecl(createDeclRefExpr(Ctx, scaleDeclY));
     }
   }
+
+  // initialize target-specific variables, add gid_x and gid_y declarations
+  FunctionDecl *barrier;
+  switch (compilerOptions.getTargetLang()) {
+    case Language::C99:
+      initCPU(kernelBody, S);
+      return createCompoundStmt(Ctx, kernelBody);
+      break;
+    case Language::CUDA:
+      initCUDA(kernelBody);
+      // void __syncthreads();
+      barrier = builtins.getBuiltinFunction(CUDABI__syncthreads);
+      break;
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
+      initOpenCL(kernelBody);
+      // void barrier(cl_mem_fence_flags);
+      barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
+      break;
+    case Language::Renderscript:
+    case Language::Filterscript:
+      initRenderscript(kernelBody);
+      break;
+  }
+  lidYRef = tileVars.local_id_y;
+  gidYRef = tileVars.global_id_y;
 
   // clear all stored decls before cloning, otherwise existing VarDecls will
   // be reused and we will miss declarations
@@ -833,8 +829,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         llvm::APInt SX, SY;
         SX = llvm::APInt(32, Kernel->getNumThreadsX());
         if (Acc->getSizeX() > 1) {
-          // 3*BSX
-          SX *= llvm::APInt(32, 3);
+          SX = (compilerOptions.allowMisAlignedAccess()) ?
+            SX + llvm::APInt(32, static_cast<int32_t>(Acc->getSizeX()/2)) * llvm::APInt(32, 2) :
+            SX * llvm::APInt(32, 3);
         }
         // add padding to avoid bank conflicts
         SX += llvm::APInt(32, 1);
@@ -1540,7 +1537,8 @@ Stmt *ASTTranslate::VisitReturnStmtTranslate(ReturnStmt *S) {
   if (!redDomains.empty() && !redTmps.empty())
     return getConvolutionStmt(redModes.back(), redTmps.back(),
                               Clone(S->getRetValue()));
-  return new (Ctx) ReturnStmt(S->getReturnLoc(), Clone(S->getRetValue()), 0);
+  return ReturnStmt::Create(Ctx, S->getReturnLoc(), Clone(S->getRetValue()),
+      S->getNRVOCandidate());
 }
 
 
@@ -1646,13 +1644,13 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
         createDeclRefExpr(Ctx, targetFD), nullptr, VK_RValue);
 
     // create CallExpr
-    CallExpr *result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(),
-        E->getType(), E->getValueKind(), E->getRParenLoc());
+    SmallVector<Expr *, 16> args;
 
-    result->setNumArgs(Ctx, E->getNumArgs());
-    size_t num_arg = 0;
     for (auto arg : E->arguments())
-      result->setArg(num_arg++, Clone(arg));
+      args.push_back(Clone(arg));
+
+    CallExpr *result = CallExpr::Create(Ctx, ICE, args, E->getType(),
+        E->getValueKind(), E->getRParenLoc());
 
     setExprProps(E, result);
 
@@ -1663,10 +1661,8 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
           createDeclRefExpr(Ctx, convert), nullptr, VK_RValue);
 
       // create CallExpr
-      CallExpr *conv_result = new (Ctx) CallExpr(Ctx, ICE, MultiExprArg(),
+      CallExpr *conv_result = CallExpr::Create(Ctx, ICE, { result },
           E->getType(), E->getValueKind(), E->getRParenLoc());
-      conv_result->setNumArgs(Ctx, 1);
-      conv_result->setArg(0, result);
       result = conv_result;
       setExprProps(E, result);
     }
@@ -2097,6 +2093,8 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
     if (acc->getSizeX() > 1) {
       if (compilerOptions.exploreConfig()) {
         TX = tileVars.local_size_x;
+      } else if (compilerOptions.allowMisAlignedAccess()) {
+        TX = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeX()/2));
       } else {
         TX = createIntegerLiteral(Ctx,
             static_cast<int>(Kernel->getNumThreadsX()));

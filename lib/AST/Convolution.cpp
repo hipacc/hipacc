@@ -178,14 +178,10 @@ Expr *ASTTranslate::getInitExpr(Reduce mode, QualType QT) {
   }
 
   if (isVecType) {
-    SmallVector<Expr *, 16> initExprs;
-    unsigned lanes = QT->getAs<VectorType>()->getNumElements();
+    auto lanes = QT->getAs<VectorType>()->getNumElements();
+    SmallVector<Expr *, 16> init_exprs(lanes, initExpr);
 
-    for (unsigned i=0, e=lanes; i!=e; ++i) {
-      initExprs.push_back(initExpr);
-    }
-
-    result = new (Ctx) InitListExpr(Ctx, SourceLocation(), initExprs,
+    result = new (Ctx) InitListExpr(Ctx, SourceLocation(), init_exprs,
         SourceLocation());
     result->setType(QT);
   } else {
@@ -316,8 +312,10 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
       auto mode = static_cast<Reduce>(lval.getZExtValue());
       assert(lval.isNonNegative() && lval.getZExtValue() <= mval &&
              "invalid Reduce mode");
-      if (method==Method::Convolve) convMode = mode;
-      else redModes.push_back(mode);
+      if (method==Method::Convolve)
+        convMode = mode;
+      else
+        redModes.push_back(mode);
     } else {
       unsigned DiagIDConvMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
           "Unknown Reduce mode detected.");
@@ -328,7 +326,8 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
 
   // third parameter: lambda-function
   int li = 2;
-  if (method==Method::Iterate) li = 1;
+  if (method==Method::Iterate)
+    li = 1;
 
   assert(isa<MaterializeTemporaryExpr>(E->getArg(li)) &&
          isa<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(
@@ -405,45 +404,40 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   // unroll Mask/Domain
   for (size_t y=0; y<Mask->getSizeY(); ++y) {
     for (size_t x=0; x<Mask->getSizeX(); ++x) {
-      bool doIterate = true;
-
       if (Mask->isDomain() && Mask->isConstant() &&
-          !Mask->isDomainDefined(x, y)) {
-        doIterate = false;
-      }
+          !Mask->isDomainDefined(x, y))
+        continue;
 
-      if (doIterate) {
-        Stmt *iteration = nullptr;
-        switch (method) {
-          case Method::Convolve:
-            convIdxX = x;
-            convIdxY = y;
-            iteration = Clone(LE->getBody());
-            break;
-          case Method::Reduce:
-          case Method::Iterate:
-            redIdxX.push_back(x);
-            redIdxY.push_back(y);
-            iteration = Clone(LE->getBody());
-            // add check if this iteration point should be processed - the
-            // DeclRefExpr for the Domain is retrieved when visiting the
-            // MemberExpr
-            if (!Mask->isConstant()) {
-              // set Domain as being used within Kernel
-              Kernel->setUsed(FD->getNameAsString());
-              iteration = addDomainCheck(Mask,
-                  dyn_cast_or_null<DeclRefExpr>(VisitMemberExpr(ME)),
-                  iteration);
-            }
-            redIdxX.pop_back();
-            redIdxY.pop_back();
-            break;
-        }
-        preStmts.push_back(iteration);
-        preCStmt.push_back(outerCompountStmt);
-        // clear decls added while cloning last iteration
-        LambdaDeclMap.clear();
+      Stmt *iteration = nullptr;
+      switch (method) {
+        case Method::Convolve:
+          convIdxX = x;
+          convIdxY = y;
+          iteration = Clone(LE->getBody());
+          break;
+        case Method::Reduce:
+        case Method::Iterate:
+          redIdxX.push_back(x);
+          redIdxY.push_back(y);
+          iteration = Clone(LE->getBody());
+          // add check if this iteration point should be processed - the
+          // DeclRefExpr for the Domain is retrieved when visiting the
+          // MemberExpr
+          if (!Mask->isConstant()) {
+            // set Domain as being used within Kernel
+            Kernel->setUsed(FD->getNameAsString());
+            iteration = addDomainCheck(Mask,
+                dyn_cast_or_null<DeclRefExpr>(VisitMemberExpr(ME)),
+                iteration);
+          }
+          redIdxX.pop_back();
+          redIdxY.pop_back();
+          break;
       }
+      preStmts.push_back(iteration);
+      preCStmt.push_back(outerCompountStmt);
+      // clear decls added while cloning last iteration
+      LambdaDeclMap.clear();
     }
   }
 
@@ -461,7 +455,6 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
       break;
     case Method::Iterate:
       redDomains.pop_back();
-      redTmps.pop_back();
       break;
   }
 

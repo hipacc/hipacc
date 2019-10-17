@@ -27,8 +27,9 @@
 #ifndef __PYRAMID_HPP__
 #define __PYRAMID_HPP__
 
-#include <vector>
+#include <cassert>
 #include <functional>
+#include <vector>
 
 #include "types.hpp"
 #include "image.hpp"

@@ -271,8 +271,10 @@ void HipaccKernel::calcConfig() {
           // fixed shared memory for x: 3*BSX
           int size_x = 32;
           if (Acc->getSizeX() > 1) {
-            size_x *= 3;
+            size_x = (options.allowMisAlignedAccess()) ?
+              size_x + 2 * static_cast<int32_t>(Acc->getSizeX()/2) : size_x * 3;
           }
+
           // add padding to avoid bank conflicts
           size_x += 1;
 

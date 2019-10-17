@@ -189,12 +189,12 @@ void hipaccLaunchKernel(
     (script->*kernel)((Allocation *)out->mem);
     rs->finish();
     auto end = hipacc_time_micro();
-    last_gpu_timing = (end - start) * 1.0e-3f;
+    hipacc_last_timing = (end - start) * 1.0e-3f;
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing (" << work_size[0] * work_size[1]
                   << ": " << work_size[0] << "x" << work_size[1] << "): "
-                  << last_gpu_timing << "(ms)" << std::endl;
+                  << hipacc_last_timing << "(ms)" << std::endl;
     }
 }
 
@@ -214,12 +214,12 @@ void hipaccLaunchKernel(
     (script->*kernel)((Allocation *)in->mem, (Allocation *)out->mem);
     rs->finish();
     auto end = hipacc_time_micro();
-    last_gpu_timing = (end - start) * 1.0e-3f;
+    hipacc_last_timing = (end - start) * 1.0e-3f;
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing (" << work_size[0] * work_size[1]
                   << ": " << work_size[0] << "x" << work_size[1] << "): "
-                  << last_gpu_timing << "(ms)" << std::endl;
+                  << hipacc_last_timing << "(ms)" << std::endl;
     }
 }
 
@@ -240,17 +240,17 @@ void hipaccLaunchKernelBenchmark(
             SET_SCRIPT_ARG(script, arg);
 
         hipaccLaunchKernel(script, kernel, out, work_size, print_timing);
-        times.push_back(last_gpu_timing);
+        times.push_back(hipacc_last_timing);
     }
 
     std::sort(times.begin(), times.end());
-    last_gpu_timing = times[times.size()/2];
+    hipacc_last_timing = times[times.size()/2];
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing benchmark ("
                   << work_size[0] * work_size[1] << ": "
                   << work_size[0] << "x" << work_size[1] << "): "
-                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                   << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
     }
 }
@@ -291,13 +291,13 @@ void hipaccLaunchKernelExploration(
                 SET_SCRIPT_ARG(script, arg);
 
             hipaccLaunchKernel(script, kernel, out, work_size, false);
-            times.push_back(last_gpu_timing);
+            times.push_back(hipacc_last_timing);
         }
         std::sort(times.begin(), times.end());
-        last_gpu_timing = times[times.size()/2];
+        hipacc_last_timing = times[times.size()/2];
 
-        if (last_gpu_timing < opt_time) {
-            opt_time = last_gpu_timing;
+        if (hipacc_last_timing < opt_time) {
+            opt_time = hipacc_last_timing;
             opt_ws = curr_warp_size;
         }
 
@@ -308,10 +308,10 @@ void hipaccLaunchKernelExploration(
                   << std::setw(5-floor(log10f((float)(work_size[0]*work_size[1]))))
                   << std::right << "(" << work_size[0]*work_size[1] << "): "
                   << std::setw(8) << std::fixed << std::setprecision(4)
-                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                   << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
     }
-    last_gpu_timing = opt_time;
+    hipacc_last_timing = opt_time;
     std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
               << opt_ws << ": " << opt_time << " ms" << std::endl;
 }
@@ -352,11 +352,11 @@ T hipaccApplyReduction(
     (script->*kernel1D)(is2);   // second step: reduce linear memory
     rs->finish();
     auto end = hipacc_time_micro();
-    last_gpu_timing = (end - start) * 1.0e-3f;
+    hipacc_last_timing = (end - start) * 1.0e-3f;
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Reduction timing: "
-                  << last_gpu_timing << "(ms)" << std::endl;
+                  << hipacc_last_timing << "(ms)" << std::endl;
     }
 
     // download result of reduction

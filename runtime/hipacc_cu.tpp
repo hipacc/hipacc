@@ -108,8 +108,8 @@ void hipaccWriteMemory(HipaccImage &img, T *host_mem) {
         std::copy(host_mem, host_mem + width*height, (T*)img->host);
 
     if (img->mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpyToArray((cudaArray *)img->mem, 0, 0, host_mem, sizeof(T)*width*height, cudaMemcpyHostToDevice);
-        checkErr(err, "cudaMemcpyToArray()");
+        cudaError_t err = cudaMemcpy2DToArray((cudaArray *)img->mem, 0, 0, host_mem, stride*sizeof(T), width*sizeof(T), height, cudaMemcpyHostToDevice);
+        checkErr(err, "cudaMemcpy2DToArray()");
     } else {
         if (stride > width) {
             cudaError_t err = cudaMemcpy2D(img->mem, stride*sizeof(T), host_mem, width*sizeof(T), width*sizeof(T), height, cudaMemcpyHostToDevice);
@@ -130,8 +130,8 @@ T *hipaccReadMemory(const HipaccImage &img) {
     size_t stride = img->stride;
 
     if (img->mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpyFromArray((T*)img->host, (cudaArray *)img->mem, 0, 0, sizeof(T)*width*height, cudaMemcpyDeviceToHost);
-        checkErr(err, "cudaMemcpyFromArray()");
+        cudaError_t err = cudaMemcpy2DFromArray((T*)img->host, stride*sizeof(T), (cudaArray *)img->mem, 0, 0, width*sizeof(T), height, cudaMemcpyDeviceToHost);
+        checkErr(err, "cudaMemcpy2DFromArray()");
     } else {
         if (stride > width) {
             cudaError_t err = cudaMemcpy2D((T*)img->host, width*sizeof(T), img->mem, stride*sizeof(T), width*sizeof(T), height, cudaMemcpyDeviceToHost);
@@ -277,8 +277,8 @@ T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name, const vo
     // second step: reduce partial blocks on GPU
     // this is done in one shot, so no additional memory is required, i.e. the
     // same array can be used for the input and output array
-    // block.x is fixed, either max_threads or power of two
-    block.x = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2) : max_threads;
+    // block.x is fixed, either max_threads or multiple of 32
+    block.x = (num_blocks < max_threads) ? ((num_blocks + 32 - 1) / 32) * 32 : max_threads;
     grid.x = 1;
     grid.y = 1;
     // calculate the number of pixels reduced per thread
@@ -478,14 +478,13 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
             } else {
                 hipaccLaunchKernel(exploreReduction2D, kernel2D, grid, block, argsReduction2D, false);
             }
-            float total_time = last_gpu_timing;
+            float total_time = hipacc_last_timing;
 
 
             // second step: reduce partial blocks on GPU
             grid.y = 1;
             while (num_blocks > 1) {
-                block.x = (num_blocks < max_threads) ? nextPow2((num_blocks+1)/2) :
-                    max_threads;
+                block.x = (num_blocks < max_threads) ? ((num_blocks + 32 - 1) / 32) * 32 : max_threads;
                 grid.x = (int)ceilf((float)(num_blocks)/(block.x*ppt));
 
                 void *argsReduction1D[] = {
@@ -496,7 +495,7 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
                 };
 
                 hipaccLaunchKernel(exploreReduction1D, kernel1D, grid, block, argsReduction1D, false);
-                total_time += last_gpu_timing;
+                total_time += hipacc_last_timing;
 
                 num_blocks = grid.x;
             }
@@ -504,24 +503,24 @@ T hipaccApplyReductionExploration(std::string filename, std::string kernel2D, st
         }
 
         std::sort(times.begin(), times.end());
-        last_gpu_timing = times[times.size()/2];
+        hipacc_last_timing = times[times.size()/2];
 
-        if (last_gpu_timing < opt_time) {
-            opt_time = last_gpu_timing;
+        if (hipacc_last_timing < opt_time) {
+            opt_time = hipacc_last_timing;
             opt_ppt = ppt;
         }
 
         // print timing
         std::cerr << "<HIPACC:> PPT: " << std::setw(4) << std::right << ppt
                   << ", " << std::setw(8) << std::fixed << std::setprecision(4)
-                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                   << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
 
         // cleanup
         CUresult err = cuModuleUnload(modReduction);
         checkErrDrv(err, "cuModuleUnload()");
     }
-    last_gpu_timing = opt_time;
+    hipacc_last_timing = opt_time;
     std::cerr << "<HIPACC:> Best unroll factor for reduction kernel '"
               << kernel2D << "/" << kernel1D << "': "
               << opt_ppt << ": " << opt_time << " ms" << std::endl;

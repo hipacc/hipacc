@@ -38,10 +38,6 @@ set_target_properties(hipacc
 
 set_target_properties(hipacc
     PROPERTIES
-    LINK_FLAGS "${LLVM_COMPILE_FLAGS}")
-
-set_target_properties(hipacc
-    PROPERTIES
     VERSION ${HIPACC_VERSION})
 
 install(TARGETS hipacc RUNTIME DESTINATION bin COMPONENT compiler)

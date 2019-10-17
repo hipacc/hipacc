@@ -43,8 +43,8 @@
 #include <memory>
 
 
-#if CLANG_VERSION_MAJOR != 6
-#error "Clang Version 6.x required!"
+#if CLANG_VERSION_MAJOR != 8
+#error "Clang Version 8.x required!"
 #endif
 
 namespace clang {
@@ -205,6 +205,10 @@ class CompilerOptions {
     bool multiplePixelsPerThread(CompilerOption option=option_ou) {
       return multiple_pixels & option;
     }
+    bool allowMisAlignedAccess() {
+      return (target_device >= Device::Kepler_30 && target_device <= Device::Maxwell_53);
+    }
+
     int getPixelsPerThread() { return pixels_per_thread; }
     std::string getRSPackageName() { return rs_package_name; }
     std::string getRSDirectory() { return rs_directory; }

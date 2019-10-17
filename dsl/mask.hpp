@@ -27,10 +27,13 @@
 #ifndef __MASK_HPP__
 #define __MASK_HPP__
 
+#include <cassert>
+
 #include "iterationspace.hpp"
 #include "types.hpp"
 
 namespace hipacc {
+
 class MaskBase {
     protected:
         const int size_x_, size_y_;
@@ -300,6 +303,7 @@ class Mask : public MaskBase {
         }
         ElementIterator end() const { return ElementIterator(); }
 };
+
 } // end namespace hipacc
 
 #endif // __MASK_HPP__

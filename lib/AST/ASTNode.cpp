@@ -88,7 +88,7 @@ FunctionDecl *createFunctionDecl(ASTContext &Ctx, DeclContext *DC, StringRef
 
 
 CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD, ArrayRef<Expr *>
-    Expr) {
+    args) {
   // get reference to FD
   DeclRefExpr *FDRef = createDeclRefExpr(Ctx, FD);
   // now, we cast the reference to a pointer to the function type.
@@ -99,18 +99,8 @@ CallExpr *createFunctionCall(ASTContext &Ctx, FunctionDecl *FD, ArrayRef<Expr *>
 
   const FunctionType *FT = FD->getType()->getAs<FunctionType>();
 
-  // create call expression
-  CallExpr *E = new (Ctx) CallExpr(Ctx, Stmt::CallExprClass,
-      Stmt::EmptyShell());
-  E->setNumArgs(Ctx, Expr.size());
-  E->setRParenLoc(SourceLocation());
-  E->setCallee(ICE);
-  for (size_t I=0, N=Expr.size(); I!=N; ++I) {
-    E->setArg(I, Expr[I]);
-  }
-  E->setType(FT->getCallResultType(Ctx));
-
-  return E;
+  return CallExpr::Create(Ctx, ICE, args, FT->getCallResultType(Ctx),
+      ExprValueKind::VK_RValue, SourceLocation());
 }
 
 
@@ -272,29 +262,14 @@ CompoundStmt *createCompoundStmt(ASTContext &Ctx, ArrayRef<Stmt *> Stmts) {
 
 
 ReturnStmt *createReturnStmt(ASTContext &Ctx, Expr *E) {
-  ReturnStmt *S = new (Ctx) ReturnStmt(Stmt::EmptyShell());
-
-  S->setRetValue(E);
-  S->setReturnLoc(SourceLocation());
-  S->setNRVOCandidate(nullptr);
-
-  return S;
+  return ReturnStmt::Create(Ctx, SourceLocation(), E, nullptr);
 }
 
 
 IfStmt *createIfStmt(ASTContext &Ctx, Expr *cond, Stmt *then, Stmt *elsev, Decl
     *decl) {
-  IfStmt *S = new (Ctx) IfStmt(Stmt::EmptyShell());
-
-  S->setInit(nullptr);
-  S->setConditionVariable(Ctx, cast_or_null<VarDecl>(decl));
-  S->setCond(cond);
-  S->setThen(then);
-  S->setElse(elsev);
-  S->setIfLoc(SourceLocation());
-  S->setElseLoc(SourceLocation());
-
-  return S;
+  return IfStmt::Create(Ctx, SourceLocation(), false, nullptr,
+      cast_or_null<VarDecl>(decl), cond, then, SourceLocation(), elsev);
 }
 
 
@@ -315,23 +290,17 @@ ForStmt *createForStmt(ASTContext &Ctx, Stmt *Init, Expr *Cond, Expr *Inc, Stmt
 }
 
 
-WhileStmt *createWhileStmt(ASTContext &Ctx, VarDecl *Var, Expr *Cond, Stmt
-    *Body) {
-  WhileStmt *S = new (Ctx) WhileStmt(Stmt::EmptyShell());
-
-  S->setConditionVariable(Ctx, cast_or_null<VarDecl>(Var));
-  S->setCond(Cond);
-  S->setBody(Body);
-  S->setWhileLoc(SourceLocation());
-
-  return S;
+WhileStmt *createWhileStmt(ASTContext &Ctx, VarDecl *var, Expr *cond, Stmt
+    *body) {
+  return WhileStmt::Create(Ctx, cast_or_null<VarDecl>(var), cond, body,
+      SourceLocation());
 }
 
 
 UnaryOperator *createUnaryOperator(ASTContext &Ctx, Expr *input,
     UnaryOperator::Opcode opc, QualType type) {
   return new (Ctx) UnaryOperator(input, opc, type, VK_RValue, OK_Ordinary,
-      SourceLocation());
+      SourceLocation(), false);
 }
 
 

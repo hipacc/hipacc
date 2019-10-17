@@ -664,9 +664,9 @@ double hipaccCopyBufferBenchmark(const HipaccImage &src, HipaccImage &dst, int n
     checkErr(err, "clReleaseEvent()");
     #endif
     std::sort(times.begin(), times.end());
-    last_gpu_timing = times[times.size()/2];
+    hipacc_last_timing = times[times.size()/2];
 
-    return last_gpu_timing*1.0e-3f;
+    return hipacc_last_timing*1.0e-3f;
 }
 
 
@@ -703,9 +703,9 @@ void hipaccLaunchKernel(cl_kernel kernel, size_t *global_work_size, size_t *loca
     checkErr(err, "clEnqueueNDRangeKernel()");
     #endif
 
-    last_gpu_timing = (end-start)*1.0e-3f;
+    hipacc_last_timing = (end-start)*1.0e-3f;
     if (print_timing) {
-        std::cerr << "<HIPACC:> Kernel timing (" << local_work_size[0]*local_work_size[1] << ": " << local_work_size[0] << "x" << local_work_size[1] << "): " << last_gpu_timing << "(ms)" << std::endl;
+        std::cerr << "<HIPACC:> Kernel timing (" << local_work_size[0]*local_work_size[1] << ": " << local_work_size[0] << "x" << local_work_size[1] << "): " << hipacc_last_timing << "(ms)" << std::endl;
     }
 }
 
@@ -720,17 +720,17 @@ void hipaccLaunchKernelBenchmark(cl_kernel kernel, size_t *global_work_size, siz
             hipaccSetKernelArg(kernel, j, args[j].first, args[j].second);
 
         hipaccLaunchKernel(kernel, global_work_size, local_work_size, print_timing);
-        times.push_back(last_gpu_timing);
+        times.push_back(hipacc_last_timing);
     }
 
     std::sort(times.begin(), times.end());
-    last_gpu_timing = times[times.size()/2];
+    hipacc_last_timing = times[times.size()/2];
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing benchmark ("
                   << local_work_size[0]*local_work_size[1] << ": "
                   << local_work_size[0] << "x" << local_work_size[1] << "): "
-                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                   << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
     }
 }
@@ -787,14 +787,14 @@ void hipaccLaunchKernelExploration(std::string filename, std::string kernel,
                     hipaccSetKernelArg(exploreKernel, j, args[j].first, args[j].second);
 
                 hipaccLaunchKernel(exploreKernel, global_work_size, local_work_size, false);
-                times.push_back(last_gpu_timing);
+                times.push_back(hipacc_last_timing);
             }
 
             std::sort(times.begin(), times.end());
-            last_gpu_timing = times[times.size()/2];
+            hipacc_last_timing = times[times.size()/2];
 
-            if (last_gpu_timing < opt_time) {
-                opt_time = last_gpu_timing;
+            if (hipacc_last_timing < opt_time) {
+                opt_time = hipacc_last_timing;
                 opt_tx = tile_size_x;
                 opt_ty = tile_size_y;
             }
@@ -806,7 +806,7 @@ void hipaccLaunchKernelExploration(std::string filename, std::string kernel,
                       << std::setw(5-floor(log10f((float)(tile_size_x*tile_size_y))))
                       << std::right << "(" << tile_size_x*tile_size_y << "): "
                       << std::setw(8) << std::fixed << std::setprecision(4)
-                      << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                      << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                       << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
 
             // release kernel
@@ -814,7 +814,7 @@ void hipaccLaunchKernelExploration(std::string filename, std::string kernel,
             checkErr(err, "clReleaseKernel()");
         }
     }
-    last_gpu_timing = opt_time;
+    hipacc_last_timing = opt_time;
     std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
               << opt_tx*opt_ty << " (" << opt_tx << "x" << opt_ty << "): "
               << opt_time << " ms" << std::endl;

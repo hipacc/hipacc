@@ -171,8 +171,8 @@ void hipaccCopyMemory(const HipaccImage &src, HipaccImage &dst) {
     size_t stride = src->stride;
 
     if (src->mem_type >= Array2D) {
-        cudaError_t err = cudaMemcpyArrayToArray((cudaArray *)dst->mem, 0, 0, (cudaArray *)src->mem, 0, 0, stride*height*src->pixel_size, cudaMemcpyDeviceToDevice);
-        checkErr(err, "cudaMemcpyArrayToArray()");
+        cudaError_t err = cudaMemcpy2DArrayToArray((cudaArray *)dst->mem, 0, 0, (cudaArray *)src->mem, 0, 0, stride*src->pixel_size, height, cudaMemcpyDeviceToDevice);
+        checkErr(err, "cudaMemcpy2DArrayToArray()");
     } else {
         cudaError_t err = cudaMemcpy(dst->mem, src->mem, src->pixel_size*stride*height, cudaMemcpyDeviceToDevice);
         checkErr(err, "cudaMemcpy()");
@@ -223,13 +223,13 @@ void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 grid, 
 
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
-    cudaEventElapsedTime(&last_gpu_timing, start, end);
+    cudaEventElapsedTime(&hipacc_last_timing, start, end);
 
     cudaEventDestroy(start);
     cudaEventDestroy(end);
 
     if (print_timing) {
-        std::cerr << "<HIPACC:> Kernel timing ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << last_gpu_timing << "(ms)" << std::endl;
+        std::cerr << "<HIPACC:> Kernel timing ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << hipacc_last_timing << "(ms)" << std::endl;
     }
 }
 
@@ -240,14 +240,14 @@ void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name, di
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
         hipaccLaunchKernel(kernel, kernel_name, grid, block, args.data(), print_timing);
-        times.push_back(last_gpu_timing);
+        times.push_back(hipacc_last_timing);
     }
 
     std::sort(times.begin(), times.end());
-    last_gpu_timing = times[times.size()/2];
+    hipacc_last_timing = times[times.size()/2];
 
     if (print_timing)
-        std::cerr << "<HIPACC:> Kernel timing benchmark ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << last_gpu_timing << "(ms)" << std::endl;
+        std::cerr << "<HIPACC:> Kernel timing benchmark ("<< block.x*block.y << ": " << block.x << "x" << block.y << "): " << hipacc_last_timing << "(ms)" << std::endl;
 }
 
 
@@ -413,13 +413,13 @@ void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 grid, 
 
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
-    cudaEventElapsedTime(&last_gpu_timing, start, end);
+    cudaEventElapsedTime(&hipacc_last_timing, start, end);
 
     cudaEventDestroy(start);
     cudaEventDestroy(end);
 
     if (print_timing)
-        std::cerr << "<HIPACC:> Kernel timing (" << block.x*block.y << ": " << block.x << "x" << block.y << "): " << last_gpu_timing << "(ms)" << std::endl;
+        std::cerr << "<HIPACC:> Kernel timing (" << block.x*block.y << ": " << block.x << "x" << block.y << "): " << hipacc_last_timing << "(ms)" << std::endl;
 }
 
 void hipaccLaunchKernelBenchmark(CUfunction &kernel, std::string kernel_name, dim3 grid, dim3 block, void **args, bool print_timing) {
@@ -427,16 +427,16 @@ void hipaccLaunchKernelBenchmark(CUfunction &kernel, std::string kernel_name, di
 
     for (size_t i=0; i<HIPACC_NUM_ITERATIONS; i++) {
         hipaccLaunchKernel(kernel, kernel_name, grid, block, args, print_timing);
-        times.push_back(last_gpu_timing);
+        times.push_back(hipacc_last_timing);
     }
 
     std::sort(times.begin(), times.end());
-    last_gpu_timing = times[times.size()/2];
+    hipacc_last_timing = times[times.size()/2];
 
     if (print_timing) {
         std::cerr << "<HIPACC:> Kernel timing benchmark (" << block.x*block.y
                   << ": " << block.x << "x" << block.y << "): "
-                  << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                  << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                   << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms" << std::endl;
     }
 }
@@ -597,14 +597,14 @@ void hipaccLaunchKernelExploration(std::string filename, std::string kernel, std
 
             for (size_t i=0; i<HIPACC_NUM_ITERATIONS; ++i) {
                 hipaccLaunchKernel(exploreKernel, kernel, grid, block, args.data(), false);
-                times.push_back(last_gpu_timing);
+                times.push_back(hipacc_last_timing);
             }
 
             std::sort(times.begin(), times.end());
-            last_gpu_timing = times[times.size()/2];
+            hipacc_last_timing = times[times.size()/2];
 
-            if (last_gpu_timing < opt_time) {
-                opt_time = last_gpu_timing;
+            if (hipacc_last_timing < opt_time) {
+                opt_time = hipacc_last_timing;
                 opt_tx = tile_size_x;
                 opt_ty = tile_size_y;
             }
@@ -625,7 +625,7 @@ void hipaccLaunchKernelExploration(std::string filename, std::string kernel, std
                       << std::setw(5-floor(log10f((float)(tile_size_x*tile_size_y))))
                       << std::right << "(" << tile_size_x*tile_size_y << "): "
                       << std::setw(8) << std::fixed << std::setprecision(4)
-                      << last_gpu_timing << " | " << times.front() << " | " << times.back()
+                      << hipacc_last_timing << " | " << times.front() << " | " << times.back()
                       << " (median(" << HIPACC_NUM_ITERATIONS << ") | minimum | maximum) ms";
             #ifdef NVML_FOUND
             std::cerr << ";  temperature: " << nvml_temperature << " °C";
@@ -639,7 +639,7 @@ void hipaccLaunchKernelExploration(std::string filename, std::string kernel, std
             checkErrDrv(err, "cuModuleUnload()");
         }
     }
-    last_gpu_timing = opt_time;
+    hipacc_last_timing = opt_time;
     std::cerr << "<HIPACC:> Best configurations for kernel '" << kernel << "': "
               << opt_tx*opt_ty << " (" << opt_tx << "x" << opt_ty << "): "
               << opt_time << " ms" << std::endl;

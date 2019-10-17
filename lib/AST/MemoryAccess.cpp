@@ -834,28 +834,50 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
         global_offset_y = nullptr;
       }
 
-
-      // check if we need to stage right apron
-      size_t num_stages_x = 0;
-      if (Acc->getSizeX() > 1) {
-          num_stages_x = 2;
-      }
-
-      // load row (line)
-      for (size_t i=0; i<=num_stages_x; ++i) {
-        // _smem[lidYRef][(int)threadIdx.x + i*(int)blockDim.x] =
-        //        Image[-SX/2 + i*(int)blockDim.x, -SY/2];
+      if (compilerOptions.allowMisAlignedAccess()) {
         Expr *local_offset_x = nullptr;
+        // load first half line
         if (Acc->getSizeX() > 1) {
-          local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                static_cast<int32_t>(i)), tileVars.local_size_x, BO_Mul,
-              Ctx.IntTy);
-          global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
-              BO_Sub, Ctx.IntTy);
+          local_offset_x = createIntegerLiteral(Ctx, static_cast<int32_t>(0));
+          global_offset_x = createParenExpr(Ctx, createUnaryOperator(Ctx,
+                createIntegerLiteral(Ctx,
+                  static_cast<int32_t>(Acc->getSizeX()/2)), UO_Minus, Ctx.IntTy));
         }
-
         stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
             global_offset_x, global_offset_y);
+        // load line second half (partially overlap)
+        if (Acc->getSizeX() > 1) {
+          local_offset_x = createIntegerLiteral(Ctx,
+              static_cast<int32_t>(Acc->getSizeX()/2)*2);
+          global_offset_x = createParenExpr(Ctx, createUnaryOperator(Ctx,
+                createIntegerLiteral(Ctx,
+                  static_cast<int32_t>(Acc->getSizeX()/2)), UO_Plus, Ctx.IntTy));
+        }
+        stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
+            global_offset_x, global_offset_y);
+      } else {
+        // check if we need to stage right apron
+        size_t num_stages_x = 0;
+        if (Acc->getSizeX() > 1) {
+            num_stages_x = 2;
+        }
+
+        // load row (line)
+        for (size_t i=0; i<=num_stages_x; ++i) {
+          // _smem[lidYRef][(int)threadIdx.x + i*(int)blockDim.x] =
+          //        Image[-SX/2 + i*(int)blockDim.x, -SY/2];
+          Expr *local_offset_x = nullptr;
+          if (Acc->getSizeX() > 1) {
+            local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
+                  static_cast<int32_t>(i)), tileVars.local_size_x, BO_Mul,
+                Ctx.IntTy);
+            global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
+                BO_Sub, Ctx.IntTy);
+          }
+
+          stageLineToSharedMemory(param, stageBody, local_offset_x, nullptr,
+              global_offset_x, global_offset_y);
+        }
       }
     }
   }

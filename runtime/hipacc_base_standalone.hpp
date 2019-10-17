@@ -34,31 +34,13 @@
 #define __HIPACC_BASE_STANDALONE_HPP__
 
 
-float last_gpu_timing = 0.0f;
-
-// get GPU timing of last executed Kernel in ms
+float hipacc_last_timing = 0.0f;
 float hipacc_last_kernel_timing() {
-    return last_gpu_timing;
+    return hipacc_last_timing;
 }
 
 int64_t hipacc_time_micro() {
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-}
-
-
-unsigned int nextPow2(unsigned int x) {
-    --x;
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    ++x;
-
-    // get at least the warp size
-    if (x < 32) x = 32;
-
-    return x;
 }
 
 
