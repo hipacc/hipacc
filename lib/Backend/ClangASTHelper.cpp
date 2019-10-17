@@ -272,7 +272,7 @@ CXXReinterpretCastExpr* ClangASTHelper::CreateReinterpretCast(Expr *pOperandExpr
 
 ReturnStmt* ClangASTHelper::CreateReturnStatement(Expr *pReturnValue)
 {
-  return new (GetASTContext()) ReturnStmt(SourceLocation(), pReturnValue, nullptr);
+  return ReturnStmt::Create(GetASTContext(), SourceLocation(), pReturnValue, nullptr);
 }
 
 CXXStaticCastExpr* ClangASTHelper::CreateStaticCast(Expr *pOperandExpression, const QualType &crReturnType, CastKind eCastKind, bool bIsLValue)

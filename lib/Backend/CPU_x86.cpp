@@ -799,7 +799,7 @@ CPU_x86::DumpInstructionSet::DumpInstructionSet(ASTContext &rASTContext, std::st
   {
     std::string strErrorInfo;
     std::error_code errorCode;
-    llvm::raw_fd_ostream outputStream(llvm::StringRef(strDumpfile.c_str()), errorCode, llvm::sys::fs::F_RW); //strErrorInfo);
+    llvm::raw_fd_ostream outputStream(llvm::StringRef(strDumpfile.c_str()), errorCode, llvm::sys::fs::FA_Read | llvm::sys::fs::FA_Write); //strErrorInfo);
 
     for (auto itFuncDecl : vecFunctionDecls)
     {
