@@ -3670,13 +3670,17 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
       }
     }
 
-    // Create the vertical iteration space loop and set it as kernel function body
-    vecKernelFunctionBody.push_back( _CreateIterationSpaceLoop(ASTHelper, gid_y_ref, hipaccHelper.GetIterationSpaceLimitY(), ASTHelper.CreateCompoundStatement(vecOuterLoopBody)) );
+    // Create the vertical iteration space loop
+    ForStmt *pOuterLoop = _CreateIterationSpaceLoop(ASTHelper, gid_y_ref, hipaccHelper.GetIterationSpaceLimitY(), ASTHelper.CreateCompoundStatement(vecOuterLoopBody));
 
-    // Add an OpenMP parallel for directive right in front of the outer iteration space loop if parallelization is activated
+    // Add an OpenMP parallel for directive with outer iteration space loop as associated statement if parallelization is activated
     if (_bParallelize)
     {
-      vecKernelFunctionBody.insert( vecKernelFunctionBody.end() - 1, ASTHelper.CreateOpenMPDirectiveParallelFor(GetCompilerOptions().getPixelsPerThread()) );
+      vecKernelFunctionBody.push_back( ASTHelper.CreateOpenMPDirectiveParallelFor(pOuterLoop, GetCompilerOptions().getPixelsPerThread()) );
+    }
+    else
+    {
+      vecKernelFunctionBody.push_back(pOuterLoop);
     }
 
     pKernelFunction->setBody( ASTHelper.CreateCompoundStatement(vecKernelFunctionBody) );

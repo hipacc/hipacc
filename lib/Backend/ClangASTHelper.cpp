@@ -223,7 +223,7 @@ WhileStmt* ClangASTHelper::CreateLoopWhile(Expr *pCondition, Stmt *pBody)
   return ASTNode::createWhileStmt(GetASTContext(), nullptr, pCondition, pBody);
 }
 
-Stmt* ClangASTHelper::CreateOpenMPDirectiveParallelFor(int nChunkSize)
+Stmt* ClangASTHelper::CreateOpenMPDirectiveParallelFor(ForStmt* pLoop, int nChunkSize)
 {
   ASTContext& Context = GetASTContext();
   std::vector<OMPClause*> vecClauses;
@@ -244,10 +244,17 @@ Stmt* ClangASTHelper::CreateOpenMPDirectiveParallelFor(int nChunkSize)
 				OMPC_SCHEDULE_MODIFIER_unknown, validLoc);
 
 		vecClauses.push_back(pClause);
-	}
+    }
 
-	return OMPParallelForDirective::Create(Context, SourceLocation(),
-      SourceLocation(), 0, vecClauses, nullptr, OMPLoopDirective::HelperExprs(),
+    // create captured encapsulating the loop statement internally
+    std::vector<CapturedStmt::Capture> vecCaptures;
+    std::vector<Expr*> vecCaptureInits;
+    auto CD = CapturedDecl::Create(Context, 0, 0);
+    auto RD = RecordDecl::CreateDeserialized(Context, 0);
+    Stmt* pCaptured = CapturedStmt::Create(Context, pLoop, CR_OpenMP, vecCaptures, vecCaptureInits, CD, RD);
+
+    return OMPParallelForDirective::Create(Context, SourceLocation(),
+      SourceLocation(), 0, vecClauses, pCaptured, OMPLoopDirective::HelperExprs(),
       false);
 }
 

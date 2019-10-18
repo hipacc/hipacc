@@ -231,8 +231,9 @@ namespace Backend
     ::clang::WhileStmt*               CreateLoopWhile(::clang::Expr *pCondition, ::clang::Stmt *pBody);
 
     /** \brief  Creates a <b>#pragma omp parallel for</b> directive.
+     *  \param  pLoop       The for-loop statement associated to this directive.
      *  \param  nChunkSize  The chunk size of the optional schedule clause. */
-    ::clang::Stmt*                    CreateOpenMPDirectiveParallelFor(int nChunkSize=1);
+    ::clang::Stmt*                    CreateOpenMPDirectiveParallelFor(::clang::ForStmt* pLoop, int nChunkSize=1);
 
     /** \brief  Creates a parenthesis expression around another expression.
      *  \param  pSubExpression  A pointer to the expression object which shall be encapsulated into a parenthesis expression. */
