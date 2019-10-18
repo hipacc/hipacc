@@ -250,6 +250,8 @@ void InstructionSetBase::_CreateMissingIntrinsicsSSE2()
   _CreateIntrinsicDeclaration( "_mm_shufflelo_epi16", qtIntegerVector, qtIntegerVector, "a",  qtInt,          "imm" );
   _CreateIntrinsicDeclaration( "_mm_shuffle_epi32",   qtIntegerVector, qtIntegerVector, "a",  qtInt,          "imm" );
   _CreateIntrinsicDeclaration( "_mm_shuffle_pd",      qtDoubleVector,  qtDoubleVector,  "a",  qtDoubleVector, "b", qtInt, "imm" );
+  _CreateIntrinsicDeclaration( "_mm_extract_epi16",   qtInt,           qtIntegerVector, "a",  qtInt,          "imm" );
+  _CreateIntrinsicDeclaration( "_mm_insert_epi16",    qtIntegerVector, qtIntegerVector, "a",  qtInt,          "i", qtInt, "imm" );
 }
 
 void InstructionSetBase::_CreateMissingIntrinsicsSSE4_1()
