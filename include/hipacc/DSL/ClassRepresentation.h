@@ -640,8 +640,8 @@ class HipaccKernel : public HipaccKernelFeatures {
         case Language::Renderscript:
         case Language::Filterscript:
           // Renderscript and Filterscript compiler expects lowercase file names
-          std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-              std::bind2nd(std::ptr_fun(&std::tolower<char>), std::locale()));
+          for (auto& c: fileName)
+            c = std::tolower(c, std::locale());
           break;
       }
     }
