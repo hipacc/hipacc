@@ -94,14 +94,21 @@ Variable           | Meaning
 
 In the following, all binaries will be installed to `<DST>`.
 
-#### On Linux and macOS
+#### On GNU/Linux and macOS
 Note that **Xcode** and the command line tools are required to build Hipacc on
 macOS (use `xcode-select --install` to install command line tools).
+When configuring LLVM on macOS, the default sysroot (`DEFAULT_SYSROOT`) path
+must be set to `xcrun --sdk macosx --show-sdk-path`.
 
 ```bash
-# Compile Clang/LLVM
+# Compile Clang/LLVM on GNU/Linux
 mkdir <SRC>/llvm/build && cd <SRC>/llvm/build
 cmake .. -DCMAKE_INSTALL_PREFIX=<DST>
+make install
+
+# Compile Clang/LLVM on macOS
+mkdir <SRC>/llvm/build && cd <SRC>/llvm/build
+cmake .. -DCMAKE_INSTALL_PREFIX=<DST> -DDEFAULT_SYSROOT=`` `xcrun --sdk macosx --show-sdk-path` ``
 make install
 
 # Compile libc++
