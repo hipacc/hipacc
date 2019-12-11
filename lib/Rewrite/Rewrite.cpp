@@ -33,7 +33,7 @@
 
 #include "hipacc/Rewrite/Rewrite.h"
 #include "hipacc/Config/config.h"
-#ifdef USE_POLLY
+#ifdef Polly_FOUND
 #include "hipacc/Analysis/Polly.h"
 #endif
 #include "hipacc/AST/ASTNode.h"
@@ -1313,7 +1313,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             KC->getBinningFunction()->setBody(binningStmts);
           }
 
-          #ifdef USE_POLLY
+          #ifdef Polly_FOUND
           if (!compilerOptions.exploreConfig() && compilerOptions.emitC99()) {
             llvm::errs() << "\nPassing the following function to Polly:\n";
             kernelDecl->print(llvm::errs(), Policy);

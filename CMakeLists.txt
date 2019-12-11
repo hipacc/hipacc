@@ -16,9 +16,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(WIN32)
-    add_definitions("/W2")
+    add_compile_options("/W2")
 else()
-    add_definitions("-Wall -Wunused")
+    add_compile_options("-Wall" "-Wunused")
 endif()
 
 # provide only Debug and Release configurations
@@ -31,7 +31,6 @@ if(NOT IS_ABSOLUTE ${CMAKE_INSTALL_PREFIX})
     message(FATAL_ERROR "CMAKE_INSTALL_PREFIX has to be an absolute path!")
 endif()
 
-option(USE_POLLY "Use Polly for analysis" OFF)
 include(CMakeDependentOption)
 cmake_dependent_option(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
@@ -49,7 +48,8 @@ endif()
 # add path for custom modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 find_package(LLVM REQUIRED CONFIG)
-find_package(Clang REQUIRED)
+find_package(Clang REQUIRED CONFIG)
+find_package(Polly QUIET CONFIG)
 find_program(llvm-config NAMES llvm-config PATHS ${LLVM_TOOLS_BINARY_DIR})
 find_program(clang       NAMES clang       PATHS ${LLVM_TOOLS_BINARY_DIR})
 find_package(CUDA)
@@ -84,7 +84,7 @@ message(STATUS "Configuration summary:")
 message(STATUS "===")
 message(STATUS "CUDA support: ${CUDA_FOUND}")
 message(STATUS "OpenCL support: ${OpenCL_FOUND}")
-message(STATUS "Polly support: ${USE_POLLY}")
+message(STATUS "Polly support: ${Polly_FOUND}")
 message(STATUS "JIT estimates: ${USE_JIT_ESTIMATE}")
 message(STATUS "===")
 

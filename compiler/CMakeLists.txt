@@ -1,7 +1,7 @@
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-llvm_map_components_to_libnames(LLVM_LIBRARIES analysis core instcombine instrumentation ipo option scalaropts support target transformutils vectorize)
+set(LLVM_LIBRARIES analysis core instcombine instrumentation ipo option scalaropts support target transformutils vectorize)
 set(CLANG_LIBRARIES clangFrontendTool clangFrontend clangDriver clangSerialization clangCodeGen clangParse clangSema clangRewriteFrontend clangRewrite clangAnalysis clangEdit clangAST clangLex clangBasic)
 
 set(HIPACC_LIBS
@@ -11,11 +11,8 @@ set(HIPACC_LIBS
     hipaccASTTranslate
     hipaccSIMDTypes)
 
-if(USE_POLLY)
+if(Polly_FOUND)
     list(APPEND HIPACC_LIBS hipaccPolly)
-    find_library(Polly_LIBRARY NAMES Polly HINTS ${LLVM_LIBRARY_DIRS})
-    mark_as_advanced(Polly_LIBRARY)
-    list(APPEND LLVM_LIBRARIES ${Polly_LIBRARY})
 endif()
 
 list(APPEND HIPACC_LIBS
@@ -26,7 +23,15 @@ list(APPEND HIPACC_LIBS
 set(hipacc_SOURCES hipacc.cpp)
 add_executable(hipacc ${hipacc_SOURCES})
 
-target_link_libraries(hipacc ${HIPACC_LIBS} ${CLANG_LIBRARIES} ${LLVM_LIBRARIES})
+if(LLVM_LINK_LLVM_DYLIB)
+    set(HIPACC_LLVM_LINK_SHARED "USE_SHARED")
+endif()
+target_link_libraries(hipacc PRIVATE ${HIPACC_LIBS})
+target_link_libraries(hipacc PRIVATE ${CLANG_LIBRARIES})
+llvm_config(hipacc ${HIPACC_LLVM_LINK_SHARED} ${LLVM_LIBRARIES})
+if (Polly_FOUND)
+    target_link_libraries(hipacc PRIVATE Polly)
+endif()
 add_dependencies(hipacc ${HIPACC_LIBS})
 
 

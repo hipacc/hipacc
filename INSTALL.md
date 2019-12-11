@@ -89,7 +89,6 @@ The following options can be enabled or disabled:
 
 Variable           | Meaning
 -------------------|----------------------------------------------------------------------
-`USE_POLLY`        | Use Polly for kernel analysis (e.g. `-DUSE_POLLY=ON`)
 `USE_JIT_ESTIMATE` | Use JIT compilation to get resource estimates (unavailable for macOS)
 
 In the following, all binaries will be installed to `<DST>`.
