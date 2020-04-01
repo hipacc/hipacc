@@ -3,8 +3,11 @@ cmake_minimum_required(VERSION 3.4.3 FATAL_ERROR)
 # add path for custom modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
-execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always OUTPUT_VARIABLE HIPACC_VERSION)
-string(STRIP "${HIPACC_VERSION}" HIPACC_VERSION)
+find_package(Git)
+if(Git_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always OUTPUT_VARIABLE HIPACC_VERSION)
+    string(STRIP "${HIPACC_VERSION}" HIPACC_VERSION)
+endif()
 
 if(NOT HIPACC_VERSION)
     message(FATAL_ERROR "Could not determine version of Hipacc!")
