@@ -88,10 +88,26 @@ Stmt *ASTTranslate::VisitAttributedStmt(AttributedStmt *S) {
 }
 
 Stmt *ASTTranslate::VisitIfStmt(IfStmt *S) {
+  /*force in order translation of ifStmt 
+    
+    Since we dynamically replace variable names in the condition during loop unrolls we have to translate the ifStmt in the correct order(from top to bottom).
+    Not doing so leads to ~400 iterations of ASTTranslate::addBorderHandling not generating code,
+    yet increasing the global tmp_123 variable counter for loop unrolls ASTTranslate::literalCount 
+    and redeclarations of tmp_123 variables within the same loop unroll scope 
+    when using a domain accessor function from within an if statement condition.
+
+    As the order of evaluation of function arguments is not guaranteed by the language standard, the 'Clone' functions have to be explicitly called in sequence
+    This likely worked correctly before adding support for the MSVC ABI which changes clangs order of argument evaluation*/
+
+	auto init = Clone(S->getInit());
+	auto condDecl = CloneDecl(S->getConditionVariable());
+	auto cond = Clone(S->getCond());
+	auto thenBlock = Clone(S->getThen());
+	auto elseBlock = Clone(S->getElse());
   return IfStmt::Create(Ctx, S->getIfLoc(), S->isConstexpr(),
-      Clone(S->getInit()), CloneDecl(S->getConditionVariable()),
-      Clone(S->getCond()), Clone(S->getThen()), S->getElseLoc(),
-      Clone(S->getElse()));
+      init, condDecl,
+      cond, thenBlock, S->getElseLoc(),
+      elseBlock);
 }
 
 Stmt *ASTTranslate::VisitSwitchStmt(SwitchStmt *S) {

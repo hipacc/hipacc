@@ -223,7 +223,7 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
 
   // convert the function body to kernel syntax
   Stmt *new_body = Clone(S);
-  assert(isa<CompoundStmt>(new_body) && "CompoundStmt for kernel function body expected!");
+  hipacc_require(isa<CompoundStmt>(new_body), "CompoundStmt for kernel function body expected!");
 
   //
   // for (int gid_y=offset_y; gid_y<is_height+offset_y; gid_y++) {
@@ -831,6 +831,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         SY = llvm::APInt(32, smem_size_y*Kernel->getNumThreadsY());
 
         QT = Acc->getImage()->getType();
+        QT.removeLocalConst();
+        
         QT = Ctx.getConstantArrayType(QT, SX, ArrayType::Normal, 0);
         QT = Ctx.getConstantArrayType(QT, SY, ArrayType::Normal, 0);
       }
@@ -1268,7 +1270,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
       // convert kernel function body to CUDA/OpenCL kernel syntax
       Stmt *new_body = Clone(S);
-      assert(isa<CompoundStmt>(new_body) && "CompoundStmt for kernel function body expected!");
+      hipacc_require(isa<CompoundStmt>(new_body), "CompoundStmt for kernel function body expected!");
 
       // add iteration space check when calculating multiple pixels per thread,
       // having a tiling with multiple threads in the y-dimension, or in case
@@ -1566,13 +1568,13 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
               convert = lookup<FunctionDecl>(std::string("convert_long4"),
                   simdTypes.getSIMDType(Ctx.LongTy, std::string("long"), SIMD4),
                   hipacc_ns);
-              assert(convert && "could not lookup 'convert_long4'");
+              hipacc_require(convert, "could not lookup 'convert_long4'");
             } else if (name=="abs") {
               // require convert function uint -> int
               convert = lookup<FunctionDecl>(std::string("convert_int4"),
                   simdTypes.getSIMDType(Ctx.IntTy, std::string("int"), SIMD4),
                   hipacc_ns);
-              assert(convert && "could not lookup 'convert_int4'");
+              hipacc_require(convert, "could not lookup 'convert_int4'");
             }
 
             if (doUpdate) {
@@ -1597,12 +1599,12 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
         std::string nameDC= E->getDirectCallee()->getNameAsString();
         if (Kernel->vectorize() && !compilerOptions.emitC99()) {
           QT = simdTypes.getSIMDType(QT, QT.getAsString(), SIMD4);
-          assert(false && "widening of intrinsic functions not supported currently");
+          hipacc_require(false, "widening of intrinsic functions not supported currently");
         }
-
         if (compilerOptions.emitCUDA() && nameDC.at(nameDC.length()-1)!='f' &&
-              QT->getAs<BuiltinType>()->getKind() == BuiltinType::Float) {
-          llvm::errs() << "Warning: " << nameDC <<
+            !QT->isVectorType() &&  
+			QT->getAs<BuiltinType>()->getKind() == BuiltinType::Float) {
+          llvm::errs() << "Error: " << nameDC <<
             " is not supported for float in CUDA, use " << nameDC << "f instead!\n";
           exit(EXIT_FAILURE);
         }
@@ -1664,7 +1666,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
     return result;
   }
 
-  assert(0 && "CallExpr without FunctionDecl as Callee!");
+  hipacc_require(0, "CallExpr without FunctionDecl as Callee!");
   return E;
 }
 
@@ -1879,11 +1881,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
   // assume that all CXXOperatorCallExpr are memory access functions, since we
   // don't support function calls
-  assert(isa<MemberExpr>(E->getArg(0)) && "Memory access function assumed.");
+  hipacc_require(isa<MemberExpr>(E->getArg(0)), "Memory access function assumed.");
   MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(0));
 
   // get FieldDecl of the MemberExpr
-  assert(isa<FieldDecl>(ME->getMemberDecl()) && "Image must be a C++-class member.");
+  hipacc_require(isa<FieldDecl>(ME->getMemberDecl()), "Image must be a C++-class member.");
   FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
 
   // MemberExpr is converted to DeclRefExpr when cloning
@@ -1893,15 +1895,15 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
   // look for Mask user class member variable
   if (auto mask = Kernel->getMaskFromMapping(FD)) {
     MemoryAccess mem_acc = KernelClass->getMemAccess(FD);
-    assert(mem_acc == READ_ONLY &&
+    hipacc_require(mem_acc == READ_ONLY, 
         "only read-only memory access to Mask supported");
 
     switch (E->getNumArgs()) {
       default:
-        assert(0 && "0, 1, or 2 arguments for Mask operator() expected!");
+        hipacc_require(0, "0, 1, or 2 arguments for Mask operator() expected!");
         break;
       case 1:
-        assert(convMask && convMask == mask &&
+        hipacc_require(convMask && convMask == mask,
             "0 arguments for Mask operator() only allowed within"
             "convolution lambda-function.");
         // within convolute lambda-function
@@ -1940,19 +1942,19 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         // 0: -> (this *) Mask class
         // 1: -> (dom) Domain class
         {
-        assert(isa<MemberExpr>(E->getArg(1)) && "Memory access function assumed.");
+        hipacc_require(isa<MemberExpr>(E->getArg(1)), "Memory access function assumed.");
         MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(1));
-        assert(isa<FieldDecl>(ME->getMemberDecl()) && "Domain must be a C++-class member.");
+        hipacc_require(isa<FieldDecl>(ME->getMemberDecl()), "Domain must be a C++-class member.");
         FieldDecl *domFD = dyn_cast<FieldDecl>(ME->getMemberDecl());
 
         // look for Domain user class member variable
-        assert(Kernel->getMaskFromMapping(domFD) && "Could not find Domain variable.");
+        hipacc_require(Kernel->getMaskFromMapping(domFD), "Could not find Domain variable.");
         HipaccMask *Domain = Kernel->getMaskFromMapping(domFD);
         (void)Domain; // silent compiler warning
-        assert(Domain->isDomain() && "Domain required.");
+        hipacc_require(Domain->isDomain(), "Domain required.");
 
-        assert(mask->getSizeX()==Domain->getSizeX() &&
-               mask->getSizeY()==Domain->getSizeY() &&
+        hipacc_require(mask->getSizeX()==Domain->getSizeX() && 
+               mask->getSizeY()==Domain->getSizeY(),
                "Mask and Domain size must be equal.");
 
         // within reduce/iterate lambda-function
@@ -2068,7 +2070,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
     DeclRefExpr *DRE = nullptr;
     if (!Kernel->vectorize()) { // Images are replaced by local pointers
       ParmVarDecl *PVD = dyn_cast_or_null<ParmVarDecl>(LHS->getDecl());
-      assert(PVD && "Image variable must be a ParmVarDecl!");
+      hipacc_require(PVD, "Image variable must be a ParmVarDecl!");
 
       if (KernelDeclMapShared[PVD]) {
         // shared/local memory
@@ -2101,7 +2103,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
     int mask_idx_x = 0, mask_idx_y = 0;
     switch (E->getNumArgs()) {
       default:
-        assert(0 && "0, 1, or 2 arguments for Accessor operator() expected!\n");
+        hipacc_require(0, "0, 1, or 2 arguments for Accessor operator() expected!\n");
         break;
       case 1:
         // 0: -> (this *) Image Class
@@ -2115,7 +2117,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         // 0: -> (this *) Image Class
         // 1: -> Mask | Domain
         {
-        assert(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()) &&
+        hipacc_require(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()), 
             "Accessor operator() with 1 argument requires a"
             "convolution Mask or Domain as parameter.");
         MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(1)->IgnoreImpCasts());
@@ -2123,7 +2125,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         Mask = Kernel->getMaskFromMapping(FD);
         }
         if (convMask) {
-          assert(convMask == Mask &&
+          hipacc_require(convMask == Mask, 
               "the Mask parameter for Accessor operator(Mask) has to be"
               "the Mask parameter of the convolve method.");
           mask_idx_x = convIdxX;
@@ -2138,7 +2140,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
               break;
             }
           }
-          assert(found &&
+          hipacc_require(found, 
               "the Domain parameter for Accessor operator(Domain) has to be"
               "the Domain parameter of the reduce method.");
         }
@@ -2196,13 +2198,13 @@ Expr *ASTTranslate::VisitExprWithCleanupsTranslate(ExprWithCleanups *E) {
 
 
 Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
-  assert(isa<MemberExpr>(E->getCallee()) &&
+  hipacc_require(isa<MemberExpr>(E->getCallee()),
       "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
   MemberExpr *ME = cast<MemberExpr>(E->getCallee());
 
   auto mem_at_fun = [&] (HipaccAccessor *acc, DeclRefExpr *LHS,
                          MemoryAccess mem_acc) -> Expr * {
-    assert(E->getNumArgs()==2 &&
+    hipacc_require(E->getNumArgs()==2, 
            "x and y argument for pixel_at() or output_at() required!");
     Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), acc);
     Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), acc);
@@ -2232,7 +2234,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       case Language::Filterscript:
         if (ME->getMemberNameInfo().getAsString() == "output_at" &&
             compilerOptions.emitFilterscript()) {
-            assert(0 && "Filterscript does not support output_at().");
+            hipacc_require(0, "Filterscript does not support output_at().");
         }
         result = accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
         break;
@@ -2275,7 +2277,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
     // output() method -> img[y][x]
     if (ME->getMemberNameInfo().getAsString() == "output") {
-      assert(E->getNumArgs()==0 && "no arguments for output() method supported!");
+      hipacc_require(E->getNumArgs()==0, "no arguments for output() method supported!");
       Expr *result = nullptr;
 
       switch (compilerOptions.getTargetLang()) {
@@ -2372,49 +2374,49 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "x") {
-          assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
+          hipacc_require(isDomainValid, "Getting Domain reduction IDs is only allowed "
                                   "within reduction lambda-function.");
           return createIntegerLiteral(Ctx, redIdxX[redDepth] -
               static_cast<int>(redDomains[redDepth]->getSizeX()/2));
         } else if (ME->getMemberNameInfo().getAsString() == "y") {
-          assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
+          hipacc_require(isDomainValid, "Getting Domain reduction IDs is only allowed "
                                   "within reduction lambda-function.");
           return createIntegerLiteral(Ctx, redIdxY[redDepth] -
               static_cast<int>(redDomains[redDepth]->getSizeY()/2));
         } else if (ME->getMemberNameInfo().getAsString() == "size_x") {
-          assert(mask->isConstant() && "Domain size x must be constant.");
+          hipacc_require(mask->isConstant(), "Domain size x must be constant.");
           return createIntegerLiteral(Ctx,
               static_cast<int>(mask->getSizeX()));
         } else if (ME->getMemberNameInfo().getAsString() == "size_y") {
-          assert(mask->isConstant() && "Domain size y must be constant.");
+          hipacc_require(mask->isConstant(), "Domain size y must be constant.");
           return createIntegerLiteral(Ctx,
               static_cast<int>(mask->getSizeY()));
         } else {
-          assert(isDomainValid && "Getting Domain reduction IDs is only allowed "
+          hipacc_require(isDomainValid, "Getting Domain reduction IDs is only allowed "
                                   "within reduction lambda-function.");
         }
       } else {
         // within convolute lambda-function
         if (ME->getMemberNameInfo().getAsString() == "x") {
-          assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
+          hipacc_require(mask == convMask, "Getting Mask convolution IDs is only allowed "
                                      "allowed within convolution lambda-function.");
           return createIntegerLiteral(Ctx, convIdxX -
               static_cast<int>(mask->getSizeX()/2));
         } else if (ME->getMemberNameInfo().getAsString() == "y") {
-          assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
+          hipacc_require(mask == convMask, "Getting Mask convolution IDs is only allowed "
                                      "allowed within convolution lambda-function.");
           return createIntegerLiteral(Ctx, convIdxY -
               static_cast<int>(mask->getSizeY()/2));
         } else if (ME->getMemberNameInfo().getAsString() == "size_x") {
-          assert(mask->isConstant() && "Mask size x must be constant.");
+          hipacc_require(mask->isConstant(), "Mask size x must be constant.");
           return createIntegerLiteral(Ctx,
               static_cast<int>(mask->getSizeX()));
         } else if (ME->getMemberNameInfo().getAsString() == "size_y") {
-          assert(mask->isConstant() && "Mask size y must be constant.");
+          hipacc_require(mask->isConstant(), "Mask size y must be constant.");
           return createIntegerLiteral(Ctx,
               static_cast<int>(mask->getSizeY()));
         } else {
-          assert(mask == convMask && "Getting Mask convolution IDs is only allowed "
+          hipacc_require(mask == convMask, "Getting Mask convolution IDs is only allowed "
                                      "allowed within convolution lambda-function.");
         }
       }
@@ -2450,7 +2452,7 @@ Stmt *ASTTranslate::BinningTranslator::traverseStmt(Stmt *S) {
 
 Stmt *ASTTranslate::BinningTranslator::translateBinaryOperator(BinaryOperator *E) {
   if (CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getLHS())) {
-    assert(isa<MemberExpr>(MCE->getCallee()) &&
+    hipacc_require(isa<MemberExpr>(MCE->getCallee()),
         "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
     MemberExpr *ME = cast<MemberExpr>(MCE->getCallee());
 
@@ -2485,7 +2487,7 @@ Stmt *ASTTranslate::BinningTranslator::translateBinaryOperator(BinaryOperator *E
 
 
 Expr *ASTTranslate::BinningTranslator::translateCXXMemberCallExpr(CXXMemberCallExpr *E) {
-  assert(isa<MemberExpr>(E->getCallee()) &&
+  hipacc_require(isa<MemberExpr>(E->getCallee()),
       "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
   MemberExpr *ME = cast<MemberExpr>(E->getCallee());
 

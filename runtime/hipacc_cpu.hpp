@@ -39,12 +39,12 @@ inline float hipacc_last_kernel_timing() {
   return hipaccCpuTiming.get_last_kernel_timing();
 }
 
-class HipaccContext : public HipaccContextBase {
+class HipaccContext {
 public:
   static HipaccContext &getInstance();
 };
 
-class HipaccImageCpuBase : public HipaccImageBase {
+class HipaccImageCpuBase {
 public:
   virtual ~HipaccImageCpuBase() = 0;
   virtual void *get_aligned_host_memory() const = 0;
@@ -106,6 +106,19 @@ public:
       : HipaccAccessorBase(img->get_width(), img->get_height(), 0, 0), img(img) {}
 };
 
+template<typename T>
+HipaccAccessor hipaccMakeAccessor(HipaccImageCpu const& img)
+{
+  return HipaccAccessor{ img };
+}
+
+template<typename T>
+HipaccAccessor hipaccMakeAccessor(HipaccImageCpu const& img, size_t width, size_t height,
+                 int32_t offset_x = 0, int32_t offset_y = 0)
+{
+  return HipaccAccessor{ img, width, height, offset_x, offset_y };
+}
+
 class HipaccPyramidCpu : public HipaccPyramid {
 private:
   std::vector<HipaccImageCpu> imgs_;
@@ -119,23 +132,7 @@ public:
            "Accessed pyramid stage is out of bounds.");
     return imgs_.at(level_ + relative);
   }
-  int depth() const { return depth_; }
-  int level() const { return level_; }
-  void levelInc() { ++level_; }
-  void levelDec() { --level_; }
-  bool is_top_level() const { return level_ == 0; }
-  bool is_bottom_level() const { return level_ == depth_ - 1; }
   void swap(HipaccPyramidCpu &other) { imgs_.swap(other.imgs_); }
-  bool bind() {
-    if (!bound_) {
-      bound_ = true;
-      level_ = 0;
-      return true;
-    } else {
-      return false;
-    }
-  }
-  void unbind() { bound_ = false; }
 };
 
 extern int64_t start_time;

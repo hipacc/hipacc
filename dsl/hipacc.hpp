@@ -27,6 +27,16 @@
 #ifndef __HIPACC_HPP__
 #define __HIPACC_HPP__
 
+#define HIPACC_DSL
+
+#ifdef __HIPACC__
+#define HIPACC_CODEGEN [[clang::annotate("hipacc_codegen")]]
+#define HIPACC_NO_RT_INIT [[clang::annotate("hipacc_no_rt_init")]]
+#else
+#define HIPACC_CODEGEN
+#define HIPACC_NO_RT_INIT
+#endif
+
 #ifdef _WIN32
 # define NOMINMAX
 #endif

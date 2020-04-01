@@ -68,7 +68,7 @@ std::string HipaccImage::getTextureType() {
           Ctx.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Error,
             "BuiltinType %0 of Image %1 not supported for textures.")) <<
         BT->getName(PrintingPolicy(Ctx.getLangOpts())) << VD->getName();
-      assert(0 && "BuiltinType for texture not supported");
+      hipacc_require(0, "BuiltinType for texture not supported");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
       return "CU_AD_FORMAT_SIGNED_INT8";
@@ -116,7 +116,7 @@ std::string HipaccImage::getImageReadFunction() {
           Ctx.getDiagnostics().getCustomDiagID(DiagnosticsEngine::Error,
             "BuiltinType %0 of Image %1 not supported for Image objects.")) <<
         BT->getName(PrintingPolicy(Ctx.getLangOpts())) << VD->getName();
-      assert(0 && "BuiltinType for Image object not supported");
+      hipacc_require(0, "BuiltinType for Image object not supported");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
     case BuiltinType::Short:
@@ -155,7 +155,7 @@ void HipaccBoundaryCondition::setConstVal(APValue &val, ASTContext &Ctx) {
     case BuiltinType::Void:
     case BuiltinType::Bool:
     default:
-      assert(0 && "BuiltinType for Boundary handling constant not supported.");
+      hipacc_require(0, "BuiltinType for Boundary handling constant not supported.");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
     case BuiltinType::Char_U:

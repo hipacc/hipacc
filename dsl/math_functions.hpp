@@ -39,8 +39,10 @@ namespace math {
 #define ATTRIBUTES inline
 #elif defined __GNUC__
 #define ATTRIBUTES inline
+#elif defined _MSC_VER
+#define ATTRIBUTES inline
 #else
-#error "Only Clang, and gcc compilers supported!"
+#error "Only Clang, gcc and MSVC compilers supported!"
 #endif
 
 

@@ -42,9 +42,11 @@
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/CompilerInvocation.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
+#include <clang/Lex/PreprocessorOptions.h>
 #include <llvm/Support/Host.h>
 
 #include <sstream>
+#include <fstream>
 
 using namespace clang;
 using namespace hipacc;
@@ -69,6 +71,10 @@ void printUsage() {
     << "  -emit-opencl-acc        Emit OpenCL code for Accelerator devices\n"
     << "  -emit-opencl-cpu        Emit OpenCL code for CPU devices\n"
     << "  -emit-opencl-gpu        Emit OpenCL code for GPU devices\n"
+    << "  -nvcc-path              Path for the NVCC compier for JIT compilation\n"
+    << "  -cl-compiler-path       Path for the OpenCL compier for JIT compilation\n"
+    << "  -ccbin-path             Path host compiler binary directory (Windows only)\n"
+    << "  -rt-includes-path       Path for the runtime libraries\n"
     << "  -emit-renderscript      Emit Renderscript code for Android\n"
     << "  -emit-filterscript      Emit Filterscript code for Android\n"
     << "  -emit-padding <n>       Emit CUDA/OpenCL/Renderscript image padding, using alignment of <n> bytes for GPU devices\n"
@@ -133,6 +139,20 @@ int main(int argc, char *argv[]) {
       compilerOptions.setTargetLang(Language::CUDA);
       continue;
     }
+    if (StringRef(argv[i]) == "-nvcc-path") {
+      hipacc_require(i<(argc-1), "Mandatory path parameter for nvcc missing.");
+      std::string nvcc_compiler = StringRef(argv[i+1]);
+      std::ifstream compiler(nvcc_compiler);
+      hipacc_require(compiler.good(), "cannot find NVCC for JIT compilation.");
+      compilerOptions.setNvccPath(nvcc_compiler);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-ccbin-path") {
+      hipacc_require(i<(argc-1), "Mandatory path parameter for ccbin-path missing.");
+      std::string ccbin_path = StringRef(argv[i+1]);
+      compilerOptions.setCCBinPath(ccbin_path);
+      continue;
+    }
     if (StringRef(argv[i]) == "-emit-opencl-acc") {
       compilerOptions.setTargetLang(Language::OpenCLACC);
       continue;
@@ -145,6 +165,20 @@ int main(int argc, char *argv[]) {
       compilerOptions.setTargetLang(Language::OpenCLGPU);
       continue;
     }
+    if (StringRef(argv[i]) == "-cl-compiler-path") {
+      hipacc_require(i<(argc-1), "Mandatory path parameter for nvcc missing.");
+      std::string cl_compiler = StringRef(argv[i+1]);
+      std::ifstream compiler(cl_compiler);
+      hipacc_require(compiler.good(), "cannot find OpenCL compiler for JIT compilation.");
+      compilerOptions.setClCompilerPath(cl_compiler);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-rt-includes-path") {
+      hipacc_require(i<(argc-1), "Mandatory path parameter for runtime missing.");
+      std::string rt_path = StringRef(argv[i+1]);
+      compilerOptions.setRTIncPath(rt_path);
+      continue;
+    }
     if (StringRef(argv[i]) == "-emit-renderscript") {
       compilerOptions.setTargetLang(Language::Renderscript);
       continue;
@@ -155,7 +189,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (StringRef(argv[i]) == "-emit-padding") {
-      assert(i<(argc-1) && "Mandatory alignment parameter for -emit-padding switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory alignment parameter for -emit-padding switch missing.");
       std::istringstream buffer(argv[i+1]);
       int val;
       buffer >> val;
@@ -169,7 +203,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (StringRef(argv[i]) == "-target") {
-      assert(i<(argc-1) && "Mandatory code name parameter for -target switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory code name parameter for -target switch missing.");
 
       if (!compilerOptions.emitCUDA() &&
           !compilerOptions.emitOpenCLACC() &&
@@ -219,7 +253,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (StringRef(argv[i]) == "-use-config") {
-      assert(i<(argc-1) && "Mandatory configuration specification for -use-config switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory configuration specification for -use-config switch missing.");
       int x=0, y=0, ret=0;
       ret = sscanf(argv[i+1], "%dx%d", &x, &y);
       if (ret!=2) {
@@ -232,7 +266,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (StringRef(argv[i]) == "-reduce-config") {
-      assert(i<(argc-1) && "Mandatory configuration specification for -reduce-config switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory configuration specification for -reduce-config switch missing.");
       int num_warps=0, num_hists=0, ret=0;
       ret = sscanf(argv[i+1], "%dx%d", &num_warps, &num_hists);
       if (ret!=2) {
@@ -249,7 +283,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (StringRef(argv[i]) == "-use-textures") {
-      assert(i<(argc-1) && "Mandatory texture memory specification for -use-textures switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory texture memory specification for -use-textures switch missing.");
       if (StringRef(argv[i+1]) == "off") {
         compilerOptions.setTextureMemory(Texture::None);
       } else if (StringRef(argv[i+1]) == "Linear1D") {
@@ -269,7 +303,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (StringRef(argv[i]) == "-use-local") {
-      assert(i<(argc-1) && "Mandatory local memory specification for -use-local switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory local memory specification for -use-local switch missing.");
       if (StringRef(argv[i+1]) == "off") {
         compilerOptions.setLocalMemory(USER_OFF);
       } else if (StringRef(argv[i+1]) == "on") {
@@ -283,7 +317,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (StringRef(argv[i]) == "-vectorize") {
-      assert(i<(argc-1) && "Mandatory vectorization specification for -vectorize switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory vectorization specification for -vectorize switch missing.");
       if (StringRef(argv[i+1]) == "off") {
         compilerOptions.setVectorizeKernels(USER_OFF);
       } else if (StringRef(argv[i+1]) == "on") {
@@ -297,7 +331,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (StringRef(argv[i]) == "-pixels-per-thread") {
-      assert(i<(argc-1) && "Mandatory integer parameter for -pixels-per-thread switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory integer parameter for -pixels-per-thread switch missing.");
       std::istringstream buffer(argv[i+1]);
       int val;
       buffer >> val;
@@ -311,7 +345,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if (StringRef(argv[i]) == "-rs-package") {
-      assert(i<(argc-1) && "Mandatory package name string for -rs-package switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory package name string for -rs-package switch missing.");
       compilerOptions.setRSPackageName(argv[i+1]);
       ++i;
       continue;
@@ -325,14 +359,14 @@ int main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     }
     if (StringRef(argv[i]) == "-o") {
-      assert(i<(argc-1) && "Mandatory output file name for -o switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory output file name for -o switch missing.");
       args.push_back(argv[i]);
       args.push_back(argv[++i]);
       out = argv[i];
       continue;
     }
     if (StringRef(argv[i]) == "-rows-per-thread") {
-      assert(i<(argc-1) && "Mandatory integer parameter for -rows-per-thread switch missing.");
+      hipacc_require(i<(argc-1), "Mandatory integer parameter for -rows-per-thread switch missing.");
       std::istringstream buffer(argv[i+1]);
       int val;
       buffer >> val;
@@ -366,6 +400,9 @@ int main(int argc, char *argv[]) {
       ++i;
       continue;
     }
+
+    if(strcmp("-I", argv[i]) == 0 && !args.empty() && strcmp("-I", args.back()) == 0)
+      continue;
 
     args.push_back(argv[i]);
   }
@@ -488,6 +525,7 @@ int main(int argc, char *argv[]) {
   Invocation->getFrontendOpts().DisableFree = false;
   Invocation->getCodeGenOpts().DisableFree = false;
   Invocation->getDependencyOutputOpts() = DependencyOutputOptions();
+  Invocation->getPreprocessorOpts().addMacroDef("__HIPACC__");
 
   // create a compiler instance to handle the actual work
   CompilerInstance Compiler;

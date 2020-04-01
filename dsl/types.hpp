@@ -49,7 +49,9 @@ typedef double          double4 __attribute__ ((ext_vector_type(4)));
     MAKE_TYPE(NEW_TYPE, BASIC_TYPE)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)
-#elif defined __GNUC__
+#else
+
+#if defined(__GNUC__)
 #define MAKE_TYPEDEF(NEW_TYPE, BASIC_TYPE) \
 _Pragma("pack(push, 1)") \
 struct NEW_TYPE { \
@@ -60,6 +62,20 @@ struct NEW_TYPE { \
 }; \
 typedef struct NEW_TYPE NEW_TYPE; \
 _Pragma("pack(pop)")
+#elif defined(_MSC_VER)
+#define MAKE_TYPEDEF(NEW_TYPE, BASIC_TYPE) \
+__pragma(pack(push, 1)) \
+struct NEW_TYPE { \
+    BASIC_TYPE x, y, z, w; \
+    void operator=(BASIC_TYPE b) { \
+        x = b; y = b; z = b; w = b; \
+    } \
+}; \
+__pragma(pack(pop))
+#else
+#error "Only Clang, gcc and MSVC compilers supported!"
+#endif
+
 MAKE_TYPEDEF(char4,     char)
 MAKE_TYPEDEF(uchar4,    uchar)
 MAKE_TYPEDEF(short4,    short)
@@ -77,8 +93,8 @@ MAKE_TYPEDEF(double4,   double)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE) \
     MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)
-#else
-#error "Only Clang, and gcc compilers supported!"
+//#else
+//#error "Only Clang, and gcc compilers supported!"
 #endif
 
 
@@ -95,16 +111,16 @@ static ATTRIBUTES NEW_TYPE make_##NEW_TYPE(BASIC_TYPE s) { \
 } \
  \
 template<> ATTRIBUTES BASIC_TYPE convert<BASIC_TYPE>(float s) { \
-    return s; \
+    return (BASIC_TYPE)(s); \
 } \
 template<> ATTRIBUTES NEW_TYPE convert<NEW_TYPE>(float4 v) { \
-    return make_##NEW_TYPE(v.x, v.y, v.z, v.w); \
+    return make_##NEW_TYPE(convert<BASIC_TYPE>(v.x), convert<BASIC_TYPE>(v.y), convert<BASIC_TYPE>(v.z), convert<BASIC_TYPE>(v.w)); \
 } \
 ATTRIBUTES float as_float(BASIC_TYPE s) { \
-    return s; \
+    return (float)s; \
 } \
 ATTRIBUTES float4 as_float(NEW_TYPE v) { \
-    return make_float4(v.x, v.y, v.z, v.w); \
+    return make_float4(as_float(v.x), as_float(v.y), as_float(v.z), as_float(v.w)); \
 }
 
 
@@ -461,7 +477,7 @@ MAKE_VEC_F(double4,   double,   long4)
 // conversion function
 #define MAKE_CONV_FUNC(BASIC_TYPE, RET_TYPE, VEC_TYPE) \
 ATTRIBUTES RET_TYPE convert_##RET_TYPE(VEC_TYPE vec) { \
-    return make_##RET_TYPE(vec.x, vec.y, vec.z, vec.w); \
+    return make_##RET_TYPE((BASIC_TYPE)(vec.x), (BASIC_TYPE)(vec.y), (BASIC_TYPE)(vec.z), (BASIC_TYPE)(vec.w)); \
 }
 
 // generate conversion functions for types

@@ -41,9 +41,9 @@
 #define WEXITSTATUS(x) (x != 0)
 #endif
 
-HipaccKernelTimingBase hipaccCudaTiming;
+//HipaccKernelTimingBase hipaccCudaTiming;
 
-std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
+inline std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
   const char *error_name(nullptr);
   const char *error_string(nullptr);
   cuGetErrorName(errorCode, &error_name);
@@ -51,7 +51,7 @@ std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
   return std::string(error_name) + ": " + std::string(error_string);
 }
 
-std::string getCUDAErrorCodeStr(cudaError_t errorCode) {
+inline std::string getCUDAErrorCodeStr(cudaError_t errorCode) {
   const char *error_name(nullptr);
   const char *error_string(nullptr);
   error_name = cudaGetErrorName(errorCode);
@@ -59,15 +59,13 @@ std::string getCUDAErrorCodeStr(cudaError_t errorCode) {
   return std::string(error_name) + ": " + std::string(error_string);
 }
 
-HipaccContext &HipaccContext::getInstance() {
+inline HipaccContext &HipaccContext::getInstance() {
   static HipaccContext instance;
 
   return instance;
 }
 
-HipaccImageCudaBase::~HipaccImageCudaBase() {}
-
-void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
+inline void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 const &block) {
   // calculate block id of a) first block that requires no border handling
   // (left, top) and b) first block that requires border handling (right,
   // bottom)
@@ -106,7 +104,7 @@ void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block) {
   }
 }
 
-dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
+inline dim3 hipaccCalcGridFromBlock(hipacc_launch_info const &info, dim3 const &block) {
   return dim3(
       (int)ceilf((float)(info.is_width + info.offset_x) /
                  (block.x * info.simd_width)),
@@ -114,7 +112,7 @@ dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block) {
 }
 
 // Initialize CUDA devices
-void hipaccInitCUDA() {
+inline void hipaccInitCUDA() {
   setenv("CUDA_CACHE_DISABLE", "1", 1);
 
   int device_count, driver_version = 0, runtime_version = 0;
@@ -167,28 +165,33 @@ void hipaccInitCUDA() {
 }
 
 // Copy from memory to memory
-void hipaccCopyMemory(const HipaccImageCuda &src, HipaccImageCuda &dst) {
-  size_t height = src->get_height();
-  size_t stride = src->get_stride();
+template<typename T>
+void hipaccCopyMemory(const HipaccImageCuda<T> &src, HipaccImageCuda<T> &dst) {
+
+  assert(src->get_height() == dst->get_height());
+  assert(src->get_width() == dst->get_width());
+  assert(src->get_pixel_size() == dst->get_pixel_size());
 
   if (src->get_mem_type() == hipaccMemoryType::Array2D ||
       src->get_mem_type() == hipaccMemoryType::Surface) {
     cudaError_t err = cudaMemcpy2DArrayToArray(
         (cudaArray *)dst->get_device_memory(), 0, 0,
-        (cudaArray *)src->get_device_memory(), 0, 0, stride * src->get_pixel_size(),
-        height * src->get_pixel_size(), cudaMemcpyDeviceToDevice);
+        (cudaArray *)src->get_device_memory(), 0, 0, src->get_stride() * src->get_pixel_size(),
+        src->get_height() * src->get_pixel_size(), cudaMemcpyDeviceToDevice);
     checkErr(err, "cudaMemcpy2DArrayToArray()");
   } else {
     cudaError_t err =
-        cudaMemcpy(dst->get_device_memory(), src->get_device_memory(),
-                   src->get_pixel_size() * stride * height, cudaMemcpyDeviceToDevice);
+        cudaMemcpy2D( dst->get_device_memory(), dst->get_stride() * dst->get_pixel_size()
+                    , src->get_device_memory(), src->get_stride() * src->get_pixel_size()
+                    , src->get_width() * src->get_pixel_size(), src->get_height(), cudaMemcpyDeviceToDevice);
     checkErr(err, "cudaMemcpy()");
   }
 }
 
 // Copy from memory region to memory region
-void hipaccCopyMemoryRegion(const HipaccAccessor &src,
-                            const HipaccAccessor &dst) {
+template<typename T>
+void hipaccCopyMemoryRegion(const HipaccAccessor<T> &src,
+                            const HipaccAccessor<T> &dst) {
   if (src.img->get_mem_type() == hipaccMemoryType::Array2D ||
       src.img->get_mem_type() == hipaccMemoryType::Surface) {
     cudaError_t err = cudaMemcpy2DArrayToArray(
@@ -215,66 +218,86 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src,
 }
 
 // Unbind texture
-void hipaccUnbindTexture(const textureReference *tex) {
+inline void hipaccUnbindTexture(const textureReference *tex) {
   cudaError_t err = cudaUnbindTexture(tex);
   checkErr(err, "cudaUnbindTexture()");
 }
 
 // Launch kernel
-void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 &grid,
-                        dim3 &block, void **args, bool print_timing) {
+inline void hipaccLaunchKernel(const void *kernel, std::string const& kernel_name, dim3 &grid,
+                        dim3 &block, void **args, bool print_timing, const int shared_memory_size) {
   cudaEvent_t start, end;
   float last_gpu_timing;
-  cudaEventCreate(&start);
-  cudaEventCreate(&end);
-  cudaEventRecord(start, 0);
 
-  cudaError_t err = cudaLaunchKernel(kernel, grid, block, args, 0, 0);
+  if(print_timing)
+  {
+    cudaEventCreate(&start);
+    cudaEventCreate(&end);
+    cudaEventRecord(start, 0);
+  }
+
+  cudaError_t err = cudaLaunchKernel(kernel, grid, block, args, shared_memory_size, 0);
   checkErr(err, "cudaLaunchKernel(" + kernel_name + ")");
 
-  cudaDeviceSynchronize();
-  err = cudaGetLastError();
-  checkErr(err, "cudaLaunchKernel(" + kernel_name + ")");
+  if(print_timing)
+  {
+    cudaDeviceSynchronize();
+    err = cudaGetLastError();
+    checkErr(err, "cudaLaunchKernel(" + kernel_name + ")");
 
-  cudaEventRecord(end, 0);
-  cudaEventSynchronize(end);
-  cudaEventElapsedTime(&last_gpu_timing, start, end);
+    cudaEventRecord(end, 0);
+    cudaEventSynchronize(end);
+    cudaEventElapsedTime(&last_gpu_timing, start, end);
 
-  hipaccCudaTiming.set_gpu_timing(last_gpu_timing);
+    //hipaccCudaTiming.set_gpu_timing(last_gpu_timing);
 
-  cudaEventDestroy(start);
-  cudaEventDestroy(end);
+    cudaEventDestroy(start);
+    cudaEventDestroy(end);
 
-  if (print_timing) {
     hipaccRuntimeLogTrivial(
         hipaccRuntimeLogLevel::INFO,
-        "<HIPACC:> Kernel timing (" + std::to_string(block.x * block.y) + ": " +
+        "<HIPACC:> Kernel timing of " + kernel_name + " (" + std::to_string(block.x * block.y) + ": " +
             std::to_string(block.x) + "x" + std::to_string(block.y) +
             "): " + std::to_string(last_gpu_timing) + "(ms)");
   }
 }
 
-// Benchmark timing for a kernel call
-void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name,
-                                 dim3 &grid, dim3 &block,
-                                 std::vector<void *> &args, bool print_timing) {
-  std::vector<float> times;
+namespace detail
+{
+  template <typename F, typename... Args>
+  struct is_invocable
+      : std::is_constructible<
+            std::function<void(Args...)>,
+            std::reference_wrapper<typename std::remove_reference<F>::type>> {};
 
-  for (size_t i = 0; i < HIPACC_NUM_ITERATIONS; ++i) {
-    hipaccLaunchKernel(kernel, kernel_name, grid, block, args.data(),
-                       print_timing);
-    times.push_back(hipaccCudaTiming.get_last_kernel_timing());
+  inline void collect_argument_addresses(void **collected_addresses) {}
+
+  template <typename Arg, typename... Args>
+  void collect_argument_addresses(void **collected_addresses, Arg &&arg, Args &&... args)
+  {
+    collected_addresses[0] = const_cast<void*>(static_cast<void const*>(&arg));
+    collect_argument_addresses(collected_addresses + 1, std::forward<Args>(args)...);
   }
+} // namespace detail
 
-  std::sort(times.begin(), times.end());
-  hipaccCudaTiming.set_gpu_timing(times[times.size() / 2]);
+template <typename KernelFunction, typename... KernelParameters>
+void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridDim,
+                        dim3 const &blockDim, HipaccExecutionParameter const& ep,
+                        size_t shared_memory, KernelParameters &&... parameters) 
+{
+  constexpr auto non_zero_num_params = sizeof...(KernelParameters) == 0 ? 1 : sizeof...(KernelParameters);
+  void *argument_ptrs[non_zero_num_params];
+  detail::collect_argument_addresses(argument_ptrs, std::forward<KernelParameters>(parameters)...);
 
-  if (print_timing)
-    hipaccRuntimeLogTrivial(
-        hipaccRuntimeLogLevel::INFO,
-        "<HIPACC:> Kernel timing (" + std::to_string(block.x * block.y) + ": " +
-            std::to_string(block.x) + "x" + std::to_string(block.y) + "): " +
-            std::to_string(hipaccCudaTiming.get_last_kernel_timing()) + "(ms)");
+  static_assert(
+      detail::is_invocable<KernelFunction, KernelParameters...>::value,
+      "mismatch of kernel parameters");
+
+  cudaError_t err = cudaLaunchKernel(
+      reinterpret_cast<void const *>(&kernel_function), gridDim, blockDim,
+      &(argument_ptrs[0]), shared_memory, ep.stream);
+
+  checkErr(err, (std::string("cudaLaunchKernel(") + __FUNCTION__ + ")"));
 }
 
 //
@@ -282,7 +305,7 @@ void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name,
 //
 
 // Create a module from ptx assembly
-void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
+inline void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
   CUjit_target target_cc = (CUjit_target)cc;
   const unsigned int opt_level = 4;
   const unsigned int error_log_size = 10240;
@@ -304,7 +327,7 @@ void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
 }
 
 // Compile CUDA source file and create module
-void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc,
+inline void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc,
                                std::vector<std::string> &build_options) {
   nvrtcResult err;
   nvrtcProgram program;
@@ -363,7 +386,7 @@ void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, int cc,
 }
 
 // Get kernel from a module
-void hipaccGetKernel(CUfunction &function, CUmodule &module,
+inline void hipaccGetKernel(CUfunction &function, CUmodule &module,
                      std::string kernel_name) {
   // get function entry point
   CUresult err = cuModuleGetFunction(&function, module, kernel_name.c_str());
@@ -371,7 +394,7 @@ void hipaccGetKernel(CUfunction &function, CUmodule &module,
 }
 
 // Computes occupancy for kernel function
-void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x,
+inline void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x,
                                 int tile_size_y) {
   CUresult err = CUDA_SUCCESS;
   CUdevice dev = 0;
@@ -403,8 +426,8 @@ void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x,
 }
 
 // Launch kernel
-void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 &grid,
-                        dim3 &block, void **args, bool print_timing) {
+inline void hipaccLaunchKernel(CUfunction &kernel, std::string const& kernel_name, dim3 &grid,
+                        dim3 &block, void **args, bool print_timing, const int shared_memory_size) {
   cudaEvent_t start, end;
   float last_gpu_timing;
 
@@ -413,7 +436,7 @@ void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 &grid,
   cudaEventRecord(start, 0);
 
   CUresult err = cuLaunchKernel(kernel, grid.x, grid.y, grid.z, block.x,
-                                block.y, block.z, 0, NULL, args, NULL);
+                                block.y, block.z, shared_memory_size, NULL, args, NULL);
   checkErrDrv(err, "cuLaunchKernel(" + kernel_name + ")");
   err = cuCtxSynchronize();
   checkErrDrv(err, "cuLaunchKernel(" + kernel_name + ")");
@@ -422,7 +445,7 @@ void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 &grid,
   cudaEventSynchronize(end);
   cudaEventElapsedTime(&last_gpu_timing, start, end);
 
-  hipaccCudaTiming.set_gpu_timing(last_gpu_timing);
+  // hipaccCudaTiming.set_gpu_timing(last_gpu_timing);
 
   cudaEventDestroy(start);
   cudaEventDestroy(end);
@@ -435,35 +458,8 @@ void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 &grid,
             "): " + std::to_string(last_gpu_timing) + "(ms)");
 }
 
-void hipaccLaunchKernelBenchmark(CUfunction &kernel, std::string kernel_name,
-                                 dim3 &grid, dim3 &block, void **args,
-                                 bool print_timing) {
-  std::vector<float> times;
-
-  for (size_t i = 0; i < HIPACC_NUM_ITERATIONS; i++) {
-    hipaccLaunchKernel(kernel, kernel_name, grid, block, args, print_timing);
-    times.push_back(hipaccCudaTiming.get_last_kernel_timing());
-  }
-
-  std::sort(times.begin(), times.end());
-  hipaccCudaTiming.set_gpu_timing(times[times.size() / 2]);
-
-  if (print_timing) {
-    hipaccRuntimeLogTrivial(
-        hipaccRuntimeLogLevel::INFO,
-        "<HIPACC:> Kernel timing benchmark (" +
-            std::to_string(block.x * block.y) + ": " + std::to_string(block.x) +
-            "x" + std::to_string(block.y) +
-            "): " + std::to_string(hipaccCudaTiming.get_last_kernel_timing()) +
-            " | " + std::to_string(times.front()) + " | " +
-            std::to_string(times.back()) + " (median(" +
-            std::to_string(HIPACC_NUM_ITERATIONS) +
-            ") | minimum | maximum) ms" + "(ms)");
-  }
-}
-
 // Get global reference from module
-void hipaccGetGlobal(CUdeviceptr &global, CUmodule &module,
+inline void hipaccGetGlobal(CUdeviceptr &global, CUmodule &module,
                      std::string global_name) {
   size_t size;
   CUresult err = cuModuleGetGlobal(&global, &size, module, global_name.c_str());
@@ -471,21 +467,22 @@ void hipaccGetGlobal(CUdeviceptr &global, CUmodule &module,
 }
 
 // Get texture reference from module
-void hipaccGetTexRef(CUtexref &tex, CUmodule &module,
+inline void hipaccGetTexRef(CUtexref &tex, CUmodule &module,
                      std::string texture_name) {
   CUresult err = cuModuleGetTexRef(&tex, module, texture_name.c_str());
   checkErrDrv(err, "cuModuleGetTexRef()");
 }
 
 // Get surface reference from module
-void hipaccGetSurfRef(CUsurfref &surf, CUmodule &module,
+inline void hipaccGetSurfRef(CUsurfref &surf, CUmodule &module,
                       std::string surface_name) {
   CUresult err = cuModuleGetSurfRef(&surf, module, surface_name.c_str());
   checkErrDrv(err, "cuModuleGetSurfRef()");
 }
 
 // Bind texture to linear memory
-void hipaccBindTextureDrv(CUtexref &texture, const HipaccImageCuda &img,
+template<typename T>
+void hipaccBindTextureDrv(CUtexref &texture, const HipaccImageCuda<T> &img,
                           CUarray_format format, hipaccMemoryType tex_type) {
   checkErrDrv(cuTexRefSetFormat(texture, format, 1), "cuTexRefSetFormat()");
   checkErrDrv(cuTexRefSetFlags(texture, CU_TRSF_READ_AS_INTEGER),
@@ -519,190 +516,10 @@ void hipaccBindTextureDrv(CUtexref &texture, const HipaccImageCuda &img,
 }
 
 // Bind surface to 2D array
-void hipaccBindSurfaceDrv(CUsurfref &surface, const HipaccImageCuda &img) {
+template<typename T>
+void hipaccBindSurfaceDrv(CUsurfref &surface, const HipaccImageCuda<T> &img) {
   checkErrDrv(cuSurfRefSetArray(surface, (CUarray)img->get_device_memory(), 0),
               "cuSurfRefSetArray()");
-}
-
-// Perform configuration exploration for a kernel call
-void hipaccLaunchKernelExploration(std::string filename, std::string kernel,
-                                   std::vector<void *> &args,
-                                   std::vector<hipacc_smem_info> &smems,
-                                   std::vector<hipacc_const_info> &consts,
-                                   std::vector<hipacc_tex_info *> &texs,
-                                   hipacc_launch_info &info, size_t warp_size,
-                                   size_t max_threads_per_block,
-                                   size_t max_threads_for_kernel,
-                                   size_t max_smem_per_block, size_t heu_tx,
-                                   size_t heu_ty, int cc) {
-  CUresult err = CUDA_SUCCESS;
-  size_t opt_tx = warp_size, opt_ty = 1;
-  float opt_time = FLT_MAX;
-
-  hipaccRuntimeLogTrivial(
-      hipaccRuntimeLogLevel::INFO,
-      "<HIPACC:> Exploring configurations for kernel '" + kernel +
-          "': configuration provided by heuristic " +
-          std::to_string(heu_tx * heu_ty) + " (" + std::to_string(heu_tx) +
-          "x" + std::to_string(heu_ty) + "). ");
-
-#ifdef NVML_FOUND
-  nvmlReturn_t nvml_err = NVML_SUCCESS;
-  nvmlDevice_t nvml_device;
-  nvmlEnableState_t nvml_mode;
-  bool nvml_power_avail = true;
-  unsigned int nvml_device_count, nvml_temperature, nvml_power;
-
-  nvml_err = nvmlInit();
-  checkErrNVML(nvml_err, "nvmlInit()");
-
-  nvml_err = nvmlDeviceGetCount(&nvml_device_count);
-  checkErrNVML(nvml_err, "nvmlDeviceGetCount()");
-  assert(nvml_device_count > 0 && "no device detected by NVML");
-
-  nvml_err = nvmlDeviceGetHandleByIndex(0, &nvml_device);
-  checkErrNVML(nvml_err, "nvmlDeviceGetHandleByIndex()");
-
-  nvml_err = nvmlDeviceGetPowerManagementMode(nvml_device, &nvml_mode);
-  if (nvml_mode == NVML_FEATURE_DISABLED ||
-      nvml_err == NVML_ERROR_NOT_SUPPORTED) {
-    hipaccRuntimeLogTrivial(
-        hipaccRuntimeLogLevel::WARNING,
-        "NVML Warning: device does not support querying power usage!");
-    nvml_power_avail = false;
-  } else {
-    checkErrNVML(nvml_err, "nvmlDeviceGetPowerManagementMode()");
-  }
-#endif
-
-  for (size_t tile_size_x = warp_size; tile_size_x <= max_threads_per_block;
-       tile_size_x += warp_size) {
-    for (size_t tile_size_y = 1; tile_size_y <= max_threads_per_block;
-         ++tile_size_y) {
-      // check if we exceed maximum number of threads
-      if (tile_size_x * tile_size_y > max_threads_for_kernel)
-        continue;
-
-      // check if we exceed size of shared memory
-      size_t used_smem = 0;
-      for (auto smem : smems)
-        used_smem += (tile_size_x + smem.size_x) *
-                     (tile_size_y + smem.size_y - 1) * smem.pixel_size;
-      if (used_smem >= max_smem_per_block)
-        continue;
-      if (used_smem && tile_size_x > warp_size)
-        continue;
-
-      std::stringstream num_threads_x_ss, num_threads_y_ss;
-      num_threads_x_ss << tile_size_x;
-      num_threads_y_ss << tile_size_y;
-
-      // compile kernel
-      std::vector<std::string> compile_options;
-      compile_options.push_back("-I./include");
-      compile_options.push_back("-D BSX_EXPLORE=" + num_threads_x_ss.str());
-      compile_options.push_back("-D BSY_EXPLORE=" + num_threads_y_ss.str());
-
-      CUmodule modKernel;
-      hipaccCompileCUDAToModule(modKernel, filename, cc, compile_options);
-
-      CUfunction exploreKernel;
-      hipaccGetKernel(exploreKernel, modKernel, kernel);
-
-      // load constant memory
-      CUdeviceptr constMem;
-      for (auto cmem : consts) {
-        hipaccGetGlobal(constMem, modKernel, cmem.name);
-        err = cuMemcpyHtoD(constMem, cmem.memory, cmem.size);
-        checkErrDrv(err, "cuMemcpyHtoD()");
-      }
-
-      CUtexref texImage;
-      CUsurfref surfImage;
-      for (auto tex : texs) {
-        if (tex->tex_type == hipaccMemoryType::Surface) {
-          // bind surface memory
-          hipaccGetSurfRef(surfImage, modKernel, tex->name);
-          hipaccBindSurfaceDrv(surfImage, tex->image);
-        } else {
-          // bind texture memory
-          hipaccGetTexRef(texImage, modKernel, tex->name);
-          hipaccBindTextureDrv(texImage, tex->image, tex->format,
-                               tex->tex_type);
-        }
-      }
-
-      dim3 block(tile_size_x, tile_size_y);
-      dim3 grid(hipaccCalcGridFromBlock(info, block));
-      hipaccPrepareKernelLaunch(info, block);
-      std::vector<float> times;
-
-      for (size_t i = 0; i < HIPACC_NUM_ITERATIONS; ++i) {
-        hipaccLaunchKernel(exploreKernel, kernel, grid, block, args.data(),
-                           false);
-        times.push_back(hipaccCudaTiming.get_last_kernel_timing());
-      }
-
-      std::sort(times.begin(), times.end());
-      hipaccCudaTiming.set_gpu_timing(times[times.size() / 2]);
-
-      if (hipaccCudaTiming.get_last_kernel_timing() < opt_time) {
-        opt_time = hipaccCudaTiming.get_last_kernel_timing();
-        opt_tx = tile_size_x;
-        opt_ty = tile_size_y;
-      }
-
-#ifdef NVML_FOUND
-      nvml_err = nvmlDeviceGetTemperature(nvml_device, NVML_TEMPERATURE_GPU,
-                                          &nvml_temperature);
-      checkErrNVML(nvml_err, "nvmlDeviceGetTemperature()");
-      if (nvml_power_avail) {
-        nvml_err = nvmlDeviceGetPowerUsage(nvml_device, &nvml_power);
-        checkErrNVML(nvml_err, "nvmlDeviceGetPowerUsage()");
-      }
-#endif
-
-      // print timing
-      hipaccRuntimeLogTrivial(
-          hipaccRuntimeLogLevel::INFO,
-          "<HIPACC:> Kernel config: " + std::to_string(tile_size_x) + "x" +
-              std::to_string(tile_size_y) + "(" +
-              std::to_string(tile_size_x * tile_size_y) + "): " +
-              std::to_string(hipaccCudaTiming.get_last_kernel_timing()) +
-              " | " + std::to_string(times.front()) + " | " +
-              std::to_string(times.back()) + " (median(" +
-              std::to_string(HIPACC_NUM_ITERATIONS) +
-              ") | minimum | maximum) ms");
-
-#ifdef NVML_FOUND
-      hipaccRuntimeLogTrivial(
-          hipaccRuntimeLogLevel::INFO,
-          ";  temperature: " + std::to_string(nvml_temperature) + " °C");
-      if (nvml_power_avail)
-        hipaccRuntimeLogTrivial(
-            hipaccRuntimeLogLevel::INFO,
-            ";  power usage: " + std::to_string(nvml_power / 1000.f) + " W");
-#endif
-      hipaccPrintKernelOccupancy(exploreKernel, tile_size_x, tile_size_y);
-
-      // cleanup
-      err = cuModuleUnload(modKernel);
-      checkErrDrv(err, "cuModuleUnload()");
-    }
-  }
-  hipaccCudaTiming.set_gpu_timing(opt_time);
-
-  hipaccRuntimeLogTrivial(hipaccRuntimeLogLevel::INFO,
-                          "<HIPACC:> Best configurations for kernel '" +
-                              kernel + "': " + std::to_string(opt_tx * opt_ty) +
-                              " (" + std::to_string(opt_tx) + "x" +
-                              std::to_string(opt_ty) +
-                              "): " + std::to_string(opt_time) + " ms");
-
-#ifdef NVML_FOUND
-  nvml_err = nvmlShutdown();
-  checkErrNVML(nvml_err, "nvmlShutdown()");
-#endif
 }
 
 #endif // __HIPACC_CU_STANDALONE_HPP__

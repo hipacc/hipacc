@@ -183,6 +183,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
           Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       break;
     case Interpolate::LF:
+    case Interpolate::B5:
     case Interpolate::CF:
     case Interpolate::L3:
       return addInterpolationCall(LHS, Acc, idx_x, idx_y);
@@ -301,11 +302,11 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       case Boundary::UNDEFINED:
         // in case of exploration boundary handling variants are required
         if (!compilerOptions.exploreConfig()) {
-          assert(0 && "addBorderHandling && Boundary::UNDEFINED!");
+          hipacc_require(0, "addBorderHandling && Boundary::UNDEFINED!");
         }
         break;
       case Boundary::CONSTANT:
-        assert(0 && "addBorderHandling && Boundary::CONSTANT!");
+        hipacc_require(0, "addBorderHandling && Boundary::CONSTANT!");
         break;
     }
 

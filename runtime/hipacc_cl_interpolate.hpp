@@ -141,6 +141,9 @@ inline int no_bh(int idx) { return idx; }
   inline TYPE float_to_##TYPE(float s) { return s; }                           \
   inline float TYPE##_to_float(TYPE s) { return s; }
 
+  typedef float floatfloat;                                                    \
+  inline float float_to_float(float s) { return s; }                           \
+
 #define VECTOR_TYPE_FUNS(TYPE)                                                 \
   typedef float4 float##TYPE;                                                  \
   inline TYPE float_to_##TYPE(float4 v) {                                      \
@@ -163,7 +166,7 @@ inline int no_bh(int idx) { return idx; }
 // Bilinear Interpolation
 #define INTERPOLATE_LINEAR_FILTERING_OPENCL(                                   \
     NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_ARR, BHXL, BHXU, BHYL, BHYU)  \
-  DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped,       \
+inline DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped,  \
                  const int rwidth, const int rheight,                          \
                  const int global_offset_x, const int global_offset_y CPARM) { \
     int lower_x = global_offset_x, lower_y = global_offset_y;                  \
@@ -200,6 +203,62 @@ inline int no_bh(int idx) { return idx; }
                 stride, const_val, ACCESS_ARR)));                              \
   }
 
+
+inline float binomial5(float diff)
+{
+    diff = fabs(diff);
+    if (diff < 0.5f) {
+        return 6.0f / 8.0f;
+    }
+    else if (diff < 1.0f) {
+        return 4.0f / 8.0f;
+    }
+    else if (diff < 1.5f) {
+        return 1.0f / 8.0f;
+    }
+    else return 0.0f;
+}
+
+#define INTERPOLATE_BINOMIAL5_FILTERING_OPENCL(NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_ARR, BHXL, BHXU, BHYL, BHYU) \
+inline DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
+    int lower_x = global_offset_x, lower_y = global_offset_y; \
+    int upper_x = lower_x + rwidth, upper_y = lower_x + rheight; \
+    float xb = x_mapped; \
+    float yb = y_mapped; \
+    int x_int = xb; \
+    int y_int = yb; \
+    float x_frac = xb - x_int; \
+    float y_frac = yb - y_int; \
+    x_int += global_offset_x; \
+    y_int += global_offset_y; \
+ \
+    float y0 = \
+        ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 0) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 1) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 2) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 0, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 3); \
+    float y1 = \
+        ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 0) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 1) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 2) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 1, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 3); \
+    float y2 = \
+        ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 0) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 1) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 2) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 2, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 3); \
+    float y3 = \
+        ACCESS(BHXU(BHXL(x_int - 1 + 0, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 0) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 1, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 1) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 2, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 2) + \
+        ACCESS(BHXU(BHXL(x_int - 1 + 3, lower_x, upper_x), lower_x, upper_x), BHYU(BHYL(y_int - 1 + 3, lower_y, upper_y), lower_y, upper_y), stride, const_val, ACCESS_ARR) * binomial5(x_frac + 1 - 3); \
+ \
+    return y0*binomial5(y_frac + 1 - 0) + \
+           y1*binomial5(y_frac + 1 - 1) + \
+           y2*binomial5(y_frac + 1 - 2) + \
+           y3*binomial5(y_frac + 1 - 3); \
+}
+
 // Cubic Interpolation
 float bicubic_spline(float diff) {
   diff = fabs(diff);
@@ -217,7 +276,7 @@ float bicubic_spline(float diff) {
 
 #define INTERPOLATE_CUBIC_FILTERING_OPENCL(                                    \
     NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_ARR, BHXL, BHXU, BHYL, BHYU)  \
-  DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped,       \
+inline  DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, \
                  const int rwidth, const int rheight,                          \
                  const int global_offset_x, const int global_offset_y CPARM) { \
     int lower_x = global_offset_x, lower_y = global_offset_y;                  \
@@ -323,7 +382,7 @@ float bicubic_spline(float diff) {
   }
 
 // Lanczos3 Interpolation
-float lanczos(float diff) {
+inline float lanczos(float diff) {
   diff = fabs(diff);
   float l = 3.0f;
 
@@ -339,7 +398,7 @@ float lanczos(float diff) {
 
 #define INTERPOLATE_LANCZOS_FILTERING_OPENCL(                                  \
     NAME, DATA_TYPE, PARM, CPARM, ACCESS, ACCESS_ARR, BHXL, BHXU, BHYL, BHYU)  \
-  DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped,       \
+inline DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped,  \
                  const int rwidth, const int rheight,                          \
                  const int global_offset_x, const int global_offset_y CPARM) { \
     int lower_x = global_offset_x, lower_y = global_offset_y;                  \

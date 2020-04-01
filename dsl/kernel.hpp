@@ -36,8 +36,8 @@
 
 namespace hipacc {
 
-float hipacc_last_timing = 0.0f;
-float hipacc_last_kernel_timing() {
+static float hipacc_last_timing = 0.0f;
+inline float hipacc_last_kernel_timing() {
     return hipacc_last_timing;
 }
 
@@ -85,6 +85,11 @@ class Kernel {
         }
 
         void add_accessor(AccessorBase *acc) { inputs_.push_back(acc); }
+
+        template<typename T_EP>
+        void execute(T_EP&& execution_parameter) {
+            execute();
+        }
 
         void execute() {
             if (!executed_) {
@@ -144,7 +149,10 @@ class Kernel {
                 reduced_ = true;
             }
         }
-
+        template<typename T_EP>
+        data_t reduced_data(T_EP &&execution_parameter) {
+          return reduced_data();
+        }
         data_t reduced_data() {
             // apply reduction
             reduce();

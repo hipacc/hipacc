@@ -383,7 +383,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
             mem_pattern = static_cast<MemoryPattern>(mem_pattern|STRIDE_XY);
             if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
           } else {
-            assert(call->getNumArgs()==3 &&
+            hipacc_require(call->getNumArgs()==3,
                 "Mask access requires x and y parameters!");
             mem_pattern = static_cast<MemoryPattern>(mem_pattern |
                 checkStride(call->getArg(1), call->getArg(2)));
@@ -410,7 +410,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
             mem_pattern = static_cast<MemoryPattern>(mem_pattern|STRIDE_XY);
             if (KS.kernelType < LocalOperator) KS.kernelType = LocalOperator;
           } else {
-            assert(call->getNumArgs()==3 &&
+            hipacc_require(call->getNumArgs()==3,
                 "Domain access requires x and y parameters!");
             mem_pattern = static_cast<MemoryPattern>(mem_pattern |
                 checkStride(call->getArg(1), call->getArg(2)));
@@ -440,7 +440,7 @@ bool TransferFunctions::checkImageAccess(Expr *E, MemoryAccess mem_acc) {
         } else {
           FD = KS.output_image;
         }
-        assert(FD && "could not find field");
+        hipacc_require(FD, "could not find field");
 
         if (mem_acc & READ_ONLY) KS.num_img_loads++;
         if (mem_acc & WRITE_ONLY) KS.num_img_stores++;
@@ -702,7 +702,7 @@ void TransferFunctions::VisitLambdaExpr(LambdaExpr *E) {
   AnalysisDeclContext AC(/* AnalysisDeclContextManager */ 0, E->getCallOperator());
   KernelStatistics::setAnalysisOptions(AC);
 
-  assert(AC.getCFG() && "Could not get CFG from lambda-function.");
+  hipacc_require(AC.getCFG(), "Could not get CFG from lambda-function.");
   #ifdef DEBUG_ANALYSIS
   AC.getCFG()->viewCFG(KS.Ctx.getLangOpts());
   #endif

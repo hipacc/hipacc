@@ -45,7 +45,7 @@ class HipaccRewriteAction : public ASTFrontendAction {
     std::string out_file;
 
   public:
-    HipaccRewriteAction(CompilerOptions &options, std::string out_file) :
+    HipaccRewriteAction(CompilerOptions &options, const std::string &out_file) :
       options(options),
       out_file(out_file)
     {}

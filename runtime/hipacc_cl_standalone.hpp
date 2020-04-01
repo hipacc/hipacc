@@ -881,7 +881,7 @@ void hipaccLaunchKernelBenchmark(cl_kernel kernel, size_t *global_work_size,
 }
 
 // Perform configuration exploration for a kernel call
-void hipaccLaunchKernelExploration(std::string filename, std::string kernel,
+void hipaccLaunchKernelExploration(const std::string &filename, const std::string &kernel,
                                    std::vector<std::pair<size_t, void *>> &args,
                                    std::vector<hipacc_smem_info> &smems,
                                    hipacc_launch_info &info, int warp_size,

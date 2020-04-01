@@ -32,6 +32,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "hipacc/AST/ASTNode.h"
+#include "hipacc/Config/ErrorReporting.h"
 
 namespace clang {
 namespace hipacc {
@@ -170,7 +171,7 @@ size_t getBuiltinTypeSize(const BuiltinType *BT) {
       size = 128;
       break;
     default:
-      assert(false && "Type not supported");
+      hipacc_require(false, "Type not supported");
       break;
   }
 

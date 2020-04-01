@@ -99,7 +99,7 @@ QualType SIMDTypes::getSIMDTypeFromBT(const BuiltinType *BT, VarDecl *VD,
     default:
       Ctx.getDiagnostics().Report(VD->getLocation(), DiagIDType) <<
         BT->getName(PrintingPolicy(Ctx.getLangOpts())) << VD->getName();
-      assert(0 && "BuiltinType not supported");
+      hipacc_require(0, "BuiltinType not supported");
     case BuiltinType::Void:
       SIMDType = Ctx.VoidTy;
       break;
@@ -226,7 +226,7 @@ Expr *SIMDTypes::propagate(VarDecl *VD, Expr *E) {
     default:
       Ctx.getDiagnostics().Report(E->getExprLoc(), DiagIDType) <<
         BT->getName(PrintingPolicy(Ctx.getLangOpts())) << VD->getName();
-      assert(0 && "BuiltinType not supported");
+      hipacc_require(0, "BuiltinType not supported");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
       make_vec = builtins.getBuiltinFunction(CUDABImake_char4);

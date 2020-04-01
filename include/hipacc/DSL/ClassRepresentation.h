@@ -81,6 +81,7 @@ enum class Interpolate : uint8_t {
   NO = 0,
   NN,
   LF,
+  B5,
   CF,
   L3
 };
@@ -126,7 +127,7 @@ class HipaccMemory : public HipaccSize {
     QualType type;
 
   public:
-    HipaccMemory(VarDecl *VD, std::string name, QualType type) :
+    HipaccMemory(VarDecl *VD, const std::string &name, QualType type) :
       HipaccSize(),
       VD(VD),
       name(name),
@@ -184,7 +185,7 @@ class HipaccBoundaryCondition : public HipaccSize {
       constExpr(nullptr)
     {}
 
-    void setPyramidIndex(std::string idx) {
+    void setPyramidIndex(const std::string &idx) {
       is_pyramid = true;
       pyr_idx_str = idx;
     }
@@ -318,7 +319,7 @@ class HipaccMask : public HipaccMemory {
     }
     void addKernel(HipaccKernel *K) { kernels.push_back(K); }
     ArrayRef<HipaccKernel *> getKernels() { return kernels; }
-    void setHostMemName(std::string name) { hostMemName = name; }
+    void setHostMemName(const std::string &name) { hostMemName = name; }
     std::string getHostMemName() { return hostMemName; }
     void setSizeX(unsigned x) {
       HipaccMemory::setSizeX(x);
@@ -394,7 +395,7 @@ class HipaccKernelClass {
     FieldDecl *output_image;
 
   public:
-    explicit HipaccKernelClass(std::string name) :
+    explicit HipaccKernelClass(const std::string &name) :
       name(name),
       kernelFunction(nullptr),
       reduceFunction(nullptr),
@@ -592,12 +593,14 @@ class HipaccKernel : public HipaccKernelFeatures {
     unsigned num_threads_x, num_threads_y;
     unsigned num_reg, num_lmem, num_smem, num_cmem;
 
+    std::string executionParameter;
+
     void calcSizes();
     void calcConfig();
     void createArgInfo();
     void addParam(QualType QT1, QualType QT2, QualType QT3, std::string typeC,
         std::string typeO, std::string name, FieldDecl *fd);
-    void addParam(QualType QT, std::string name, FieldDecl *fd) {
+    void addParam(QualType QT, const std::string &name, FieldDecl *fd) {
       addParam(QT, QT, QT, QT.getAsString(), QT.getAsString(), name, fd);
     }
     void createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string &hostLiterals,
@@ -726,7 +729,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       createHostArgInfo(hostArgs, hostLiterals, literalCount);
     }
     ArrayRef<std::string> getHostArgNames() {
-      assert(hostArgNames.size() && "host argument names not set");
+      hipacc_require(hostArgNames.size(), "host argument names not set");
       return hostArgNames;
     }
     ArrayRef<FieldDecl *> getDeviceArgFields() {
@@ -778,7 +781,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       }
     }
 
-    void setNumBinsStr(std::string numBins) {
+    void setNumBinsStr(const std::string &numBins) {
       binningStrCnt++;
       numBinsStr = numBins;
     }
@@ -802,6 +805,14 @@ class HipaccKernel : public HipaccKernelFeatures {
     }
     unsigned getPixelsPerThreadReduce() {
       return pixels_per_thread[GlobalOperator];
+    }
+
+    std::string const& getExecutionParameter() const {
+      return executionParameter;
+    }
+
+    void setExecutionParameter(std::string const& ep) {
+      executionParameter = ep;
     }
 };
 } // namespace hipacc

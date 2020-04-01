@@ -26,8 +26,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //
 
-//#ifndef __HIPACC_CU_RED_HPP__
-//#define __HIPACC_CU_RED_HPP__
+#ifndef __HIPACC_CU_RED_HPP__
+#define __HIPACC_CU_RED_HPP__
 
 #ifndef PPT
 #define PPT 1
@@ -63,6 +63,306 @@
 #define READ(INPUT, X, Y, STRIDE) INPUT[(X) + (Y)*STRIDE]
 #define INPUT_PARM(DATA_TYPE, INPUT_NAME) const DATA_TYPE *INPUT_NAME,
 #endif
+#include <assert.h>
+//include <device_launch_parameters.h>
+
+
+//#define REDUCE_BLOCKS_SEQUENTIAL
+
+template <typename CalcType>
+using ReduceFunc = CalcType(*)(CalcType a, CalcType b);
+// row length == 32
+template <typename CalcType, ReduceFunc<CalcType> reduce>
+__device__ void hipacc_half_warp_reduce(volatile CalcType* sdata, int tid) {
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 16]);
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 8]);
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 4]);
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 2]);
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 1]);
+}
+
+// row length == 64
+template <typename CalcType, ReduceFunc<CalcType> reduce>
+__device__ void hipacc_warp_reduce(volatile CalcType *sdata, int tid) {
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 32]);
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 16]);
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 8]);
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 4]);
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 2]);
+  sdata[tid] = reduce(sdata[tid], sdata[tid + 1]);
+}
+
+// row length > 64 && row_length % 32 == 0
+template <typename CalcType, ReduceFunc<CalcType> reduce>
+__device__ void warp_reduce_max(volatile CalcType* sdata, int tid, int row_length) {
+  // reduce upper chunks of each 32 values
+  for (int i = row_length - 32; i > 32; i -= 32) {
+    sdata[tid] = reduce(sdata[tid], sdata[tid + i]);
+  }
+  hipacc_warp_reduce<CalcType, reduce>(sdata, tid);
+}
+
+// row length is unknown
+template <typename CalcType, ReduceFunc<CalcType> reduce>
+__device__ void hipacc_warp_reduce_odd(volatile CalcType* sdata, int tid, int row_length) {
+  if (row_length >= 64) {
+    // guarded reduce of overlap
+    const int overlap_start = (row_length / 32) * 32;
+    if (tid + overlap_start < row_length) { //check whether there is overlap
+      sdata[tid] = reduce(sdata[tid], sdata[tid + overlap_start]);
+    }
+    // followed by normal warp reduce
+    warp_reduce_max<CalcType, reduce>(sdata, tid, row_length);
+  }
+  else if (row_length >= 32) {
+    // guarded reduce of overlap
+    const int overlap_start = 32;
+    if (tid + overlap_start < row_length) {
+      sdata[tid] = reduce(sdata[tid], sdata[tid + overlap_start]);
+    }
+    // followed by normal half warp reduce
+    hipacc_half_warp_reduce<CalcType, reduce>(sdata, tid);
+  }
+  else if (row_length > 1) {
+    // reduce everything guarded
+#pragma unroll 5
+    for (int i = 16; i > 0; i /= 2) {
+      if (tid + i < row_length) {
+        sdata[tid] = reduce(sdata[tid], sdata[tid + i]);
+      }
+    }
+  }
+}
+
+// NVCC does not accept multiple external shared memory arrays with same name
+// but differen types. We need this workaround to solve this issue.
+template <typename CalcType>
+__device__ CalcType *hipacc_get_shared() {
+  extern __shared__ unsigned char mem[];
+  return reinterpret_cast<CalcType*>(mem);
+}
+
+
+/// \brief Reduces input values in parallel.
+/// Must be called by every thread in the kernel. Every thread constributes a
+/// single value for reduction. After the reduction is finished, this function
+/// will return true for the last thread still active. Thereby, the kernel can
+/// continue processing the reduced result with a single thread. Requires
+/// shared memory of size: NUM_ELEMENTS * (blockDim.x + 1) * blockDim.y.
+/// \param result  Result memory of size: NUM_ELEMENTS * sizeof(CalcType)
+/// \param red_buf Helper buffer for reduction of size: NUM_ELEMENTS * GRID_SIZE
+/// \param value   Single input value for reduction
+/// \param counter Variable for atomic counting
+/// \returns true if current thread is the last one still running
+
+
+template<int NUM_ELEMENTS = 1, typename CalcType, ReduceFunc<CalcType> reduce>
+__device__ bool hipacc_do_shared_reduction(CalcType *result, CalcType *red_buf, CalcType *value, unsigned int *counter) {
+  // multiple of warp size
+  assert(blockDim.x >= 32 && blockDim.x % 32 == 0);
+  // we need enough threads to sum up block results
+  assert(blockDim.x * blockDim.y >= gridDim.x);
+  // check dimensions of helper buffer
+
+  const int lidx = threadIdx.x;
+  const int lidy = threadIdx.y;
+
+  auto smem = hipacc_get_shared<CalcType>();
+  const int smem_pitch = blockDim.x + 1;
+  volatile CalcType* smem_row = &smem[smem_pitch * lidy];
+
+  const int smem_slice = blockDim.y * smem_pitch;
+  const int red_buf_slice = gridDim.y;
+
+  int smem_offset = 0;
+#pragma unroll NUM_ELEMENTS
+  for (int s = 0; s < NUM_ELEMENTS; ++s) {
+    smem_row[smem_offset + lidx] = value[s];
+    smem_offset += smem_slice;
+  }
+
+  if (blockDim.x > 32) {
+    // wait for all warps in row to finish
+    __syncthreads();
+
+    // only let one warp in
+    if (lidx < 32) {
+      smem_offset = 0;
+#pragma unroll NUM_ELEMENTS
+      for (int s = 0; s < NUM_ELEMENTS; ++s) {
+        const int sidx = smem_offset + lidx;
+
+        // reduce each row to first element (lock-step in warp)
+        warp_reduce_max<CalcType, reduce>(smem_row, sidx, blockDim.x);
+
+        smem_offset += smem_slice;
+      }
+    }
+  }
+  else {
+    // only let half a warp in
+    if (lidx < 16) {
+#pragma unroll NUM_ELEMENTS
+      for (int smem_offset = 0; smem_offset < NUM_ELEMENTS*smem_slice; smem_offset+=smem_slice) {
+        const int sidx = smem_offset + lidx;
+
+        // reduce each row to first element (lock-step in warp)
+        hipacc_half_warp_reduce<CalcType, reduce>(smem_row, sidx);
+      }
+    }
+  }
+
+  __shared__ bool last_block;
+  last_block = false;
+
+  __syncthreads();
+
+  CalcType acc[NUM_ELEMENTS];
+  const int num_blocks = gridDim.x * gridDim.y;
+
+  if (lidx == 0 && lidy == 0) {
+    smem_offset = 0;
+#pragma unroll NUM_ELEMENTS
+    for (int s = 0; s < NUM_ELEMENTS; ++s) {
+
+      acc[s] = smem_row[smem_offset];
+
+      // accumulate first elements in rows
+      int smem_row_offset = smem_offset + smem_pitch;
+      for (int i = 1; i < blockDim.y; ++i) {
+        acc[s] = reduce(acc[s], smem_row[smem_row_offset]);
+        smem_row_offset += smem_pitch;
+      }
+
+      smem_offset += smem_slice;
+    }
+
+    if (num_blocks > 1) {
+      // store result of this block in global memory
+      int red_buf_offset = 0;
+#pragma unroll NUM_ELEMENTS
+      for (int s = 0; s < NUM_ELEMENTS; ++s) {
+        red_buf[red_buf_offset + blockIdx.x + blockIdx.y * gridDim.x] = acc[s];
+        red_buf_offset += red_buf_slice;
+      }
+
+      const unsigned int id = atomicInc(counter, num_blocks - 1);
+      if (id == num_blocks - 1) {
+        last_block = true;
+      }
+    }
+  }
+
+  if (num_blocks == 1) {
+    if (lidx == 0 && lidy == 0) {
+      // we are done here, as we already have the result
+#pragma unroll NUM_ELEMENTS
+      for (int s = 0; s < NUM_ELEMENTS; ++s) {
+        result[s] = acc[s];
+      }
+      return true;
+    }
+  }
+  else {
+    // accumulate block results
+
+    __syncthreads(); // wait for write to last_block variable
+
+    // check if we are the last block that finished
+    if (last_block) {
+
+      // linear thread id;
+      const int tid = lidx + lidy * blockDim.x;
+      smem_row = &smem[0];
+
+      if (tid < gridDim.x) {
+
+        smem_offset = 0;
+        int red_buf_offset = 0;
+#pragma unroll NUM_ELEMENTS
+        for (int s = 0; s < NUM_ELEMENTS; ++s) {
+
+          // accumulate results from blocks (from global memory) into single row
+          acc[s] = red_buf[red_buf_offset + tid];
+          int offset = gridDim.x;
+          for (int y = 1; y < gridDim.y; ++y) {
+            acc[s] = reduce(acc[s], red_buf[red_buf_offset + tid + offset]);
+            offset += gridDim.x;
+          }
+          smem_row[smem_offset + tid] = acc[s];
+
+          smem_offset += gridDim.x;
+          red_buf_offset += red_buf_slice;
+        }
+      }
+
+      __syncthreads();
+
+#ifdef REDUCE_BLOCKS_SEQUENTIAL
+
+      // accumulate all values in final row in a single thread
+      if (tid == 0) {
+        smem_offset = 0;
+#pragma unroll NUM_ELEMENTS
+        for (int s = 0; s < NUM_ELEMENTS; ++s) {
+
+          for (int x = 1; x < gridDim.x; ++x) {
+            acc[s] = reduce(acc[s], smem_row[smem_offset + x]);
+          }
+          result[s] = acc[s];
+
+          smem_offset += gridDim.x;
+        }
+
+        *counter = 0;
+        return true;
+      }
+
+#else // more parallelism, significant speedup (~0.25 ms) for large images
+
+      // accumulate all values in parallel using a single warp
+      if (gridDim.x > 1 && tid < 32) {
+        smem_offset = 0;
+#pragma unroll NUM_ELEMENTS
+        for (int s = 0; s < NUM_ELEMENTS; ++s) {
+          // we do not know gridDim.x -> reduce with guards
+          hipacc_warp_reduce_odd<CalcType, reduce>(&smem_row[smem_offset], tid, gridDim.x);
+
+          smem_offset += gridDim.x;
+        }
+      }
+
+      if (tid == 0) {
+        smem_offset = 0;
+#pragma unroll NUM_ELEMENTS
+        for (int s = 0; s < NUM_ELEMENTS; ++s) {
+
+          result[s] = smem_row[smem_offset];
+
+          smem_offset += gridDim.x;
+        }
+
+        *counter = 0;
+        return true;
+      }
+#endif // REDUCE_BLOCKS_SEQUENTIAL
+    }
+  }
+
+  return false;
+}
+
+template<typename CalcType, ReduceFunc<CalcType> reduce>
+__global__ void hipacc_shared_reduction(CalcType *image, CalcType *result, const unsigned int image_width, const unsigned int image_height, const unsigned int image_stride, CalcType *red_buf, unsigned int *counter) {
+  const int gidx = (blockIdx.x * blockDim.x) + threadIdx.x;
+  const int gidy = (blockIdx.y * blockDim.y) + threadIdx.y;
+  if (gidx < image_width && gidy < image_height) {
+    CalcType *pixel = image + gidy * image_stride + gidx;
+	  CalcType acc;
+	  if(hipacc_do_shared_reduction<1, CalcType, reduce>(&acc, red_buf, pixel, counter))
+		  *result = acc;
+  }
+}
 
 // global variable used by thread-fence reduction to count how many blocks have
 // finished -> defined by the compiler (otherwise redefined for multiple
@@ -73,219 +373,6 @@
 // reduce a 2D block and store the reduced values to linear memory; use
 // thread-fence synchronization to reduce the values stored to linear memory in
 // one go - CUDA 2.x hardware required
-
-// TODO: MACRO
-#define REDUCTION_CUDA_2D_THREAD_FENCE(NAME, DATA_TYPE, REDUCE, INPUT_NAME)    \
-  __global__ void __launch_bounds__(BS)                                        \
-      NAME(INPUT_PARM(DATA_TYPE, INPUT_NAME) DATA_TYPE *output,                \
-           const unsigned int width, const unsigned int height,                \
-           const unsigned int stride OFFSETS) {                                \
-    const unsigned int gid_x =                                                 \
-        2 * blockDim.x * blockIdx.x + threadIdx.x + OFFSET_BLOCK;              \
-    const unsigned int gid_y = PPT * blockDim.y * blockIdx.y + threadIdx.y;    \
-    const unsigned int tid = threadIdx.x;                                      \
-                                                                               \
-    __shared__ DATA_TYPE sdata[BS];                                            \
-                                                                               \
-    DATA_TYPE val;                                                             \
-                                                                               \
-    if (OFFSET_CHECK_X) {                                                      \
-      if (OFFSET_CHECK_X_STRIDE) {                                             \
-        val = REDUCE(                                                          \
-            READ(INPUT_NAME, gid_x, gid_y + OFFSET_Y, stride),                 \
-            READ(INPUT_NAME, gid_x + blockDim.x, gid_y + OFFSET_Y, stride));   \
-      } else {                                                                 \
-        val = READ(INPUT_NAME, gid_x, gid_y + OFFSET_Y, stride);               \
-      }                                                                        \
-    } else {                                                                   \
-      val = READ(INPUT_NAME, gid_x + blockDim.x, gid_y + OFFSET_Y, stride);    \
-    }                                                                          \
-                                                                               \
-    for (int j = 1; j < PPT; ++j) {                                            \
-      if (j + gid_y < IS_HEIGHT) {                                             \
-        if (OFFSET_CHECK_X) {                                                  \
-          val = REDUCE(val,                                                    \
-                       READ(INPUT_NAME, gid_x, j + gid_y + OFFSET_Y, stride)); \
-        }                                                                      \
-        if (OFFSET_CHECK_X_STRIDE) {                                           \
-          val = REDUCE(val, READ(INPUT_NAME, gid_x + blockDim.x,               \
-                                 j + gid_y + OFFSET_Y, stride));               \
-        }                                                                      \
-      }                                                                        \
-    }                                                                          \
-    sdata[tid] = val;                                                          \
-                                                                               \
-    __syncthreads();                                                           \
-                                                                               \
-    for (int s = blockDim.x / 2; s > 32; s >>= 1) {                            \
-      if (tid < s) {                                                           \
-        sdata[tid] = val = REDUCE(val, sdata[tid + s]);                        \
-      }                                                                        \
-      __syncthreads();                                                         \
-    }                                                                          \
-                                                                               \
-    if (tid < 32) {                                                            \
-      volatile DATA_TYPE *smem = sdata;                                        \
-      smem[tid] = val = REDUCE(val, smem[tid + 32]);                           \
-      smem[tid] = val = REDUCE(val, smem[tid + 16]);                           \
-      smem[tid] = val = REDUCE(val, smem[tid + 8]);                            \
-      smem[tid] = val = REDUCE(val, smem[tid + 4]);                            \
-      smem[tid] = val = REDUCE(val, smem[tid + 2]);                            \
-      smem[tid] = val = REDUCE(val, smem[tid + 1]);                            \
-    }                                                                          \
-                                                                               \
-    if (tid == 0)                                                              \
-      output[blockIdx.x + gridDim.x * blockIdx.y] = sdata[0];                  \
-                                                                               \
-    if (gridDim.x * gridDim.y > 1) {                                           \
-      __shared__ bool last_block;                                              \
-                                                                               \
-      __threadfence();                                                         \
-                                                                               \
-      if (tid == 0) {                                                          \
-        unsigned int ticket =                                                  \
-            atomicInc(&finished_blocks_##NAME, gridDim.x * gridDim.y);         \
-        last_block = (ticket == gridDim.x * gridDim.y - 1);                    \
-      }                                                                        \
-      __syncthreads();                                                         \
-                                                                               \
-      if (last_block) {                                                        \
-        unsigned int i = tid;                                                  \
-        val = output[tid];                                                     \
-        i += blockDim.x;                                                       \
-                                                                               \
-        while (i < gridDim.x * gridDim.y) {                                    \
-          val = REDUCE(val, output[i]);                                        \
-          i += blockDim.x;                                                     \
-        }                                                                      \
-        sdata[tid] = val;                                                      \
-                                                                               \
-        __syncthreads();                                                       \
-                                                                               \
-        for (int s = blockDim.x / 2; s > 32; s >>= 1) {                        \
-          if (tid < s) {                                                       \
-            sdata[tid] = val = REDUCE(val, sdata[tid + s]);                    \
-          }                                                                    \
-          __syncthreads();                                                     \
-        }                                                                      \
-                                                                               \
-        if (tid < 32) {                                                        \
-          volatile DATA_TYPE *smem = sdata;                                    \
-          smem[tid] = val = REDUCE(val, smem[tid + 32]);                       \
-          smem[tid] = val = REDUCE(val, smem[tid + 16]);                       \
-          smem[tid] = val = REDUCE(val, smem[tid + 8]);                        \
-          smem[tid] = val = REDUCE(val, smem[tid + 4]);                        \
-          smem[tid] = val = REDUCE(val, smem[tid + 2]);                        \
-          smem[tid] = val = REDUCE(val, smem[tid + 1]);                        \
-        }                                                                      \
-                                                                               \
-        if (tid == 0) {                                                        \
-          output[0] = sdata[0];                                                \
-          finished_blocks_##NAME = 0;                                          \
-        }                                                                      \
-      }                                                                        \
-    }                                                                          \
-  }
-
-// step 1:
-// reduce a 2D block and store the reduced value to linear memory
-#define REDUCTION_CUDA_2D(NAME, DATA_TYPE, REDUCE, INPUT_NAME)                 \
-  __global__ void __launch_bounds__(BS)                                        \
-      NAME(INPUT_PARM(DATA_TYPE, INPUT_NAME) DATA_TYPE *output,                \
-           const unsigned int width, const unsigned int height,                \
-           const unsigned int stride OFFSETS) {                                \
-    const unsigned int gid_x =                                                 \
-        2 * blockDim.x * blockIdx.x + threadIdx.x + OFFSET_BLOCK;              \
-    const unsigned int gid_y = PPT * blockDim.y * blockIdx.y + threadIdx.y;    \
-    const unsigned int tid = threadIdx.x;                                      \
-                                                                               \
-    __shared__ DATA_TYPE sdata[BS];                                            \
-                                                                               \
-    DATA_TYPE val;                                                             \
-                                                                               \
-    if (OFFSET_CHECK_X) {                                                      \
-      if (OFFSET_CHECK_X_STRIDE) {                                             \
-        val = REDUCE(                                                          \
-            READ(INPUT_NAME, gid_x, gid_y + OFFSET_Y, stride),                 \
-            READ(INPUT_NAME, gid_x + blockDim.x, gid_y + OFFSET_Y, stride));   \
-      } else {                                                                 \
-        val = READ(INPUT_NAME, gid_x, gid_y + OFFSET_Y, stride);               \
-      }                                                                        \
-    } else {                                                                   \
-      val = READ(INPUT_NAME, gid_x + blockDim.x, gid_y + OFFSET_Y, stride);    \
-    }                                                                          \
-                                                                               \
-    for (int j = 1; j < PPT; ++j) {                                            \
-      if (j + gid_y < IS_HEIGHT) {                                             \
-        if (OFFSET_CHECK_X) {                                                  \
-          val = REDUCE(val,                                                    \
-                       READ(INPUT_NAME, gid_x, j + gid_y + OFFSET_Y, stride)); \
-        }                                                                      \
-        if (OFFSET_CHECK_X_STRIDE) {                                           \
-          val = REDUCE(val, READ(INPUT_NAME, gid_x + blockDim.x,               \
-                                 j + gid_y + OFFSET_Y, stride));               \
-        }                                                                      \
-      }                                                                        \
-    }                                                                          \
-    sdata[tid] = val;                                                          \
-                                                                               \
-    __syncthreads();                                                           \
-                                                                               \
-    for (int s = blockDim.x / 2; s > 32; s >>= 1) {                            \
-      if (tid < s) {                                                           \
-        sdata[tid] = val = REDUCE(val, sdata[tid + s]);                        \
-      }                                                                        \
-      __syncthreads();                                                         \
-    }                                                                          \
-                                                                               \
-    if (tid < 32) {                                                            \
-      volatile DATA_TYPE *smem = sdata;                                        \
-      smem[tid] = val = REDUCE(val, smem[tid + 32]);                           \
-      smem[tid] = val = REDUCE(val, smem[tid + 16]);                           \
-      smem[tid] = val = REDUCE(val, smem[tid + 8]);                            \
-      smem[tid] = val = REDUCE(val, smem[tid + 4]);                            \
-      smem[tid] = val = REDUCE(val, smem[tid + 2]);                            \
-      smem[tid] = val = REDUCE(val, smem[tid + 1]);                            \
-    }                                                                          \
-                                                                               \
-    if (tid == 0)                                                              \
-      output[blockIdx.x + gridDim.x * blockIdx.y] = sdata[0];                  \
-  }
-
-// step 2:
-// reduce a 1D block and store the reduced value to the first element of linear
-// memory
-#define REDUCTION_CUDA_1D(NAME, DATA_TYPE, REDUCE)                             \
-  __global__ void NAME(const DATA_TYPE *input, DATA_TYPE *output,              \
-                       const unsigned int num_elements,                        \
-                       const unsigned int iterations) {                        \
-    const unsigned int tid = threadIdx.x;                                      \
-    const unsigned int i =                                                     \
-        blockIdx.x * (blockDim.x * iterations) + threadIdx.x;                  \
-                                                                               \
-    __shared__ DATA_TYPE sdata[BS];                                            \
-                                                                               \
-    DATA_TYPE val = input[i];                                                  \
-                                                                               \
-    for (int j = 1; j < iterations; ++j) {                                     \
-      if (i + j * blockDim.x < num_elements) {                                 \
-        val = REDUCE(val, input[i + j * blockDim.x]);                          \
-      }                                                                        \
-    }                                                                          \
-    sdata[tid] = val;                                                          \
-                                                                               \
-    __syncthreads();                                                           \
-                                                                               \
-    for (int s = blockDim.x / 2; s > 0; s >>= 1) {                             \
-      if (tid < s) {                                                           \
-        sdata[tid] = val = REDUCE(val, sdata[tid + s]);                        \
-      }                                                                        \
-      __syncthreads();                                                         \
-    }                                                                          \
-                                                                               \
-    if (tid == 0)                                                              \
-      output[blockIdx.x] = sdata[0];                                           \
-  }
 
 // Helper macros for accumulating integers in segmented binning/reduction
 // (first 5 bits are used for tagging with thread id)
@@ -371,6 +458,18 @@
 //      - where x = ceil(NUM_BINS/SEGMENT_SIZE)
 //  3) y partial histograms are merged by x blocks to a single final histogram.
 //      - where y = NUM_HISTS
+
+#ifdef _Pragma
+#define NVCC_UNROLL _Pragma("unroll")
+#else
+#ifdef __pragma
+#define NVCC_UNROLL __pragma(unroll)
+#else
+#define NVCC_UNROLL
+#endif
+#endif 
+
+
 #define BINNING_CUDA_2D_SEGMENTED(                                             \
     NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, WARP_SIZE,       \
     NUM_WARPS, NUM_HISTS, PPT, SEGMENT_SIZE, ZERO, INPUT_NAME)                 \
@@ -398,7 +497,7 @@
     BIN_TYPE *lhist = &warp_hist[threadIdx.y * SEGMENT_SIZE];                  \
                                                                                \
     /* initialize shared memory */                                             \
-    _Pragma("unroll") for (unsigned int i = 0; i < SEGMENT_SIZE;               \
+    NVCC_UNROLL for (unsigned int i = 0; i < SEGMENT_SIZE;               \
                            i += WARP_SIZE) {                                   \
       lhist[threadIdx.x + i] = ZERO;                                           \
     }                                                                          \
@@ -413,12 +512,12 @@
     unsigned int offset = blockIdx.y * SEGMENT_SIZE;                           \
                                                                                \
     BIN_TYPE bin = ZERO;                                                       \
-    _Pragma("unroll") for (unsigned int i = gpos; i < end; i += increment) {   \
+    NVCC_UNROLL for (unsigned int i = gpos; i < end; i += increment) {   \
       unsigned int gid_y = offset_y + (i / width);                             \
       unsigned int gid_x = offset_x + (i % width);                             \
       uint ipos = gid_x + gid_y * stride;                                      \
       const uint inc = height / PPT * stride;                                  \
-      _Pragma("unroll") for (unsigned int p = 0; p < PPT; ++p) {               \
+      NVCC_UNROLL for (unsigned int p = 0; p < PPT; ++p) {               \
         uint y = gid_y + p * height / PPT;                                     \
                                                                                \
         PIXEL_TYPE pixel = INPUT_NAME[ipos];                                   \
@@ -433,7 +532,7 @@
     /* assemble segments and write partial histograms */                       \
     if (lid < min(SEGMENT_SIZE, num_bins)) {                                   \
       bin = UNTAG(BIN_TYPE, warp_hist[lid]);                                   \
-      _Pragma("unroll") for (unsigned int i = 1; i < NUM_WARPS; ++i) {         \
+      NVCC_UNROLL for (unsigned int i = 1; i < NUM_WARPS; ++i) {         \
         bin = REDUCE(bin, UNTAG(BIN_TYPE, warp_hist[i * SEGMENT_SIZE + lid])); \
       }                                                                        \
       output[offset + lid + (blockIdx.x * num_bins)] = bin;                    \
@@ -445,7 +544,7 @@
                                                                                \
       if (lid == 0) {                                                          \
         unsigned int ticket =                                                  \
-            atomicInc(&finished_blocks_##NAME[blockIdx.y], gridDim.x);         \
+            atomicInc(&finished_blocks_##NAME[blockIdx.y], gridDim.x - 1);     \
         last_block_for_segment = (ticket == gridDim.x - 1);                    \
       }                                                                        \
       __syncthreads();                                                         \
@@ -454,11 +553,11 @@
         unsigned int blocksize = WARP_SIZE * NUM_WARPS;                        \
         unsigned int runs = (SEGMENT_SIZE + blocksize - 1) / blocksize;        \
                                                                                \
-        _Pragma("unroll") for (unsigned int i = 0; i < runs; ++i) {            \
+        NVCC_UNROLL for (unsigned int i = 0; i < runs; ++i) {            \
           if (lid < SEGMENT_SIZE) {                                            \
             bin = output[offset + lid];                                        \
                                                                                \
-            _Pragma("unroll") for (unsigned yi = 1; yi < gridDim.x; ++yi) {    \
+            NVCC_UNROLL for (unsigned yi = 1; yi < gridDim.x; ++yi) {    \
               bin = REDUCE(bin, output[offset + yi * num_bins + lid]);         \
             }                                                                  \
                                                                                \
@@ -470,4 +569,4 @@
     }                                                                          \
   }
 
-//#endif  // __HIPACC_CU_RED_HPP__
+#endif  // __HIPACC_CU_RED_HPP__

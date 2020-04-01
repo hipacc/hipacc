@@ -49,7 +49,7 @@ using namespace android::RSC;
 
 #include "hipacc_base.hpp"
 
-class HipaccContext : public HipaccContextBase {
+class HipaccContext {
 private:
   sp<RS> context;
 
@@ -60,7 +60,7 @@ public:
   sp<RS> get_context();
 };
 
-class HipaccImageAndroid : public HipaccImageBase {
+class HipaccImageAndroid {
 public: // TODO: PRIV
   size_t width, height;
   size_t stride, alignment;

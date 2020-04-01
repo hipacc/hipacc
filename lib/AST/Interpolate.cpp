@@ -47,6 +47,7 @@ std::string ASTTranslate::getInterpolationName(CompilerOptions &compilerOptions,
   switch (Acc->getInterpolationMode()) {
     case Interpolate::NO:
     case Interpolate::NN:                break;
+    case Interpolate::B5: name += "b5_"; break;
     case Interpolate::LF: name += "lf_"; break;
     case Interpolate::CF: name += "cf_"; break;
     case Interpolate::L3: name += "l3_"; break;
@@ -179,7 +180,7 @@ Expr *ASTTranslate::addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor
   SmallVector<Expr *, 16> args;
   if (compilerOptions.emitCUDA() &&
       Kernel->useTextureMemory(Acc) != Texture::None) {
-    assert(isa<ParmVarDecl>(LHS->getDecl()) && "texture variable must be a ParmVarDecl!");
+    hipacc_require(isa<ParmVarDecl>(LHS->getDecl()), "texture variable must be a ParmVarDecl!");
     ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());
     args.push_back(createDeclRefExpr(Ctx, CloneDeclTex(PVD, "_tex")));
   } else {

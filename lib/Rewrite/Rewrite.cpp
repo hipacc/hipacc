@@ -50,6 +50,8 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <regex>
+#include <fstream>
 
 #ifdef _WIN32
 # include <io.h>
@@ -145,9 +147,11 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       TextRewriteOptions.RemoveLineIfEmpty = true;
     }
 
+    static void WriteCudaInterpolationDeclHeader(SmallVector<std::string, 16>& interpolations, char const* file_name);
+
     // Rewrite
     std::string convertToString(Stmt *from) {
-      assert(from != nullptr && "Expected non-null Stmt");
+      hipacc_require(from != nullptr, "Expected non-null Stmt");
       std::string SS;
       llvm::raw_string_ostream S(SS);
       from->printPretty(S, nullptr, Policy);
@@ -206,28 +210,45 @@ HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
     out = abs_path.str();
   }
 
-  std::unique_ptr<llvm::raw_pwrite_stream> OS =
-    CI.createOutputFile(out, false, true, "", "", false);
-  assert(OS && "Cannot create output stream.");
+  std::unique_ptr<llvm::raw_pwrite_stream> OS = CI.createOutputFile(out, false, true, "", "", false);
+  hipacc_require(OS != nullptr, "Cannot create output stream.");
 
   return llvm::make_unique<Rewrite>(CI, options, std::move(OS));
 }
 
 
+void Rewrite::WriteCudaInterpolationDeclHeader(SmallVector<std::string, 16>& interpolations, char const* file_name)
+{
+    std::ofstream interpol_hdr_stream(file_name);
+
+    interpol_hdr_stream << "#pragma once" << std::endl
+                        << "#include \"hipacc_cu_interpolate.hpp\"" << std::endl << std::endl;
+
+    // sort definitions and remove duplicate definitions
+    std::sort(interpolations.begin(), interpolations.end(), std::greater<std::string>());
+    interpolations.erase(std::unique(interpolations.begin(), interpolations.end()), interpolations.end());
+
+    // add interpolation definitions
+    for (auto str : interpolations)
+      interpol_hdr_stream << str;
+    
+    interpol_hdr_stream << std::endl;
+}
+
 void Rewrite::HandleTranslationUnit(ASTContext &) {
-  assert(compilerClasses.Coordinate && "Coordinate class not found!");
-  assert(compilerClasses.Image && "Image class not found!");
-  assert(compilerClasses.BoundaryCondition && "BoundaryCondition class not found!");
-  assert(compilerClasses.AccessorBase && "AccessorBase class not found!");
-  assert(compilerClasses.Accessor && "Accessor class not found!");
-  assert(compilerClasses.IterationSpaceBase && "IterationSpaceBase class not found!");
-  assert(compilerClasses.IterationSpace && "IterationSpace class not found!");
-  assert(compilerClasses.ElementIterator && "ElementIterator class not found!");
-  assert(compilerClasses.Kernel && "Kernel class not found!");
-  assert(compilerClasses.Mask && "Mask class not found!");
-  assert(compilerClasses.Domain && "Domain class not found!");
-  assert(compilerClasses.Pyramid && "Pyramid class not found!");
-  assert(compilerClasses.HipaccEoP && "HipaccEoP class not found!");
+  hipacc_require(compilerClasses.Coordinate, "Coordinate class not found!");
+  hipacc_require(compilerClasses.Image, "Image class not found!");
+  hipacc_require(compilerClasses.BoundaryCondition, "BoundaryCondition class not found!");
+  hipacc_require(compilerClasses.AccessorBase, "AccessorBase class not found!");
+  hipacc_require(compilerClasses.Accessor, "Accessor class not found!");
+  hipacc_require(compilerClasses.IterationSpaceBase, "IterationSpaceBase class not found!");
+  hipacc_require(compilerClasses.IterationSpace, "IterationSpace class not found!");
+  hipacc_require(compilerClasses.ElementIterator, "ElementIterator class not found!");
+  hipacc_require(compilerClasses.Kernel, "Kernel class not found!");
+  hipacc_require(compilerClasses.Mask, "Mask class not found!");
+  hipacc_require(compilerClasses.Domain, "Domain class not found!");
+  hipacc_require(compilerClasses.Pyramid, "Pyramid class not found!");
+  hipacc_require(compilerClasses.HipaccEoP, "HipaccEoP class not found!");
 
   StringRef MainBuf = SM.getBufferData(mainFileID);
   const char *mainFileStart = MainBuf.begin();
@@ -301,20 +322,8 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
 
   // add interpolation include and define interpolation functions for CUDA
   if (compilerOptions.emitCUDA() && InterpolationDefinitionsGlobal.size()) {
-    newStr += "#include \"hipacc_cu_interpolate.hpp\"\n";
-
-    // sort definitions and remove duplicate definitions
-    std::sort(InterpolationDefinitionsGlobal.begin(),
-              InterpolationDefinitionsGlobal.end(), std::greater<std::string>());
-    InterpolationDefinitionsGlobal.erase(
-        std::unique(InterpolationDefinitionsGlobal.begin(),
-                    InterpolationDefinitionsGlobal.end()),
-        InterpolationDefinitionsGlobal.end());
-
-    // add interpolation definitions
-    for (auto str : InterpolationDefinitionsGlobal)
-      newStr += str;
-    newStr += "\n";
+    WriteCudaInterpolationDeclHeader(InterpolationDefinitionsGlobal, "cuInterpolation.cuh");
+    newStr += "#include \"cuInterpolation.cuh\"\n";    
   }
 
   // include .cu or .h files for normal kernels
@@ -372,15 +381,38 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   TextRewriter.InsertTextBefore(locStart, newStr);
 
   // initialize CUDA/OpenCL
-  assert(mainFD && "no main found!");
+  hipacc_require(mainFD, "no function with attribute 'HIPACC_CODEGEN' found!");
 
   CompoundStmt *CS = dyn_cast<CompoundStmt>(mainFD->getBody());
-  assert(CS->size() && "CompoundStmt has no statements.");
+  hipacc_require(CS->size(), "CompoundStmt has no statements.", &Diags, mainFD->getLocation());
 
   std::string initStr;
 
   // get initialization string for run-time
-  stringCreator.writeInitialization(initStr);
+
+  bool skip_write_init{};
+
+  if (mainFD->hasAttrs()) {
+    std::string attr_annotate("annotate");
+    std::string attr_hipacc_no_rt_init("annotate(\"hipacc_no_rt_init\")");
+    
+    for (auto attr : mainFD->getAttrs()) {
+      std::string attr_name(attr->getSpelling());
+
+      if (attr_name == attr_annotate) {
+        std::string SS;
+        llvm::raw_string_ostream S(SS);
+        attr->printPretty(S, Policy);
+        std::string attr_string(S.str());
+
+        if (attr_string.find(attr_hipacc_no_rt_init) != std::string::npos)
+            skip_write_init = true;
+      }
+    }
+  }
+
+  if(!skip_write_init)
+      stringCreator.writeInitialization(initStr);
 
   // load OpenCL kernel files and compile the OpenCL kernels
   if (!compilerOptions.exploreConfig()) {
@@ -414,7 +446,14 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
 
   // get buffer of main file id. If we haven't changed it, then we are done.
   if (auto RewriteBuf = TextRewriter.getRewriteBufferFor(mainFileID)) {
-    *Out << std::string(RewriteBuf->begin(), RewriteBuf->end());
+    std::string output_file_str(RewriteBuf->begin(), RewriteBuf->end());
+
+    // remove all CR characters which are automatically added by clang on Windows to get the CRLF line endings
+    output_file_str.erase(
+      std::remove(output_file_str.begin(), output_file_str.end(), '\r')
+      , output_file_str.end());
+
+    *Out << output_file_str;
     Out->flush();
   } else {
     llvm::errs() << "No changes to input file, something went wrong!\n";
@@ -428,8 +467,9 @@ bool Rewrite::HandleTopLevelDecl(DeclGroupRef DGR) {
       // skip late template class instantiations when templated class instances
       // are created. this is the case if the expansion location is not within
       // the main file
-      if (SM.getFileID(SM.getExpansionLoc(decl->getLocation()))!=mainFileID)
-        continue;
+
+      // if (SM.getFileID(SM.getExpansionLoc(decl->getLocation()))!=mainFileID)
+      //   continue;
     }
     TraverseDecl(decl);
   }
@@ -515,7 +555,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
         continue;
       CCD = ctor;
     }
-    assert(CCD && "Couldn't find user kernel class constructor!");
+    hipacc_require(CCD, "Couldn't find user kernel class constructor!", &Diags, D->getLocation());
 
 
     // iterate over constructor initializers
@@ -584,8 +624,8 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
 
         // init->isBaseInitializer()
         if (auto CCE = dyn_cast<CXXConstructExpr>(init->getInit())) {
-          assert(CCE->getNumArgs() == 1 &&
-              "Kernel base class constructor requires exactly one argument!");
+          hipacc_require(CCE->getNumArgs() == 1,
+              "Kernel base class constructor requires exactly one argument!", &Diags, CCE->getLocation());
 
           if (auto DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0))) {
             if (DRE->getDecl() == param) {
@@ -674,58 +714,93 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Image)) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert((CCE->getNumArgs() == 2 || CCE->getNumArgs() == 3) &&
-               "Image definition requires two or three arguments!");
+
+        hipacc_require(CCE != nullptr, "Not a constructor expression of hipacc::Image", &Diags, VD->getLocation());
+        hipacc_require(CCE->getConstructor() != nullptr, "Missing constructor declaration of hipacc::Image", &Diags, VD->getLocation());
+        hipacc_require(CCE->getConstructor()->hasAttrs(), "Missing constructor attribute of hipacc::Image", &Diags, VD->getLocation());
+
+        std::string constructor_type{};
+
+        for(auto attrib: CCE->getConstructor()->getAttrs()) {
+          if(attrib->getKind() != attr::Annotate)
+            continue;
+
+          constructor_type = cast<AnnotateAttr>(attrib)->getAnnotation();
+          break;
+        }        
 
         HipaccImage *Img = new HipaccImage(Context, VD,
             compilerClasses.getFirstTemplateType(VD->getType()));
 
-        // get the text string for the image width and height
-        std::string width_str  = convertToString(CCE->getArg(0));
-        std::string height_str = convertToString(CCE->getArg(1));
+        if(constructor_type == "ArrayAssignment")
+        {
+          hipacc_require(CCE->getNumArgs() == 4, "Image ArrayAssignment constructor is expected to have four arguments", &Diags, CCE->getLocation());
 
-        if (compilerOptions.emitC99()) {
-          // check if the parameter can be resolved to a constant
-          unsigned IDConstant = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Constant expression for %0 argument of Image %1 required (C/C++ only).");
-          if (!CCE->getArg(0)->isEvaluatable(Context)) {
-            Diags.Report(CCE->getArg(0)->getExprLoc(), IDConstant) << "width"
-              << Img->getName();
-          }
-          if (!CCE->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
-              << Img->getName();
-          }
+          // get the text string for the image width and height
+          std::string width_str  = convertToString(CCE->getArg(0));
+          std::string height_str = convertToString(CCE->getArg(1));
 
-          int64_t img_stride = CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue();
-          int64_t img_height = CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue();
-
-          if (compilerOptions.emitPadding()) {
-            // respect alignment/padding for constantly sized CPU images
-            int64_t alignment = compilerOptions.getAlignment()
-                                  / (Context.getTypeSize(Img->getType())/8);
-
-            if (alignment > 1) {
-              img_stride = ((img_stride+alignment-1) / alignment) * alignment;
+          if (compilerOptions.emitC99()) {
+            // check if the parameter can be resolved to a constant
+            unsigned IDConstant = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+                  "Constant expression for %0 argument of Image %1 required (C/C++ only).");
+            if (!CCE->getArg(0)->isEvaluatable(Context)) {
+              Diags.Report(CCE->getArg(0)->getExprLoc(), IDConstant) << "width"
+                << Img->getName();
             }
+            if (!CCE->getArg(1)->isEvaluatable(Context)) {
+              Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
+                << Img->getName();
+            }
+
+            int64_t img_stride = CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue();
+            int64_t img_height = CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue();
+
+            if (compilerOptions.emitPadding()) {
+              // respect alignment/padding for constantly sized CPU images
+              int64_t alignment = compilerOptions.getAlignment()
+                                    / (Context.getTypeSize(Img->getType())/8);
+
+              if (alignment > 1) {
+                img_stride = ((img_stride+alignment-1) / alignment) * alignment;
+              }
+            }
+
+            Img->setSizeX(img_stride);
+            Img->setSizeY(img_height);
           }
 
-          Img->setSizeX(img_stride);
-          Img->setSizeY(img_height);
+          // host memory
+          std::string init_str = convertToString(CCE->getArg(2));
+          std::string deep_copy_str = convertToString(CCE->getArg(3));
+
+          // create memory allocation string
+          std::string newStr;
+          stringCreator.writeMemoryAllocation(Img, width_str, height_str,
+              init_str, deep_copy_str, newStr);
+
+          // rewrite Image definition
+          replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
         }
 
-        // host memory
-        std::string init_str = "NULL";
-        if (CCE->getNumArgs() == 3)
-          init_str = convertToString(CCE->getArg(2));
+        else if(constructor_type == "CustomImage")
+        {
+          hipacc_require(CCE->getNumArgs() >= 1, "Image constructor expects at least one arguments", &Diags, CCE->getLocation());
 
-        // create memory allocation string
-        std::string newStr;
-        stringCreator.writeMemoryAllocation(Img, width_str, height_str,
-            init_str, newStr);
+          std::string newStr{};
+          std::string assigned_image = convertToString(CCE->getArg(0));
+          std::string deep_copy = CCE->getNumArgs() >= 2 ? convertToString(CCE->getArg(1)) : "";
 
-        // rewrite Image definition
-        replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
+          stringCreator.writeMemoryMapping(Img, assigned_image, deep_copy, newStr);
+
+          // rewrite Image definition
+          replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
+        }
+        
+        else {
+          // TODO: print error message
+          hipacc_require(false, "Image constructor type not supported!", &Diags, CCE->getLocation());
+        }
 
         // store Image definition
         ImgDeclMap[VD] = Img;
@@ -737,21 +812,34 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Pyramid)) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert(CCE->getNumArgs() == 2 &&
-               "Pyramid definition requires exactly two arguments!");
+        hipacc_require(CCE->getNumArgs() == 2 || CCE->getNumArgs() == 1,
+               "Pyramid definition requires one or two arguments!", &Diags, CCE->getLocation());
 
         HipaccPyramid *Pyr = new HipaccPyramid(Context, VD,
             compilerClasses.getFirstTemplateType(VD->getType()));
 
-        // get the text string for the pyramid image & depth
-        std::string image_str = convertToString(CCE->getArg(0));
-        std::string depth_str = convertToString(CCE->getArg(1));
-
-        // create memory allocation string
         std::string newStr;
-        stringCreator.writePyramidAllocation(VD->getName(),
-            compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
-            image_str, depth_str, newStr);
+
+        if(CCE->getNumArgs() == 1) {
+          // get the text string for the pyramid image & depth
+          std::string assigned_pyramid = convertToString(CCE->getArg(0));
+
+          // create memory allocation string
+          stringCreator.writePyramidMapping(VD->getName(),
+              compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
+              assigned_pyramid, newStr);
+        }
+
+        else {
+          // get the text string for the pyramid image & depth
+          std::string image_str = convertToString(CCE->getArg(0));
+          std::string depth_str = convertToString(CCE->getArg(1));
+
+          // create memory allocation string
+          stringCreator.writePyramidAllocation(VD->getName(),
+              compilerClasses.getFirstTemplateType(VD->getType()).getAsString(),
+              image_str, depth_str, newStr);
+        }
 
         // rewrite Pyramid definition
         replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
@@ -765,8 +853,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       // found BoundaryCondition decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.BoundaryCondition)) {
-        assert(isa<CXXConstructExpr>(VD->getInit()) &&
-               "Expected BoundaryCondition definition (CXXConstructExpr).");
+        hipacc_require(isa<CXXConstructExpr>(VD->getInit()),
+               "Expected BoundaryCondition definition (CXXConstructExpr).", &Diags, VD->getLocation());
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
         unsigned IDConstMode = Diags.getCustomDiagID(DiagnosticsEngine::Error,
@@ -831,8 +919,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                 "enum hipacc::Boundary") {
               auto lval = arg->EvaluateKnownConstInt(Context);
               auto cval = static_cast<std::underlying_type<Boundary>::type>(Boundary::CONSTANT);
-              assert(lval.isNonNegative() && lval.getZExtValue() <= cval &&
-                     "invalid Boundary mode");
+              hipacc_require(lval.isNonNegative() && lval.getZExtValue() <= cval, "invalid Boundary mode", &Diags, DRE->getLocation());
               auto mode = static_cast<Boundary>(lval.getZExtValue());
               BC->setBoundaryMode(mode);
 
@@ -864,8 +951,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           }
         }
 
-        assert((Img || Pyr) && "Expected first argument of BoundaryCondition "
-                               "to be Image or Pyramid call.");
+        hipacc_require((Img || Pyr), "Expected first argument of BoundaryCondition "
+                                     "to be Image or Pyramid call.", &Diags, VD->getLocation());
 
 
         // remove BoundaryCondition definition
@@ -877,9 +964,30 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       // found Accessor decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Accessor)) {
-        assert(isa<CXXConstructExpr>(VD->getInit()) &&
-               "Expected Accessor definition (CXXConstructExpr).");
-        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+
+        CXXConstructExpr *CCE{};
+
+        if(isa<ExprWithCleanups>(VD->getInit()))
+        {
+          auto* EWC = dyn_cast<ExprWithCleanups>(VD->getInit());
+
+          if(isa<CXXConstructExpr>(EWC->getSubExpr()))
+          {
+            auto ewc_object = EWC->getSubExpr();
+
+            if(isa<CXXConstructExpr>(ewc_object))
+              CCE = dyn_cast<CXXConstructExpr>(ewc_object);
+          } 
+        }
+
+        else if(isa<CXXConstructExpr>(VD->getInit()))
+        {
+          CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+        }
+
+        hipacc_require(CCE != nullptr,
+              "Expected Accessor definition (CXXConstructExpr)."
+              , &Diags, VD->getLocation());
 
         HipaccAccessor *Acc = nullptr;
         HipaccBoundaryCondition *BC = nullptr;
@@ -946,8 +1054,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                 "enum hipacc::Interpolate") {
               auto lval = DRE->EvaluateKnownConstInt(Context);
               auto cval = static_cast<std::underlying_type<Interpolate>::type>(Interpolate::L3);
-              assert(lval.isNonNegative() && lval.getZExtValue() <= cval &&
-                     "invalid Interpolate mode");
+              hipacc_require(lval.isNonNegative() && lval.getZExtValue() <= cval,
+                     "invalid Interpolate mode", &Diags, DRE->getLocation());
               mode = static_cast<Interpolate>(lval.getZExtValue());
               continue;
             }
@@ -960,13 +1068,13 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           roi_args++;
         }
 
-        assert(BC && "Expected BoundaryCondition, Image or Pyramid call as "
-                     "first argument to Accessor.");
+        hipacc_require(BC, "Expected BoundaryCondition, Image or Pyramid call as "
+                     "first argument to Accessor.", &Diags, VD->getLocation());
 
         Acc = new HipaccAccessor(VD, BC, mode, roi_args == 4);
 
         std::string newStr;
-        newStr = "HipaccAccessor " + Acc->getName() + "(" + parms + ");";
+        newStr = "auto " + Acc->getName() + " = hipaccMakeAccessor<" + Acc->getImage()->getTypeStr() + ">(" + parms + ");";
 
         // replace Accessor decl by variables for width/height and offsets
         replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
@@ -980,9 +1088,30 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       // found IterationSpace decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.IterationSpace)) {
-        assert(isa<CXXConstructExpr>(VD->getInit()) &&
-               "Expected IterationSpace definition (CXXConstructExpr).");
-        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+
+        CXXConstructExpr *CCE{};
+
+        if(isa<ExprWithCleanups>(VD->getInit()))
+        {
+          auto* EWC = dyn_cast<ExprWithCleanups>(VD->getInit());
+
+          if(isa<CXXConstructExpr>(EWC->getSubExpr()))
+          {
+            auto ewc_object = EWC->getSubExpr();
+
+            if(isa<CXXConstructExpr>(ewc_object))
+              CCE = dyn_cast<CXXConstructExpr>(ewc_object);
+          } 
+        }
+
+        else if(isa<CXXConstructExpr>(VD->getInit()))
+        {
+          CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+        }
+
+        hipacc_require(CCE != nullptr,
+              "Expected IterationSpace definition (CXXConstructExpr)."
+              , &Diags, VD->getLocation());
 
         HipaccIterationSpace *IS = nullptr;
         HipaccImage *Img = nullptr;
@@ -1024,8 +1153,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           roi_args++;
         }
 
-        assert((Img || Pyr) && "Expected first argument of IterationSpace to "
-                               "be Image or Pyramid call.");
+        hipacc_require((Img || Pyr), "Expected first argument of IterationSpace to "
+                                     "be Image or Pyramid call.", &Diags, VD->getLocation());
 
         IS = new HipaccIterationSpace(VD, Img ? Img : Pyr, roi_args == 4);
         if (Pyr)
@@ -1033,7 +1162,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         ISDeclMap[VD] = IS; // store IterationSpace
 
         std::string newStr;
-        newStr = "HipaccAccessor " + IS->getName() + "(" + parms + ");";
+        newStr = "auto " + IS->getName() + " = hipaccMakeAccessor<" + IS->getImage()->getTypeStr() + ">(" + parms + ");";
 
         // replace iteration space decl by variables for width/height and offset
         replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
@@ -1045,21 +1174,21 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       // found Mask decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Mask)) {
-        assert(isa<CXXConstructExpr>(VD->getInit()) &&
-               "Expected Mask definition (CXXConstructExpr).");
+        hipacc_require(isa<CXXConstructExpr>(VD->getInit()),
+               "Expected Mask definition (CXXConstructExpr).", &Diags, VD->getLocation());
 
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert((CCE->getNumArgs() == 1) &&
-               "Mask definition requires exactly one argument!");
+        hipacc_require((CCE->getNumArgs() == 1),
+               "Mask definition requires exactly one argument!", &Diags, CCE->getLocation());
 
         QualType QT = compilerClasses.getFirstTemplateType(VD->getType());
         Mask = new HipaccMask(VD, QT, HipaccMask::MaskType::Mask);
 
         // get initializer
         DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreParenCasts());
-        assert(DRE && "Mask must be initialized using a variable");
+        hipacc_require(DRE, "Mask must be initialized using a variable", &Diags, CCE->getLocation());
         VarDecl *V = dyn_cast_or_null<VarDecl>(DRE->getDecl());
-        assert(V && "Mask must be initialized using a variable");
+        hipacc_require(V, "Mask must be initialized using a variable", &Diags, DRE->getLocation());
         bool isMaskConstant = V->getType().isConstant(Context);
 
         // extract size_y and size_x from type
@@ -1092,8 +1221,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       // found Domain decl
       if (compilerClasses.isTypeOfClass(VD->getType(),
                                         compilerClasses.Domain)) {
-        assert(isa<CXXConstructExpr>(VD->getInit()) &&
-               "Expected Domain definition (CXXConstructExpr).");
+        hipacc_require(isa<CXXConstructExpr>(VD->getInit()),
+               "Expected Domain definition (CXXConstructExpr).", &Diags, VD->getLocation());
 
         Domain = new HipaccMask(VD, Context.UnsignedCharTy,
                                             HipaccMask::MaskType::Domain);
@@ -1102,15 +1231,15 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
         if (CCE->getNumArgs() == 1) {
           // get initializer
           auto DRE = dyn_cast<DeclRefExpr>(CCE->getArg(0)->IgnoreParenCasts());
-          assert(DRE && "Domain must be initialized using a variable");
+          hipacc_require(DRE, "Domain must be initialized using a variable", &Diags, CCE->getLocation());
           VarDecl *V = dyn_cast_or_null<VarDecl>(DRE->getDecl());
-          assert(V && "Domain must be initialized using a variable");
+          hipacc_require(V, "Domain must be initialized using a variable", &Diags, DRE->getLocation());
 
           if (compilerClasses.isTypeOfTemplateClass(DRE->getType(),
                                                     compilerClasses.Mask)) {
             // copy from mask
             HipaccMask *Mask = MaskDeclMap[DRE->getDecl()];
-            assert(Mask && "Mask to copy from was not declared");
+            hipacc_require(Mask, "Mask to copy from was not declared", &Diags, DRE->getLocation());
 
             size_t size_x = Mask->getSizeX();
             size_t size_y = Mask->getSizeY();
@@ -1133,7 +1262,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                     Domain->setDomainDefined(x, y,
                         !val.Val.getFloat().isZero());
                   } else {
-                    assert(false && "Only builtin integer and floating point "
+                    hipacc_require(false, "Only builtin integer and floating point "
                                     "literals supported in copy Mask");
                   }
                 }
@@ -1168,8 +1297,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
                     if (auto val = dyn_cast<IntegerLiteral>(xexpr)) {
                       Domain->setDomainDefined(x, y, val->getValue() != 0);
                     } else {
-                      assert(false &&
-                             "Expected integer literal in domain initializer");
+                      hipacc_require(false,
+                             "Expected integer literal in domain initializer", &Diags, ILEX->getExprLoc());
                     }
                   }
                 }
@@ -1200,9 +1329,9 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           Domain->setSizeY(Arg1->EvaluateKnownConstInt(Context).getSExtValue());
           Domain->setIsConstant(true);
         } else {
-          assert(false && "Domain definition requires exactly two arguments "
+          hipacc_require(false, "Domain definition requires exactly two arguments "
               "type constant integer or a single argument of type uchar[][] or "
-              "Mask!");
+              "Mask!", &Diags, CCE->getExprLoc());
         }
       }
 
@@ -1251,8 +1380,8 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // create map between Image or Accessor instances and kernel
           // variables; replace image instances by accessors with undefined
           // boundary handling
-          assert(isa<CXXConstructExpr>(VD->getInit()) &&
-               "Expected Image definition (CXXConstructExpr).");
+          hipacc_require(isa<CXXConstructExpr>(VD->getInit()),
+               "Expected Image definition (CXXConstructExpr).", &Diags, VD->getLocation());
           CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
 
           size_t num_img = 0, num_mask = 0;
@@ -1339,12 +1468,23 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
 
 bool Rewrite::VisitFunctionDecl(FunctionDecl *D) {
-  if (D->isMain()) {
-    assert(D->getBody() && "main function has no body.");
-    assert(isa<CompoundStmt>(D->getBody()) && "CompoundStmt for main body expected.");
-    mainFD = D;
+  if (D->hasAttrs()) {
+    for (auto attr : D->getAttrs()) {
+      std::string attr_name(attr->getSpelling());
+      std::string attr_annotate("annotate");
+      std::string attr_hipacc("annotate(\"hipacc_codegen\")");
+      if (attr_name == attr_annotate) {
+        std::string SS; llvm::raw_string_ostream S(SS);
+        attr->printPretty(S, Policy);
+        std::string attr_string(S.str());
+        if (attr_string.find(attr_hipacc) != std::string::npos) {
+          hipacc_require(D->getBody(), "main function has no body.", &Diags, D->getLocation());
+          hipacc_require(isa<CompoundStmt>(D->getBody()), "CompoundStmt for main body expected.", &Diags, D->getLocation());
+          mainFD = D;
+        }
+      }
+    }
   }
-
   return true;
 }
 
@@ -1404,7 +1544,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
         } else if (MaskDeclMap.count(DRE->getDecl())) {
           DomLHS = MaskDeclMap[DRE->getDecl()];
 
-          assert(DomLHS->isConstant() &&
+          hipacc_require(DomLHS->isConstant(),
                  "Setting domain values only supported for constant Domains");
 
           unsigned DiagIDConstant =
@@ -1447,7 +1587,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       // check for RHS literal to set domain value
       Expr *arg = E->getArg(1)->IgnoreParenCasts();
 
-      assert(isa<IntegerLiteral>(arg) &&
+      hipacc_require(isa<IntegerLiteral>(arg),
              "RHS argument for setting specific domain value must be integer "
              "literal");
 
@@ -1470,7 +1610,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
             DEVICE_TO_DEVICE, newStr);
       } else if (ImgLHS && AccRHS) {
         // Img1 = Acc2;
-        stringCreator.writeMemoryTransferRegion("HipaccAccessor(" +
+        stringCreator.writeMemoryTransferRegion("hipaccMakeAccessor<"+ ImgLHS->getTypeStr() +">(" +
             ImgLHS->getName() + ")", AccRHS->getName(), newStr);
       } else if (ImgLHS && PyrRHS) {
         // Img1 = Pyr2(x2);
@@ -1480,7 +1620,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       } else if (AccLHS && ImgRHS) {
         // Acc1 = Img2;
         stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
-            "HipaccAccessor(" + ImgRHS->getName() + ")", newStr);
+            "hipaccMakeAccessor<"+ ImgRHS->getTypeStr() +">(" + ImgRHS->getName() + ")", newStr);
       } else if (AccLHS && AccRHS) {
         // Acc1 = Acc2;
         stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
@@ -1488,7 +1628,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       } else if (AccLHS && PyrRHS) {
         // Acc1 = Pyr2(x2);
         stringCreator.writeMemoryTransferRegion(AccLHS->getName(),
-            "HipaccAccessor(" + PyrRHS->getName() + "(" + PyrIdxRHS + "))",
+            "hipaccMakeAccessor<"+ PyrRHS->getTypeStr() +">(" + PyrRHS->getName() + "(" + PyrIdxRHS + "))",
             newStr);
       } else if (PyrLHS && ImgRHS) {
         // Pyr1(x1) = Img2
@@ -1497,7 +1637,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
       } else if (PyrLHS && AccRHS) {
         // Pyr1(x1) = Acc2
         stringCreator.writeMemoryTransferRegion(
-            "HipaccAccessor(" + PyrLHS->getName() + "(" + PyrIdxLHS + "))",
+            "hipaccMakeAccessor<"+ PyrLHS->getTypeStr() +">(" + PyrLHS->getName() + "(" + PyrIdxLHS + "))",
             AccRHS->getName(), newStr);
       } else if (PyrLHS && PyrRHS) {
         // Pyr1(x1) = Pyr2(x2)
@@ -1610,11 +1750,24 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
       if (KernelDeclMap.count(DRE->getDecl())) {
         HipaccKernel *K = KernelDeclMap[DRE->getDecl()];
         VarDecl *VD = K->getDecl();
+
+        hipacc_require(E->getNumArgs() <= 1
+          , "Kernel::execute must not have more than one argument"
+          , &Diags, E->getDirectCallee()->getLocation());
+
+        if(E->getNumArgs() == 1)
+        {
+          std::string execution_parameter;
+          llvm::raw_string_ostream SS(execution_parameter);
+          E->getArg(0)->printPretty(SS, 0, Policy);
+          K->setExecutionParameter(SS.str());
+        }
+
         std::string newStr;
 
         // this was checked before, when the user class was parsed
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
-        assert(CCE->getNumArgs() == K->getKernelClass()->getMembers().size() &&
+        hipacc_require(CCE->getNumArgs() == K->getKernelClass()->getMembers().size(),
             "number of arguments doesn't match!");
 
         // set host argument names and retrieve literals stored to temporaries
@@ -1653,17 +1806,28 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
             numBinsExpr->printPretty(SS, 0, Policy);
             K->setNumBinsStr(SS.str());
 
-            assert(K->getKernelClass()->getBinningFunction()
-                   && "Called binned_data() but no binning function defined!");
+            hipacc_require(K->getKernelClass()->getBinningFunction()
+                   , "Called binned_data() but no binning function defined!");
 
             callStr += "\n" + stringCreator.getIndent();
             stringCreator.writeBinningCall(K, callStr);
 
             resultStr = K->getBinningStr();
           } else {
-            assert(K->getKernelClass()->getReduceFunction()
-                   && "Called reduced_data() but no reduce function defined!");
+            hipacc_require(K->getKernelClass()->getReduceFunction()
+                   , "Called reduced_data() but no reduce function defined!");
 
+            hipacc_require(E->getNumArgs() <= 1
+                   ,"Kernel::execute must not have more than one argument"
+                   , &Diags, E->getDirectCallee()->getLocation());
+
+            if(E->getNumArgs() == 1)
+            {
+              std::string execution_parameter;
+              llvm::raw_string_ostream SS(execution_parameter);
+              E->getArg(0)->printPretty(SS, 0, Policy);
+              K->setExecutionParameter(SS.str());
+            }
             callStr += "\n" + stringCreator.getIndent();
             stringCreator.writeReductionDeclaration(K, callStr);
             stringCreator.writeReduceCall(K, callStr);
@@ -1891,7 +2055,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   std::string signatureBinning;
 
   if (compilerOptions.exploreConfig()) {
-    assert(false && "Explorations not supported for multi-dimensional reductions");
+    hipacc_require(false, "Explorations not supported for multi-dimensional reductions");
   }
 
   // preprocessor defines
@@ -1899,7 +2063,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   switch (compilerOptions.getTargetLang()) {
     case Language::Renderscript:
     case Language::Filterscript:
-      assert(false && "Multi-dimensional reductions is not supported for Renderscript");
+      hipacc_require(false, "Multi-dimensional reductions is not supported for Renderscript");
       break;
     case Language::C99:
     case Language::OpenCLACC:
@@ -2112,8 +2276,10 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       OS << "static ";
       break;
   }
+
   OS << "inline " << fun->getReturnType().getAsString() << " "
-     << K->getReduceName() << "(";
+    << K->getReduceName() << "(";
+  
   // write kernel parameters
   size_t comma = 0;
   for (auto param : fun->parameters()) {
@@ -2165,27 +2331,6 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << ";\n__device__ const textureReference *_tex"
          << K->getIterationSpace()->getImage()->getName() + K->getName()
          << "Ref;\n\n";
-      // define reduction only if pixel and bin are of the same type
-      if (KC->getPixelType() == KC->getBinType()) {
-        // 2D reduction
-        if (compilerOptions.exploreConfig()) {
-          OS << "REDUCTION_CUDA_2D(";
-        } else {
-          OS << "__device__ unsigned finished_blocks_" << K->getReduceName()
-             << "2D = 0;\n\n";
-          OS << "REDUCTION_CUDA_2D_THREAD_FENCE(";
-        }
-        OS << K->getReduceName() << "2D, "
-           << fun->getReturnType().getAsString() << ", "
-           << K->getReduceName() << ", _tex"
-           << K->getIterationSpace()->getImage()->getName() + K->getName() << ")\n";
-        // 1D reduction
-        if (compilerOptions.exploreConfig()) {
-          OS << "REDUCTION_CUDA_1D(" << K->getReduceName() << "1D, "
-             << fun->getReturnType().getAsString() << ", "
-             << K->getReduceName() << ")\n";
-        }
-      }
       break;
     case Language::Renderscript:
     case Language::Filterscript:
@@ -2242,7 +2387,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case Language::CUDA:
       OS << "#include \"hipacc_types.hpp\"\n"
          << "#include \"hipacc_math_functions.hpp\"\n\n";
-      // TODO: remove when fixed upstream
+      // TODO: remove when fixed upstream (not yet fixed despite upstream patch having been committed on 2019-06-05)
       // https://reviews.llvm.org/D54258
       OS << "#ifndef __shared\n"
          << "#define __device __device__\n"
@@ -2285,7 +2430,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
               OS << "texture<";
               OS << T.getAsString();
               switch (K->useTextureMemory(Acc)) {
-                default: assert(0 && "texture expected.");
+                default: hipacc_require(0, "texture expected.");
                 case Texture::Linear1D:
                   OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
                   break;
@@ -2339,7 +2484,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         switch (compilerOptions.getTargetLang()) {
           default: InterpolationDefinitionsLocal.push_back(bh_def);
                    InterpolationDefinitionsLocal.push_back(no_bh_def);
-                   InterpolationDefinitionsLocal.push_back(vec_conv);
+
+                   // do not add 'SCALAR_TYPE_FUNS(float)' as it would create already existing functions
+                   if(Acc->getImage()->getType()->isVectorType() || Acc->getImage()->getTypeStr() != "float")
+                    InterpolationDefinitionsLocal.push_back(vec_conv);
+
                    break;
           case Language::C99: break;
         }
@@ -2432,6 +2581,10 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
       // emit interpolation definitions at the beginning of main file
       for (auto str : InterpolationDefinitionsLocal)
         InterpolationDefinitionsGlobal.push_back(str);
+
+      WriteCudaInterpolationDeclHeader(InterpolationDefinitionsGlobal, "cuInterpolation.cuh");
+
+      OS << "#include \"cuInterpolation.cuh\"\n";
     } else {
       // add interpolation definitions to kernel file
       for (auto str : InterpolationDefinitionsLocal)
@@ -2567,17 +2720,22 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (auto Acc = K->getImgFromMapping(FD)) {
       MemoryAccess mem_acc = KC->getMemAccess(FD);
       switch (compilerOptions.getTargetLang()) {
-        case Language::C99:
+        case Language::C99: {
           if (comma++)
             OS << ", ";
           if (mem_acc == READ_ONLY)
             OS << "const ";
-          OS << Acc->getImage()->getTypeStr()
+
+          std::string type_str = Acc->getImage()->getTypeStr();
+          type_str = std::regex_replace(type_str, std::regex("(^const )|( const$)"), "");
+
+          OS << type_str
              << " " << Name
              << "[" << Acc->getImage()->getSizeYStr() << "]"
              << "[" << Acc->getImage()->getSizeXStr() << "]";
           // alternative for Pencil:
           // OS << "[static const restrict 2048][4096]";
+          }
           break;
         case Language::CUDA:
           if (K->useTextureMemory(Acc) != Texture::None &&
@@ -2588,7 +2746,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
               OS << ", ";
             if (mem_acc == READ_ONLY)
               OS << "const ";
-            OS << T->getPointeeType().getAsString();
+
+            std::string type_str = T->getPointeeType().getAsString();
+            type_str = std::regex_replace(type_str, std::regex("(^const )|( const$)"), "");
+
+            OS << type_str;
             OS << " * __restrict__ ";
             OS << Name;
           }
@@ -2608,7 +2770,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             OS << "__global ";
             if (mem_acc == READ_ONLY)
               OS << "const ";
-            OS << T->getPointeeType().getAsString();
+
+            std::string type_str = T->getPointeeType().getAsString();
+            type_str = std::regex_replace(type_str, std::regex("(^const )|( const$)"), "");
+
+            OS << type_str;
             OS << " * restrict ";
           }
           OS << Name;

@@ -124,6 +124,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           Ctx.getTrivialTypeSourceInfo(Ctx.IntTy));
       break;
     case Interpolate::LF:
+    case Interpolate::B5:
     case Interpolate::CF:
     case Interpolate::L3:
       return addInterpolationCall(LHS, Acc, idx_x, idx_y);
@@ -155,7 +156,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
             return accessMemAllocPtr(LHS); // access allocation by using local pointer type kernel argument
           return accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
         case Language::Filterscript:
-          assert(0 && "Filterscript does not support write access for allocations.");
+          hipacc_require(0, "Filterscript does not support write access for allocations.");
       }
     case READ_ONLY:
       switch (compilerOptions.getTargetLang()) {
@@ -268,7 +269,7 @@ FunctionDecl *ASTTranslate::getTextureFunction(HipaccAccessor *Acc, MemoryAccess
     case BuiltinType::ULong:
     case BuiltinType::Double:
     default:
-      assert(0 && "BuiltinType for CUDA texture not supported.");
+      hipacc_require(0, "BuiltinType for CUDA texture not supported.");
 
 #define GET_BUILTIN_FUNCTION(TYPE) \
       (mem_acc == READ_ONLY ? \
@@ -330,7 +331,7 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
     case BuiltinType::ULong:
     case BuiltinType::Double:
     default:
-      assert(0 && "BuiltinType for OpenCL Image not supported.");
+      hipacc_require(0, "BuiltinType for OpenCL Image not supported.");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
     case BuiltinType::Short:
@@ -382,7 +383,7 @@ FunctionDecl *ASTTranslate::getAllocationFunction(QualType QT, MemoryAccess
     case BuiltinType::Void:
     case BuiltinType::Bool:
     default:
-      assert(0 && "BuiltinType for Renderscript Allocation not supported.");
+      hipacc_require(0, "BuiltinType for Renderscript Allocation not supported.");
 
 #define GET_BUILTIN_FUNCTION(TYPE) \
     (mem_acc == READ_ONLY ? \
@@ -423,7 +424,7 @@ FunctionDecl *ASTTranslate::getAllocationFunction(QualType QT, MemoryAccess
 // get convert_<type> function for given type
 FunctionDecl *ASTTranslate::getConvertFunction(QualType VQT) {
   bool isVecType = VQT->isVectorType();
-  assert(isVecType && "Only vector types are supported yet.");
+  hipacc_require(isVecType, "Only vector types are supported yet.");
   QualType QT = VQT->getAs<VectorType>()->getElementType();
   std::string name = "convert_";
 
@@ -438,7 +439,7 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType VQT) {
     case BuiltinType::Void:
     case BuiltinType::Bool:
     default:
-      assert(0 && "BuiltinType for 'convert' function not supported.");
+      hipacc_require(0, "BuiltinType for 'convert' function not supported.");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:
       name += "char4";
@@ -487,7 +488,7 @@ FunctionDecl *ASTTranslate::getConvertFunction(QualType VQT) {
 
   auto simd_type = simdTypes.getSIMDType(QT, QT.getAsString(), SIMD4);
   FunctionDecl *result = lookup<FunctionDecl>(name, simd_type, hipacc_ns);
-  assert(result && "could not lookup convert function");
+  hipacc_require(result, "could not lookup convert function");
 
   return result;
 }
@@ -507,7 +508,7 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   for (auto template_arg : LHS->template_arguments())
     templateArgs.addArgument(template_arg);
 
-  assert(isa<ParmVarDecl>(LHS->getDecl()) && "texture variable must be a ParmVarDecl!");
+  hipacc_require(isa<ParmVarDecl>(LHS->getDecl()), "texture variable must be a ParmVarDecl!");
   ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(LHS->getDecl());
   DeclRefExpr *LHStex = DeclRefExpr::Create(Ctx,
       LHS->getQualifierLoc(),
@@ -527,7 +528,7 @@ Expr *ASTTranslate::accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   if (mem_acc == READ_ONLY) {
     switch (Kernel->useTextureMemory(Acc)) {
       case Texture::None:
-          assert(0 && "texture expected.");
+          hipacc_require(0, "texture expected.");
       case Texture::Linear1D:
         args.push_back(LHStex);
         args.push_back(createBinaryOperator(Ctx, createBinaryOperator(Ctx,

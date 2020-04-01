@@ -122,7 +122,7 @@ class CompilerKnownClasses {
       }
 
       // class<type> ...
-      assert(QT->getTypeClass() == Type::TemplateSpecialization &&
+      hipacc_require(QT->getTypeClass() == Type::TemplateSpecialization,
           "instance of template class expected");
       auto TST = dyn_cast<TemplateSpecializationType>(QT);
 
@@ -139,7 +139,7 @@ class CompilerKnownClasses {
       }
 
       // class<type> ...
-      assert(QT->getTypeClass() == Type::TemplateSpecialization &&
+      hipacc_require(QT->getTypeClass() == Type::TemplateSpecialization,
           "instance of template class expected");
       auto TST = dyn_cast<TemplateSpecializationType>(QT);
 

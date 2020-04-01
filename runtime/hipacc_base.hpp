@@ -44,48 +44,40 @@
 
 #define HIPACC_NUM_ITERATIONS 10
 
+#define HIPACC_CODEGEN // replacement of hipacc_codegen attribute, which is only used for code generation
+#define HIPACC_NO_RT_INIT // replacement of hipacc_no_rt_init attribute, which is only used for code generation
+
 #ifdef _WIN32
 #define setenv(a, b, c) _putenv_s(a, b)
 #endif
 
 class HipaccKernelTimingBase {
 private:
-  float last_gpu_timing; // milliseconds
+  float last_gpu_timing{}; // milliseconds
 public:
-  HipaccKernelTimingBase();
+
   void init_gpu_timing();
-  void set_gpu_timing(float t);
-  float get_last_kernel_timing();
+  void set_gpu_timing(float t)  { last_gpu_timing = t; }
+  float get_last_kernel_timing() const { return last_gpu_timing; }
 };
 
-int64_t hipacc_time_micro();
+inline  int64_t hipacc_time_micro() {
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+             std::chrono::high_resolution_clock::now().time_since_epoch())
+      .count();
+}
 
 enum class hipaccMemoryType { Global, Linear1D, Linear2D, Array2D, Surface };
 
-class HipaccImageBase {
-public:
-  virtual ~HipaccImageBase() = 0;
-};
+struct HipaccAccessorBase {
+  int width;
+  int height;
+  int offset_x;
+  int offset_y;
 
-class HipaccAccessorBase {
-public: // TODO: PRIV
-  size_t width, height;
-  int32_t offset_x, offset_y;
-
-public:
-  HipaccAccessorBase(size_t width, size_t height, int32_t offset_x = 0,
-                     int32_t offset_y = 0)
+  HipaccAccessorBase(int width, int height, int offset_x = 0,
+                     int offset_y = 0)
       : width(width), height(height), offset_x(offset_x), offset_y(offset_y) {}
-};
-
-// TODO: what is the purpose of this class?
-// I have not found any usage beside "class HiappContext : public
-// HipaccContextBase"
-class HipaccContextBase {
-protected:
-  HipaccContextBase();
-  HipaccContextBase(HipaccContextBase const &);
-  void operator=(HipaccContextBase const &);
 };
 
 struct hipacc_launch_info {
@@ -124,7 +116,7 @@ inline int hipaccRuntimeLogTrivial(hipaccRuntimeLogLevel level,
     break;
   case hipaccRuntimeLogLevel::ERROR:
     std::cerr << message << std::endl;
-    exit(EXIT_FAILURE);
+    //exit(EXIT_FAILURE);
     break;
   default:
     assert(false && "not any hipaccRuntimeLogLevel");
@@ -141,14 +133,22 @@ protected:
 public:
   HipaccPyramid(const int depth) : depth_(depth), level_(0), bound_(false) {}
 
-  virtual int depth() const = 0;
-  virtual int level() const = 0;
-  virtual void levelInc() = 0;
-  virtual void levelDec() = 0;
-  virtual bool is_top_level() const = 0;
-  virtual bool is_bottom_level() const = 0;
-  virtual bool bind() = 0;
-  virtual void unbind() = 0;
+  int depth() const { return depth_; }
+  int level() const { return level_; }
+  void levelInc() { ++level_; }
+  void levelDec() { --level_; }
+  bool is_top_level() const { return level_ == 0; }
+  bool is_bottom_level() const { return level_ == depth_ - 1; }
+  bool bind() {
+    if (!bound_) {
+      bound_ = true;
+      level_ = 0;
+      return true;
+    } else {
+      return false;
+    }
+  }
+  void unbind() { bound_ = false; }
 };
 
 // Traversor for image pyramid applications

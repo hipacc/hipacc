@@ -338,8 +338,8 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
 
 // Perform exploration of global reduction and return result
 template <typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-                                  std::string kernel1D,
+T hipaccApplyReductionExploration(const std::string &filename, const std::string &kernel2D,
+                                  const std::string &kernel1D,
                                   const HipaccAccessor &acc,
                                   unsigned int max_threads,
                                   unsigned int pixels_per_thread) {

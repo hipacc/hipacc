@@ -74,9 +74,10 @@ class CreateHostStrings {
     void writeInitialization(std::string &resultStr);
     void writeKernelCompilation(HipaccKernel *K, std::string &resultStr);
     void writeReductionDeclaration(HipaccKernel *K, std::string &resultStr);
-    void writeMemoryAllocation(HipaccImage *Img, std::string width, std::string
-        height, std::string host, std::string &resultStr);
+    void writeMemoryAllocation(HipaccImage *Img, std::string const& width, std::string const&
+        height, std::string const& host, std::string const& deep_copy, std::string &resultStr);
     void writeMemoryAllocationConstant(HipaccMask *Buf, std::string &resultStr);
+    void writeMemoryMapping(HipaccImage *Img, std::string const& argument_name, std::string const& deep_copy, std::string &resultStr);
     void writeMemoryTransfer(HipaccImage *Img, std::string mem,
         MemoryTransferDirection direction, std::string &resultStr);
     void writeMemoryTransfer(HipaccPyramid *Pyr, std::string idx,
@@ -96,6 +97,8 @@ class CreateHostStrings {
         Boundary bh_mode);
     void writePyramidAllocation(std::string pyrName, std::string type,
         std::string img, std::string depth, std::string &resultStr);
+    void writePyramidMapping(std::string pyrName, std::string type,
+        std::string assigned_pyramid, std::string &resultStr);
 };
 } // namespace hipacc
 } // namespace clang

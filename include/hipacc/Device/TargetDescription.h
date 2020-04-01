@@ -38,6 +38,7 @@
 #include "hipacc/Device/TargetDevices.h"
 
 #include <string>
+#include <regex>
 
 namespace clang {
 namespace hipacc {
@@ -206,6 +207,10 @@ class HipaccDevice : public HipaccDeviceOptions {
     // NVIDIA only device properties
     unsigned num_alus;
     unsigned num_sfus;
+    std::string nvcc_path;
+    std::string cl_compiler_path;
+    std::string ccbin_path;
+    std::string rt_includes_path;
 
   public:
     explicit HipaccDevice(CompilerOptions &options) :
@@ -214,7 +219,12 @@ class HipaccDevice : public HipaccDeviceOptions {
       max_threads_per_warp(32),
       max_blocks_per_multiprocessor(8),
       num_alus(0),
-      num_sfus(0)
+      num_sfus(0),
+      nvcc_path(options.getNvccPath()),
+      cl_compiler_path(options.getClCompilerPath()),
+      ccbin_path(options.getCCBinPath()),
+      rt_includes_path(options.getRTIncPath())
+
     {
       switch (target_device) {
         case Device::CPU:
@@ -368,24 +378,31 @@ class HipaccDevice : public HipaccDeviceOptions {
     }
 
     std::string getCLIncludes() {
-      return RUNTIME_INCLUDES;
+      return rt_includes_path;
     }
 
     unsigned getTargetCC() {
-      assert(isNVIDIAGPU() && "compute capability only valid for NVIDIA");
+      hipacc_require(isNVIDIAGPU(), "compute capability only valid for NVIDIA");
       return static_cast<std::underlying_type<Device>::type>(target_device);
     }
 
-    std::string getCompileCommand(std::string kernel, std::string file, bool
+    std::string getCompileCommand(const std::string &kernel, const std::string &file, bool
         emitCUDA) {
       if (emitCUDA) {
-        return std::string(CU_COMPILER) +
-          " -I \"" + std::string(RUNTIME_INCLUDES) + "\"" +
+        std::string compiler = std::regex_replace(nvcc_path, std::regex(" "), "\" \"");
+#ifdef WIN32
+        std::string ccbin = std::regex_replace(ccbin_path, std::regex(" "), "\" \"");
+#endif
+        return compiler +
+#ifdef WIN32
+          " -ccbin " + ccbin +
+#endif
+          " -I \"" + rt_includes_path + "\"" +
           " -arch=sm_" + std::to_string(getTargetCC()) +
           " -cubin -res-usage " + file + ".cu 2>&1";
       }
-      std::string command = std::string(CL_COMPILER) +
-        " -i \"" + std::string(RUNTIME_INCLUDES) + "\"" +
+      std::string command = cl_compiler_path +
+        " -i \"" + rt_includes_path + "\"" +
         " -k " + kernel + " -f " + file + ".cl ";
       if (isAMDGPU())    command += "-p AMD    -d GPU 2>&1";
       if (isARMGPU())    command += "-p ARM    -d GPU 2>&1";

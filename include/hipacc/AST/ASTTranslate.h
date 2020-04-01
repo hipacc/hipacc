@@ -209,7 +209,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 
       switch (D->getKind()) {
         default:
-          assert(0 && "Only VarDecls, ParmVArDecls, and FunctionDecls supported!");
+          hipacc_require(0 , "Only VarDecls, ParmVArDecls, and FunctionDecls supported!");
         case Decl::ParmVar:
           if (astMode==CloneAST) return D;
           return dyn_cast<T>(CloneParmVarDecl(dyn_cast<ParmVarDecl>(D)));
@@ -407,14 +407,14 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         for (auto *decl : Ctx.getTranslationUnitDecl()->lookup(hipacc_ident))
           if ((hipacc_ns = cast_or_null<NamespaceDecl>(decl)))
             break;
-        assert(hipacc_ns && "could not lookup 'hipacc' namespace");
+        hipacc_require(hipacc_ns, "could not lookup 'hipacc' namespace");
 
         // get 'hipacc::math' namespace context for lookups
         auto math_ident = &Ctx.Idents.get("math");
         for (auto *decl : hipacc_ns->lookup(math_ident))
           if ((hipacc_math_ns = cast_or_null<NamespaceDecl>(decl)))
             break;
-        assert(hipacc_math_ns && "could not lookup 'hipacc::math' namespace");
+        hipacc_require(hipacc_math_ns, "could not lookup 'hipacc::math' namespace");
 
         // typedef unsigned sampler_t;
         TypeSourceInfo *TInfosampler =

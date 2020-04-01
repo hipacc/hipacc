@@ -56,7 +56,7 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
       // red = min(red, val);
       fun = lookup<FunctionDecl>(std::string("min"), tmp_var->getType(),
           hipacc_math_ns);
-      assert(fun && "could not lookup 'min'");
+      hipacc_require(fun,"could not lookup 'min'");
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
             CK_LValueToRValue, tmp_var, nullptr, VK_RValue));
       funArgs.push_back(ret_val);
@@ -67,7 +67,7 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
       // red = max(red, val);
       fun = lookup<FunctionDecl>(std::string("max"), tmp_var->getType(),
           hipacc_math_ns);
-      assert(fun && "could not lookup 'max'");
+      hipacc_require(fun,"could not lookup 'max'");
       funArgs.push_back(createImplicitCastExpr(Ctx, tmp_var->getType(),
             CK_LValueToRValue, tmp_var, nullptr, VK_RValue));
       funArgs.push_back(ret_val);
@@ -80,7 +80,7 @@ Stmt *ASTTranslate::getConvolutionStmt(Reduce mode, DeclRefExpr *tmp_var,
           tmp_var->getType());
       break;
     case Reduce::MEDIAN:
-      assert(0 && "Unsupported reduction mode.");
+      hipacc_require(0,"Unsupported reduction mode.");
   }
 
   return result;
@@ -93,8 +93,8 @@ template<typename T> T get_init(Reduce mode) {
     case Reduce::MIN:    return std::numeric_limits<T>::max();
     case Reduce::MAX:    return std::numeric_limits<T>::min();
     case Reduce::PROD:   return 1;
-    case Reduce::MEDIAN: assert(false && "Median not yet supported");
-    default:             assert(false && "Unsupported reduction mode");
+    case Reduce::MEDIAN: hipacc_require(false,"Median not yet supported");
+    default:             hipacc_require(false,"Unsupported reduction mode");
   }
   return 0;
 }
@@ -122,7 +122,7 @@ Expr *ASTTranslate::getInitExpr(Reduce mode, QualType QT) {
     case BuiltinType::Void:
     case BuiltinType::Bool:
     default:
-      assert(0 && "BuiltinType for reduce function not supported.");
+      hipacc_require(0,"BuiltinType for reduce function not supported.");
 
     // FIXME: Clang adds weird suffixes to integer literals with less then 32
     // bits (e.g. "i8", "Ui16", @see StmtPrinter::VisitIntegerLiteral). As a
@@ -196,7 +196,7 @@ Expr *ASTTranslate::getInitExpr(Reduce mode, QualType QT) {
 // check if the current index of the domain space should be processed
 Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
     Stmt *stmt) {
-  assert(domain_var && "Domain.");
+  hipacc_require(domain_var,"Domain.");
 
   Expr *dom_acc = nullptr;
   switch (compilerOptions.getTargetLang()) {
@@ -241,42 +241,40 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   Method method = Method::Convolve;
   if (E->getDirectCallee()->getName().equals("convolve")) {
     method = Method::Convolve;
-    assert(convMask == nullptr &&
+    hipacc_require(convMask == nullptr,
             "Nested convolution calls are not supported.");
   } else if (E->getDirectCallee()->getName().equals("reduce")) {
     method = Method::Reduce;
   } else if (E->getDirectCallee()->getName().equals("iterate")) {
     method = Method::Iterate;
   } else {
-    assert(false && "Unsupported convolution method.");
+    hipacc_require(false,"Unsupported convolution method.");
   }
 
   switch (method) {
     case Method::Convolve:
       // convolve(mask, mode, [&] () { lambda-function; });
-      assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'convolve' call.");
+      hipacc_require(E->getNumArgs() == 3,"Expected 3 arguments to 'convolve' call.");
       break;
     case Method::Reduce:
       // reduce(domain, mode, [&] () { lambda-function; });
-      assert(E->getNumArgs() == 3 && "Expected 3 arguments to 'reduce' call.");
+      hipacc_require(E->getNumArgs() == 3,"Expected 3 arguments to 'reduce' call.");
       break;
     case Method::Iterate:
       // iterate(domain, [&] () { lambda-function; });
-      assert(E->getNumArgs() == 2 && "Expected 2 arguments to 'iterate' call.");
+      hipacc_require(E->getNumArgs() == 2,"Expected 2 arguments to 'iterate' call.");
       break;
   }
 
   // first parameter: Mask<type> or Domain reference
   HipaccMask *Mask = nullptr;
   if (method==Method::Convolve)
-    assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
-        isa<FieldDecl>(dyn_cast<MemberExpr>(
-            E->getArg(0)->IgnoreImpCasts())->getMemberDecl()) &&
+    hipacc_require(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
+        isa<FieldDecl>(dyn_cast<MemberExpr>(E->getArg(0)->IgnoreImpCasts())->getMemberDecl()),
            "First parameter to 'convolve' call must be a Mask.");
   else
-    assert(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
-        isa<FieldDecl>(dyn_cast<MemberExpr>(
-            E->getArg(0)->IgnoreImpCasts())->getMemberDecl()) &&
+    hipacc_require(isa<MemberExpr>(E->getArg(0)->IgnoreImpCasts()) &&
+        isa<FieldDecl>(dyn_cast<MemberExpr>(E->getArg(0)->IgnoreImpCasts())->getMemberDecl()),
            "First parameter to 'reduce'/'iterate' call must be a Domain.");
   MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(0)->IgnoreImpCasts());
   FieldDecl *FD = dyn_cast<FieldDecl>(ME->getMemberDecl());
@@ -287,21 +285,21 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   }
   switch (method) {
     case Method::Convolve:
-      assert(Mask && !Mask->isDomain() && "Could not find Mask Field Decl.");
+      hipacc_require(Mask && !Mask->isDomain(), "Could not find Mask Field Decl.");
       break;
     case Method::Reduce:
     case Method::Iterate:
-      assert(Mask && Mask->isDomain() && "Could not find Domain Field Decl.");
+      hipacc_require(Mask && Mask->isDomain(), "Could not find Domain Field Decl.");
       break;
   }
 
   // second parameter: convolution/reduction mode
   if (method==Method::Convolve || method==Method::Reduce) {
     if (method==Method::Convolve)
-      assert(isa<DeclRefExpr>(E->getArg(1)) &&
+      hipacc_require(isa<DeclRefExpr>(E->getArg(1)),
           "Second parameter to 'convolve' call must be the convolution mode.");
     if (method==Method::Reduce)
-      assert(isa<DeclRefExpr>(E->getArg(1)) &&
+      hipacc_require(isa<DeclRefExpr>(E->getArg(1)),
           "Second parameter to 'reduce' call must be the reduction mode.");
     DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E->getArg(1));
 
@@ -311,7 +309,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
       auto lval = E->getArg(1)->EvaluateKnownConstInt(Ctx);
       auto mval = static_cast<std::underlying_type<Reduce>::type>(Reduce::MEDIAN);
       auto mode = static_cast<Reduce>(lval.getZExtValue());
-      assert(lval.isNonNegative() && lval.getZExtValue() <= mval &&
+      hipacc_require(lval.isNonNegative() && lval.getZExtValue() <= mval,
              "invalid Reduce mode");
       if (method==Method::Convolve)
         convMode = mode;
@@ -330,11 +328,11 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
   if (method==Method::Iterate)
     li = 1;
 
-  assert(isa<MaterializeTemporaryExpr>(E->getArg(li)) &&
-         isa<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(
-             E->getArg(li))->GetTemporaryExpr()->IgnoreImpCasts()) &&
+  hipacc_require(isa<MaterializeTemporaryExpr>(E->getArg(li)) &&
+         isa<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(E->getArg(li))->GetTemporaryExpr()->IgnoreImpCasts()),
          "Third parameter to 'reduce' or 'iterate' call must be a"
          "lambda-function.");
+         
   LambdaExpr *LE = dyn_cast<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(
                        E->getArg(li))->GetTemporaryExpr()->IgnoreImpCasts());
 
@@ -469,7 +467,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
     case Method::Iterate:
       return nullptr;
     default:
-      assert(false && "Unsupported convolution method.");
+      hipacc_require(false,"Unsupported convolution method.");
       return nullptr;
   }
 }

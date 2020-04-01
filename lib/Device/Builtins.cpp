@@ -65,25 +65,25 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
     switch (*Str++) {
       default: Done = true; --Str; break;
       case 'S':
-        assert(!Unsigned && "Can't use both 'S' and 'U' modifiers!");
-        assert(!Signed && "Can't use 'S' modifier multiple times!");
+        hipacc_require(!Unsigned, "Can't use both 'S' and 'U' modifiers!");
+        hipacc_require(!Signed, "Can't use 'S' modifier multiple times!");
         Signed = true;
         break;
       case 'U':
-        assert(!Signed && "Can't use both 'S' and 'U' modifiers!");
-        assert(!Unsigned && "Can't use 'U' modifier multiple times!");
+        hipacc_require(!Signed, "Can't use both 'S' and 'U' modifiers!");
+        hipacc_require(!Unsigned, "Can't use 'U' modifier multiple times!");
         Unsigned = true;
         break;
       case 'L':
-        assert(HowLong <= 2 && "Can't have LLLL modifier");
+        hipacc_require(HowLong <= 2, "Can't have LLLL modifier");
         ++HowLong;
         break;
       case 'W':
         // This modifier represents int64 type.
-        assert(HowLong == 0 && "Can't use both 'L' and 'W' modifiers!");
+        hipacc_require(HowLong == 0, "Can't use both 'L' and 'W' modifiers!");
         switch (Ctx.getTargetInfo().getInt64Type()) {
           default:
-            assert(0 && "Unexpected integer type");
+            hipacc_require(0, "Unexpected integer type");
           case TargetInfo::SignedLong:
             HowLong = 1;
             break;
@@ -98,19 +98,19 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
 
   // Read the base type.
   switch (*Str++) {
-    default: assert(0 && "Unknown builtin type letter!");
+    default: hipacc_require(0, "Unknown builtin type letter!");
     case 'v': // void
-      assert(HowLong == 0 && !Signed && !Unsigned &&
+      hipacc_require(HowLong == 0 && !Signed && !Unsigned,
              "Bad modifiers used with 'v'!");
       Type = Ctx.VoidTy;
       break;
     case 'f': // float
-      assert(HowLong == 0 && !Signed && !Unsigned &&
+      hipacc_require(HowLong == 0 && !Signed && !Unsigned,
              "Bad modifiers used with 'f'!");
       Type = Ctx.FloatTy;
       break;
     case 'd': // double
-      assert(HowLong < 2 && !Signed && !Unsigned &&
+      hipacc_require(HowLong < 2 && !Signed && !Unsigned,
              "Bad modifiers used with 'd'!");
       if (HowLong)
         Type = Ctx.LongDoubleTy;
@@ -118,7 +118,7 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
         Type = Ctx.DoubleTy;
       break;
     case 's': // short
-      assert(HowLong == 0 && "Bad modifiers used with 's'!");
+      hipacc_require(HowLong == 0, "Bad modifiers used with 's'!");
       if (Unsigned)
         Type = Ctx.UnsignedShortTy;
       else
@@ -135,7 +135,7 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
         Type = Unsigned ? Ctx.UnsignedIntTy : Ctx.IntTy;
       break;
     case 'c': // char
-      assert(HowLong == 0 && "Bad modifiers used with 'c'!");
+      hipacc_require(HowLong == 0, "Bad modifiers used with 'c'!");
       if (Signed)
         Type = Ctx.SignedCharTy;
       else if (Unsigned)
@@ -144,17 +144,17 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
         Type = Ctx.CharTy;
       break;
     case 'b': // boolean
-      assert(HowLong == 0 && !Signed && !Unsigned && "Bad modifiers for 'b'!");
+      hipacc_require(HowLong == 0 && !Signed && !Unsigned, "Bad modifiers for 'b'!");
       Type = Ctx.BoolTy;
       break;
     case 'z':  // size_t.
-      assert(HowLong == 0 && !Signed && !Unsigned && "Bad modifiers for 'z'!");
+      hipacc_require(HowLong == 0 && !Signed && !Unsigned, "Bad modifiers for 'z'!");
       Type = Ctx.getSizeType();
       break;
     case 'V': { // Vector
       char *End;
       unsigned NumElements = strtoul(Str, &End, 10);
-      assert(End != Str && "Missing vector size");
+      hipacc_require(End != Str, "Missing vector size");
       Str = End;
 
       QualType ElementType = DecodeTypeFromStr(Str, Ctx, true);
@@ -166,7 +166,7 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Ctx, bool
     case 'E': { // Extended Vector
       char *End;
       unsigned NumElements = strtoul(Str, &End, 10);
-      assert(End != Str && "Missing vector size");
+      hipacc_require(End != Str, "Missing vector size");
       Str = End;
 
       QualType ElementType = DecodeTypeFromStr(Str, Ctx, false);
@@ -235,7 +235,7 @@ std::string hipacc::Builtin::Context::EncodeTypeIntoStr(QualType QT, const
     case BuiltinType::LongDouble:
     case BuiltinType::Void:
     case BuiltinType::Bool:
-    default: assert(0 && "BuiltinType for Boundary handling constant not supported.");
+    default: hipacc_require(0, "BuiltinType for Boundary handling constant not supported.");
     case BuiltinType::Char_S:
     case BuiltinType::SChar:      return "Sc";
     case BuiltinType::Char_U:

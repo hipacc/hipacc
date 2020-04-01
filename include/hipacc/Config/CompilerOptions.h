@@ -33,6 +33,8 @@
 #ifndef _COMPILER_OPTIONS_H_
 #define _COMPILER_OPTIONS_H_
 
+#include "ErrorReporting.h"
+
 #include "hipacc/Config/config.h"
 #include "hipacc/Device/TargetDevices.h"
 
@@ -90,7 +92,7 @@ class CompilerOptions {
     int align_bytes;
     int pixels_per_thread;
     Texture texture_type;
-    std::string rs_package_name, rs_directory;
+    std::string rs_package_name, nvcc_path, cl_compiler_path, ccbin_path, rt_includes_path, rs_directory;
 
     void getOptionAsString(CompilerOption option, int val=-1) {
       switch (option) {
@@ -134,6 +136,10 @@ class CompilerOptions {
       pixels_per_thread(1),
       texture_type(Texture::None),
       rs_package_name("org.hipacc.rs"),
+      nvcc_path("nvcc"),
+      cl_compiler_path(""),
+      ccbin_path(""),
+      rt_includes_path(""),
       rs_directory("/data/local/tmp")
     {}
 
@@ -200,6 +206,10 @@ class CompilerOptions {
     int getPixelsPerThread() { return pixels_per_thread; }
     std::string getRSPackageName() { return rs_package_name; }
     std::string getRSDirectory() { return rs_directory; }
+    std::string getNvccPath() { return nvcc_path; }
+    std::string getClCompilerPath() { return cl_compiler_path; }
+    std::string getCCBinPath() { return ccbin_path; }
+    std::string getRTIncPath() { return rt_includes_path; }
 
     void setTargetLang(Language lang) { target_lang = lang; }
     void setTargetDevice(Device td) { target_device = td; }
@@ -238,9 +248,25 @@ class CompilerOptions {
       else multiple_pixels = USER_OFF;
     }
 
-    void setRSPackageName(std::string name) {
+    void setRSPackageName(const std::string &name) {
       rs_package_name = name;
       rs_directory = "/data/data/" + name;
+    }
+
+    void setNvccPath(const std::string &path) {
+      nvcc_path = path;
+    }
+
+    void setClCompilerPath(const std::string &path) {
+      cl_compiler_path = path;
+    }
+
+    void setCCBinPath(const std::string &path) {
+      ccbin_path = path;
+    }
+
+    void setRTIncPath(const std::string &path) {
+      rt_includes_path = path;
     }
 
     std::string getTargetPrefix() {
@@ -252,11 +278,11 @@ class CompilerOptions {
         case Language::OpenCLGPU:    return "cl";
         case Language::Renderscript: return "rs";
         case Language::Filterscript: return "fs";
-        default: assert(false && "Unsupported target language");
+        default: hipacc_require(false , "Unsupported target language");
       }
     }
 
-    void printSummary(std::string target_device) {
+    void printSummary(const std::string &target_device) {
       llvm::errs() << "HIPACC compiler configuration summary: \n";
       llvm::errs() << "  Generating target code for '";
       switch (target_lang) {

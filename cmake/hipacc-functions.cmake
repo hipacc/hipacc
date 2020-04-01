@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
+option(HIPACC_SKIP_CODEGEN "Skip automatic code generation by Hipacc" OFF)
+
 set(HIPACC_PATH "${CMAKE_CURRENT_LIST_DIR}/../")
 
 find_program(HIPACC_EXE hipacc
@@ -12,19 +14,32 @@ endif()
 
 get_filename_component(HIPACC_PATH "${HIPACC_EXE}" DIRECTORY)
 get_filename_component(HIPACC_PATH "${HIPACC_PATH}" DIRECTORY)
+get_filename_component(CCBIN_PATH "${CMAKE_CXX_COMPILER}" DIRECTORY)
 
 message(STATUS "Found Hipacc: ${HIPACC_PATH}")
 
 find_package(CUDA 7)
 find_package(OpenCL)
 
-set(HIPACC_OPTIONS "-std=c++11")
+find_program(NVCC_EXE nvcc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/bin/)
+find_program(CL_COMPILER_EXE cl_compile HINTS ${HIPACC_PATH}/bin/)
+
+if(NOT NVCC_EXE)
+    message(WARNING "Hipacc: Could not find CUDA compiler!")
+endif()
+
+if(NOT CL_COMPILER_EXE)
+    message(WARNING "Hipacc: Could not find the OpenCL compiler!")
+endif()
+
+set(HIPACC_OPTIONS "-rt-includes-path" "${HIPACC_PATH}/include")
 set(HIPACC_OPTIONS "-nostdinc++")
 set(HIPACC_OPTIONS_CPU "")
-set(HIPACC_OPTIONS_CUDA "")
-set(HIPACC_OPTIONS_OPENCL_ACC "")
-set(HIPACC_OPTIONS_OPENCL_CPU "")
-set(HIPACC_OPTIONS_OPENCL_GPU "")
+set(HIPACC_OPTIONS_CUDA "-nvcc-path" "${NVCC_EXE}" "-ccbin-path" "${CCBIN_PATH}")
+set(HIPACC_OPTIONS_OPENCL "-cl-compiler-path" "${CL_COMPILER_EXE}")
+set(HIPACC_OPTIONS_OPENCL_ACC ${HIPACC_OPTIONS_OPENCL})
+set(HIPACC_OPTIONS_OPENCL_CPU ${HIPACC_OPTIONS_OPENCL})
+set(HIPACC_OPTIONS_OPENCL_GPU ${HIPACC_OPTIONS_OPENCL})
 set(HIPACC_INCLUDE_DIRS "${HIPACC_PATH}/include/dsl" "${HIPACC_PATH}/include/c++/v1" "${HIPACC_PATH}/include/clang")
 set(HIPACC_RT_INCLUDE_DIRS "${HIPACC_PATH}/include/")
 
@@ -43,6 +58,13 @@ function(add_hipacc_sources)
     list(APPEND _HIPACC_OPTIONS ${HIPACC_OPTIONS})
     list(APPEND _HIPACC_OPTIONS ${ARG_OPTIONS})
     string(REPLACE " " ";" _HIPACC_OPTIONS "${_HIPACC_OPTIONS}")
+
+    ##################################
+    # define C++ standard based on target property
+
+    get_target_property(TARGET_CXX_STANDARD ${ARG_TARGET} CXX_STANDARD)
+    list(APPEND _HIPACC_OPTIONS "-std=c++${TARGET_CXX_STANDARD}")
+    list(APPEND _HIPACC_OPTIONS "-nostdinc++")
 
     ##################################
     # check hipacc version requirement
@@ -152,6 +174,8 @@ function(add_hipacc_sources)
 
     foreach(_SRC ${ARG_SOURCES})
 
+        get_filename_component(_SRC ${_SRC} ABSOLUTE)      
+
         if(NOT EXISTS ${_SRC})
             message(FATAL_ERROR "add_hipacc_sources: Hipacc DSL file ${_SRC} does not exist!")
         endif()
@@ -159,6 +183,7 @@ function(add_hipacc_sources)
         # prepare output file name for generated source
 
         get_filename_component(_SRC_NAME_WLE ${_SRC} NAME_WLE) 
+        get_filename_component(_SRC_DIR ${_SRC} DIRECTORY ) 
         
         set(_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/hipacc/${ARG_TARGET}/${_SRC_NAME_WLE})
         set(_OUTPUT_FILE_NAME ${_SRC_NAME_WLE}_${ARG_TARGET_ARCH}${_OUTPUT_EXT})
@@ -171,9 +196,15 @@ function(add_hipacc_sources)
             set(${ARG_OUTPUT_DIR_VAR} "${_OUTPUT_DIR}" PARENT_SCOPE)
         endif()
 
+        set(_HIPACC_CMD_DEPENDENCIES ${_SRC})
+
         # compile hipacc command
 
-        set(_HIPACC_CMD "${HIPACC_EXE}" ${_HIPACC_OPTIONS} "${_SRC}" -o "${_OUTPUT_FILE_PATH}")
+        if(HIPACC_SKIP_CODEGEN)
+            set(_HIPACC_CMD echo WARNING: Automatic code generation of ${_SRC} by Hipacc is skipped! Disable the CMake option HIPACC_SKIP_CODEGEN to run the code generation.)
+        else()
+            set(_HIPACC_CMD "${HIPACC_EXE}" ${_HIPACC_OPTIONS} "${_SRC}" -o "${_OUTPUT_FILE_PATH}")
+        endif()
 
         message(VERBOSE "Running Hipacc Command: ${_HIPACC_CMD}")
         
@@ -182,14 +213,14 @@ function(add_hipacc_sources)
         add_custom_command(
             OUTPUT  "${_OUTPUT_FILE_PATH_REL}/${_OUTPUT_FILE_NAME}"
             COMMAND ${_HIPACC_CMD}
-            DEPENDS ${_SRC}
+            DEPENDS ${_HIPACC_CMD_DEPENDENCIES}
             WORKING_DIRECTORY "${_OUTPUT_DIR}"
         )
        
         # add generated source to target
 
-        target_sources(${ARG_TARGET} ${_SCOPE} "${_OUTPUT_FILE_PATH}")
-        target_include_directories(${ARG_TARGET} ${_SCOPE} "${_OUTPUT_DIR}")
+        target_sources(${ARG_TARGET} PRIVATE "${_OUTPUT_FILE_PATH}")
+        target_include_directories(${ARG_TARGET} ${_SCOPE} "${_OUTPUT_DIR}" "${_SRC_DIR}")
         
     endforeach()
 

@@ -75,7 +75,7 @@ inline float hipacc_last_kernel_timing() {
   return hipaccClTiming.get_last_kernel_timing();
 }
 
-class HipaccContext : public HipaccContextBase {
+class HipaccContext {
 private:
   std::vector<cl_platform_id> platforms;
   std::vector<cl_platform_name> platform_names;
@@ -98,7 +98,7 @@ public:
   std::vector<cl_command_queue> get_command_queues();
 };
 
-class HipaccImageOpenCLBase : public HipaccImageBase {
+class HipaccImageOpenCLBase {
 public:
   virtual ~HipaccImageOpenCLBase() = 0;
   virtual void *get_device_memory() const = 0;
@@ -163,6 +163,19 @@ public:
       : HipaccAccessorBase(img->get_width(), img->get_height(), 0, 0), img(img) {}
 };
 
+template<typename T>
+HipaccAccessor hipaccMakeAccessor(HipaccImageOpenCL const& img)
+{
+  return HipaccAccessor{ img };
+}
+
+template<typename T>
+HipaccAccessor hipaccMakeAccessor(HipaccImageOpenCL const& img, size_t width, size_t height,
+                 int32_t offset_x = 0, int32_t offset_y = 0)
+{
+  return HipaccAccessor{ img, width, height, offset_x, offset_y };
+}
+
 class HipaccPyramidOpenCL : public HipaccPyramid {
 private:
   std::vector<HipaccImageOpenCL> imgs_;
@@ -176,23 +189,7 @@ public:
            "Accessed pyramid stage is out of bounds.");
     return imgs_.at(level_ + relative);
   }
-  int depth() const { return depth_; }
-  int level() const { return level_; }
-  void levelInc() { ++level_; }
-  void levelDec() { --level_; }
-  bool is_top_level() const { return level_ == 0; }
-  bool is_bottom_level() const { return level_ == depth_ - 1; }
   void swap(HipaccPyramidOpenCL &other) { imgs_.swap(other.imgs_); }
-  bool bind() {
-    if (!bound_) {
-      bound_ = true;
-      level_ = 0;
-      return true;
-    } else {
-      return false;
-    }
-  }
-  void unbind() { bound_ = false; }
 };
 
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);

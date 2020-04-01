@@ -101,49 +101,66 @@ inline void checkErrNVRTC(nvrtcResult err, const std::string &name) {
   }
 }
 
-extern HipaccKernelTimingBase hipaccCudaTiming;
+//extern HipaccKernelTimingBase hipaccCudaTiming;
 inline float hipacc_last_kernel_timing() {
-  return hipaccCudaTiming.get_last_kernel_timing();
+  //return hipaccCudaTiming.get_last_kernel_timing();
+  return 0.f;
 }
 
 // TODO: what is the purpose of this empty class?
-class HipaccContext : public HipaccContextBase {
+class HipaccContext {
 public:
   static HipaccContext &getInstance();
 };
 
-class HipaccImageCudaBase : public HipaccImageBase {
+template<typename T>
+class HipaccImageCudaBase {
 public:
-  virtual ~HipaccImageCudaBase() = 0;
-  virtual void *get_device_memory() const = 0;
-  virtual void *get_host_memory() const = 0;
-  virtual size_t get_width() const = 0;
-  virtual size_t get_height() const = 0;
-  virtual size_t get_stride() const = 0;
-  virtual size_t get_alignment() const = 0;
-  virtual size_t get_pixel_size() const = 0;
+
+  using pixel_type = T;
+
+  virtual ~HipaccImageCudaBase() = default;
+  virtual pixel_type const*get_device_memory() const = 0;
+  virtual pixel_type *get_device_memory() = 0;
+  virtual pixel_type const*get_host_memory() const = 0;
+  virtual pixel_type *get_host_memory() = 0;
+  virtual int get_width() const = 0;
+  virtual int get_height() const = 0;
+  virtual int get_stride() const = 0;
+  virtual int get_alignment() const = 0;
+  virtual int get_pixel_size() const = 0;
   virtual hipaccMemoryType get_mem_type() const = 0;
 };
-typedef std::shared_ptr<HipaccImageCudaBase> HipaccImageCuda;
 
-class HipaccImageCudaRaw : public HipaccImageCudaBase {
+template<typename T>
+using HipaccImageCuda = std::shared_ptr<HipaccImageCudaBase<T>>;
+
+template<typename T>
+class HipaccImageCudaRaw : public HipaccImageCudaBase<T> {
 private:
-  size_t width, height;
-  size_t stride, alignment;
-  size_t pixel_size;
-  hipaccMemoryType mem_type;
-  void *device_mem{};
-  std::unique_ptr<char[]> host_mem;
+
+  static constexpr int pixel_size = sizeof(T);
+
+  const int width{};
+  const int height{};
+  const int stride{};
+  const int alignment{};
+  const hipaccMemoryType mem_type;
+  T *const device_mem{};
+  std::unique_ptr<T[]> host_mem;
 
 public:
-  HipaccImageCudaRaw(size_t width, size_t height, size_t stride,
-                     size_t alignment, size_t pixel_size, void *mem,
+
+  using pixel_type = T;
+
+  HipaccImageCudaRaw(int width, int height, int stride,
+                     int alignment, pixel_type *mem,
                      hipaccMemoryType mem_type = hipaccMemoryType::Global)
                    : width(width), height(height), stride(stride),
-                   alignment(alignment), pixel_size(pixel_size),
+                   alignment(alignment),
                    mem_type(mem_type), device_mem(mem),
-                   host_mem(new char[width * height * pixel_size]) {
-    std::fill(host_mem.get(), host_mem.get() + width * height * pixel_size, 0);
+                   host_mem(new pixel_type[width * height]) {
+    std::fill(host_mem.get(), host_mem.get() + width * height, T{});
   }
 
   ~HipaccImageCudaRaw() {
@@ -155,128 +172,136 @@ public:
     return device_mem == other.device_mem;
   }
 
-  void *get_device_memory() const final { return device_mem; }
-  void *get_host_memory() const final { return host_mem.get(); }
-  size_t get_width() const final { return width; }
-  size_t get_height() const final { return height; }
-  size_t get_stride() const final { return stride; }
-  size_t get_alignment() const final { return alignment; }
-  size_t get_pixel_size() const final { return pixel_size; }
-  hipaccMemoryType get_mem_type() const final { return mem_type; }
+  pixel_type const*get_device_memory() const override final { return device_mem; }
+  pixel_type *get_device_memory() final { return device_mem; }
+  pixel_type const* get_host_memory() const override final { return host_mem.get(); }
+  pixel_type *get_host_memory() final { return host_mem.get(); }
+  int get_width() const override final { return width; }
+  int get_height() const override final { return height; }
+  int get_stride() const override final { return stride; }
+  int get_alignment() const override final { return alignment; }
+  int get_pixel_size() const override final { return pixel_size; }
+  hipaccMemoryType get_mem_type() const override final { return mem_type; }
 };
 
-class HipaccAccessor : public HipaccAccessorBase {
-public:
-  HipaccImageCuda img;
+template<typename T>
+struct HipaccAccessor : public HipaccAccessorBase {
 
-public:
-  HipaccAccessor(HipaccImageCuda img, size_t width, size_t height,
+  HipaccImageCuda<T> img;
+
+  HipaccAccessor(HipaccImageCuda<T> const& img, size_t width, size_t height,
                  int32_t offset_x = 0, int32_t offset_y = 0)
       : HipaccAccessorBase(width, height, offset_x, offset_y), img(img) {}
-  HipaccAccessor(HipaccImageCuda img)
+
+  HipaccAccessor(HipaccImageCuda<T> const& img)
       : HipaccAccessorBase(img->get_width(), img->get_height(), 0, 0), img(img) {}
 };
 
+template<typename T>
+inline HipaccAccessor<T> hipaccMakeAccessor(HipaccImageCuda<T> const& img)
+{
+  return HipaccAccessor<T>{ img };
+}
+
+template<typename T>
+inline HipaccAccessor<T> hipaccMakeAccessor(HipaccImageCuda<T> const& img, size_t width, size_t height,
+                 int32_t offset_x = 0, int32_t offset_y = 0)
+{
+  return HipaccAccessor<T>{ img, width, height, offset_x, offset_y };
+}
+
 struct hipacc_const_info { // TODO: VOID
-  hipacc_const_info(std::string name, void *memory, int size)
+  hipacc_const_info(std::string const& name, void *memory, int size)
       : name(name), memory(memory), size(size) {}
   std::string name;
   void *memory;
   int size;
 };
 
-struct hipacc_tex_info { // TODO: VOID
-  hipacc_tex_info(std::string name, CUarray_format format,
-                  const HipaccImageCuda &image, hipaccMemoryType tex_type)
+template<typename T>
+struct hipacc_tex_info {
+  hipacc_tex_info(std::string const &name, CUarray_format format,
+                  const HipaccImageCuda<T> &image, hipaccMemoryType tex_type)
       : name(name), format(format), image(image), tex_type(tex_type) {}
   std::string name;
   CUarray_format format;
-  const HipaccImageCuda &image;
+  const HipaccImageCuda<T> &image;
   hipaccMemoryType tex_type;
 };
 
-class HipaccPyramidCuda : public HipaccPyramid {
+template<typename T>
+hipacc_tex_info<T> hipacc_make_tex_info(std::string const &name, CUarray_format format,
+                                        const HipaccImageCuda<T> &image, hipaccMemoryType tex_type)
+{
+  return hipacc_tex_info<T>{ name, format, image, tex_type };
+}
+
+template<typename T>
+class HipaccPyramidCuda final : public HipaccPyramid {
 private:
-  std::vector<HipaccImageCuda> imgs_;
+  std::vector<HipaccImageCuda<T>> imgs_;
 
 public:
-  HipaccPyramidCuda(const int depth) : HipaccPyramid(depth) {}
+  explicit HipaccPyramidCuda(const int depth) : HipaccPyramid(depth) {}
 
-  void add(const HipaccImageCuda &img) { imgs_.push_back(img); }
-  HipaccImageCuda operator()(int relative) {
+  void add(const HipaccImageCuda<T> &img) { imgs_.push_back(img); }
+  
+  HipaccImageCuda<T> operator()(int relative) {
     assert(level_ + relative >= 0 && level_ + relative < (int)imgs_.size() &&
            "Accessed pyramid stage is out of bounds.");
     return imgs_.at(level_ + relative);
   }
-  int depth() const { return depth_; }
-  int level() const { return level_; }
-  void levelInc() { ++level_; }
-  void levelDec() { --level_; }
-  bool is_top_level() const { return level_ == 0; }
-  bool is_bottom_level() const { return level_ == depth_ - 1; }
+
   void swap(HipaccPyramidCuda &other) { imgs_.swap(other.imgs_); }
-  bool bind() {
-    if (!bound_) {
-      bound_ = true;
-      level_ = 0;
-      return true;
-    } else {
-      return false;
-    }
-  }
-  void unbind() { bound_ = false; }
 };
 
-void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 &block);
-dim3 hipaccCalcGridFromBlock(hipacc_launch_info &info, dim3 &block);
+
+struct HipaccExecutionParameter
+{
+  cudaStream_t stream{};
+};
+
+void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 const&block);
+dim3 hipaccCalcGridFromBlock(hipacc_launch_info const&info, dim3 const&block);
 void hipaccInitCUDA();
-void hipaccCopyMemory(const HipaccImageCuda &src, HipaccImageCuda &dst);
-void hipaccCopyMemoryRegion(const HipaccAccessor &src,
-                            const HipaccAccessor &dst);
-void hipaccLaunchKernel(const void *kernel, std::string kernel_name, dim3 &grid,
-                        dim3 &block, void **args, bool print_timing = true);
-void hipaccLaunchKernelBenchmark(const void *kernel, std::string kernel_name,
-                                 dim3 &grid, dim3 &block,
-                                 std::vector<void *> &args,
-                                 bool print_timing = true);
-void hipaccLaunchKernelExploration(std::string filename, std::string kernel,
-                                   std::vector<void *> &args,
-                                   std::vector<hipacc_smem_info> &smems,
-                                   std::vector<hipacc_const_info> &consts,
-                                   std::vector<hipacc_tex_info *> &texs,
-                                   hipacc_launch_info &info, size_t warp_size,
-                                   size_t max_threads_per_block,
-                                   size_t max_threads_for_kernel,
-                                   size_t max_smem_per_block, size_t heu_tx,
-                                   size_t heu_ty, int cc);
+template<typename T>
+void hipaccCopyMemory(const HipaccImageCuda<T> &src, HipaccImageCuda<T> &dst);
+template<typename T>
+void hipaccCopyMemoryRegion(const HipaccAccessor<T> &src,
+                            const HipaccAccessor<T> &dst);
+void hipaccLaunchKernel(const void *kernel, std::string const& kernel_name, dim3 &grid,
+                        dim3 &block, void **args, bool print_timing = false, const int shared_memory_size = 0);
+template <typename KernelFunction, typename... KernelParameters>
+void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridDim, dim3 const &blockDim, HipaccExecutionParameter const& ep,
+                        size_t shared_memory, KernelParameters &&... parameters);
 
 //
 // TEMPLATES
 //
 
 template <typename T>
-HipaccImageCuda
-createImage(T *host_mem, void *mem, size_t width, size_t height, size_t stride,
+HipaccImageCuda<T>
+createImage(T *host_mem, T *mem, size_t width, size_t height, size_t stride,
             size_t alignment,
             hipaccMemoryType mem_type = hipaccMemoryType::Global);
 template <typename T> T *createMemory(size_t stride, size_t height);
 template <typename T>
-HipaccImageCuda hipaccCreateMemory(T *host_mem, size_t width, size_t height,
+HipaccImageCuda<T> hipaccCreateMemory(T *host_mem, size_t width, size_t height,
                                    size_t alignment);
 template <typename T>
-HipaccImageCuda hipaccCreateMemory(T *host_mem, size_t width, size_t height);
+HipaccImageCuda<T> hipaccCreateMemory(T *host_mem, size_t width, size_t height);
 template <typename T>
-HipaccImageCuda hipaccCreateArray2D(T *host_mem, size_t width, size_t height);
+HipaccImageCuda<T> hipaccCreateArray2D(T *host_mem, size_t width, size_t height);
 template <typename T, typename TI>
 TI hipaccCreatePyramidImage(const TI &base, size_t width, size_t height);
-template <typename T> void hipaccWriteMemory(HipaccImageCuda &img, T *host_mem);
-template <typename T> T *hipaccReadMemory(const HipaccImageCuda &img);
+template <typename T> void hipaccWriteMemory(HipaccImageCuda<T> &img, T *host_mem);
+template <typename T> T *hipaccReadMemory(const HipaccImageCuda<T> &img);
 template <typename T>
 void hipaccBindTexture(hipaccMemoryType mem_type, const textureReference *tex,
-                       const HipaccImageCuda &img);
+                       const HipaccImageCuda<T> &img);
 template <typename T>
 void hipaccBindSurface(hipaccMemoryType mem_type, const surfaceReference *surf,
-                       const HipaccImageCuda &img);
+                       const HipaccImageCuda<T> &img);
 void hipaccUnbindTexture(const textureReference *tex);
 template <typename T>
 void hipaccWriteSymbol(const void *symbol, T *host_mem, size_t width,
@@ -301,18 +326,19 @@ size_t blockSizeToSmemSize(int blockSize);
 void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x,
                                 int tile_size_y);
 void hipaccLaunchKernel(CUfunction &kernel, std::string kernel_name, dim3 &grid,
-                        dim3 &block, void **args, bool print_timing = true);
-void hipaccLaunchKernelBenchmark(CUfunction &kernel, std::string kernel_name,
-                                 dim3 &grid, dim3 &block, void **args,
-                                 bool print_timing = true);
+                        dim3 &block, void **args, bool print_timing = true, const int shared_memory_size = 0);
 void hipaccGetGlobal(CUdeviceptr &global, CUmodule &module,
                      std::string global_name);
 void hipaccGetTexRef(CUtexref &tex, CUmodule &module, std::string texture_name);
 void hipaccGetSurfRef(CUsurfref &surf, CUmodule &module,
                       std::string surface_name);
-void hipaccBindTextureDrv(CUtexref &texture, const HipaccImageCuda &img,
+
+template<typename T>
+void hipaccBindTextureDrv(CUtexref &texture, const HipaccImageCuda<T> &img,
                           CUarray_format format, hipaccMemoryType tex_type);
-void hipaccBindSurfaceDrv(CUsurfref &surface, const HipaccImageCuda &img);
+
+template<typename T>
+void hipaccBindSurfaceDrv(CUsurfref &surface, const HipaccImageCuda<T> &img);
 
 //
 // REDUCTIONS AND BINNING
@@ -321,51 +347,36 @@ void hipaccBindSurfaceDrv(CUsurfref &surface, const HipaccImageCuda &img);
 template <typename T>
 T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name,
                        const void *kernel1D, std::string kernel1D_name,
-                       const HipaccAccessor &acc, unsigned int max_threads,
+                       const HipaccAccessor<T> &acc, unsigned int max_threads,
                        unsigned int pixels_per_thread,
                        const textureReference *tex);
 template <typename T>
 T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name,
                        const void *kernel1D, std::string kernel1D_name,
-                       const HipaccImageCuda &img, unsigned int max_threads,
+                       const HipaccImageCuda<T> &img, unsigned int max_threads,
                        unsigned int pixels_per_thread,
                        const textureReference *tex);
-template <typename T>
-T hipaccApplyReductionThreadFence(const void *kernel2D,
-                                  std::string kernel2D_name,
-                                  const HipaccAccessor &acc,
+template <typename T, class KernelFunc>
+T hipaccApplyReductionShared(const KernelFunc &kernel2D,
+                                  const HipaccAccessor<T> &acc,
                                   unsigned int max_threads,
                                   unsigned int pixels_per_thread,
                                   const textureReference *tex);
-template <typename T>
-T hipaccApplyReductionThreadFence(const void *kernel2D,
-                                  std::string kernel2D_name,
-                                  const HipaccImageCuda &img,
+template <typename T, class KernelFunc>
+T hipaccApplyReductionShared(const KernelFunc &kernel2D,
+                                  const HipaccImageCuda<T> &img,
                                   unsigned int max_threads,
                                   unsigned int pixels_per_thread,
+                                  HipaccExecutionParameter const &ep, 
                                   const textureReference *tex);
-template <typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-                                  std::string kernel1D,
-                                  const HipaccAccessor &acc,
-                                  unsigned int max_threads,
-                                  unsigned int pixels_per_thread,
-                                  hipacc_tex_info tex_info, int cc);
-template <typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-                                  std::string kernel1D,
-                                  const HipaccImageCuda &img,
-                                  unsigned int max_threads,
-                                  unsigned int pixels_per_thread,
-                                  hipacc_tex_info tex_info, int cc);
 
 #ifndef SEGMENT_SIZE
 #define SEGMENT_SIZE 128
 #define MAX_SEGMENTS 512 // equals 65k bins (MAX_SEGMENTS*SEGMENT_SIZE)
 #endif
 template <typename T, typename T2>
-T *hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
-                               HipaccAccessor &acc, unsigned int num_hists,
+T *hipaccApplyBinningSegmented(const void *kernel2D, std::string const& kernel2D_name,
+                               HipaccAccessor<T2> &acc, unsigned int num_hists,
                                unsigned int num_warps, unsigned int num_bins,
                                const textureReference *tex);
 
@@ -374,11 +385,11 @@ T *hipaccApplyBinningSegmented(const void *kernel2D, std::string kernel2D_name,
 //
 
 template <typename T>
-HipaccImageCuda hipaccCreatePyramidImage(const HipaccImageCuda &base,
+HipaccImageCuda<T> hipaccCreatePyramidImage(const HipaccImageCuda<T> &base,
                                          size_t width, size_t height);
 
 template <typename T>
-HipaccPyramidCuda hipaccCreatePyramid(const HipaccImageCuda &img, size_t depth);
+HipaccPyramidCuda<T> hipaccCreatePyramid(const HipaccImageCuda<T> &img, size_t depth);
 
 #include "hipacc_cu.tpp"
 

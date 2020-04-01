@@ -32,25 +32,7 @@
 #ifndef __HIPACC_BASE_STANDALONE_HPP__
 #define __HIPACC_BASE_STANDALONE_HPP__
 
-HipaccKernelTimingBase::HipaccKernelTimingBase() { last_gpu_timing = 0.0f; }
-
-void HipaccKernelTimingBase::set_gpu_timing(float t) { last_gpu_timing = t; }
-
-float HipaccKernelTimingBase::get_last_kernel_timing() {
-  return last_gpu_timing;
-}
-
-int64_t hipacc_time_micro() {
-  return std::chrono::duration_cast<std::chrono::microseconds>(
-             std::chrono::high_resolution_clock::now().time_since_epoch())
-      .count();
-}
-
-HipaccImageBase::~HipaccImageBase() {}
-
-HipaccContextBase::HipaccContextBase() {}
-
-hipacc_launch_info::hipacc_launch_info(int size_x, int size_y, int is_width,
+inline hipacc_launch_info::hipacc_launch_info(int size_x, int size_y, int is_width,
                                        int is_height, int offset_x,
                                        int offset_y, int pixels_per_thread,
                                        int simd_width)
@@ -60,7 +42,7 @@ hipacc_launch_info::hipacc_launch_info(int size_x, int size_y, int is_width,
       bh_start_left(0), bh_start_right(0), bh_start_top(0), bh_start_bottom(0),
       bh_fall_back(0) {}
 
-hipacc_launch_info::hipacc_launch_info(int size_x, int size_y,
+inline hipacc_launch_info::hipacc_launch_info(int size_x, int size_y,
                                        const HipaccAccessorBase &Acc,
                                        int pixels_per_thread, int simd_width)
     : size_x(size_x), size_y(size_y), is_width(Acc.width),
@@ -69,32 +51,32 @@ hipacc_launch_info::hipacc_launch_info(int size_x, int size_y,
       bh_start_left(0), bh_start_right(0), bh_start_top(0), bh_start_bottom(0),
       bh_fall_back(0) {}
 
-hipacc_smem_info::hipacc_smem_info(int size_x, int size_y, int pixel_size)
+inline hipacc_smem_info::hipacc_smem_info(int size_x, int size_y, int pixel_size)
     : size_x(size_x), size_y(size_y), pixel_size(pixel_size) {}
 
-void HipaccPyramidTraversor::pushFunc(const std::function<void()> *f) {
+inline void HipaccPyramidTraversor::pushFunc(const std::function<void()> *f) {
   hipaccTraverseFunc.push_back(f);
 }
 
-void HipaccPyramidTraversor::popFunc() { hipaccTraverseFunc.pop_back(); }
+inline void HipaccPyramidTraversor::popFunc() { hipaccTraverseFunc.pop_back(); }
 
-const std::function<void()> HipaccPyramidTraversor::getLastFunc() {
+inline const std::function<void()> HipaccPyramidTraversor::getLastFunc() {
   return *hipaccTraverseFunc.back();
 }
 
-void HipaccPyramidTraversor::pushPyramids(std::vector<HipaccPyramid *> &pyrs) {
+inline void HipaccPyramidTraversor::pushPyramids(std::vector<HipaccPyramid *> &pyrs) {
   hipaccPyramids.push_back(pyrs);
 }
 
-void HipaccPyramidTraversor::popPyramids() { hipaccPyramids.pop_back(); }
+inline void HipaccPyramidTraversor::popPyramids() { hipaccPyramids.pop_back(); }
 
-std::vector<HipaccPyramid *> HipaccPyramidTraversor::getLastPyramids() {
+inline std::vector<HipaccPyramid *> HipaccPyramidTraversor::getLastPyramids() {
   return hipaccPyramids.back();
 }
 
-bool HipaccPyramidTraversor::hasPyramids() { return !hipaccPyramids.empty(); }
+inline bool HipaccPyramidTraversor::hasPyramids() { return !hipaccPyramids.empty(); }
 
-void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
+inline void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
                                             const std::function<void()> &func) {
   assert(p0.bind() && "Pyramid already bound to another traversal.");
 
@@ -110,7 +92,7 @@ void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
   p0.unbind();
 }
 
-void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
+inline void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
                                             HipaccPyramid &p1,
                                             const std::function<void()> &func) {
   assert(p0.depth() == p1.depth() && "Pyramid depths do not match.");
@@ -132,7 +114,7 @@ void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
   p1.unbind();
 }
 
-void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
+inline void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
                                             HipaccPyramid &p1,
                                             HipaccPyramid &p2,
                                             const std::function<void()> &func) {
@@ -159,7 +141,7 @@ void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
   p2.unbind();
 }
 
-void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
+inline void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
                                             HipaccPyramid &p1,
                                             HipaccPyramid &p2,
                                             HipaccPyramid &p3,
@@ -190,7 +172,7 @@ void HipaccPyramidTraversor::hipaccTraverse(HipaccPyramid &p0,
   p3.unbind();
 }
 
-void HipaccPyramidTraversor::hipaccTraverse(
+inline void HipaccPyramidTraversor::hipaccTraverse(
     HipaccPyramid &p0, HipaccPyramid &p1, HipaccPyramid &p2, HipaccPyramid &p3,
     HipaccPyramid &p4, const std::function<void()> &func) {
   assert(p0.depth() == p1.depth() && p1.depth() == p2.depth() &&
@@ -223,7 +205,7 @@ void HipaccPyramidTraversor::hipaccTraverse(
   p4.unbind();
 }
 
-void HipaccPyramidTraversor::hipaccTraverse(std::vector<HipaccPyramid *> pyrs,
+inline void HipaccPyramidTraversor::hipaccTraverse(std::vector<HipaccPyramid *> pyrs,
                                             const std::function<void()> &func) {
   for (size_t i = 0; i < pyrs.size(); ++i) {
     if (i < pyrs.size() - 1) {
@@ -243,7 +225,7 @@ void HipaccPyramidTraversor::hipaccTraverse(std::vector<HipaccPyramid *> pyrs,
     pyr->unbind();
 }
 
-void HipaccPyramidTraversor::hipaccTraverse(unsigned int loop,
+inline void HipaccPyramidTraversor::hipaccTraverse(unsigned int loop,
                                             const std::function<void()> &func) {
   assert(hasPyramids() && "Traverse recursion called outside of traverse.");
 
