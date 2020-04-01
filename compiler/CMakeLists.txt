@@ -22,6 +22,7 @@ list(APPEND HIPACC_LIBS
 
 set(hipacc_SOURCES hipacc.cpp)
 add_executable(hipacc ${hipacc_SOURCES})
+add_cppcheck(hipacc POSSIBLE_ERROR FAIL_ON_WARNINGS)
 
 if(LLVM_LINK_LLVM_DYLIB)
     set(HIPACC_LLVM_LINK_SHARED "USE_SHARED")

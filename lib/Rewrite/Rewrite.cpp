@@ -105,6 +105,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     FileID mainFileID;
     unsigned literalCount;
     bool skipTransfer;
+    bool skipString;
 
   public:
     Rewrite(CompilerInstance &CI, CompilerOptions &options,
@@ -122,7 +123,8 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       compilerClasses(CompilerKnownClasses()),
       mainFD(nullptr),
       literalCount(0),
-      skipTransfer(false)
+      skipTransfer(false),
+      skipString(false)
     {}
 
     // RecursiveASTVisitor
@@ -368,7 +370,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   }
   // rewrite header section
   TextRewriter.InsertTextBefore(locStart, newStr);
-
 
   // initialize CUDA/OpenCL
   assert(mainFD && "no main found!");
@@ -641,7 +642,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   // a) convert Image declarations into memory allocations, e.g.
   //    Image<int> IN(width, height, data);
   //    =>
-  //    HipaccImage IN = hipaccCreateMemory<int>(data, width, height, &stride, padding);
+  //    HipaccImage* IN = hipaccCreateMemory<int>(data, width, height, &stride, padding);
   // b) convert Pyramid declarations into pyramid creation, e.g.
   //    Pyramid<int> P(IN, 3);
   //    =>
@@ -1738,9 +1739,16 @@ bool Rewrite::VisitCallExpr (CallExpr *E) {
   if (auto ICE = dyn_cast<ImplicitCastExpr>(E->getCallee())) {
     if (auto DRE = dyn_cast<DeclRefExpr>(ICE->getSubExpr())) {
       if (DRE->getDecl()->getNameAsString() == "traverse") {
+        // init hipaccTraversor in runtime
         SourceRange range(E->getBeginLoc(),
                           E->getBeginLoc().getLocWithOffset(std::string("traverse").length()-1));
-        TextRewriter.ReplaceText(range, "hipaccTraverse");
+        std::string newStr("");
+        if (!skipString) {
+          newStr += "HipaccPyramidTraversor hipaccTraversor;\n";
+          skipString = true;
+        }
+        newStr += "hipaccTraversor.hipaccTraverse";
+        TextRewriter.ReplaceText(range, newStr);
       }
     }
   }

@@ -96,6 +96,7 @@ template<typename T> T get_init(Reduce mode) {
     case Reduce::MEDIAN: assert(false && "Median not yet supported");
     default:             assert(false && "Unsupported reduction mode");
   }
+  return 0;
 }
 
 // create init expression for given aggregation mode and type
@@ -469,6 +470,7 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
       return nullptr;
     default:
       assert(false && "Unsupported convolution method.");
+      return nullptr;
   }
 }
 

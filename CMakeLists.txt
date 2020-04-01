@@ -1,11 +1,50 @@
 cmake_minimum_required(VERSION 3.4.3 FATAL_ERROR)
 
-project(hipacc)
+# add path for custom modules
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
-set(HIPACC_MAJOR_VERSION 0)
-set(HIPACC_MINOR_VERSION 8)
-set(HIPACC_PATCH_VERSION 3)
-set(HIPACC_VERSION ${HIPACC_MAJOR_VERSION}.${HIPACC_MINOR_VERSION}.${HIPACC_PATCH_VERSION})
+execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always OUTPUT_VARIABLE HIPACC_VERSION)
+string(STRIP "${HIPACC_VERSION}" HIPACC_VERSION)
+
+if(NOT HIPACC_VERSION)
+    message(FATAL_ERROR "Could not determine version of Hipacc!")
+endif()
+
+string(REGEX REPLACE "^v(.*)" "\\1" HIPACC_VERSION "${HIPACC_VERSION}")
+
+string(REGEX REPLACE "^([0-9]+)\\..*" "\\1" HIPACC_VERSION_MAJOR "${HIPACC_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.([0-9]+).*" "\\1" HIPACC_VERSION_MINOR "${HIPACC_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" HIPACC_VERSION_PATCH "${HIPACC_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.[0-9]+(.*)" "\\1" HIPACC_VERSION_TWEAK "${HIPACC_VERSION}")
+
+# get git repository and revision
+if(EXISTS ${CMAKE_SOURCE_DIR}/.git)
+
+    execute_process(COMMAND git remote get-url origin
+                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                    TIMEOUT 5
+                    RESULT_VARIABLE git_result
+                    OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY
+                    ERROR_QUIET)
+
+    if(HIPACC_GIT_REPOSITORY)
+        string(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
+        string(REGEX REPLACE "://.+@" "://" HIPACC_GIT_REPOSITORY ${HIPACC_GIT_REPOSITORY})
+    endif()
+
+endif()
+
+if(NOT HIPACC_GIT_REPOSITORY)
+    set(HIPACC_GIT_REPOSITORY "https://github.com/hipacc/hipacc/releases")
+endif()
+
+set(HIPACC_GIT_VERSION "${HIPACC_VERSION}")
+
+project(hipacc
+        VERSION "${HIPACC_VERSION_MAJOR}.${HIPACC_VERSION_MINOR}.${HIPACC_VERSION_PATCH}"
+        HOMEPAGE_URL ${HIPACC_GIT_REPOSITORY})
+
+message("This is Hipacc ${HIPACC_VERSION}")
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
@@ -27,26 +66,17 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "build type: Debug or Release" FORCE)
 endif()
 
-if(NOT IS_ABSOLUTE ${CMAKE_INSTALL_PREFIX})
-    message(FATAL_ERROR "CMAKE_INSTALL_PREFIX has to be an absolute path!")
-endif()
+# if(NOT IS_ABSOLUTE ${CMAKE_INSTALL_PREFIX})
+#     message(FATAL_ERROR "CMAKE_INSTALL_PREFIX has to be an absolute path!")
+# endif()
+
+# add *d to output binaries
+set(CMAKE_DEBUG_POSTFIX d)
 
 include(CMakeDependentOption)
 cmake_dependent_option(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resource usage" ON "NOT APPLE" OFF)
 
-# get git repository and revision
-if(EXISTS ${CMAKE_SOURCE_DIR}/.git)
-    execute_process(COMMAND git remote get-url origin     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} TIMEOUT 5 RESULT_VARIABLE git_result OUTPUT_VARIABLE HIPACC_GIT_REPOSITORY)
-    execute_process(COMMAND git log -1 --pretty=format:%H WORKING_DIRECTORY ${CMAKE_SOURCE_DIR} TIMEOUT 5 RESULT_VARIABLE git_result OUTPUT_VARIABLE HIPACC_GIT_VERSION)
-    string(STRIP ${HIPACC_GIT_REPOSITORY} HIPACC_GIT_REPOSITORY)
-    string(STRIP ${HIPACC_GIT_VERSION}    HIPACC_GIT_VERSION)
-else()
-    set(HIPACC_GIT_REPOSITORY "https://github.com/hipacc/hipacc/releases")
-    set(HIPACC_GIT_VERSION    "v${HIPACC_VERSION}")
-endif()
 
-# add path for custom modules
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 find_package(LLVM REQUIRED CONFIG)
 find_package(Clang REQUIRED CONFIG)
 find_package(Polly QUIET CONFIG)
@@ -62,14 +92,7 @@ if(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "7.0")
 endif()
 
 if(CUDA_FOUND)
-    set(NVCC "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc")
-    set(CU_COMPILER ${NVCC})
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
-    find_library(CUDA_NVRTC_LIBRARY nvrtc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib       ${CUDA_TOOLKIT_ROOT_DIR}/lib64
-                                                ${CUDA_TOOLKIT_ROOT_DIR}/lib/Win32 ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
-    if(CUDA_NVRTC_LIBRARY)
-        set(NVRTC_FOUND TRUE)
-    endif()
 else()
     set(USE_JIT_ESTIMATE OFF)
 endif()
@@ -131,6 +154,46 @@ if(NOT WIN32 AND NOT CYGWIN)
 endif()
 # from LLVM CMake to set visibility
 
+include(InstallRequiredSystemLibraries)
+include(CMakePackageConfigHelpers)
+
+install(FILES cmake/hipacc-functions.cmake DESTINATION cmake)
+
+configure_package_config_file ( 
+       cmake/hipacc-config.cmake.in
+       "${CMAKE_BINARY_DIR}/export/hipacc-config.cmake"
+       INSTALL_DESTINATION cmake)
+
+write_basic_package_version_file (
+    "${CMAKE_BINARY_DIR}/export/hipacc-config-version.cmake"
+    COMPATIBILITY SameMajorVersion
+)
+       
+install(FILES cmake/hipacc-functions.cmake DESTINATION cmake COMPONENT cmake)
+install(FILES "${CMAKE_BINARY_DIR}/export/hipacc-config.cmake" DESTINATION cmake COMPONENT cmake)
+install(FILES "${CMAKE_BINARY_DIR}/export/hipacc-config-version.cmake" DESTINATION cmake COMPONENT cmake)
+
+# enable static code analysis by cppcheck
+include(CppcheckTargets OPTIONAL RESULT_VARIABLE CppcheckTargets_FOUND)
+if(CppcheckTargets_FOUND)
+    LIST(APPEND CPPCHECK_CUSTOM_ARGUMENTS --std=c++11 -DCLANG_VERSION_MAJOR=8 -D__clang__ -DCUDA_VERSION=7000)
+else()
+    # stub macro, so we do not need to check CppcheckTargets_FOUND everywhere add_cppcheck() is used
+    macro(add_cppcheck)
+    endmacro()
+endif()
+
+# enable code coverage measurement
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    option(HIPACC_ENABLE_CODECOVERAGE "Enable Code Coverage Measurement" OFF)
+
+    if(HIPACC_ENABLE_CODECOVERAGE)
+        include(CodeCoverage OPTIONAL RESULT_VARIABLE CodeCoverage_FOUND)
+        if(CodeCoverage_FOUND)
+            append_coverage_compiler_flags()
+        endif()
+    endif()
+endif()
 
 # set include directory, add src directories
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/include)
@@ -141,9 +204,6 @@ add_subdirectory(tools)
 
 # configure header files to pass some of the CMake settings to the source code
 configure_file(include/hipacc/Config/config.h.cmake   ${CMAKE_BINARY_DIR}/include/hipacc/Config/config.h)
-configure_file(runtime/hipacc_cu.hpp.cmake            ${CMAKE_BINARY_DIR}/runtime/hipacc_cu.hpp)
-configure_file(runtime/hipacc_cu_standalone.hpp.cmake ${CMAKE_BINARY_DIR}/runtime/hipacc_cu_standalone.hpp)
-
 
 # install dsl and runtime header files
 file(GLOB DSL_HEADERS ${CMAKE_SOURCE_DIR}/dsl/*.hpp)
@@ -153,6 +213,16 @@ file(GLOB RUNTIME_HEADERS ${CMAKE_SOURCE_DIR}/runtime/*.hpp
 install(FILES ${RUNTIME_HEADERS} DESTINATION include COMPONENT headers_runtime)
 install(FILES ${DSL_HEADERS} DESTINATION include/dsl COMPONENT headers_dsl)
 
+# create doxygen target for dsl and runtime
+include(DoxygenTargets OPTIONAL RESULT_VARIABLE DoxygenTargets_FOUND)
+if(DoxygenTargets_FOUND)
+    add_doxygen(Doxyfile
+                DOC_TARGET Doxygen
+                EXTRA_INPUT ${CMAKE_SOURCE_DIR}/runtime/ ${CMAKE_SOURCE_DIR}/dsl/
+                OUTPUT_DIRECTORY doxygen
+                INSTALL_DESTINATION doxygen
+                INSTALL_COMPONENT documentation)
+endif()
 
 # copy system's clang headers to current build dir
 execute_process(COMMAND ${clang} -print-file-name=include OUTPUT_VARIABLE CLANG_INCLUDE_DIRS OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -184,3 +254,4 @@ endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/samples/CMakeLists.txt)
     add_subdirectory(samples)
 endif()
+

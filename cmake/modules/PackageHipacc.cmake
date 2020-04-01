@@ -12,7 +12,7 @@ set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
 # components to package
 set(CPACK_COMPONENTS_GROUPING ALL_COMPONENTS_IN_ONE)
-set(CPACK_COMPONENTS_ALL compiler runtime headers_runtime headers_dsl headers_clang libcxx tools samples)
+set(CPACK_COMPONENTS_ALL compiler headers_runtime headers_dsl headers_clang libcxx tools samples cmake documentation)
 
 string(TOLOWER "${CPACK_PACKAGE_NAME}" CPACK_PACKAGE_NAME_LOWERCASE)
 

@@ -97,7 +97,8 @@ void printUsage() {
     << "                          Valid values: 'on' and 'off'\n"
     << "  -vectorize <o>          Enable/disable vectorization of generated CUDA/OpenCL code\n"
     << "                          Valid values: 'on' and 'off'\n"
-    << "  -pixels-per-thread <n>  Specify how many pixels should be calculated per thread\n"
+    << "  -pixels-per-thread <n>  Specify how many pixels should be calculated per thread (GPU)\n"
+    << "  -rows-per-thread <n>    Specify how many rows should be calculated per thread (CPU)\n"
     << "  -rs-package <string>    Specify Renderscript package name. (default: \"org.hipacc.rs\")\n"
     << "  -o <file>               Write output to <file>\n"
     << "  --help                  Display available options\n"
@@ -328,6 +329,41 @@ int main(int argc, char *argv[]) {
       args.push_back(argv[i]);
       args.push_back(argv[++i]);
       out = argv[i];
+      continue;
+    }
+    if (StringRef(argv[i]) == "-rows-per-thread") {
+      assert(i<(argc-1) && "Mandatory integer parameter for -rows-per-thread switch missing.");
+      std::istringstream buffer(argv[i+1]);
+      int val;
+      buffer >> val;
+      if (buffer.fail()) {
+        llvm::errs() << "ERROR: Expected integer parameter for -rows-per-thread switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      compilerOptions.setPixelsPerThread(val);
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-multi-threading") {
+      llvm::errs() << "Warning: OpenMP multi-threading not yet supported.\n";
+      if (StringRef(argv[i + 1]) != "off"
+          && StringRef(argv[i + 1]) != "on") {
+        llvm::errs() << "ERROR: Expected valid specification for -multi-threading switch.\n\n";
+        return EXIT_FAILURE;
+      }
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-instruction-set") {
+      llvm::errs() << "Warning: Instruction set specification not yet supported.\n";
+      if (StringRef(argv[i + 1]) != "sse4.2"
+          && StringRef(argv[i + 1]) != "avx"
+          && StringRef(argv[i + 1]) != "avx2") {
+        llvm::errs() << "ERROR: Expected valid specification for -instruction-set switch.\n\n";
+        return EXIT_FAILURE;
+      }
+      ++i;
       continue;
     }
 

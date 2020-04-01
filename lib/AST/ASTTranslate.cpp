@@ -1594,9 +1594,17 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
       // check if we have an intrinsic (math) function
       if (!targetFD) {
         QualType QT = E->getCallReturnType(Ctx);
+        std::string nameDC= E->getDirectCallee()->getNameAsString();
         if (Kernel->vectorize() && !compilerOptions.emitC99()) {
           QT = simdTypes.getSIMDType(QT, QT.getAsString(), SIMD4);
           assert(false && "widening of intrinsic functions not supported currently");
+        }
+
+        if (compilerOptions.emitCUDA() && nameDC.at(nameDC.length()-1)!='f' &&
+              QT->getAs<BuiltinType>()->getKind() == BuiltinType::Float) {
+          llvm::errs() << "Warning: " << nameDC <<
+            " is not supported for float in CUDA, use " << nameDC << "f instead!\n";
+          exit(EXIT_FAILURE);
         }
 
         targetFD = builtins.getBuiltinFunction(E->getDirectCallee()->getName(),
@@ -1657,6 +1665,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
   }
 
   assert(0 && "CallExpr without FunctionDecl as Callee!");
+  return E;
 }
 
 

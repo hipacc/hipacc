@@ -613,7 +613,7 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
 
         // stride
         if (options.emitPadding() || Acc->isCrop()) {
-          hostArgNames.push_back(Acc->getName() + ".img->stride");
+          hostArgNames.push_back(Acc->getName() + ".img->get_stride()");
         }
 
         // offset_x, offset_y

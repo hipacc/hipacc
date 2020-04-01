@@ -458,7 +458,6 @@ MAKE_VEC_F(float4,    float,    int4)
 MAKE_VEC_F(double4,   double,   long4)
 
 
-
 // conversion function
 #define MAKE_CONV_FUNC(BASIC_TYPE, RET_TYPE, VEC_TYPE) \
 ATTRIBUTES RET_TYPE convert_##RET_TYPE(VEC_TYPE vec) { \

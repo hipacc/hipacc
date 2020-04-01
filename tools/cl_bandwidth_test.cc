@@ -105,8 +105,8 @@ int main(int argc, char *argv[]) {
     }
 
     // allocate device input and output memory
-    HipaccImage dev_idata = hipaccCreateBuffer<uchar>(NULL, memory_size, 1);
-    HipaccImage dev_odata = hipaccCreateBuffer<uchar>(NULL, memory_size, 1);
+    HipaccImageOpenCL dev_idata = hipaccCreateBuffer<uchar>(NULL, memory_size, 1);
+    HipaccImageOpenCL dev_odata = hipaccCreateBuffer<uchar>(NULL, memory_size, 1);
 
     std::cout << std::endl << "Bandwidth test, memory size [MB]: " << memory_size/(1024*1024) << std::endl;
     for (size_t num_device=0; num_device<devices_all.size(); ++num_device) {

@@ -78,6 +78,7 @@ class Kernel {
         virtual void kernel() = 0;
         virtual bin_t reduce(bin_t left, bin_t right) const {
             assert(false && "No reduce method specified");
+            return {};
         }
         virtual void binning(unsigned int x, unsigned int y, data_t pixel) {
             assert(false && "No binning method specified");
