@@ -744,11 +744,10 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
             resultStr += ", ";
           }
           if (Acc) {
-            resultStr += "(" + Acc->getImage()->getTypeStr();
-            resultStr += "(*)[" + Acc->getImage()->getSizeXStr() + "])";
+            resultStr += "(" + Acc->getImage()->getTypeStr() + "*)";
           }
           if (Mask) {
-            resultStr += "(" + argTypeNames[i] + ")";
+            resultStr += "(" + Mask->getTypeStr() + "*)";
           }
           resultStr += hostArgNames[i] + img_mem;
           break;
@@ -1077,9 +1076,18 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       resultStr += indent;
       resultStr += bin_decl;
       resultStr += K->getBinningName() + "2DKernel(";
+<<<<<<< HEAD
       resultStr += "(" + K->getIterationSpace()->getImage()->getTypeStr();
       resultStr += "(*)[" + K->getIterationSpace()->getImage()->getSizeXStr() + "])";
       resultStr += K->getIterationSpace()->getName() + ".img->get_aligned_host_memory(), ";
+||||||| 035cfd9
+      resultStr += "(" + K->getIterationSpace()->getImage()->getTypeStr();
+      resultStr += "(*)[" + K->getIterationSpace()->getImage()->getSizeXStr() + "])";
+      resultStr += K->getIterationSpace()->getName() + ".img->mem, ";
+=======
+      resultStr += "(" + K->getIterationSpace()->getImage()->getTypeStr() + "*)";
+      resultStr += K->getIterationSpace()->getName() + ".img->mem, ";
+>>>>>>> vectorization
       resultStr += K->getNumBinsStr() + ", ";
       resultStr += K->getIterationSpace()->getName() + ".width, ";
       resultStr += K->getIterationSpace()->getName() + ".height, ";

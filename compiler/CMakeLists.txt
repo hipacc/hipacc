@@ -6,6 +6,7 @@ set(CLANG_LIBRARIES clangFrontendTool clangFrontend clangDriver clangSerializati
 
 set(HIPACC_LIBS
     hipaccRewrite
+    hipaccBackend
     hipaccCreateHostStrings
     hipaccClassRepresentation
     hipaccASTTranslate

@@ -194,6 +194,18 @@ VectorTypeInfo createVectorTypeInfo(const VectorType *VT) {
 }
 
 
+FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, float val) {
+  return FloatingLiteral::Create(Ctx, llvm::APFloat(val), false, Ctx.FloatTy,
+      SourceLocation());
+}
+
+
+FloatingLiteral *createFloatingLiteral(ASTContext &Ctx, double val) {
+  return FloatingLiteral::Create(Ctx, llvm::APFloat(val), false, Ctx.DoubleTy,
+      SourceLocation());
+}
+
+
 DeclStmt *createDeclStmt(ASTContext &Ctx, Decl *VD) {
   DeclStmt *S = new (Ctx) DeclStmt(Stmt::EmptyShell());
 

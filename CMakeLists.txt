@@ -115,6 +115,27 @@ message(STATUS "JIT estimates: ${USE_JIT_ESTIMATE}")
 message(STATUS "===")
 
 
+# platform specific fixes linker flags
+if (MSVC)
+    # Correct syntax for LLVM libraries
+    string(STRIP "${LLVM_MODULE_LIBS}" LLVM_MODULE_LIBS)
+    string(REPLACE "-lLLVM" "LLVM" LLVM_MODULE_LIBS "${LLVM_MODULE_LIBS}")
+    string(REPLACE " " ";" LLVM_MODULE_LIBS "${LLVM_MODULE_LIBS}")
+
+    # Erase incompatible LLVM linker flags
+    set(LLVM_LFLAGS "")
+
+    # Additional linker settings
+    set(CUDA_LINK "")
+    set(CUDA_COMP "")
+    set(TIME_LINK "")
+endif()
+
+
+# debug and release builds
+string(TOUPPER "${CMAKE_BUILD_TYPE}" build)
+
+
 # from LLVM CMake to enable / disable RTTI
 if(NOT DEFINED LLVM_COMPILER_IS_GCC_COMPATIBLE)
     if(CMAKE_COMPILER_IS_GNUCXX)
@@ -128,6 +149,7 @@ if(NOT DEFINED LLVM_COMPILER_IS_GCC_COMPATIBLE)
     endif()
 endif()
 
+# from LLVM CMake to enable / disable RTTI
 if(NOT LLVM_ENABLE_RTTI)
     if(LLVM_COMPILER_IS_GCC_COMPATIBLE)
         list(APPEND CMAKE_CXX_FLAGS "-fno-rtti")
@@ -137,7 +159,6 @@ if(NOT LLVM_ENABLE_RTTI)
 elseif(MSVC)
     list(APPEND CMAKE_CXX_FLAGS "/GR")
 endif()
-# from LLVM CMake to enable / disable RTTI
 
 # from LLVM CMake to set visibility
 include(CheckCXXCompilerFlag)

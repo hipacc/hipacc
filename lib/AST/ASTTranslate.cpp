@@ -221,37 +221,51 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
     }
   }
 
+
   // convert the function body to kernel syntax
   Stmt *new_body = Clone(S);
   hipacc_require(isa<CompoundStmt>(new_body), "CompoundStmt for kernel function body expected!");
 
-  //
-  // for (int gid_y=offset_y; gid_y<is_height+offset_y; gid_y++) {
-  //     for (int gid_x=offset_x; gid_x<is_width+offset_x; gid_x++) {
-  //         body
-  //     }
-  // }
-  //
-  Expr *upper_x = getWidthDecl(Kernel->getIterationSpace());
-  Expr *upper_y = getHeightDecl(Kernel->getIterationSpace());
-  if (Kernel->getIterationSpace()->getOffsetXDecl()) {
-    upper_x = createBinaryOperator(Ctx, upper_x,
-        getOffsetXDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy);
-  }
-  if (Kernel->getIterationSpace()->getOffsetYDecl()) {
-    upper_y = createBinaryOperator(Ctx, upper_y,
-        getOffsetYDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy);
-  }
-  ForStmt *inner_loop = createForStmt(Ctx, gid_x_stmt, createBinaryOperator(Ctx,
-        tileVars.global_id_x, upper_x, BO_LT, Ctx.BoolTy),
-      createUnaryOperator(Ctx, tileVars.global_id_x, UO_PostInc,
-        tileVars.global_id_x->getType()), new_body);
-  ForStmt *outer_loop = createForStmt(Ctx, gid_y_stmt, createBinaryOperator(Ctx,
-        tileVars.global_id_y, upper_y, BO_LT, Ctx.BoolTy),
-      createUnaryOperator(Ctx, tileVars.global_id_y, UO_PostInc,
-        tileVars.global_id_y->getType()), inner_loop);
+  if (false) {
+    // create the iteration space loops the same way as before
+    //
+    // for (int gid_y=offset_y; gid_y<is_height+offset_y; gid_y++) {
+    //     for (int gid_x=offset_x; gid_x<is_width+offset_x; gid_x++) {
+    //         body
+    //     }
+    // }
+    //
+    Expr *upper_x = getWidthDecl(Kernel->getIterationSpace());
+    Expr *upper_y = getHeightDecl(Kernel->getIterationSpace());
+    if (Kernel->getIterationSpace()->getOffsetXDecl()) {
+      upper_x = createBinaryOperator(Ctx, upper_x,
+          getOffsetXDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy);
+    }
+    if (Kernel->getIterationSpace()->getOffsetYDecl()) {
+      upper_y = createBinaryOperator(Ctx, upper_y,
+          getOffsetYDecl(Kernel->getIterationSpace()), BO_Add, Ctx.IntTy);
+    }
+    ForStmt *inner_loop = createForStmt(Ctx, gid_x_stmt,
+        createBinaryOperator(Ctx, tileVars.global_id_x, upper_x, BO_LT,
+          Ctx.BoolTy), createUnaryOperator(Ctx, tileVars.global_id_x,
+            UO_PostInc, tileVars.global_id_x->getType()), new_body);
+    ForStmt *outer_loop = createForStmt(Ctx, gid_y_stmt,
+        createBinaryOperator(Ctx, tileVars.global_id_y, upper_y, BO_LT,
+          Ctx.BoolTy), createUnaryOperator(Ctx, tileVars.global_id_y,
+            UO_PostInc, tileVars.global_id_y->getType()), inner_loop);
 
-  kernelBody.push_back(outer_loop);
+    kernelBody.push_back(outer_loop);
+  } else {
+    // iteration space loops will be created by the code generator later on =>
+    // mark width and height declaration as being used
+    getWidthDecl(Kernel->getIterationSpace());
+    getHeightDecl(Kernel->getIterationSpace());
+
+    // set actual inner loop body as kernel function body
+    // (will be exported by the code generator)
+    for (auto stmt : new_body->children())
+        kernelBody.push_back(stmt);
+  }
 }
 
 
@@ -1723,13 +1737,19 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
         isMask = true;
         if (Mask->isConstant() || compilerOptions.emitC99() ||
             compilerOptions.emitCUDA()) {
+
+          std::string maskName = Mask->getName();
+
+          if (compilerOptions.emitCUDA()) {
+            maskName += Kernel->getName();
+          }
+
           // get Mask/Domain reference
-          VarDecl *maskVar = lookup<VarDecl>(Mask->getName() +
-              Kernel->getName(), Mask->getType());
+          VarDecl *maskVar = lookup<VarDecl>(maskName, Mask->getType());
 
           if (!maskVar) {
             maskVar = createVarDecl(Ctx, Ctx.getTranslationUnitDecl(),
-                Mask->getName()+Kernel->getName(), paramDecl->getType());
+                maskName, paramDecl->getType());
 
             DeclContext *DC =
               TranslationUnitDecl::castToDeclContext(Ctx.getTranslationUnitDecl());
@@ -1918,11 +1938,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
           // set Mask as being used within Kernel
           Kernel->setUsed(FD->getNameAsString());
           switch (compilerOptions.getTargetLang()) {
-            case Language::C99:
             case Language::CUDA:
               // array subscript: Mask[conv_y][conv_x]
               result = accessMem2DAt(LHS, midx_x, midx_y);
               break;
+            case Language::C99:
             case Language::OpenCLACC:
             case Language::OpenCLCPU:
             case Language::OpenCLGPU:
@@ -1969,11 +1989,11 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
           // set Mask as being used within Kernel
           Kernel->setUsed(FD->getNameAsString());
           switch (compilerOptions.getTargetLang()) {
-            case Language::C99:
             case Language::CUDA:
               // array subscript: Mask[conv_y][conv_x]
               result = accessMem2DAt(LHS, midx_x, midx_y);
               break;
+            case Language::C99:
             case Language::OpenCLACC:
             case Language::OpenCLCPU:
             case Language::OpenCLGPU:
@@ -1998,7 +2018,6 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         // set Mask as being used within Kernel
         Kernel->setUsed(FD->getNameAsString());
         switch (compilerOptions.getTargetLang()) {
-          case Language::C99:
           case Language::CUDA:
             // array subscript: Mask[y+size_y/2][x+size_x/2]
             result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
@@ -2008,6 +2027,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
                   createIntegerLiteral(Ctx,
                     static_cast<int>(mask->getSizeY()/2)), BO_Add, Ctx.IntTy));
             break;
+          case Language::C99:
           case Language::OpenCLACC:
           case Language::OpenCLCPU:
           case Language::OpenCLGPU:
@@ -2211,9 +2231,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
     Expr *result = nullptr;
 
     switch (compilerOptions.getTargetLang()) {
-      case Language::C99:
-        result = accessMem2DAt(LHS, idx_x, idx_y);
-        break;
       case Language::CUDA:
         if (Kernel->useTextureMemory(acc) != Texture::None) {
           result = accessMemTexAt(LHS, acc, mem_acc, idx_x, idx_y);
@@ -2221,6 +2238,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
         }
         break;
+      case Language::C99:
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
       case Language::OpenCLGPU:

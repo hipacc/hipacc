@@ -33,6 +33,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "hipacc.h"
+#include "hipacc/Backend/BackendConfigurationManager.h"
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDescription.h"
 #include "hipacc/Rewrite/Rewrite.h"
@@ -41,15 +42,59 @@
 #include <clang/Driver/Driver.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/CompilerInvocation.h>
+#include <clang/Frontend/FrontendDiagnostic.h>
+#include <clang/Frontend/TextDiagnosticBuffer.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <clang/Lex/PreprocessorOptions.h>
 #include <llvm/Support/Host.h>
+#include <llvm/Support/Signals.h>
 
 #include <sstream>
+<<<<<<< HEAD
 #include <fstream>
+||||||| 035cfd9
+=======
+#include <memory>
+>>>>>>> vectorization
 
 using namespace clang;
 using namespace hipacc;
+
+
+static void LLVMErrorHandler(void *userData, const std::string &message, bool
+    genCrashDiag) {
+  DiagnosticsEngine &Diags = *static_cast<DiagnosticsEngine *>(userData);
+
+  Diags.Report(diag::err_fe_error_backend) << message;
+
+  // We cannot recover from llvm errors.  When reporting a fatal error, exit
+  // with status 70 to generate crash diagnostics.  For BSD systems this is
+  // defined as an internal software error.  Otherwise, exit with status 1.
+  exit(genCrashDiag ? 70 : EXIT_FAILURE);
+}
+
+
+std::string getExecutablePath(const char *argv0) {
+  // this just needs to be some symbol in the binary; C++ doesn't
+  // allow taking the address of ::main however
+  void *mainAddr = (void *) (intptr_t) getExecutablePath;
+  std::string execPath = llvm::sys::fs::getMainExecutable(argv0, mainAddr);
+
+  // search for separator of dirname and basename
+  size_t pos = execPath.rfind('/', execPath.length());
+  if (pos == std::string::npos) {
+    // try backslash on windows
+    pos = execPath.rfind('\\', execPath.length());
+
+    if (pos == std::string::npos) {
+      llvm::errs() << "ERROR: Could not determine path to Hipacc executable.";
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // strip basename from path
+  return execPath.substr(0, pos);
+}
 
 
 void printCopyright() {
@@ -123,11 +168,20 @@ int main(int argc, char *argv[]) {
   // first, print the Copyright notice
   printCopyright();
 
-  // argument list for Driver after removing our compiler flags
-  SmallVector<const char *, 16> args;
+  // get stack trace on SegFaults
+  llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
+  llvm::PrettyStackTraceProgram X(argc, argv);
+
+  // setup and initialize compiler instance
+  void *mainAddr = (void *) (intptr_t) getExecutablePath;
+  std::string Path = getExecutablePath(argv[0]);
+
+  // argument list for CompilerInvocation after removing our compiler flags
+  SmallVector<const char *, 16> Args;
   CompilerOptions compilerOptions = CompilerOptions();
   std::string out;
 
+<<<<<<< HEAD
   // parse command line options
   for (int i=0; i<argc; ++i) {
     if (StringRef(argv[i]) == "-emit-cpu") {
@@ -182,7 +236,46 @@ int main(int argc, char *argv[]) {
     if (StringRef(argv[i]) == "-emit-renderscript") {
       compilerOptions.setTargetLang(Language::Renderscript);
       continue;
+||||||| 035cfd9
+  // parse command line options
+  for (int i=0; i<argc; ++i) {
+    if (StringRef(argv[i]) == "-emit-cpu") {
+      compilerOptions.setTargetLang(Language::C99);
+      compilerOptions.setTargetDevice(Device::CPU);
+      continue;
     }
+    if (StringRef(argv[i]) == "-emit-cuda") {
+      compilerOptions.setTargetLang(Language::CUDA);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-emit-opencl-acc") {
+      compilerOptions.setTargetLang(Language::OpenCLACC);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-emit-opencl-cpu") {
+      compilerOptions.setTargetLang(Language::OpenCLCPU);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-emit-opencl-gpu") {
+      compilerOptions.setTargetLang(Language::OpenCLGPU);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-emit-renderscript") {
+      compilerOptions.setTargetLang(Language::Renderscript);
+      continue;
+=======
+  // Initialize the backends
+  Backend::BackendConfigurationManager BackendConfigManager(&compilerOptions);
+  try
+  {
+    // Convert the command line arguments into the backend argument vector type
+    Backend::CommonDefines::ArgumentVectorType vecArguments;
+    for (int i = 1; i < argc; ++i)
+    {
+      vecArguments.push_back(argv[i]);
+>>>>>>> vectorization
+    }
+<<<<<<< HEAD
     if (StringRef(argv[i]) == "-emit-filterscript") {
       compilerOptions.setTargetLang(Language::Filterscript);
       compilerOptions.setPixelsPerThread(1);
@@ -213,7 +306,41 @@ int main(int argc, char *argv[]) {
         llvm::errs() << "WARNING: Setting target is only supported for GPU code generation.\n\n";
         continue;
       }
+||||||| 035cfd9
+    if (StringRef(argv[i]) == "-emit-filterscript") {
+      compilerOptions.setTargetLang(Language::Filterscript);
+      compilerOptions.setPixelsPerThread(1);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-emit-padding") {
+      assert(i<(argc-1) && "Mandatory alignment parameter for -emit-padding switch missing.");
+      std::istringstream buffer(argv[i+1]);
+      int val;
+      buffer >> val;
+      if (buffer.fail()) {
+        llvm::errs() << "ERROR: Expected alignment in bytes for -emit-padding switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      compilerOptions.setPadding(val);
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-target") {
+      assert(i<(argc-1) && "Mandatory code name parameter for -target switch missing.");
 
+      if (!compilerOptions.emitCUDA() &&
+          !compilerOptions.emitOpenCLACC() &&
+          !compilerOptions.emitOpenCLGPU() &&
+          !compilerOptions.emitRenderscript() &&
+          !compilerOptions.emitFilterscript()) {
+        llvm::errs() << "WARNING: Setting target is only supported for GPU code generation.\n\n";
+        continue;
+      }
+=======
+>>>>>>> vectorization
+
+<<<<<<< HEAD
       if (StringRef(argv[i+1]) == "Fermi-20") {
         compilerOptions.setTargetDevice(Device::Fermi_20);
       } else if (StringRef(argv[i+1]) == "Fermi-21") {
@@ -260,7 +387,69 @@ int main(int argc, char *argv[]) {
         llvm::errs() << "ERROR: Expected valid configuration specification for -use-config switch.\n\n";
         printUsage();
         return EXIT_FAILURE;
+||||||| 035cfd9
+      if (StringRef(argv[i+1]) == "Fermi-20") {
+        compilerOptions.setTargetDevice(Device::Fermi_20);
+      } else if (StringRef(argv[i+1]) == "Fermi-21") {
+        compilerOptions.setTargetDevice(Device::Fermi_21);
+      } else if (StringRef(argv[i+1]) == "Kepler-30") {
+        compilerOptions.setTargetDevice(Device::Kepler_30);
+      } else if (StringRef(argv[i+1]) == "Kepler-32") {
+        compilerOptions.setTargetDevice(Device::Kepler_32);
+      } else if (StringRef(argv[i+1]) == "Kepler-35") {
+        compilerOptions.setTargetDevice(Device::Kepler_35);
+      } else if (StringRef(argv[i+1]) == "Kepler-37") {
+        compilerOptions.setTargetDevice(Device::Kepler_37);
+      } else if (StringRef(argv[i+1]) == "Maxwell-50") {
+        compilerOptions.setTargetDevice(Device::Maxwell_50);
+      } else if (StringRef(argv[i+1]) == "Maxwell-52") {
+        compilerOptions.setTargetDevice(Device::Maxwell_52);
+      } else if (StringRef(argv[i+1]) == "Maxwell-53") {
+        compilerOptions.setTargetDevice(Device::Maxwell_53);
+      } else if (StringRef(argv[i+1]) == "Evergreen") {
+        compilerOptions.setTargetDevice(Device::Evergreen);
+      } else if (StringRef(argv[i+1]) == "NorthernIsland") {
+        compilerOptions.setTargetDevice(Device::NorthernIsland);
+      } else if (StringRef(argv[i+1]) == "Midgard") {
+        compilerOptions.setTargetDevice(Device::Midgard);
+      } else if (StringRef(argv[i+1]) == "KnightsCorner") {
+        compilerOptions.setTargetDevice(Device::KnightsCorner);
+      } else {
+        llvm::errs() << "ERROR: Expected valid code name specification for -target switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
       }
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-explore-config") {
+      compilerOptions.setExploreConfig(USER_ON);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-use-config") {
+      assert(i<(argc-1) && "Mandatory configuration specification for -use-config switch missing.");
+      int x=0, y=0, ret=0;
+      ret = sscanf(argv[i+1], "%dx%d", &x, &y);
+      if (ret!=2) {
+        llvm::errs() << "ERROR: Expected valid configuration specification for -use-config switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+=======
+    // Let the backend configuration manager parse the command line arguments
+    BackendConfigManager.Configure(vecArguments);
+    out = BackendConfigManager.GetOutputFile();
+
+    // Fetch the commands vector the clang invocation and convert it to clang's format
+    vecArguments = BackendConfigManager.GetClangArguments(Path);
+    for (auto itArgument : vecArguments)
+    {
+      char *pcArgument = (char*) calloc(itArgument.size() + 1, sizeof(char));
+      if (pcArgument == NULL)
+      {
+        throw std::runtime_error("Cannot allocate memory for clang command argument!");
+>>>>>>> vectorization
+      }
+<<<<<<< HEAD
       compilerOptions.setKernelConfig(x, y);
       ++i;
       continue;
@@ -403,68 +592,130 @@ int main(int argc, char *argv[]) {
 
     if(strcmp("-I", argv[i]) == 0 && !args.empty() && strcmp("-I", args.back()) == 0)
       continue;
+||||||| 035cfd9
+      compilerOptions.setKernelConfig(x, y);
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-reduce-config") {
+      assert(i<(argc-1) && "Mandatory configuration specification for -reduce-config switch missing.");
+      int num_warps=0, num_hists=0, ret=0;
+      ret = sscanf(argv[i+1], "%dx%d", &num_warps, &num_hists);
+      if (ret!=2) {
+        llvm::errs() << "ERROR: Expected valid configuration specification for -use-config switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      compilerOptions.setReduceConfig(num_warps, num_hists);
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-time-kernels") {
+      compilerOptions.setTimeKernels(USER_ON);
+      continue;
+    }
+    if (StringRef(argv[i]) == "-use-textures") {
+      assert(i<(argc-1) && "Mandatory texture memory specification for -use-textures switch missing.");
+      if (StringRef(argv[i+1]) == "off") {
+        compilerOptions.setTextureMemory(Texture::None);
+      } else if (StringRef(argv[i+1]) == "Linear1D") {
+        compilerOptions.setTextureMemory(Texture::Linear1D);
+      } else if (StringRef(argv[i+1]) == "Linear2D") {
+        compilerOptions.setTextureMemory(Texture::Linear2D);
+      } else if (StringRef(argv[i+1]) == "Array2D") {
+        compilerOptions.setTextureMemory(Texture::Array2D);
+      } else if (StringRef(argv[i+1]) == "Ldg") {
+        compilerOptions.setTextureMemory(Texture::Ldg);
+      } else {
+        llvm::errs() << "ERROR: Expected valid texture memory specification for -use-textures switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-use-local") {
+      assert(i<(argc-1) && "Mandatory local memory specification for -use-local switch missing.");
+      if (StringRef(argv[i+1]) == "off") {
+        compilerOptions.setLocalMemory(USER_OFF);
+      } else if (StringRef(argv[i+1]) == "on") {
+        compilerOptions.setLocalMemory(USER_ON);
+      } else {
+        llvm::errs() << "ERROR: Expected valid local memory specification for -use-local switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-vectorize") {
+      assert(i<(argc-1) && "Mandatory vectorization specification for -vectorize switch missing.");
+      if (StringRef(argv[i+1]) == "off") {
+        compilerOptions.setVectorizeKernels(USER_OFF);
+      } else if (StringRef(argv[i+1]) == "on") {
+        compilerOptions.setVectorizeKernels(USER_ON);
+      } else {
+        llvm::errs() << "ERROR: Expected valid vectorization specification for -use-vectorize switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-pixels-per-thread") {
+      assert(i<(argc-1) && "Mandatory integer parameter for -pixels-per-thread switch missing.");
+      std::istringstream buffer(argv[i+1]);
+      int val;
+      buffer >> val;
+      if (buffer.fail()) {
+        llvm::errs() << "ERROR: Expected integer parameter for -pixels-per-thread switch.\n\n";
+        printUsage();
+        return EXIT_FAILURE;
+      }
+      compilerOptions.setPixelsPerThread(val);
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-rs-package") {
+      assert(i<(argc-1) && "Mandatory package name string for -rs-package switch missing.");
+      compilerOptions.setRSPackageName(argv[i+1]);
+      ++i;
+      continue;
+    }
+    if (StringRef(argv[i]) == "-help" || StringRef(argv[i]) == "--help") {
+      printUsage();
+      return EXIT_SUCCESS;
+    }
+    if (StringRef(argv[i]) == "-version" || StringRef(argv[i]) == "--version") {
+      printVersion();
+      return EXIT_SUCCESS;
+    }
+    if (StringRef(argv[i]) == "-o") {
+      assert(i<(argc-1) && "Mandatory output file name for -o switch missing.");
+      args.push_back(argv[i]);
+      args.push_back(argv[++i]);
+      out = argv[i];
+      continue;
+    }
+=======
+>>>>>>> vectorization
 
-    args.push_back(argv[i]);
+      strcpy(pcArgument, itArgument.c_str());
+
+      Args.push_back(pcArgument);
+    }
   }
+  catch (std::exception &e)
+  {
+    llvm::errs() << "ERROR: " << e.what();
+    return EXIT_FAILURE;
+  }
+
 
   // create target device description from compiler options
   HipaccDevice targetDevice(compilerOptions);
 
-  //
-  // sanity checks
-  //
 
-  // CUDA supported only on NVIDIA devices
-  if (compilerOptions.emitCUDA() && !targetDevice.isNVIDIAGPU()) {
-    llvm::errs() << "ERROR: CUDA code generation selected, but no CUDA-capable target device specified!\n"
-                 << "  Please select correct target device/code generation back end combination.\n\n";
-    printUsage();
-    return EXIT_FAILURE;
-  }
-  // OpenCL (GPU) only supported on GPU devices
-  if (compilerOptions.emitOpenCLGPU() &&
-      !(targetDevice.isAMDGPU() || targetDevice.isARMGPU() ||
-        targetDevice.isNVIDIAGPU())) {
-    llvm::errs() << "ERROR: OpenCL (GPU) code generation selected, but no OpenCL-capable GPU target device specified!\n"
-                 << "  Please select correct target device/code generation back end combination.\n\n";
-    printUsage();
-    return EXIT_FAILURE;
-  }
-  // OpenCL (ACC) only supported on accelerator devices
-  if (compilerOptions.emitOpenCLACC() && !targetDevice.isINTELACC()) {
-    llvm::errs() << "ERROR: OpenCL (ACC) code generation selected, but no OpenCL-capable accelerator device specified!\n"
-                 << "  Please select correct target device/code generation back end combination.\n\n";
-    printUsage();
-    return EXIT_FAILURE;
-  }
-  // Textures in CUDA - Ldg (load via texture cache) was introduced with Kepler
-  if (compilerOptions.emitCUDA() && compilerOptions.useTextureMemory(USER_ON)) {
-    if (compilerOptions.getTextureType()==Texture::Ldg &&
-        compilerOptions.getTargetDevice() < Device::Kepler_35) {
-      llvm::errs() << "Warning: 'Ldg' texture memory only supported for Kepler and later on (CC >= 3.5)!"
-                   << "  Using 'Linear1D' instead!\n";
-      compilerOptions.setTextureMemory(Texture::Linear1D);
-    }
-  }
-  // Textures in OpenCL - only supported on some CPU platforms
-  if (compilerOptions.emitOpenCLCPU() && compilerOptions.useTextureMemory(USER_ON)) {
-      llvm::errs() << "Warning: image support is only available on some CPU devices!\n";
-  }
-  // Textures in OpenCL - only supported on GPU & some CPU platforms
-  if (compilerOptions.emitOpenCLACC() && compilerOptions.useTextureMemory(USER_ON)) {
-      llvm::errs() << "ERROR: image support is not available on ACC devices!\n\n";
-      printUsage();
-      return EXIT_FAILURE;
-  }
-  // Textures in OpenCL - only Array2D textures supported
-  if (compilerOptions.emitOpenCLGPU() && compilerOptions.useTextureMemory(USER_ON)) {
-    if (compilerOptions.getTextureType()!=Texture::Array2D) {
-      llvm::errs() << "Warning: 'Linear1D', 'Linear2D', and 'Ldg' texture memory not supported by OpenCL!\n"
-                   << "  Using 'Array2D' instead!\n";
-      compilerOptions.setTextureMemory(Texture::Array2D);
-    }
-  }
-  // Invalid specification for kernel configuration
   if (compilerOptions.useKernelConfig(USER_ON) && !compilerOptions.emitC99()) {
     if (compilerOptions.getKernelConfigX()*compilerOptions.getKernelConfigY() >
         (int)targetDevice.max_threads_per_block) {
@@ -474,49 +725,29 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
   }
-  // Pixels per thread > 1 not supported on Filterscript
-  if (compilerOptions.emitFilterscript() &&
-      compilerOptions.getPixelsPerThread() > 1) {
-    llvm::errs() << "Warning: computing multiple pixels per thread is not supported by Filterscript!\n"
-                 << "  Computing only a single pixel per thread instead!\n";
-    compilerOptions.setPixelsPerThread(1);
-  }
-  // No scratchpad memory support in Renderscript/Filterscript
-  if (compilerOptions.emitFilterscript() || compilerOptions.emitRenderscript()) {
-    if (compilerOptions.useLocalMemory(USER_ON)) {
-      llvm::errs() << "Warning: local memory support is not available in Renderscript and Filterscript!\n"
-                   << "  Local memory disabled!\n";
-    }
-    compilerOptions.setLocalMemory(USER_OFF);
-  }
-  if (compilerOptions.timeKernels(USER_ON) &&
-      compilerOptions.exploreConfig(USER_ON)) {
-    // kernels are timed internally by the runtime in case of exploration
-    compilerOptions.setTimeKernels(OFF);
-  }
 
   // print summary of compiler options
   compilerOptions.printSummary(targetDevice.getTargetDeviceName());
 
 
-  // use the Driver (from Tooling.cpp)
-  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
-  TextDiagnosticPrinter DiagnosticPrinter(llvm::errs(), &*DiagOpts);
-  DiagnosticsEngine Diagnostics(
-      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs()),
-      &*DiagOpts, &DiagnosticPrinter, false);
+  std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
+  IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
 
-  driver::Driver Driver(args[0], llvm::sys::getDefaultTargetTriple(),
-      Diagnostics);
-  Driver.setCheckInputsExist(false);
-  Driver.setTitle("hipacc");
+  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
+  TextDiagnosticBuffer *DiagsBuffer = new TextDiagnosticBuffer;
+  DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagsBuffer);
+
+  // use the Driver (from Tooling.cpp)
+  driver::Driver Driver(Args[0], llvm::sys::getDefaultTargetTriple(),
+      Diags);
 
   const std::unique_ptr<driver::Compilation> Compilation(
-      Driver.BuildCompilation(args));
+      Driver.BuildCompilation(Args));
 
   // use the flags from the first job
   const driver::JobList &Jobs = Compilation->getJobs();
   const driver::Command &Cmd = cast<driver::Command>(*Jobs.begin());
+<<<<<<< HEAD
   const llvm::opt::ArgStringList *const cc1_args = &Cmd.getArguments();
 
   std::unique_ptr<CompilerInvocation> Invocation(new CompilerInvocation());
@@ -539,9 +770,67 @@ int main(int argc, char *argv[]) {
   Compiler.createDiagnostics();
   if (!Compiler.hasDiagnostics())
     return EXIT_FAILURE;
+||||||| 035cfd9
+  const llvm::opt::ArgStringList *const cc1_args = &Cmd.getArguments();
 
-  // run the action
-  return !Compiler.ExecuteAction(*HipaccAction);
+  std::unique_ptr<CompilerInvocation> Invocation(new CompilerInvocation());
+  CompilerInvocation::CreateFromArgs(*Invocation,
+      cc1_args->data() + 1, cc1_args->data() + cc1_args->size(), Diagnostics);
+  Invocation->getFrontendOpts().DisableFree = false;
+  Invocation->getCodeGenOpts().DisableFree = false;
+  Invocation->getDependencyOutputOpts() = DependencyOutputOptions();
+
+  // create a compiler instance to handle the actual work
+  CompilerInstance Compiler;
+  Compiler.setInvocation(std::move(Invocation));
+
+  // create the action for Hipacc
+  std::unique_ptr<ASTFrontendAction> HipaccAction(
+      new HipaccRewriteAction(compilerOptions, out));
+
+  // create the compiler's actual diagnostics engine.
+  Compiler.createDiagnostics();
+  if (!Compiler.hasDiagnostics())
+    return EXIT_FAILURE;
+=======
+  const llvm::opt::ArgStringList cc1_args = Cmd.getArguments();
+
+  // initialize a compiler invocation object from the arguments
+  bool success;
+  success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(),
+      const_cast<const char **>(cc1_args.data()),
+      const_cast<const char **>(cc1_args.data()) + cc1_args.size(), Diags);
+
+  // infer the builtin include path if unspecified
+  if (Clang->getHeaderSearchOpts().UseBuiltinIncludes &&
+      Clang->getHeaderSearchOpts().ResourceDir.empty()) {
+    Clang->getHeaderSearchOpts().ResourceDir =
+      CompilerInvocation::GetResourcesPath(argv[0], mainAddr);
+  }
+
+  // create the actual diagnostics engine
+  Clang->createDiagnostics();
+  if (!Clang->hasDiagnostics()) return EXIT_FAILURE;
+  // print diagnostics in color
+  Clang->getDiagnosticOpts().ShowColors = 1;
+  // print statistics
+  //Clang->getFrontendOpts().ShowStats = 1;
+
+  // set an error handler, so that any LLVM back end diagnostics go through
+  // our error handler
+  llvm::install_fatal_error_handler(LLVMErrorHandler,
+      static_cast<void *>(&Clang->getDiagnostics()));
+
+  DiagsBuffer->FlushDiagnostics(Clang->getDiagnostics());
+  if (!success) return EXIT_FAILURE;
+
+  // create and execute the frontend action
+  std::unique_ptr<ASTFrontendAction> Act(new HipaccRewriteAction(compilerOptions, out));
+
+  if (!Clang->ExecuteAction(*Act)) return EXIT_FAILURE;
+>>>>>>> vectorization
+
+  return EXIT_SUCCESS;
 }
 
 // vim: set ts=2 sw=2 sts=2 et ai:

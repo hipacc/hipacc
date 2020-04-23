@@ -250,8 +250,8 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
 
     switch (compilerOptions.getTargetLang()) {
       case Language::C99:
-          RHS = accessMem2DAt(LHS, idx_x, idx_y);
-          break;
+        RHS = accessMem(LHS, Acc, READ_ONLY, idx_x, idx_y);
+        break;
       case Language::CUDA:
         if (Kernel->useTextureMemory(Acc) != Texture::None) {
           RHS = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);
@@ -336,8 +336,8 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     // get data
     switch (compilerOptions.getTargetLang()) {
       case Language::C99:
-          result = accessMem2DAt(LHS, idx_x, idx_y);
-          break;
+        result = accessMem(LHS, Acc, READ_ONLY, idx_x, idx_y);
+        break;
       case Language::CUDA:
         if (Kernel->useTextureMemory(Acc) != Texture::None) {
           result = accessMemTexAt(LHS, Acc, READ_ONLY, idx_x, idx_y);

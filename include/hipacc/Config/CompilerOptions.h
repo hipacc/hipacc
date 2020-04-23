@@ -42,6 +42,8 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <string>
+#include <memory>
+
 
 #if CLANG_VERSION_MAJOR != 8
 #error "Clang Version 8.x required!"
@@ -49,6 +51,10 @@
 
 namespace clang {
 namespace hipacc {
+namespace Backend {
+  class ICodeGenerator;
+  typedef std::shared_ptr<ICodeGenerator> ICodeGeneratorPtr;
+}
 
 // compiler option possibilities
 enum CompilerOption {
@@ -92,7 +98,17 @@ class CompilerOptions {
     int align_bytes;
     int pixels_per_thread;
     Texture texture_type;
+<<<<<<< HEAD
     std::string rs_package_name, nvcc_path, cl_compiler_path, ccbin_path, rt_includes_path, rs_directory;
+||||||| 035cfd9
+    std::string rs_package_name, rs_directory;
+=======
+    std::string rs_package_name, rs_directory;
+    bool use_openmp;
+
+    // The selected code generator
+    Backend::ICodeGeneratorPtr  _spCodeGenerator;
+>>>>>>> vectorization
 
     void getOptionAsString(CompilerOption option, int val=-1) {
       switch (option) {
@@ -136,11 +152,19 @@ class CompilerOptions {
       pixels_per_thread(1),
       texture_type(Texture::None),
       rs_package_name("org.hipacc.rs"),
+<<<<<<< HEAD
       nvcc_path("nvcc"),
       cl_compiler_path(""),
       ccbin_path(""),
       rt_includes_path(""),
       rs_directory("/data/local/tmp")
+||||||| 035cfd9
+      rs_directory("/data/local/tmp")
+=======
+      rs_directory("/data/local/tmp"),
+      use_openmp(false),
+      _spCodeGenerator(nullptr)
+>>>>>>> vectorization
     {}
 
     bool emitC99() { return target_lang == Language::C99; }
@@ -206,10 +230,15 @@ class CompilerOptions {
     int getPixelsPerThread() { return pixels_per_thread; }
     std::string getRSPackageName() { return rs_package_name; }
     std::string getRSDirectory() { return rs_directory; }
+<<<<<<< HEAD
     std::string getNvccPath() { return nvcc_path; }
     std::string getClCompilerPath() { return cl_compiler_path; }
     std::string getCCBinPath() { return ccbin_path; }
     std::string getRTIncPath() { return rt_includes_path; }
+||||||| 035cfd9
+=======
+    bool useOpenMP() { return use_openmp; }
+>>>>>>> vectorization
 
     void setTargetLang(Language lang) { target_lang = lang; }
     void setTargetDevice(Device td) { target_device = td; }
@@ -253,6 +282,7 @@ class CompilerOptions {
       rs_directory = "/data/data/" + name;
     }
 
+<<<<<<< HEAD
     void setNvccPath(const std::string &path) {
       nvcc_path = path;
     }
@@ -269,6 +299,13 @@ class CompilerOptions {
       rt_includes_path = path;
     }
 
+||||||| 035cfd9
+=======
+    void setOpenMP(bool flag) {
+      use_openmp = flag;
+    }
+
+>>>>>>> vectorization
     std::string getTargetPrefix() {
       switch (target_lang) {
         case Language::C99:          return "cc";
@@ -282,7 +319,17 @@ class CompilerOptions {
       }
     }
 
+<<<<<<< HEAD
     void printSummary(const std::string &target_device) {
+||||||| 035cfd9
+    void printSummary(std::string target_device) {
+=======
+
+    Backend::ICodeGeneratorPtr  getCodeGenerator()                                            { return _spCodeGenerator; }
+    void                        setCodeGenerator(Backend::ICodeGeneratorPtr spCodeGenerator)  { _spCodeGenerator = spCodeGenerator; }
+
+    void printSummary(std::string target_device) {
+>>>>>>> vectorization
       llvm::errs() << "HIPACC compiler configuration summary: \n";
       llvm::errs() << "  Generating target code for '";
       switch (target_lang) {

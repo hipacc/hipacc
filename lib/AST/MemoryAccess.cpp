@@ -33,6 +33,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "hipacc/AST/ASTTranslate.h"
+#include <iostream>
 
 using namespace clang;
 using namespace hipacc;
@@ -98,9 +99,45 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
   Expr *idx_x = tileVars.global_id_x;
   Expr *idx_y = gidYRef;
 
-  // step 0: add local offset: gid_[x|y] + local_offset_[x|y]
-  idx_x = addLocalOffset(idx_x, local_offset_x);
-  idx_y = addLocalOffset(idx_y, local_offset_y);
+  if (compilerOptions.emitC99()) {
+    if (compilerOptions.vectorizeKernels()) {
+      // For C++ with vectorization, image pointers already point to the current
+      // center pixel. Therefore, we need to ensure relative indices.
+      if (local_offset_x && local_offset_y) {
+        if (bh_variant.borderVal) { // border handling
+          // Local offsets are modified by border handling and contain gid,
+          // subtract gid to make it relative.
+          idx_x = createBinaryOperator(Ctx, local_offset_x, tileVars.global_id_x, BO_Sub, Ctx.IntTy);
+          idx_y = createBinaryOperator(Ctx, local_offset_y, tileVars.global_id_y, BO_Sub, Ctx.IntTy);
+        } else {
+          // Local offsets are relative, directly use them, or just input[0]
+          idx_x = local_offset_x;
+          idx_y = local_offset_y;
+        }
+      } else {
+        // No local offsets, access at current position (relative index 0)
+        idx_x = createIntegerLiteral(Ctx, 0);
+        idx_y = nullptr;
+      }
+    } else {
+      // For C++ without vectorization, use absolute indices.
+      if (local_offset_x && local_offset_y) {
+        if (bh_variant.borderVal) { // border handling
+          // Local offsets already contain gid, so just use them.
+          idx_x = local_offset_x;
+          idx_y = local_offset_y;
+        } else {
+          // Local offsets do not contain gid, add local offset to gid
+          idx_x = addLocalOffset(idx_x, local_offset_x);
+          idx_y = addLocalOffset(idx_y, local_offset_y);
+        }
+      }
+    }
+  } else {
+    // step 0: add local offset: gid_[x|y] + local_offset_[x|y]
+    idx_x = addLocalOffset(idx_x, local_offset_x);
+    idx_y = addLocalOffset(idx_y, local_offset_y);
+  }
 
   // step 1: remove is_offset and add interpolation & boundary handling
   switch (Acc->getInterpolationMode()) {
@@ -160,12 +197,11 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       }
     case READ_ONLY:
       switch (compilerOptions.getTargetLang()) {
-        case Language::C99:
-          return accessMem2DAt(LHS, idx_x, idx_y);
         case Language::CUDA:
           if (Kernel->useTextureMemory(Acc) == Texture::None)
             return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
           return accessMemTexAt(LHS, Acc, mem_acc, idx_x, idx_y);
+        case Language::C99:
         case Language::OpenCLACC:
         case Language::OpenCLCPU:
         case Language::OpenCLGPU:
@@ -199,15 +235,21 @@ Expr *ASTTranslate::accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x,
   // mark image as being used within the kernel
   Kernel->setUsed(LHS->getNameInfo().getAsString());
 
-  // for vectorization divide stride by vector size
-  if (Kernel->vectorize()) {
-    stride = createBinaryOperator(Ctx, stride, createIntegerLiteral(Ctx, 4),
-        BO_Div, Ctx.IntTy);
-  }
+  Expr *result;
 
-  Expr *result = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
-        createParenExpr(Ctx, idx_y), stride, BO_Mul, Ctx.IntTy), idx_x, BO_Add,
-      Ctx.IntTy);
+  if (!idx_y) {
+    // we only have x, so access without y
+    result = idx_x;
+  } else {
+    // for vectorization divide stride by vector size
+    if (Kernel->vectorize() && !compilerOptions.emitC99()) {
+      stride = createBinaryOperator(Ctx, stride, createIntegerLiteral(Ctx, 4),
+          BO_Div, Ctx.IntTy);
+    }
+    result = createBinaryOperator(Ctx, createBinaryOperator(Ctx,
+          createParenExpr(Ctx, idx_y), stride, BO_Mul, Ctx.IntTy), idx_x, BO_Add,
+        Ctx.IntTy);
+  }
 
   result = new (Ctx) ArraySubscriptExpr(LHS, result,
       LHS->getType()->getPointeeType(), VK_LValue, OK_Ordinary,
