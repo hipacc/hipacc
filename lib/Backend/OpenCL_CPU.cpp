@@ -45,7 +45,7 @@ OpenCL_CPU::CodeGenerator::Descriptor::Descriptor()
 
 OpenCL_CPU::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions)  : BaseType(pCompilerOptions, Descriptor())
 {
-  _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig  >(CompilerSwitchTypeEnum::ExploreConfig);
+  // DEPRECATED _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig  >(CompilerSwitchTypeEnum::ExploreConfig);
   _InitSwitch<AcceleratorDeviceSwitches::PixelsPerThread>(CompilerSwitchTypeEnum::PixelsPerThread);
   _InitSwitch<AcceleratorDeviceSwitches::ReduceConfig   >(CompilerSwitchTypeEnum::ReduceConfig);
   _InitSwitch<AcceleratorDeviceSwitches::UseConfig      >(CompilerSwitchTypeEnum::UseConfig);

@@ -215,6 +215,7 @@ BackendConfigurationManager::BackendConfigurationManager(CompilerOptions *pCompi
   _InitSwitch<KnownSwitches::Version   >(CompilerSwitchTypeEnum::Version);
   _InitSwitch<KnownSwitches::IncludeDir>(CompilerSwitchTypeEnum::IncludeDir);
   _InitSwitch<KnownSwitches::Define    >(CompilerSwitchTypeEnum::Define);
+  _InitSwitch<KnownSwitches::RTIncPath >(CompilerSwitchTypeEnum::RTIncPath);
 
 
   // Init known backends
@@ -303,6 +304,12 @@ size_t BackendConfigurationManager::_HandleSwitch(std::string strSwitch, CommonD
         ++szReturnIndex;
       }
       _vecClangArguments.push_back(include);
+    }
+    break;
+  case CompilerSwitchTypeEnum::RTIncPath:
+    {
+      _pCompilerOptions->setRTIncPath(KnownSwitches::RTIncPath::OptionParser::Parse(rvecArguments[szCurIndex + 1]));
+      ++szReturnIndex;
     }
     break;
   default:  throw InternalErrors::UnhandledSwitchException(strSwitch);
@@ -438,7 +445,7 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
   vecClangArguments.push_back("-fexceptions");
 
   // Set C++ 11 support
-  vecClangArguments.push_back("-std=c++11");
+  vecClangArguments.push_back("-std=c++14");
   vecClangArguments.push_back("-nostdinc++");
 
   // Add output file

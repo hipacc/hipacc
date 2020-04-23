@@ -232,7 +232,7 @@ void Rewrite::WriteCudaInterpolationDeclHeader(SmallVector<std::string, 16>& int
     // add interpolation definitions
     for (auto str : interpolations)
       interpol_hdr_stream << str;
-    
+
     interpol_hdr_stream << std::endl;
 }
 
@@ -324,7 +324,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   // add interpolation include and define interpolation functions for CUDA
   if (compilerOptions.emitCUDA() && InterpolationDefinitionsGlobal.size()) {
     WriteCudaInterpolationDeclHeader(InterpolationDefinitionsGlobal, "cuInterpolation.cuh");
-    newStr += "#include \"cuInterpolation.cuh\"\n";    
+    newStr += "#include \"cuInterpolation.cuh\"\n";
   }
 
   // include .cu or .h files for normal kernels
@@ -396,7 +396,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   if (mainFD->hasAttrs()) {
     std::string attr_annotate("annotate");
     std::string attr_hipacc_no_rt_init("annotate(\"hipacc_no_rt_init\")");
-    
+
     for (auto attr : mainFD->getAttrs()) {
       std::string attr_name(attr->getSpelling());
 
@@ -728,12 +728,11 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           constructor_type = cast<AnnotateAttr>(attrib)->getAnnotation();
           break;
-        }        
+        }
 
         HipaccImage *Img = new HipaccImage(Context, VD,
             compilerClasses.getFirstTemplateType(VD->getType()));
 
-<<<<<<< HEAD
         if(constructor_type == "ArrayAssignment")
         {
           hipacc_require(CCE->getNumArgs() == 4, "Image ArrayAssignment constructor is expected to have four arguments", &Diags, CCE->getLocation());
@@ -742,35 +741,37 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           std::string width_str  = convertToString(CCE->getArg(0));
           std::string height_str = convertToString(CCE->getArg(1));
 
-          if (compilerOptions.emitC99()) {
-            // check if the parameter can be resolved to a constant
-            unsigned IDConstant = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                  "Constant expression for %0 argument of Image %1 required (C/C++ only).");
-            if (!CCE->getArg(0)->isEvaluatable(Context)) {
-              Diags.Report(CCE->getArg(0)->getExprLoc(), IDConstant) << "width"
-                << Img->getName();
-            }
-            if (!CCE->getArg(1)->isEvaluatable(Context)) {
-              Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
-                << Img->getName();
-            }
+          // TODO: No need for images in C++ to be of constant size, but this
+          //       might become useful for FPGA targets
+          //if (compilerOptions.emitC99()) {
+          //  // check if the parameter can be resolved to a constant
+          //  unsigned IDConstant = Diags.getCustomDiagID(DiagnosticsEngine::Error,
+          //        "Constant expression for %0 argument of Image %1 required (C/C++ only).");
+          //  if (!CCE->getArg(0)->isEvaluatable(Context)) {
+          //    Diags.Report(CCE->getArg(0)->getExprLoc(), IDConstant) << "width"
+          //      << Img->getName();
+          //  }
+          //  if (!CCE->getArg(1)->isEvaluatable(Context)) {
+          //    Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
+          //      << Img->getName();
+          //  }
 
-            int64_t img_stride = CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue();
-            int64_t img_height = CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue();
+          //  int64_t img_stride = CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue();
+          //  int64_t img_height = CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue();
 
-            if (compilerOptions.emitPadding()) {
-              // respect alignment/padding for constantly sized CPU images
-              int64_t alignment = compilerOptions.getAlignment()
-                                    / (Context.getTypeSize(Img->getType())/8);
+          //  if (compilerOptions.emitPadding()) {
+          //    // respect alignment/padding for constantly sized CPU images
+          //    int64_t alignment = compilerOptions.getAlignment()
+          //                          / (Context.getTypeSize(Img->getType())/8);
 
-              if (alignment > 1) {
-                img_stride = ((img_stride+alignment-1) / alignment) * alignment;
-              }
-            }
+          //    if (alignment > 1) {
+          //      img_stride = ((img_stride+alignment-1) / alignment) * alignment;
+          //    }
+          //  }
 
-            Img->setSizeX(img_stride);
-            Img->setSizeY(img_height);
-          }
+          //  Img->setSizeX(img_stride);
+          //  Img->setSizeY(img_height);
+          //}
 
           // host memory
           std::string init_str = convertToString(CCE->getArg(2));
@@ -784,64 +785,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // rewrite Image definition
           replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
         }
-||||||| 035cfd9
-        // get the text string for the image width and height
-        std::string width_str  = convertToString(CCE->getArg(0));
-        std::string height_str = convertToString(CCE->getArg(1));
-
-        if (compilerOptions.emitC99()) {
-          // check if the parameter can be resolved to a constant
-          unsigned IDConstant = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                "Constant expression for %0 argument of Image %1 required (C/C++ only).");
-          if (!CCE->getArg(0)->isEvaluatable(Context)) {
-            Diags.Report(CCE->getArg(0)->getExprLoc(), IDConstant) << "width"
-              << Img->getName();
-          }
-          if (!CCE->getArg(1)->isEvaluatable(Context)) {
-            Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
-              << Img->getName();
-          }
-
-          int64_t img_stride = CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue();
-          int64_t img_height = CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue();
-
-          if (compilerOptions.emitPadding()) {
-            // respect alignment/padding for constantly sized CPU images
-            int64_t alignment = compilerOptions.getAlignment()
-                                  / (Context.getTypeSize(Img->getType())/8);
-
-            if (alignment > 1) {
-              img_stride = ((img_stride+alignment-1) / alignment) * alignment;
-            }
-          }
-
-          Img->setSizeX(img_stride);
-          Img->setSizeY(img_height);
-        }
-=======
-        // get the text string for the image width and height
-        std::string width_str  = convertToString(CCE->getArg(0));
-        std::string height_str = convertToString(CCE->getArg(1));
-
-        // TODO: No need for images in C++ to be of constant size, but this
-        //       might become useful for FPGA targets
-        //if (compilerOptions.emitC99()) {
-        //  // check if the parameter can be resolved to a constant
-        //  unsigned IDConstant = Diags.getCustomDiagID(DiagnosticsEngine::Error,
-        //        "Constant expression for %0 argument of Image %1 required (C/C++ only).");
-        //  if (!CCE->getArg(0)->isEvaluatable(Context)) {
-        //    Diags.Report(CCE->getArg(0)->getExprLoc(), IDConstant) << "width"
-        //      << Img->getName();
-        //  }
-        //  if (!CCE->getArg(1)->isEvaluatable(Context)) {
-        //    Diags.Report(CCE->getArg(1)->getExprLoc(), IDConstant) << "height"
-        //      << Img->getName();
-        //  }
-
-        //  Img->setSizeX(CCE->getArg(0)->EvaluateKnownConstInt(Context).getSExtValue());
-        //  Img->setSizeY(CCE->getArg(1)->EvaluateKnownConstInt(Context).getSExtValue());
-        //}
->>>>>>> vectorization
 
         else if(constructor_type == "CustomImage")
         {
@@ -856,7 +799,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           // rewrite Image definition
           replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
         }
-        
+
         else {
           // TODO: print error message
           hipacc_require(false, "Image constructor type not supported!", &Diags, CCE->getLocation());
@@ -1037,7 +980,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
             if(isa<CXXConstructExpr>(ewc_object))
               CCE = dyn_cast<CXXConstructExpr>(ewc_object);
-          } 
+          }
         }
 
         else if(isa<CXXConstructExpr>(VD->getInit()))
@@ -1161,7 +1104,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
             if(isa<CXXConstructExpr>(ewc_object))
               CCE = dyn_cast<CXXConstructExpr>(ewc_object);
-          } 
+          }
         }
 
         else if(isa<CXXConstructExpr>(VD->getInit()))
@@ -2340,7 +2283,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
 
   OS << "inline " << fun->getReturnType().getAsString() << " "
     << K->getReduceName() << "(";
-  
+
   // write kernel parameters
   size_t comma = 0;
   for (auto param : fun->parameters()) {
@@ -2781,7 +2724,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         continue;
       }
 
-<<<<<<< HEAD
     // check if we have an Accessor
     if (auto Acc = K->getImgFromMapping(FD)) {
       MemoryAccess mem_acc = KC->getMemAccess(FD);
@@ -2808,92 +2750,17 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
               K->useTextureMemory(Acc) != Texture::Ldg) // no parameter is emitted for textures
             continue;
           else {
-||||||| 035cfd9
-    // check if we have an Accessor
-    if (auto Acc = K->getImgFromMapping(FD)) {
-      MemoryAccess mem_acc = KC->getMemAccess(FD);
-      switch (compilerOptions.getTargetLang()) {
-        case Language::C99:
-          if (comma++)
-            OS << ", ";
-          if (mem_acc == READ_ONLY)
-            OS << "const ";
-          OS << Acc->getImage()->getTypeStr()
-             << " " << Name
-             << "[" << Acc->getImage()->getSizeYStr() << "]"
-             << "[" << Acc->getImage()->getSizeXStr() << "]";
-          // alternative for Pencil:
-          // OS << "[static const restrict 2048][4096]";
-          break;
-        case Language::CUDA:
-          if (K->useTextureMemory(Acc) != Texture::None &&
-              K->useTextureMemory(Acc) != Texture::Ldg) // no parameter is emitted for textures
-            continue;
-          else {
-=======
-      // check if we have an Accessor
-      if (auto Acc = K->getImgFromMapping(FD)) {
-        MemoryAccess mem_acc = KC->getMemAccess(FD);
-        switch (compilerOptions.getTargetLang()) {
-          case Language::C99:
->>>>>>> vectorization
             if (comma++)
               OS << ", ";
             if (mem_acc == READ_ONLY)
               OS << "const ";
-<<<<<<< HEAD
 
             std::string type_str = T->getPointeeType().getAsString();
             type_str = std::regex_replace(type_str, std::regex("(^const )|( const$)"), "");
 
             OS << type_str;
             OS << " * __restrict__ ";
-||||||| 035cfd9
-            OS << T->getPointeeType().getAsString();
-            OS << " * __restrict__ ";
-=======
-            OS << Acc->getImage()->getTypeStr()
-               << " " << Name
-               << "[" << Acc->getImage()->getSizeYStr() << "]"
-               << "[" << Acc->getImage()->getSizeXStr() << "]";
-            // alternative for Pencil:
-            // OS << "[static const restrict 2048][4096]";
-            break;
-          case Language::CUDA:
-            if (K->useTextureMemory(Acc) != Texture::None &&
-                K->useTextureMemory(Acc) != Texture::Ldg) // no parameter is emitted for textures
-              continue;
-            else {
-              if (comma++)
-                OS << ", ";
-              if (mem_acc == READ_ONLY)
-                OS << "const ";
-              OS << T->getPointeeType().getAsString();
-              OS << " * __restrict__ ";
-              OS << Name;
-            }
-            break;
-          case Language::OpenCLACC:
-          case Language::OpenCLCPU:
-          case Language::OpenCLGPU:
-            // __global keyword to specify memory location is only needed for OpenCL
-            if (comma++)
-              OS << ", ";
-            if (K->useTextureMemory(Acc) != Texture::None) {
-              if (mem_acc == WRITE_ONLY)
-                OS << "__write_only image2d_t ";
-              else
-                OS << "__read_only image2d_t ";
-            } else {
-              OS << "__global ";
-              if (mem_acc == READ_ONLY)
-                OS << "const ";
-              OS << T->getPointeeType().getAsString();
-              OS << " * restrict ";
-            }
->>>>>>> vectorization
             OS << Name;
-<<<<<<< HEAD
           }
           break;
         case Language::OpenCLACC:
@@ -2923,41 +2790,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         case Language::Renderscript:
         case Language::Filterscript:
           break;
-||||||| 035cfd9
-          }
-          break;
-        case Language::OpenCLACC:
-        case Language::OpenCLCPU:
-        case Language::OpenCLGPU:
-          // __global keyword to specify memory location is only needed for OpenCL
-          if (comma++)
-            OS << ", ";
-          if (K->useTextureMemory(Acc) != Texture::None) {
-            if (mem_acc == WRITE_ONLY)
-              OS << "__write_only image2d_t ";
-            else
-              OS << "__read_only image2d_t ";
-          } else {
-            OS << "__global ";
-            if (mem_acc == READ_ONLY)
-              OS << "const ";
-            OS << T->getPointeeType().getAsString();
-            OS << " * restrict ";
-          }
-          OS << Name;
-          break;
-        case Language::Renderscript:
-        case Language::Filterscript:
-          break;
-=======
-            break;
-          case Language::Renderscript:
-          case Language::Filterscript:
-            break;
-        }
-        continue;
->>>>>>> vectorization
       }
+      continue;
+    }
 
       // normal arguments
       if (comma++)

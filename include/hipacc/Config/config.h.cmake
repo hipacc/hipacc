@@ -38,13 +38,6 @@
 #cmakedefine Polly_FOUND
 #cmakedefine USE_JIT_ESTIMATE
 
-<<<<<<< HEAD
-||||||| 035cfd9
-#define CU_COMPILER "${CU_COMPILER}"
-#define CL_COMPILER "${CL_COMPILER}"
-#define RUNTIME_INCLUDES "${RUNTIME_INCLUDES}"
-
-=======
 #define CU_COMPILER "${CU_COMPILER}"
 #define CL_COMPILER "${CL_COMPILER}"
 #define RUNTIME_INCLUDES "${RUNTIME_INCLUDES}"
@@ -55,7 +48,6 @@
 #define HOST_COMPILER_INSTALL_PREFIX "${HOST_COMPILER_INSTALL_PREFIX}"
 #endif // _MSC_VER
 
->>>>>>> vectorization
 #define HIPACC_VERSION "${HIPACC_VERSION}"
 #define GIT_REPOSITORY "${HIPACC_GIT_REPOSITORY}"
 #define GIT_VERSION "${HIPACC_GIT_VERSION}"

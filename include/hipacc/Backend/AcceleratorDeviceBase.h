@@ -216,7 +216,7 @@ namespace Backend
         inline static std::string AdditionalOptions()   { return ""; }
 
         /** \brief  Returns the description for this switch. */
-        inline static std::string Description()         { return "Emit code that executes each kernel multiple times to get accurate timings"; }
+        inline static std::string Description()         { return "Emit code that measures accurate kernel timings"; }
       };
 
       /** \brief  The switch type for the "kernel configuration selection" switch. */
@@ -344,6 +344,51 @@ namespace Backend
 
 
         typedef CommonDefines::OptionParsers::OnOff   OptionParser;   //!< Type definition for the option parser for this switch.
+      };
+
+      /** \brief  The switch type for the "nvcc include path" switch. */
+      struct NvccPath final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-nvcc-path"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return ""; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "Path for the NVCC compiler for CUDA"; }
+
+        typedef CommonDefines::OptionParsers::Path   OptionParser;   //!< Type definition for the option parser for this switch.
+      };
+
+      /** \brief  The switch type for the "cross compiler include path (CUDA Windows)" switch. */
+      struct CCBinPath final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-ccbin-path"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return ""; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "Path host compiler binary directory (Windows only)"; }
+
+        typedef CommonDefines::OptionParsers::Path   OptionParser;   //!< Type definition for the option parser for this switch.
+      };
+
+      /** \brief  The switch type for the "OpenCL compiler" switch. */
+      struct ClCompilerPath final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-cl-compiler-path"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return ""; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "Path for the OpenCL compier for JIT compilation"; }
+
+        typedef CommonDefines::OptionParsers::Path   OptionParser;   //!< Type definition for the option parser for this switch.
       };
     };
   };

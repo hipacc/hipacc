@@ -32,15 +32,12 @@ if(NOT CL_COMPILER_EXE)
     message(WARNING "Hipacc: Could not find the OpenCL compiler!")
 endif()
 
-set(HIPACC_OPTIONS "-rt-includes-path" "${HIPACC_PATH}/include")
-set(HIPACC_OPTIONS "-nostdinc++")
 set(HIPACC_OPTIONS_CPU "")
 set(HIPACC_OPTIONS_CUDA "-nvcc-path" "${NVCC_EXE}" "-ccbin-path" "${CCBIN_PATH}")
 set(HIPACC_OPTIONS_OPENCL "-cl-compiler-path" "${CL_COMPILER_EXE}")
 set(HIPACC_OPTIONS_OPENCL_ACC ${HIPACC_OPTIONS_OPENCL})
 set(HIPACC_OPTIONS_OPENCL_CPU ${HIPACC_OPTIONS_OPENCL})
 set(HIPACC_OPTIONS_OPENCL_GPU ${HIPACC_OPTIONS_OPENCL})
-set(HIPACC_INCLUDE_DIRS "${HIPACC_PATH}/include/dsl" "${HIPACC_PATH}/include/c++/v1" "${HIPACC_PATH}/include/clang")
 set(HIPACC_RT_INCLUDE_DIRS "${HIPACC_PATH}/include/")
 
 function(add_hipacc_sources)
@@ -64,7 +61,6 @@ function(add_hipacc_sources)
 
     get_target_property(TARGET_CXX_STANDARD ${ARG_TARGET} CXX_STANDARD)
     list(APPEND _HIPACC_OPTIONS "-std=c++${TARGET_CXX_STANDARD}")
-    list(APPEND _HIPACC_OPTIONS "-nostdinc++")
 
     ##################################
     # check hipacc version requirement
@@ -203,7 +199,7 @@ function(add_hipacc_sources)
         if(HIPACC_SKIP_CODEGEN)
             set(_HIPACC_CMD echo WARNING: Automatic code generation of ${_SRC} by Hipacc is skipped! Disable the CMake option HIPACC_SKIP_CODEGEN to run the code generation.)
         else()
-            set(_HIPACC_CMD "${HIPACC_EXE}" ${_HIPACC_OPTIONS} "${_SRC}" -o "${_OUTPUT_FILE_PATH}")
+            set(_HIPACC_CMD "${HIPACC_EXE}" ${_HIPACC_OPTIONS} -o "${_OUTPUT_FILE_PATH}" "${_SRC}")
         endif()
 
         message(VERBOSE "Running Hipacc Command: ${_HIPACC_CMD}")
@@ -220,7 +216,7 @@ function(add_hipacc_sources)
         # add generated source to target
 
         target_sources(${ARG_TARGET} PRIVATE "${_OUTPUT_FILE_PATH}")
-        target_include_directories(${ARG_TARGET} ${_SCOPE} "${_OUTPUT_DIR}" "${_SRC_DIR}")
+        target_include_directories(${ARG_TARGET} ${_SCOPE} "${_OUTPUT_DIR}" "${_SRC_DIR}" ${HIPACC_RT_INCLUDE_DIRS})
         
     endforeach()
 

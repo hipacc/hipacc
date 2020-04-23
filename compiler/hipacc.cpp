@@ -50,12 +50,8 @@
 #include <llvm/Support/Signals.h>
 
 #include <sstream>
-<<<<<<< HEAD
-#include <fstream>
-||||||| 035cfd9
-=======
 #include <memory>
->>>>>>> vectorization
+#include <fstream>
 
 using namespace clang;
 using namespace hipacc;
@@ -175,95 +171,13 @@ int main(int argc, char *argv[]) {
   // setup and initialize compiler instance
   void *mainAddr = (void *) (intptr_t) getExecutablePath;
   std::string Path = getExecutablePath(argv[0]);
+  std::replace(Path.begin(), Path.end(), '\\', '/');
 
   // argument list for CompilerInvocation after removing our compiler flags
   SmallVector<const char *, 16> Args;
   CompilerOptions compilerOptions = CompilerOptions();
   std::string out;
 
-<<<<<<< HEAD
-  // parse command line options
-  for (int i=0; i<argc; ++i) {
-    if (StringRef(argv[i]) == "-emit-cpu") {
-      compilerOptions.setTargetLang(Language::C99);
-      compilerOptions.setTargetDevice(Device::CPU);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-cuda") {
-      compilerOptions.setTargetLang(Language::CUDA);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-nvcc-path") {
-      hipacc_require(i<(argc-1), "Mandatory path parameter for nvcc missing.");
-      std::string nvcc_compiler = StringRef(argv[i+1]);
-      std::ifstream compiler(nvcc_compiler);
-      hipacc_require(compiler.good(), "cannot find NVCC for JIT compilation.");
-      compilerOptions.setNvccPath(nvcc_compiler);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-ccbin-path") {
-      hipacc_require(i<(argc-1), "Mandatory path parameter for ccbin-path missing.");
-      std::string ccbin_path = StringRef(argv[i+1]);
-      compilerOptions.setCCBinPath(ccbin_path);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-opencl-acc") {
-      compilerOptions.setTargetLang(Language::OpenCLACC);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-opencl-cpu") {
-      compilerOptions.setTargetLang(Language::OpenCLCPU);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-opencl-gpu") {
-      compilerOptions.setTargetLang(Language::OpenCLGPU);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-cl-compiler-path") {
-      hipacc_require(i<(argc-1), "Mandatory path parameter for nvcc missing.");
-      std::string cl_compiler = StringRef(argv[i+1]);
-      std::ifstream compiler(cl_compiler);
-      hipacc_require(compiler.good(), "cannot find OpenCL compiler for JIT compilation.");
-      compilerOptions.setClCompilerPath(cl_compiler);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-rt-includes-path") {
-      hipacc_require(i<(argc-1), "Mandatory path parameter for runtime missing.");
-      std::string rt_path = StringRef(argv[i+1]);
-      compilerOptions.setRTIncPath(rt_path);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-renderscript") {
-      compilerOptions.setTargetLang(Language::Renderscript);
-      continue;
-||||||| 035cfd9
-  // parse command line options
-  for (int i=0; i<argc; ++i) {
-    if (StringRef(argv[i]) == "-emit-cpu") {
-      compilerOptions.setTargetLang(Language::C99);
-      compilerOptions.setTargetDevice(Device::CPU);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-cuda") {
-      compilerOptions.setTargetLang(Language::CUDA);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-opencl-acc") {
-      compilerOptions.setTargetLang(Language::OpenCLACC);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-opencl-cpu") {
-      compilerOptions.setTargetLang(Language::OpenCLCPU);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-opencl-gpu") {
-      compilerOptions.setTargetLang(Language::OpenCLGPU);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-renderscript") {
-      compilerOptions.setTargetLang(Language::Renderscript);
-      continue;
-=======
   // Initialize the backends
   Backend::BackendConfigurationManager BackendConfigManager(&compilerOptions);
   try
@@ -273,168 +187,11 @@ int main(int argc, char *argv[]) {
     for (int i = 1; i < argc; ++i)
     {
       vecArguments.push_back(argv[i]);
->>>>>>> vectorization
     }
-<<<<<<< HEAD
-    if (StringRef(argv[i]) == "-emit-filterscript") {
-      compilerOptions.setTargetLang(Language::Filterscript);
-      compilerOptions.setPixelsPerThread(1);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-padding") {
-      hipacc_require(i<(argc-1), "Mandatory alignment parameter for -emit-padding switch missing.");
-      std::istringstream buffer(argv[i+1]);
-      int val;
-      buffer >> val;
-      if (buffer.fail()) {
-        llvm::errs() << "ERROR: Expected alignment in bytes for -emit-padding switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      compilerOptions.setPadding(val);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-target") {
-      hipacc_require(i<(argc-1), "Mandatory code name parameter for -target switch missing.");
 
-      if (!compilerOptions.emitCUDA() &&
-          !compilerOptions.emitOpenCLACC() &&
-          !compilerOptions.emitOpenCLGPU() &&
-          !compilerOptions.emitRenderscript() &&
-          !compilerOptions.emitFilterscript()) {
-        llvm::errs() << "WARNING: Setting target is only supported for GPU code generation.\n\n";
-        continue;
-      }
-||||||| 035cfd9
-    if (StringRef(argv[i]) == "-emit-filterscript") {
-      compilerOptions.setTargetLang(Language::Filterscript);
-      compilerOptions.setPixelsPerThread(1);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-emit-padding") {
-      assert(i<(argc-1) && "Mandatory alignment parameter for -emit-padding switch missing.");
-      std::istringstream buffer(argv[i+1]);
-      int val;
-      buffer >> val;
-      if (buffer.fail()) {
-        llvm::errs() << "ERROR: Expected alignment in bytes for -emit-padding switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      compilerOptions.setPadding(val);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-target") {
-      assert(i<(argc-1) && "Mandatory code name parameter for -target switch missing.");
+    // Set the default runtime path (may be overwritten by -rt-includes-path switch in backend configuration manager below)
+    compilerOptions.setRTIncPath(Path + std::string("/../include"));
 
-      if (!compilerOptions.emitCUDA() &&
-          !compilerOptions.emitOpenCLACC() &&
-          !compilerOptions.emitOpenCLGPU() &&
-          !compilerOptions.emitRenderscript() &&
-          !compilerOptions.emitFilterscript()) {
-        llvm::errs() << "WARNING: Setting target is only supported for GPU code generation.\n\n";
-        continue;
-      }
-=======
->>>>>>> vectorization
-
-<<<<<<< HEAD
-      if (StringRef(argv[i+1]) == "Fermi-20") {
-        compilerOptions.setTargetDevice(Device::Fermi_20);
-      } else if (StringRef(argv[i+1]) == "Fermi-21") {
-        compilerOptions.setTargetDevice(Device::Fermi_21);
-      } else if (StringRef(argv[i+1]) == "Kepler-30") {
-        compilerOptions.setTargetDevice(Device::Kepler_30);
-      } else if (StringRef(argv[i+1]) == "Kepler-32") {
-        compilerOptions.setTargetDevice(Device::Kepler_32);
-      } else if (StringRef(argv[i+1]) == "Kepler-35") {
-        compilerOptions.setTargetDevice(Device::Kepler_35);
-      } else if (StringRef(argv[i+1]) == "Kepler-37") {
-        compilerOptions.setTargetDevice(Device::Kepler_37);
-      } else if (StringRef(argv[i+1]) == "Maxwell-50") {
-        compilerOptions.setTargetDevice(Device::Maxwell_50);
-      } else if (StringRef(argv[i+1]) == "Maxwell-52") {
-        compilerOptions.setTargetDevice(Device::Maxwell_52);
-      } else if (StringRef(argv[i+1]) == "Maxwell-53") {
-        compilerOptions.setTargetDevice(Device::Maxwell_53);
-      } else if (StringRef(argv[i+1]) == "Evergreen") {
-        compilerOptions.setTargetDevice(Device::Evergreen);
-      } else if (StringRef(argv[i+1]) == "NorthernIsland") {
-        compilerOptions.setTargetDevice(Device::NorthernIsland);
-      } else if (StringRef(argv[i+1]) == "Midgard") {
-        compilerOptions.setTargetDevice(Device::Midgard);
-      } else if (StringRef(argv[i+1]) == "KnightsCorner") {
-        compilerOptions.setTargetDevice(Device::KnightsCorner);
-      } else {
-        llvm::errs() << "ERROR: Expected valid code name specification for -target switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-explore-config") {
-      compilerOptions.setExploreConfig(USER_ON);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-use-config") {
-      hipacc_require(i<(argc-1), "Mandatory configuration specification for -use-config switch missing.");
-      int x=0, y=0, ret=0;
-      ret = sscanf(argv[i+1], "%dx%d", &x, &y);
-      if (ret!=2) {
-        llvm::errs() << "ERROR: Expected valid configuration specification for -use-config switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-||||||| 035cfd9
-      if (StringRef(argv[i+1]) == "Fermi-20") {
-        compilerOptions.setTargetDevice(Device::Fermi_20);
-      } else if (StringRef(argv[i+1]) == "Fermi-21") {
-        compilerOptions.setTargetDevice(Device::Fermi_21);
-      } else if (StringRef(argv[i+1]) == "Kepler-30") {
-        compilerOptions.setTargetDevice(Device::Kepler_30);
-      } else if (StringRef(argv[i+1]) == "Kepler-32") {
-        compilerOptions.setTargetDevice(Device::Kepler_32);
-      } else if (StringRef(argv[i+1]) == "Kepler-35") {
-        compilerOptions.setTargetDevice(Device::Kepler_35);
-      } else if (StringRef(argv[i+1]) == "Kepler-37") {
-        compilerOptions.setTargetDevice(Device::Kepler_37);
-      } else if (StringRef(argv[i+1]) == "Maxwell-50") {
-        compilerOptions.setTargetDevice(Device::Maxwell_50);
-      } else if (StringRef(argv[i+1]) == "Maxwell-52") {
-        compilerOptions.setTargetDevice(Device::Maxwell_52);
-      } else if (StringRef(argv[i+1]) == "Maxwell-53") {
-        compilerOptions.setTargetDevice(Device::Maxwell_53);
-      } else if (StringRef(argv[i+1]) == "Evergreen") {
-        compilerOptions.setTargetDevice(Device::Evergreen);
-      } else if (StringRef(argv[i+1]) == "NorthernIsland") {
-        compilerOptions.setTargetDevice(Device::NorthernIsland);
-      } else if (StringRef(argv[i+1]) == "Midgard") {
-        compilerOptions.setTargetDevice(Device::Midgard);
-      } else if (StringRef(argv[i+1]) == "KnightsCorner") {
-        compilerOptions.setTargetDevice(Device::KnightsCorner);
-      } else {
-        llvm::errs() << "ERROR: Expected valid code name specification for -target switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-explore-config") {
-      compilerOptions.setExploreConfig(USER_ON);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-use-config") {
-      assert(i<(argc-1) && "Mandatory configuration specification for -use-config switch missing.");
-      int x=0, y=0, ret=0;
-      ret = sscanf(argv[i+1], "%dx%d", &x, &y);
-      if (ret!=2) {
-        llvm::errs() << "ERROR: Expected valid configuration specification for -use-config switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-=======
     // Let the backend configuration manager parse the command line arguments
     BackendConfigManager.Configure(vecArguments);
     out = BackendConfigManager.GetOutputFile();
@@ -447,261 +204,8 @@ int main(int argc, char *argv[]) {
       if (pcArgument == NULL)
       {
         throw std::runtime_error("Cannot allocate memory for clang command argument!");
->>>>>>> vectorization
       }
-<<<<<<< HEAD
-      compilerOptions.setKernelConfig(x, y);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-reduce-config") {
-      hipacc_require(i<(argc-1), "Mandatory configuration specification for -reduce-config switch missing.");
-      int num_warps=0, num_hists=0, ret=0;
-      ret = sscanf(argv[i+1], "%dx%d", &num_warps, &num_hists);
-      if (ret!=2) {
-        llvm::errs() << "ERROR: Expected valid configuration specification for -use-config switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      compilerOptions.setReduceConfig(num_warps, num_hists);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-time-kernels") {
-      compilerOptions.setTimeKernels(USER_ON);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-use-textures") {
-      hipacc_require(i<(argc-1), "Mandatory texture memory specification for -use-textures switch missing.");
-      if (StringRef(argv[i+1]) == "off") {
-        compilerOptions.setTextureMemory(Texture::None);
-      } else if (StringRef(argv[i+1]) == "Linear1D") {
-        compilerOptions.setTextureMemory(Texture::Linear1D);
-      } else if (StringRef(argv[i+1]) == "Linear2D") {
-        compilerOptions.setTextureMemory(Texture::Linear2D);
-      } else if (StringRef(argv[i+1]) == "Array2D") {
-        compilerOptions.setTextureMemory(Texture::Array2D);
-      } else if (StringRef(argv[i+1]) == "Ldg") {
-        compilerOptions.setTextureMemory(Texture::Ldg);
-      } else {
-        llvm::errs() << "ERROR: Expected valid texture memory specification for -use-textures switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-use-local") {
-      hipacc_require(i<(argc-1), "Mandatory local memory specification for -use-local switch missing.");
-      if (StringRef(argv[i+1]) == "off") {
-        compilerOptions.setLocalMemory(USER_OFF);
-      } else if (StringRef(argv[i+1]) == "on") {
-        compilerOptions.setLocalMemory(USER_ON);
-      } else {
-        llvm::errs() << "ERROR: Expected valid local memory specification for -use-local switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-vectorize") {
-      hipacc_require(i<(argc-1), "Mandatory vectorization specification for -vectorize switch missing.");
-      if (StringRef(argv[i+1]) == "off") {
-        compilerOptions.setVectorizeKernels(USER_OFF);
-      } else if (StringRef(argv[i+1]) == "on") {
-        compilerOptions.setVectorizeKernels(USER_ON);
-      } else {
-        llvm::errs() << "ERROR: Expected valid vectorization specification for -use-vectorize switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-pixels-per-thread") {
-      hipacc_require(i<(argc-1), "Mandatory integer parameter for -pixels-per-thread switch missing.");
-      std::istringstream buffer(argv[i+1]);
-      int val;
-      buffer >> val;
-      if (buffer.fail()) {
-        llvm::errs() << "ERROR: Expected integer parameter for -pixels-per-thread switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      compilerOptions.setPixelsPerThread(val);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-rs-package") {
-      hipacc_require(i<(argc-1), "Mandatory package name string for -rs-package switch missing.");
-      compilerOptions.setRSPackageName(argv[i+1]);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-help" || StringRef(argv[i]) == "--help") {
-      printUsage();
-      return EXIT_SUCCESS;
-    }
-    if (StringRef(argv[i]) == "-version" || StringRef(argv[i]) == "--version") {
-      printVersion();
-      return EXIT_SUCCESS;
-    }
-    if (StringRef(argv[i]) == "-o") {
-      hipacc_require(i<(argc-1), "Mandatory output file name for -o switch missing.");
-      args.push_back(argv[i]);
-      args.push_back(argv[++i]);
-      out = argv[i];
-      continue;
-    }
-    if (StringRef(argv[i]) == "-rows-per-thread") {
-      hipacc_require(i<(argc-1), "Mandatory integer parameter for -rows-per-thread switch missing.");
-      std::istringstream buffer(argv[i+1]);
-      int val;
-      buffer >> val;
-      if (buffer.fail()) {
-        llvm::errs() << "ERROR: Expected integer parameter for -rows-per-thread switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      compilerOptions.setPixelsPerThread(val);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-multi-threading") {
-      llvm::errs() << "Warning: OpenMP multi-threading not yet supported.\n";
-      if (StringRef(argv[i + 1]) != "off"
-          && StringRef(argv[i + 1]) != "on") {
-        llvm::errs() << "ERROR: Expected valid specification for -multi-threading switch.\n\n";
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-instruction-set") {
-      llvm::errs() << "Warning: Instruction set specification not yet supported.\n";
-      if (StringRef(argv[i + 1]) != "sse4.2"
-          && StringRef(argv[i + 1]) != "avx"
-          && StringRef(argv[i + 1]) != "avx2") {
-        llvm::errs() << "ERROR: Expected valid specification for -instruction-set switch.\n\n";
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-
-    if(strcmp("-I", argv[i]) == 0 && !args.empty() && strcmp("-I", args.back()) == 0)
-      continue;
-||||||| 035cfd9
-      compilerOptions.setKernelConfig(x, y);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-reduce-config") {
-      assert(i<(argc-1) && "Mandatory configuration specification for -reduce-config switch missing.");
-      int num_warps=0, num_hists=0, ret=0;
-      ret = sscanf(argv[i+1], "%dx%d", &num_warps, &num_hists);
-      if (ret!=2) {
-        llvm::errs() << "ERROR: Expected valid configuration specification for -use-config switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      compilerOptions.setReduceConfig(num_warps, num_hists);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-time-kernels") {
-      compilerOptions.setTimeKernels(USER_ON);
-      continue;
-    }
-    if (StringRef(argv[i]) == "-use-textures") {
-      assert(i<(argc-1) && "Mandatory texture memory specification for -use-textures switch missing.");
-      if (StringRef(argv[i+1]) == "off") {
-        compilerOptions.setTextureMemory(Texture::None);
-      } else if (StringRef(argv[i+1]) == "Linear1D") {
-        compilerOptions.setTextureMemory(Texture::Linear1D);
-      } else if (StringRef(argv[i+1]) == "Linear2D") {
-        compilerOptions.setTextureMemory(Texture::Linear2D);
-      } else if (StringRef(argv[i+1]) == "Array2D") {
-        compilerOptions.setTextureMemory(Texture::Array2D);
-      } else if (StringRef(argv[i+1]) == "Ldg") {
-        compilerOptions.setTextureMemory(Texture::Ldg);
-      } else {
-        llvm::errs() << "ERROR: Expected valid texture memory specification for -use-textures switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-use-local") {
-      assert(i<(argc-1) && "Mandatory local memory specification for -use-local switch missing.");
-      if (StringRef(argv[i+1]) == "off") {
-        compilerOptions.setLocalMemory(USER_OFF);
-      } else if (StringRef(argv[i+1]) == "on") {
-        compilerOptions.setLocalMemory(USER_ON);
-      } else {
-        llvm::errs() << "ERROR: Expected valid local memory specification for -use-local switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-vectorize") {
-      assert(i<(argc-1) && "Mandatory vectorization specification for -vectorize switch missing.");
-      if (StringRef(argv[i+1]) == "off") {
-        compilerOptions.setVectorizeKernels(USER_OFF);
-      } else if (StringRef(argv[i+1]) == "on") {
-        compilerOptions.setVectorizeKernels(USER_ON);
-      } else {
-        llvm::errs() << "ERROR: Expected valid vectorization specification for -use-vectorize switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-pixels-per-thread") {
-      assert(i<(argc-1) && "Mandatory integer parameter for -pixels-per-thread switch missing.");
-      std::istringstream buffer(argv[i+1]);
-      int val;
-      buffer >> val;
-      if (buffer.fail()) {
-        llvm::errs() << "ERROR: Expected integer parameter for -pixels-per-thread switch.\n\n";
-        printUsage();
-        return EXIT_FAILURE;
-      }
-      compilerOptions.setPixelsPerThread(val);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-rs-package") {
-      assert(i<(argc-1) && "Mandatory package name string for -rs-package switch missing.");
-      compilerOptions.setRSPackageName(argv[i+1]);
-      ++i;
-      continue;
-    }
-    if (StringRef(argv[i]) == "-help" || StringRef(argv[i]) == "--help") {
-      printUsage();
-      return EXIT_SUCCESS;
-    }
-    if (StringRef(argv[i]) == "-version" || StringRef(argv[i]) == "--version") {
-      printVersion();
-      return EXIT_SUCCESS;
-    }
-    if (StringRef(argv[i]) == "-o") {
-      assert(i<(argc-1) && "Mandatory output file name for -o switch missing.");
-      args.push_back(argv[i]);
-      args.push_back(argv[++i]);
-      out = argv[i];
-      continue;
-    }
-=======
->>>>>>> vectorization
-
       strcpy(pcArgument, itArgument.c_str());
-
       Args.push_back(pcArgument);
     }
   }
@@ -715,7 +219,6 @@ int main(int argc, char *argv[]) {
   // create target device description from compiler options
   HipaccDevice targetDevice(compilerOptions);
 
-
   if (compilerOptions.useKernelConfig(USER_ON) && !compilerOptions.emitC99()) {
     if (compilerOptions.getKernelConfigX()*compilerOptions.getKernelConfigY() >
         (int)targetDevice.max_threads_per_block) {
@@ -728,7 +231,6 @@ int main(int argc, char *argv[]) {
 
   // print summary of compiler options
   compilerOptions.printSummary(targetDevice.getTargetDeviceName());
-
 
   std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
@@ -747,59 +249,13 @@ int main(int argc, char *argv[]) {
   // use the flags from the first job
   const driver::JobList &Jobs = Compilation->getJobs();
   const driver::Command &Cmd = cast<driver::Command>(*Jobs.begin());
-<<<<<<< HEAD
   const llvm::opt::ArgStringList *const cc1_args = &Cmd.getArguments();
-
-  std::unique_ptr<CompilerInvocation> Invocation(new CompilerInvocation());
-  CompilerInvocation::CreateFromArgs(*Invocation,
-      cc1_args->data() + 1, cc1_args->data() + cc1_args->size(), Diagnostics);
-  Invocation->getFrontendOpts().DisableFree = false;
-  Invocation->getCodeGenOpts().DisableFree = false;
-  Invocation->getDependencyOutputOpts() = DependencyOutputOptions();
-  Invocation->getPreprocessorOpts().addMacroDef("__HIPACC__");
-
-  // create a compiler instance to handle the actual work
-  CompilerInstance Compiler;
-  Compiler.setInvocation(std::move(Invocation));
-
-  // create the action for Hipacc
-  std::unique_ptr<ASTFrontendAction> HipaccAction(
-      new HipaccRewriteAction(compilerOptions, out));
-
-  // create the compiler's actual diagnostics engine.
-  Compiler.createDiagnostics();
-  if (!Compiler.hasDiagnostics())
-    return EXIT_FAILURE;
-||||||| 035cfd9
-  const llvm::opt::ArgStringList *const cc1_args = &Cmd.getArguments();
-
-  std::unique_ptr<CompilerInvocation> Invocation(new CompilerInvocation());
-  CompilerInvocation::CreateFromArgs(*Invocation,
-      cc1_args->data() + 1, cc1_args->data() + cc1_args->size(), Diagnostics);
-  Invocation->getFrontendOpts().DisableFree = false;
-  Invocation->getCodeGenOpts().DisableFree = false;
-  Invocation->getDependencyOutputOpts() = DependencyOutputOptions();
-
-  // create a compiler instance to handle the actual work
-  CompilerInstance Compiler;
-  Compiler.setInvocation(std::move(Invocation));
-
-  // create the action for Hipacc
-  std::unique_ptr<ASTFrontendAction> HipaccAction(
-      new HipaccRewriteAction(compilerOptions, out));
-
-  // create the compiler's actual diagnostics engine.
-  Compiler.createDiagnostics();
-  if (!Compiler.hasDiagnostics())
-    return EXIT_FAILURE;
-=======
-  const llvm::opt::ArgStringList cc1_args = Cmd.getArguments();
 
   // initialize a compiler invocation object from the arguments
   bool success;
   success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(),
-      const_cast<const char **>(cc1_args.data()),
-      const_cast<const char **>(cc1_args.data()) + cc1_args.size(), Diags);
+      const_cast<const char **>(cc1_args->data()),
+      const_cast<const char **>(cc1_args->data()) + cc1_args->size(), Diags);
 
   // infer the builtin include path if unspecified
   if (Clang->getHeaderSearchOpts().UseBuiltinIncludes &&
@@ -815,6 +271,7 @@ int main(int argc, char *argv[]) {
   Clang->getDiagnosticOpts().ShowColors = 1;
   // print statistics
   //Clang->getFrontendOpts().ShowStats = 1;
+  Clang->getPreprocessorOpts().addMacroDef("__HIPACC__");
 
   // set an error handler, so that any LLVM back end diagnostics go through
   // our error handler
@@ -828,8 +285,6 @@ int main(int argc, char *argv[]) {
   std::unique_ptr<ASTFrontendAction> Act(new HipaccRewriteAction(compilerOptions, out));
 
   if (!Clang->ExecuteAction(*Act)) return EXIT_FAILURE;
->>>>>>> vectorization
-
   return EXIT_SUCCESS;
 }
 

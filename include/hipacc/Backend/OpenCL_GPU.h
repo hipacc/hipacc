@@ -60,7 +60,8 @@ namespace Backend
       UseConfig,          //!< ID of the "kernel configuration selection" switch
       UseLocal,           //!< ID of the "use local/shared memory" switch
       UseTextures,        //!< ID of the "use texture memory" switch
-      Vectorize           //!< ID of the "kernel vectorization" switch
+      Vectorize,          //!< ID of the "kernel vectorization" switch
+      ClCompilerPath      //!< ID of the "opencl compiler" switch
     };
 
 

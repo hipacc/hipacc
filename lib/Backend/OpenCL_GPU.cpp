@@ -46,7 +46,7 @@ OpenCL_GPU::CodeGenerator::Descriptor::Descriptor()
 OpenCL_GPU::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions)  : BaseType(pCompilerOptions, Descriptor())
 {
   _InitSwitch<AcceleratorDeviceSwitches::EmitPadding    >(CompilerSwitchTypeEnum::EmitPadding);
-  _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig  >(CompilerSwitchTypeEnum::ExploreConfig);
+  // DEPRECATED _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig  >(CompilerSwitchTypeEnum::ExploreConfig);
   _InitSwitch<AcceleratorDeviceSwitches::PixelsPerThread>(CompilerSwitchTypeEnum::PixelsPerThread);
   _InitSwitch<AcceleratorDeviceSwitches::ReduceConfig   >(CompilerSwitchTypeEnum::ReduceConfig);
   _InitSwitch<AcceleratorDeviceSwitches::Target         >(CompilerSwitchTypeEnum::Target);
@@ -55,6 +55,7 @@ OpenCL_GPU::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pComp
   _InitSwitch<AcceleratorDeviceSwitches::UseLocal       >(CompilerSwitchTypeEnum::UseLocal);
   _InitSwitch<AcceleratorDeviceSwitches::UseTextures    >(CompilerSwitchTypeEnum::UseTextures);
   _InitSwitch<AcceleratorDeviceSwitches::Vectorize      >(CompilerSwitchTypeEnum::Vectorize);
+  _InitSwitch<AcceleratorDeviceSwitches::ClCompilerPath >(CompilerSwitchTypeEnum::ClCompilerPath);
 }
 
 
@@ -124,6 +125,12 @@ size_t OpenCL_GPU::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, 
   case CompilerSwitchTypeEnum::Vectorize:
     {
       GetCompilerOptions().setVectorizeKernels(_ParseOption<AcceleratorDeviceSwitches::Vectorize>(rvecArguments, szCurrentIndex));
+      ++szReturnIndex;
+    }
+    break;
+  case CompilerSwitchTypeEnum::ClCompilerPath:
+    {
+      GetCompilerOptions().setClCompilerPath(_ParseOption<AcceleratorDeviceSwitches::ClCompilerPath>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;

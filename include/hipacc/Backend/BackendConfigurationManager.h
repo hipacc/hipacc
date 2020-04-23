@@ -43,6 +43,7 @@
 #include "BackendExceptions.h"
 #include "CommonDefines.h"
 #include "ICodeGenerator.h"
+#include "OptionParsers.h"
 
 namespace clang
 {
@@ -67,7 +68,8 @@ namespace Backend
       OutputFile,   //!< ID of the "output file" switch
       Version,      //!< ID of the "print version" switch
       IncludeDir,   //!< ID of the "include directory" switch
-      Define        //!< ID of the "define" switch
+      Define,       //!< ID of the "define" switch
+      RTIncPath     //!< ID of the "runtime include" switch
     };
 
 
@@ -190,6 +192,24 @@ namespace Backend
 
         /** \brief  Returns the vector of known aliases for this switch. */
         inline static AliasesVectorType GetAliases()    { return AliasesVectorType(); }
+      };
+
+      /** \brief  The switch type for the "runtime include path" switch. */
+      struct RTIncPath final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-rt-includes-path"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return ""; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "Path for the runtime libraries"; }
+
+        /** \brief  Returns the vector of known aliases for this switch. */
+        inline static AliasesVectorType GetAliases()    { return AliasesVectorType(); }
+
+        typedef CommonDefines::OptionParsers::Path   OptionParser;   //!< Type definition for the option parser for this switch.
       };
     };
 

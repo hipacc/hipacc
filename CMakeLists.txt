@@ -82,7 +82,7 @@ cmake_dependent_option(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resourc
 
 find_package(LLVM REQUIRED CONFIG)
 find_package(Clang REQUIRED CONFIG)
-find_package(Polly QUIET CONFIG)
+#find_package(Polly QUIET CONFIG)
 find_program(llvm-config NAMES llvm-config PATHS ${LLVM_TOOLS_BINARY_DIR})
 find_program(clang       NAMES clang       PATHS ${LLVM_TOOLS_BINARY_DIR})
 find_package(CUDA)

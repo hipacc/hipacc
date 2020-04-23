@@ -34,7 +34,12 @@
 
 #include "hipacc_base.hpp"
 
-<<<<<<< HEAD
+
+#if !defined(_WIN32) || !defined(_MSC_VER)
+#  define _mm256_set_m128(va, vb) _mm256_insertf128_ps(_mm256_castps128_ps256(vb), va, 1)
+#  define _mm256_set_m128i(va, vb) _mm256_insertf128_si256(_mm256_castsi128_si256(vb), va, 1)
+#endif
+
 extern HipaccKernelTimingBase hipaccCpuTiming;
 inline float hipacc_last_kernel_timing() {
   return hipaccCpuTiming.get_last_kernel_timing();
@@ -43,22 +48,6 @@ inline float hipacc_last_kernel_timing() {
 class HipaccContext {
 public:
   static HipaccContext &getInstance();
-||||||| 035cfd9
-class HipaccContext : public HipaccContextBase {
-    public:
-        static HipaccContext &getInstance();
-=======
-
-#if !defined(_WIN32) || !defined(_MSC_VER)
-#  define _mm256_set_m128(va, vb) _mm256_insertf128_ps(_mm256_castps128_ps256(vb), va, 1)
-#  define _mm256_set_m128i(va, vb) _mm256_insertf128_si256(_mm256_castsi128_si256(vb), va, 1)
-#endif
-
-
-class HipaccContext : public HipaccContextBase {
-    public:
-        static HipaccContext &getInstance();
->>>>>>> vectorization
 };
 
 class HipaccImageCpuBase {

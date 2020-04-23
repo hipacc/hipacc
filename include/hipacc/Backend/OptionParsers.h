@@ -36,6 +36,8 @@
 #include "hipacc/Config/CompilerOptions.h"
 #include "CommonDefines.h"
 #include <sstream>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 namespace clang
 {
@@ -92,6 +94,28 @@ namespace Backend
           {
             throw RuntimeErrorException("Invalid value");
           }
+        }
+      };
+
+      /** \brief  Common parser for "path" options, which is a string. */
+      struct Path final
+      {
+        typedef std::string   ReturnType;
+
+        /** \brief  Tries to parse the option as a string.
+         *  \param  strOption   The command line option as string.
+         *  \return If successful, the option as a string. */
+        inline static ReturnType Parse(std::string strOption)
+        {
+          struct stat info;
+
+          if (stat(strOption.c_str(), &info) == 0)
+          {
+            //if (info.st_mode & S_IFDIR) { /* directory */ }
+            //else { /* file */ }
+            return strOption;
+          }
+          else { throw RuntimeErrorException("Invalid path"); }
         }
       };
     };
