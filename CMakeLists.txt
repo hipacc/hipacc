@@ -5,7 +5,9 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 find_package(Git)
 if(Git_FOUND)
-    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always OUTPUT_VARIABLE HIPACC_VERSION)
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always
+                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                    OUTPUT_VARIABLE HIPACC_VERSION)
     string(STRIP "${HIPACC_VERSION}" HIPACC_VERSION)
 endif()
 
