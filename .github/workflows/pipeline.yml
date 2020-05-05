@@ -1,0 +1,54 @@
+name: Build and Test
+
+on:
+  pull_request:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - master
+      - siemens-dev
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Setup environment
+        run: echo "::set-env name=DOCKER_IMAGE::docker.pkg.github.com/hipacc/docker/ubuntu-minimal:v1.0"
+
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          path: "hipacc"
+          submodules: true
+
+      - name: Fetch history for all tags
+        run: |
+          cd hipacc
+          git fetch --prune --unshallow
+
+      - name: Docker login
+        run: docker login docker.pkg.github.com -u $GITHUB_ACTOR -p $GITHUB_TOKEN
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+      - name: Run Docker image
+        run: docker run -it -d --name hipacc -v $GITHUB_WORKSPACE:/workspace -w /workspace $DOCKER_IMAGE
+
+      - name: Build Hipacc
+        run: docker exec hipacc hipacc/.github/run_build.sh
+
+      - name: Run sample tests
+        run: docker exec hipacc hipacc/.github/run_tests.sh -DHIPACC_SAMPLE_CUDA=OFF -DHIPACC_SAMPLE_OPENCL_GPU=OFF
+
+      - name: Create Debian package
+        if: contains(github.ref, 'refs/tags/')
+        run: docker exec hipacc hipacc/.github/run_package.sh
+
+      - name: Upload Debian package
+        if: contains(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v2
+        with:
+          name: Hipacc Debian package
+          path: hipacc/build/hipacc_*.deb
