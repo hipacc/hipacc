@@ -53,15 +53,19 @@
 
 class HipaccKernelTimingBase {
 private:
-  float last_gpu_timing{}; // milliseconds
+  float last_timing{}; // milliseconds
 public:
 
-  void init_gpu_timing();
-  void set_gpu_timing(float t)  { last_gpu_timing = t; }
-  float get_last_kernel_timing() const { return last_gpu_timing; }
+  static HipaccKernelTimingBase& getInstance();
+  void set_timing(float t)  { last_timing = t; }
+  float get_last_kernel_timing() const { return last_timing; }
 };
 
-inline  int64_t hipacc_time_micro() {
+inline float hipacc_last_kernel_timing() {
+  return HipaccKernelTimingBase::getInstance().get_last_kernel_timing();
+}
+
+inline int64_t hipacc_time_micro() {
   return std::chrono::duration_cast<std::chrono::microseconds>(
              std::chrono::high_resolution_clock::now().time_since_epoch())
       .count();

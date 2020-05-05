@@ -344,17 +344,17 @@ void HipaccKernel::calcConfig() {
   while (num_threads_y_opt*getPixelsPerThread() < max_size_y>>1)
     num_threads_y_opt += 1;
 
+  if (options.printVerbose()) {
+    llvm::errs() << "\nCalculating kernel configuration for " << kernelName << "\n";
+    llvm::errs() << "  optimal configuration: " << num_threads_x_opt << "x"
+                 << num_threads_y_opt << "(x" << getPixelsPerThread() << ")\n";
+  }
+
   // Heuristic:
   // 0) maximize occupancy (e.g. to hide instruction latency
   // 1) - minimize #threads for border handling (e.g. prefer y over x)
   //    - prefer x over y when no border handling is necessary
-  llvm::errs() << "\nCalculating kernel configuration for " << kernelName << "\n";
-  llvm::errs() << "  optimal configuration: " << num_threads_x_opt << "x"
-               << num_threads_y_opt << "(x" << getPixelsPerThread() << ")\n";
   for (auto map : occVec) {
-    llvm::errs() << "    " << llvm::format("%5d", map.first) << " threads:"
-                 << " occupancy = " << llvm::format("%*.2f", 6, map.second*100) << "%";
-
     unsigned num_threads_x = max_threads_per_warp;
     unsigned num_threads_y = 1;
 
@@ -374,9 +374,14 @@ void HipaccKernel::calcConfig() {
         num_threads_x = map.first;
       }
     }
-    llvm::errs() << " -> " << llvm::format("%4d", num_threads_x)
-                 << "x" << llvm::format("%-2d", num_threads_y)
-                 << "(x" << getPixelsPerThread() << ")\n";
+
+    if (options.printVerbose()) {
+      llvm::errs() << "    " << llvm::format("%5d", map.first) << " threads:"
+                   << " occupancy = " << llvm::format("%*.2f", 6, map.second*100) << "%";
+      llvm::errs() << " -> " << llvm::format("%4d", num_threads_x)
+                   << "x" << llvm::format("%-2d", num_threads_y)
+                   << "(x" << getPixelsPerThread() << ")\n";
+    }
   }
 
 
@@ -386,8 +391,10 @@ void HipaccKernel::calcConfig() {
     setDefaultConfig();
     num_blocks_bh_x = max_size_x<=1?0:(unsigned)ceil((float)(max_size_x>>1) / (float)num_threads_x);
     num_blocks_bh_y = max_size_y<=1?0:(unsigned)ceil((float)(max_size_y>>1) / (float)(num_threads_y*getPixelsPerThread()));
-    llvm::errs() << "Using default configuration " << num_threads_x << "x"
-                 << num_threads_y << " for kernel '" << kernelName << "'\n";
+    if (options.printVerbose()) {
+      llvm::errs() << "Using default configuration " << num_threads_x << "x"
+                   << num_threads_y << " for kernel '" << kernelName << "'\n";
+    }
   } else {
     // start with first configuration
     auto map = occVec.begin();
@@ -443,13 +450,17 @@ void HipaccKernel::calcConfig() {
         }
       }
     }
-    llvm::errs() << "Using configuration " << num_threads_x << "x" << num_threads_y
-                 << "(occupancy = " << llvm::format("%*.2f", 6, map->second*100)
-                 << ") for kernel '" << kernelName << "'\n";
+    if (options.printVerbose()) {
+      llvm::errs() << "Using configuration " << num_threads_x << "x" << num_threads_y
+                   << "(occupancy = " << llvm::format("%*.2f", 6, map->second*100)
+                   << ") for kernel '" << kernelName << "'\n";
+    }
   }
 
-  llvm::errs() << "  Blocks required for border handling: "
-               << num_blocks_bh_x << "x" << num_blocks_bh_y << "\n\n";
+  if (options.printVerbose()) {
+    llvm::errs() << "  Blocks required for border handling: "
+                 << num_blocks_bh_x << "x" << num_blocks_bh_y << "\n\n";
+  }
   #else
   setDefaultConfig();
   #endif

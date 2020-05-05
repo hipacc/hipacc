@@ -81,6 +81,7 @@ class CompilerOptions {
     // target code and device specification
     Language target_lang;
     Device target_device;
+    CompilerOption print_verbose;
     // target code features
     CompilerOption explore_config;
     CompilerOption time_kernels;
@@ -130,6 +131,7 @@ class CompilerOptions {
     CompilerOptions() :
       target_lang(Language::OpenCLGPU),
       target_device(Device::Kepler_30),
+      print_verbose(OFF),
       explore_config(OFF),
       time_kernels(OFF),
       kernel_config(AUTO),
@@ -174,6 +176,9 @@ class CompilerOptions {
     static const auto option_ou  = static_cast<CompilerOption>(     ON|USER_ON);
     static const auto option_aou = static_cast<CompilerOption>(AUTO|ON|USER_ON);
 
+    bool printVerbose(CompilerOption option=option_ou) {
+      return print_verbose & option;
+    }
     bool exploreConfig(CompilerOption option=option_ou) {
       return explore_config & option;
     }
@@ -226,6 +231,7 @@ class CompilerOptions {
 
     void setTargetLang(Language lang) { target_lang = lang; }
     void setTargetDevice(Device td) { target_device = td; }
+    void setPrintVerbose(CompilerOption o) { print_verbose = o; }
     void setExploreConfig(CompilerOption o) { explore_config = o; }
     void setTimeKernels(CompilerOption o) { time_kernels = o; }
     void setLocalMemory(CompilerOption o) { local_memory = o; }
@@ -295,7 +301,7 @@ class CompilerOptions {
         case Language::OpenCLGPU:    return "cl";
         case Language::Renderscript: return "rs";
         case Language::Filterscript: return "fs";
-        default: hipacc_require(false , "Unsupported target language");
+        default: hipacc_require(false , "Unsupported target language"); return "";
       }
     }
 

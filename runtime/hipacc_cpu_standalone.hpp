@@ -34,8 +34,6 @@
 
 #include "hipacc_base_standalone.hpp"
 
-HipaccKernelTimingBase hipaccCpuTiming;
-
 HipaccContext &HipaccContext::getInstance() {
   static HipaccContext instance;
 
@@ -51,12 +49,12 @@ void hipaccStartTiming() { start_time = hipacc_time_micro(); }
 
 void hipaccStopTiming() {
   end_time = hipacc_time_micro();
-  hipaccCpuTiming.set_gpu_timing((end_time - start_time) * 1.0e-3f);
+  float timing{ (end_time - start_time) * 1.0e-3f };
+  HipaccKernelTimingBase::getInstance().set_timing(timing);
 
   hipaccRuntimeLogTrivial(
       hipaccRuntimeLogLevel::INFO,
-      "<HIPACC:> Kernel timing: " +
-          std::to_string(hipaccCpuTiming.get_last_kernel_timing()) + "(ms)");
+      "<HIPACC:> Kernel timing: " + std::to_string(timing) + "(ms)");
 }
 
 // Copy from memory to memory
@@ -70,7 +68,7 @@ void hipaccCopyMemory(const HipaccImageCpu &src, HipaccImageCpu &dst) {
 // Copy from memory region to memory region
 void hipaccCopyMemoryRegion(const HipaccAccessor &src,
                             const HipaccAccessor &dst) {
-  for (size_t i = 0; i < dst.height; ++i) {
+  for (int i = 0; i < dst.height; ++i) {
     std::memcpy(
         &((uchar *)dst.img->get_aligned_host_memory())
             [dst.offset_x * dst.img->get_pixel_size() +

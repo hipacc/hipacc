@@ -94,6 +94,13 @@ namespace Backend
       /** \brief  Constructor.
        *  \param  pCompilerOptions  A pointer to the global compiler options object. */
       CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions);
+
+      /** \name ICodeGenerator members */
+      //@{
+
+      virtual void Configure(CommonDefines::ArgumentVectorType & rvecArguments) final override;
+
+      //@}
     };
   };
 } // end namespace Backend

@@ -206,19 +206,6 @@ namespace Backend
         };
       };
 
-      /** \brief  The switch type for the "kernel timing" switch. */
-      struct TimeKernels final
-      {
-        /** \brief  Returns the command argument for this switch. */
-        inline static std::string Key()                 { return "-time-kernels"; }
-
-        /** \brief  Returns the additional options string for this switch. */
-        inline static std::string AdditionalOptions()   { return ""; }
-
-        /** \brief  Returns the description for this switch. */
-        inline static std::string Description()         { return "Emit code that measures accurate kernel timings"; }
-      };
-
       /** \brief  The switch type for the "kernel configuration selection" switch. */
       struct UseConfig final
       {

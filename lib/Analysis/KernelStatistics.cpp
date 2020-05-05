@@ -52,6 +52,8 @@ using namespace hipacc;
 
 namespace {
 class KernelStatsImpl {
+  private:
+    bool verbose_{ false };
   public:
     AnalysisDeclContext &analysisContext;
     llvm::DenseMap<const FieldDecl *, MemoryAccess> memToAccess;
@@ -78,7 +80,8 @@ class KernelStatsImpl {
 
 
     KernelStatsImpl(AnalysisDeclContext &ac, StringRef name, FieldDecl
-        *output_image, CompilerKnownClasses &compilerClasses) :
+        *output_image, CompilerKnownClasses &compilerClasses, bool verbose=false) :
+      verbose_(verbose),
       analysisContext(ac),
       kernelType(),
       Ctx(ac.getASTContext()),
@@ -229,46 +232,49 @@ void KernelStatsImpl::runOnAllBlocks() {
   auto POV = analysisContext.getAnalysis<PostOrderCFGView>();
   for (auto block : *POV)
     runOnBlock(block);
-  llvm::errs() << "Kernel statistics for '" << name << "':\n"
-               << "  type: ";
-  switch (kernelType) {
-    case PointOperator:   llvm::errs() << "Point Operator\n"; break;
-    case LocalOperator:   llvm::errs() << "Local Operator\n"; break;
-    case GlobalOperator:  llvm::errs() << "Global Operator\n"; break;
-    default:
-    case UserOperator:    llvm::errs() << "Custom Operator\n"; break;
-  }
-  llvm::errs() << "  operations (ALU): "    << num_ops << "\n"
-               << "  operations (SFU): "    << num_sops << "\n"
-               << "  image loads: "         << num_img_loads << "\n"
-               << "  image stores: "        << num_img_stores << "\n"
-               << "  mask loads: "          << num_mask_loads << "\n"
-               << "  mask stores: "         << num_mask_stores << "\n";
 
-  llvm::errs() << "  images:\n";
-  for (auto map : memToPattern) {
-    llvm::errs() << "    " << map.first->getNameAsString() << ": ";
-    if (map.second == 0)        llvm::errs() << "UNDEFINED ";
-    if (map.second & NO_STRIDE) llvm::errs() << "NO_STRIDE ";
-    if (map.second & USER_XY)   llvm::errs() << "USER_XY ";
-    if (map.second & STRIDE_X)  llvm::errs() << "STRIDE_X ";
-    if (map.second & STRIDE_Y)  llvm::errs() << "STRIDE_Y ";
-    if (map.second & STRIDE_XY) llvm::errs() << "STRIDE_XY ";
+  if (verbose_) {
+    llvm::errs() << "Kernel statistics for '" << name << "':\n"
+                 << "  type: ";
+    switch (kernelType) {
+      case PointOperator:   llvm::errs() << "Point Operator\n"; break;
+      case LocalOperator:   llvm::errs() << "Local Operator\n"; break;
+      case GlobalOperator:  llvm::errs() << "Global Operator\n"; break;
+      default:
+      case UserOperator:    llvm::errs() << "Custom Operator\n"; break;
+    }
+    llvm::errs() << "  operations (ALU): "    << num_ops << "\n"
+                 << "  operations (SFU): "    << num_sops << "\n"
+                 << "  image loads: "         << num_img_loads << "\n"
+                 << "  image stores: "        << num_img_stores << "\n"
+                 << "  mask loads: "          << num_mask_loads << "\n"
+                 << "  mask stores: "         << num_mask_stores << "\n";
+
+    llvm::errs() << "  images:\n";
+    for (auto map : memToPattern) {
+      llvm::errs() << "    " << map.first->getNameAsString() << ": ";
+      if (map.second == 0)        llvm::errs() << "UNDEFINED ";
+      if (map.second & NO_STRIDE) llvm::errs() << "NO_STRIDE ";
+      if (map.second & USER_XY)   llvm::errs() << "USER_XY ";
+      if (map.second & STRIDE_X)  llvm::errs() << "STRIDE_X ";
+      if (map.second & STRIDE_Y)  llvm::errs() << "STRIDE_Y ";
+      if (map.second & STRIDE_XY) llvm::errs() << "STRIDE_XY ";
+      llvm::errs() << "\n";
+    }
+
+    llvm::errs() << "  VarDecls:\n";
+    for (auto map : declsToVector) {
+      llvm::errs() << "    " << map.first->getName() << " -> ";
+
+      switch (map.second) {
+        case SCALAR:    llvm::errs() << "SCALAR\n"; break;
+        case VECTORIZE: llvm::errs() << "VECTORIZE\n"; break;
+        case PROPAGATE: llvm::errs() << "PROPAGATE\n"; break;
+      }
+    }
+    if (declsToVector.empty()) llvm::errs() << "    - none -\n";
     llvm::errs() << "\n";
   }
-
-  llvm::errs() << "  VarDecls:\n";
-  for (auto map : declsToVector) {
-    llvm::errs() << "    " << map.first->getName() << " -> ";
-
-    switch (map.second) {
-      case SCALAR:    llvm::errs() << "SCALAR\n"; break;
-      case VECTORIZE: llvm::errs() << "VECTORIZE\n"; break;
-      case PROPAGATE: llvm::errs() << "PROPAGATE\n"; break;
-    }
-  }
-  if (declsToVector.empty()) llvm::errs() << "    - none -\n";
-  llvm::errs() << "\n";
 }
 
 
@@ -804,7 +810,7 @@ KernelStatistics::~KernelStatistics() {
 
 KernelStatistics *KernelStatistics::computeKernelStatistics(AnalysisDeclContext
     &AC, StringRef name, FieldDecl *output_image, CompilerKnownClasses
-    &compilerClasses) {
+    &compilerClasses, bool verbose) {
   // No CFG?  Bail out.
   CFG *cfg = AC.getCFG();
   if (!cfg) return 0;
@@ -814,7 +820,7 @@ KernelStatistics *KernelStatistics::computeKernelStatistics(AnalysisDeclContext
   #endif
 
   KernelStatsImpl *KS = new KernelStatsImpl(AC, name, output_image,
-      compilerClasses);
+      compilerClasses, verbose);
   KS->runOnAllBlocks();
 
   return new KernelStatistics(KS);

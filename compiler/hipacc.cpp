@@ -103,56 +103,6 @@ void printCopyright() {
 }
 
 
-void printUsage() {
-  llvm::errs() << "OVERVIEW: Hipacc - Heterogeneous Image Processing Acceleration framework\n\n"
-    << "USAGE:  hipacc [options] <input>\n\n"
-    << "OPTIONS:\n\n"
-    << "  -emit-cpu               Emit C++ code\n"
-    << "  -emit-cuda              Emit CUDA code for GPU devices\n"
-    << "  -emit-opencl-acc        Emit OpenCL code for Accelerator devices\n"
-    << "  -emit-opencl-cpu        Emit OpenCL code for CPU devices\n"
-    << "  -emit-opencl-gpu        Emit OpenCL code for GPU devices\n"
-    << "  -nvcc-path              Path for the NVCC compier for JIT compilation\n"
-    << "  -cl-compiler-path       Path for the OpenCL compier for JIT compilation\n"
-    << "  -ccbin-path             Path host compiler binary directory (Windows only)\n"
-    << "  -rt-includes-path       Path for the runtime libraries\n"
-    << "  -emit-renderscript      Emit Renderscript code for Android\n"
-    << "  -emit-filterscript      Emit Filterscript code for Android\n"
-    << "  -emit-padding <n>       Emit CUDA/OpenCL/Renderscript image padding, using alignment of <n> bytes for GPU devices\n"
-    << "  -target <n>             Generate code for GPUs with code name <n>.\n"
-    << "                          Code names for CUDA/OpenCL on NVIDIA devices are:\n"
-    << "                            'Fermi-20' and 'Fermi-21' for Fermi architecture.\n"
-    << "                            'Kepler-30', 'Kepler-32', 'Kepler-35', and 'Kepler-37' for Kepler architecture.\n"
-    << "                            'Maxwell-50', 'Maxwell-52', and 'Maxwell-53' for Maxwell architecture.\n"
-    << "                          Code names for for OpenCL on AMD devices are:\n"
-    << "                            'Evergreen'      for Evergreen architecture (Radeon HD5xxx).\n"
-    << "                            'NorthernIsland' for Northern Island architecture (Radeon HD6xxx).\n"
-    << "                          Code names for for OpenCL on ARM devices are:\n"
-    << "                            'Midgard' for Mali-T6xx' for Mali.\n"
-    << "                          Code names for for OpenCL on Intel Xeon Phi devices are:\n"
-    << "                            'KnightsCorner' for Knights Corner Many Integrated Cores architecture.\n"
-    << "  -explore-config         Emit code that explores all possible kernel configuration and print its performance\n"
-    << "  -use-config <nxm>       Emit code that uses a configuration of nxm threads, e.g. 128x1\n"
-    << "  -reduce-config <nxm>    Emit code that uses a multi-dimensional reduction configuration of\n"
-    << "                            n warps per block    (affects block size and shared memory size)\n"
-    << "                            m partial histograms (affects number of blocks)\n"
-    << "  -time-kernels           Emit code that executes each kernel multiple times to get accurate timings\n"
-    << "  -use-textures <o>       Enable/disable usage of textures (cached) in CUDA/OpenCL to read/write image pixels - for GPU devices only\n"
-    << "                          Valid values for CUDA on NVIDIA devices: 'off', 'Linear1D', 'Linear2D', 'Array2D', and 'Ldg'\n"
-    << "                          Valid values for OpenCL: 'off' and 'Array2D'\n"
-    << "  -use-local <o>          Enable/disable usage of shared/local memory in CUDA/OpenCL to stage image pixels to scratchpad\n"
-    << "                          Valid values: 'on' and 'off'\n"
-    << "  -vectorize <o>          Enable/disable vectorization of generated CUDA/OpenCL code\n"
-    << "                          Valid values: 'on' and 'off'\n"
-    << "  -pixels-per-thread <n>  Specify how many pixels should be calculated per thread (GPU)\n"
-    << "  -rows-per-thread <n>    Specify how many rows should be calculated per thread (CPU)\n"
-    << "  -rs-package <string>    Specify Renderscript package name. (default: \"org.hipacc.rs\")\n"
-    << "  -o <file>               Write output to <file>\n"
-    << "  --help                  Display available options\n"
-    << "  --version               Display version information\n";
-}
-
-
 void printVersion() {
   llvm::errs() << "hipacc version " << HIPACC_VERSION
     << " (" << GIT_REPOSITORY " " << GIT_VERSION << ")\n";
@@ -161,9 +111,6 @@ void printVersion() {
 
 /// entry to our framework
 int main(int argc, char *argv[]) {
-  // first, print the Copyright notice
-  printCopyright();
-
   // get stack trace on SegFaults
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
   llvm::PrettyStackTraceProgram X(argc, argv);
@@ -224,13 +171,16 @@ int main(int argc, char *argv[]) {
         (int)targetDevice.max_threads_per_block) {
       llvm::errs() << "ERROR: Invalid kernel configuration: maximum threads for target device are "
                    << targetDevice.max_threads_per_block << "!\n\n";
-      printUsage();
       return EXIT_FAILURE;
     }
   }
 
-  // print summary of compiler options
-  compilerOptions.printSummary(targetDevice.getTargetDeviceName());
+  if (compilerOptions.printVerbose()) {
+      printCopyright();
+
+      // print summary of compiler options
+      compilerOptions.printSummary(targetDevice.getTargetDeviceName());
+  }
 
   std::unique_ptr<CompilerInstance> Clang(new CompilerInstance());
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());

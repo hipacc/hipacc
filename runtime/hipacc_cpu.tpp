@@ -44,9 +44,9 @@ template <typename T>
 HipaccImageCpu hipaccCreateMemory(T *host_mem, size_t width, size_t height,
                                   size_t alignment) {
   // alignment has to be a multiple of sizeof(T)
-  alignment = (int)ceilf((float)alignment / sizeof(T)) * sizeof(T);
-  int stride = (int)ceilf((float)(width) / (alignment / sizeof(T))) *
-               (alignment / sizeof(T));
+  alignment = static_cast<int>(ceilf(static_cast<float>(alignment) / sizeof(T)) * sizeof(T));
+  int stride = static_cast<int>(ceilf(static_cast<float>(width) / (alignment / sizeof(T))) *
+               (alignment / sizeof(T)));
 
   T *mem = new T[stride * height];
   return createImage(host_mem, (void *)mem, width, height, stride, alignment);

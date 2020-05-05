@@ -264,7 +264,11 @@ __constant sampler_t img_sampler =
       BIN_TYPE bin = val;                                                      \
                                                                                \
       /* accumulate using reduce function */                                   \
-      ACCU(BIN_TYPE, &lmem[idx], REDUCE);                                      \
+      if (WARP_SIZE == 1) {                                                    \
+          lmem[idx] = REDUCE(lmem[idx], bin);                                  \
+      } else {                                                                 \
+          ACCU(BIN_TYPE, &lmem[idx], REDUCE);                                  \
+      }                                                                        \
     }                                                                          \
   }                                                                            \
                                                                                \
@@ -313,9 +317,16 @@ __constant sampler_t img_sampler =
                                                                                \
     /* assemble segments and write partial histograms */                       \
     if (lid < min((uint)SEGMENT_SIZE, num_bins)) {                             \
-      bin = UNTAG(BIN_TYPE, warp_hist[lid]);                                   \
-      _Pragma("unroll") for (unsigned int i = 1; i < NUM_WARPS; ++i) {         \
-        bin = REDUCE(bin, UNTAG(BIN_TYPE, warp_hist[i * SEGMENT_SIZE + lid])); \
+      if (WARP_SIZE == 1) {                                                    \
+        bin = warp_hist[lid];                                                  \
+        _Pragma("unroll") for (unsigned int i = 1; i < NUM_WARPS; ++i) {       \
+          bin = REDUCE(bin, warp_hist[i * SEGMENT_SIZE + lid]);                \
+        }                                                                      \
+      } else {                                                                 \
+        bin = UNTAG(BIN_TYPE, warp_hist[lid]);                                 \
+        _Pragma("unroll") for (unsigned int i = 1; i < NUM_WARPS; ++i) {       \
+          bin = REDUCE(bin, UNTAG(BIN_TYPE, warp_hist[i * SEGMENT_SIZE + lid]));\
+        }                                                                      \
       }                                                                        \
       output[offset + lid + (get_group_id(0) * num_bins)] = bin;               \
     }                                                                          \

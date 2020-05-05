@@ -109,5 +109,12 @@ size_t OpenCL_CPU::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, 
 }
 
 
+void OpenCL_CPU::CodeGenerator::Configure(CommonDefines::ArgumentVectorType & rvecArguments)
+{
+  GetCompilerOptions().setTargetDevice(Device::CPU);
+  CodeGeneratorBaseImplT::Configure(rvecArguments);
+}
+
+
 // vim: set ts=2 sw=2 sts=2 et ai:
 

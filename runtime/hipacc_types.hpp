@@ -29,12 +29,34 @@
 #ifndef __HIPACC_TYPES_HPP__
 #define __HIPACC_TYPES_HPP__
 
+#include <type_traits>
+#include <limits>
+
+template<typename T>
+static T get_max() {
+#ifndef __CUDACC__
+  return std::numeric_limits<T>::max();
+#else
+  // CUDA does not support limits
+  auto width = sizeof(T) * 8;
+  auto range = std::pow(2, width);
+  if (!std::is_integral<T>::value) {
+    // error: we only support integers
+    range = 1;
+  } else if (std::is_signed<T>::value) {
+    range /= 2;
+  }
+  return static_cast<T>(range - 1);
+#endif
+}
+
 typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned int uint;
 typedef unsigned long ulong;
 
 #if defined __CUDACC__
+
 #define ATTRIBUTES __inline__ __host__ __device__
 #define MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)                             \
   MAKE_MOP(NEW_TYPE, BASIC_TYPE)                                               \
@@ -42,7 +64,9 @@ typedef unsigned long ulong;
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)                             \
   MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)                                   \
   MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)
+
 #elif defined __clang__
+
 typedef char char4 __attribute__((ext_vector_type(4)));
 typedef short int short4 __attribute__((ext_vector_type(4)));
 typedef int int4 __attribute__((ext_vector_type(4)));
@@ -58,14 +82,18 @@ typedef double double4 __attribute__((ext_vector_type(4)));
   MAKE_TYPE(NEW_TYPE, BASIC_TYPE)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)                             \
   MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)
+
 #elif defined __GNUC__ || _MSC_VER >= 1900
+
 #ifdef _MSC_VER
-#define PRAGMA(x) __pragma(x)
+# define PRAGMA(x) __pragma(x)
 #else
-#define PRAGMA(x) _Pragma(x)
+# define STRINGIFY(s) #s
+# define PRAGMA(x) _Pragma(STRINGIFY(x))
 #endif
+
 #define MAKE_TYPEDEF(NEW_TYPE, BASIC_TYPE)                                     \
-  PRAGMA("pack(push, 1)")                                                      \
+  PRAGMA(pack(push, 1))                                                        \
   struct NEW_TYPE {                                                            \
     BASIC_TYPE x, y, z, w;                                                     \
     void operator=(BASIC_TYPE b) {                                             \
@@ -76,7 +104,7 @@ typedef double double4 __attribute__((ext_vector_type(4)));
     }                                                                          \
   };                                                                           \
   typedef struct NEW_TYPE NEW_TYPE;                                            \
-  PRAGMA("pack(pop)")
+  PRAGMA(pack(pop))
 MAKE_TYPEDEF(char4, char)
 MAKE_TYPEDEF(uchar4, uchar)
 MAKE_TYPEDEF(short4, short)
@@ -94,8 +122,11 @@ MAKE_TYPEDEF(double4, double)
 #define MAKE_VEC_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)                             \
   MAKE_VEC_F(NEW_TYPE, BASIC_TYPE, RET_TYPE)                                   \
   MAKE_VOPS_I(NEW_TYPE, BASIC_TYPE, RET_TYPE)
+
 #else
-#error "Only Clang, nvcc, and gcc compilers supported!"
+
+# error "Only Clang, nvcc, and gcc compilers supported!"
+
 #endif
 
 // make function
@@ -215,7 +246,15 @@ MAKE_TYPEDEF(double4, double)
   /* unary operator: minus */                                                  \
                                                                                \
   ATTRIBUTES NEW_TYPE operator-(NEW_TYPE a) {                                  \
-    return make_##NEW_TYPE(-a.x, -a.y, -a.z, -a.w);                            \
+    if (std::is_unsigned<BASIC_TYPE>::value) {                                 \
+      /* if unsigned: -x == max_val-x+1 (according to C99 section 6.2.5c9) */  \
+      BASIC_TYPE m = get_max<BASIC_TYPE>();                                    \
+      return make_##NEW_TYPE(m-a.x+1, m-a.y+1, m-a.z+1, m-a.w+1);              \
+    } else {                                                                   \
+      /* if signed: -x == 0-x */                                               \
+      BASIC_TYPE n = static_cast<BASIC_TYPE>(0);                               \
+      return make_##NEW_TYPE(n-a.x, n-a.y, n-a.z, n-a.w);                      \
+    }                                                                          \
   }                                                                            \
                                                                                \
   /* relational operator: greater-than */                                      \
@@ -493,7 +532,10 @@ MAKE_VEC_F(double4, double, long4)
 // conversion function
 #define MAKE_CONV_FUNC(BASIC_TYPE, RET_TYPE, VEC_TYPE)                         \
   ATTRIBUTES RET_TYPE convert_##RET_TYPE(VEC_TYPE vec) {                       \
-    return make_##RET_TYPE(vec.x, vec.y, vec.z, vec.w);                        \
+    return make_##RET_TYPE(static_cast<BASIC_TYPE>(vec.x),                     \
+                           static_cast<BASIC_TYPE>(vec.y),                     \
+                           static_cast<BASIC_TYPE>(vec.z),                     \
+                           static_cast<BASIC_TYPE>(vec.w));                    \
   }
 
 // generate conversion functions for types

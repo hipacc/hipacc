@@ -1552,10 +1552,8 @@ Vectorizer::VASTExportArray::VASTExportArray(IndexType VectorWidth, ::clang::AST
 
       for (IndexType iVecIdx = static_cast<IndexType>(1); iVecIdx < _VectorWidth; ++iVecIdx)
       {
-        vecSubExpressions[0] = _GetASTHelper().CreateBinaryOperator(vecSubExpressions[0], vecSubExpressions[iVecIdx], eCombineOpCode, qtBoolType);
+        pReturnExpr = _GetASTHelper().CreateBinaryOperator(vecSubExpressions[0], vecSubExpressions[iVecIdx], eCombineOpCode, qtBoolType);
       }
-
-      pReturnExpr = vecSubExpressions[0];
 
       if (spCheckElements->GetCheckType() == CheckType::None)
       {
@@ -1696,10 +1694,8 @@ Vectorizer::VASTExportArray::VASTExportArray(IndexType VectorWidth, ::clang::AST
 
       for (IndexType iVecIdx = static_cast<IndexType>(1); iVecIdx < _VectorWidth; ++iVecIdx)
       {
-        vecIncExpressions[0] = _GetASTHelper().CreateBinaryOperatorComma( vecIncExpressions[0], vecIncExpressions[iVecIdx] );
+        pIncrementExpr = _GetASTHelper().CreateBinaryOperatorComma( vecIncExpressions[0], vecIncExpressions[iVecIdx] );
       }
-
-      pIncrementExpr = vecIncExpressions[0];
     }
     else
     {

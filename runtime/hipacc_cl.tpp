@@ -233,7 +233,7 @@ void hipaccSetKernelArg(cl_kernel kernel, unsigned int num, size_t size,
 template <typename T>
 T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
                        const HipaccAccessor &acc, unsigned int max_threads,
-                       unsigned int pixels_per_thread) {
+                       unsigned int pixels_per_thread, bool print_timing) {
   HipaccContext &Ctx = HipaccContext::getInstance();
   cl_mem_flags flags = CL_MEM_READ_WRITE;
   cl_int err = CL_SUCCESS;
@@ -293,7 +293,7 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
     hipaccSetKernelArg(kernel2D, 9, sizeof(unsigned int), &idle_left);
   }
 
-  hipaccLaunchKernel(kernel2D, global_work_size, local_work_size);
+  hipaccLaunchKernel(kernel2D, global_work_size, local_work_size, print_timing);
 
   // second step: reduce partial blocks on GPU
   // this is done in one shot, so no additional memory is required, i.e. the
@@ -330,10 +330,10 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
 template <typename T>
 T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
                        const HipaccImageOpenCL &img, unsigned int max_threads,
-                       unsigned int pixels_per_thread) {
+                       unsigned int pixels_per_thread, bool print_timing) {
   HipaccAccessor acc(img);
   return hipaccApplyReduction<T>(kernel2D, kernel1D, acc, max_threads,
-                                 pixels_per_thread);
+                                 pixels_per_thread, print_timing);
 }
 
 // Perform exploration of global reduction and return result
@@ -436,7 +436,7 @@ T hipaccApplyReductionExploration(const std::string &filename, const std::string
 
       hipaccLaunchKernel(exploreReduction2D, global_work_size, local_work_size,
                          false);
-      float total_time = hipaccClTiming.get_last_kernel_timing();
+      float total_time = HipaccKernelTimingBase::getInstance().get_last_kernel_timing();
 
       // second step: reduce partial blocks on GPU
       global_work_size[1] = 1;
@@ -456,7 +456,7 @@ T hipaccApplyReductionExploration(const std::string &filename, const std::string
 
         hipaccLaunchKernel(exploreReduction1D, global_work_size,
                            local_work_size, false);
-        total_time += hipaccClTiming.get_last_kernel_timing();
+        total_time += HipaccKernelTimingBase::getInstance().get_last_kernel_timing();
 
         num_blocks = global_work_size[0] / local_work_size[0];
       }
@@ -464,10 +464,10 @@ T hipaccApplyReductionExploration(const std::string &filename, const std::string
     }
 
     std::sort(times.begin(), times.end());
-    hipaccClTiming.set_gpu_timing(times[times.size() / 2]);
+    HipaccKernelTimingBase::getInstance().set_timing(times[times.size() / 2]);
 
-    if (hipaccClTiming.get_last_kernel_timing() < opt_time) {
-      opt_time = hipaccClTiming.get_last_kernel_timing();
+    if (HipaccKernelTimingBase::getInstance().get_last_kernel_timing() < opt_time) {
+      opt_time = HipaccKernelTimingBase::getInstance().get_last_kernel_timing();
       opt_ppt = ppt;
     }
 
@@ -475,7 +475,7 @@ T hipaccApplyReductionExploration(const std::string &filename, const std::string
     hipaccRuntimeLogTrivial(
         hipaccRuntimeLogLevel::INFO,
         "<HIPACC:> PPT: " + std::to_string(ppt) + ", " +
-            std::to_string(hipaccClTiming.get_last_kernel_timing()) + " | " +
+            std::to_string(HipaccKernelTimingBase::getInstance().get_last_kernel_timing()) + " | " +
             std::to_string(times.front()) + " | " +
             std::to_string(times.back()) + " (median(" +
             std::to_string(HIPACC_NUM_ITERATIONS) +
@@ -487,7 +487,7 @@ T hipaccApplyReductionExploration(const std::string &filename, const std::string
     err = clReleaseKernel(exploreReduction1D);
     checkErr(err, "clReleaseKernel()");
   }
-  hipaccClTiming.set_gpu_timing(opt_time);
+  HipaccKernelTimingBase::getInstance().set_timing(opt_time);
 
   hipaccRuntimeLogTrivial(
       hipaccRuntimeLogLevel::INFO,
@@ -524,7 +524,7 @@ template <typename T, typename T2>
 T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D,
                                const HipaccAccessor &acc,
                                unsigned int num_hists, unsigned int num_warps,
-                               unsigned int num_bins) {
+                               unsigned int num_bins, bool print_timing) {
   HipaccContext &Ctx = HipaccContext::getInstance();
   cl_mem_flags flags = CL_MEM_READ_WRITE;
   cl_int err = CL_SUCCESS;
@@ -570,11 +570,11 @@ T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D,
   hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.offset_x);
   hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.offset_y);
 
-  hipaccLaunchKernel(kernel2D, global_work_size, local_work_size);
+  hipaccLaunchKernel(kernel2D, global_work_size, local_work_size, print_timing);
 
   local_work_size[0] = wavefront;
   local_work_size[1] = 1;
-  global_work_size[0] = max(local_work_size[0], (size_t)num_bins);
+  global_work_size[0] = std::max(local_work_size[0], (size_t)num_bins);
   global_work_size[1] = 1;
 
   offset = 0;

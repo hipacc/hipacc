@@ -196,21 +196,28 @@ void hipaccLaunchKernel(F *script, void (F::*kernel)(sp<Allocation>),
                         bool print_timing) {
   HipaccContext &Ctx = HipaccContext::getInstance();
   sp<RS> rs = Ctx.get_context();
-
-  rs->finish();
-  auto start = hipacc_time_micro();
-  (script->*kernel)((Allocation *)out->mem);
-  rs->finish();
-  auto end = hipacc_time_micro();
-  hipacc_last_timing = (end - start) * 1.0e-3f;
+  int64_t start;
 
   if (print_timing) {
+    rs->finish();
+    start = hipacc_time_micro();
+  }
+
+  (script->*kernel)((Allocation *)out->mem);
+
+  if (print_timing) {
+    rs->finish();
+    auto end = hipacc_time_micro();
+
+    auto last_timing = (end - start) * 1.0e-3f;
+    HipaccKernelTimingBase::getInstance().set_timing(last_timing);
+
     hipaccRuntimeLogTrivial(
         hipaccRuntimeLogLevel::INFO,
         "<HIPACC:> Kernel timing (" +
             std::to_string(work_size[0] * work_size[1]) + ": " +
             std::to_string(work_size[0]) + "x" + std::to_string(work_size[1]) +
-            "): " + std::to_string(hipacc_last_timing) + "(ms)");
+            "): " + std::to_string(last_timing) + "(ms)");
   }
 }
 
@@ -222,162 +229,29 @@ void hipaccLaunchKernel(F *script,
                         size_t *work_size, bool print_timing) {
   HipaccContext &Ctx = HipaccContext::getInstance();
   sp<RS> rs = Ctx.get_context();
-
-  rs->finish();
-  auto start = hipacc_time_micro();
-  (script->*kernel)((Allocation *)in->mem, (Allocation *)out->mem);
-  rs->finish();
-  auto end = hipacc_time_micro();
-  hipacc_last_timing = (end - start) * 1.0e-3f;
+  int64_t start;
 
   if (print_timing) {
+    rs->finish();
+    start = hipacc_time_micro();
+  }
+
+  (script->*kernel)((Allocation *)in->mem, (Allocation *)out->mem);
+
+  if (print_timing) {
+    rs->finish();
+    auto end = hipacc_time_micro();
+
+    auto last_timing = (end - start) * 1.0e-3f;
+    HipaccKernelTimingBase::getInstance().set_timing(last_timing);
+
     hipaccRuntimeLogTrivial(
         hipaccRuntimeLogLevel::INFO,
         "<HIPACC:> Kernel timing (" +
             std::to_string(work_size[0] * work_size[1]) + ": " +
             std::to_string(work_size[0]) + "x" + std::to_string(work_size[1]) +
-            "): " + std::to_string(hipacc_last_timing) + "(ms)");
+            "): " + std::to_string(last_timing) + "(ms)");
   }
-}
-
-// Benchmark timing for a kernel call
-template <typename F>
-void hipaccLaunchKernelBenchmark(F *script, void (F::*kernel)(sp<Allocation>),
-                                 HipaccImage &out, size_t *work_size,
-                                 std::vector<hipacc_script_arg<F>> args,
-                                 bool print_timing) {
-  std::vector<float> times;
-
-  for (size_t i = 0; i < HIPACC_NUM_ITERATIONS; ++i) {
-    for (auto &arg : args)
-      SET_SCRIPT_ARG(script, arg);
-
-    hipaccLaunchKernel(script, kernel, out, work_size, print_timing);
-    times.push_back(hipacc_last_timing);
-  }
-
-  std::sort(times.begin(), times.end());
-  hipacc_last_timing = times[times.size() / 2];
-
-  if (print_timing) {
-    hipaccRuntimeLogTrivial(hipaccRuntimeLogLevel::INFO,
-                            "<HIPACC:> Kernel timing benchmark (" +
-                                std::to_string(work_size[0] * work_size[1]) +
-                                ": " + std::to_string(work_size[0]) + "x" +
-                                std::to_string(work_size[1]) +
-                                "): " + std::to_string(hipacc_last_timing) +
-                                " | " + std::to_string(times.front()) + " | " +
-                                std::to_string(times.back()) + " (median(" +
-                                std::to_string(HIPACC_NUM_ITERATIONS) +
-                                ") | minimum | maximum) ms");
-  }
-}
-
-// Perform configuration exploration for a kernel call
-template <typename F, typename T>
-void hipaccLaunchKernelExploration(F *script, void (F::*kernel)(sp<Allocation>),
-                                   std::vector<hipacc_script_arg<F>> args,
-                                   std::vector<hipacc_smem_info>,
-                                   hipacc_launch_info &info, int warp_size, int,
-                                   int max_threads_for_kernel, int, int, int,
-                                   HipaccImage &out) {
-  int opt_ws = 1;
-  float opt_time = FLT_MAX;
-
-  hipaccRuntimeLogTrivial(hipaccRuntimeLogLevel::INFO,
-                          "<HIPACC:> Exploring configurations for kernel" + " '"
-                              << kernel << "':");
-
-  for (int curr_warp_size = 1;
-       curr_warp_size <= (int)ceilf((float)info.is_width / 3);
-       curr_warp_size += (curr_warp_size < warp_size ? 1 : warp_size)) {
-    // check if we exceed maximum number of threads
-    if (curr_warp_size > max_threads_for_kernel)
-      continue;
-
-    size_t work_size[2];
-    work_size[0] = curr_warp_size;
-    work_size[1] = 1;
-
-    hipaccPrepareKernelLaunch(info, work_size);
-
-    std::vector<float> times;
-    for (size_t i = 0; i < HIPACC_NUM_ITERATIONS; ++i) {
-      for (auto &arg : args)
-        SET_SCRIPT_ARG(script, arg);
-
-      hipaccLaunchKernel(script, kernel, out, work_size, false);
-      times.push_back(hipacc_last_timing);
-    }
-    std::sort(times.begin(), times.end());
-    hipacc_last_timing = times[times.size() / 2];
-
-    if (hipacc_last_timing < opt_time) {
-      opt_time = hipacc_last_timing;
-      opt_ws = curr_warp_size;
-    }
-
-    // print timing
-    hipaccRuntimeLogTrivial(
-        hipaccRuntimeLogLevel::INFO,
-        "<HIPACC:> Kernel config: " + std::string(work_size[0]) + "x" +
-            std::string(work_size[1]) + "(" +
-            std::string(work_size[0] * work_size[1]) +
-            "): " + std::string(hipacc_last_timing) + " | " +
-            std::string(times.front()) + " | " + std::string(times.back()) +
-            " (median(" + std::string(HIPACC_NUM_ITERATIONS) +
-            ") | minimum | maximum) ms");
-  }
-  hipacc_last_timing = opt_time;
-
-  hipaccRuntimeLogTrivial(hipaccRuntimeLogLevel::INFO,
-                          "<HIPACC:> Best configurations for kernel '" + kernel
-                              << "': " + opt_ws + ": " + opt_time + " ms");
-}
-
-std::vector<float> times;
-for (size_t i = 0; i < HIPACC_NUM_ITERATIONS; ++i) {
-  for (auto &arg : args)
-    SET_SCRIPT_ARG(script, arg);
-
-  rs->finish();
-  auto start = hipacc_time_micro();
-  (script->*kernel2D)(
-      is1); // first step: reduce image (region) into linear memory
-  (script->*kernel1D)(is2); // second step: reduce linear memory
-  rs->finish();
-  auto end = hipacc_time_micro();
-  hipacc_last_timing = (end - start) * 1.0e-3f;
-
-  if (print_timing) {
-    hipaccRuntimeLogTrivial(hipaccRuntimeLogLevel::INFO,
-                            "<HIPACC:> Reduction timing: " +
-                                std::string(hipacc_last_timing) + "(ms)");
-  }
-  std::sort(times.begin(), times.end());
-  last_gpu_timing = times[times.size() / 2];
-
-  if (last_gpu_timing < opt_time) {
-    opt_time = last_gpu_timing;
-    opt_ws = curr_warp_size;
-  }
-
-  // print timing
-  hipaccRuntimeLogTrivial(
-      hipaccRuntimeLogLevel::INFO,
-      "<HIPACC:> Kernel config: " + std::string(work_size[0]) + "x" +
-          std::string(work_size[1]) + "(" +
-          std::string(work_size[0] * work_size[1]) + "): " +
-          std::string(hipacc_last_timing) + " | " + std::string(times.front()) +
-          " | " + std::string(times.back()) + " (median(" +
-          std::string(HIPACC_NUM_ITERATIONS) + ") | minimum | maximum) ms");
-}
-last_gpu_timing = opt_time;
-
-hipaccRuntimeLogTrivial(hipaccRuntimeLogLevel::INFO,
-                        "<HIPACC:> Best configurations for kernel '" + kernel +
-                            "': " + std::string(opt_ws) + ": " +
-                            std::string(opt_time) + " ms");
 }
 
 // Perform global reduction and return result

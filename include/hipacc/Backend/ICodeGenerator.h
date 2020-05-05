@@ -74,6 +74,8 @@ namespace Backend
     /** \brief  Returns a vector containing display information about the known switches of the derived code generator (for the compiler usage). */
     virtual CommonDefines::SwitchDisplayInfoVectorType GetCompilerSwitches() const = 0;
 
+    /** \brief  Returns unknown arguments and forward to the Clang front-end. */
+    virtual CommonDefines::ArgumentVectorType GetUnknownArguments() const = 0;
 
     /** \brief  Parses a vector of command line arguments and configures the compiler.
      *  \param  rvecArguments   A reference to a vector containing the command arguments for the code generator. */

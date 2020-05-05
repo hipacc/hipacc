@@ -447,7 +447,8 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
   }
   infoStr = K->getInfoStr();
 
-  if (options.exploreConfig() || options.timeKernels()) {
+  if (options.exploreConfig()) {
+    hipacc_require(0, "-explore-config not supported!");
     inc_indent();
     resultStr += "{\n";
     switch (options.getTargetLang()) {
@@ -655,6 +656,8 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
   #endif
 
 
+  std::string print_timing = options.timeKernels() ? "true" : "false";
+
   // parameters
   size_t cur_arg = 0;
   num_arg = 0;
@@ -692,12 +695,12 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     std::string str_stride("->get_stride()");
     bool str_has_stride = hostArgNames[i].find(str_stride) != std::string::npos;
 
-    if (options.exploreConfig() || options.timeKernels()) {
+    if (options.exploreConfig()) {
+      hipacc_require(0, "-explore-config not supported!");
       // add kernel argument
       switch (options.getTargetLang()) {
         case Language::C99: break;
         case Language::CUDA:
-          hipacc_require(0, "-explore-config and -time-kernels is not supported for CUDA!");
           break;
         case Language::OpenCLACC:
         case Language::OpenCLCPU:
@@ -737,7 +740,9 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
       switch (options.getTargetLang()) {
         case Language::C99:
           if (cur_arg++ == 0) {
-            resultStr += "hipaccStartTiming();\n";
+            if (options.timeKernels()) {
+              resultStr += "hipaccStartTiming();\n";
+            }
             resultStr += indent;
             resultStr += kernel_name + "(";
           } else {
@@ -758,6 +763,7 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
             resultStr += ", " + gridStr;
             resultStr += ", " + blockStr;
             resultStr += ", " + execution_parameter_name;
+            resultStr += ", " + print_timing;
             resultStr += ", 0, ";
           } 
           else resultStr += ", ";
@@ -810,8 +816,10 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
   if (options.getTargetLang()==Language::C99) {
     // close parenthesis for function call
     resultStr += ");\n";
-    resultStr += indent;
-    resultStr += "hipaccStopTiming();\n";
+    if (options.timeKernels()) {
+      resultStr += indent;
+      resultStr += "hipaccStopTiming();\n";
+    }
     resultStr += indent;
   }
 
@@ -819,7 +827,8 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     resultStr += "\n" + indent;
 
   // launch kernel
-  if (options.exploreConfig() || options.timeKernels()) {
+  if (options.exploreConfig()) {
+    hipacc_require(0, "-explore-config not supported!");
     switch (options.getTargetLang()) {
       case Language::C99: break;
       case Language::CUDA:
@@ -897,7 +906,9 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
         resultStr += "hipaccLaunchKernel(&" + kernel_name + ", ";
         resultStr += "&ScriptC_" + K->getFileName() + "::forEach_" + kernel_name;
         resultStr += ", " + gridStr;
-        resultStr += ", " + blockStr + ");";
+        resultStr += ", " + blockStr;
+        resultStr += ", " + print_timing;
+        resultStr += ");";
         break;
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
@@ -906,6 +917,7 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
         resultStr += kernel_name;
         resultStr += ", " + gridStr;
         resultStr += ", " + blockStr;
+        resultStr += ", " + print_timing;
         resultStr += ");";
         break;
     }
@@ -944,7 +956,9 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
   // print runtime function name plus name of reduction function
   switch (options.getTargetLang()) {
     case Language::C99:
-      resultStr += "hipaccStartTiming();\n";
+      if (options.timeKernels()) {
+        resultStr += "hipaccStartTiming();\n";
+      }
       resultStr += indent;
       resultStr += red_decl;
       resultStr += K->getReduceName() + "2DKernel(";
@@ -959,7 +973,9 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
       }
       resultStr += ");\n";
       resultStr += indent;
-      resultStr += "hipaccStopTiming();\n";
+      if (options.timeKernels()) {
+        resultStr += "hipaccStopTiming();\n";
+      }
       resultStr += indent;
       return;
     case Language::CUDA:
@@ -1055,6 +1071,10 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
       resultStr += std::to_string(device.getTargetCC());
     }
   }
+
+  std::string print_timing = options.timeKernels() ? "true" : "false";
+  resultStr += ", " + print_timing;
+
   resultStr += ");\n";
 }
 
@@ -1062,7 +1082,16 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
 void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr) {
   std::string pixTypeStr(K->getKernelClass()->getPixelType().getAsString());
   std::string binTypeStr(K->getKernelClass()->getBinType().getAsString());
-  std::string bin_decl(binTypeStr + " *" + K->getBinningStr() + " = ");
+  std::string bin_decl;
+
+  switch (options.getTargetLang()) {
+    case Language::C99:
+      bin_decl = "std::vector<" + binTypeStr + "> " + K->getBinningStr();
+      break;
+    default:
+      bin_decl = binTypeStr + " *" + K->getBinningStr();
+      break;
+  }
 
   if (options.exploreConfig()) {
     hipacc_require(false, "Explorations not supported for multi-dimensional reductions");
@@ -1071,9 +1100,11 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
   // print runtime function name plus name of reduction function
   switch (options.getTargetLang()) {
     case Language::C99:
-      resultStr += "hipaccStartTiming();\n";
+      if (options.timeKernels()) {
+        resultStr += "hipaccStartTiming();\n";
+      }
       resultStr += indent;
-      resultStr += bin_decl;
+      resultStr += bin_decl + " = ";
       resultStr += K->getBinningName() + "2DKernel(";
       resultStr += "(" + K->getIterationSpace()->getImage()->getTypeStr() + "*)";
       resultStr += K->getIterationSpace()->getName() + ".img->get_aligned_host_memory(), ";
@@ -1087,7 +1118,9 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       }
       resultStr += ");\n";
       resultStr += indent;
-      resultStr += "hipaccStopTiming();\n";
+      if (options.timeKernels()) {
+        resultStr += "hipaccStopTiming();\n";
+      }
       return;
     case Language::CUDA:
       // first get texture reference
@@ -1096,7 +1129,7 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       resultStr += "&_tex" + K->getIterationSpace()->getImage()->getName() + K->getName() + ");\n";
       resultStr += indent;
 
-      resultStr += bin_decl;
+      resultStr += bin_decl + " = ";
 
       resultStr += "hipaccApplyBinningSegmented<";
       resultStr += binTypeStr + ", ";
@@ -1107,7 +1140,7 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
-      resultStr += bin_decl;
+      resultStr += bin_decl + " = ";
       resultStr += "hipaccApplyBinningSegmented<";
       resultStr += binTypeStr + ", ";
       resultStr += pixTypeStr + ">(";
@@ -1133,6 +1166,10 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
     resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
     resultStr += "Ref";
   }
+
+  std::string print_timing = options.timeKernels() ? "true" : "false";
+  resultStr += ", " + print_timing;
+
   resultStr += ");\n";
 }
 

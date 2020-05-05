@@ -34,7 +34,7 @@ HipaccImageCuda<T> createImage(T *host_mem, T *mem, size_t width, size_t height,
                             size_t stride, size_t alignment,
                             hipaccMemoryType mem_type) {
   HipaccImageCuda<T> img = std::make_shared<HipaccImageCudaRaw<T>>(
-      width, height, stride, alignment, mem, mem_type);
+      static_cast<int>(width), static_cast<int>(height), static_cast<int>(stride), static_cast<int>(alignment), mem, mem_type);
 
   hipaccWriteMemory<T>(img, host_mem ? host_mem : img->get_host_memory());
   return img;
@@ -224,123 +224,15 @@ void hipaccWriteDomainFromMask(const void *symbol, T *host_mem, size_t width,
   delete[] dom_mem;
 }
 
-// Perform global reduction and return result
-template <typename T>
-T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name,
-                       const void *kernel1D, std::string kernel1D_name,
-                       const HipaccAccessor<T> &acc, unsigned int max_threads,
-                       unsigned int pixels_per_thread,
-                       const textureReference *tex) {
-  T *output; // GPU memory for reduction
-  T result;  // host result
-
-  // first step: reduce image (region) into linear memory
-  dim3 block(max_threads, 1);
-  dim3 grid((int)ceilf((float)(acc.img->get_width()) / (block.x * 2)),
-            (int)ceilf((float)(acc.height) / pixels_per_thread));
-  unsigned int num_blocks = grid.x * grid.y;
-  unsigned int idle_left = 0;
-
-  cudaError_t err = cudaMalloc((void **)&output, sizeof(T) * num_blocks);
-  checkErr(err, "cudaMalloc()");
-
-  if ((acc.offset_x || acc.offset_y) &&
-      (acc.width != acc.img->get_width() || acc.height != acc.img->get_height())) {
-    // reduce iteration space by idle blocks
-    idle_left = acc.offset_x / block.x;
-    unsigned int idle_right =
-        (acc.img->get_width() - (acc.offset_x + acc.width)) / block.x;
-    grid.x = (int)ceilf(
-        (float)(acc.img->get_width() - (idle_left + idle_right) * block.x) /
-        (block.x * 2));
-
-    // update number of blocks
-    num_blocks = grid.x * grid.y;
-    idle_left *= block.x;
-  }
-
-  std::vector<void *> args_step1;
-  auto accImgDevMem = acc.img->get_device_memory();
-  switch (acc.img->get_mem_type()) {
-  default:
-  case hipaccMemoryType::Global: {
-    args_step1.push_back(&accImgDevMem);
-    break;
-  }
-  case hipaccMemoryType::Array2D:
-    hipaccBindTexture<T>(hipaccMemoryType::Array2D, tex, *acc.img);
-    break;
-  }
-
-  args_step1.push_back((void *)&output);
-  auto accImgWidth = acc.img->get_width();
-  auto accImgHeight = acc.img->get_height();
-  auto accImgStride = acc.img->get_stride();
-  args_step1.push_back((void *)&accImgWidth);
-  args_step1.push_back((void *)&accImgHeight);
-  args_step1.push_back((void *)&accImgStride);
-  // check if the reduction is applied to the whole image
-  if ((acc.offset_x || acc.offset_y) &&
-      (acc.width != acc.img->get_width() || acc.height != acc.img->get_height())) {
-    args_step1.push_back((void *)&acc.offset_x);
-    args_step1.push_back((void *)&acc.offset_y);
-    args_step1.push_back((void *)&acc.width);
-    args_step1.push_back((void *)&acc.height);
-    args_step1.push_back((void *)&idle_left);
-  }
-
-  hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block, args_step1.data());
-
-  // second step: reduce partial blocks on GPU
-  // this is done in one shot, so no additional memory is required, i.e. the
-  // same array can be used for the input and output array
-  // blockDim.x is fixed, either max_threads or multiple of 32
-  block.x = (num_blocks < max_threads) ? ((num_blocks + 32 - 1) / 32) * 32
-                                       : max_threads;
-  grid.x = 1;
-  grid.y = 1;
-  // calculate the number of pixels reduced per thread
-  int num_steps = (num_blocks + (block.x - 1)) / (block.x);
-
-  std::vector<void *> args_step2;
-  args_step2.push_back((void *)&output);
-  args_step2.push_back((void *)&output);
-  args_step2.push_back((void *)&num_blocks);
-  args_step2.push_back((void *)&num_steps);
-
-  hipaccLaunchKernel(kernel1D, kernel1D_name, grid, block, args_step2.data());
-
-  // get reduced value
-  err = cudaMemcpy(&result, output, sizeof(T), cudaMemcpyDeviceToHost);
-  checkErr(err, "cudaMemcpy()");
-
-  err = cudaFree(output);
-  checkErr(err, "cudaFree()");
-
-  return result;
-}
-
-// Perform global reduction and return result
-template <typename T>
-T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name,
-                       const void *kernel1D, std::string kernel1D_name,
-                       const HipaccImageCuda<T> &img, unsigned int max_threads,
-                       unsigned int pixels_per_thread,
-                       const textureReference *tex) {
-  HipaccAccessor<T> acc(img);
-  return hipaccApplyReduction<T>(kernel2D, kernel2D_name, kernel1D,
-                                 kernel1D_name, acc, max_threads,
-                                 pixels_per_thread, tex);
-}
-
 // Perform global reduction using memory fence operations and return result
 template <typename T, class KernelFunc>
 T hipaccApplyReductionShared(const KernelFunc &reductionKernel,
                                   const HipaccAccessor<T> &acc,
                                   unsigned int max_threads,
                                   unsigned int pixels_per_thread,
-                                  HipaccExecutionParameter const &ep, 
-                                  const textureReference *tex) {
+                                  HipaccExecutionParameter const &ep,
+                                  const textureReference *tex,
+                                  bool print_timing) {
   T *output; // GPU memory for reduction
   T result;  // host result
 
@@ -378,15 +270,15 @@ T hipaccApplyReductionShared(const KernelFunc &reductionKernel,
   //reserve buffer Memory
   T *bufferImage;
   cudaMalloc(&bufferImage, gridDim.x*gridDim.y*sizeof(T));
-  
+
   //initialize counter for threads finished with last reduction phase; last to finish writes result to "output"
   unsigned int *finishedThreadCounter;
   cudaMalloc(&finishedThreadCounter, sizeof(unsigned int));
   cudaMemset(finishedThreadCounter, 0, sizeof(unsigned int));
 
 
-  hipaccLaunchKernel(reductionKernel, gridDim, blockDim, ep, (blockDim.x + 1) * blockDim.y * sizeof(T), accImgDevMem, output, accImgWidth, accImgHeight, accImgStride, bufferImage, finishedThreadCounter);
-  
+  hipaccLaunchKernel(reductionKernel, gridDim, blockDim, ep, print_timing, (blockDim.x + 1) * blockDim.y * sizeof(T), accImgDevMem, output, accImgWidth, accImgHeight, accImgStride, bufferImage, finishedThreadCounter);
+
 
   err = cudaMemcpy(&result, output, sizeof(T), cudaMemcpyDeviceToHost);
   checkErr(err, "cudaMemcpy()");
@@ -407,11 +299,12 @@ T hipaccApplyReductionShared(const KernelFunc &kernel2D,
                                   const HipaccImageCuda<T> &img,
                                   unsigned int max_threads,
                                   unsigned int pixels_per_thread,
-                                  HipaccExecutionParameter const &ep, 
-                                  const textureReference *tex) {
+                                  HipaccExecutionParameter const &ep,
+                                  const textureReference *tex,
+                                  bool print_timing) {
   HipaccAccessor<T> acc(img);
   return hipaccApplyReductionShared<T>(
-      kernel2D, acc, max_threads, pixels_per_thread, ep, tex);
+      kernel2D, acc, max_threads, pixels_per_thread, ep, tex, print_timing);
 }
 
 #ifndef SEGMENT_SIZE
@@ -422,7 +315,7 @@ template <typename T, typename T2>
 T *hipaccApplyBinningSegmented(const void *kernel2D, std::string const& kernel2D_name,
                                HipaccAccessor<T2> &acc, unsigned int num_hists,
                                unsigned int num_warps, unsigned int num_bins,
-                               const textureReference *tex) {
+                               const textureReference *tex, bool print_timing) {
   T *output;                   // GPU memory for reduction
   T *result = new T[num_bins]; // host result
 
@@ -455,7 +348,7 @@ T *hipaccApplyBinningSegmented(const void *kernel2D, std::string const& kernel2D
   args.push_back((void *)&acc.offset_x);
   args.push_back((void *)&acc.offset_y);
 
-  hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block, args.data());
+  hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block, args.data(), print_timing);
 
   err =
       cudaMemcpy(result, output, sizeof(T) * num_bins, cudaMemcpyDeviceToHost);

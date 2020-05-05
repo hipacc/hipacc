@@ -40,11 +40,6 @@
 #  define _mm256_set_m128i(va, vb) _mm256_insertf128_si256(_mm256_castsi128_si256(vb), va, 1)
 #endif
 
-extern HipaccKernelTimingBase hipaccCpuTiming;
-inline float hipacc_last_kernel_timing() {
-  return hipaccCpuTiming.get_last_kernel_timing();
-}
-
 class HipaccContext {
 public:
   static HipaccContext &getInstance();
@@ -107,9 +102,9 @@ public:
 public:
   HipaccAccessor(HipaccImageCpu img, size_t width, size_t height,
                  int32_t offset_x = 0, int32_t offset_y = 0)
-      : HipaccAccessorBase(width, height, offset_x, offset_y), img(img) {}
+      : HipaccAccessorBase(static_cast<int>(width), static_cast<int>(height), offset_x, offset_y), img(img) {}
   HipaccAccessor(HipaccImageCpu img)
-      : HipaccAccessorBase(img->get_width(), img->get_height(), 0, 0), img(img) {}
+      : HipaccAccessorBase(static_cast<int>(img->get_width()), static_cast<int>(img->get_height()), 0, 0), img(img) {}
 };
 
 template<typename T>

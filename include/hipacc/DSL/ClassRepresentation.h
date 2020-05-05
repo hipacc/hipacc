@@ -410,10 +410,10 @@ class HipaccKernelClass {
 
     const std::string &getName() const { return name; }
 
-    void setKernelFunction(CXXMethodDecl *fun, CompilerKnownClasses &classes) {
+    void setKernelFunction(CXXMethodDecl *fun, CompilerKnownClasses &classes, bool verbose=false) {
       kernelFunction = fun;
       kernelStatistics = KernelStatistics::create(fun, name, output_image,
-          classes);
+          classes, verbose);
     }
 
     void setReduceFunction(CXXMethodDecl *fun) { reduceFunction = fun; }

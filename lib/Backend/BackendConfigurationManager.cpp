@@ -210,12 +210,14 @@ BackendConfigurationManager::BackendConfigurationManager(CompilerOptions *pCompi
 
 
   // Init all known common switches
-  _InitSwitch<KnownSwitches::Help      >(CompilerSwitchTypeEnum::Help);
-  _InitSwitch<KnownSwitches::OutputFile>(CompilerSwitchTypeEnum::OutputFile);
-  _InitSwitch<KnownSwitches::Version   >(CompilerSwitchTypeEnum::Version);
-  _InitSwitch<KnownSwitches::IncludeDir>(CompilerSwitchTypeEnum::IncludeDir);
-  _InitSwitch<KnownSwitches::Define    >(CompilerSwitchTypeEnum::Define);
-  _InitSwitch<KnownSwitches::RTIncPath >(CompilerSwitchTypeEnum::RTIncPath);
+  _InitSwitch<KnownSwitches::Help       >(CompilerSwitchTypeEnum::Help);
+  _InitSwitch<KnownSwitches::OutputFile >(CompilerSwitchTypeEnum::OutputFile);
+  _InitSwitch<KnownSwitches::Version    >(CompilerSwitchTypeEnum::Version);
+  _InitSwitch<KnownSwitches::Verbose    >(CompilerSwitchTypeEnum::Verbose);
+  _InitSwitch<KnownSwitches::IncludeDir >(CompilerSwitchTypeEnum::IncludeDir);
+  _InitSwitch<KnownSwitches::Define     >(CompilerSwitchTypeEnum::Define);
+  _InitSwitch<KnownSwitches::RTIncPath  >(CompilerSwitchTypeEnum::RTIncPath);
+  _InitSwitch<KnownSwitches::TimeKernels>(CompilerSwitchTypeEnum::TimeKernels);
 
 
   // Init known backends
@@ -292,6 +294,11 @@ size_t BackendConfigurationManager::_HandleSwitch(std::string strSwitch, CommonD
 
       throw RuntimeErrors::AbortException(EXIT_SUCCESS);
     }
+  case CompilerSwitchTypeEnum::Verbose:
+    {
+      _pCompilerOptions->setPrintVerbose(USER_ON);
+    }
+    break;
   case CompilerSwitchTypeEnum::IncludeDir:
   case CompilerSwitchTypeEnum::Define:
     {
@@ -310,6 +317,11 @@ size_t BackendConfigurationManager::_HandleSwitch(std::string strSwitch, CommonD
     {
       _pCompilerOptions->setRTIncPath(KnownSwitches::RTIncPath::OptionParser::Parse(rvecArguments[szCurIndex + 1]));
       ++szReturnIndex;
+    }
+    break;
+  case CompilerSwitchTypeEnum::TimeKernels:
+    {
+      _pCompilerOptions->setTimeKernels(USER_ON);
     }
     break;
   default:  throw InternalErrors::UnhandledSwitchException(strSwitch);
@@ -440,13 +452,12 @@ CommonDefines::ArgumentVectorType BackendConfigurationManager::GetClangArguments
   vecClangArguments.push_back(std::string("-I") + std::string(CLANG_LIB_INCLUDE_DIR));
 #endif // _MSC_VER
 
-
-  // Add exception support
-  vecClangArguments.push_back("-fexceptions");
-
-  // Set C++ 11 support
-  vecClangArguments.push_back("-std=c++14");
-  vecClangArguments.push_back("-nostdinc++");
+  // Add code generator unrecognized arguments
+  if (_spSelectedCodeGenerator)
+  {
+    CommonDefines::ArgumentVectorType vecUnknownArgs = _spSelectedCodeGenerator->GetUnknownArguments();
+    vecClangArguments.insert( vecClangArguments.end(), vecUnknownArgs.begin(), vecUnknownArgs.end() );
+  }
 
   // Add output file
   vecClangArguments.push_back("-o");

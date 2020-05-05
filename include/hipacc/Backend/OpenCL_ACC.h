@@ -56,7 +56,6 @@ namespace Backend
       PixelsPerThread,    //!< ID of the "pixels per thread" switch
       ReduceConfig,       //!< ID of the "reduce configuration selection" switch
       Target,             //!< ID of the "target device selection" switch
-      TimeKernels,        //!< ID of the "kernel timing" switch
       UseConfig,          //!< ID of the "kernel configuration selection" switch
       UseLocal,           //!< ID of the "use local/shared memory" switch
       Vectorize           //!< ID of the "kernel vectorization" switch

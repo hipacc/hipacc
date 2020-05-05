@@ -34,10 +34,10 @@ endif()
 
 set(HIPACC_OPTIONS_CPU "")
 set(HIPACC_OPTIONS_CUDA "-nvcc-path" "${NVCC_EXE}" "-ccbin-path" "${CCBIN_PATH}")
-set(HIPACC_OPTIONS_OPENCL "-cl-compiler-path" "${CL_COMPILER_EXE}")
+set(HIPACC_OPTIONS_OPENCL "")
 set(HIPACC_OPTIONS_OPENCL_ACC ${HIPACC_OPTIONS_OPENCL})
 set(HIPACC_OPTIONS_OPENCL_CPU ${HIPACC_OPTIONS_OPENCL})
-set(HIPACC_OPTIONS_OPENCL_GPU ${HIPACC_OPTIONS_OPENCL})
+set(HIPACC_OPTIONS_OPENCL_GPU ${HIPACC_OPTIONS_OPENCL} "-cl-compiler-path" "${CL_COMPILER_EXE}")
 set(HIPACC_RT_INCLUDE_DIRS "${HIPACC_PATH}/include/")
 
 function(add_hipacc_sources)
@@ -61,6 +61,8 @@ function(add_hipacc_sources)
 
     get_target_property(TARGET_CXX_STANDARD ${ARG_TARGET} CXX_STANDARD)
     list(APPEND _HIPACC_OPTIONS "-std=c++${TARGET_CXX_STANDARD}")
+    list(APPEND _HIPACC_OPTIONS "-nostdinc++")
+    list(APPEND _HIPACC_OPTIONS "-fexceptions")
 
     ##################################
     # check hipacc version requirement

@@ -13,6 +13,9 @@ include_directories(${CMAKE_SOURCE_DIR}/runtime
 
 add_library(hipaccRuntime ${Runtime_SOURCES})
 
+target_compile_options(hipaccRuntime PRIVATE
+   -DCL_TARGET_OPENCL_VERSION=${OpenCL_VERSION_MAJOR}${OpenCL_VERSION_MINOR}0)
+
 # this library is not installed because the static runtime lib has been skipped in favour of the header-only runtime\
 # this library is only build to detect compilation issues during the build of Hipacc
 #install(TARGETS hipaccRuntime EXPORT ${TARGETS_EXPORT_NAME} ARCHIVE DESTINATION lib COMPONENT runtime)

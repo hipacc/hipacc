@@ -101,12 +101,6 @@ inline void checkErrNVRTC(nvrtcResult err, const std::string &name) {
   }
 }
 
-//extern HipaccKernelTimingBase hipaccCudaTiming;
-inline float hipacc_last_kernel_timing() {
-  //return hipaccCudaTiming.get_last_kernel_timing();
-  return 0.f;
-}
-
 // TODO: what is the purpose of this empty class?
 class HipaccContext {
 public:
@@ -273,7 +267,7 @@ void hipaccLaunchKernel(const void *kernel, std::string const& kernel_name, dim3
                         dim3 &block, void **args, bool print_timing = false, const int shared_memory_size = 0);
 template <typename KernelFunction, typename... KernelParameters>
 void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridDim, dim3 const &blockDim, HipaccExecutionParameter const& ep,
-                        size_t shared_memory, KernelParameters &&... parameters);
+                        bool print_timing, size_t shared_memory, KernelParameters &&... parameters);
 
 //
 // TEMPLATES
@@ -344,18 +338,6 @@ void hipaccBindSurfaceDrv(CUsurfref &surface, const HipaccImageCuda<T> &img);
 // REDUCTIONS AND BINNING
 //
 
-template <typename T>
-T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name,
-                       const void *kernel1D, std::string kernel1D_name,
-                       const HipaccAccessor<T> &acc, unsigned int max_threads,
-                       unsigned int pixels_per_thread,
-                       const textureReference *tex);
-template <typename T>
-T hipaccApplyReduction(const void *kernel2D, std::string kernel2D_name,
-                       const void *kernel1D, std::string kernel1D_name,
-                       const HipaccImageCuda<T> &img, unsigned int max_threads,
-                       unsigned int pixels_per_thread,
-                       const textureReference *tex);
 template <typename T, class KernelFunc>
 T hipaccApplyReductionShared(const KernelFunc &kernel2D,
                                   const HipaccAccessor<T> &acc,
@@ -367,7 +349,7 @@ T hipaccApplyReductionShared(const KernelFunc &kernel2D,
                                   const HipaccImageCuda<T> &img,
                                   unsigned int max_threads,
                                   unsigned int pixels_per_thread,
-                                  HipaccExecutionParameter const &ep, 
+                                  HipaccExecutionParameter const &ep,
                                   const textureReference *tex);
 
 #ifndef SEGMENT_SIZE
@@ -378,7 +360,7 @@ template <typename T, typename T2>
 T *hipaccApplyBinningSegmented(const void *kernel2D, std::string const& kernel2D_name,
                                HipaccAccessor<T2> &acc, unsigned int num_hists,
                                unsigned int num_warps, unsigned int num_bins,
-                               const textureReference *tex);
+                               const textureReference *tex, bool print_timing);
 
 //
 // PYRAMID

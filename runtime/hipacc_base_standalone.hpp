@@ -32,6 +32,12 @@
 #ifndef __HIPACC_BASE_STANDALONE_HPP__
 #define __HIPACC_BASE_STANDALONE_HPP__
 
+inline HipaccKernelTimingBase &HipaccKernelTimingBase::getInstance() {
+  thread_local HipaccKernelTimingBase instance;
+
+  return instance;
+}
+
 inline hipacc_launch_info::hipacc_launch_info(int size_x, int size_y, int is_width,
                                        int is_height, int offset_x,
                                        int offset_y, int pixels_per_thread,

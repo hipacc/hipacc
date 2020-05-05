@@ -654,7 +654,7 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
     for (auto method : D->methods()) {
       // kernel function
       if (method->getNameAsString() == "kernel") {
-        KC->setKernelFunction(method, compilerClasses);
+        KC->setKernelFunction(method, compilerClasses, compilerOptions.printVerbose());
         continue;
       }
 
@@ -1437,7 +1437,10 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           Stmt *kernelStmts =
             Hipacc->Hipacc(KC->getKernelFunction()->getBody());
           kernelDecl->setBody(kernelStmts);
-          K->printStats();
+
+          if (compilerOptions.printVerbose()) {
+            K->printStats();
+          }
 
           // translate binning function if we have one
           if (KC->getBinningFunction()) {
@@ -1525,7 +1528,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
     HipaccPyramid *PyrLHS = nullptr, *PyrRHS = nullptr;
     HipaccMask *DomLHS = nullptr;
     std::string PyrIdxLHS, PyrIdxRHS;
-    unsigned DomIdxX, DomIdxY;
+    unsigned DomIdxX{}, DomIdxY{};
 
     // check first parameter
     if (auto DRE = dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
@@ -1816,6 +1819,11 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
             stringCreator.writeBinningCall(K, callStr);
 
             resultStr = K->getBinningStr();
+
+            if (compilerOptions.emitC99()) {
+              // for CPU we return a vector, get access to its data
+              resultStr += ".data()";
+            }
           } else {
             hipacc_require(K->getKernelClass()->getReduceFunction()
                    , "Called reduced_data() but no reduce function defined!");
@@ -2027,9 +2035,12 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
     Diags.Report(DiagIDCompile)
       << K->getFileName() << (const char*)(compilerOptions.emitCUDA()?"cu":"cl")
       << command.c_str();
-    for (auto line : lines)
-      llvm::errs() << line;
-  } else {
+    if (compilerOptions.printVerbose()) {
+      // print full command output
+      for (auto line : lines)
+        llvm::errs() << line;
+    }
+  } else if (compilerOptions.printVerbose()) {
     if (targetDevice.isNVIDIAGPU()) {
       llvm::errs() << "Resource usage for kernel '" << K->getKernelName() << "'"
                    << ": " << reg << " registers, "

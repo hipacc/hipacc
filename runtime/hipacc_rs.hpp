@@ -199,18 +199,6 @@ void hipaccLaunchKernel(F *script,
                         void (F::*kernel)(sp<Allocation>, sp<Allocation>),
                         const HipaccImage &in, HipaccImage &out,
                         size_t *work_size, bool print_timing = true);
-template <typename F>
-void hipaccLaunchKernelBenchmark(F *script, void (F::*kernel)(sp<Allocation>),
-                                 HipaccImage &out, size_t *work_size,
-                                 std::vector<hipacc_script_arg<F>> args,
-                                 bool print_timing = true);
-template <typename F, typename T>
-void hipaccLaunchKernelExploration(F *script, void (F::*kernel)(sp<Allocation>),
-                                   std::vector<hipacc_script_arg<F>> args,
-                                   std::vector<hipacc_smem_info>,
-                                   hipacc_launch_info &info, int warp_size, int,
-                                   int max_threads_for_kernel, int, int, int,
-                                   HipaccImage &out);
 template <typename F, typename T>
 T hipaccApplyReduction(F *script, void (F::*kernel2D)(sp<Allocation>),
                        void (F::*kernel1D)(sp<Allocation>),

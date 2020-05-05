@@ -229,6 +229,7 @@ class HipaccDevice : public HipaccDeviceOptions {
       switch (target_device) {
         case Device::CPU:
           max_threads_per_warp = 1;
+          max_threads_per_block = 8192; // taken from Intel OpenCL Runtime
           break;
         case Device::Fermi_20:
           max_threads_per_block = 1024;

@@ -62,9 +62,11 @@ FunctionDecl *ASTTranslate::cloneFunction(FunctionDecl *FD) {
     TranslationMode oldMode = astMode;
     astMode = CloneAST;
 
-    llvm::errs() << "Cloning function '"
-                 << FD->getNameAsString() << "' "
-                 << "for execution on device.\n";
+    if (compilerOptions.printVerbose()) {
+      llvm::errs() << "NOTE: Cloning function '"
+                   << FD->getNameAsString() << "' "
+                   << "for execution on device.\n";
+    }
 
     // check return type
     QualType retType = FD->getReturnType();
@@ -684,7 +686,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
   }
 
   // initialize target-specific variables, add gid_x and gid_y declarations
-  FunctionDecl *barrier;
+  FunctionDecl *barrier{ nullptr };
   switch (compilerOptions.getTargetLang()) {
     case Language::C99:
       initCPU(kernelBody, S);
@@ -783,7 +785,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       sharedName += img->getNameAsString();
       use_shared = true;
 
-      VarDecl *VD;
+      VarDecl *VD{ nullptr };
       QualType QT;
       // __shared__ T _smemIn[SY-1 + BSY*PPT][3 * BSX];
       // for left and right halo, add 2*BSX

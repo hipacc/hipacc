@@ -134,6 +134,7 @@ namespace Backend
     CompilerSwitchMapType               _mapKnownSwitches;      //!< The dictionary of known compiler switches.
     const CodeGeneratorDescriptorBase   _Descriptor;            //!< The description object for the derived code generator.
     ::clang::PrintingPolicy             *_pPrintPolicy;         //!< A pointer to the global clang printing policy object.
+    CommonDefines::ArgumentVectorType   _unknownOptions;         //!< The set of unrecognized compiler switches.
     //@}
 
 
@@ -297,8 +298,11 @@ namespace Backend
               i++;
             }
           } else {
-            llvm::errs() << "WARNING: Switch " << strSwitch
-                << " is not supported for target " << GetName() << "\n";
+            _unknownOptions.push_back(strSwitch);
+            if (GetCompilerOptions().printVerbose()) {
+              llvm::errs() << "NOTE: Switch " << strSwitch << " is not supported for target "
+                << GetName() << ", forwarded to Clang\n";
+            }
             //throw RuntimeErrors::UnknownSwitchException(strSwitch, GetName());
           }
         } else {
@@ -313,6 +317,11 @@ namespace Backend
     virtual CommonDefines::ArgumentVectorType GetAdditionalClangArguments() const override
     {
       return CommonDefines::ArgumentVectorType();  // By default no additional arguments required
+    }
+
+    virtual CommonDefines::ArgumentVectorType GetUnknownArguments() const override
+    {
+      return _unknownOptions;
     }
 
     // Default override for code generators which do not print the kernel function themselves

@@ -1,52 +1,58 @@
 #ifdef USE_OPENMP
-#include <omp.h>
-#define GET_NUM_CORES omp_get_num_procs()
-#define GET_THREAD_ID omp_get_thread_num()
-#define OPENMP_PRAGMA _Pragma("omp parallel for")
+# include <omp.h>
+# define GET_NUM_CORES omp_get_num_procs()
+# define GET_THREAD_ID omp_get_thread_num()
+# ifdef _MSC_VER
+#   define OPENMP_PRAGMA __pragma(omp parallel for)
+#   define OPENMP_PRAGMA_TID __pragma(omp parallel for firstprivate(tid))
+# else
+#   define OPENMP_PRAGMA _Pragma("omp parallel for")
+#   define OPENMP_PRAGMA_TID _Pragma("omp parallel for firstprivate(tid)")
+# endif
 #else
-#define GET_NUM_CORES 1
-#define GET_THREAD_ID 0
-#define OPENMP_PRAGMA
+# define GET_NUM_CORES 1
+# define GET_THREAD_ID 0
+# define OPENMP_PRAGMA
+# define OPENMP_PRAGMA_TID
 #endif
 
 #define REDUCTION_CPU_2D(NAME, DATA_TYPE, REDUCE, PPT)                         \
   inline DATA_TYPE NAME##Kernel(DATA_TYPE *input, int width,                   \
                                 int height, int stride, int offset_x = 0,      \
                                 int offset_y = 0) {                            \
-    int num_cores = GET_NUM_CORES;                                             \
+    int tid = -1;                                                              \
+    const int num_cores = GET_NUM_CORES;                                       \
                                                                                \
     std::vector<DATA_TYPE> part_result(num_cores);                             \
-    std::vector<int> init(num_cores);                                          \
-                                                                               \
-    for (int tid = 0; tid < num_cores; ++tid) {                                \
-      init[tid] = 1;                                                           \
-    }                                                                          \
                                                                                \
     int end = height / PPT;                                                    \
                                                                                \
-    OPENMP_PRAGMA                                                              \
+    OPENMP_PRAGMA_TID                                                          \
     for (int gid_y = 0; gid_y < end; ++gid_y) {                                \
-      const int tid = GET_THREAD_ID;                                           \
       int y = offset_y + gid_y * PPT;                                          \
-      if (init[tid] == 1)                                                      \
+      int skip = 0;                                                            \
+      if (tid == -1) {                                                         \
+        tid = GET_THREAD_ID;                                                   \
         part_result[tid] = input[y * stride + offset_x];                       \
+        skip = 1;                                                              \
+      }                                                                        \
                                                                                \
       for (int p = 0; p < PPT; ++p) {                                          \
         int gy = y + p;                                                        \
-        for (int gid_x = offset_x + init[tid]; gid_x < offset_x + width;       \
+        for (int gid_x = offset_x + skip; gid_x < offset_x + width;            \
              ++gid_x) {                                                        \
           part_result[tid] = REDUCE(part_result[tid], input[gy * stride + gid_x]); \
         }                                                                      \
-        init[tid] = 0;                                                         \
       }                                                                        \
     }                                                                          \
                                                                                \
     if (int missing = height % PPT) {                                          \
       int gid_y = offset_y + end * PPT;                                        \
+      tid = -1;                                                                \
                                                                                \
-      OPENMP_PRAGMA                                                            \
+      OPENMP_PRAGMA_TID                                                        \
       for (int m = 0; m < missing; ++m) {                                      \
-        const int tid = GET_THREAD_ID;                                         \
+        if (tid == -1) tid = GET_THREAD_ID;                                    \
         int gy = gid_y + m;                                                    \
         for (int gid_x = offset_x; gid_x < offset_x + width; ++gid_x) {        \
           part_result[tid] = REDUCE(part_result[tid], input[gy * stride + gid_x]); \
@@ -58,9 +64,7 @@
       part_result[0] = REDUCE(part_result[0], part_result[i]);                 \
     }                                                                          \
                                                                                \
-    DATA_TYPE result = part_result[0];                                         \
-                                                                               \
-    return result;                                                             \
+    return part_result[0];                                                     \
   }
 
 #define BINNING_CPU_2D(NAME, DATA_TYPE, BIN_TYPE, REDUCE, BINNING, PPT)        \
@@ -71,20 +75,21 @@
     }                                                                          \
   }                                                                            \
                                                                                \
-  inline BIN_TYPE *NAME##Kernel(DATA_TYPE *input, uint num_bins,               \
+  inline std::vector<BIN_TYPE> NAME##Kernel(DATA_TYPE *input, uint num_bins,   \
                                 int width, int height, int stride,             \
                                 int offset_x = 0, int offset_y = 0) {          \
-    int num_cores = GET_NUM_CORES;                                             \
+    int tid = -1;                                                              \
+    const int num_cores = GET_NUM_CORES;                                       \
                                                                                \
     std::vector<BIN_TYPE> bins(num_bins);                                      \
-    std::vector<BIN_TYPE> lbins(num_cores *num_bins);                          \
+    std::vector<BIN_TYPE> lbins(num_cores * num_bins);                         \
                                                                                \
     int end = height / PPT;                                                    \
                                                                                \
-    OPENMP_PRAGMA                                                              \
+    OPENMP_PRAGMA_TID                                                          \
     for (int gid_y = 0; gid_y < end; ++gid_y) {                                \
-      const int tid = GET_THREAD_ID;                                           \
       int y = offset_y + gid_y * PPT;                                          \
+      if (tid == -1) tid = GET_THREAD_ID;                                      \
                                                                                \
       for (int p = 0; p < PPT; ++p) {                                          \
         int gy = y + p;                                                        \
@@ -97,10 +102,11 @@
                                                                                \
     if (int missing = height % PPT) {                                          \
       int gid_y = offset_y + end * PPT;                                        \
+      tid = -1;                                                                \
                                                                                \
-      OPENMP_PRAGMA                                                            \
+      OPENMP_PRAGMA_TID                                                        \
       for (int m = 0; m < missing; ++m) {                                      \
-        const int tid = GET_THREAD_ID;                                         \
+        if (tid == -1) tid = GET_THREAD_ID;                                    \
         int gy = gid_y + m;                                                    \
         for (int gid_x = offset_x; gid_x < offset_x + width; ++gid_x) {        \
           BINNING(&lbins[tid * num_bins], num_bins, num_bins, gid_x, gy,       \
@@ -110,7 +116,7 @@
     }                                                                          \
                                                                                \
     OPENMP_PRAGMA                                                              \
-    for (uint i = 0; i < num_bins; ++i) {                                      \
+    for (int i = 0; i < num_bins; ++i) {                                       \
       for (int tid = 0; tid < num_cores; ++tid) {                              \
         bins[i] = REDUCE(bins[i], lbins[tid * num_bins + i]);                  \
       }                                                                        \

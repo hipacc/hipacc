@@ -41,8 +41,6 @@
 #define WEXITSTATUS(x) (x != 0)
 #endif
 
-//HipaccKernelTimingBase hipaccCudaTiming;
-
 inline std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
   const char *error_name(nullptr);
   const char *error_string(nullptr);
@@ -140,7 +138,7 @@ inline void hipaccInitCUDA() {
                               std::to_string(nvrtc_minor));
 #endif
 
-  for (size_t i = 0; i < (size_t)device_count; ++i) {
+  for (int i = 0; i < device_count; ++i) {
     cudaDeviceProp device_prop;
 
     err = cudaSetDevice(i);
@@ -229,7 +227,7 @@ inline void hipaccLaunchKernel(const void *kernel, std::string const& kernel_nam
   cudaEvent_t start, end;
   float last_gpu_timing;
 
-  if(print_timing)
+  if (print_timing)
   {
     cudaEventCreate(&start);
     cudaEventCreate(&end);
@@ -239,17 +237,13 @@ inline void hipaccLaunchKernel(const void *kernel, std::string const& kernel_nam
   cudaError_t err = cudaLaunchKernel(kernel, grid, block, args, shared_memory_size, 0);
   checkErr(err, "cudaLaunchKernel(" + kernel_name + ")");
 
-  if(print_timing)
+  if (print_timing)
   {
-    cudaDeviceSynchronize();
-    err = cudaGetLastError();
-    checkErr(err, "cudaLaunchKernel(" + kernel_name + ")");
-
     cudaEventRecord(end, 0);
     cudaEventSynchronize(end);
     cudaEventElapsedTime(&last_gpu_timing, start, end);
 
-    //hipaccCudaTiming.set_gpu_timing(last_gpu_timing);
+    HipaccKernelTimingBase::getInstance().set_timing(last_gpu_timing);
 
     cudaEventDestroy(start);
     cudaEventDestroy(end);
@@ -283,7 +277,7 @@ namespace detail
 template <typename KernelFunction, typename... KernelParameters>
 void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridDim,
                         dim3 const &blockDim, HipaccExecutionParameter const& ep,
-                        size_t shared_memory, KernelParameters &&... parameters) 
+                        bool print_timing, size_t shared_memory, KernelParameters &&... parameters)
 {
   constexpr auto non_zero_num_params = sizeof...(KernelParameters) == 0 ? 1 : sizeof...(KernelParameters);
   void *argument_ptrs[non_zero_num_params];
@@ -293,11 +287,39 @@ void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridD
       detail::is_invocable<KernelFunction, KernelParameters...>::value,
       "mismatch of kernel parameters");
 
+  cudaEvent_t start, end;
+  float last_gpu_timing;
+
+  if (print_timing)
+  {
+    cudaEventCreate(&start);
+    cudaEventCreate(&end);
+    cudaEventRecord(start, 0);
+  }
+
   cudaError_t err = cudaLaunchKernel(
       reinterpret_cast<void const *>(&kernel_function), gridDim, blockDim,
       &(argument_ptrs[0]), shared_memory, ep.stream);
 
   checkErr(err, (std::string("cudaLaunchKernel(") + __FUNCTION__ + ")"));
+
+  if (print_timing)
+  {
+    cudaEventRecord(end, 0);
+    cudaEventSynchronize(end);
+    cudaEventElapsedTime(&last_gpu_timing, start, end);
+
+    HipaccKernelTimingBase::getInstance().set_timing(last_gpu_timing);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(end);
+
+    hipaccRuntimeLogTrivial(
+        hipaccRuntimeLogLevel::INFO,
+        "<HIPACC:> Kernel timing (" + std::to_string(blockDim.x * blockDim.y) + ": " +
+            std::to_string(blockDim.x) + "x" + std::to_string(blockDim.y) +
+            "): " + std::to_string(last_gpu_timing) + "(ms)");
+  }
 }
 
 //
@@ -315,8 +337,8 @@ inline void hipaccCreateModule(CUmodule &module, const void *ptx, int cc) {
   CUjit_option options[] = {CU_JIT_ERROR_LOG_BUFFER,
                             CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET,
                             CU_JIT_OPTIMIZATION_LEVEL};
-  void *option_values[] = {(void *)error_log_buffer, (void *)error_log_size,
-                           (void *)target_cc, (void *)opt_level};
+  void *option_values[] = {(void *)error_log_buffer, (void *)&error_log_size,
+                           (void *)&target_cc, (void *)&opt_level};
 
   CUresult err =
       cuModuleLoadDataEx(&module, ptx, num_options, options, option_values);
@@ -348,7 +370,7 @@ inline void hipaccCompileCUDAToModule(CUmodule &module, std::string file_name, i
   checkErrNVRTC(err, "nvrtcCreateProgram()");
 
   int offset = 2;
-  int num_options = build_options.size() + offset;
+  int num_options = static_cast<int>(build_options.size()) + offset;
   const char **options = new const char *[num_options];
   std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
   options[0] = compute_arch.c_str();
@@ -423,39 +445,6 @@ inline void hipaccPrintKernelOccupancy(CUfunction fun, int tile_size_x,
                               std::to_string(active_warps) + " out of " +
                               std::to_string(max_warps_per_multiprocessor) +
                               " warps)");
-}
-
-// Launch kernel
-inline void hipaccLaunchKernel(CUfunction &kernel, std::string const& kernel_name, dim3 &grid,
-                        dim3 &block, void **args, bool print_timing, const int shared_memory_size) {
-  cudaEvent_t start, end;
-  float last_gpu_timing;
-
-  cudaEventCreate(&start);
-  cudaEventCreate(&end);
-  cudaEventRecord(start, 0);
-
-  CUresult err = cuLaunchKernel(kernel, grid.x, grid.y, grid.z, block.x,
-                                block.y, block.z, shared_memory_size, NULL, args, NULL);
-  checkErrDrv(err, "cuLaunchKernel(" + kernel_name + ")");
-  err = cuCtxSynchronize();
-  checkErrDrv(err, "cuLaunchKernel(" + kernel_name + ")");
-
-  cudaEventRecord(end, 0);
-  cudaEventSynchronize(end);
-  cudaEventElapsedTime(&last_gpu_timing, start, end);
-
-  // hipaccCudaTiming.set_gpu_timing(last_gpu_timing);
-
-  cudaEventDestroy(start);
-  cudaEventDestroy(end);
-
-  if (print_timing)
-    hipaccRuntimeLogTrivial(
-        hipaccRuntimeLogLevel::INFO,
-        "<HIPACC:> Kernel timing (" + std::to_string(block.x * block.y) + ": " +
-            std::to_string(block.x) + "x" + std::to_string(block.y) +
-            "): " + std::to_string(last_gpu_timing) + "(ms)");
 }
 
 // Get global reference from module

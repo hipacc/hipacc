@@ -50,7 +50,6 @@ OpenCL_ACC::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pComp
   _InitSwitch<AcceleratorDeviceSwitches::PixelsPerThread>(CompilerSwitchTypeEnum::PixelsPerThread);
   _InitSwitch<AcceleratorDeviceSwitches::ReduceConfig   >(CompilerSwitchTypeEnum::ReduceConfig);
   _InitSwitch<AcceleratorDeviceSwitches::Target         >(CompilerSwitchTypeEnum::Target);
-  _InitSwitch<AcceleratorDeviceSwitches::TimeKernels    >(CompilerSwitchTypeEnum::TimeKernels);
   _InitSwitch<AcceleratorDeviceSwitches::UseConfig      >(CompilerSwitchTypeEnum::UseConfig);
   _InitSwitch<AcceleratorDeviceSwitches::UseLocal       >(CompilerSwitchTypeEnum::UseLocal);
   _InitSwitch<AcceleratorDeviceSwitches::Vectorize      >(CompilerSwitchTypeEnum::Vectorize);
@@ -94,9 +93,6 @@ size_t OpenCL_ACC::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, 
       GetCompilerOptions().setTargetDevice(_ParseOption<AcceleratorDeviceSwitches::Target>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
-    break;
-  case CompilerSwitchTypeEnum::TimeKernels:
-    GetCompilerOptions().setTimeKernels(USER_ON);
     break;
   case CompilerSwitchTypeEnum::UseConfig:
     {

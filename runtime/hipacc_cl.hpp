@@ -52,8 +52,6 @@
 
 #include "hipacc_base.hpp"
 
-#define EVENT_TIMING
-
 enum cl_platform_name {
   AMD = 0x1,
   APPLE = 0x2,
@@ -69,11 +67,6 @@ std::string getOpenCLErrorCodeStr(int error);
 
 inline void __checkOpenCLErrors(cl_int err, const std::string &name,
                                 const std::string &file, const int line);
-
-extern HipaccKernelTimingBase hipaccClTiming;
-inline float hipacc_last_kernel_timing() {
-  return hipaccClTiming.get_last_kernel_timing();
-}
 
 class HipaccContext {
 private:
@@ -158,9 +151,9 @@ public:
 public:
   HipaccAccessor(HipaccImageOpenCL img, size_t width, size_t height,
                  int32_t offset_x = 0, int32_t offset_y = 0)
-      : HipaccAccessorBase(width, height, offset_x, offset_y), img(img) {}
+      : HipaccAccessorBase(static_cast<int>(width), static_cast<int>(height), offset_x, offset_y), img(img) {}
   HipaccAccessor(HipaccImageOpenCL img)
-      : HipaccAccessorBase(img->get_width(), img->get_height(), 0, 0), img(img) {}
+      : HipaccAccessorBase(static_cast<int>(img->get_width()), static_cast<int>(img->get_height()), 0, 0), img(img) {}
 };
 
 template<typename T>
@@ -218,18 +211,6 @@ double hipaccCopyBufferBenchmark(const HipaccImageOpenCL &src,
                                  bool print_timing = false);
 void hipaccLaunchKernel(cl_kernel kernel, size_t *global_work_size,
                         size_t *local_work_size, bool print_timing = true);
-void hipaccLaunchKernelBenchmark(cl_kernel kernel, size_t *global_work_size,
-                                 size_t *local_work_size,
-                                 std::vector<std::pair<size_t, void *>> &args,
-                                 bool print_timing = true);
-void hipaccLaunchKernelExploration(std::string filename, std::string kernel,
-                                   std::vector<std::pair<size_t, void *>> &args,
-                                   std::vector<hipacc_smem_info> &smems,
-                                   hipacc_launch_info &info, int warp_size,
-                                   int max_threads_per_block,
-                                   int max_threads_for_kernel,
-                                   int max_smem_per_block, int heu_tx,
-                                   int heu_ty);
 
 template <typename T>
 HipaccImageOpenCL
@@ -264,23 +245,11 @@ void hipaccSetKernelArg(cl_kernel kernel, unsigned int num, size_t size,
 template <typename T>
 T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
                        const HipaccAccessor &acc, unsigned int max_threads,
-                       unsigned int pixels_per_thread);
+                       unsigned int pixels_per_thread, bool print_timing);
 template <typename T>
 T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
                        const HipaccImageOpenCL &img, unsigned int max_threads,
-                       unsigned int pixels_per_thread);
-template <typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-                                  std::string kernel1D,
-                                  const HipaccAccessor &acc,
-                                  unsigned int max_threads,
-                                  unsigned int pixels_per_thread);
-template <typename T>
-T hipaccApplyReductionExploration(std::string filename, std::string kernel2D,
-                                  std::string kernel1D,
-                                  const HipaccImageOpenCL &img,
-                                  unsigned int max_threads,
-                                  unsigned int pixels_per_thread);
+                       unsigned int pixels_per_thread, bool print_timing);
 
 #ifndef SEGMENT_SIZE
 #define SEGMENT_SIZE 128
@@ -289,7 +258,7 @@ template <typename T, typename T2>
 T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D,
                                const HipaccAccessor &acc,
                                unsigned int num_hists, unsigned int num_warps,
-                               unsigned int num_bins);
+                               unsigned int num_bins, bool print_timing);
 //
 // PYRAMID
 //

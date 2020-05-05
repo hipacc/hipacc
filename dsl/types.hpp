@@ -27,6 +27,8 @@
 #define __TYPES_HPP__
 
 #include <cstdint>
+#include <limits>
+#include <type_traits>
 
 typedef unsigned char   uchar;
 typedef unsigned short  ushort;
@@ -208,7 +210,15 @@ ATTRIBUTES NEW_TYPE operator+(NEW_TYPE a) { \
  /* unary operator: minus */ \
  \
 ATTRIBUTES NEW_TYPE operator-(NEW_TYPE a) { \
-    return make_##NEW_TYPE(-a.x, -a.y, -a.z, -a.w); \
+    if (std::is_unsigned<BASIC_TYPE>::value) { \
+      /* if unsigned: -x == max_val-x+1 (according to C99 section 6.2.5c9) */ \
+      auto m = std::numeric_limits<BASIC_TYPE>::max(); \
+      return make_##NEW_TYPE(m-a.x+1, m-a.y+1, m-a.z+1, m-a.w+1); \
+    } else { \
+      /* if signed: -x == 0-x */ \
+      BASIC_TYPE n = static_cast<BASIC_TYPE>(0); \
+      return make_##NEW_TYPE(n-a.x, n-a.y, n-a.z, n-a.w); \
+    } \
 } \
  \
  /* relational operator: greater-than */ \

@@ -67,9 +67,11 @@ namespace Backend
       Help,         //!< ID of the "print help" switch
       OutputFile,   //!< ID of the "output file" switch
       Version,      //!< ID of the "print version" switch
+      Verbose,      //!< ID of the "verbose" switch
       IncludeDir,   //!< ID of the "include directory" switch
       Define,       //!< ID of the "define" switch
-      RTIncPath     //!< ID of the "runtime include" switch
+      RTIncPath,    //!< ID of the "runtime include" switch
+      TimeKernels   //!< ID of the "kernel timing" switch
     };
 
 
@@ -117,6 +119,7 @@ namespace Backend
         {
           AliasesVectorType vecDuplicates;
 
+          vecDuplicates.push_back("-h");
           vecDuplicates.push_back("-help");
 
           return vecDuplicates;
@@ -157,6 +160,30 @@ namespace Backend
           AliasesVectorType vecDuplicates;
 
           vecDuplicates.push_back("-version");
+
+          return vecDuplicates;
+        }
+      };
+
+      /** \brief  The switch type for the "verbose" switch. */
+      struct Verbose final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "--verbose"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return ""; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "Display verbose output"; }
+
+        /** \brief  Returns the vector of known aliases for this switch. */
+        inline static AliasesVectorType GetAliases()
+        {
+          AliasesVectorType vecDuplicates;
+
+          vecDuplicates.push_back("-v");
+          vecDuplicates.push_back("-verbose");
 
           return vecDuplicates;
         }
@@ -210,6 +237,22 @@ namespace Backend
         inline static AliasesVectorType GetAliases()    { return AliasesVectorType(); }
 
         typedef CommonDefines::OptionParsers::Path   OptionParser;   //!< Type definition for the option parser for this switch.
+      };
+
+      /** \brief  The switch type for the "kernel timing" switch. */
+      struct TimeKernels final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-time-kernels"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return ""; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()         { return "Emit code that measures accurate kernel timings"; }
+
+        /** \brief  Returns the vector of known aliases for this switch. */
+        inline static AliasesVectorType GetAliases()    { return AliasesVectorType(); }
       };
     };
 

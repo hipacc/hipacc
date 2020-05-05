@@ -3145,7 +3145,9 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
   {
     if (_szVectorWidth == static_cast<size_t>(0))
     {
-      llvm::errs() << "\nNOTE: No vector width for array export selected => Set default value \"4\"\n\n";
+      if (GetCompilerOptions().printVerbose()) {
+        llvm::errs() << "\nNOTE: No vector width for array export selected => Set default value \"4\"\n\n";
+      }
       _szVectorWidth = static_cast<size_t>(4);
     }
   }
@@ -3196,7 +3198,9 @@ size_t CPU_x86::CodeGenerator::_GetVectorWidth(Vectorization::AST::FunctionDecla
 
       if (_szVectorWidth == static_cast<size_t>(0))
       {
-        llvm::errs() << "\nNOTE: No vector width for the instruction set selected => Set kernel-based minimum value \"" << szMinVecWidth << "\"\n\n";
+        if (GetCompilerOptions().printVerbose()) {
+          llvm::errs() << "\nNOTE: No vector width for the instruction set selected => Set kernel-based minimum value \"" << szMinVecWidth << "\"\n\n";
+        }
         _szVectorWidth = szMinVecWidth;
       }
       else if (_szVectorWidth < szMinVecWidth)

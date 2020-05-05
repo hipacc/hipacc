@@ -73,6 +73,7 @@ class KernelStatistics : public ManagedAnalysis {
   private:
     explicit KernelStatistics(void *impl);
     void *impl;
+    bool verbose_;
 
   public:
     MemoryAccess getMemAccess(const FieldDecl *FD);
@@ -84,13 +85,13 @@ class KernelStatistics : public ManagedAnalysis {
 
     static KernelStatistics *computeKernelStatistics(AnalysisDeclContext
         &analysisContext, StringRef name, FieldDecl *output_image,
-        CompilerKnownClasses &compilerClasses);
+        CompilerKnownClasses &compilerClasses, bool verbose=false);
 
     static KernelStatistics *create(FunctionDecl *fun, StringRef name, FieldDecl
-        *output_image, CompilerKnownClasses &compilerClasses) {
+        *output_image, CompilerKnownClasses &compilerClasses, bool verbose=false) {
       AnalysisDeclContext AC(/* AnalysisDeclContextManager */ 0, fun);
       KernelStatistics::setAnalysisOptions(AC);
-      return computeKernelStatistics(AC, name, output_image, compilerClasses);
+      return computeKernelStatistics(AC, name, output_image, compilerClasses, verbose);
     }
 
     static void setAnalysisOptions(AnalysisDeclContext &AC) {
