@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://github.com/hipacc/hipacc/actions?query=workflow%3A%22Build+and+Test%22+branch%3Asiemens-dev"><img alt="Build and Test Status" src="https://github.com/hipacc/hipacc/workflows/Build%20and%20Test/badge.svg?branch=siemens-dev"></a>
+</p>
+
 # Hipacc
 A domain-specific language and compiler for image processing
 
@@ -13,6 +17,3 @@ See [Hipacc documentation](http://hipacc-lang.org/install.html) and [Install not
 
 See [Integration](./doc/INTEGRATION.md) for how to add Hipacc to cmake targets.
 
-<p align="center">
-  <a href="https://github.com/hipacc/hipacc/actions?query=workflow%3A%22Build+and+Test%22+branch%3Asiemens-dev"><img alt="Build and Test Status" src="https://github.com/hipacc/hipacc/workflows/Build%20and%20Test/badge.svg?branch=siemens-dev"></a>
-</p>
