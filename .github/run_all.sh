@@ -5,15 +5,25 @@
 
 set -e
 
+BRANCH=${1:-master}
+WORKSPACE="/workspace"
+
+mkdir -p "${WORKSPACE}"
+
+# Get sources if not existing
+if [ ! -d "${WORKSPACE}/hipacc" ]; then
+  git clone --recursive https://github.com/hipacc/hipacc -b ${BRANCH} "${WORKSPACE}/hipacc"
+fi
+
 # Start build
-$(dirname $0)/run_build.sh
+${WORKSPACE}/hipacc/.github/run_build.sh
 
 # Start tests in background
-$(dirname $0)/run_test.sh &
+${WORKSPACE}/hipacc/.github/run_tests.sh &
 PID_TEST=$!
 
 # Start package creation in background
-$(dirname $0)/run_package.sh &
+${WORKSPACE}/hipacc/.github/run_package.sh &
 PID_PACKAGE=$!
 
 # Wait for background processes

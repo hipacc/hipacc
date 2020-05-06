@@ -12,8 +12,6 @@ if [ ! -d "${WORKSPACE}/hipacc/build" ]; then
   exit 1
 fi
 
-mkdir -p "${WORKSPACE}/hipacc/build"
-
 cd "${WORKSPACE}/hipacc/build"
 cpack -G DEB
 

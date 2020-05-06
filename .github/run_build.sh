@@ -5,14 +5,11 @@
 
 set -e
 
-BRANCH=${1:-master}
 WORKSPACE="/workspace"
 
-mkdir -p "${WORKSPACE}"
-
-# get sources if not existing
 if [ ! -d "${WORKSPACE}/hipacc" ]; then
-  git clone --recursive https://github.com/hipacc/hipacc -b ${BRANCH} "${WORKSPACE}/hipacc"
+  echo "Error: Hipacc source directory not found."
+  exit 1
 fi
 
 mkdir -p "${WORKSPACE}/target"
