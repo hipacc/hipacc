@@ -52,7 +52,6 @@ namespace Backend
     enum class CompilerSwitchTypeEnum
     {
       EmitPadding,        //!< ID of the "image padding" switch
-      ExploreConfig,      //!< ID of the "kernel configuration exploration" switch
       PixelsPerThread,    //!< ID of the "pixels per thread" switch
       ReduceConfig,       //!< ID of the "reduce configuration selection" switch
       Target,             //!< ID of the "target device selection" switch

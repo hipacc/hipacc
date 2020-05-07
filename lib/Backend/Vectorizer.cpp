@@ -713,7 +713,7 @@ AST::FunctionDeclarationPtr Vectorizer::VASTBuilder::BuildFunctionDecl(::clang::
 {
   AST::FunctionDeclarationPtr spFunctionDecl = AST::FunctionDeclaration::Create( pFunctionDeclaration->getName() );
 
-  for (size_t i = 0; i < pFunctionDeclaration->getNumParams(); ++i)
+  for (unsigned int i = 0; i < pFunctionDeclaration->getNumParams(); ++i)
   {
     AST::BaseClasses::VariableInfoPtr spVariable = _BuildVariableInfo( pFunctionDeclaration->getParamDecl(i), spFunctionDecl );
 

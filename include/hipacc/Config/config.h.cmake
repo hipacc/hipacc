@@ -35,7 +35,6 @@
 
 #cmakedefine CUDA_FOUND
 #cmakedefine OpenCL_FOUND
-#cmakedefine Polly_FOUND
 #cmakedefine USE_JIT_ESTIMATE
 
 #define CU_COMPILER "${CU_COMPILER}"

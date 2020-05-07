@@ -649,7 +649,7 @@ FunctionDecl* CPU_x86::DumpInstructionSet::_DumpInstructionSet(Vectorization::In
 
           for (size_t szElementCount = static_cast<size_t>(0); szElementCount < spInstructionSet->GetVectorElementCount(itElementType); szElementCount += spInstructionSet->GetVectorElementCount(itIndexType))
           {
-            vecIndexVectors.push_back( _CreateArraySubscript( itIndexTypeEntry->second, szElementCount / spInstructionSet->GetVectorElementCount(itIndexType) ) );
+            vecIndexVectors.push_back( _CreateArraySubscript( itIndexTypeEntry->second, static_cast<int32_t>(szElementCount / spInstructionSet->GetVectorElementCount(itIndexType)) ) );
           }
 
           Expr *pPointerRef   = mapPointerDecls[itElementType];
@@ -3046,7 +3046,7 @@ std::string CPU_x86::CodeGenerator::_FormatFunctionHeader(FunctionDecl *pFunctio
   std::vector<std::string> vecParamStrings;
 
   // Translate function parameters to declaration strings
-  for (size_t i = 0; i < pFunctionDecl->getNumParams(); ++i)
+  for (unsigned int i = 0; i < pFunctionDecl->getNumParams(); ++i)
   {
     ::clang::ParmVarDecl  *pParamDecl = pFunctionDecl->getParamDecl(i);
     std::string strName(pParamDecl->getNameAsString());
@@ -3661,7 +3661,7 @@ bool CPU_x86::CodeGenerator::PrintKernelFunction(FunctionDecl *pKernelFunction, 
           if (!pSubFuncCallVectorizedNoBH) {
             vecInnerLoopBody.push_back(pSubFuncCallVectorized);
           } else {
-            vecInnerLoopBody.push_back(_CreateBoundaryBranching(ASTHelper, hipaccHelper, gid_x_ref, gid_y_ref, (pKernel->getMaxSizeX() + _szVectorWidth-1) / _szVectorWidth * _szVectorWidth, pKernel->getMaxSizeY(), pSubFuncCallVectorizedNoBH, pSubFuncCallVectorized));
+            vecInnerLoopBody.push_back(_CreateBoundaryBranching(ASTHelper, hipaccHelper, gid_x_ref, gid_y_ref, static_cast<int>((pKernel->getMaxSizeX() + _szVectorWidth-1) / _szVectorWidth * _szVectorWidth), pKernel->getMaxSizeY(), pSubFuncCallVectorizedNoBH, pSubFuncCallVectorized));
           }
           vecOuterLoopBody.push_back( _CreateIterationSpaceLoop(ASTHelper, pNewGidXRef, hipaccHelper.GetIterationSpaceLimitX(), ASTHelper.CreateCompoundStatement(vecInnerLoopBody), _szVectorWidth) );
         }

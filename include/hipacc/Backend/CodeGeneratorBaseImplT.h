@@ -228,11 +228,6 @@ namespace Backend
      *            but it should call the base implementation to ensure that the common configuration settings are checked as well. */
     virtual void _CheckConfiguration()
     {
-      // kernels are timed internally by the runtime in case of exploration
-      if (GetCompilerOptions().timeKernels(USER_ON) && GetCompilerOptions().exploreConfig(USER_ON))
-      {
-        GetCompilerOptions().setTimeKernels(OFF);
-      }
     }
 
     //@}

@@ -300,10 +300,6 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
                              upper_fun = mirror_upper;
                              break;
       case Boundary::UNDEFINED:
-        // in case of exploration boundary handling variants are required
-        if (!compilerOptions.exploreConfig()) {
-          hipacc_require(0, "addBorderHandling && Boundary::UNDEFINED!");
-        }
         break;
       case Boundary::CONSTANT:
         hipacc_require(0, "addBorderHandling && Boundary::CONSTANT!");

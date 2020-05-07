@@ -72,19 +72,6 @@ namespace Backend
         typedef CommonDefines::OptionParsers::Integer   OptionParser;   //!< Type definition for the option parser for this switch.
       };
 
-      /** \brief  The switch type for the "kernel configuration exploration" switch. */
-      struct ExploreConfig final
-      {
-        /** \brief  Returns the command argument for this switch. */
-        inline static std::string Key()                 { return "-explore-config"; }
-
-        /** \brief  Returns the additional options string for this switch. */
-        inline static std::string AdditionalOptions()   { return ""; }
-
-        /** \brief  Returns the description for this switch. */
-        inline static std::string Description()         { return "Emit code that explores all possible kernel configuration and print its performance"; }
-      };
-
       /** \brief  The switch type for the "pixels per thread" switch. */
       struct PixelsPerThread final
       {

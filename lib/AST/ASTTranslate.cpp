@@ -552,18 +552,11 @@ void ASTTranslate::updateTileVars() {
       // TODO: define this in HipaccDeviceOptions
       if (compilerOptions.getTargetLang()==Language::CUDA &&
           compilerOptions.getTargetDevice()<=Device::Kepler_30) {
-        if (compilerOptions.exploreConfig() && !emitEstimation) {
-          tileVars.local_size_x = createDeclRefExpr(Ctx, createVarDecl(Ctx,
-                kernelDecl, "BSX_EXPLORE", Ctx.IntTy, nullptr));
-          tileVars.local_size_y = createDeclRefExpr(Ctx, createVarDecl(Ctx,
-                kernelDecl, "BSY_EXPLORE", Ctx.IntTy, nullptr));
-        } else {
-          // use constant for final kernel configuration
-          tileVars.local_size_x = createIntegerLiteral(Ctx,
-              static_cast<int>(Kernel->getNumThreadsX()));
-          tileVars.local_size_y = createIntegerLiteral(Ctx,
-              static_cast<int>(Kernel->getNumThreadsY()));
-        }
+        // use constant for final kernel configuration
+        tileVars.local_size_x = createIntegerLiteral(Ctx,
+            static_cast<int>(Kernel->getNumThreadsX()));
+        tileVars.local_size_y = createIntegerLiteral(Ctx,
+            static_cast<int>(Kernel->getNumThreadsY()));
       } else {
         // cast blockDim.[x|y] to signed integer
         tileVars.local_size_x = addCastToInt(tileVars.local_size_x);
@@ -787,71 +780,30 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
       VarDecl *VD{ nullptr };
       QualType QT;
-      // __shared__ T _smemIn[SY-1 + BSY*PPT][3 * BSX];
-      // for left and right halo, add 2*BSX
-      if (!emitEstimation && compilerOptions.exploreConfig()) {
-        Expr *SX = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
-              "BSX_EXPLORE", Ctx.IntTy, nullptr));
-        Expr *BSY = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
-              "BSY_EXPLORE", Ctx.IntTy, nullptr));
-        Expr *SY = BSY;
+      llvm::APInt SX, SY;
+      SX = llvm::APInt(32, Kernel->getNumThreadsX());
 
-        if (Acc->getSizeX() > 1) {
-          // 3*BSX
-          SX = createBinaryOperator(Ctx, createIntegerLiteral(Ctx, 3), SX,
-              BO_Mul, Ctx.IntTy);
-        }
-        // add padding to avoid bank conflicts
-        SX = createBinaryOperator(Ctx, SX, createIntegerLiteral(Ctx, 1), BO_Add,
-            Ctx.IntTy);
-
-        // size_y = ceil((PPT*BSY+SY-1)/BSY)
-        // -> PPT*BSY + ((SY-2)/BSY + 1) * BSY
-        if (Kernel->getPixelsPerThread() > 1) {
-          SY = createBinaryOperator(Ctx, SY, createIntegerLiteral(Ctx,
-                static_cast<int>(Kernel->getPixelsPerThread())), BO_Mul,
-              Ctx.IntTy);
-        }
-
-        if (Acc->getSizeY() > 1) {
-          SY = createBinaryOperator(Ctx, SY, createBinaryOperator(Ctx,
-                createParenExpr(Ctx, createBinaryOperator(Ctx,
-                    createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                        static_cast<int>(Acc->getSizeY()-2)), BSY, BO_Div,
-                      Ctx.IntTy), createIntegerLiteral(Ctx, 1), BO_Add,
-                    Ctx.IntTy)), BSY, BO_Mul, Ctx.IntTy), BO_Add, Ctx.IntTy);
-        }
-
-        QT = Acc->getImage()->getType();
-        QT = Ctx.getVariableArrayType(QT, SX, ArrayType::Normal, 0,
-                SourceLocation());
-        QT = Ctx.getVariableArrayType(QT, SY, ArrayType::Normal, 0,
-                SourceLocation());
-      } else {
-        llvm::APInt SX, SY;
-        SX = llvm::APInt(32, Kernel->getNumThreadsX());
-        if (Acc->getSizeX() > 1) {
-          SX = (compilerOptions.allowMisAlignedAccess()) ?
-            SX + llvm::APInt(32, static_cast<int32_t>(Acc->getSizeX()/2)) * llvm::APInt(32, 2) :
-            SX * llvm::APInt(32, 3);
-        }
-        // add padding to avoid bank conflicts
-        SX += llvm::APInt(32, 1);
-
-        // size_y = ceil((PPT*BSY+SY-1)/BSY)
-        int smem_size_y =
-          static_cast<int>(ceilf(
-                static_cast<float>(Kernel->getPixelsPerThread() *
-                  Kernel->getNumThreadsY() + Acc->getSizeY() - 1) /
-                static_cast<float>(Kernel->getNumThreadsY())));
-        SY = llvm::APInt(32, smem_size_y*Kernel->getNumThreadsY());
-
-        QT = Acc->getImage()->getType();
-        QT.removeLocalConst();
-        
-        QT = Ctx.getConstantArrayType(QT, SX, ArrayType::Normal, 0);
-        QT = Ctx.getConstantArrayType(QT, SY, ArrayType::Normal, 0);
+      if (Acc->getSizeX() > 1) {
+        SX = (compilerOptions.allowMisAlignedAccess()) ?
+          SX + llvm::APInt(32, static_cast<int32_t>(Acc->getSizeX()/2)) * llvm::APInt(32, 2) :
+          SX * llvm::APInt(32, 3);
       }
+      // add padding to avoid bank conflicts
+      SX += llvm::APInt(32, 1);
+
+      // size_y = ceil((PPT*BSY+SY-1)/BSY)
+      int smem_size_y =
+        static_cast<int>(ceilf(
+              static_cast<float>(Kernel->getPixelsPerThread() *
+                Kernel->getNumThreadsY() + Acc->getSizeY() - 1) /
+              static_cast<float>(Kernel->getNumThreadsY())));
+      SY = llvm::APInt(32, smem_size_y*Kernel->getNumThreadsY());
+
+      QT = Acc->getImage()->getType();
+      QT.removeLocalConst();
+
+      QT = Ctx.getConstantArrayType(QT, SX, ArrayType::Normal, 0);
+      QT = Ctx.getConstantArrayType(QT, SY, ArrayType::Normal, 0);
 
       switch (compilerOptions.getTargetLang()) {
         default: break;
@@ -883,13 +835,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       DC->addDecl(VD);
       kernelBody.push_back(createDeclStmt(Ctx, VD));
     }
-  }
-
-  // activate boundary handling for exploration
-  if (compilerOptions.exploreConfig() && use_shared) {
-    border_handling = true;
-    kernel_x = true;
-    kernel_y = true;
   }
 
 
@@ -1209,15 +1154,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     }
     SmallVector<Stmt *, 16> labelBody;
     for (size_t p=0; use_shared && p<Kernel->getPixelsPerThread()+p_add; ++p) {
-      if (compilerOptions.exploreConfig()) {
-        // initialize lid_y and gid_y
-        lidYRef = tileVars.local_id_y;
-        gidYRef = tileVars.global_id_y;
-        // all iterations
-        stageIterationToSharedMemoryExploration(labelBody);
-
-        break;
-      }
       if (p==0) {
         // initialize lid_y and gid_y
         lidYRef = tileVars.local_id_y;
@@ -1289,23 +1225,22 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       hipacc_require(isa<CompoundStmt>(new_body), "CompoundStmt for kernel function body expected!");
 
       // add iteration space check when calculating multiple pixels per thread,
-      // having a tiling with multiple threads in the y-dimension, or in case
-      // exploration is done
+      // having a tiling with multiple threads in the y-dimension
       bool require_is_check = true;
       if (border_handling) {
         // code variant for column filter not processing the bottom
-        if (kernel_y && !bh_variant.borders.bottom) require_is_check = false;
-        // code variant without border handling
-        if (!bh_variant.borderVal && !compilerOptions.exploreConfig())
+        if (kernel_y && !bh_variant.borders.bottom)
           require_is_check = false;
-        // number of threads is 1 and no exploration
-        if (Kernel->getNumThreadsY()==1 && Kernel->getPixelsPerThread()==1 &&
-            !compilerOptions.exploreConfig())
+        // code variant without border handling
+        if (!bh_variant.borderVal)
+          require_is_check = false;
+        // number of threads is 1
+        if (Kernel->getNumThreadsY()==1 && Kernel->getPixelsPerThread()==1)
           require_is_check = false;
       } else {
-        // exploration
-        if (Kernel->getNumThreadsY()==1 && Kernel->getPixelsPerThread()==1 &&
-            !compilerOptions.exploreConfig()) require_is_check = false;
+        // number of threads is 1
+        if (Kernel->getNumThreadsY()==1 && Kernel->getPixelsPerThread()==1)
+          require_is_check = false;
       }
       if (require_is_check &&
           // Not necessary for Filterscript, gid_y has already been checked
@@ -2104,9 +2039,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
 
     Expr *SY, *TX;
     if (acc->getSizeX() > 1) {
-      if (compilerOptions.exploreConfig()) {
-        TX = tileVars.local_size_x;
-      } else if (compilerOptions.allowMisAlignedAccess()) {
+      if (compilerOptions.allowMisAlignedAccess()) {
         TX = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeX()/2));
       } else {
         TX = createIntegerLiteral(Ctx,

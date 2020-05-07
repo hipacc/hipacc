@@ -51,7 +51,6 @@ namespace Backend
     /** \brief  Contains the IDs of all supported specific compiler switches for this backend. */
     enum class CompilerSwitchTypeEnum
     {
-      ExploreConfig,    //!< ID of the "kernel configuration exploration" switch
       PixelsPerThread,  //!< ID of the "pixels per thread" switch
       ReduceConfig,     //!< ID of the "reduce configuration selection" switch
       UseConfig,        //!< ID of the "kernel configuration selection" switch

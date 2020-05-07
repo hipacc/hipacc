@@ -12,10 +12,6 @@ set(HIPACC_LIBS
     hipaccASTTranslate
     hipaccSIMDTypes)
 
-if(Polly_FOUND)
-    list(APPEND HIPACC_LIBS hipaccPolly)
-endif()
-
 list(APPEND HIPACC_LIBS
     hipaccKernelStatistics
     hipaccBuiltins
@@ -31,9 +27,6 @@ endif()
 target_link_libraries(hipacc PRIVATE ${HIPACC_LIBS})
 target_link_libraries(hipacc PRIVATE ${CLANG_LIBRARIES})
 llvm_config(hipacc ${HIPACC_LLVM_LINK_SHARED} ${LLVM_LIBRARIES})
-if (Polly_FOUND)
-    target_link_libraries(hipacc PRIVATE Polly)
-endif()
 add_dependencies(hipacc ${HIPACC_LIBS})
 
 

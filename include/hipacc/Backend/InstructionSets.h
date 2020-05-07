@@ -926,7 +926,7 @@ namespace Vectorization
      *  \param    uiIndex         The element index, which shall be checked for correct range. */
     template <class ExceptionType> inline void _CheckIndex(VectorElementTypes eElementType, std::uint32_t uiIndex) const
     {
-      uint32_t uiUpperLimit = GetVectorElementCount(eElementType) - 1;
+      uint32_t uiUpperLimit = static_cast<uint32_t>(GetVectorElementCount(eElementType)) - 1;
 
       if (uiIndex > uiUpperLimit)
       {

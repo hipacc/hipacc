@@ -33,9 +33,6 @@
 
 #include "hipacc/Rewrite/Rewrite.h"
 #include "hipacc/Config/config.h"
-#ifdef Polly_FOUND
-#include "hipacc/Analysis/Polly.h"
-#endif
 #include "hipacc/AST/ASTNode.h"
 #include "hipacc/AST/ASTTranslate.h"
 #include "hipacc/Backend/ICodeGenerator.h"
@@ -338,13 +335,11 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
       }
       break;
     case Language::CUDA:
-      if (!compilerOptions.exploreConfig()) {
-        for (auto map : KernelDeclMap) {
-          HipaccKernel* K = map.second;
-          newStr += "#include \"";
-          newStr += K->getFileName();
-          newStr += ".cu\"\n";
-        }
+      for (auto map : KernelDeclMap) {
+        HipaccKernel* K = map.second;
+        newStr += "#include \"";
+        newStr += K->getFileName();
+        newStr += ".cu\"\n";
       }
       break;
     case Language::Renderscript:
@@ -416,29 +411,25 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
       stringCreator.writeInitialization(initStr);
 
   // load OpenCL kernel files and compile the OpenCL kernels
-  if (!compilerOptions.exploreConfig()) {
-    for (auto map : KernelDeclMap)
-      stringCreator.writeKernelCompilation(map.second, initStr);
-    initStr += "\n" + stringCreator.getIndent();
-  }
+  for (auto map : KernelDeclMap)
+    stringCreator.writeKernelCompilation(map.second, initStr);
+  initStr += "\n" + stringCreator.getIndent();
 
   // write Mask transfers to Symbol in CUDA
   if (compilerOptions.emitCUDA()) {
     for (auto map : MaskDeclMap) {
       auto mask = map.second;
 
-      if (!compilerOptions.exploreConfig()) {
-        std::string newStr;
-        if (mask->hasCopyMask()) {
-          stringCreator.writeMemoryTransferDomainFromMask(mask,
-              mask->getCopyMask(), newStr);
-        } else {
-          stringCreator.writeMemoryTransferSymbol(mask, mask->getHostMemName(),
-              HOST_TO_DEVICE, newStr);
-        }
-
-        TextRewriter.InsertTextBefore(mask->getDecl()->getBeginLoc(), newStr);
+      std::string newStr;
+      if (mask->hasCopyMask()) {
+        stringCreator.writeMemoryTransferDomainFromMask(mask,
+            mask->getCopyMask(), newStr);
+      } else {
+        stringCreator.writeMemoryTransferSymbol(mask, mask->getHostMemName(),
+            HOST_TO_DEVICE, newStr);
       }
+
+      TextRewriter.InsertTextBefore(mask->getDecl()->getBeginLoc(), newStr);
     }
   }
 
@@ -1449,17 +1440,6 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
             KC->getBinningFunction()->setBody(binningStmts);
           }
 
-          #ifdef Polly_FOUND
-          if (!compilerOptions.exploreConfig() && compilerOptions.emitC99()) {
-            llvm::errs() << "\nPassing the following function to Polly:\n";
-            kernelDecl->print(llvm::errs(), Policy);
-            llvm::errs() << "\n";
-
-            Polly *polly_analysis = new Polly(Context, CI, kernelDecl);
-            polly_analysis->analyzeKernel();
-          }
-          #endif
-
           // write kernel to file
           printKernelFunction(kernelDecl, KC, K, K->getFileName(), true);
 
@@ -2068,10 +2048,6 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   QualType binType = KC->getBinType();
   std::string signatureBinning;
 
-  if (compilerOptions.exploreConfig()) {
-    hipacc_require(false, "Explorations not supported for multi-dimensional reductions");
-  }
-
   // preprocessor defines
   std::string KID = K->getKernelName();
   switch (compilerOptions.getTargetLang()) {
@@ -2222,10 +2198,8 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   FunctionDecl *fun = KC->getReduceFunction();
 
   // preprocessor defines
-  if (!compilerOptions.exploreConfig()) {
-    OS << "#define BS " << K->getNumThreadsReduce() << "\n"
-       << "#define PPT " << K->getPixelsPerThreadReduce() << "\n";
-  }
+  OS << "#define BS " << K->getNumThreadsReduce() << "\n"
+      << "#define PPT " << K->getPixelsPerThreadReduce() << "\n";
   if (K->getIterationSpace()->isCrop()) {
     OS << "#define USE_OFFSETS\n";
   }
@@ -2589,8 +2563,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                     InterpolationDefinitionsLocal.end()),
         InterpolationDefinitionsLocal.end());
 
-    if (compilerOptions.emitCUDA() &&
-        !compilerOptions.exploreConfig() && emitHints) {
+    if (compilerOptions.emitCUDA() && emitHints) {
       // emit interpolation definitions at the beginning of main file
       for (auto str : InterpolationDefinitionsLocal)
         InterpolationDefinitionsGlobal.push_back(str);
@@ -2641,12 +2614,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         break;
       case Language::CUDA:
         OS << "__global__ ";
-        if (compilerOptions.exploreConfig() && emitHints) {
-          OS << "__launch_bounds__ (BSX_EXPLORE * BSY_EXPLORE) ";
-        } else {
-          OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
-             << K->getNumThreadsY() << ") ";
-        }
+        OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
+            << K->getNumThreadsY() << ") ";
         break;
       case Language::OpenCLACC:
       case Language::OpenCLCPU:
@@ -2658,13 +2627,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
              << " CLK_FILTER_NEAREST; \n\n";
         }
         OS << "__kernel ";
-        if (compilerOptions.exploreConfig() && emitHints) {
-          OS << "__attribute__((reqd_work_group_size(BSX_EXPLORE, BSY_EXPLORE, "
-             << "1))) ";
-        } else {
-          OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
-             << ", " << K->getNumThreadsY() << ", 1))) ";
-        }
+        OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
+            << ", " << K->getNumThreadsY() << ", 1))) ";
         break;
       case Language::Filterscript:
         OS << K->getIterationSpace()->getImage()->getTypeStr()

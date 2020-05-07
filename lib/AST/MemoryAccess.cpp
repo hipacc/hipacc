@@ -818,12 +818,8 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
       Expr *SX2;
 
       if (Acc->getSizeX() > 1) {
-        if (compilerOptions.exploreConfig()) {
-          SX2 = tileVars.local_size_x;
-        } else {
-          SX2 = createIntegerLiteral(Ctx,
-              static_cast<int32_t>(Kernel->getNumThreadsX()));
-        }
+        SX2 = createIntegerLiteral(Ctx,
+            static_cast<int32_t>(Kernel->getNumThreadsX()));
       } else {
         SX2 = createIntegerLiteral(Ctx, 0);
       }
@@ -884,96 +880,6 @@ void ASTTranslate::stageIterationToSharedMemory(SmallVector<Stmt *, 16>
   }
 }
 
-
-// stage data to shared memory for exploration
-void ASTTranslate::stageIterationToSharedMemoryExploration(SmallVector<Stmt *,
-    16> &stageBody) {
-  for (auto param : kernelDecl->parameters()) {
-    if (KernelDeclMapShared[param]) {
-      HipaccAccessor *Acc = KernelDeclMapAcc[param];
-
-      Expr *global_offset_x = nullptr, *global_offset_y = nullptr;
-      Expr *SX2;
-      SmallVector<Stmt *, 16> stageIter;
-      VarDecl *iter = createVarDecl(Ctx, kernelDecl, "_N", Ctx.IntTy,
-          createIntegerLiteral(Ctx, 0));
-      DeclStmt *iter_stmt = createDeclStmt(Ctx, iter);
-      DeclRefExpr *iter_ref = createDeclRefExpr(Ctx, iter);
-
-
-      if (Acc->getSizeX() > 1) {
-        if (compilerOptions.exploreConfig()) {
-          SX2 = tileVars.local_size_x;
-        } else {
-          SX2 = createIntegerLiteral(Ctx,
-              static_cast<int32_t>(Kernel->getNumThreadsX()));
-        }
-      } else {
-        SX2 = createIntegerLiteral(Ctx, 0);
-      }
-      global_offset_y = createBinaryOperator(Ctx, iter_ref,
-          tileVars.local_size_y, BO_Mul, Ctx.IntTy);
-      if (Acc->getSizeY() > 1) {
-        global_offset_y = createBinaryOperator(Ctx, global_offset_y,
-            createUnaryOperator(Ctx, createIntegerLiteral(Ctx,
-                static_cast<int32_t>(Acc->getSizeY()/2)), UO_Minus, Ctx.IntTy),
-            BO_Add, Ctx.IntTy);
-      }
-
-      // check if we need to stage right apron
-      size_t num_stages_x = 0;
-      if (Acc->getSizeX() > 1) {
-          num_stages_x = 2;
-      }
-
-      // load row (line)
-      for (size_t i=0; i<=num_stages_x; ++i) {
-        // _smem[lidYRef + N*(int)blockDim.y]
-        //      [(int)threadIdx.x + i*(int)blockDim.x] =
-        //        Image[-SX/2 + N*(int)blockDim.y + i*(int)blockDim.x, -SY/2];
-        Expr *local_offset_x = nullptr;
-        if (Acc->getSizeX() > 1) {
-          local_offset_x = createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                static_cast<int32_t>(i)), tileVars.local_size_x, BO_Mul,
-              Ctx.IntTy);
-          global_offset_x = createBinaryOperator(Ctx, local_offset_x, SX2,
-              BO_Sub, Ctx.IntTy);
-        }
-
-        stageLineToSharedMemory(param, stageIter, local_offset_x,
-            createBinaryOperator(Ctx, iter_ref, tileVars.local_size_y, BO_Mul,
-              Ctx.IntTy), global_offset_x, global_offset_y);
-      }
-
-      // PPT + (SY-2)/BSY + 1
-      DeclRefExpr *DSY = createDeclRefExpr(Ctx, createVarDecl(Ctx, kernelDecl,
-            "BSY_EXPLORE", Ctx.IntTy, nullptr));
-
-      Expr *SY;
-      if (Kernel->getPixelsPerThread() > 1) {
-        SY = createIntegerLiteral(Ctx,
-            static_cast<int32_t>(Kernel->getPixelsPerThread()));
-      } else {
-        SY = createIntegerLiteral(Ctx, 1);
-      }
-
-      if (Acc->getSizeY() > 1) {
-        SY = createBinaryOperator(Ctx, SY, createBinaryOperator(Ctx,
-              createBinaryOperator(Ctx, createIntegerLiteral(Ctx,
-                  static_cast<int32_t>(Acc->getSizeY()-2)), DSY, BO_Div,
-                Ctx.IntTy), createIntegerLiteral(Ctx, 1), BO_Add, Ctx.IntTy),
-            BO_Add, Ctx.IntTy);
-      }
-      // for (int N=0; N < PPT*BSY + (SY-2)/BSY + 1)*BSY; N++)
-      ForStmt *stageLoop = createForStmt(Ctx, iter_stmt,
-          createBinaryOperator(Ctx, iter_ref, SY, BO_LT, Ctx.BoolTy),
-          createUnaryOperator(Ctx, iter_ref, UO_PostInc, Ctx.IntTy),
-          createCompoundStmt(Ctx, stageIter));
-
-      stageBody.push_back(stageLoop);
-    }
-  }
-}
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 
