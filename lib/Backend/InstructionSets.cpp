@@ -4385,7 +4385,7 @@ Expr* InstructionSetAVX::CheckSingleMaskElement(VectorElementTypes eMaskElementT
   case VectorElementTypes::Float:   eFunctionID = IntrinsicsAVXEnum::MoveMaskFloat;   break;
   default:
     {
-      const uint32_t cuiElementCountSSE = _GetFallback()->GetVectorElementCount( eMaskElementType );
+      const uint32_t cuiElementCountSSE = static_cast<uint32_t>(_GetFallback()->GetVectorElementCount( eMaskElementType ));
 
       Expr *pMaskSSE = _ExtractSSEVector( eMaskElementType, pMaskExpr, (uiIndex < cuiElementCountSSE) );
 
@@ -4776,7 +4776,7 @@ Expr* InstructionSetAVX::StoreVectorMasked(VectorElementTypes eElementType, Expr
 
         if (! cbLowHalf)
         {
-          Expr *pOffset = _GetASTHelper().CreateIntegerLiteral<int32_t>(_GetFallback()->GetVectorElementCount(eElementType) );
+          Expr *pOffset = _GetASTHelper().CreateIntegerLiteral<int32_t>(static_cast<int32_t>(_GetFallback()->GetVectorElementCount(eElementType)) );
           pPointerRef   = _GetASTHelper().CreateBinaryOperator( pPointerRef, pOffset, BO_Add, pPointerRef->getType() );
         }
 
@@ -5952,7 +5952,7 @@ bool InstructionSetAVX2::IsBuiltinFunctionSupported(
     for (auto idxExpr : crvecIndexExprs) {
       vecLoads.push_back(_CreateFunctionCall(IntrinsicsAVX2Enum::GatherInt32,
           _CreatePointerCast(pPointerRef, qtTargetPointer), idxExpr,
-          _GetASTHelper().CreateIntegerLiteral<int32_t>(cszElementSize)));
+          _GetASTHelper().CreateIntegerLiteral<int32_t>(static_cast<int32_t>(cszElementSize))));
     }
 
     if (cszElementSize < cszIntermediateSize) {

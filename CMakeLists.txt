@@ -5,9 +5,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 find_package(Git)
 if(Git_FOUND)
-    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always
-                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                    OUTPUT_VARIABLE HIPACC_VERSION)
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --always OUTPUT_VARIABLE HIPACC_VERSION)
     string(STRIP "${HIPACC_VERSION}" HIPACC_VERSION)
 endif()
 
@@ -84,11 +82,9 @@ cmake_dependent_option(USE_JIT_ESTIMATE "Compile kernels JIT to estimate resourc
 
 find_package(LLVM REQUIRED CONFIG)
 find_package(Clang REQUIRED CONFIG)
-#find_package(Polly QUIET CONFIG)
 find_program(llvm-config NAMES llvm-config PATHS ${LLVM_TOOLS_BINARY_DIR})
 find_program(clang       NAMES clang       PATHS ${LLVM_TOOLS_BINARY_DIR})
 find_package(CUDA)
-find_package(NVML)
 find_package(OpenCL)
 
 if(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "7.0")
@@ -112,7 +108,6 @@ message(STATUS "Configuration summary:")
 message(STATUS "===")
 message(STATUS "CUDA support: ${CUDA_FOUND}")
 message(STATUS "OpenCL support: ${OpenCL_FOUND}")
-message(STATUS "Polly support: ${Polly_FOUND}")
 message(STATUS "JIT estimates: ${USE_JIT_ESTIMATE}")
 message(STATUS "===")
 

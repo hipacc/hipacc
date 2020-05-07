@@ -559,24 +559,23 @@ void HipaccKernel::createArgInfo() {
   }
 
   // bh_start_left
-  if (getMaxSizeX() || options.exploreConfig()) {
+  if (getMaxSizeX()) {
     addParam(Ctx.getConstType(Ctx.IntTy), "bh_start_left", nullptr);
   }
   // bh_start_right: always emit bh_start_right for iteration spaces not being a
   // multiple of the block size
   addParam(Ctx.getConstType(Ctx.IntTy), "bh_start_right", nullptr);
   // bh_start_top
-  if (getMaxSizeY() || options.exploreConfig()) {
+  if (getMaxSizeY()) {
     addParam(Ctx.getConstType(Ctx.IntTy), "bh_start_top", nullptr);
   }
   // bh_start_bottom: emit bh_start_bottom in case iteration space is not a
   // multiple of the block size
-  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY() ||
-      options.exploreConfig()) {
+  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY()) {
     addParam(Ctx.getConstType(Ctx.IntTy), "bh_start_bottom", nullptr);
   }
   // bh_fall_back
-  if (getMaxSizeX() || getMaxSizeY() || options.exploreConfig()) {
+  if (getMaxSizeX() || getMaxSizeY()) {
     addParam(Ctx.getConstType(Ctx.IntTy), "bh_fall_back", nullptr);
   }
 }
@@ -644,20 +643,19 @@ void HipaccKernel::createHostArgInfo(ArrayRef<Expr *> hostArgs, std::string
   }
 
   // bh_start_left, bh_start_right
-  if (getMaxSizeX() || options.exploreConfig()) {
+  if (getMaxSizeX()) {
     hostArgNames.push_back(getInfoStr() + ".bh_start_left");
   }
   hostArgNames.push_back(getInfoStr() + ".bh_start_right");
   // bh_start_top, bh_start_bottom
-  if (getMaxSizeY() || options.exploreConfig()) {
+  if (getMaxSizeY()) {
     hostArgNames.push_back(getInfoStr() + ".bh_start_top");
   }
-  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY() ||
-      options.exploreConfig()) {
+  if (getNumThreadsY()>1 || getPixelsPerThread()>1 || getMaxSizeY()) {
     hostArgNames.push_back(getInfoStr() + ".bh_start_bottom");
   }
   // bh_fall_back
-  if (getMaxSizeX() || getMaxSizeY() || options.exploreConfig()) {
+  if (getMaxSizeX() || getMaxSizeY()) {
     hostArgNames.push_back(getInfoStr() + ".bh_fall_back");
   }
 }

@@ -35,14 +35,6 @@
 #error "CUDA 7.0 or higher required!"
 #endif
 
-#ifdef __has_include
-#if __has_include(<nvml.h>) && defined _MSC_VER
-#define NVML_FOUND
-#include <nvml.h>
-#pragma comment(lib, "nvml.lib")
-#endif
-#endif
-
 #include <nvrtc.h>
 
 #include <float.h>
@@ -81,17 +73,6 @@ inline void checkErr(cudaError_t err, const std::string &name) {
                                 "): " + getCUDAErrorCodeStr(err));
   }
 }
-
-#ifdef NVML_FOUND
-// error checking NVML
-inline void checkErrNVML(nvmlReturn_t err, const std::string &name) {
-  if (err != NVML_SUCCESS) {
-    hipaccRuntimeLogTrivial(hipaccRuntimeLogLevel::ERROR,
-                            "ERROR: " + name + " (" + std::to_string(err) +
-                                "): " + nvmlErrorString(err));
-  }
-}
-#endif
 
 inline void checkErrNVRTC(nvrtcResult err, const std::string &name) {
   if (err != NVRTC_SUCCESS) {

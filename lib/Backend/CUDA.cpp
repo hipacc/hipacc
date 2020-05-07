@@ -46,7 +46,6 @@ CUDA::CodeGenerator::Descriptor::Descriptor()
 CUDA::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOptions)  : BaseType(pCompilerOptions, Descriptor())
 {
   _InitSwitch<AcceleratorDeviceSwitches::EmitPadding    >(CompilerSwitchTypeEnum::EmitPadding);
-  // DEPRECATED _InitSwitch<AcceleratorDeviceSwitches::ExploreConfig  >(CompilerSwitchTypeEnum::ExploreConfig);
   _InitSwitch<AcceleratorDeviceSwitches::PixelsPerThread>(CompilerSwitchTypeEnum::PixelsPerThread);
   _InitSwitch<AcceleratorDeviceSwitches::ReduceConfig   >(CompilerSwitchTypeEnum::ReduceConfig);
   _InitSwitch<AcceleratorDeviceSwitches::Target         >(CompilerSwitchTypeEnum::Target);
@@ -71,9 +70,6 @@ size_t CUDA::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Common
       GetCompilerOptions().setPadding(_ParseOption<AcceleratorDeviceSwitches::EmitPadding>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
-    break;
-  case CompilerSwitchTypeEnum::ExploreConfig:
-    GetCompilerOptions().setExploreConfig(USER_ON);
     break;
   case CompilerSwitchTypeEnum::PixelsPerThread:
     {

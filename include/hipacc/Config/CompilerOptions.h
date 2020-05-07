@@ -83,7 +83,6 @@ class CompilerOptions {
     Device target_device;
     CompilerOption print_verbose;
     // target code features
-    CompilerOption explore_config;
     CompilerOption time_kernels;
     // target code features - may be selected by the framework
     CompilerOption kernel_config;
@@ -132,7 +131,6 @@ class CompilerOptions {
       target_lang(Language::OpenCLGPU),
       target_device(Device::Kepler_30),
       print_verbose(OFF),
-      explore_config(OFF),
       time_kernels(OFF),
       kernel_config(AUTO),
       reduce_config(AUTO),
@@ -178,9 +176,6 @@ class CompilerOptions {
 
     bool printVerbose(CompilerOption option=option_ou) {
       return print_verbose & option;
-    }
-    bool exploreConfig(CompilerOption option=option_ou) {
-      return explore_config & option;
     }
     bool timeKernels(CompilerOption option=option_ou) {
       return time_kernels & option;
@@ -232,7 +227,6 @@ class CompilerOptions {
     void setTargetLang(Language lang) { target_lang = lang; }
     void setTargetDevice(Device td) { target_device = td; }
     void setPrintVerbose(CompilerOption o) { print_verbose = o; }
-    void setExploreConfig(CompilerOption o) { explore_config = o; }
     void setTimeKernels(CompilerOption o) { time_kernels = o; }
     void setLocalMemory(CompilerOption o) { local_memory = o; }
     void setVectorizeKernels(CompilerOption o) { vectorize_kernels = o; }
@@ -306,7 +300,7 @@ class CompilerOptions {
     }
 
     Backend::ICodeGeneratorPtr  getCodeGenerator()                                            { return _spCodeGenerator; }
-    void                        setCodeGenerator(Backend::ICodeGeneratorPtr spCodeGenerator)  { _spCodeGenerator = spCodeGenerator; }
+    void                        setCodeGenerator(Backend::ICodeGeneratorPtr& spCodeGenerator)  { _spCodeGenerator = spCodeGenerator; }
 
     void printSummary(const std::string &target_device) {
       llvm::errs() << "HIPACC compiler configuration summary: \n";
@@ -324,8 +318,6 @@ class CompilerOptions {
       llvm::errs() << "' language.\n";
       llvm::errs() << "  Target device is '" << target_device << "'";
 
-      llvm::errs() << "\n  Exploration of kernel configurations: ";
-      getOptionAsString(explore_config);
       llvm::errs() << "\n  Automatic timing of kernel executions: ";
       getOptionAsString(time_kernels);
 

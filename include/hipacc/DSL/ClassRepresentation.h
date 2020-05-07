@@ -151,7 +151,7 @@ class HipaccImage : public HipaccMemory {
       Ctx(Ctx)
     {}
 
-    unsigned getPixelSize() { return Ctx.getTypeSize(type)/8; }
+    unsigned getPixelSize() { return static_cast<unsigned>(Ctx.getTypeSize(type))/8; }
     std::string getTextureType();
     std::string getImageReadFunction();
 };
@@ -315,7 +315,7 @@ class HipaccMask : public HipaccMemory {
     bool isConstant() { return is_constant; }
     bool isPrinted() { return is_printed; }
     Expr *getInitExpr(size_t x, size_t y) {
-      return dyn_cast<InitListExpr>(init_list->getInit(y))->getInit(x);
+      return dyn_cast<InitListExpr>(init_list->getInit(static_cast<unsigned int>(y)))->getInit(static_cast<unsigned int>(x));
     }
     void addKernel(HipaccKernel *K) { kernels.push_back(K); }
     ArrayRef<HipaccKernel *> getKernels() { return kernels; }
