@@ -53,3 +53,47 @@ jobs:
         with:
           name: Hipacc Debian package
           path: hipacc/build/hipacc_*.deb
+
+  windows:
+    name: Windows
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: windows-2019
+    steps:
+      - name: Setup environment
+        run: echo "::set-env name=DOCKER_IMAGE::docker.pkg.github.com/hipacc/docker/windows-minimal:v1.0"
+
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          path: "hipacc"
+          submodules: true
+
+      - name: Fetch history for all tags
+        run: |
+          cd hipacc
+          git fetch --prune --unshallow
+
+      - name: Docker login
+        run: docker login docker.pkg.github.com -u $GITHUB_ACTOR -p $GITHUB_TOKEN
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+      - name: Run Docker image
+        run: docker run -it -d --name hipacc -v $GITHUB_WORKSPACE:C:/workspace -w C:/workspace $DOCKER_IMAGE
+
+      - name: Build Hipacc
+        run: docker exec hipacc powershell hipacc/.github/run_build.ps1
+
+      - name: Run sample tests
+        run: docker exec hipacc powershell hipacc/.github/run_tests.ps1 -DHIPACC_SAMPLE_CUDA=OFF -DHIPACC_SAMPLE_OPENCL_GPU=OFF
+
+      - name: Create Windows installer
+        if: contains(github.ref, 'refs/tags/')
+        run: docker exec hipacc powershell hipacc/.github/run_package.ps1
+
+      - name: Upload Windows installer
+        if: contains(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v2
+        with:
+          name: Hipacc Windows installer
+          path: hipacc/build/Hipacc-*.exe
