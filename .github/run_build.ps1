@@ -18,6 +18,10 @@ $Env:Path="C:/LLVM_8.0.1-minimal/bin;$Env:Path"
 cd "C:/TEMP/build"
 cmake $Workspace/hipacc -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="C:/TEMP/target"
 cmake --build . --config Release --target INSTALL -j $Cores
+# Consider using Ninja
+# $ C:\BuildTools\Common7\Tools\VsDevCmd.bat -arch=x64
+# $ cmake $Workspace/hipacc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="C:/TEMP/target"
+# $ ninja install -j $Cores
 
 Copy-Item -Force -Path "C:/TEMP/build" -Destination "$Workspace/hipacc" -Recurse
 Copy-Item -Force -Path "C:/TEMP/target" -Destination "$Workspace" -Recurse
