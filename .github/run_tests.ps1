@@ -13,7 +13,7 @@ if ( -not ( Test-Path "C:/TEMP/target/samples" -PathType Container ) ) {
 New-Item -ItemType Directory -Force -Path "C:/TEMP/target/samples/build" | Out-Null
 
 cd "C:/TEMP/target/samples/build"
-cmake .. -Tv141 -DCMAKE_BUILD_TYPE=Release $args
+cmake .. -DCMAKE_BUILD_TYPE=Release $args
 cmake --build . --config Release --target ALL_BUILD -j $Cores
 ctest -C Release -j $Cores
 
