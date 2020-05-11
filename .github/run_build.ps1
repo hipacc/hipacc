@@ -16,12 +16,23 @@ New-Item -ItemType Directory -Force -Path "C:/TEMP/build" | Out-Null
 $Env:Path="C:/LLVM_8.0.1-minimal/bin;$Env:Path"
 
 cd "C:/TEMP/build"
-cmake $Workspace/hipacc -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="C:/TEMP/target"
+
+# Compile with MSBuild from Visual Studio 2017
+cmake $Workspace/hipacc -G "Visual Studio 15" -Ax64 `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DCMAKE_INSTALL_PREFIX="C:/TEMP/target" `
+  -DOpenCL_INCLUDE_DIR="C:/Khronos-OpenCL_v2020.03.13/include" `
+  -DOpenCL_LIBRARY="C:/Khronos-OpenCL_v2020.03.13/lib/OpenCL.lib"
 cmake --build . --config Release --target INSTALL -j $Cores
-# Consider using Ninja
-# $ C:\BuildTools\Common7\Tools\VsDevCmd.bat -arch=x64
-# $ cmake $Workspace/hipacc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="C:/TEMP/target"
-# $ ninja install -j $Cores
+
+# Compile with Ninja (much faster)
+#cmd.exe /C 'C:\BuildTools\Common7\Tools\VsDevCmd.bat' -arch=x64 '&' `
+#  cmake $Workspace/hipacc -G Ninja `
+#    -DCMAKE_BUILD_TYPE=Release `
+#    -DCMAKE_INSTALL_PREFIX="C:/TEMP/target" `
+#    -DOpenCL_INCLUDE_DIR="C:/Khronos-OpenCL_v2020.03.13/include" `
+#    -DOpenCL_LIBRARY="C:/Khronos-OpenCL_v2020.03.13/lib/OpenCL.lib" '&' `
+#  ninja install -j $Cores
 
 Copy-Item -Force -Path "C:/TEMP/build" -Destination "$Workspace/hipacc" -Recurse
 Copy-Item -Force -Path "C:/TEMP/target" -Destination "$Workspace" -Recurse
