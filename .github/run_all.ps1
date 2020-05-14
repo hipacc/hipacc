@@ -2,8 +2,8 @@
 # Run Hipacc build, test and package within Docker image 'windows-minimal'
 #
 
-$Workspace="C:/workspace"
 $Branch="master"
+$Workspace="C:/workspace"
 
 if ( $args.count -gt 0 ) {
   $Branch=$args[0]
@@ -24,3 +24,4 @@ if ( -not ( Test-Path "$Workspace/hipacc" -PathType Container ) ) {
 
 # Start package creation
 & "$Workspace/hipacc/.github/run_package.ps1"
+
