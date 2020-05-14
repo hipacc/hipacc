@@ -51,7 +51,7 @@ jobs:
         if: contains(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v2
         with:
-          name: Hipacc Debian package
+          name: Debian package
           path: hipacc/build/hipacc_*.deb
 
   windows:
@@ -95,5 +95,5 @@ jobs:
         if: contains(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v2
         with:
-          name: Hipacc Windows installer
+          name: Windows installer
           path: hipacc/build/Hipacc-*.exe
