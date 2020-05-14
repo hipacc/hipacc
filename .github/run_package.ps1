@@ -4,12 +4,12 @@
 
 $Workspace="C:/workspace"
 
-if ( -not ( Test-Path "C:/TEMP/build" -PathType Container ) ) {
+if ( -not ( Test-Path "$Env:Temp/build" -PathType Container ) ) {
   echo "Error: Hipacc build directory not found."
   exit 1
 }
 
-cd "C:/TEMP/build"
+cd "$Env:Temp/build"
 cpack -G NSIS
 
-Copy-Item -Force -Path "C:/TEMP/build/Hipacc-*" -Destination "$Workspace/hipacc/build" -Recurse
+Copy-Item -Force -Path "$Env:Temp/build/Hipacc-*" -Destination "$Workspace/hipacc/build" -Recurse
