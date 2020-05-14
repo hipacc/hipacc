@@ -1,5 +1,5 @@
 #
-# Run Hipacc Debian package creation within Docker image 'windows-minimal'
+# Run Hipacc Windows installer creation within Docker image 'windows-minimal'
 #
 
 $Workspace="C:/workspace"
