@@ -60,7 +60,8 @@ jobs:
     runs-on: windows-2019
     steps:
       - name: Setup environment
-        run: echo "::set-env name=DOCKER_IMAGE::docker.pkg.github.com/hipacc/docker/windows-minimal:v1.0"
+        run: echo "::set-env name=DOCKER_IMAGE::docker.pkg.github.com/oreiche/docker/windows-minimal:testing"
+        shell: bash
 
       - name: Checkout sources
         uses: actions/checkout@v2
