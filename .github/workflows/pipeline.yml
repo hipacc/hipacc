@@ -60,7 +60,8 @@ jobs:
     runs-on: windows-2019
     steps:
       - name: Setup environment
-        run: echo "::set-env name=DOCKER_IMAGE::docker.pkg.github.com/hipacc/docker/windows-minimal:v1.0"
+        run: echo "::set-env name=DOCKER_IMAGE::oreiche/hipacc-windows-minimal:testing"
+        shell: bash
 
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -73,13 +74,9 @@ jobs:
           cd hipacc
           git fetch --prune --unshallow
 
-      - name: Docker login
-        run: docker login docker.pkg.github.com -u $GITHUB_ACTOR -p $GITHUB_TOKEN
-        env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-
       - name: Run Docker image
         run: docker run -it -d --name hipacc -v $GITHUB_WORKSPACE:C:/workspace -w C:/workspace $DOCKER_IMAGE
+        shell: bash
 
       - name: Build Hipacc
         run: docker exec hipacc powershell hipacc/.github/run_build.ps1
