@@ -3,7 +3,7 @@
 # (need to build in $Env:TEMP instead of Docker bound mount $Workspace)
 #
 
-$UseNinja=$True
+$UseNinja=$False
 $Workspace="C:/workspace"
 $Cores=(Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
 
