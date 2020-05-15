@@ -17,5 +17,6 @@ mkdir -p "${WORKSPACE}/target/samples/build"
 cd "${WORKSPACE}/target/samples/build"
 cmake .. -DCMAKE_BUILD_TYPE=Release $@
 make -j$(nproc --all)
+
 ctest -j$(nproc --all)
 

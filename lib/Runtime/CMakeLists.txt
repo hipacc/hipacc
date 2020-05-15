@@ -1,6 +1,7 @@
 set(Runtime_SOURCES Base.cpp CPU.cpp)
 
 if(OpenCL_FOUND)
+    include_directories(SYSTEM ${OpenCL_INCLUDE_DIRS})
     list(APPEND Runtime_SOURCES OpenCL.cpp)
 endif()
 
