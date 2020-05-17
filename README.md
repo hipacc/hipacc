@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://github.com/hipacc/hipacc/actions?query=workflow%3A%22Build+and+Test%22+branch%3Asiemens-dev"><img alt="Build and Test Status" src="https://github.com/hipacc/hipacc/workflows/Build%20and%20Test/badge.svg?branch=siemens-dev"></a>
+  <a href="https://github.com/hipacc/hipacc/actions?query=workflow%3A%22Build+and+Test%22+branch%3Asiemens-dev"><img alt="Build and Test Status" src="https://github.com/hipacc/hipacc/workflows/Build%20and%20Test/badge.svg?branch=siemens-dev&event=push"></a>
 </p>
 
 # Hipacc
