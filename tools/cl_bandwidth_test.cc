@@ -84,6 +84,36 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
         }
     }
+#else
+    for (int i = 1; i < argc; ++i) {
+        if (strncmp(argv[i], "-h", 2) == 0) {
+            std::cout << "Bandwidth test for device-to-device memory copies." << std::endl;
+            usage(argv);
+            exit(EXIT_SUCCESS);
+        } else if (strncmp(argv[i], "-d", 2) == 0) {
+            ++i;
+            if (strncmp(argv[i], "ACC", 3) == 0) device_type = CL_DEVICE_TYPE_ACCELERATOR;
+            else if (strncmp(argv[i], "CPU", 3) == 0) device_type = CL_DEVICE_TYPE_CPU;
+            else if (strncmp(argv[i], "GPU", 3) == 0) device_type = CL_DEVICE_TYPE_GPU;
+            else if (strncmp(argv[i], "ALL", 3) == 0) device_type = CL_DEVICE_TYPE_ALL;
+            else std::cout << "Unknown device type '" << argv[i] << "', using 'ALL' as default ..." << std::endl;
+        } else if (strncmp(argv[i], "-p", 2) == 0) {
+            ++i;
+            if (strncmp(argv[i], "AMD", 3) == 0) platform_name = AMD;
+            else if (strncmp(argv[i], "APPLE", 3) == 0) platform_name = APPLE;
+            else if (strncmp(argv[i], "ARM", 3) == 0) platform_name = ARM;
+            else if (strncmp(argv[i], "INTEL", 3) == 0) platform_name = INTEL;
+            else if (strncmp(argv[i], "NVIDIA", 3) == 0) platform_name = NVIDIA;
+            else std::cout << "Unknown platform name '" << argv[i] << "', using 'ALL' as default ..." << std::endl;
+        } else if (strncmp(argv[i], "-s", 2) == 0) {
+            ++i;
+            std::istringstream (argv[i]) >> memory_size;
+        } else {
+            std::cout << "Wrong call syntax!" << std::endl;
+            usage(argv);
+            exit(EXIT_FAILURE);
+        }
+    }
 #endif
 
     // initialize all devices
