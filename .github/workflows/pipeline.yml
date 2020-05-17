@@ -81,7 +81,9 @@ jobs:
       - name: Build Hipacc
         run: docker exec hipacc powershell hipacc/.github/run_build.ps1
 
+      # do not run Windows tests for every pull request
       - name: Run sample tests
+        if: ${{ github.event_name != 'pull_request' }}
         run: docker exec hipacc powershell hipacc/.github/run_tests.ps1 -DHIPACC_SAMPLE_CUDA=OFF -DHIPACC_SAMPLE_OPENCL_GPU=OFF
 
       - name: Create Windows installer

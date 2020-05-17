@@ -2,6 +2,8 @@
 # Run Hipacc build, test and package within Docker image 'windows-minimal'
 #
 
+$ErrorActionPreference = "Stop"
+
 $Branch="master"
 $Workspace="C:/workspace"
 
@@ -14,6 +16,7 @@ New-Item -ItemType Directory -Force -Path "$Workspace" | Out-Null
 # Get sources if not existing
 if ( -not ( Test-Path "$Workspace/hipacc" -PathType Container ) ) {
   git clone --recursive https://github.com/hipacc/hipacc -b $Branch "$Workspace/hipacc"
+  if (-not $?) { exit 1 }
 }
 
 # Start build
