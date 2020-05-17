@@ -1,5 +1,4 @@
 set(CURRENT_HEADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../include/hipacc/Backend")
-string(REPLACE "-fno-rtti" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(Backend_Generators_SOURCES CPU_x86.cpp CUDA.cpp Filterscript.cpp OpenCL_ACC.cpp OpenCL_CPU.cpp OpenCL_GPU.cpp Renderscript.cpp)
 set(Backend_Generators_HEADERS "${CURRENT_HEADER_DIR}/CPU_x86.h"
@@ -40,7 +39,9 @@ source_group("Header Files\\Generators" FILES ${Backend_Generators_HEADERS})
 source_group("Header Files\\Generators\\Base" FILES ${Backend_Generators_Base_HEADERS})
 
 # Activate Runtime Type Information for the Backend library
-if (MSVC)
-    set_target_properties(hipaccBackend PROPERTIES COMPILE_OPTIONS "/GR")
-endif(MSVC)
-
+if(LLVM_COMPILER_IS_GCC_COMPATIBLE)
+    string(REPLACE "-fno-rtti" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+elseif(MSVC)
+    string(REPLACE "/GR-" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    target_compile_options(hipaccBackend PRIVATE "/GR")
+endif()
