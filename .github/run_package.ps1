@@ -3,6 +3,8 @@
 # (need to build in $Env:TEMP instead of Docker bound mount $Workspace)
 #
 
+$ErrorActionPreference = "Stop"
+
 $Workspace="C:/workspace"
 
 if ( -not ( Test-Path "$Env:TEMP/build" -PathType Container ) ) {
@@ -12,5 +14,6 @@ if ( -not ( Test-Path "$Env:TEMP/build" -PathType Container ) ) {
 
 cd "$Env:TEMP/build"
 cpack -G NSIS
+if (-not $?) { exit 1 }
 
 Copy-Item -Force -Path "$Env:TEMP/build/Hipacc-*" -Destination "$Workspace/hipacc/build" -Recurse
