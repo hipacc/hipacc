@@ -333,15 +333,19 @@ T hipaccApplyReductionShared(const KernelFunc &kernel2D,
                                   HipaccExecutionParameter const &ep,
                                   const textureReference *tex);
 
-#ifndef SEGMENT_SIZE
-#define SEGMENT_SIZE 128
-#define MAX_SEGMENTS 512 // equals 65k bins (MAX_SEGMENTS*SEGMENT_SIZE)
+#ifndef DEFAULT_SEGMENT_SIZE
+# define DEFAULT_SEGMENT_SIZE 128
 #endif
-template <typename T, typename T2>
-T *hipaccApplyBinningSegmented(const void *kernel2D, std::string const& kernel2D_name,
-                               HipaccAccessor<T2> &acc, unsigned int num_hists,
-                               unsigned int num_warps, unsigned int num_bins,
-                               const textureReference *tex, bool print_timing);
+
+template <typename T, typename T2, class KernelFunc, int SEGMENT_SIZE=DEFAULT_SEGMENT_SIZE>
+T *hipaccApplyBinningSegmented(KernelFunc const &kernel2D,
+                                                const HipaccAccessor<T2> &acc,
+                                                unsigned int num_warps,
+                                                unsigned int num_units,
+                                                unsigned int num_bins,
+                                                HipaccExecutionParameter const &ep,
+                                                const textureReference *tex,
+                                                bool print_timing);
 
 //
 // PYRAMID

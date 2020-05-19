@@ -2406,35 +2406,82 @@ Stmt *ASTTranslate::BinningTranslator::traverseStmt(Stmt *S) {
 Stmt *ASTTranslate::BinningTranslator::translateBinaryOperator(BinaryOperator *E) {
   if (CXXMemberCallExpr *MCE = dyn_cast<CXXMemberCallExpr>(E->getLHS())) {
     hipacc_require(isa<MemberExpr>(MCE->getCallee()),
-        "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
+      "Hipacc: Stumbled upon unsupported expression or statement: CXXMemberCallExpr");
     MemberExpr *ME = cast<MemberExpr>(MCE->getCallee());
 
     // convert "bin(IDX) = RHS";
     if (ME->getMemberNameInfo().getAsString() == "bin") {
-      // create variable initialization "BIN_TYPE _tmp = RHS;"
-      VarDecl *declTmp =
+      if (compilerOptions.emitCUDA()) {
+        // create variable initialization "uint _binIdx = IDX"
+        VarDecl *declIdx =
+          createVarDecl(ctx_, funcBinning_, "_binIdx", typeIdx_, MCE->getArg(0));
+        DeclRefExpr *binIdx = createDeclRefExpr(ctx_, declIdx);
+        DeclStmt *initBinIdx = createDeclStmt(ctx_, declIdx);
+        // create variable initialization "BIN_TYPE _tmp = RHS;"
+        VarDecl *declTmp =
           createVarDecl(ctx_, funcBinning_, "_tmp", typeBin_, E->getRHS());
-      DeclRefExpr *tmp = createDeclRefExpr(ctx_, declTmp);
-      DeclStmt *initTmp = createDeclStmt(ctx_, declTmp);
+        DeclRefExpr *tmp = createDeclRefExpr(ctx_, declTmp);
+        DeclStmt *initTmp = createDeclStmt(ctx_, declTmp);
 
-      // create binPut function call "binPut(_lmem, _offset, IDX, _tmp)";
-      SmallVector<Expr *, 16> args;
-      args.push_back(lmem_);
-      args.push_back(offset_);
-      args.push_back(MCE->getArg(0));
-      args.push_back(tmp);
-      CallExpr *callBinPut = createFunctionCall(ctx_, funcBinPut_, args);
+        //create variable initialization "IdxVal<typeBin_> _ret = {.idx=_binIdx, .val=_tmp}"
+        SmallVector<Expr *, 2> initializers;
+        initializers.push_back(binIdx);
+        initializers.push_back(tmp);
 
-      // combine both in new scope
-      SmallVector<Stmt *, 2> stmts;
-      stmts.push_back(initTmp);
-      stmts.push_back(callBinPut);
-      CompoundStmt *compStmt = createCompoundStmt(ctx_, stmts);
+        VarDecl *declIdxVal =
+          createVarDecl(ctx_, funcBinning_, "_ret", funcBinning_->getReturnType());
 
-      return compStmt;
+        DeclRefExpr *idxVal = createDeclRefExpr(ctx_, declIdxVal);
+
+        VarDecl *idxDecl = createVarDecl(ctx_, ctx_.getTranslationUnitDecl(), "idx", typeIdx_, nullptr);
+
+        MemberExpr *idxMemberExpr = createMemberExpr(ctx_, idxVal, false, idxDecl, typeIdx_);
+        BinaryOperator *assignIdx = createBinaryOperator(ctx_, idxMemberExpr, binIdx, BinaryOperatorKind::BO_Assign, ctx_.VoidTy);
+
+
+        VarDecl *valDecl = createVarDecl(ctx_, ctx_.getTranslationUnitDecl(), "val", typeBin_, nullptr);
+
+        MemberExpr *valMemberExpr = createMemberExpr(ctx_, idxVal, false, valDecl, typeBin_);
+        BinaryOperator *assignVal = createBinaryOperator(ctx_, valMemberExpr, tmp, BinaryOperatorKind::BO_Assign, ctx_.VoidTy);
+
+        ReturnStmt *ret = createReturnStmt(ctx_, idxVal);
+        // combine both in new scope
+        SmallVector<Stmt *, 6> stmts;
+        stmts.push_back(initBinIdx);//idxVal declaration statement is not pushed here but prepended to the function in Rewrite.cpp because type information for IdxVal<BinType> is not present in context
+        stmts.push_back(initTmp);
+        stmts.push_back(assignIdx);
+        stmts.push_back(assignVal);
+        stmts.push_back(ret);
+        CompoundStmt *compStmt = createCompoundStmt(ctx_, stmts);
+
+        return compStmt;
+      }
+      else {
+
+        // create variable initialization "BIN_TYPE _tmp = RHS;"
+        VarDecl *declTmp =
+          createVarDecl(ctx_, funcBinning_, "_tmp", typeBin_, E->getRHS());
+        DeclRefExpr *tmp = createDeclRefExpr(ctx_, declTmp);
+        DeclStmt *initTmp = createDeclStmt(ctx_, declTmp);
+
+        // create binPut function call "binPut(_lmem, _offset, IDX, _tmp)";
+        SmallVector<Expr *, 16> args;
+        args.push_back(lmem_);
+        args.push_back(offset_);
+        args.push_back(MCE->getArg(0));
+        args.push_back(tmp);
+        CallExpr *callBinPut = createFunctionCall(ctx_, funcBinPut_, args);
+
+        // combine both in new scope
+        SmallVector<Stmt *, 2> stmts;
+        stmts.push_back(initTmp);
+        stmts.push_back(callBinPut);
+        CompoundStmt *compStmt = createCompoundStmt(ctx_, stmts);
+
+        return compStmt;
+      }
     }
   }
-
   return E;
 }
 

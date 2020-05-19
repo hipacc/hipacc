@@ -2059,23 +2059,28 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
-    case Language::CUDA:
       OS << "#define " << KID << "PPT " << K->getPixelsPerThread() << "\n";
+      break;
+    case Language::CUDA:
       break;
   }
   OS << "\n";
 
   // write binning signature and qualifiers
   if (compilerOptions.emitCUDA()) {
-    OS << "extern \"C\" {\n";
     signatureBinning += "__device__ ";
+    signatureBinning += "inline IdxVal<" + binType.getAsString() + "> " + K->getBinningName() + "(";
+  } else {
+    signatureBinning += "inline void " + K->getBinningName() + "(";
   }
-  signatureBinning += "inline void " + K->getBinningName() + "(";
-  if (compilerOptions.emitOpenCL()) {
-    signatureBinning += "__local ";
+  if (!compilerOptions.emitCUDA()) {
+    if (compilerOptions.emitOpenCL()) {
+      signatureBinning += "__local ";
+    }
+    signatureBinning += binType.getAsString();
+    signatureBinning += " *_lmem, uint _offset, ";
   }
-  signatureBinning += binType.getAsString();
-  signatureBinning += " *_lmem, uint _offset, uint _num_bins, ";
+  signatureBinning += "uint _num_bins, ";
 
   // write other binning parameters
   size_t comma = 0;
@@ -2092,103 +2097,100 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   }
   signatureBinning += ")";
 
-  // print forward declaration
-  OS << signatureBinning << ";\n\n";
+  size_t bitWidth = 32;
+  if (isa<VectorType>(binType.getCanonicalType().getTypePtr())) {
+    const VectorType *VT = dyn_cast<VectorType>(
+        binType.getCanonicalType().getTypePtr());
+    VectorTypeInfo info = createVectorTypeInfo(VT);
+    bitWidth = info.elementCount * info.elementWidth;
+  } else {
+    bitWidth = getBuiltinTypeSize(binType->getAs<BuiltinType>());
+  }
 
-  // instantiate reduction
-  switch (compilerOptions.getTargetLang()) {
-    case Language::Renderscript:
-    case Language::Filterscript:
-      break;
-    case Language::C99:
-      OS << "BINNING_CPU_2D(";
-      OS << K->getBinningName() << "2D, "
-         << pixelType.getAsString() << ", "
-         << binType.getAsString() << ", "
-         << K->getReduceName() << ", "
-         << K->getBinningName() << ", "
-         << KID << "PPT"
-         << ")\n\n";
-      break;
-    case Language::CUDA: {
-      // 2D reduction
-      OS << "__device__ unsigned finished_blocks_" << K->getBinningName()
-         << "2D[MAX_SEGMENTS] = {0};\n\n";
-      OS << "BINNING_CUDA_2D_SEGMENTED("
-         << K->getBinningName() << "2D, ";
-      // fall through!
+  if (bitWidth > 64) {
+    // >64bit: Synchronize using 64bit atomicCAS (might cause errors)
+    llvm::errs() << "WARNING: Potential data race if first 64 bits of bin write are identical to current bin value!\n";
+    // TODO: Implement synchronization using locks for bin types >64bit
+    // TODO: Consider compiler switch to force locks for bin types >64bit
+  } else if (binType.getTypePtr()->isIntegerType()) {
+    // INT: Synchronize using thread ID tagging
+    llvm::errs() << "WARNING: First 5 bits of bin value are used for thread ID tagging!\n";
+    // TODO: Consider compiler switch to force CAS for full bit width
+  }
 
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
-      if (compilerOptions.emitOpenCL()) {
-        OS << "BINNING_CL_2D_SEGMENTED("
-           << K->getBinningName() << "2D, "
-           << K->getBinningName() << "1D, ";
-      }
+  if(!compilerOptions.emitCUDA()) {
+    // print forward declaration
+    OS << signatureBinning << ";\n\n";
 
-      OS << pixelType.getAsString() << ", "
-         << binType.getAsString() << ", "
-         << K->getReduceName() << ", "
-         << K->getBinningName() << ", ";
-
-      size_t bitWidth = 32;
-      if (isa<VectorType>(binType.getCanonicalType().getTypePtr())) {
-        const VectorType *VT = dyn_cast<VectorType>(
-            binType.getCanonicalType().getTypePtr());
-        VectorTypeInfo info = createVectorTypeInfo(VT);
-        bitWidth = info.elementCount * info.elementWidth;
-      } else {
-        bitWidth = getBuiltinTypeSize(binType->getAs<BuiltinType>());
-      }
-
-      if (bitWidth > 64) {
-        // >64bit: Synchronize using 64bit atomicCAS (might cause errors)
-        llvm::errs() << "WARNING: Potential data race if first 64 bits of bin write are identical to current bin value!\n";
-        OS << "ACCU_CAS_GT64, UNTAG_NONE, ";
-        // TODO: Implement synchronization using locks for bin types >64bit
-        // TODO: Consider compiler switch to force locks for bin types >64bit
-      } else {
-        if (binType.getTypePtr()->isIntegerType()) {
-          // INT: Synchronize using thread ID tagging
-          llvm::errs() << "WARNING: First 5 bits of bin value are used for thread ID tagging!\n";
-          OS << "ACCU_INT, UNTAG_INT, ";
-          // TODO: Consider compiler switch to force CAS for full bit width
-        } else {
-          // CAS: Synchronize using atomicCAS (32 or 64 bit)
-          OS << "ACCU_CAS_" << bitWidth << ", UNTAG_NONE, ";
+    // instantiate reduction
+    switch (compilerOptions.getTargetLang()) {
+      case Language::Renderscript:
+      case Language::Filterscript:
+        break;
+      case Language::C99:
+        OS << "BINNING_CPU_2D(";
+        OS << K->getBinningName() << "2D, "
+           << pixelType.getAsString() << ", "
+           << binType.getAsString() << ", "
+           << K->getReduceName() << ", "
+           << K->getBinningName() << ", "
+           << KID << "PPT"
+           << ")\n\n";
+        break;
+      case Language::OpenCLACC:
+      case Language::OpenCLCPU:
+      case Language::OpenCLGPU:
+        if (compilerOptions.emitOpenCL()) {
+          OS << "BINNING_CL_2D_SEGMENTED("
+            << K->getBinningName() << "2D, "
+            << K->getBinningName() << "1D, ";
         }
-      }
 
-      OS << K->getWarpSize() << ", "
-         << compilerOptions.getReduceConfigNumWarps() << ", "
-         << compilerOptions.getReduceConfigNumHists() << ", "
-         << KID << "PPT, ";
+        OS << pixelType.getAsString() << ", "
+          << binType.getAsString() << ", "
+          << K->getReduceName() << ", "
+          << K->getBinningName() << ", ";
 
-      if (compilerOptions.emitCUDA()) {
-        OS << "SEGMENT_SIZE, " // defined in "hipacc_cu.hpp"
-           << (binType.getTypePtr()->isVectorType()
-               ? "make_" + binType.getAsString() + "(0), "
-               : "(0), ")
-           << "_tex" << K->getIterationSpace()->getImage()->getName() + K->getName();
-      } else {
+        if (bitWidth > 64) {
+          OS << "ACCU_CAS_GT64, UNTAG_NONE, ";
+        } else {
+          if (binType.getTypePtr()->isIntegerType()) {
+            OS << "ACCU_INT, UNTAG_INT, ";
+          } else {
+            OS << "ACCU_CAS_" << bitWidth << ", UNTAG_NONE, ";
+          }
+        }
+
+        OS << K->getWarpSize() << ", "
+           << compilerOptions.getReduceConfigNumWarps() << ", "
+           << compilerOptions.getReduceConfigNumUnits() << ", "
+           << KID << "PPT, ";
+
         OS << (binType.getTypePtr()->isVectorType()
-               ? "(" + binType.getAsString() + ")(0)"
-               : "(0)");
-      }
+                ? "(" + binType.getAsString() + ")(0)"
+                : "(0)");
 
-      OS << ")\n\n";
-      }
-      break;
+        OS << ")\n\n";
+        break;
+      default:
+        break;
+    }
   }
 
   // print binning function
   OS << signatureBinning << "\n";
-  bin_fun->getBody()->printPretty(OS, 0, Policy, 0);
-  OS << "\n";
 
-  if (compilerOptions.emitCUDA())
-    OS << "}\n";
+  if (compilerOptions.emitCUDA()) {
+    //declare IdxVal<BinType> before function body because type IdxVal is not availible in AST translation context
+    OS << "{ IdxVal<" + binType.getAsString() + "> _ret { -1, " + binType.getAsString() + "{} };\n";
+  }
+
+  bin_fun->getBody()->printPretty(OS, 0, Policy, 0);
+
+  if (compilerOptions.emitCUDA()) {
+    OS << "return _ret;\n}\n";
+  }
+
   OS << "\n";
 }
 
@@ -2198,8 +2200,10 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   FunctionDecl *fun = KC->getReduceFunction();
 
   // preprocessor defines
-  OS << "#define BS " << K->getNumThreadsReduce() << "\n"
-      << "#define PPT " << K->getPixelsPerThreadReduce() << "\n";
+  OS << "#define BS " << K->getNumThreadsReduce() << "\n";
+  if(!compilerOptions.emitCUDA()) {
+    OS << "#define PPT " << K->getPixelsPerThreadReduce() << "\n";
+  }
   if (K->getIterationSpace()->isCrop()) {
     OS << "#define USE_OFFSETS\n";
   }
@@ -2257,7 +2261,6 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   switch (compilerOptions.getTargetLang()) {
     default: break;
     case Language::CUDA:
-      OS << "extern \"C\" {\n";
       OS << "__device__ ";
       break;
     case Language::Renderscript:
@@ -2331,8 +2334,6 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       break;
   }
 
-  if (compilerOptions.emitCUDA())
-    OS << "}\n";
   OS << "#include \"hipacc_undef.hpp\"\n";
   OS << "\n";
 }

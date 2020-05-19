@@ -30,7 +30,7 @@ if ( $UseNinja ) {
   if (-not $?) { exit 1 }
 }
 
-ctest -C Release -j $Cores
+ctest -C Release -j $Cores --output-on-failure
 if (-not $?) { exit 1 }
 
 Copy-Item -Force -Path "$Env:TEMP/target/samples/build" -Destination "$Workspace/target/samples" -Recurse

@@ -29,48 +29,29 @@
 #ifndef __HIPACC_CU_RED_HPP__
 #define __HIPACC_CU_RED_HPP__
 
-#ifndef PPT
-#define PPT 1
-#endif
-#ifndef BS
-#define BS 32
-#endif
-// define offset parameters required to specify a sub-region on the image on
-// that the reduction should be applied
-#ifdef USE_OFFSETS
-#define OFFSETS                                                                \
-  , const unsigned int offset_x, const unsigned int offset_y,                  \
-      const unsigned int is_width, const unsigned int is_height,               \
-      const unsigned int offset_block
-#define IS_HEIGHT is_height
-#define OFFSET_BLOCK offset_block
-#define OFFSET_Y offset_y
-#define OFFSET_CHECK_X gid_x >= offset_x &&gid_x < is_width + offset_x
-#define OFFSET_CHECK_X_STRIDE                                                  \
-  gid_x + blockDim.x >= offset_x &&gid_x + blockDim.x < is_width + offset_x
-#else
-#define OFFSETS
-#define IS_HEIGHT height
-#define OFFSET_BLOCK 0
-#define OFFSET_Y 0
-#define OFFSET_CHECK_X gid_x < width
-#define OFFSET_CHECK_X_STRIDE gid_x + blockDim.x < width
-#endif
-#ifdef USE_ARRAY_2D
-#define READ(INPUT, X, Y, STRIDE) tex2D(INPUT, X, Y)
-#define INPUT_PARM(DATA_TYPE, INPUT_NAME)
-#else
-#define READ(INPUT, X, Y, STRIDE) INPUT[(X) + (Y)*STRIDE]
-#define INPUT_PARM(DATA_TYPE, INPUT_NAME) const DATA_TYPE *INPUT_NAME,
-#endif
+
 #include <assert.h>
 //include <device_launch_parameters.h>
 
 
+#define WARP_SIZE 32
 //#define REDUCE_BLOCKS_SEQUENTIAL
+
+
+template<typename CalcType>
+struct IdxVal {
+	unsigned int idx;
+	CalcType val;
+};
+
 
 template <typename CalcType>
 using ReduceFunc = CalcType(*)(CalcType a, CalcType b);
+
+template <typename CalcType, typename PixelType>
+using BinningFunc = IdxVal<CalcType>(*)(unsigned int num_bins, unsigned int x, unsigned int y, PixelType pixel);
+
+
 // row length == 32
 template <typename CalcType, ReduceFunc<CalcType> reduce>
 __device__ void hipacc_half_warp_reduce(volatile CalcType* sdata, int tid) {
@@ -364,209 +345,301 @@ __global__ void hipacc_shared_reduction(CalcType *image, CalcType *result, const
   }
 }
 
-// global variable used by thread-fence reduction to count how many blocks have
-// finished -> defined by the compiler (otherwise redefined for multiple
-// reductions)
-//__device__ unsigned int finished_blocks = 0;
+// Helper for tagging integers with thread ID (first 5 bits are used)
+template<typename IntType>
+__device__ IntType tag_uint(IntType value) {
+  static_assert(std::is_integral<IntType>::value && std::is_unsigned<IntType>::value && sizeof(IntType) <= 4,
+                "Only unsigned integer up to 4 bytes are supported");
+  return (value) | (threadIdx.x << (3 + ((sizeof(IntType) - 1) * 8)));
+}
 
-// single step reduction:
-// reduce a 2D block and store the reduced values to linear memory; use
-// thread-fence synchronization to reduce the values stored to linear memory in
-// one go - CUDA 2.x hardware required
+// Helper for untagging bin values
+template<typename BinType>
+__device__ BinType untag(BinType value) {
+  // default: nothing is done (see specialization below for unsigned int)
+  return value;
+}
 
-// Helper macros for accumulating integers in segmented binning/reduction
-// (first 5 bits are used for tagging with thread id)
-#define UNTAG_INT(BIN_TYPE, VAL) (VAL) & ~(0xF8 << ((sizeof(BIN_TYPE) - 1) * 8))
+// Helper for untagging integer values with thread ID (first 5 bits are used)
+template<typename IntType>
+__device__ IntType untag_uint(IntType value) {
+  static_assert(std::is_integral<IntType>::value && std::is_unsigned<IntType>::value && sizeof(IntType) <= 4,
+                "Only unsigned integer up to 4 bytes are supported");
+  return (value) & ~(0xF8 << ((sizeof(IntType) - 1) * 8));
+}
 
-#define TAG_INT(BIN_TYPE, VAL)                                                 \
-  (VAL) | (threadIdx.x << (3 + ((sizeof(BIN_TYPE) - 1) * 8)))
+// Specialized helper for supported unsigned int types
+template<> __device__ uint8_t  untag(uint8_t value)  { return untag_uint<uint8_t>(value); }
+template<> __device__ uint16_t untag(uint16_t value) { return untag_uint<uint16_t>(value); }
+template<> __device__ uint32_t untag(uint32_t value) { return untag_uint<uint32_t>(value); }
 
-#define ACCU_INT(BIN_TYPE, PTR, REDUCE)                                        \
-  volatile BIN_TYPE *address = PTR;                                            \
-  BIN_TYPE old, val;                                                           \
-  do {                                                                         \
-    old = UNTAG_INT(BIN_TYPE, *address);                                       \
-    val = TAG_INT(BIN_TYPE, REDUCE(old, bin));                                 \
-    *address = val;                                                            \
-  } while (*address != val);
+// Helper for accumulating integers
+template<typename IntType, ReduceFunc<IntType> reduce>
+__device__ void accumulate_uint(volatile IntType* address, IntType accu) {
+  static_assert(std::is_integral<IntType>::value && std::is_unsigned<IntType>::value && sizeof(IntType) <= 4,
+                "Only unsigned integer up to 4 bytes are supported");
+  IntType old, val;
+  do {
+    // read current bin and remove thread ID tag
+    old = untag_uint<IntType>(*address);
+    // reduce value, add thread ID tag
+    val = tag_uint<IntType>(reduce(old, accu));
+    // write new value to current bin
+    *address = val;
+  } while (*address != val); // run until write was successful
+}
 
-// Helper macros for accumulating using atomicCAS in segmented binning/reduction
-#define UNTAG_NONE(BIN_TYPE, VAL) (VAL)
+#if (__CUDA_ARCH__ >= 700)
+// Helper for accumulating 16bit types using atomicCAS
+template<typename BinType, ReduceFunc<BinType> reduce>
+__device__ void accumulate_cas_16(BinType* address, BinType accu) {
+  BinType old, val;
+  unsigned short int *oldi = (unsigned short int*)&old, *vali = (unsigned short int*)&val;
+  do {
+    old = *address;
+    val = reduce(old, accu);
+  } while (atomicCAS((unsigned short int*)address, *oldi, *vali) != *oldi);
+}
+#endif
 
-#define ACCU_CAS_32(BIN_TYPE, PTR, REDUCE)                                     \
-  BIN_TYPE *address = PTR;                                                     \
-  BIN_TYPE old, val;                                                           \
-  unsigned int *oldi = (unsigned int *)&old, *vali = (unsigned int *)&val;     \
-  do {                                                                         \
-    old = *address;                                                            \
-    val = REDUCE(old, bin);                                                    \
-  } while (atomicCAS((unsigned int *)address, *oldi, *vali) != *oldi);
+// Helper for accumulating 32bit types using atomicCAS
+template<typename BinType, ReduceFunc<BinType> reduce>
+__device__ void accumulate_cas_32(BinType* address, BinType accu) {
+  BinType old, val;
+  unsigned int *oldi = (unsigned int*)&old, *vali = (unsigned int*)&val;
+  do {
+    old = *address;
+    val = reduce(old, accu);
+  } while (atomicCAS((unsigned int*)address, *oldi, *vali) != *oldi);
+}
 
-#define ACCU_CAS_64(BIN_TYPE, PTR, REDUCE)                                     \
-  BIN_TYPE *address = PTR;                                                     \
-  BIN_TYPE old, val;                                                           \
-  unsigned long long int *oldi = (unsigned long long int *)&old,               \
-                         *vali = (unsigned long long int *)&val;               \
-  do {                                                                         \
-    old = *address;                                                            \
-    val = REDUCE(old, bin);                                                    \
-  } while (atomicCAS((unsigned long long int *)address, *oldi, *vali) != *oldi);
+// Helper for accumulating 64bit types using atomicCAS
+template<typename BinType, ReduceFunc<BinType> reduce>
+__device__ void accumulate_cas_64(BinType* address, BinType accu) {
+  BinType old, val;
+  unsigned long long int *oldi = (unsigned long long int*)&old, *vali = (unsigned long long int*)&val;
+  do {
+    old = *address;
+    val = reduce(old, accu);
+  } while (atomicCAS((unsigned long long int*)address, *oldi, *vali) != *oldi);
+}
 
-#define ACCU_CAS_GT64(BIN_TYPE, PTR, REDUCE)                                   \
-  BIN_TYPE *address = PTR;                                                     \
-  BIN_TYPE old, val;                                                           \
-  unsigned long long int *oldi = (unsigned long long int *)&old,               \
-                         *vali = (unsigned long long int *)&val;               \
-  bool run = true;                                                             \
-  do {                                                                         \
-    old = *address;                                                            \
-    val = REDUCE(old, bin);                                                    \
-    if (atomicCAS((unsigned long long int *)address, *oldi, *vali) == *oldi) { \
-      run = false;                                                             \
-      /* 64bit CAS succeeded, winning thread in warp => write remaining bits   \
-       */                                                                      \
-      *address = val;                                                          \
-    }                                                                          \
+// Helper for accumulating >128bit types using atomicCAS
+template<typename BinType, ReduceFunc<BinType> reduce>
+__device__ void accumulate_cas_gt64(BinType* address, BinType accu) {
+  BinType old, val;
+  unsigned long long int *oldi = (unsigned long long int*)&old, *vali = (unsigned long long int*)&val;
+  bool run = true;
+  do {
+    old = *address;
+    val = reduce(old, accu);
+    if (atomicCAS((unsigned long long int*)address, *oldi, *vali) == *oldi) {
+      run = false;
+      // 64bit CAS succeeded, this is the winning thread in the current warp => write remaining bits
+      *address = val;
+    }
   } while (run);
+}
 
-// Binning and reduction with conflicts solved via AtomicCAS or ThreadIdx
+// Helper for translating reduce functions with unknown int types to known int types
+template <typename IntType, typename BinType, ReduceFunc<BinType> reduce>
+__device__ IntType reduce_uint(IntType a, IntType b) {
+  BinType ret = reduce(*reinterpret_cast<BinType*>(&a), *reinterpret_cast<BinType*>(&b));
+  return *reinterpret_cast<IntType*>(&ret);
+}
+
+// Helper for dispatching to the correct accumulation implementation
+template<typename BinType, ReduceFunc<BinType> reduce>
+__device__ void accumulate(BinType* address, BinType accu) {
+  if (std::is_integral<BinType>::value && std::is_unsigned<BinType>::value && sizeof(BinType) <= 4) {
+    switch (sizeof(BinType)) {
+      case 1:
+        accumulate_uint<uint8_t, reduce_uint<uint8_t, BinType, reduce>>(reinterpret_cast<uint8_t*>(address), *reinterpret_cast<uint8_t*>(&accu));
+        break;
+      case 2:
+        accumulate_uint<uint16_t, reduce_uint<uint16_t, BinType, reduce>>(reinterpret_cast<uint16_t*>(address), *reinterpret_cast<uint16_t*>(&accu));
+        break;
+      case 4:
+        accumulate_uint<uint32_t, reduce_uint<uint32_t, BinType, reduce>>(reinterpret_cast<uint32_t*>(address), *reinterpret_cast<uint32_t*>(&accu));
+        break;
+      default:
+        break;
+    }
+  }
+  else {
+    switch (sizeof(BinType)) {
+    case 2: // short
+#if (__CUDA_ARCH__ >= 700)
+      accumulate_cas_16<BinType, reduce>(address, accu);
+      break;
+#else
+            // fall through
+#endif
+    case 1: // bool/char
+      assert(false && "Unsupported type");
+      break;
+    case 4: // int/float
+      accumulate_cas_32<BinType, reduce>(address, accu);
+      break;
+    case 8: // double
+      accumulate_cas_64<BinType, reduce>(address, accu);
+      break;
+    default: // 128 bit int
+      accumulate_cas_gt64<BinType, reduce>(address, accu);
+      break;
+    }
+  }
+}
+
+
+// Binning and reduce with conflicts solved via thread ID (uint) or CAS (else)
 //
 // Variables:
-//  - PIXEL_TYPE: Type of image pixels
-//  - BIN_TYPE:   Type of histogram bins
-//  - NUM_BINS:   Number of histogram bins
+//  - num_bins:     Number of bins
 //
 // Configuration:
-//  - WARP_SIZE: Threads per warp (32 for NVIDIA)
-//  - NUM_WARPS: Warps per block (affects block size and shared memory size)
-//  - NUM_HISTS: Partial histograms (affects number of blocks)
+//  - BinType:      Type of bins
+//  - CalcType:     Type of input pixels
+//  - NUM_WARPS:    Warps per block (affects block size and shared memory size)
+//  - NUM_UNITS:    Number of partial results (affects number of blocks)
+//  - SEGMENT_SIZE: Size of segment of partial results (lower -> less conflicts)
 //
 // Constants:
-//  - SEGMENT_SIZE: 128 (higher -> less segments and redundancy, more conflicts)
+//  - WARP_SIZE:    Threads per warp (32 for NVIDIA)
+//
+// Constraints:
+//  - WARP_SIZE * NUM_WARPS >= SEGMENT_SIZE
+//  - num_segments == ceil(num_bins/SEGMENT_SIZE)
 //
 // Settings:
 //  - Block size:              WARP_SIZE x NUM_WARPS
-//  - Shared memory per block: SEGMENT_SIZE * NUM_WARPS * sizeof(BIN_TYPE)
-//  - Number of segments:      NUM_SEGMENTS = ceil(NUM_BINS/SEGMENT_SIZE)
-//  - Grid size:               NUM_HISTS x NUM_SEGMENTS
+//  - Grid size:               NUM_UNITS x num_segments
+//  - Shared memory required:  SEGMENT_SIZE * NUM_WARPS * sizeof(BinType)
+//  - Global memory required:  num_bins * NUM_UNITS * sizeof(BinType)
 //
 // Steps:
 //  1) Each warp computes a single SEGMENT in shared memory.
 //  2) SEGMENTS of all warps within a block are assembled to single SEGMENT
 //     and stored in global memory.
-//      - x SEGMENTS represent partial (full size, not entire image) histogram,
-//      - where x = ceil(NUM_BINS/SEGMENT_SIZE)
-//  3) y partial histograms are merged by x blocks to a single final histogram.
-//      - where y = NUM_HISTS
+//      - num_segments represent partial (full size, not entire image) result,
+//  3) y partial results are merged by x blocks to a single final result vector.
+//      - where y = NUM_UNITS
+template<typename BinType, typename CalcType, BinningFunc<BinType, CalcType> binning, ReduceFunc<BinType> reduce, int NUM_WARPS, int NUM_UNITS, int SEGMENT_SIZE, int PPT>
+__device__ bool hipacc_binning_and_reduce(BinType* result, CalcType* input, int pitch, int pos_x, int pos_y, int width, int height, int num_bins, unsigned int* counter) {
+  static_assert(WARP_SIZE * NUM_WARPS >= SEGMENT_SIZE, "Not enough warps");
+  assert(blockDim.x == WARP_SIZE);
+  assert(blockDim.y == NUM_WARPS);
+  assert(gridDim.x == NUM_UNITS);
+  assert(gridDim.y == NUM_SEGMENTS);
 
-#ifdef _Pragma
-#define NVCC_UNROLL _Pragma("unroll")
-#else
-#ifdef __pragma
-#define NVCC_UNROLL __pragma(unroll)
-#else
-#define NVCC_UNROLL
-#endif
-#endif 
+  const int num_warps = NUM_WARPS;
+  const int segment_size = SEGMENT_SIZE;
 
+  int lid = threadIdx.x + threadIdx.y * WARP_SIZE;
 
-#define BINNING_CUDA_2D_SEGMENTED(                                             \
-    NAME, PIXEL_TYPE, BIN_TYPE, REDUCE, BINNING, ACCU, UNTAG, WARP_SIZE,       \
-    NUM_WARPS, NUM_HISTS, PPT, SEGMENT_SIZE, ZERO, INPUT_NAME)                 \
-  __device__ inline void BINNING##Put(BIN_TYPE *lmem, uint offset, uint idx,   \
-                                      BIN_TYPE val) {                          \
-    idx -= offset;                                                             \
-    if (idx < SEGMENT_SIZE) {                                                  \
-                                                                               \
-      /* set bin value */                                                      \
-      BIN_TYPE bin = val;                                                      \
-                                                                               \
-      /* accumulate using reduce function */                                   \
-      ACCU(BIN_TYPE, &lmem[idx], REDUCE);                                      \
-    }                                                                          \
-  }                                                                            \
-                                                                               \
-  __global__ void __launch_bounds__(WARP_SIZE *NUM_WARPS)                      \
-      NAME(INPUT_PARM(PIXEL_TYPE, INPUT_NAME) BIN_TYPE *output,                \
-           const unsigned int width, const unsigned int height,                \
-           const unsigned int stride, const unsigned int num_bins,             \
-           const unsigned int offset_x, const unsigned int offset_y) {         \
-    unsigned int lid = threadIdx.x + threadIdx.y * WARP_SIZE;                  \
-                                                                               \
-    __shared__ BIN_TYPE warp_hist[NUM_WARPS * SEGMENT_SIZE];                   \
-    BIN_TYPE *lhist = &warp_hist[threadIdx.y * SEGMENT_SIZE];                  \
-                                                                               \
-    /* initialize shared memory */                                             \
-    NVCC_UNROLL for (unsigned int i = 0; i < SEGMENT_SIZE;               \
-                           i += WARP_SIZE) {                                   \
-      lhist[threadIdx.x + i] = ZERO;                                           \
-    }                                                                          \
-                                                                               \
-    __syncthreads();                                                           \
-                                                                               \
-    /* compute histogram segments */                                           \
-    unsigned int increment = NUM_HISTS * WARP_SIZE * NUM_WARPS;                \
-    unsigned int gpos = ((WARP_SIZE * NUM_WARPS) * blockIdx.x) +               \
-                        (threadIdx.y * WARP_SIZE) + threadIdx.x;               \
-    unsigned int end = width * height / PPT;                                   \
-    unsigned int offset = blockIdx.y * SEGMENT_SIZE;                           \
-                                                                               \
-    BIN_TYPE bin = ZERO;                                                       \
-    NVCC_UNROLL for (unsigned int i = gpos; i < end; i += increment) {   \
-      unsigned int gid_y = offset_y + (i / width);                             \
-      unsigned int gid_x = offset_x + (i % width);                             \
-      uint ipos = gid_x + gid_y * stride;                                      \
-      const uint inc = height / PPT * stride;                                  \
-      NVCC_UNROLL for (unsigned int p = 0; p < PPT; ++p) {               \
-        uint y = gid_y + p * height / PPT;                                     \
-                                                                               \
-        PIXEL_TYPE pixel = INPUT_NAME[ipos];                                   \
-        ipos += inc;                                                           \
-                                                                               \
-        BINNING(lhist, offset, num_bins, gid_x, y, pixel);                     \
-      }                                                                        \
-    }                                                                          \
-                                                                               \
-    __syncthreads();                                                           \
-                                                                               \
-    /* assemble segments and write partial histograms */                       \
-    if (lid < min(SEGMENT_SIZE, num_bins)) {                                   \
-      bin = UNTAG(BIN_TYPE, warp_hist[lid]);                                   \
-      NVCC_UNROLL for (unsigned int i = 1; i < NUM_WARPS; ++i) {         \
-        bin = REDUCE(bin, UNTAG(BIN_TYPE, warp_hist[i * SEGMENT_SIZE + lid])); \
-      }                                                                        \
-      output[offset + lid + (blockIdx.x * num_bins)] = bin;                    \
-    }                                                                          \
-                                                                               \
-    /* merge partial histograms */                                             \
-    if (gridDim.x > 1) {                                                       \
-      __shared__ bool last_block_for_segment;                                  \
-                                                                               \
-      if (lid == 0) {                                                          \
-        unsigned int ticket =                                                  \
-            atomicInc(&finished_blocks_##NAME[blockIdx.y], gridDim.x - 1);     \
-        last_block_for_segment = (ticket == gridDim.x - 1);                    \
-      }                                                                        \
-      __syncthreads();                                                         \
-                                                                               \
-      if (last_block_for_segment) {                                            \
-        unsigned int blocksize = WARP_SIZE * NUM_WARPS;                        \
-        unsigned int runs = (SEGMENT_SIZE + blocksize - 1) / blocksize;        \
-                                                                               \
-        NVCC_UNROLL for (unsigned int i = 0; i < runs; ++i) {            \
-          if (lid < SEGMENT_SIZE) {                                            \
-            bin = output[offset + lid];                                        \
-                                                                               \
-            NVCC_UNROLL for (unsigned yi = 1; yi < gridDim.x; ++yi) {    \
-              bin = REDUCE(bin, output[offset + yi * num_bins + lid]);         \
-            }                                                                  \
-                                                                               \
-            output[offset + lid] = bin;                                        \
-          }                                                                    \
-          lid += blocksize;                                                    \
-        }                                                                      \
-      }                                                                        \
-    }                                                                          \
+  auto warp_result = hipacc_get_shared<BinType>();
+  BinType* lresult = &warp_result[threadIdx.y * SEGMENT_SIZE];
+
+  // initialize shared memory
+#pragma unroll segment_size
+  for (int i = 0; i < SEGMENT_SIZE; i += WARP_SIZE) {
+    lresult[threadIdx.x + i] = BinType{ 0 };
   }
+
+  __syncthreads();
+
+  // compute result segments
+  int increment = NUM_UNITS * WARP_SIZE * NUM_WARPS;
+  int gpos = ((WARP_SIZE * NUM_WARPS) * blockIdx.x) + (threadIdx.y * WARP_SIZE) + threadIdx.x;
+  int end = width * height / PPT;
+  int offset = blockIdx.y * SEGMENT_SIZE;
+
+  // iterate over the entire input
+  for (int i = gpos; i < end; i += increment) {
+    int gid_y = pos_y + (i / width);
+    int gid_x = pos_x + (i % width);
+    int ipos = gid_x + gid_y * pitch;
+    const int inc = height / PPT * pitch;
+#pragma unroll PPT
+    for (int p = 0; p < PPT; ++p) {
+      int y = gid_y + p * height / PPT;
+
+      CalcType pixel = input[ipos];
+      ipos += inc;
+
+      // compute idx/val for bin from pixel
+      IdxVal<BinType> bin = binning(num_bins, gid_x, y, pixel);
+
+      // project to current segment
+      bin.idx -= offset;
+
+      // write to bin in current segment
+      if (bin.idx < SEGMENT_SIZE) {
+        accumulate<BinType, reduce>(&lresult[bin.idx], bin.val);
+      }
+    }
+  }
+
+  __syncthreads();
+
+  BinType bin{ 0 };
+
+  // assemble segments and write partial results
+  if (lid < min(SEGMENT_SIZE, num_bins)) {
+    bin = untag<BinType>(warp_result[lid]);
+#pragma unroll num_warps
+    for (int i = 1; i < NUM_WARPS; ++i) {
+      bin += untag<BinType>(warp_result[i * SEGMENT_SIZE + lid]);
+    }
+    result[offset + lid + (blockIdx.x * num_bins)] = bin;
+  }
+
+  // merge partial results
+  if (gridDim.x > 1) {
+    __shared__ bool last_block_for_segment;
+
+    if (lid == 0) {
+      int ticket = atomicInc(&counter[blockIdx.y], gridDim.x - 1);
+      last_block_for_segment = (ticket == gridDim.x - 1);
+    }
+    __syncthreads();
+
+    if (last_block_for_segment) {
+      int blocksize = WARP_SIZE * NUM_WARPS;
+      int runs = (SEGMENT_SIZE + blocksize - 1) / blocksize;
+
+      for (int i = 0; i < runs; ++i) {
+        if (lid < SEGMENT_SIZE) {
+          bin = result[offset + lid];
+
+          for (unsigned yi = 1; yi < gridDim.x; ++yi) {
+            bin = reduce(bin, result[offset + yi * num_bins + lid]);
+          }
+
+          result[offset + lid] = bin;
+        }
+        lid += blocksize;
+      }
+
+      if (lid == 0) {
+        counter[blockIdx.y] = 0;
+        return true;
+      }
+    }
+  }
+  else {
+    if (lid == 0) return true;
+  }
+
+  return false;
+}
+
+
+template<typename BinType, typename CalcType, BinningFunc<BinType, CalcType> binning, ReduceFunc<BinType> reduce, int NUM_WARPS, int NUM_UNITS, int SEGMENT_SIZE=DEFAULT_SEGMENT_SIZE, int PPT=1>
+__global__ void hipacc_binning_reduction(CalcType *image, BinType *result, int width, int height, int stride, int offset_x, int offset_y, int num_bins, unsigned int *counter) {
+  hipacc_binning_and_reduce<BinType, CalcType, binning, reduce, NUM_WARPS, NUM_UNITS, SEGMENT_SIZE, PPT>(result, image, stride, offset_x, offset_y, width, height, num_bins, counter);
+}
+
+
 
 #endif  // __HIPACC_CU_RED_HPP__

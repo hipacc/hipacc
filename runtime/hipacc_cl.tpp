@@ -342,7 +342,7 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
 template <typename T, typename T2>
 T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D,
                                const HipaccAccessor &acc,
-                               unsigned int num_hists, unsigned int num_warps,
+                               unsigned int num_warps, unsigned int num_hists,
                                unsigned int num_bins, bool print_timing) {
   HipaccContext &Ctx = HipaccContext::getInstance();
   cl_mem_flags flags = CL_MEM_READ_WRITE;
