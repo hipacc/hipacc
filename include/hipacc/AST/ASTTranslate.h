@@ -129,12 +129,13 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *lidYRef, *gidYRef;
 
 
-    // BinningTranslater for translating binning(uint x, uint y, data_t pixel)
+    // BinningTranslator for translating binning(uint x, uint y, data_t pixel)
     // independently of kernel() method.
     class BinningTranslator {
       private:
         ASTContext &ctx_;
         HipaccKernel *kernel_;
+        CompilerOptions &compilerOptions;
         Expr *lmem_, *offset_, *num_bins_;
         FunctionDecl *funcBinPut_, *funcBinning_;
         QualType typeIdx_, typeBin_;
@@ -183,11 +184,10 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         Expr *translateCXXMemberCallExpr(CXXMemberCallExpr *E);
 
       public:
-        BinningTranslator(ASTContext &ctx, HipaccKernel *kernel)
-            : ctx_(ctx), kernel_(kernel) {
+        BinningTranslator(ASTContext &ctx, HipaccKernel *kernel, CompilerOptions &_compilerOptions)
+            : ctx_(ctx), kernel_(kernel), compilerOptions(_compilerOptions) {
           typeIdx_ = ctx_.UnsignedIntTy;
           typeBin_ = kernel_->getKernelClass()->getBinType();
-
           createBinningPutDeclaration();
         }
 
@@ -438,7 +438,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Stmt *Hipacc(Stmt *S);
 
     Stmt *translateBinning(Stmt *binningFunc) {
-      BinningTranslator binning(Ctx, Kernel);
+      BinningTranslator binning(Ctx, Kernel, compilerOptions);
       Stmt *binningStmts = binning.translate(binningFunc);
       return binningStmts;
     }

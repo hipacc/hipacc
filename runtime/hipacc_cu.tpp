@@ -277,11 +277,27 @@ T hipaccApplyReductionShared(const KernelFunc &reductionKernel,
   cudaMemset(finishedThreadCounter, 0, sizeof(unsigned int));
 
 
-  hipaccLaunchKernel(reductionKernel, gridDim, blockDim, ep, print_timing, (blockDim.x + 1) * blockDim.y * sizeof(T), accImgDevMem, output, accImgWidth, accImgHeight, accImgStride, bufferImage, finishedThreadCounter);
+  switch (acc.img->get_mem_type()) {
+    case hipaccMemoryType::Global: {
+      hipaccLaunchKernel(reductionKernel, gridDim, blockDim, ep, print_timing, (blockDim.x + 1) * blockDim.y * sizeof(T), accImgDevMem, output, accImgWidth, accImgHeight, accImgStride, bufferImage, finishedThreadCounter);
+      break;
+    }
+    case hipaccMemoryType::Array2D: {
+      // FIXME: textures not yet supported
+      std::cerr << "CUDA reductions with textures are not supported yet" << std::endl;
+      exit(1);
+      //hipaccBindTexture<T2>(hipaccMemoryType::Array2D, tex, acc.img);
+      //hipaccLaunchKernel(kernel2D, grid, block, ep, print_timing, shared_memory_size, output, acc.width, acc.height, tex, acc.img->get_stride(), acc.offset_x, acc.offset_y, num_bins, finishedThreadCounter);
+      break;
+    }
+  }
 
 
   err = cudaMemcpy(&result, output, sizeof(T), cudaMemcpyDeviceToHost);
   checkErr(err, "cudaMemcpy()");
+
+  err = cudaFree(finishedThreadCounter);
+  checkErr(err, "cudaFree()");
 
   err = cudaFree(output);
   checkErr(err, "cudaFree()");
@@ -307,57 +323,60 @@ T hipaccApplyReductionShared(const KernelFunc &kernel2D,
       kernel2D, acc, max_threads, pixels_per_thread, ep, tex, print_timing);
 }
 
-#ifndef SEGMENT_SIZE
-#define SEGMENT_SIZE 128
-#define MAX_SEGMENTS 512 // equals 65k bins (MAX_SEGMENTS*SEGMENT_SIZE)
-#endif
-template <typename T, typename T2>
-T *hipaccApplyBinningSegmented(const void *kernel2D, std::string const& kernel2D_name,
-                               HipaccAccessor<T2> &acc, unsigned int num_hists,
-                               unsigned int num_warps, unsigned int num_bins,
-                               const textureReference *tex, bool print_timing) {
-  T *output;                   // GPU memory for reduction
-  T *result = new T[num_bins]; // host result
+template <typename T, typename T2, class KernelFunc, int SEGMENT_SIZE>
+T *hipaccApplyBinningSegmented(KernelFunc const &kernel2D,
+                                                const HipaccAccessor<T2> &acc,
+                                                unsigned int num_warps,
+                                                unsigned int num_units,
+                                                unsigned int num_bins,
+                                                HipaccExecutionParameter const &ep,
+                                                const textureReference *tex,
+                                                bool print_timing) {
 
-  dim3 grid(num_hists, (num_bins + SEGMENT_SIZE - 1) / SEGMENT_SIZE);
+  T *output; //GPU memory for reduction
+  T *result = new T[num_bins]; //host result
+  auto num_segments = (num_bins+SEGMENT_SIZE-1)/SEGMENT_SIZE;
   dim3 block(32, num_warps);
+  dim3 grid(num_units, num_segments);
+
+  size_t shared_memory_size = SEGMENT_SIZE * num_warps * sizeof(T);
 
   cudaError_t err =
-      cudaMalloc((void **)&output, sizeof(T) * num_hists * num_bins);
+      cudaMalloc((void **)&output, sizeof(T) * num_units * num_bins);
   checkErr(err, "cudaMalloc()");
 
-  std::vector<void *> args;
-  auto accImgDevMem = acc.img->get_device_memory();
+  //initialize counter for threads finished with last reduction phase
+  unsigned int *finishedThreadCounter;
+  cudaMalloc(&finishedThreadCounter, sizeof(unsigned int)*num_segments);
+  cudaMemset(finishedThreadCounter, 0, sizeof(unsigned int)*num_segments);
+
   switch (acc.img->get_mem_type()) {
-  default:
-  case hipaccMemoryType::Global: {
-    args.push_back(&accImgDevMem);
-    break;
+    case hipaccMemoryType::Global: {
+      hipaccLaunchKernel(kernel2D, grid, block, ep, print_timing, shared_memory_size, acc.img->get_device_memory(), output, acc.width, acc.height, acc.img->get_stride(), acc.offset_x, acc.offset_y, num_bins, finishedThreadCounter);
+      break;
+    }
+    case hipaccMemoryType::Array2D: {
+      // FIXME: textures not yet supported
+      std::cerr << "CUDA reductions with textures are not supported yet" << std::endl;
+      exit(1);
+      hipaccBindTexture<T2>(hipaccMemoryType::Array2D, tex, acc.img);
+      //hipaccLaunchKernel(kernel2D, grid, block, ep, print_timing, shared_memory_size, output, acc.width, acc.height, tex, acc.img->get_stride(), acc.offset_x, acc.offset_y, num_bins, finishedThreadCounter);
+      break;
+    }
   }
-  case hipaccMemoryType::Array2D:
-    hipaccBindTexture<T2>(hipaccMemoryType::Array2D, tex, acc.img);
-    break;
-  }
-
-  args.push_back((void *)&output);
-  args.push_back((void *)&acc.width);
-  args.push_back((void *)&acc.height);
-  auto accImgStride = acc.img->get_stride();
-  args.push_back((void *)&accImgStride);
-  args.push_back((void *)&num_bins);
-  args.push_back((void *)&acc.offset_x);
-  args.push_back((void *)&acc.offset_y);
-
-  hipaccLaunchKernel(kernel2D, kernel2D_name, grid, block, args.data(), print_timing);
 
   err =
       cudaMemcpy(result, output, sizeof(T) * num_bins, cudaMemcpyDeviceToHost);
   checkErr(err, "cudaMemcpy()");
 
+  err = cudaFree(finishedThreadCounter);
+  checkErr(err, "cudaFree()");
+
   err = cudaFree(output);
   checkErr(err, "cudaFree()");
 
   return result;
+
 }
 
 // Allocate memory for Pyramid image

@@ -358,7 +358,6 @@ DeclRefExpr *createDeclRefExpr(ASTContext &Ctx, ValueDecl *VD) {
       VD, false, VD->getLocation(), VD->getType(), VK_LValue, 0, 0);
 }
 
-
 LabelDecl *createLabelDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name) {
   return LabelDecl::Create(Ctx, DC, SourceLocation(), &Ctx.Idents.get(Name));
 }

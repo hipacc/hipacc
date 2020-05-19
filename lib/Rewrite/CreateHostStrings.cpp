@@ -922,8 +922,13 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       resultStr += "hipaccApplyBinningSegmented<";
       resultStr += binTypeStr + ", ";
       resultStr += pixTypeStr + ">(";
-      resultStr += "(const void *)&" + K->getBinningName() + "2D, ";
-      resultStr += "\"" + K->getBinningName() + "2D\", ";
+      resultStr += "hipacc_binning_reduction<";
+      resultStr += binTypeStr + ", ";
+      resultStr += pixTypeStr + ", ";
+      resultStr += K->getBinningName() + ", ";
+      resultStr += K->getReduceName() + ", ";
+      resultStr += std::to_string(options.getReduceConfigNumWarps()) + ", ";
+      resultStr += std::to_string(options.getReduceConfigNumUnits()) + ">, ";
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
@@ -943,13 +948,13 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
 
   // print image name
   resultStr += K->getIterationSpace()->getName() + ", ";
-  resultStr += std::to_string(options.getReduceConfigNumHists()) + ", ";
   resultStr += std::to_string(options.getReduceConfigNumWarps()) + ", ";
+  resultStr += std::to_string(options.getReduceConfigNumUnits()) + ", ";
   resultStr += K->getNumBinsStr();
-
   if (options.emitCUDA()) {
     // print 2D CUDA array texture information - this parameter is only used if
     // the texture type is Array2D
+    resultStr += ", HipaccExecutionParameter{}";
     resultStr += ", _tex";
     resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
     resultStr += "Ref";

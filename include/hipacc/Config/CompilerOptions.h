@@ -94,7 +94,7 @@ class CompilerOptions {
     CompilerOption vectorize_kernels;
     // user defined values for target code features
     int kernel_config_x, kernel_config_y;
-    int reduce_config_num_warps, reduce_config_num_hists;
+    int reduce_config_num_warps, reduce_config_num_units;
     int align_bytes;
     int pixels_per_thread;
     Texture texture_type;
@@ -142,7 +142,7 @@ class CompilerOptions {
       kernel_config_x(128),
       kernel_config_y(1),
       reduce_config_num_warps(16),
-      reduce_config_num_hists(16),
+      reduce_config_num_units(16),
       align_bytes(0),
       pixels_per_thread(1),
       texture_type(Texture::None),
@@ -190,7 +190,7 @@ class CompilerOptions {
       return reduce_config & option;
     }
     int getReduceConfigNumWarps() { return reduce_config_num_warps; }
-    int getReduceConfigNumHists() { return reduce_config_num_hists; }
+    int getReduceConfigNumUnits() { return reduce_config_num_units; }
 
     bool emitPadding(CompilerOption option=option_aou) {
       return align_memory & option;
@@ -243,10 +243,10 @@ class CompilerOptions {
       kernel_config_y = y;
     }
 
-    void setReduceConfig(int num_warps, int num_hists) {
+    void setReduceConfig(int num_warps, int num_units) {
       reduce_config = USER_ON;
       reduce_config_num_warps = num_warps;
-      reduce_config_num_hists = num_hists;
+      reduce_config_num_units = num_units;
     }
 
     void setPadding(int bytes) {
@@ -330,7 +330,7 @@ class CompilerOptions {
       getOptionAsString(kernel_config);
       if (useReduceConfig()) {
         llvm::errs() << ": " << reduce_config_num_warps << " warps"
-                     << ", " << reduce_config_num_hists << " histograms";
+                     << ", " << reduce_config_num_units << " histograms";
       }
       llvm::errs() << "\n  Alignment of image memory: ";
       getOptionAsString(align_memory, align_bytes);
