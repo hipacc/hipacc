@@ -29,6 +29,7 @@ jobs:
           cd hipacc
           git fetch --prune --unshallow
 
+      # Pulling Docker images from GitHub's package registry requires login
       - name: Docker login
         run: docker login docker.pkg.github.com -u $GITHUB_ACTOR -p $GITHUB_TOKEN
         env:
@@ -40,19 +41,33 @@ jobs:
       - name: Build Hipacc
         run: docker exec hipacc hipacc/.github/run_build.sh
 
+      # Run only CPU tests, as GitHub's CI runner does not have GPU support
       - name: Run sample tests
         run: docker exec hipacc hipacc/.github/run_tests.sh -DHIPACC_SAMPLE_CUDA=OFF -DHIPACC_SAMPLE_OPENCL_GPU=OFF
 
+      # On failure: Upload build artifacts
+      - name: Upload build artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: Linux_artifacts
+          path: '*'
+
+      # For tags: Create Debian package
       - name: Create Debian package
         if: contains(github.ref, 'refs/tags/')
         run: docker exec hipacc hipacc/.github/run_package.sh
 
+      # For tags: Upload as release asset
       - name: Upload Debian package
         if: contains(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v2
+        uses: svenstaro/upload-release-action@1.1.0
         with:
-          name: Debian package
-          path: hipacc/build/hipacc_*.deb
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: hipacc/build/hipacc_*.deb
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
 
   windows:
     name: Windows
@@ -81,18 +96,32 @@ jobs:
       - name: Build Hipacc
         run: docker exec hipacc powershell hipacc/.github/run_build.ps1
 
-      # do not run Windows tests for every pull request
+      # Run only CPU tests, as GitHub's CI runner does not have GPU support
       - name: Run sample tests
+        # Do not run Windows tests for every pull request
         if: ${{ github.event_name != 'pull_request' }}
         run: docker exec hipacc powershell hipacc/.github/run_tests.ps1 -DHIPACC_SAMPLE_CUDA=OFF -DHIPACC_SAMPLE_OPENCL_GPU=OFF
 
+      # On failure: Upload build artifacts
+      - name: Upload build artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: Windows_artifacts
+          path: '*'
+
+      # For tags: Create Windows installer
       - name: Create Windows installer
         if: contains(github.ref, 'refs/tags/')
         run: docker exec hipacc powershell hipacc/.github/run_package.ps1
 
+      # For tags: Upload as release asset
       - name: Upload Windows installer
         if: contains(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v2
+        uses: svenstaro/upload-release-action@1.1.0
         with:
-          name: Windows installer
-          path: hipacc/build/Hipacc-*.exe
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: hipacc/build/Hipacc-*.exe
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
