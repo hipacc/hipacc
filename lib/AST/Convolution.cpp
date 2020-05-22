@@ -214,12 +214,6 @@ Stmt *ASTTranslate::addDomainCheck(HipaccMask *Domain, DeclRefExpr *domain_var,
             static_cast<int>(Domain->getSizeX())), createIntegerLiteral(Ctx,
             redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
       break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      // allocation access: rsGetElementAt(Domain, x, y)
-      dom_acc = accessMemAllocAt(domain_var, READ_ONLY, createIntegerLiteral(Ctx,
-            redIdxX.back()), createIntegerLiteral(Ctx, redIdxY.back()));
-      break;
   }
   // if (dom(x, y) > 0)
   BinaryOperator *check_dom = createBinaryOperator(Ctx, dom_acc, new (Ctx)

@@ -637,17 +637,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       num_lmem(0),
       num_smem(0),
       num_cmem(0)
-    {
-      switch (options.getTargetLang()) {
-        default: break;
-        case Language::Renderscript:
-        case Language::Filterscript:
-          // Renderscript and Filterscript compiler expects lowercase file names
-          for (auto& c: fileName)
-            c = std::tolower(c, std::locale());
-          break;
-      }
-    }
+    {}
 
     VarDecl *getDecl() const { return VD; }
     HipaccKernelClass *getKernelClass() const { return KC; }

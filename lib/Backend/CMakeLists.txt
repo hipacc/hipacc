@@ -1,16 +1,13 @@
 set(CURRENT_HEADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../include/hipacc/Backend")
 
-set(Backend_Generators_SOURCES CPU_x86.cpp CUDA.cpp Filterscript.cpp OpenCL_ACC.cpp OpenCL_CPU.cpp OpenCL_GPU.cpp Renderscript.cpp)
+set(Backend_Generators_SOURCES CPU_x86.cpp CUDA.cpp OpenCL_ACC.cpp OpenCL_CPU.cpp OpenCL_GPU.cpp)
 set(Backend_Generators_HEADERS "${CURRENT_HEADER_DIR}/CPU_x86.h"
                                "${CURRENT_HEADER_DIR}/CUDA.h"
-                               "${CURRENT_HEADER_DIR}/Filterscript.h"
                                "${CURRENT_HEADER_DIR}/OpenCL_ACC.h"
                                "${CURRENT_HEADER_DIR}/OpenCL_CPU.h"
-                               "${CURRENT_HEADER_DIR}/OpenCL_GPU.h"
-                               "${CURRENT_HEADER_DIR}/Renderscript.h")
+                               "${CURRENT_HEADER_DIR}/OpenCL_GPU.h")
 
 set(Backend_Generators_Base_HEADERS "${CURRENT_HEADER_DIR}/AcceleratorDeviceBase.h"
-                                    "${CURRENT_HEADER_DIR}/AndroidBase.h"
                                     "${CURRENT_HEADER_DIR}/CodeGeneratorBaseImplT.h")
 
 set(Backend_Common_SOURCES ClangASTHelper.cpp InstructionSets.cpp)

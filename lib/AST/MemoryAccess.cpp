@@ -145,9 +145,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
       if (Acc!=Kernel->getIterationSpace()) {
         idx_x = removeISOffsetX(idx_x);
       }
-      if ((compilerOptions.emitC99() ||
-           compilerOptions.emitRenderscript() ||
-           compilerOptions.emitFilterscript()) &&
+      if ((compilerOptions.emitC99()) &&
           Acc!=Kernel->getIterationSpace()) {
         idx_y = removeISOffsetY(idx_y);
       }
@@ -172,9 +170,7 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
     idx_x = addGlobalOffsetX(idx_x, Acc);
     idx_y = addGlobalOffsetY(idx_y, Acc);
   } else {
-    if (!(compilerOptions.emitC99() ||
-          compilerOptions.emitRenderscript() ||
-          compilerOptions.emitFilterscript())) {
+    if (!(compilerOptions.emitC99())) {
       idx_y = addGlobalOffsetY(idx_y, Acc);
     }
   }
@@ -188,12 +184,6 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           if (Kernel->useTextureMemory(Acc) == Texture::Array2D)
             return accessMemTexAt(LHS, Acc, mem_acc, idx_x, idx_y);
           return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
-        case Language::Renderscript:
-          if (KernelClass->getMembers()[0].name.compare(LHS->getNameInfo().getAsString()) != 0)
-            return accessMemAllocPtr(LHS); // access allocation by using local pointer type kernel argument
-          return accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
-        case Language::Filterscript:
-          hipacc_require(0, "Filterscript does not support write access for allocations.");
       }
     case READ_ONLY:
       switch (compilerOptions.getTargetLang()) {
@@ -208,9 +198,6 @@ Expr *ASTTranslate::accessMem(DeclRefExpr *LHS, HipaccAccessor *Acc,
           if (Kernel->useTextureMemory(Acc) == Texture::None)
             return accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
           return accessMemImgAt(LHS, Acc, mem_acc, idx_x, idx_y);
-        case Language::Renderscript:
-        case Language::Filterscript:
-          return accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
       }
     case READ_WRITE: {
       unsigned DiagIDRW = Diags.getCustomDiagID(DiagnosticsEngine::Error,
@@ -400,65 +387,6 @@ FunctionDecl *ASTTranslate::getImageFunction(HipaccAccessor *Acc, MemoryAccess
       } else {
         return builtins.getBuiltinFunction(OPENCLBIwrite_imagef);
       }
-  }
-}
-
-
-// get rsGetElementAt_<type>/rsSetElementAt_<type> functions for given Accessor
-FunctionDecl *ASTTranslate::getAllocationFunction(QualType QT, MemoryAccess
-    mem_acc) {
-  bool isVecType = QT->isVectorType();
-
-  if (isVecType) {
-    QT = QT->getAs<VectorType>()->getElementType();
-  }
-  const BuiltinType *BT = QT->getAs<BuiltinType>();
-
-  switch (BT->getKind()) {
-    case BuiltinType::WChar_U:
-    case BuiltinType::WChar_S:
-    case BuiltinType::ULongLong:
-    case BuiltinType::UInt128:
-    case BuiltinType::LongLong:
-    case BuiltinType::Int128:
-    case BuiltinType::LongDouble:
-    case BuiltinType::Void:
-    case BuiltinType::Bool:
-    default:
-      hipacc_require(0, "BuiltinType for Renderscript Allocation not supported.");
-
-#define GET_BUILTIN_FUNCTION(TYPE) \
-    (mem_acc == READ_ONLY ? \
-        (isVecType ? builtins.getBuiltinFunction(RSBIrsGetElementAt_ ## TYPE ## 4) : \
-            builtins.getBuiltinFunction(RSBIrsGetElementAt_ ## TYPE)) : \
-        (isVecType ? builtins.getBuiltinFunction(RSBIrsSetElementAt_ ## TYPE ## 4) : \
-            builtins.getBuiltinFunction(RSBIrsSetElementAt_ ## TYPE)))
-
-    case BuiltinType::Char_S:
-    case BuiltinType::SChar:
-      return GET_BUILTIN_FUNCTION(char);
-    case BuiltinType::Short:
-      return GET_BUILTIN_FUNCTION(short);
-    case BuiltinType::Int:
-      return GET_BUILTIN_FUNCTION(int);
-    case BuiltinType::Long:
-      return GET_BUILTIN_FUNCTION(long);
-    case BuiltinType::Char_U:
-    case BuiltinType::UChar:
-      return GET_BUILTIN_FUNCTION(uchar);
-    case BuiltinType::Char16:
-    case BuiltinType::UShort:
-      return GET_BUILTIN_FUNCTION(ushort);
-    case BuiltinType::Char32:
-    case BuiltinType::UInt:
-      return GET_BUILTIN_FUNCTION(uint);
-    case BuiltinType::ULong:
-      return GET_BUILTIN_FUNCTION(ulong);
-    case BuiltinType::Float:
-      return GET_BUILTIN_FUNCTION(float);
-    case BuiltinType::Double:
-      return GET_BUILTIN_FUNCTION(double);
-#undef GET_BUILTIN_FUNCTION
   }
 }
 
@@ -699,28 +627,6 @@ Expr *ASTTranslate::accessMemImgAt(DeclRefExpr *LHS, HipaccAccessor *Acc,
   }
 
   return result;
-}
-
-
-// access allocation at given index
-Expr *ASTTranslate::accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess mem_acc,
-                                     Expr *idx_x, Expr *idx_y) {
-  // mark image as being used within the kernel
-  Kernel->setUsed(LHS->getNameInfo().getAsString());
-  QualType QT = LHS->getType()->getPointeeType();
-
-  // parameters for rsGetElementAt_<type>
-  SmallVector<Expr *, 16> args;
-  args.push_back(LHS);
-  if (mem_acc == WRITE_ONLY) {
-    // writeImageRHS is set by VisitBinaryOperator - side effect
-    writeImageRHS = createParenExpr(Ctx, writeImageRHS);
-    args.push_back(writeImageRHS);
-  }
-  args.push_back(idx_x);
-  args.push_back(idx_y);
-
-  return createFunctionCall(Ctx, getAllocationFunction(QT, mem_acc), args);
 }
 
 

@@ -60,9 +60,6 @@ void CreateHostStrings::writeHeaders(std::string &resultStr) {
       resultStr += "#include \"hipacc_cl_standalone.hpp\"\n"
                    "#define THIS_HIPACC_DEVICE_OPENCL_GPU\n";
       break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      resultStr += "#include \"hipacc_rs_standalone.hpp\"\n\n";  break;
   }
 }
 
@@ -89,13 +86,6 @@ void CreateHostStrings::writeInitialization(std::string &resultStr) {
       resultStr += indent + "hipaccCreateContextsAndCommandQueues();\n\n";
       resultStr += indent;
       break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      resultStr += "hipaccInitRenderScript(\"";
-      resultStr += options.getRSDirectory();
-      resultStr += "\");\n";
-      resultStr += indent;
-      break;
   }
 }
 
@@ -115,17 +105,6 @@ void CreateHostStrings::writeKernelCompilation(HipaccKernel *K,
   switch (options.getTargetLang()) {
     case Language::C99:
     case Language::CUDA:
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      resultStr += "ScriptC_" + K->getFileName() + " " + K->getKernelName();
-      resultStr += " = hipaccInitScript<ScriptC_" + K->getFileName() + ">();\n";
-      resultStr += indent;
-      if (K->getKernelClass()->getReduceFunction()) {
-        resultStr += "ScriptC_" + K->getFileName() + " " + K->getReduceName();
-        resultStr += " = hipaccInitScript<ScriptC_" + K->getFileName() + ">();\n";
-        resultStr += indent;
-      }
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
@@ -152,53 +131,6 @@ void CreateHostStrings::writeKernelCompilation(HipaccKernel *K,
 }
 
 
-void CreateHostStrings::writeReductionDeclaration(HipaccKernel *K, std::string
-    &resultStr) {
-  HipaccAccessor *Acc = K->getIterationSpace();
-  HipaccImage *Img = Acc->getImage();
-
-  auto add_red_arg = [&] (std::string device, std::string host,
-                          std::string type) -> void {
-    resultStr += "_args" + K->getReduceName();
-    resultStr += ".push_back(hipacc_script_arg<ScriptC_" + K->getFileName();
-    resultStr += ">(&ScriptC_" + K->getFileName();
-    resultStr += "::set_" + device + ", " + "(" + type + ")&" + host + "));\n";
-    resultStr += indent;
-  };
-
-  switch (options.getTargetLang()) {
-    case Language::C99:
-    case Language::CUDA:
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      resultStr += "\n" + indent;
-      resultStr += "std::vector<hipacc_script_arg<ScriptC_" + K->getFileName();
-      resultStr += ">> _args" + K->getReduceName() + ";\n";
-      resultStr += indent;
-
-      // store reduction arguments
-      add_red_arg("_red_Input", Img->getName() + "->get_device_memory()", "sp<const Allocation> *");
-      add_red_arg("_red_stride", Img->getName() + "->get_stride()", "int *");
-
-      // print optional offset_x/offset_y and iteration space width/height
-      if (K->getIterationSpace()->isCrop()) {
-        add_red_arg("_red_offset_x", Acc->getName() + ".offset_x", "int *");
-        add_red_arg("_red_offset_y", Acc->getName() + ".offset_y", "int *");
-        add_red_arg("_red_is_height", Acc->getName() + ".height", "int *");
-        add_red_arg("_red_num_elements", Acc->getName() + ".width", "int *");
-      } else {
-        add_red_arg("_red_is_height", Img->getName() + "->height", "int *");
-        add_red_arg("_red_num_elements", Img->getName() + "->width", "int *");
-      }
-      break;
-  }
-}
-
-
 void CreateHostStrings::writeMemoryAllocation(HipaccImage *Img, std::string const&
     width, std::string const& height, std::string const& host, std::string const& deep_copy
     , std::string &resultStr) {
@@ -216,11 +148,6 @@ void CreateHostStrings::writeMemoryAllocation(HipaccImage *Img, std::string cons
       } else {
         resultStr += "hipaccCreateMemory<" + Img->getTypeStr() + ">(";
       }
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      resultStr += "HipaccImageAndroid " + Img->getName() + " = ";
-      resultStr += "hipaccCreateAllocation((" + Img->getTypeStr() + "*)";
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
@@ -259,11 +186,6 @@ void CreateHostStrings::writeMemoryAllocationConstant(HipaccMask *Buf,
     case Language::CUDA:
       resultStr += "auto " + Buf->getName() + " = ";
       hipacc_require(0, "constant memory allocation not required in CUDA!");
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      resultStr += "HipaccImageAndroid " + Buf->getName() + " = ";
-      resultStr += "hipaccCreateAllocation((" + Buf->getTypeStr() + "*)";
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
@@ -368,8 +290,6 @@ void CreateHostStrings::writeMemoryTransferSymbol(HipaccMask *Mask, std::string
       }
       break;
     case Language::C99:
-    case Language::Renderscript:
-    case Language::Filterscript:
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
@@ -399,8 +319,6 @@ void CreateHostStrings::writeMemoryTransferDomainFromMask(
       }
       break;
     case Language::C99:
-    case Language::Renderscript:
-    case Language::Filterscript:
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
@@ -429,14 +347,6 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     case Language::CUDA:
       blockStr = "block" + lit;
       gridStr = "grid" + lit;
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      blockStr = "work_size" + lit;
-      gridStr = K->getIterationSpace()->getImage()->getName();
-      if (K->getIterationSpace()->getBC()->isPyramid()) {
-        gridStr += "(" + K->getIterationSpace()->getBC()->getPyramidIndex() + ")";
-      }
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
@@ -485,20 +395,6 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
       // kernel args
       //resultStr += "std::vector<void *> _args" + kernel_name + ";\n";
       //resultStr += indent;
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      // size_t work_size
-      resultStr += "size_t " + blockStr + "[2];\n";
-      resultStr += indent + blockStr + "[0] = " + threads_x + ";\n";
-      resultStr += indent + blockStr + "[1] = " + threads_y + ";\n";
-      resultStr += indent;
-
-      // hipaccPrepareKernelLaunch
-      resultStr += "hipaccPrepareKernelLaunch(";
-      resultStr += infoStr + ", ";
-      resultStr += blockStr + ");\n\n";
-      resultStr += indent;
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
@@ -702,18 +598,6 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
           resultStr += indent;
         }
         break;
-      case Language::Renderscript:
-      case Language::Filterscript:
-        resultStr += "hipaccSetScriptArg(&" + kernel_name + ", ";
-        resultStr += "&ScriptC_" + K->getFileName();
-        resultStr += "::set_" + deviceArgNames[i] + ", ";
-        if (Acc || Mask) {
-          resultStr += "(sp<const Allocation>)(Allocation *)" + hostArgNames[i] + img_mem + ");\n";
-        } else {
-          resultStr += "(" + argTypeNames[i] + ")" + hostArgNames[i] + img_mem + ");\n";
-        }
-        resultStr += indent;
-        break;
     }
   }
   if (options.getTargetLang()==Language::C99) {
@@ -735,15 +619,6 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     case Language::CUDA:
         resultStr += ");\n";
         resultStr += indent;
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      resultStr += "hipaccLaunchKernel(&" + kernel_name + ", ";
-      resultStr += "&ScriptC_" + K->getFileName() + "::forEach_" + kernel_name;
-      resultStr += ", " + gridStr;
-      resultStr += ", " + blockStr;
-      resultStr += ", " + print_timing;
-      resultStr += ");";
       break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
@@ -822,19 +697,6 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
       resultStr += "hipaccApplyReductionShared<" + typeStr + ">(";
       resultStr += "hipacc_shared_reduction<" + typeStr +", " + K->getReduceName() + ">, ";
       break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      resultStr += red_decl;
-      resultStr += "hipaccApplyReduction<ScriptC_" + K->getFileName() + ", ";
-      resultStr += typeStr + ">(&" + K->getReduceName() + ", ";
-      resultStr += "&ScriptC_" + K->getFileName() + "::forEach_" +
-        K->getReduceName() + "2D, ";
-      resultStr += "&ScriptC_" + K->getFileName() + "::forEach_" +
-        K->getReduceName() + "1D, ";
-      resultStr += "&ScriptC_" + K->getFileName() + "::set__red_Output, ";
-      resultStr += "_args" + K->getReduceName() + ", ";
-      resultStr += K->getIterationSpace()->getName() + ".width);\n";
-      return;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:
@@ -940,10 +802,6 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       resultStr += K->getBinningName() + "2D, ";
       resultStr += K->getBinningName() + "1D, ";
       break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      hipacc_require(false, "Multi-dimensional reductions not supported for Renderscript");
-      break;
   }
 
   // print image name
@@ -996,8 +854,6 @@ std::string CreateHostStrings::getInterpolationDefinition(HipaccKernel *K,
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:    str += "_OPENCL, "; break;
-    case Language::Renderscript:
-    case Language::Filterscript: str += "_RS, ";     break;
   }
   // data type
   str += Acc->getImage()->getTypeStr() + ", ";
@@ -1028,11 +884,7 @@ std::string CreateHostStrings::getInterpolationDefinition(HipaccKernel *K,
   // image memory parameter, constant parameter, memory access function
   switch (K->useTextureMemory(Acc)) {
     case Texture::None:
-      if (options.emitRenderscript() || options.emitFilterscript()) {
-        str += "ALL_PARM, " + const_parameter + ", ALL" + const_suffix;
-      } else {
-        str += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;
-      }
+      str += "IMG_PARM, " + const_parameter + ", IMG" + const_suffix;
       break;
     case Texture::Linear1D:
       str += "TEX_PARM, " + const_parameter + ", TEX" + const_suffix;
@@ -1064,8 +916,6 @@ void CreateHostStrings::writePyramidAllocation(std::string pyrName, std::string
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:    img_type = "auto"; break;
-    case Language::Renderscript:
-    case Language::Filterscript:                                 break;
   }
   resultStr += img_type + " " + pyrName + " = ";
   resultStr += "hipaccCreatePyramid<" + type + ">(";

@@ -44,10 +44,9 @@ namespace hipacc {
 namespace Builtin {
 enum ID {
   FirstBuiltin = clang::Builtin::FirstTSBuiltin-1,
-  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID, RSID) HIPACCBI##NAME,
+  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID) HIPACCBI##NAME,
   #define CUDABUILTIN(NAME, TYPE, CUDANAME) CUDABI##CUDANAME,
   #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) OPENCLBI##OPENCLNAME,
-  #define RSBUILTIN(NAME, TYPE, RSNAME) RSBI##RSNAME,
   #include "hipacc/Device/Builtins.def"
   LastBuiltin
 };
@@ -55,7 +54,7 @@ enum ID {
 struct Info {
   const char *Name, *Type;
   Language builtin_lang;
-  ID CUDA, OpenCL, Renderscript;
+  ID CUDA, OpenCL;
   FunctionDecl *FD;
 
   bool operator==(const Info &RHS) const {

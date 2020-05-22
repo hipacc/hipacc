@@ -230,7 +230,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     void initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S);
     void initCUDA(SmallVector<Stmt *, 16> &kernelBody);
     void initOpenCL(SmallVector<Stmt *, 16> &kernelBody);
-    void initRenderscript(SmallVector<Stmt *, 16> &kernelBody);
     void updateTileVars();
     Expr *addCastToInt(Expr *E);
     FunctionDecl *cloneFunction(FunctionDecl *FD);
@@ -312,7 +311,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
     FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess mem_acc);
     FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess mem_acc);
-    FunctionDecl *getAllocationFunction(QualType QT, MemoryAccess mem_acc);
     FunctionDecl *getConvertFunction(QualType QT);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
@@ -328,8 +326,6 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     Expr *accessMem2DAt(DeclRefExpr *LHS, Expr *idx_x, Expr *idx_y);
     Expr *accessMemArrAt(DeclRefExpr *LHS, Expr *stride, Expr *idx_x, Expr
         *idx_y);
-    Expr *accessMemAllocAt(DeclRefExpr *LHS, MemoryAccess mem_acc,
-                           Expr *idx_x, Expr *idx_y);
     Expr *accessMemAllocPtr(DeclRefExpr *LHS);
     Expr *accessMemTexAt(DeclRefExpr *LHS, HipaccAccessor *Acc, MemoryAccess
         mem_acc, Expr *idx_x, Expr *idx_y);

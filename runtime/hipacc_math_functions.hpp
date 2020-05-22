@@ -358,11 +358,7 @@
   }
 
 MAKE_MATH_BI(float4, float, float4, f)
-#if defined(__ANDROID__) && ! defined(CL_VERSION_1_1)
-// double functions not supported on Android (Renderscript)
-#else
 MAKE_MATH_BI(double4, double, double4, )
-#endif
 
 // generic math functions
 #if defined __CUDACC__

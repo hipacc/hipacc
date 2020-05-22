@@ -475,67 +475,6 @@ void ASTTranslate::initOpenCL(SmallVector<Stmt *, 16> &kernelBody) {
 }
 
 
-// Renderscript initialization
-void ASTTranslate::initRenderscript(SmallVector<Stmt *, 16> &kernelBody) {
-  VarDecl *gid_x = nullptr, *gid_y = nullptr;
-  VarDecl *xDecl = createVarDecl(Ctx, kernelDecl, "x", Ctx.UnsignedIntTy);
-  VarDecl *yDecl = createVarDecl(Ctx, kernelDecl, "y", Ctx.UnsignedIntTy);
-
-  // const int gid_x = x;
-  gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
-      createDeclRefExpr(Ctx, xDecl));
-
-  Expr *YE;
-  if (Kernel->getPixelsPerThread() > 1) {
-    // const int gid_y = y*PPT;
-    YE = createBinaryOperator(Ctx, createDeclRefExpr(Ctx, yDecl),
-        createIntegerLiteral(Ctx,
-          static_cast<int>(Kernel->getPixelsPerThread())), BO_Mul, Ctx.IntTy);
-  } else {
-    // OpenCL: const int gid_y = get_global_id(1)*PPT;
-    YE = createDeclRefExpr(Ctx, yDecl);
-  }
-  gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
-      YE);
-
-  // add gid_x and gid_y statements
-  DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
-  DC->addDecl(gid_x);
-  DC->addDecl(gid_y);
-  kernelBody.push_back(createDeclStmt(Ctx, gid_x));
-  kernelBody.push_back(createDeclStmt(Ctx, gid_y));
-
-  tileVars.global_id_x = createDeclRefExpr(Ctx, gid_x);
-  tileVars.global_id_y = createDeclRefExpr(Ctx, gid_y);
-  tileVars.local_id_x = createDeclRefExpr(Ctx, gid_x);
-  tileVars.local_id_y = createDeclRefExpr(Ctx, gid_y);
-  tileVars.block_id_x = createDeclRefExpr(Ctx, gid_x);
-  tileVars.block_id_y = createDeclRefExpr(Ctx, gid_y);
-  tileVars.local_size_x = getStrideDecl(Kernel->getIterationSpace());
-  tileVars.local_size_y = createIntegerLiteral(Ctx, 1);
-
-  switch (compilerOptions.getTargetLang()) {
-    default: break;
-    case Language::Renderscript: {
-        // retValRef: Kernel parameter pointing to current output pixel
-        VarDecl *output = createVarDecl(Ctx, kernelDecl, "_iter",
-            Kernel->getIterationSpace()->getImage()->getType());
-        retValRef = createDeclRefExpr(Ctx, output);
-      }
-      break;
-    case Language::Filterscript: {
-        // retValRef: Variable storing output value to return from kernel
-        VarDecl *output = createVarDecl(Ctx, kernelDecl, "OutputVal",
-            Kernel->getIterationSpace()->getImage()->getType());
-        DC->addDecl(output);
-        kernelBody.push_back(createDeclStmt(Ctx, output));
-        retValRef = createDeclRefExpr(Ctx, output);
-      }
-      break;
-  }
-}
-
-
 // update tileVars to constants if required
 void ASTTranslate::updateTileVars() {
   switch (compilerOptions.getTargetLang()) {
@@ -600,20 +539,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       bh_fall_back = parm_ref;
       continue;
     }
-
-    if (compilerOptions.emitRenderscript() ||
-        compilerOptions.emitFilterscript()) {
-      // search for uint32_t x, uint32_t y parameters
-      if (param->getName().equals("x")) {
-        // TODO: scan for uint32_t x
-        continue;
-      }
-      if (param->getName().equals("y")) {
-        // TODO: scan for uint32_t y
-        continue;
-      }
-    }
-
 
     // search for image width, height and stride parameters
     for (auto img : KernelClass->getImgFields()) {
@@ -696,10 +621,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       initOpenCL(kernelBody);
       // void barrier(cl_mem_fence_flags);
       barrier = builtins.getBuiltinFunction(OPENCLBIbarrier);
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      initRenderscript(kernelBody);
       break;
   }
   lidYRef = tileVars.local_id_y;
@@ -1062,45 +983,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
           check_bop = check_tmp;
         }
       }
-      // Renderscript iteration space is always the whole image, so we need to
-      // check the y-dimension as well:
-      // if (gid_y >= is_offset_y && gid_y < is_height+is_offset_y)
-      if (compilerOptions.emitRenderscript() ||
-          compilerOptions.emitFilterscript()) {
-        // if (gid_y >= is_offset_y)
-        if (Kernel->getIterationSpace()->getOffsetYDecl() &&
-            !(kernel_y && !bh_variant.borders.left) && bh_variant.borderVal) {
-          BinaryOperator *check_tmp = nullptr;
-          check_tmp = createBinaryOperator(Ctx, gidYRef,
-              getOffsetYDecl(Kernel->getIterationSpace()), BO_GE, Ctx.BoolTy);
-          if (check_bop) {
-            check_bop = createBinaryOperator(Ctx, check_bop, check_tmp, BO_LAnd,
-                Ctx.BoolTy);
-          } else {
-            check_bop = check_tmp;
-          }
-        }
-        // if (gid_y < is_height+is_offset_y)
-        if (!(kernel_y && !bh_variant.borders.right) && bh_variant.borderVal) {
-          BinaryOperator *check_tmp = nullptr;
-          if (Kernel->getIterationSpace()->getOffsetYDecl()) {
-            check_tmp = createBinaryOperator(Ctx, gidYRef,
-                createBinaryOperator(Ctx,
-                  getHeightDecl(Kernel->getIterationSpace()),
-                  getOffsetYDecl(Kernel->getIterationSpace()), BO_Add,
-                  Ctx.IntTy), BO_LT, Ctx.BoolTy);
-          } else {
-            check_tmp = createBinaryOperator(Ctx, gidYRef,
-                getHeightDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
-          }
-          if (check_bop) {
-            check_bop = createBinaryOperator(Ctx, check_bop, check_tmp, BO_LAnd,
-                Ctx.BoolTy);
-          } else {
-            check_bop = check_tmp;
-          }
-        }
-      }
     } else {
       // if (gid_x < is_width+is_offset_x)
       if (Kernel->getIterationSpace()->getOffsetXDecl()) {
@@ -1115,32 +997,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       } else {
         check_bop = createBinaryOperator(Ctx, tileVars.global_id_x,
             getWidthDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
-      }
-      // if (gid_y >= is_offset_y && gid_y < is_height+is_offset_y)
-      // Renderscript iteration space is always the whole image, so we need to
-      // check the y-dimension as well.
-      if (compilerOptions.emitRenderscript() ||
-          compilerOptions.emitFilterscript()) {
-        // if (gid_y < is_height+is_offset_y)
-        BinaryOperator *check_tmp = nullptr;
-        if (Kernel->getIterationSpace()->getOffsetYDecl()) {
-          check_tmp = createBinaryOperator(Ctx, gidYRef,
-              getOffsetYDecl(Kernel->getIterationSpace()), BO_GE, Ctx.BoolTy);
-          check_tmp = createBinaryOperator(Ctx, check_tmp,
-              createBinaryOperator(Ctx, gidYRef, createBinaryOperator(Ctx,
-                  getHeightDecl(Kernel->getIterationSpace()),
-                  getOffsetYDecl(Kernel->getIterationSpace()), BO_Add,
-                  Ctx.IntTy), BO_LT, Ctx.BoolTy), BO_LAnd, Ctx.BoolTy);
-        } else {
-          check_tmp = createBinaryOperator(Ctx, gidYRef,
-              getHeightDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
-        }
-        if (check_bop) {
-          check_bop = createBinaryOperator(Ctx, check_bop, check_tmp, BO_LAnd,
-              Ctx.BoolTy);
-        } else {
-          check_bop = check_tmp;
-        }
       }
     }
 
@@ -1242,9 +1098,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         if (Kernel->getNumThreadsY()==1 && Kernel->getPixelsPerThread()==1)
           require_is_check = false;
       }
-      if (require_is_check &&
-          // Not necessary for Filterscript, gid_y has already been checked
-          !compilerOptions.emitFilterscript()) {
+      if (require_is_check) {
         // if (gid_y + p < is_height)
         BinaryOperator *inner_check_bop = createBinaryOperator(Ctx, gidYRef,
             getHeightDecl(Kernel->getIterationSpace()), BO_LT, Ctx.BoolTy);
@@ -1287,14 +1141,6 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
   if (border_handling) {
     kernelBody.push_back(LSExit);
-  }
-
-  if (compilerOptions.emitFilterscript()) {
-    // in case no value was written, return the value of the iteration space
-    Expr *result = accessMem(outputImage, Kernel->getIterationSpace(),
-        READ_ONLY);
-    setExprProps(outputImage, result);
-    kernelBody.push_back(createReturnStmt(Ctx, result));
   }
 
   return createCompoundStmt(Ctx, kernelBody);
@@ -1887,11 +1733,6 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                     static_cast<int>(mask->getSizeX())), midx_x, midx_y);
               break;
-            case Language::Renderscript:
-            case Language::Filterscript:
-              // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
-              result = accessMemAllocAt(LHS, mem_acc, midx_x, midx_y);
-              break;
           }
         }
         break;
@@ -1938,11 +1779,6 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
               result = accessMemArrAt(LHS, createIntegerLiteral(Ctx,
                     static_cast<int>(mask->getSizeX())), midx_x, midx_y);
               break;
-            case Language::Renderscript:
-            case Language::Filterscript:
-              // allocation access: rsGetElementAt(Mask, conv_x, conv_y)
-              result = accessMemAllocAt(LHS, mem_acc, midx_x, midx_y);
-              break;
           }
         }
         }
@@ -1983,28 +1819,6 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
                     static_cast<int>(mask->getSizeX())),
                   createBinaryOperator(Ctx, Clone(E->getArg(1)),
                     createIntegerLiteral(Ctx,
-                      static_cast<int>(mask->getSizeX()/2)), BO_Add, Ctx.IntTy),
-                  createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx,
-                      static_cast<int>(mask->getSizeY()/2)), BO_Add,
-                    Ctx.IntTy));
-            }
-            break;
-          case Language::Renderscript:
-          case Language::Filterscript:
-            if (mask->isConstant()) {
-              // array subscript: Mask[y+size_y/2][x+size_x/2]
-              result = accessMem2DAt(LHS, createBinaryOperator(Ctx,
-                    Clone(E->getArg(1)), createIntegerLiteral(Ctx,
-                      static_cast<int>(mask->getSizeX()/2)), BO_Add, Ctx.IntTy),
-                  createBinaryOperator(Ctx, Clone(E->getArg(2)),
-                    createIntegerLiteral(Ctx,
-                      static_cast<int>(mask->getSizeY()/2)), BO_Add,
-                    Ctx.IntTy));
-            } else {
-              // allocation access: rsGetElementAt(Mask, x+size_x/2, y+size_y/2)
-              result = accessMemAllocAt(LHS, mem_acc, createBinaryOperator(Ctx,
-                    Clone(E->getArg(1)), createIntegerLiteral(Ctx,
                       static_cast<int>(mask->getSizeX()/2)), BO_Add, Ctx.IntTy),
                   createBinaryOperator(Ctx, Clone(E->getArg(2)),
                     createIntegerLiteral(Ctx,
@@ -2183,14 +1997,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
           result = accessMemArrAt(LHS, getStrideDecl(acc), idx_x, idx_y);
         }
         break;
-      case Language::Renderscript:
-      case Language::Filterscript:
-        if (ME->getMemberNameInfo().getAsString() == "output_at" &&
-            compilerOptions.emitFilterscript()) {
-            hipacc_require(0, "Filterscript does not support output_at().");
-        }
-        result = accessMemAllocAt(LHS, mem_acc, idx_x, idx_y);
-        break;
     }
 
     setExprProps(E, result);
@@ -2219,9 +2025,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
     // y() method -> gid_y
     if (ME->getMemberNameInfo().getAsString() == "y") {
-      if (compilerOptions.emitC99() ||
-          compilerOptions.emitRenderscript() ||
-          compilerOptions.emitFilterscript()) {
+      if (compilerOptions.emitC99()) {
         return createParenExpr(Ctx, removeISOffsetY(gidYRef));
       }
 
@@ -2233,27 +2037,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       hipacc_require(E->getNumArgs()==0, "no arguments for output() method supported!");
       Expr *result = nullptr;
 
-      switch (compilerOptions.getTargetLang()) {
-        case Language::Renderscript:
-          if (Kernel->getPixelsPerThread() <= 1) {
-            // write to output pixel pointed to by kernel parameter
-            LHS = retValRef;
-          }
-          // fall through
-        case Language::C99:
-        case Language::CUDA:
-        case Language::OpenCLACC:
-        case Language::OpenCLCPU:
-        case Language::OpenCLGPU:
-          result = accessMem(LHS, acc, mem_acc);
-          break;
-        case Language::Filterscript:
-          postStmts.push_back(createReturnStmt(Ctx, retValRef));
-          postCStmt.push_back(curCStmt);
-          result = retValRef;
-          break;
-      }
-
+      result = accessMem(LHS, acc, mem_acc);
       setExprProps(E, result);
 
       return result;
@@ -2291,10 +2075,6 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       // Acc.y() method -> acc_scale_y * gid_y
       if (ME->getMemberNameInfo().getAsString() == "y") {
         if (acc->getInterpolationMode() == Interpolate::NO) {
-          if (compilerOptions.emitRenderscript() ||
-              compilerOptions.emitFilterscript()) {
-            return createParenExpr(Ctx, removeISOffsetY(gidYRef));
-          }
           return gidYRef;
         }
         // scale index to Accessor size
