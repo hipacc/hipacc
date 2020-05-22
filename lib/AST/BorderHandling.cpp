@@ -167,9 +167,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
       if (Acc!=Kernel->getIterationSpace()) {
         idx_x = removeISOffsetX(idx_x);
       }
-      if ((compilerOptions.emitC99() ||
-           compilerOptions.emitRenderscript() ||
-           compilerOptions.emitFilterscript()) &&
+      if ((compilerOptions.emitC99()) &&
           Acc!=Kernel->getIterationSpace()) {
         idx_y = removeISOffsetY(idx_y);
       }
@@ -194,9 +192,7 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
     idx_x = addGlobalOffsetX(idx_x, Acc);
     idx_y = addGlobalOffsetY(idx_y, Acc);
   } else {
-    if (!(compilerOptions.emitC99() ||
-          compilerOptions.emitRenderscript() ||
-          compilerOptions.emitFilterscript())) {
+    if (!(compilerOptions.emitC99())) {
       idx_y = addGlobalOffsetY(idx_y, Acc);
     }
   }
@@ -266,10 +262,6 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
           break;
         }
         RHS = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
-        break;
-      case Language::Renderscript:
-      case Language::Filterscript:
-        RHS = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
         break;
     }
     setExprProps(LHS, RHS);
@@ -348,10 +340,6 @@ Expr *ASTTranslate::addBorderHandling(DeclRefExpr *LHS, Expr *local_offset_x,
           break;
         }
         result = accessMemArrAt(LHS, getStrideDecl(Acc), idx_x, idx_y);
-        break;
-      case Language::Renderscript:
-      case Language::Filterscript:
-        result = accessMemAllocAt(LHS, READ_ONLY, idx_x, idx_y);
         break;
     }
     setExprProps(LHS, result);

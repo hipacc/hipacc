@@ -54,9 +54,7 @@ std::string ASTTranslate::getInterpolationName(CompilerOptions &compilerOptions,
   }
 
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
-    case Language::Renderscript:
-    case Language::Filterscript: name += "gmem";  break;
+    case Language::C99: name += "gmem";  break;
     case Language::CUDA:
       switch (Kernel->useTextureMemory(Acc)) {
         case Texture::None:
@@ -93,9 +91,6 @@ Expr *ASTTranslate::addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x) {
 }
 Expr *ASTTranslate::addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y) {
   // acc_scale_y * (gid_y)
-  if (compilerOptions.emitFilterscript()) {
-    idx_y = removeISOffsetY(idx_y);
-  }
   return createBinaryOperator(Ctx, Acc->getScaleYDecl(), createParenExpr(Ctx,
         idx_y), BO_Mul, Ctx.FloatTy);
 }

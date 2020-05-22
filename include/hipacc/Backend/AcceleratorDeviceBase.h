@@ -66,7 +66,7 @@ namespace Backend
         inline static std::string AdditionalOptions()   { return "<n>"; }
 
         /** \brief  Returns the description for this switch. */
-        inline static std::string Description()         { return "Emit CUDA/OpenCL/Renderscript image padding, using alignment of <n> bytes for GPU devices"; }
+        inline static std::string Description()         { return "Emit CUDA/OpenCL image padding, using alignment of <n> bytes for GPU devices"; }
 
 
         typedef CommonDefines::OptionParsers::Integer   OptionParser;   //!< Type definition for the option parser for this switch.

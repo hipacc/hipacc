@@ -37,11 +37,9 @@
 // Supported code generators
 #include "hipacc/Backend/CPU_x86.h"
 #include "hipacc/Backend/CUDA.h"
-#include "hipacc/Backend/Filterscript.h"
 #include "hipacc/Backend/OpenCL_ACC.h"
 #include "hipacc/Backend/OpenCL_CPU.h"
 #include "hipacc/Backend/OpenCL_GPU.h"
-#include "hipacc/Backend/Renderscript.h"
 
 using namespace clang::hipacc::Backend;
 using namespace clang::hipacc;
@@ -226,8 +224,6 @@ BackendConfigurationManager::BackendConfigurationManager(CompilerOptions *pCompi
   _InitBackend<OpenCL_ACC>();
   _InitBackend<OpenCL_CPU>();
   _InitBackend<OpenCL_GPU>();
-  _InitBackend<Renderscript>();
-  _InitBackend<Filterscript>();
 }
 
 size_t BackendConfigurationManager::_HandleSwitch(std::string strSwitch, CommonDefines::ArgumentVectorType & rvecArguments, size_t szCurIndex)

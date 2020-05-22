@@ -39,11 +39,10 @@ using namespace hipacc;
 using namespace hipacc::Builtin;
 
 static hipacc::Builtin::Info BuiltinInfo[] = {
-  { "not a builtin function", 0, Language::C99, static_cast<ID>(0), static_cast<ID>(0), static_cast<ID>(0), 0 },
-  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID, RSID) { #NAME, TYPE, Language::C99, CUDAID, OPENCLID, RSID, 0 },
-  #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, Language::CUDA, (ID)0, (ID)0, (ID)0, 0 },
-  #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, Language::OpenCLCPU, (ID)0, (ID)0, (ID)0, 0 },
-  #define RSBUILTIN(NAME, TYPE, RSNAME) { #NAME, TYPE, Language::Renderscript, (ID)0, (ID)0, (ID)0, 0 },
+  { "not a builtin function", 0, Language::C99, static_cast<ID>(0), static_cast<ID>(0), 0 },
+  #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID) { #NAME, TYPE, Language::C99, CUDAID, OPENCLID, 0 },
+  #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, Language::CUDA, (ID)0, (ID)0, 0 },
+  #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, Language::OpenCLCPU, (ID)0, (ID)0, 0 },
   #include "hipacc/Device/Builtins.def"
 };
 
@@ -359,10 +358,6 @@ void hipacc::Builtin::Context::getBuiltinNames(Language lang,
           case Language::OpenCLGPU:
             if (!getBuiltinFunction(BuiltinInfo[i].OpenCL)) continue;
             break;
-          case Language::Renderscript:
-          case Language::Filterscript:
-            if (!getBuiltinFunction(BuiltinInfo[i].Renderscript)) continue;
-            break;
         }
         break;
       case Language::CUDA:
@@ -374,11 +369,6 @@ void hipacc::Builtin::Context::getBuiltinNames(Language lang,
         if (lang == Language::OpenCLACC ||
             lang == Language::OpenCLCPU ||
             lang == Language::OpenCLGPU) break;
-        continue;
-      case Language::Renderscript:
-      case Language::Filterscript:
-        if (lang == Language::Renderscript ||
-            lang == Language::Filterscript) break;
         continue;
     }
     Names.push_back(BuiltinInfo[i].Name);
@@ -437,9 +427,6 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
             case Language::OpenCLCPU:
             case Language::OpenCLGPU:
               return getBuiltinFunction(BuiltinInfo[i].OpenCL);
-            case Language::Renderscript:
-            case Language::Filterscript:
-              return getBuiltinFunction(BuiltinInfo[i].Renderscript);
           }
           break;
         case Language::CUDA:
@@ -450,10 +437,6 @@ FunctionDecl *hipacc::Builtin::Context::getBuiltinFunction(StringRef Name,
           if (lang == Language::OpenCLACC ||
               lang == Language::OpenCLCPU ||
               lang == Language::OpenCLGPU) return BuiltinInfo[i].FD;
-        case Language::Renderscript:
-        case Language::Filterscript:
-          if (lang == Language::Renderscript ||
-              lang == Language::Filterscript) return BuiltinInfo[i].FD;
       }
     }
   }

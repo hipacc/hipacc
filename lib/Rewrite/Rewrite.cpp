@@ -342,14 +342,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
         newStr += ".cu\"\n";
       }
       break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      for (auto map : KernelDeclMap) {
-        newStr += "#include \"ScriptC_";
-        newStr += map.second->getFileName();
-        newStr += ".h\"\n";
-      }
-      break;
   }
 
 
@@ -1820,7 +1812,6 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
               K->setExecutionParameter(SS.str());
             }
             callStr += "\n" + stringCreator.getIndent();
-            stringCreator.writeReductionDeclaration(K, callStr);
             stringCreator.writeReduceCall(K, callStr);
 
             resultStr = K->getReduceStr();
@@ -2051,10 +2042,6 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   // preprocessor defines
   std::string KID = K->getKernelName();
   switch (compilerOptions.getTargetLang()) {
-    case Language::Renderscript:
-    case Language::Filterscript:
-      hipacc_require(false, "Multi-dimensional reductions is not supported for Renderscript");
-      break;
     case Language::C99:
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
@@ -2124,9 +2111,6 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
 
     // instantiate reduction
     switch (compilerOptions.getTargetLang()) {
-      case Language::Renderscript:
-      case Language::Filterscript:
-        break;
       case Language::C99:
         OS << "BINNING_CPU_2D(";
         OS << K->getBinningName() << "2D, "
@@ -2230,30 +2214,6 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
       }
       OS << "#include \"hipacc_cu_red.hpp\"\n\n";
       break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      OS << "#pragma version(1)\n"
-         << "#pragma rs java_package_name("
-         << compilerOptions.getRSPackageName()
-         << ")\n\n";
-      if (compilerOptions.emitFilterscript()) {
-        OS << "#define FS\n";
-      }
-      OS << "#define DATA_TYPE "
-         << K->getIterationSpace()->getImage()->getTypeStr() << "\n"
-         << "#include \"hipacc_rs_red.hpp\"\n\n";
-      // input/output allocation definitions
-      OS << "rs_allocation _red_Input;\n";
-      OS << "rs_allocation _red_Output;\n";
-      // offset specification
-      if (K->getIterationSpace()->isCrop()) {
-        OS << "int _red_offset_x;\n";
-        OS << "int _red_offset_y;\n";
-      }
-      OS << "int _red_stride;\n";
-      OS << "int _red_is_height;\n";
-      OS << "int _red_num_elements;\n";
-      break;
   }
 
 
@@ -2262,10 +2222,6 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     default: break;
     case Language::CUDA:
       OS << "__device__ ";
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      OS << "static ";
       break;
   }
 
@@ -2322,16 +2278,6 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << K->getIterationSpace()->getImage()->getName() + K->getName()
          << "Ref;\n\n";
       break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      OS << "REDUCTION_RS_2D(" << K->getReduceName() << "2D, "
-         << fun->getReturnType().getAsString() << ", ALL, "
-         << K->getReduceName() << ")\n";
-      // 1D reduction
-      OS << "REDUCTION_RS_1D(" << K->getReduceName() << "1D, "
-         << fun->getReturnType().getAsString() << ", ALL, "
-         << K->getReduceName() << ")\n";
-      break;
   }
 
   OS << "#include \"hipacc_undef.hpp\"\n";
@@ -2350,8 +2296,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     case Language::OpenCLACC:
     case Language::OpenCLCPU:
     case Language::OpenCLGPU:    filename += ".cl"; ifdef += "CL_"; break;
-    case Language::Renderscript: filename += ".rs"; ifdef += "RS_"; break;
-    case Language::Filterscript: filename += ".fs"; ifdef += "FS_"; break;
   }
 
   // open file stream using own file descriptor. We need to call fsync() to
@@ -2382,13 +2326,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
          << "#define __constant __constant__\n"
          << "#define __shared __shared__\n"
          << "#endif\n\n";
-      break;
-    case Language::Renderscript:
-    case Language::Filterscript:
-      OS << "#pragma version(1)\n"
-         << "#pragma rs java_package_name("
-         << compilerOptions.getRSPackageName()
-         << ")\n\n";
       break;
   }
 
@@ -2431,10 +2368,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             }
           }
           break;
-        case Language::Renderscript:
-        case Language::Filterscript:
-          OS << "rs_allocation " << arg->getNameAsString() << ";\n";
-          break;
       }
 
       if (Acc->getInterpolationMode() > Interpolate::NN) {
@@ -2447,10 +2380,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           case Language::OpenCLCPU:
           case Language::OpenCLGPU:
             OS << "#include \"hipacc_cl_interpolate.hpp\"\n\n";
-            break;
-          case Language::Renderscript:
-          case Language::Filterscript:
-            OS << "#include \"hipacc_rs_interpolate.hpp\"\n\n";
             break;
         }
 
@@ -2497,8 +2426,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             OS << "__device__ __constant__ ";
             break;
           case Language::C99:
-          case Language::Renderscript:
-          case Language::Filterscript:
             OS << "static const ";
             break;
         }
@@ -2523,7 +2450,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         OS << "    };\n\n";
         Mask->setIsPrinted(true);
       } else {
-        // emit declaration in CUDA and Renderscript
+        // emit declaration in CUDA
         // for other back ends, the mask will be added as kernel parameter
         switch (compilerOptions.getTargetLang()) {
           default: break;
@@ -2533,23 +2460,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                << "][" << Mask->getSizeXStr() << "];\n\n";
             Mask->setIsPrinted(true);
             break;
-          case Language::Renderscript:
-          case Language::Filterscript:
-            OS << "rs_allocation " << K->getDeviceArgNames()[cur_arg]
-               << ";\n\n";
-            Mask->setIsPrinted(true);
-            break;
         }
       }
-      continue;
-    }
-
-    // normal variables - Renderscript|Filterscript only
-    if (compilerOptions.emitRenderscript() ||
-        compilerOptions.emitFilterscript()) {
-      QualType QT = K->getArgTypes()[cur_arg];
-      QT.removeLocalConst();
-      OS << QT.getAsString() << " " << K->getDeviceArgNames()[cur_arg] << ";\n";
       continue;
     }
   }
@@ -2595,9 +2507,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         OS << "inline "; break;
       case Language::CUDA:
         OS << "__inline__ __device__ "; break;
-      case Language::Renderscript:
-      case Language::Filterscript:
-        OS << "inline static "; break;
     }
     fun->print(OS, Policy);
   }
@@ -2611,8 +2520,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     // write kernel name and qualifiers
     switch (compilerOptions.getTargetLang()) {
       case Language::C99:
-      case Language::Renderscript:
-        break;
       case Language::CUDA:
         OS << "__global__ ";
         OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
@@ -2631,30 +2538,14 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         OS << "__attribute__((reqd_work_group_size(" << K->getNumThreadsX()
             << ", " << K->getNumThreadsY() << ", 1))) ";
         break;
-      case Language::Filterscript:
-        OS << K->getIterationSpace()->getImage()->getTypeStr()
-           << " __attribute__((kernel)) ";
-        break;
     }
-    if (!compilerOptions.emitFilterscript())
-      OS << "void ";
+    OS << "void ";
     OS << K->getKernelName();
     OS << "(";
 
     // write kernel parameters
     size_t comma = 0; num_arg = 0;
     for (auto param : D->parameters()) {
-      // print default parameters for Renderscript and Filterscript only
-      if (compilerOptions.emitFilterscript()) {
-        OS << "uint32_t x, uint32_t y";
-        break;
-      }
-      if (compilerOptions.emitRenderscript()) {
-        OS << K->getIterationSpace()->getImage()->getTypeStr()
-           << " *_iter, uint32_t x, uint32_t y";
-        break;
-      }
-
       size_t i = num_arg++;
       FieldDecl *FD = K->getDeviceArgFields()[i];
 
@@ -2691,10 +2582,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             break;
           case Language::CUDA:
             // mask/domain is declared as constant memory
-            break;
-          case Language::Renderscript:
-          case Language::Filterscript:
-            // mask/domain is declared as static memory
             break;
         }
         continue;
@@ -2762,9 +2649,6 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             OS << " * restrict ";
           }
           OS << Name;
-          break;
-        case Language::Renderscript:
-        case Language::Filterscript:
           break;
       }
       continue;

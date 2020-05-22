@@ -71,9 +71,7 @@ enum class Language : uint8_t {
   CUDA,
   OpenCLACC,
   OpenCLCPU,
-  OpenCLGPU,
-  Renderscript,
-  Filterscript
+  OpenCLGPU
 };
 
 class CompilerOptions {
@@ -99,7 +97,6 @@ class CompilerOptions {
     int pixels_per_thread;
     Texture texture_type;
     bool use_openmp;
-    std::string rs_package_name, rs_directory;
     std::string nvcc_path, cl_compiler_path, ccbin_path, rt_includes_path;
 
     // The selected code generator
@@ -147,8 +144,6 @@ class CompilerOptions {
       pixels_per_thread(1),
       texture_type(Texture::None),
       use_openmp(false),
-      rs_package_name("org.hipacc.rs"),
-      rs_directory("/data/local/tmp"),
       nvcc_path("nvcc"),
       cl_compiler_path(""),
       ccbin_path(""),
@@ -165,8 +160,6 @@ class CompilerOptions {
     bool emitOpenCLACC() { return target_lang == Language::OpenCLACC; }
     bool emitOpenCLCPU() { return target_lang == Language::OpenCLCPU; }
     bool emitOpenCLGPU() { return target_lang == Language::OpenCLGPU; }
-    bool emitRenderscript() { return target_lang == Language::Renderscript; }
-    bool emitFilterscript() { return target_lang == Language::Filterscript; }
 
     Language getTargetLang() { return target_lang; }
     Device getTargetDevice() { return target_device; }
@@ -216,8 +209,6 @@ class CompilerOptions {
     }
 
     int getPixelsPerThread() { return pixels_per_thread; }
-    std::string getRSPackageName() { return rs_package_name; }
-    std::string getRSDirectory() { return rs_directory; }
     bool useOpenMP() { return use_openmp; }
     std::string getNvccPath() { return nvcc_path; }
     std::string getClCompilerPath() { return cl_compiler_path; }
@@ -261,11 +252,6 @@ class CompilerOptions {
       else multiple_pixels = USER_OFF;
     }
 
-    void setRSPackageName(const std::string &name) {
-      rs_package_name = name;
-      rs_directory = "/data/data/" + name;
-    }
-
     void setOpenMP(bool flag) {
       use_openmp = flag;
     }
@@ -293,8 +279,6 @@ class CompilerOptions {
         case Language::OpenCLACC:
         case Language::OpenCLCPU:
         case Language::OpenCLGPU:    return "cl";
-        case Language::Renderscript: return "rs";
-        case Language::Filterscript: return "fs";
         default: hipacc_require(false , "Unsupported target language"); return "";
       }
     }
@@ -312,8 +296,6 @@ class CompilerOptions {
         case Language::OpenCLACC:    llvm::errs() << "OpenCL (ACC)"; break;
         case Language::OpenCLCPU:    llvm::errs() << "OpenCL (CPU)"; break;
         case Language::OpenCLGPU:    llvm::errs() << "OpenCL (GPU)"; break;
-        case Language::Renderscript: llvm::errs() << "Renderscript"; break;
-        case Language::Filterscript: llvm::errs() << "Filterscript"; break;
       }
       llvm::errs() << "' language.\n";
       llvm::errs() << "  Target device is '" << target_device << "'";
