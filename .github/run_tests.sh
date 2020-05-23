@@ -12,6 +12,9 @@ if [ ! -d "${WORKSPACE}/target/samples" ]; then
   exit 1
 fi
 
+# verify that at least CPU is running for OpenCL
+"${WORKSPACE}/target/bin/cl_bandwidth_test" -d CPU
+
 mkdir -p "${WORKSPACE}/target/samples/build"
 cd "${WORKSPACE}/target/samples/build"
 

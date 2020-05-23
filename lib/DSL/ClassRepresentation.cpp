@@ -323,7 +323,7 @@ void HipaccKernel::calcConfig() {
     fun_attrs.sharedSizeBytes = smem_used;
 
     size_t dynamic_smem_bytes = 0;
-    cudaOccResult fun_occ;
+    cudaOccResult fun_occ{};
     cudaOccMaxActiveBlocksPerMultiprocessor(&fun_occ, &dev_props, &fun_attrs, &dev_state, num_threads, dynamic_smem_bytes);
     int active_warps = fun_occ.activeBlocksPerMultiprocessor * (num_threads / max_threads_per_warp);
     float occupancy = (float)active_warps / (float)max_warps_per_multiprocessor;

@@ -35,7 +35,7 @@
 #include "hipacc_base.hpp"
 
 
-#if !defined(_WIN32) || !defined(_MSC_VER)
+#if (!defined(_WIN32) || !defined(_MSC_VER)) && (!defined(__GNUC__) || __GNUC__ < 9)
 #  define _mm256_set_m128(va, vb) _mm256_insertf128_ps(_mm256_castps128_ps256(vb), va, 1)
 #  define _mm256_set_m128i(va, vb) _mm256_insertf128_si256(_mm256_castsi128_si256(vb), va, 1)
 #endif
