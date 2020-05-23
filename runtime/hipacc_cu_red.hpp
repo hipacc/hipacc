@@ -530,7 +530,7 @@ __device__ bool hipacc_binning_and_reduce(BinType* result, CalcType* input, int 
   assert(blockDim.x == WARP_SIZE);
   assert(blockDim.y == NUM_WARPS);
   assert(gridDim.x == NUM_UNITS);
-  assert(gridDim.y == NUM_SEGMENTS);
+  assert(gridDim.y == ((num_bins + SEGMENT_SIZE - 1) / SEGMENT_SIZE));
 
   const int num_warps = NUM_WARPS;
   const int segment_size = SEGMENT_SIZE;
