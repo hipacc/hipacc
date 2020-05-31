@@ -80,7 +80,7 @@ class Image final {
         const int height_{};
         std::unique_ptr<non_const_data_t[]> own_data_{};
         data_t* data_{};
-        
+
     public:
 
         HIPACC_ANNOTATE_IMAGE_CTOR_ARRAY_ASSIGNMENT
@@ -101,7 +101,7 @@ class Image final {
                 std::copy(init, init + width*height, own_data_.get());
                 data_ = own_data_.get();
             }
-            
+
             else
             {
                 data_ = init;
@@ -326,11 +326,11 @@ class Interpolation {
 			{
         		return 6.0f / 8.0f;
     		}
-    		else if (diff < 1.0f) 
+    		else if (diff < 1.0f)
 			{
         		return 4.0f / 8.0f;
     		}
-    		else if (diff < 1.5f) 
+    		else if (diff < 1.5f)
 			{
         		return 1.0f / 8.0f;
     		}
@@ -389,14 +389,18 @@ class Interpolation {
 
         data_t &interpolate(ElementIterator *EI, const int offset_x, const int offset_y, const int width, const int height,
                             const int x, const int y, const int xf, const int yf) {
-            // calculate the mapped address
+            // calculate the mapped address (cell-centered)
             float stride_x = width  / (float)EI->width();
             float stride_y = height / (float)EI->height();
-            float x_mapped = offset_x + stride_x*(x - EI->offset_x() + xf);
-            float y_mapped = offset_y + stride_y*(y - EI->offset_y() + yf);
+            float x_mapped = offset_x + stride_x/2 + stride_x*(x - EI->offset_x() + xf);
+            float y_mapped = offset_y + stride_y/2 + stride_y*(y - EI->offset_y() + yf);
 
+            // move from cell-centered to absolute
             float xb = x_mapped - 0.5f;
             float yb = y_mapped - 0.5f;
+            if (xb < 0.0f) xb = 0.0f;
+            if (yb < 0.0f) yb = 0.0f;
+
             int x_int = static_cast<int>(xb);
             int y_int = static_cast<int>(yb);
             float x_frac = xb - x_int;
@@ -425,17 +429,17 @@ class Interpolation {
                               as_float(pixel_bh(x_int + 1, y_int + 0)) * binomial_5(x_frac - 1) +
                               as_float(pixel_bh(x_int + 2, y_int + 0)) * binomial_5(x_frac - 2) +
                               as_float(pixel_bh(x_int + 3, y_int + 0)) * binomial_5(x_frac - 3);
-                                                                                          
+
                     auto y1 = as_float(pixel_bh(x_int + 0, y_int + 1)) * binomial_5(x_frac - 0) +
                               as_float(pixel_bh(x_int + 1, y_int + 1)) * binomial_5(x_frac - 1) +
                               as_float(pixel_bh(x_int + 2, y_int + 1)) * binomial_5(x_frac - 2) +
                               as_float(pixel_bh(x_int + 3, y_int + 1)) * binomial_5(x_frac - 3);
-                                                                                          
+
                     auto y2 = as_float(pixel_bh(x_int + 0, y_int + 2)) * binomial_5(x_frac - 0) +
                               as_float(pixel_bh(x_int + 1, y_int + 2)) * binomial_5(x_frac - 1) +
                               as_float(pixel_bh(x_int + 2, y_int + 2)) * binomial_5(x_frac - 2) +
                               as_float(pixel_bh(x_int + 3, y_int + 2)) * binomial_5(x_frac - 3);
-                                                                                          
+
                     auto y3 = as_float(pixel_bh(x_int + 0, y_int + 3)) * binomial_5(x_frac - 0) +
                               as_float(pixel_bh(x_int + 1, y_int + 3)) * binomial_5(x_frac - 1) +
                               as_float(pixel_bh(x_int + 2, y_int + 3)) * binomial_5(x_frac - 2) +
@@ -448,7 +452,7 @@ class Interpolation {
                         y3*binomial_5(y_frac - 3));
 
 					break;
-                    }               
+                    }
 
                 case Interpolate::CF: {
                     auto y0 = as_float(pixel_bh(x_int - 1 + 0, y_int - 1 + 0)) * bicubic_spline(x_frac - 1 + 0) +
