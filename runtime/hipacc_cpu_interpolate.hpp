@@ -26,44 +26,27 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //
 
-#ifndef __HIPACC_CU_INTERPOLATE_HPP__
-#define __HIPACC_CU_INTERPOLATE_HPP__
+#ifndef __HIPACC_CPU_INTERPOLATE_HPP__
+#define __HIPACC_CPU_INTERPOLATE_HPP__
 
 // TODO: MACRO
 
 #define IMG_PARM(TYPE) const TYPE *img
-#define TEX_PARM(TYPE)                                                         \
-  const struct texture<TYPE, cudaTextureType1D, cudaReadModeElementType>       \
-      texRef1D
-#define ARR_PARM(TYPE)                                                         \
-  const struct texture<TYPE, cudaTextureType2D, cudaReadModeElementType>       \
-      texRef2D
-#define LDG_PARM(TYPE) const TYPE *img
 #define CONST_PARM(TYPE) , const TYPE const_val
 #define NO_PARM(TYPE)
 #define IMG(x, y, stride, const_val) img[(x) + (y) * (stride)]
-#define TEX(x, y, stride, const_val) tex1Dfetch(texRef1D, (x) + (y) * (stride))
-#define ARR(x, y, stride, const_val) tex2D(texRef2D, x, y)
-#define LDG(x, y, stride, const_val) __ldg(&img[(x) + (y) * (stride)])
 #define IMG_CONST(x, y, stride, const_val)                                     \
   ((x) < 0 || (y) < 0) < 0 ? const_val : img[(x) + (y) * (stride)]
-#define TEX_CONST(x, y, stride, const_val)                                     \
-  ((x) < 0 || (y) < 0) < 0 ? const_val                                         \
-                           : tex1Dfetch(texRef1D, (x) + (y) * (stride))
-#define ARR_CONST(x, y, stride, const_val)                                     \
-  ((x) < 0 || (y) < 0) < 0 ? const_val : tex2D(texRef2D, x, y)
-#define LDG_CONST(x, y, stride, const_val)                                     \
-  ((x) < 0 || (y) < 0) < 0 ? const_val : __ldg(&img[(x) + (y) * (stride)])
 
 // border handling: CLAMP
 #define BH_CLAMP_LOWER(idx, lower, upper) bh_clamp_lower(idx, lower)
 #define BH_CLAMP_UPPER(idx, lower, upper) bh_clamp_upper(idx, upper)
-__device__ inline int bh_clamp_lower(int idx, int lower) {
+inline int bh_clamp_lower(int idx, int lower) {
   if (idx < lower)
     idx = lower;
   return idx;
 }
-__device__ inline int bh_clamp_upper(int idx, int upper) {
+inline int bh_clamp_upper(int idx, int upper) {
   if (idx >= upper)
     idx = upper - 1;
   return idx;
@@ -72,12 +55,12 @@ __device__ inline int bh_clamp_upper(int idx, int upper) {
 // border handling: REPEAT
 #define BH_REPEAT_LOWER(idx, lower, upper) bh_repeat_lower(idx, lower, upper)
 #define BH_REPEAT_UPPER(idx, lower, upper) bh_repeat_upper(idx, lower, upper)
-__device__ inline int bh_repeat_lower(int idx, int lower, int upper) {
+inline int bh_repeat_lower(int idx, int lower, int upper) {
   if (idx < lower)
     idx += lower + upper;
   return idx;
 }
-__device__ inline int bh_repeat_upper(int idx, int lower, int upper) {
+inline int bh_repeat_upper(int idx, int lower, int upper) {
   if (idx >= upper)
     idx -= lower + upper;
   return idx;
@@ -86,12 +69,12 @@ __device__ inline int bh_repeat_upper(int idx, int lower, int upper) {
 // border handling: MIRROR
 #define BH_MIRROR_LOWER(idx, lower, upper) bh_mirror_lower(idx, lower)
 #define BH_MIRROR_UPPER(idx, lower, upper) bh_mirror_upper(idx, upper)
-__device__ inline int bh_mirror_lower(int idx, int lower) {
+inline int bh_mirror_lower(int idx, int lower) {
   if (idx < lower)
     idx = lower + (lower - idx - 1);
   return idx;
 }
-__device__ inline int bh_mirror_upper(int idx, int upper) {
+inline int bh_mirror_upper(int idx, int upper) {
   if (idx >= upper)
     idx = upper - (idx + 1 - upper);
   return idx;
@@ -100,12 +83,12 @@ __device__ inline int bh_mirror_upper(int idx, int upper) {
 // border handling: CONSTANT
 #define BH_CONSTANT_LOWER(idx, lower, upper) bh_constant_lower(idx, lower)
 #define BH_CONSTANT_UPPER(idx, lower, upper) bh_constant_upper(idx, upper)
-__device__ inline int bh_constant_lower(int idx, int lower) {
+inline int bh_constant_lower(int idx, int lower) {
   if (idx < lower)
     return -1;
   return idx;
 }
-__device__ inline int bh_constant_upper(int idx, int upper) {
+inline int bh_constant_upper(int idx, int upper) {
   if (idx >= upper)
     return -1;
   return idx;
@@ -113,7 +96,7 @@ __device__ inline int bh_constant_upper(int idx, int upper) {
 
 // border handling: UNDEFINED
 #define NO_BH(idx, lower, upper) (idx)
-__device__ inline int no_bh(int idx) { return idx; }
+inline int no_bh(int idx) { return idx; }
 
 // no border handling
 #define DEFINE_BH_VARIANT_NO_BH(METHOD, DATA_TYPE, NAME, BH_LOWER, BH_UPPER,   \
@@ -145,15 +128,15 @@ __device__ inline int no_bh(int idx) { return idx; }
 
 #define SCALAR_TYPE_FUNS(TYPE)                                                 \
   typedef float float##TYPE;                                                   \
-  __device__ inline TYPE float_to_##TYPE(float s) { return s; }                \
-  __device__ inline float TYPE##_to_float(TYPE s) { return s; }
+  inline TYPE float_to_##TYPE(float s) { return s; }                           \
+  inline float TYPE##_to_float(TYPE s) { return s; }
 
 typedef float floatfloat;
-__device__ inline float float_to_float(float s) { return s; }
+inline float float_to_float(float s) { return s; }
 
 #define VECTOR_TYPE_FUNS(TYPE)                                                 \
   typedef float4 float##TYPE;                                                  \
-  __device__ inline TYPE float_to_##TYPE(float4 v) {                           \
+  inline TYPE float_to_##TYPE(float4 v) {                                      \
     TYPE t;                                                                    \
     t.x = v.x;                                                                 \
     t.y = v.y;                                                                 \
@@ -161,7 +144,7 @@ __device__ inline float float_to_float(float s) { return s; }
     t.w = v.w;                                                                 \
     return t;                                                                  \
   }                                                                            \
-  __device__ inline float4 TYPE##_to_float(TYPE v) {                           \
+  inline float4 TYPE##_to_float(TYPE v) {                                      \
     float4 t;                                                                  \
     t.x = v.x;                                                                 \
     t.y = v.y;                                                                 \
@@ -171,9 +154,9 @@ __device__ inline float float_to_float(float s) { return s; }
   }
 
 // Bilinear Interpolation
-#define INTERPOLATE_LINEAR_FILTERING_CUDA(NAME, DATA_TYPE, PARM, CPARM,        \
-                                          ACCESS, BHXL, BHXU, BHYL, BHYU)      \
-  __device__ inline DATA_TYPE NAME(PARM, const int stride, float x_mapped,     \
+#define INTERPOLATE_LINEAR_FILTERING_CPU(NAME, DATA_TYPE, PARM, CPARM,         \
+                                         ACCESS, BHXL, BHXU, BHYL, BHYU)       \
+  inline DATA_TYPE NAME(PARM, const int stride, float x_mapped,                \
                             float y_mapped, const int rwidth,                  \
                             const int rheight, const int global_offset_x,      \
                             const int global_offset_y CPARM) {                 \
@@ -215,7 +198,7 @@ __device__ inline float float_to_float(float s) { return s; }
 
 
 // Binomial Interpolation
-__device__ inline float binomial5(float diff)
+inline float binomial5(float diff)
 {
     diff = fabs(diff);
     if (diff < 0.5f) {
@@ -230,8 +213,8 @@ __device__ inline float binomial5(float diff)
     else return 0.0f;
 }
 
-#define INTERPOLATE_BINOMIAL5_FILTERING_CUDA(NAME, DATA_TYPE, PARM, CPARM, ACCESS, BHXL, BHXU, BHYL, BHYU) \
-__device__ inline DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
+#define INTERPOLATE_BINOMIAL5_FILTERING_CPU(NAME, DATA_TYPE, PARM, CPARM, ACCESS, BHXL, BHXU, BHYL, BHYU) \
+inline DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, const int rwidth, const int rheight, const int global_offset_x, const int global_offset_y CPARM) { \
     int lower_x = global_offset_x, lower_y = global_offset_y; \
     int upper_x = lower_x + rwidth, upper_y = lower_x + rheight; \
     float xb = x_mapped; \
@@ -273,7 +256,7 @@ __device__ inline DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y
 }
 
 // Cubic Interpolation
-__device__ inline float bicubic_spline(float diff) {
+inline float bicubic_spline(float diff) {
   diff = fabsf(diff);
   float a = -0.5f;
 
@@ -287,9 +270,9 @@ __device__ inline float bicubic_spline(float diff) {
   }
 }
 
-#define INTERPOLATE_CUBIC_FILTERING_CUDA(NAME, DATA_TYPE, PARM, CPARM, ACCESS, \
-                                         BHXL, BHXU, BHYL, BHYU)               \
-  __device__ inline DATA_TYPE NAME(PARM, const int stride, float x_mapped,     \
+#define INTERPOLATE_CUBIC_FILTERING_CPU(NAME, DATA_TYPE, PARM, CPARM, ACCESS,  \
+                                        BHXL, BHXU, BHYL, BHYU)                \
+  inline DATA_TYPE NAME(PARM, const int stride, float x_mapped,                \
                             float y_mapped, const int rwidth,                  \
                             const int rheight, const int global_offset_x,      \
                             const int global_offset_y CPARM) {                 \
@@ -401,7 +384,7 @@ __device__ inline float bicubic_spline(float diff) {
 #ifndef M_PI
 #define M_PI 3.141592654f
 #endif
-__device__ inline float lanczos(float diff) {
+inline float lanczos(float diff) {
   diff = fabsf(diff);
   float l = 3.0f;
 
@@ -415,9 +398,9 @@ __device__ inline float lanczos(float diff) {
   }
 }
 
-#define INTERPOLATE_LANCZOS_FILTERING_CUDA(NAME, DATA_TYPE, PARM, CPARM,       \
-                                           ACCESS, BHXL, BHXU, BHYL, BHYU)     \
-  __device__ inline DATA_TYPE NAME(PARM, const int stride, float x_mapped,     \
+#define INTERPOLATE_LANCZOS_FILTERING_CPU(NAME, DATA_TYPE, PARM, CPARM,        \
+                                          ACCESS, BHXL, BHXU, BHYL, BHYU)      \
+  inline DATA_TYPE NAME(PARM, const int stride, float x_mapped,                \
                             float y_mapped, const int rwidth,                  \
                             const int rheight, const int global_offset_x,      \
                             const int global_offset_y CPARM) {                 \
@@ -627,4 +610,4 @@ __device__ inline float lanczos(float diff) {
         y4 * lanczos(y_frac - 2 + 4) + y5 * lanczos(y_frac - 2 + 5));          \
   }
 
-#endif // __HIPACC_CU_INTERPOLATE_HPP__
+#endif // __HIPACC_CPU_INTERPOLATE_HPP__

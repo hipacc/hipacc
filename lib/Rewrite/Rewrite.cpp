@@ -145,7 +145,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       TextRewriteOptions.RemoveLineIfEmpty = true;
     }
 
-    static void WriteCudaInterpolationDeclHeader(SmallVector<std::string, 16>& interpolations, char const* file_name);
+    static void WriteAuxiliaryInterpolationDeclHeader(SmallVector<std::string, 16>& interpolations, char const* file_name, std::string const& target_include);
 
     // Rewrite
     std::string convertToString(Stmt *from) {
@@ -215,12 +215,11 @@ HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
 }
 
 
-void Rewrite::WriteCudaInterpolationDeclHeader(SmallVector<std::string, 16>& interpolations, char const* file_name)
-{
+void Rewrite::WriteAuxiliaryInterpolationDeclHeader(SmallVector<std::string, 16>& interpolations, char const* file_name, std::string const& target_include) {
     std::ofstream interpol_hdr_stream(file_name);
 
     interpol_hdr_stream << "#pragma once" << std::endl
-                        << "#include \"hipacc_cu_interpolate.hpp\"" << std::endl << std::endl;
+                        << target_include << std::endl << std::endl;
 
     // sort definitions and remove duplicate definitions
     std::sort(interpolations.begin(), interpolations.end(), std::greater<std::string>());
@@ -317,12 +316,6 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
 
   // get include header string, including a header twice is fine
   stringCreator.writeHeaders(newStr);
-
-  // add interpolation include and define interpolation functions for CUDA
-  if (compilerOptions.emitCUDA() && InterpolationDefinitionsGlobal.size()) {
-    WriteCudaInterpolationDeclHeader(InterpolationDefinitionsGlobal, "cuInterpolation.cuh");
-    newStr += "#include \"cuInterpolation.cuh\"\n";
-  }
 
   // include .cu or .h files for normal kernels
   switch (compilerOptions.getTargetLang()) {
@@ -2331,6 +2324,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
   // declarations of textures, surfaces, variables, includes, definitions etc.
   SmallVector<std::string, 16> InterpolationDefinitionsLocal;
+  std::string target_interpolation_include{};
   size_t num_arg = 0;
   for (auto arg : K->getDeviceArgFields()) {
     auto cur_arg = num_arg++;
@@ -2372,16 +2366,19 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
       if (Acc->getInterpolationMode() > Interpolate::NN) {
         switch (compilerOptions.getTargetLang()) {
-          case Language::C99: break;
+          case Language::C99:
+            target_interpolation_include = "#include \"hipacc_cpu_interpolate.hpp\"\n\n";
+            break;
           case Language::CUDA:
-            OS << "#include \"hipacc_cu_interpolate.hpp\"\n\n";
+            target_interpolation_include = "#include \"hipacc_cu_interpolate.hpp\"\n\n";
             break;
           case Language::OpenCLACC:
           case Language::OpenCLCPU:
           case Language::OpenCLGPU:
-            OS << "#include \"hipacc_cl_interpolate.hpp\"\n\n";
+            target_interpolation_include = "#include \"hipacc_cl_interpolate.hpp\"\n\n";
             break;
         }
+        OS << target_interpolation_include;
 
         // define required interpolation mode
         std::string function_name(ASTTranslate::getInterpolationName(
@@ -2398,17 +2395,12 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           "VECTOR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n" :
           "SCALAR_TYPE_FUNS(" + Acc->getImage()->getTypeStr() + ")\n";
 
-        switch (compilerOptions.getTargetLang()) {
-          default: InterpolationDefinitionsLocal.push_back(bh_def);
-                   InterpolationDefinitionsLocal.push_back(no_bh_def);
+        InterpolationDefinitionsLocal.push_back(bh_def);
+        InterpolationDefinitionsLocal.push_back(no_bh_def);
 
-                   // do not add 'SCALAR_TYPE_FUNS(float)' as it would create already existing functions
-                   if(Acc->getImage()->getType()->isVectorType() || Acc->getImage()->getTypeStr() != "float")
-                    InterpolationDefinitionsLocal.push_back(vec_conv);
-
-                   break;
-          case Language::C99: break;
-        }
+        // do not add 'SCALAR_TYPE_FUNS(float)' as it would create already existing functions
+        if(Acc->getImage()->getType()->isVectorType() || Acc->getImage()->getTypeStr() != "float")
+          InterpolationDefinitionsLocal.push_back(vec_conv);
       }
       continue;
     }
@@ -2476,19 +2468,24 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                     InterpolationDefinitionsLocal.end()),
         InterpolationDefinitionsLocal.end());
 
-    if (compilerOptions.emitCUDA() && emitHints) {
-      // emit interpolation definitions at the beginning of main file
-      for (auto str : InterpolationDefinitionsLocal)
-        InterpolationDefinitionsGlobal.push_back(str);
+    switch (compilerOptions.getTargetLang()) {
+      case Language::C99:
+      case Language::CUDA:
+        if (emitHints) {
+          // emit interpolation definitions via auxiliary header file to obey ODR rule
+          for (auto str : InterpolationDefinitionsLocal)
+            InterpolationDefinitionsGlobal.push_back(str);
 
-      WriteCudaInterpolationDeclHeader(InterpolationDefinitionsGlobal, "cuInterpolation.cuh");
+          WriteAuxiliaryInterpolationDeclHeader(InterpolationDefinitionsGlobal, "interpolation_def.h", target_interpolation_include);
 
-      OS << "#include \"cuInterpolation.cuh\"\n";
-    } else {
-      // add interpolation definitions to kernel file
-      for (auto str : InterpolationDefinitionsLocal)
-        OS << str;
-      OS << "\n";
+          OS << "#include \"interpolation_def.h\"\n";
+          break;
+        }
+      default:
+        // add interpolation definitions to kernel file
+        for (auto str : InterpolationDefinitionsLocal)
+          OS << str;
+        OS << "\n";
     }
   }
 
