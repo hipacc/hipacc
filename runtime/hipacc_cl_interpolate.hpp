@@ -173,6 +173,8 @@ inline DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped,  \
     int upper_x = lower_x + rwidth, upper_y = lower_x + rheight;               \
     float xb = x_mapped - 0.5f;                                                \
     float yb = y_mapped - 0.5f;                                                \
+    if (xb < 0.0f) xb = 0.0f;                                                  \
+    if (yb < 0.0f) yb = 0.0f;                                                  \
     int x_int = xb;                                                            \
     int y_int = yb;                                                            \
     float x_frac = xb - x_int;                                                 \
@@ -225,6 +227,8 @@ inline DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, co
     int upper_x = lower_x + rwidth, upper_y = lower_x + rheight; \
     float xb = x_mapped; \
     float yb = y_mapped; \
+    if (xb < 0.0f) xb = 0.0f; \
+    if (yb < 0.0f) yb = 0.0f; \
     int x_int = xb; \
     int y_int = yb; \
     float x_frac = xb - x_int; \
@@ -283,6 +287,8 @@ inline  DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped, \
     int upper_x = lower_x + rwidth, upper_y = lower_x + rheight;               \
     float xb = x_mapped - 0.5f;                                                \
     float yb = y_mapped - 0.5f;                                                \
+    if (xb < 0.0f) xb = 0.0f;                                                  \
+    if (yb < 0.0f) yb = 0.0f;                                                  \
     int x_int = xb;                                                            \
     int y_int = yb;                                                            \
     float x_frac = xb - x_int;                                                 \
@@ -405,6 +411,8 @@ inline DATA_TYPE NAME(PARM, const int stride, float x_mapped, float y_mapped,  \
     int upper_x = lower_x + rwidth, upper_y = lower_x + rheight;               \
     float xb = x_mapped - 0.5f;                                                \
     float yb = y_mapped - 0.5f;                                                \
+    if (xb < 0.0f) xb = 0.0f;                                                  \
+    if (yb < 0.0f) yb = 0.0f;                                                  \
     int x_int = xb;                                                            \
     int y_int = yb;                                                            \
     float x_frac = xb - x_int;                                                 \

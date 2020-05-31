@@ -849,7 +849,7 @@ std::string CreateHostStrings::getInterpolationDefinition(HipaccKernel *K,
       break;
   }
   switch (options.getTargetLang()) {
-    case Language::C99:                              break;
+    case Language::C99:          str += "_CPU, ";    break;
     case Language::CUDA:         str += "_CUDA, ";   break;
     case Language::OpenCLACC:
     case Language::OpenCLCPU:

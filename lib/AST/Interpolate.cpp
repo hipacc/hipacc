@@ -83,16 +83,33 @@ std::string ASTTranslate::getInterpolationName(CompilerOptions &compilerOptions,
 
 // calculate index using nearest neighbor interpolation
 Expr *ASTTranslate::addNNInterpolationX(HipaccAccessor *Acc, Expr *idx_x) {
-  // acc_scale_x * (gid_x - is_offset_x)
+  // idx_x = (gid_x - is_offset_x)
   idx_x = removeISOffsetX(idx_x);
 
-  return createBinaryOperator(Ctx, Acc->getScaleXDecl(), createParenExpr(Ctx,
-        idx_x), BO_Mul, Ctx.FloatTy);
+  // cell-centered offset + absolute position
+  return createBinaryOperator(Ctx,
+            // cell-centered offset: acc_scale_x/2
+            createBinaryOperator(Ctx, Acc->getScaleXDecl(),
+                                      createIntegerLiteral(Ctx, 2),
+                                      BO_Div, Ctx.FloatTy),
+            // absolute position: acc_scale_x * (gid_x - is_offset_x)
+            createBinaryOperator(Ctx, Acc->getScaleXDecl(),
+                                      createParenExpr(Ctx, idx_x),
+                                      BO_Mul, Ctx.FloatTy),
+            BO_Add, Ctx.FloatTy);
 }
 Expr *ASTTranslate::addNNInterpolationY(HipaccAccessor *Acc, Expr *idx_y) {
-  // acc_scale_y * (gid_y)
-  return createBinaryOperator(Ctx, Acc->getScaleYDecl(), createParenExpr(Ctx,
-        idx_y), BO_Mul, Ctx.FloatTy);
+  // cell-centered offset + absolute position
+  return createBinaryOperator(Ctx,
+            // cell-centered offset: acc_scale_y/2
+            createBinaryOperator(Ctx, Acc->getScaleYDecl(),
+                                      createIntegerLiteral(Ctx, 2),
+                                      BO_Div, Ctx.FloatTy),
+            // absolute position: acc_scale_y * (gid_y)
+            createBinaryOperator(Ctx, Acc->getScaleYDecl(),
+                                      createParenExpr(Ctx, idx_y),
+                                      BO_Mul, Ctx.FloatTy),
+            BO_Add, Ctx.FloatTy);
 }
 
 
