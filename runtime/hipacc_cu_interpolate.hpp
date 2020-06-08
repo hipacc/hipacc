@@ -112,8 +112,8 @@ __device__ inline int bh_constant_upper(int idx, int upper) {
 }
 
 // border handling: UNDEFINED
-#define NO_BH(idx, lower, upper) (idx)
-__device__ inline int no_bh(int idx) { return idx; }
+__device__ inline int no_bh(int idx, int lower, int upper) { (void)lower; (void)upper; return idx; }
+#define NO_BH(idx, lower, upper) no_bh(idx, lower, upper)
 
 // no border handling
 #define DEFINE_BH_VARIANT_NO_BH(METHOD, DATA_TYPE, NAME, BH_LOWER, BH_UPPER,   \

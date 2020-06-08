@@ -266,6 +266,14 @@ set(LIBCXX_SRC ${LLVM_INCLUDE_DIRS}/c++/v1)
 set(LIBCXX_DST ${CMAKE_BINARY_DIR}/include/c++/v1)
 execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCXX_DST} COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBCXX_SRC} ${LIBCXX_DST})
 
+if(WIN32)
+    # patch filesystem header from libcxx 8.0.1 (this is solved in later releases)
+    file(READ "${CMAKE_BINARY_DIR}/include/c++/v1/filesystem" LIBCXX_FILESYSTEM)
+    STRING(REPLACE "_LIBCPP_FUNC_VIS\n  void __create_what" "void __create_what"
+        LIBCXX_FILESYSTEM "${LIBCXX_FILESYSTEM}")
+    file(WRITE "${CMAKE_BINARY_DIR}/include/c++/v1/filesystem" "${LIBCXX_FILESYSTEM}")
+endif()
+
 # add libcxx to package
 install(DIRECTORY ${LIBCXX_DST} DESTINATION include/c++ COMPONENT libcxx)
 

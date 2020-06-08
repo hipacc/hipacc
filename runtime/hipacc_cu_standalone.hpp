@@ -276,7 +276,7 @@ namespace detail
 
 template <typename KernelFunction, typename... KernelParameters>
 void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridDim,
-                        dim3 const &blockDim, HipaccExecutionParameter const& ep,
+                        dim3 const &blockDim, HipaccExecutionParameterCuda const& ep,
                         bool print_timing, size_t shared_memory, KernelParameters &&... parameters)
 {
   constexpr auto non_zero_num_params = sizeof...(KernelParameters) == 0 ? 1 : sizeof...(KernelParameters);
@@ -290,6 +290,10 @@ void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridD
   cudaEvent_t start, end;
   float last_gpu_timing;
 
+  cudaStream_t stream{ ep ? ep->get_stream() : 0 };
+
+  if (ep) ep->pre_kernel();
+
   if (print_timing)
   {
     cudaEventCreate(&start);
@@ -299,7 +303,7 @@ void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridD
 
   cudaError_t err = cudaLaunchKernel(
       reinterpret_cast<void const *>(&kernel_function), gridDim, blockDim,
-      &(argument_ptrs[0]), shared_memory, ep.stream);
+      &(argument_ptrs[0]), shared_memory, stream);
 
   checkErr(err, (std::string("cudaLaunchKernel(") + __FUNCTION__ + ")"));
 
@@ -320,6 +324,8 @@ void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridD
             std::to_string(blockDim.x) + "x" + std::to_string(blockDim.y) +
             "): " + std::to_string(last_gpu_timing) + "(ms)");
   }
+
+  if (ep) ep->post_kernel();
 }
 
 //

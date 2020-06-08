@@ -77,7 +77,7 @@ class CreateHostStrings {
     void writeMemoryAllocation(HipaccImage *Img, std::string const& width, std::string const&
         height, std::string const& host, std::string const& deep_copy, std::string &resultStr);
     void writeMemoryAllocationConstant(HipaccMask *Buf, std::string &resultStr);
-    void writeMemoryMapping(HipaccImage *Img, std::string const& argument_name, std::string const& deep_copy, std::string &resultStr);
+    void writeMemoryMapping(HipaccImage *Img, std::string const& argument_name, std::string &resultStr);
     void writeMemoryTransfer(HipaccImage *Img, std::string mem,
         MemoryTransferDirection direction, std::string &resultStr);
     void writeMemoryTransfer(HipaccPyramid *Pyr, std::string idx,

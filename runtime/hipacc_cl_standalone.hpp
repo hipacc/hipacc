@@ -775,12 +775,16 @@ double hipaccCopyBufferBenchmark(const HipaccImageOpenCL &src,
 
 // Enqueue and launch kernel
 void hipaccLaunchKernel(cl_kernel kernel, size_t *global_work_size,
-                        size_t *local_work_size, bool print_timing) {
+                        size_t *local_work_size, HipaccExecutionParameterOpenCL ep,
+                        bool print_timing) {
   cl_int err;
   HipaccContext &Ctx = HipaccContext::getInstance();
+  cl_command_queue cg{ ep ? ep->get_command_queue() : Ctx.get_command_queues()[0] };
   cl_event event;
 
-  err = clEnqueueNDRangeKernel(Ctx.get_command_queues()[0], kernel, 2, NULL,
+  if (ep) ep->pre_kernel();
+
+  err = clEnqueueNDRangeKernel(cg, kernel, 2, NULL,
                                global_work_size, local_work_size, 0, NULL,
                                print_timing ? &event : nullptr);
   checkErr(err, "clEnqueueNDRangeKernel()");
@@ -789,7 +793,7 @@ void hipaccLaunchKernel(cl_kernel kernel, size_t *global_work_size,
     cl_ulong end, start;
     float last_gpu_timing;
 
-    err = clFinish(Ctx.get_command_queues()[0]);
+    err = clFinish(cg);
     checkErr(err, "clFinish");
 
     err = clWaitForEvents(1, &event);
@@ -816,42 +820,8 @@ void hipaccLaunchKernel(cl_kernel kernel, size_t *global_work_size,
             std::to_string(local_work_size[1]) +
             "): " + std::to_string(last_gpu_timing) + "(ms)");
   }
-}
 
-// Benchmark timing for a kernel call
-void hipaccLaunchKernelBenchmark(cl_kernel kernel, size_t *global_work_size,
-                                 size_t *local_work_size,
-                                 std::vector<std::pair<size_t, void *>> &args,
-                                 bool print_timing) {
-  std::vector<float> times;
-  float last_gpu_timing;
-
-  for (size_t i = 0; i < HIPACC_NUM_ITERATIONS; ++i) {
-    // set kernel arguments
-    for (int j = 0; j < static_cast<int>(args.size()); ++j)
-      hipaccSetKernelArg(kernel, j, args[j].first, args[j].second);
-
-    hipaccLaunchKernel(kernel, global_work_size, local_work_size, print_timing);
-    times.push_back(HipaccKernelTimingBase::getInstance().get_last_kernel_timing());
-  }
-
-  std::sort(times.begin(), times.end());
-  last_gpu_timing = times[times.size() / 2];
-  HipaccKernelTimingBase::getInstance().set_timing(last_gpu_timing);
-
-  if (print_timing) {
-    hipaccRuntimeLogTrivial(
-        hipaccRuntimeLogLevel::INFO,
-        "<HIPACC:> Kernel timing benchmark (" +
-            std::to_string(local_work_size[0] * local_work_size[1]) + ": " +
-            std::to_string(local_work_size[0]) + "x" +
-            std::to_string(local_work_size[1]) +
-            "): " + std::to_string(last_gpu_timing) + " | " +
-            std::to_string(times.front()) + " | " +
-            std::to_string(times.back()) + " (median(" +
-            std::to_string(HIPACC_NUM_ITERATIONS) +
-            ") | minimum | maximum) ms");
-  }
+  if (ep) ep->post_kernel();
 }
 
 #endif // __HIPACC_CL_STANDALONE_HPP__

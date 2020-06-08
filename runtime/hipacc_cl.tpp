@@ -233,8 +233,10 @@ void hipaccSetKernelArg(cl_kernel kernel, unsigned int num, size_t size,
 template <typename T>
 T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
                        const HipaccAccessor &acc, unsigned int max_threads,
-                       unsigned int pixels_per_thread, bool print_timing) {
+                       unsigned int pixels_per_thread, HipaccExecutionParameterOpenCL ep,
+                       bool print_timing) {
   HipaccContext &Ctx = HipaccContext::getInstance();
+  cl_command_queue cg{ ep ? ep->get_command_queue() : Ctx.get_command_queues()[0] };
   cl_mem_flags flags = CL_MEM_READ_WRITE;
   cl_int err = CL_SUCCESS;
   cl_mem output; // GPU memory for reduction
@@ -293,7 +295,18 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
     hipaccSetKernelArg(kernel2D, 9, sizeof(unsigned int), &idle_left);
   }
 
-  hipaccLaunchKernel(kernel2D, global_work_size, local_work_size, print_timing);
+  cl_event event_start, event_end;
+  if (print_timing) {
+#ifdef CL_VERSION_1_2 // or later
+    err = clEnqueueMarkerWithWaitList(cg, 0, nullptr, &event_start);
+    checkErr(err, "clEnqueueMarkerWithWaitList()");
+#else
+    err = clEnqueueMarker(cg, &event_start);
+    checkErr(err, "clEnqueueMarker()");
+#endif
+  }
+
+  hipaccLaunchKernel(kernel2D, global_work_size, local_work_size, ep, false);
 
   // second step: reduce partial blocks on GPU
   // this is done in one shot, so no additional memory is required, i.e. the
@@ -313,16 +326,52 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
   hipaccSetKernelArg(kernel1D, 2, sizeof(unsigned int), &num_blocks);
   hipaccSetKernelArg(kernel1D, 3, sizeof(unsigned int), &num_steps);
 
-  hipaccLaunchKernel(kernel1D, global_work_size, local_work_size);
+  hipaccLaunchKernel(kernel1D, global_work_size, local_work_size, ep, false);
+
+  if (print_timing) {
+#ifdef CL_VERSION_1_2 // or later
+    err = clEnqueueMarkerWithWaitList(cg, 0, nullptr, &event_end);
+    checkErr(err, "clEnqueueMarkerWithWaitList()");
+#else
+    err = clEnqueueMarker(cg, &event_end);
+    checkErr(err, "clEnqueueMarker()");
+#endif
+  }
 
   // get reduced value
-  err = clEnqueueReadBuffer(Ctx.get_command_queues()[0], output, CL_FALSE, 0,
+  err = clEnqueueReadBuffer(cg, output, CL_FALSE, 0,
                             sizeof(T), &result, 0, NULL, NULL);
-  err |= clFinish(Ctx.get_command_queues()[0]);
+  err |= clFinish(cg);
   checkErr(err, "clEnqueueReadBuffer()");
 
   err = clReleaseMemObject(output);
   checkErr(err, "clReleaseMemObject()");
+
+  if (print_timing) {
+    cl_ulong end, start;
+    float last_gpu_timing;
+
+    err = clGetEventProfilingInfo(event_end, CL_PROFILING_COMMAND_END,
+                                  sizeof(cl_ulong), &end, 0);
+    err |= clGetEventProfilingInfo(event_start, CL_PROFILING_COMMAND_START,
+                                   sizeof(cl_ulong), &start, 0);
+    checkErr(err, "clGetEventProfilingInfo()");
+    start = (cl_ulong)(start * 1e-3);
+    end = (cl_ulong)(end * 1e-3);
+
+    err = clReleaseEvent(event_start);
+    checkErr(err, "clReleaseEvent()");
+
+    err = clReleaseEvent(event_end);
+    checkErr(err, "clReleaseEvent()");
+
+    last_gpu_timing = (end - start) * 1.0e-3f;
+    HipaccKernelTimingBase::getInstance().set_timing(last_gpu_timing);
+
+    hipaccRuntimeLogTrivial(
+        hipaccRuntimeLogLevel::INFO,
+        "<HIPACC:> Kernel timing (reduce): " + std::to_string(last_gpu_timing) + "(ms)");
+  }
 
   return result;
 }
@@ -330,10 +379,11 @@ T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
 template <typename T>
 T hipaccApplyReduction(cl_kernel kernel2D, cl_kernel kernel1D,
                        const HipaccImageOpenCL &img, unsigned int max_threads,
-                       unsigned int pixels_per_thread, bool print_timing) {
+                       unsigned int pixels_per_thread, HipaccExecutionParameterOpenCL ep,
+                       bool print_timing) {
   HipaccAccessor acc(img);
   return hipaccApplyReduction<T>(kernel2D, kernel1D, acc, max_threads,
-                                 pixels_per_thread, print_timing);
+                                 pixels_per_thread, ep, print_timing);
 }
 
 #ifndef SEGMENT_SIZE
@@ -343,8 +393,10 @@ template <typename T, typename T2>
 T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D,
                                const HipaccAccessor &acc,
                                unsigned int num_warps, unsigned int num_hists,
-                               unsigned int num_bins, bool print_timing) {
+                               unsigned int num_bins, HipaccExecutionParameterOpenCL ep,
+                               bool print_timing) {
   HipaccContext &Ctx = HipaccContext::getInstance();
+  cl_command_queue cg{ ep ? ep->get_command_queue() : Ctx.get_command_queues()[0] };
   cl_mem_flags flags = CL_MEM_READ_WRITE;
   cl_int err = CL_SUCCESS;
   cl_mem output;               // GPU memory for reduction
@@ -389,7 +441,18 @@ T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D,
   hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.offset_x);
   hipaccSetKernelArg(kernel2D, offset++, sizeof(unsigned int), &acc.offset_y);
 
-  hipaccLaunchKernel(kernel2D, global_work_size, local_work_size, print_timing);
+  cl_event event_start, event_end;
+  if (print_timing) {
+#ifdef CL_VERSION_1_2 // or later
+    err = clEnqueueMarkerWithWaitList(cg, 0, nullptr, &event_start);
+    checkErr(err, "clEnqueueMarkerWithWaitList()");
+#else
+    err = clEnqueueMarker(cg, &event_start);
+    checkErr(err, "clEnqueueMarker()");
+#endif
+  }
+
+  hipaccLaunchKernel(kernel2D, global_work_size, local_work_size, ep, false);
 
   local_work_size[0] = wavefront;
   local_work_size[1] = 1;
@@ -400,15 +463,51 @@ T *hipaccApplyBinningSegmented(cl_kernel kernel2D, cl_kernel kernel1D,
   hipaccSetKernelArg(kernel1D, offset++, sizeof(cl_mem), &output);
   hipaccSetKernelArg(kernel1D, offset++, sizeof(unsigned int), &num_bins);
 
-  hipaccLaunchKernel(kernel1D, global_work_size, local_work_size);
+  hipaccLaunchKernel(kernel1D, global_work_size, local_work_size, ep, false);
 
-  err = clEnqueueReadBuffer(Ctx.get_command_queues()[0], output, CL_FALSE, 0,
+  if (print_timing) {
+#ifdef CL_VERSION_1_2 // or later
+    err = clEnqueueMarkerWithWaitList(cg, 0, nullptr, &event_end);
+    checkErr(err, "clEnqueueMarkerWithWaitList()");
+#else
+    err = clEnqueueMarker(cg, &event_end);
+    checkErr(err, "clEnqueueMarker()");
+#endif
+  }
+
+  err = clEnqueueReadBuffer(cg, output, CL_FALSE, 0,
                             sizeof(T) * num_bins, result, 0, NULL, NULL);
-  err |= clFinish(Ctx.get_command_queues()[0]);
+  err |= clFinish(cg);
   checkErr(err, "clEnqueueReadBuffer()");
 
   err = clReleaseMemObject(output);
   checkErr(err, "clReleaseMemObject()");
+
+  if (print_timing) {
+    cl_ulong end, start;
+    float last_gpu_timing;
+
+    err = clGetEventProfilingInfo(event_end, CL_PROFILING_COMMAND_END,
+                                  sizeof(cl_ulong), &end, 0);
+    err |= clGetEventProfilingInfo(event_start, CL_PROFILING_COMMAND_START,
+                                   sizeof(cl_ulong), &start, 0);
+    checkErr(err, "clGetEventProfilingInfo()");
+    start = (cl_ulong)(start * 1e-3);
+    end = (cl_ulong)(end * 1e-3);
+
+    err = clReleaseEvent(event_start);
+    checkErr(err, "clReleaseEvent()");
+
+    err = clReleaseEvent(event_end);
+    checkErr(err, "clReleaseEvent()");
+
+    last_gpu_timing = (end - start) * 1.0e-3f;
+    HipaccKernelTimingBase::getInstance().set_timing(last_gpu_timing);
+
+    hipaccRuntimeLogTrivial(
+        hipaccRuntimeLogLevel::INFO,
+        "<HIPACC:> Kernel timing (binning reduce): " + std::to_string(last_gpu_timing) + "(ms)");
+  }
 
   return result;
 }
