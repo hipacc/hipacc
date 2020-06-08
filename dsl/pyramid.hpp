@@ -114,7 +114,7 @@ class Pyramid : public PyramidBase {
         }
 
         template<typename T_PYRAMID>
-        explicit Pyramid(T_PYRAMID&& pyramid) 
+        explicit Pyramid(T_PYRAMID&& pyramid)
             : PyramidBase(pyramid.depth()){
             for (int i=0; i < pyramid.depth(); ++i) {
                 imgs_.emplace_back(pyramid.at(i));
@@ -162,6 +162,7 @@ class Traversal {
 
         void add(PyramidBase &p) {
             bool bound = p.bind();
+            (void)bound;
             assert(bound && "Pyramid already bound to another traversal.");
             pyrs_.push_back(&p);
         }
@@ -297,7 +298,7 @@ inline void traverse(std::initializer_list<PyramidBase*> const& pyrs, const std:
 
         if(previous)
             assert(pyramid->depth() == pyramid->depth() && "Pyramid depths do not match.");
-            
+
         t.add(*pyramid);
         previous = pyramid;
     }

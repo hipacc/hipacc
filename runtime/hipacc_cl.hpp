@@ -185,6 +185,19 @@ public:
   void swap(HipaccPyramidOpenCL &other) { imgs_.swap(other.imgs_); }
 };
 
+class HipaccExecutionParameterOpenCLBase  {
+private:
+  cl_command_queue command_queue_{};
+protected:
+  void set_command_queue(cl_command_queue cq) { command_queue_ = cq; }
+public:
+  cl_command_queue get_command_queue() const { return command_queue_; }
+  virtual void pre_kernel() = 0;
+  virtual void post_kernel() = 0;
+};
+
+using HipaccExecutionParameterOpenCL = std::shared_ptr<HipaccExecutionParameterOpenCLBase>;
+
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, size_t *block);
 void hipaccCalcGridFromBlock(hipacc_launch_info &info, size_t *block,
                              size_t *grid);
@@ -210,7 +223,8 @@ double hipaccCopyBufferBenchmark(const HipaccImageOpenCL &src,
                                  HipaccImageOpenCL &dst, int num_device = 0,
                                  bool print_timing = false);
 void hipaccLaunchKernel(cl_kernel kernel, size_t *global_work_size,
-                        size_t *local_work_size, bool print_timing = true);
+                        size_t *local_work_size, HipaccExecutionParameterOpenCL ep,
+                        bool print_timing = true);
 
 template <typename T>
 HipaccImageOpenCL
