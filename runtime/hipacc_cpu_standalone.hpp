@@ -42,12 +42,12 @@ HipaccContext &HipaccContext::getInstance() {
 
 HipaccImageCpuBase::~HipaccImageCpuBase() {}
 
-int64_t start_time = 0;
-int64_t end_time = 0;
+static int64_t start_time = 0;
+static int64_t end_time = 0;
 
-void hipaccStartTiming() { start_time = hipacc_time_micro(); }
+inline void hipaccStartTiming() { start_time = hipacc_time_micro(); }
 
-void hipaccStopTiming() {
+inline void hipaccStopTiming() {
   end_time = hipacc_time_micro();
   float timing{ (end_time - start_time) * 1.0e-3f };
   HipaccKernelTimingBase::getInstance().set_timing(timing);
@@ -58,7 +58,7 @@ void hipaccStopTiming() {
 }
 
 // Copy from memory to memory
-void hipaccCopyMemory(const HipaccImageCpu &src, HipaccImageCpu &dst) {
+inline void hipaccCopyMemory(const HipaccImageCpu &src, HipaccImageCpu &dst) {
   size_t height = src->get_height();
   size_t stride = src->get_stride();
   std::memcpy(dst->get_aligned_host_memory(), src->get_aligned_host_memory(),
@@ -66,8 +66,8 @@ void hipaccCopyMemory(const HipaccImageCpu &src, HipaccImageCpu &dst) {
 }
 
 // Copy from memory region to memory region
-void hipaccCopyMemoryRegion(const HipaccAccessor &src,
-                            const HipaccAccessor &dst) {
+inline void hipaccCopyMemoryRegion(const HipaccAccessor &src,
+                                   const HipaccAccessor &dst) {
   for (int i = 0; i < dst.height; ++i) {
     std::memcpy(
         &((uchar *)dst.img->get_aligned_host_memory())
@@ -77,6 +77,27 @@ void hipaccCopyMemoryRegion(const HipaccAccessor &src,
             [src.offset_x * src.img->get_pixel_size() +
              (src.offset_y + i) * src.img->get_stride() * src.img->get_pixel_size()],
         src.width * src.img->get_pixel_size());
+  }
+}
+
+inline void hipaccLaunchKernel(std::function<void()> kernel_function,
+                               HipaccExecutionParameterCpu const& ep,
+                               bool print_timing) {
+  if (print_timing) {
+    hipaccStartTiming();
+  }
+
+  if (ep) {
+    ep->run_kernel(kernel_function);
+    if (print_timing) {
+      ep->wait();
+    }
+  } else {
+    kernel_function();
+  }
+
+  if (print_timing) {
+    hipaccStopTiming();
   }
 }
 

@@ -6,7 +6,7 @@ set(HIPACC_PATH "${CMAKE_CURRENT_LIST_DIR}/../")
 
 find_program(HIPACC_EXE hipacc
              HINTS "${HIPACC_PATH}/bin" "$ENV{HIPACC_PATH}/bin"
-            )
+                   "/usr/local/hipacc/bin")
 
 if(HIPACC_EXE-NOTFOUND)
     message(FATAL_ERROR "Hipacc not found")

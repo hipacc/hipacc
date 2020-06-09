@@ -220,7 +220,7 @@ public:
   explicit HipaccPyramidCuda(const int depth) : HipaccPyramid(depth) {}
 
   void add(const HipaccImageCuda<T> &img) { imgs_.push_back(img); }
-  
+
   HipaccImageCuda<T> operator()(int relative) {
     assert(level_ + relative >= 0 && level_ + relative < (int)imgs_.size() &&
            "Accessed pyramid stage is out of bounds.");
@@ -231,10 +231,18 @@ public:
 };
 
 
-struct HipaccExecutionParameter
-{
-  cudaStream_t stream{};
+class HipaccExecutionParameterCudaBase  {
+private:
+  cudaStream_t stream_{};
+protected:
+  void set_stream(cudaStream_t s) { stream_ = s; }
+public:
+  cudaStream_t get_stream() const { return stream_; }
+  virtual void pre_kernel() = 0;
+  virtual void post_kernel() = 0;
 };
+
+using HipaccExecutionParameterCuda = std::shared_ptr<HipaccExecutionParameterCudaBase>;
 
 void hipaccPrepareKernelLaunch(hipacc_launch_info &info, dim3 const&block);
 dim3 hipaccCalcGridFromBlock(hipacc_launch_info const&info, dim3 const&block);
@@ -247,8 +255,9 @@ void hipaccCopyMemoryRegion(const HipaccAccessor<T> &src,
 void hipaccLaunchKernel(const void *kernel, std::string const& kernel_name, dim3 &grid,
                         dim3 &block, void **args, bool print_timing = false, const int shared_memory_size = 0);
 template <typename KernelFunction, typename... KernelParameters>
-void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridDim, dim3 const &blockDim, HipaccExecutionParameter const& ep,
+void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridDim, dim3 const &blockDim, HipaccExecutionParameterCuda const& ep,
                         bool print_timing, size_t shared_memory, KernelParameters &&... parameters);
+inline HipaccExecutionParameterCuda hipaccMapExecutionParameter(HipaccExecutionParameterCuda ep) { return ep; }
 
 //
 // TEMPLATES
@@ -271,6 +280,7 @@ template <typename T, typename TI>
 TI hipaccCreatePyramidImage(const TI &base, size_t width, size_t height);
 template <typename T> void hipaccWriteMemory(HipaccImageCuda<T> &img, T *host_mem);
 template <typename T> T *hipaccReadMemory(const HipaccImageCuda<T> &img);
+template <typename T> HipaccImageCuda<T> hipaccMapMemory(HipaccImageCuda<T> img) { return img; }
 template <typename T>
 void hipaccBindTexture(hipaccMemoryType mem_type, const textureReference *tex,
                        const HipaccImageCuda<T> &img);
@@ -330,7 +340,7 @@ T hipaccApplyReductionShared(const KernelFunc &kernel2D,
                                   const HipaccImageCuda<T> &img,
                                   unsigned int max_threads,
                                   unsigned int pixels_per_thread,
-                                  HipaccExecutionParameter const &ep,
+                                  HipaccExecutionParameterCuda const &ep,
                                   const textureReference *tex);
 
 #ifndef DEFAULT_SEGMENT_SIZE
@@ -343,7 +353,7 @@ T *hipaccApplyBinningSegmented(KernelFunc const &kernel2D,
                                                 unsigned int num_warps,
                                                 unsigned int num_units,
                                                 unsigned int num_bins,
-                                                HipaccExecutionParameter const &ep,
+                                                HipaccExecutionParameterCuda const &ep,
                                                 const textureReference *tex,
                                                 bool print_timing);
 

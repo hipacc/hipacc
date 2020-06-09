@@ -230,7 +230,7 @@ T hipaccApplyReductionShared(const KernelFunc &reductionKernel,
                                   const HipaccAccessor<T> &acc,
                                   unsigned int max_threads,
                                   unsigned int pixels_per_thread,
-                                  HipaccExecutionParameter const &ep,
+                                  HipaccExecutionParameterCuda const &ep,
                                   const textureReference *tex,
                                   bool print_timing) {
   T *output; // GPU memory for reduction
@@ -315,7 +315,7 @@ T hipaccApplyReductionShared(const KernelFunc &kernel2D,
                                   const HipaccImageCuda<T> &img,
                                   unsigned int max_threads,
                                   unsigned int pixels_per_thread,
-                                  HipaccExecutionParameter const &ep,
+                                  HipaccExecutionParameterCuda const &ep,
                                   const textureReference *tex,
                                   bool print_timing) {
   HipaccAccessor<T> acc(img);
@@ -329,7 +329,7 @@ T *hipaccApplyBinningSegmented(KernelFunc const &kernel2D,
                                                 unsigned int num_warps,
                                                 unsigned int num_units,
                                                 unsigned int num_bins,
-                                                HipaccExecutionParameter const &ep,
+                                                HipaccExecutionParameterCuda const &ep,
                                                 const textureReference *tex,
                                                 bool print_timing) {
 

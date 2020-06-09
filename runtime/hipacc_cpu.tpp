@@ -150,4 +150,28 @@ HipaccPyramidCpu hipaccCreatePyramid(const HipaccImageCpu &img, size_t depth) {
   return p;
 }
 
+template <typename T>
+T hipaccApplyReduction(std::function<T()> reduction_function,
+                       HipaccExecutionParameterCpu const& ep,
+                       bool print_timing) {
+  T result{};
+
+  if (print_timing) {
+    hipaccStartTiming();
+  }
+
+  if (ep) {
+    ep->run_kernel( [&]{ result = reduction_function(); } );
+    ep->wait(); // reductions are blocking
+  } else {
+    result = reduction_function();
+  }
+
+  if (print_timing) {
+    hipaccStopTiming();
+  }
+
+  return result;
+}
+
 #endif // __HIPACC_CPU_TPP__

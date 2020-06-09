@@ -72,9 +72,9 @@ public:
   HipaccImageCpuRaw(size_t width, size_t height, size_t stride,
                      size_t alignment, size_t pixel_size, void *mem,
                      hipaccMemoryType mem_type = hipaccMemoryType::Global)
-                   : width(width), height(height), stride(stride), 
-                   alignment(alignment), pixel_size(pixel_size), 
-                   mem_type(mem_type), mem((char *)mem), 
+                   : width(width), height(height), stride(stride),
+                   alignment(alignment), pixel_size(pixel_size),
+                   mem_type(mem_type), mem((char *)mem),
                    host_mem(new char[width * height * pixel_size]) {
     std::fill(host_mem.get(), host_mem.get() + width * height * pixel_size, 0);
   }
@@ -136,9 +136,6 @@ public:
   void swap(HipaccPyramidCpu &other) { imgs_.swap(other.imgs_); }
 };
 
-extern int64_t start_time;
-extern int64_t end_time;
-
 void hipaccStartTiming();
 void hipaccStopTiming();
 void hipaccCopyMemory(const HipaccImageCpu &src, HipaccImageCpu &dst);
@@ -157,6 +154,7 @@ template <typename T>
 HipaccImageCpu hipaccCreateMemory(T *host_mem, size_t width, size_t height);
 template <typename T> void hipaccWriteMemory(HipaccImageCpu &img, T *host_mem);
 template <typename T> T *hipaccReadMemory(const HipaccImageCpu &img);
+template <typename T> HipaccImageCpu hipaccMapMemory(HipaccImageCpu img) { return img; }
 template <typename T>
 void hipaccWriteDomainFromMask(HipaccImageCpu &dom, T *host_mem);
 
@@ -170,6 +168,25 @@ HipaccImageCpu hipaccCreatePyramidImage(const HipaccImageCpu &base,
 
 template <typename T>
 HipaccPyramidCpu hipaccCreatePyramid(const HipaccImageCpu &img, size_t depth);
+
+
+class HipaccExecutionParameterCpuBase  {
+public:
+  virtual void run_kernel(std::function<void()>) = 0;
+  virtual void wait() = 0;
+};
+
+using HipaccExecutionParameterCpu = std::shared_ptr<HipaccExecutionParameterCpuBase>;
+
+inline HipaccExecutionParameterCpu hipaccMapExecutionParameter(HipaccExecutionParameterCpu ep) { return ep; }
+
+void hipaccLaunchKernel(std::function<void()> kernel_function, HipaccExecutionParameterCpu const& ep,
+                        bool print_timing);
+
+template <typename T>
+T hipaccApplyReduction(std::function<T()> reduction_function, HipaccExecutionParameterCpu const& ep,
+                       bool print_timing);
+
 
 #include "hipacc_cpu.tpp"
 

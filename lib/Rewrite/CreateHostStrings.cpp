@@ -275,8 +275,8 @@ void CreateHostStrings::writeMemoryAllocationConstant(HipaccMask *Buf,
   resultStr += "NULL, " + Buf->getSizeXStr() + ", " + Buf->getSizeYStr() + ");";
 }
 
-void CreateHostStrings::writeMemoryMapping(HipaccImage *Img, std::string const& argument_name, std::string const& deep_copy, std::string &resultStr) {
-  resultStr += "auto " + Img->getName() + " = hipaccMapMemory<" + Img->getTypeStr() + ">(" + argument_name + (deep_copy.empty() ? "" : ", ") + deep_copy + ");";
+void CreateHostStrings::writeMemoryMapping(HipaccImage *Img, std::string const& argument_name, std::string &resultStr) {
+  resultStr += "auto " + Img->getName() + " = hipaccMapMemory<" + Img->getTypeStr() + ">(" + argument_name + ");";
 }
 
 void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
@@ -533,20 +533,32 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
   if(K->getExecutionParameter().empty()) {
     switch (options.getTargetLang()) {
     default: break;
+    case Language::C99:
+      execution_parameter_name = "HipaccExecutionParameterCpu{}";
+      break;
     case Language::CUDA:
-      execution_parameter_name = "HipaccExecutionParameter{}";
+      execution_parameter_name = "HipaccExecutionParameterCuda{}";
+      break;
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
+      execution_parameter_name = "HipaccExecutionParameterOpenCL{}";
       break;
     }
   }
 
   else {
-    hipacc_check(options.getTargetLang() == Language::CUDA, "Ignoring execution parameter for kernel \"" + kernel_name + "\" as it is currently only supported for CUDA.");
-
     switch (options.getTargetLang()) {
-    default: break;
+    default:
+        hipacc_check(false, "Ignoring execution parameter for kernel \"" + kernel_name + "\" as it is currently only supported for CPU, CUDA and OpenCL\n.");
+        break;
+    case Language::C99:
     case Language::CUDA:
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
         execution_parameter_name = "exec_param" + lit;
-        resultStr += "auto " + execution_parameter_name + " = hipaccMakeCudaExecutionParameter(" + K->getExecutionParameter() + ");\n\n";
+        resultStr += "auto " + execution_parameter_name + " = hipaccMapExecutionParameter(" + K->getExecutionParameter() + ");\n\n";
         resultStr += indent;
       break;
     }
@@ -644,10 +656,7 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     switch (options.getTargetLang()) {
       case Language::C99:
         if (cur_arg++ == 0) {
-          if (options.timeKernels()) {
-            resultStr += "hipaccStartTiming();\n";
-          }
-          resultStr += indent;
+          resultStr += "hipaccLaunchKernel( [=]{ ";
           resultStr += kernel_name + "(";
         } else {
           resultStr += ", ";
@@ -717,12 +726,11 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
     }
   }
   if (options.getTargetLang()==Language::C99) {
-    // close parenthesis for function call
+    resultStr += ");"; // close parenthesis for function call
+    resultStr += " }"; // close lambda function
+    resultStr += ", " + execution_parameter_name;
+    resultStr += ", " + print_timing;
     resultStr += ");\n";
-    if (options.timeKernels()) {
-      resultStr += indent;
-      resultStr += "hipaccStopTiming();\n";
-    }
     resultStr += indent;
   }
 
@@ -752,6 +760,7 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
       resultStr += kernel_name;
       resultStr += ", " + gridStr;
       resultStr += ", " + blockStr;
+      resultStr += ", " + execution_parameter_name;
       resultStr += ", " + print_timing;
       resultStr += ");";
       break;
@@ -768,20 +777,29 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
   if(K->getExecutionParameter().empty()) {
     switch (options.getTargetLang()) {
     default: break;
+    case Language::C99:
+      execution_parameter_name = "HipaccExecutionParameterCpu{}";
+      break;
     case Language::CUDA:
-      execution_parameter_name = "HipaccExecutionParameter{}";
+      execution_parameter_name = "HipaccExecutionParameterCuda{}";
+      break;
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
+      execution_parameter_name = "HipaccExecutionParameterOpenCL{}";
       break;
     }
   }
 
   else {
-    hipacc_check(options.getTargetLang() == Language::CUDA, "Ignoring execution parameter for reduction kernel \"" + K->getReduceName() + "\" as it is currently only supported for CUDA.");
-
     switch (options.getTargetLang()) {
-    default: break;
+    default:
+      hipacc_check(false, "Ignoring execution parameter for reduction kernel \"" + K->getReduceName() + "\" as it is currently only supported for CPU, CUDA and OpenCL.\n");
+      break;
+    case Language::C99:
     case Language::CUDA:
         execution_parameter_name = "exec_param_" + K->getReduceName();
-        resultStr += "auto " + execution_parameter_name + " = hipaccMakeCudaExecutionParameter(" + K->getExecutionParameter() + ");\n\n";
+        resultStr += "auto " + execution_parameter_name + " = hipaccMapExecutionParameter(" + K->getExecutionParameter() + ");\n\n";
         resultStr += indent;
       break;
     }
@@ -790,11 +808,8 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
   // print runtime function name plus name of reduction function
   switch (options.getTargetLang()) {
     case Language::C99:
-      if (options.timeKernels()) {
-        resultStr += "hipaccStartTiming();\n";
-      }
-      resultStr += indent;
       resultStr += red_decl;
+      resultStr += "hipaccApplyReduction<" + typeStr + ">( [=]()->" + typeStr + "{ return ";
       resultStr += K->getReduceName() + "2DKernel(";
       resultStr += "(" + K->getIterationSpace()->getImage()->getTypeStr() + "*)";
       resultStr += K->getIterationSpace()->getName() + ".img->get_aligned_host_memory(), ";
@@ -805,13 +820,8 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
         resultStr += ", " + K->getIterationSpace()->getName() + ".offset_x";
         resultStr += ", " + K->getIterationSpace()->getName() + ".offset_y";
       }
-      resultStr += ");\n";
-      resultStr += indent;
-      if (options.timeKernels()) {
-        resultStr += "hipaccStopTiming();\n";
-      }
-      resultStr += indent;
-      return;
+      resultStr += "); }";
+      break;
     case Language::CUDA:
       // first get texture reference
       resultStr += "cudaGetTextureReference(";
@@ -845,12 +855,14 @@ void CreateHostStrings::writeReduceCall(HipaccKernel *K, std::string &resultStr)
       break;
   }
 
-  // print image name
-  resultStr += K->getIterationSpace()->getName() + ", ";
+  if (!options.emitC99()) {
+    // print image name
+    resultStr += K->getIterationSpace()->getName() + ", ";
 
-  // print pixels per thread
-  resultStr += std::to_string(K->getNumThreadsReduce()) + ", ";
-  resultStr += std::to_string(K->getPixelsPerThreadReduce());
+    // print pixels per thread
+    resultStr += std::to_string(K->getNumThreadsReduce()) + ", ";
+    resultStr += std::to_string(K->getPixelsPerThreadReduce());
+  }
 
   //print execution parameter
   if(!execution_parameter_name.empty())
@@ -876,23 +888,56 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
   std::string binTypeStr(K->getKernelClass()->getBinType().getAsString());
   std::string bin_decl;
 
+  std::string execution_parameter_name{};
+
+  if(K->getExecutionParameter().empty()) {
+    switch (options.getTargetLang()) {
+    default: break;
+    case Language::C99:
+      execution_parameter_name = "HipaccExecutionParameterCpu{}";
+      break;
+    case Language::CUDA:
+      execution_parameter_name = "HipaccExecutionParameterCuda{}";
+      break;
+    case Language::OpenCLACC:
+    case Language::OpenCLCPU:
+    case Language::OpenCLGPU:
+      execution_parameter_name = "HipaccExecutionParameterOpenCL{}";
+      break;
+    }
+  }
+
+  else {
+    switch (options.getTargetLang()) {
+    default:
+      hipacc_check(false, "Ignoring execution parameter for reduction kernel \"" + K->getReduceName() + "\" as it is currently only supported for CPU, CUDA and OpenCL.\n");
+      break;
+    case Language::C99:
+    case Language::CUDA:
+        execution_parameter_name = "exec_param_" + K->getReduceName();
+        resultStr += "auto " + execution_parameter_name + " = hipaccMapExecutionParameter(" + K->getExecutionParameter() + ");\n\n";
+        resultStr += indent;
+      break;
+    }
+  }
+
+  std::string resultTypeStr{};
   switch (options.getTargetLang()) {
     case Language::C99:
-      bin_decl = "std::vector<" + binTypeStr + "> " + K->getBinningStr();
+      resultTypeStr = "std::vector<" + binTypeStr + ">";
       break;
     default:
-      bin_decl = binTypeStr + " *" + K->getBinningStr();
+      resultTypeStr = binTypeStr + "*";
       break;
   }
+
+  bin_decl = resultTypeStr + K->getBinningStr();
 
   // print runtime function name plus name of reduction function
   switch (options.getTargetLang()) {
     case Language::C99:
-      if (options.timeKernels()) {
-        resultStr += "hipaccStartTiming();\n";
-      }
-      resultStr += indent;
       resultStr += bin_decl + " = ";
+      resultStr += "hipaccApplyReduction<" + resultTypeStr + ">( [=]()->" + resultTypeStr + "{ return ";
       resultStr += K->getBinningName() + "2DKernel(";
       resultStr += "(" + K->getIterationSpace()->getImage()->getTypeStr() + "*)";
       resultStr += K->getIterationSpace()->getName() + ".img->get_aligned_host_memory(), ";
@@ -904,12 +949,8 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
         resultStr += ", " + K->getIterationSpace()->getName() + ".offset_x";
         resultStr += ", " + K->getIterationSpace()->getName() + ".offset_y";
       }
-      resultStr += ");\n";
-      resultStr += indent;
-      if (options.timeKernels()) {
-        resultStr += "hipaccStopTiming();\n";
-      }
-      return;
+      resultStr += "); }";
+      break;
     case Language::CUDA:
       // first get texture reference
       resultStr += "cudaGetTextureReference(";
@@ -946,15 +987,21 @@ void CreateHostStrings::writeBinningCall(HipaccKernel *K, std::string &resultStr
       break;
   }
 
-  // print image name
-  resultStr += K->getIterationSpace()->getName() + ", ";
-  resultStr += std::to_string(options.getReduceConfigNumWarps()) + ", ";
-  resultStr += std::to_string(options.getReduceConfigNumUnits()) + ", ";
-  resultStr += K->getNumBinsStr();
+  if (!options.emitC99()) {
+    // print image name
+    resultStr += K->getIterationSpace()->getName() + ", ";
+    resultStr += std::to_string(options.getReduceConfigNumWarps()) + ", ";
+    resultStr += std::to_string(options.getReduceConfigNumUnits()) + ", ";
+    resultStr += K->getNumBinsStr();
+  }
+
+  //print execution parameter
+  if(!execution_parameter_name.empty())
+    resultStr += ", " + execution_parameter_name;
+
   if (options.emitCUDA()) {
     // print 2D CUDA array texture information - this parameter is only used if
     // the texture type is Array2D
-    resultStr += ", HipaccExecutionParameter{}";
     resultStr += ", _tex";
     resultStr += K->getIterationSpace()->getImage()->getName() + K->getName();
     resultStr += "Ref";

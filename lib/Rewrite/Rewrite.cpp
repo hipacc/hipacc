@@ -666,12 +666,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
   // a) convert Image declarations into memory allocations, e.g.
   //    Image<int> IN(width, height, data);
-  //    =>
-  //    HipaccImage* IN = hipaccCreateMemory<int>(data, width, height, &stride, padding);
+  //    => HipaccImage* IN = hipaccCreateMemory<int>(data, width, height, &stride, padding);
+  //    Image<int> IN(<any single expression>);
+  //    => HipaccImage* IN = hipaccMapMemory<int>(<any single expression>);
   // b) convert Pyramid declarations into pyramid creation, e.g.
   //    Pyramid<int> P(IN, 3);
-  //    =>
-  //    Pyramid P = hipaccCreatePyramid<int>(IN, 3);
+  //    => Pyramid P = hipaccCreatePyramid<int>(IN, 3);
   // c) save BoundaryCondition declarations, e.g.
   //    BoundaryCondition<int> BcIN(IN, 5, 5, Boundary::MIRROR);
   // d) save Accessor declarations, e.g.
@@ -699,6 +699,15 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
             compilerClasses.Image)) {
         CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+
+        if (CCE == nullptr) {
+          // In case image constructor is called with function as parameter
+          // e.g. Image<ushort> image(converter::get_hipacc_image());
+          ExprWithCleanups *EWC = dyn_cast<ExprWithCleanups>(VD->getInit());
+          if (EWC != nullptr) {
+            CCE = dyn_cast<CXXConstructExpr>(EWC->getSubExpr());
+          }
+        }
 
         hipacc_require(CCE != nullptr, "Not a constructor expression of hipacc::Image", &Diags, VD->getLocation());
         hipacc_require(CCE->getConstructor() != nullptr, "Missing constructor declaration of hipacc::Image", &Diags, VD->getLocation());
@@ -772,13 +781,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
         else if(constructor_type == "CustomImage")
         {
-          hipacc_require(CCE->getNumArgs() >= 1, "Image constructor expects at least one arguments", &Diags, CCE->getLocation());
+          hipacc_require(CCE->getNumArgs() >= 1, "Image constructor expects at least one argument", &Diags, CCE->getLocation());
 
           std::string newStr{};
           std::string assigned_image = convertToString(CCE->getArg(0));
-          std::string deep_copy = CCE->getNumArgs() >= 2 ? convertToString(CCE->getArg(1)) : "";
 
-          stringCreator.writeMemoryMapping(Img, assigned_image, deep_copy, newStr);
+          stringCreator.writeMemoryMapping(Img, assigned_image, newStr);
 
           // rewrite Image definition
           replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
@@ -1457,7 +1465,13 @@ bool Rewrite::VisitFunctionDecl(FunctionDecl *D) {
         attr->printPretty(S, Policy);
         std::string attr_string(S.str());
         if (attr_string.find(attr_hipacc) != std::string::npos) {
-          hipacc_require(D->getBody(), "main function has no body.", &Diags, D->getLocation());
+          if (!D->getBody() && !D->isTemplateInstantiation()) {
+            // If body is missing, we might be parsing a no yet instanciated
+            // template function. Skip this declaration and visit instanciated
+            // template later.
+            return true;
+          }
+          hipacc_require(D->getBody(), "function to parse has no body.", &Diags, D->getLocation());
           hipacc_require(isa<CompoundStmt>(D->getBody()), "CompoundStmt for main body expected.", &Diags, D->getLocation());
           mainFD = D;
         }
