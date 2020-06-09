@@ -684,6 +684,12 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
   // h) save IterationSpace declarations, e.g.
   //    IterationSpace<int> VIS(OUT, width, height);
   for (auto decl : D->decls()) {
+
+    if (!decl->isUsed()) {
+      // do not parse template code that has not been instanciated yet.
+      continue;
+    }
+
     if (decl->getKind() == Decl::Var) {
       VarDecl *VD = dyn_cast<VarDecl>(decl);
 
@@ -1457,10 +1463,9 @@ bool Rewrite::VisitFunctionDecl(FunctionDecl *D) {
         attr->printPretty(S, Policy);
         std::string attr_string(S.str());
         if (attr_string.find(attr_hipacc) != std::string::npos) {
-          if (!D->getBody() && !D->isTemplateInstantiation()) {
-            // If body is missing, we might be parsing a no yet instanciated
-            // template function. Skip this declaration and visit instanciated
-            // template later.
+          if (D->isTemplated() && !D->isTemplateInstantiation()) {
+            // If function is templated and not yet instanciated, skip this
+            // declaration and visit instanciated template later.
             return true;
           }
           hipacc_require(D->getBody(), "function to parse has no body.", &Diags, D->getLocation());
