@@ -1,0 +1,352 @@
+cmake_minimum_required(VERSION 3.14)
+
+project(HipaccSamples)
+
+include(CheckLanguage)
+
+find_package(Hipacc HINTS "${CMAKE_CURRENT_LIST_DIR}/../cmake")
+find_package(OpenCV 3.2 QUIET)
+
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
+    # move warnings from LLVM 8.0.1 to warning level 4
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /w44141 /w44146 /w44244 /w44267 /w44291")
+endif()
+
+enable_testing()
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+set(HIPACC_SAMPLES_DIR ${CMAKE_CURRENT_LIST_DIR})
+
+option(HIPACC_SAMPLE_CPU_SSE4.2 "Enable SSE4.2 instruction set for CPU samples" ON)
+option(HIPACC_SAMPLE_CPU_AVX    "Enable AVX instruction set for CPU samples" ON)
+option(HIPACC_SAMPLE_CPU_AVX2   "Enable AVX2 instruction set for CPU samples" ON)
+
+option(HIPACC_SAMPLE_CUDA       "Enable CUDA samples" ON)
+
+if(OpenCL_FOUND)
+    option(HIPACC_SAMPLE_OPENCL_CPU "Enable CPU targets for OpenCL samples" ON)
+    option(HIPACC_SAMPLE_OPENCL_GPU "Enable GPU targets for OpenCL samples" ON)
+    option(HIPACC_SAMPLE_OPENCL_ACC "Enable ACC targets for OpenCL samples" ON)
+endif()
+
+if(OpenCV_FOUND)
+    option(HIPACC_SAMPLE_USE_OPENCV "Use OpenCV library to display result images of samples" ON)
+endif()
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+file(STRINGS "${HIPACC_SAMPLES_DIR}/common/config/common.conf" _COMMON_CONFIG_FILE NEWLINE_CONSUME)
+
+macro(add_hipacc_sample_dsl)
+
+    set(options HIDE)
+    set(oneValueArgs)
+    set(multiValueArgs)
+
+    cmake_parse_arguments(ARG
+                        "${options}"
+                        "${oneValueArgs}"
+                        "${multiValueArgs}"
+                        ${ARGN})
+
+    get_filename_component(SAMPLE_NAME "${CMAKE_CURRENT_LIST_DIR}" NAME)
+
+    project(${SAMPLE_NAME}_DSL)
+   
+    if(${ARG_HIDE})
+        set(_MSG_ADDITION "(hidden)")
+    else()
+        unset(_MSG_ADDITION)
+    endif()
+
+    message(STATUS "Add sample ${SAMPLE_CATEGORY}/${PROJECT_NAME} ${_MSG_ADDITION}")
+
+    add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/src/main.cpp)
+
+    target_include_directories(${PROJECT_NAME} PRIVATE ${HIPACC_PATH}/include/dsl ${HIPACC_SAMPLES_DIR}/common)
+
+    if(NOT ${ARG_HIDE})
+        add_test(NAME ${PROJECT_NAME}
+                COMMAND $<TARGET_FILE:${PROJECT_NAME}>
+                WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+    endif()
+    
+    set_target_properties (${PROJECT_NAME} PROPERTIES FOLDER ${SAMPLE_CATEGORY})
+                   
+    if(HIPACC_SAMPLE_USE_OPENCV)
+        target_compile_options(${PROJECT_NAME} PRIVATE -DUSE_OPENCV
+                                                       -DIMAGE_BASE_PATH="${HIPACC_SAMPLES_DIR}/common/img/")
+        target_link_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
+    endif()
+
+endmacro()
+
+macro(add_hipacc_sample_cpu)
+
+    set(options HIDE SSE4.2 AVX AVX2)
+    set(oneValueArgs)
+    set(multiValueArgs)
+
+    cmake_parse_arguments(ARG_CPU
+                        "${options}"
+                        "${oneValueArgs}"
+                        "${multiValueArgs}"
+                        ${ARGN})
+
+    get_filename_component(SAMPLE_NAME "${CMAKE_CURRENT_LIST_DIR}" NAME)
+
+    set(_CPU_TARGET_IS Scalar)
+
+    if(ARG_CPU_SSE4.2)
+        if(HIPACC_SAMPLE_CPU_SSE4.2)
+            list(APPEND _CPU_TARGET_IS SSE4.2)
+        else()
+            message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cpu_SSE4.2 (Cpu SSE4.2 disabled)")
+        endif()
+    endif()
+
+    if(ARG_CPU_AVX)
+        if(HIPACC_SAMPLE_CPU_AVX)
+            list(APPEND _CPU_TARGET_IS AVX)
+        else()
+            message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cpu_AVX (Cpu AVX disabled)")
+        endif()
+    endif()
+
+    if(ARG_CPU_AVX2)
+        if(HIPACC_SAMPLE_CPU_AVX2)
+            list(APPEND _CPU_TARGET_IS AVX2)
+        else()
+            message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cpu_AVX2 (Cpu AVX2 disabled)")
+        endif()
+    endif()
+
+    foreach(_TARGET_IS IN LISTS _CPU_TARGET_IS)
+        project(${SAMPLE_NAME}_Cpu_${_TARGET_IS})
+
+        if(${ARG_CPU_HIDE})
+            set(_MSG_ADDITION "(hidden)")
+        else()
+            unset(_MSG_ADDITION)
+        endif()
+
+        message(STATUS "Add sample ${SAMPLE_CATEGORY}/${PROJECT_NAME} ${_MSG_ADDITION}")
+
+        add_executable(${PROJECT_NAME})
+
+        string(TOLOWER ${_TARGET_IS} _TARGET_IS_LOW)
+        file(STRINGS "${HIPACC_SAMPLES_DIR}/common/config/cpu-${_TARGET_IS_LOW}.conf" _CONFIG_FILE NEWLINE_CONSUME)
+        string(REPLACE "\n" ";" _CONFIG_FILE ${_COMMON_CONFIG_FILE} ${_CONFIG_FILE})
+
+        add_hipacc_sources(TARGET ${PROJECT_NAME} PRIVATE
+                        TARGET_ARCH CPU
+                        SOURCES ${CMAKE_CURRENT_LIST_DIR}/src/main.cpp
+                        INCLUDE_DIRS ${HIPACC_SAMPLES_DIR}/common
+                        OPTIONS "${_CONFIG_FILE}")
+
+        if(NOT ${ARG_CPU_HIDE})
+            add_test(NAME ${PROJECT_NAME}
+                    COMMAND $<TARGET_FILE:${PROJECT_NAME}>
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+        endif()
+
+        set_target_properties (${PROJECT_NAME} PROPERTIES FOLDER ${SAMPLE_CATEGORY})
+
+        if(HIPACC_SAMPLE_USE_OPENCV)
+            target_compile_options(${PROJECT_NAME} PRIVATE -DUSE_OPENCV
+                                                        -DIMAGE_BASE_PATH="${HIPACC_SAMPLES_DIR}/common/img/")
+            target_link_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
+            target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
+        endif()
+
+        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+            target_compile_options(${PROJECT_NAME} PRIVATE /openmp)
+        elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+            target_compile_options(${PROJECT_NAME} PRIVATE -fopenmp)
+            if (NOT "${_TARGET_IS}" STREQUAL "Scalar")
+                target_compile_options(${PROJECT_NAME} PRIVATE -m${_TARGET_IS_LOW})
+            endif ()
+            target_link_libraries(${PROJECT_NAME} PRIVATE gomp)
+        elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+            target_compile_options(${PROJECT_NAME} PRIVATE -fopenmp)
+            if (NOT "${_TARGET_IS}" STREQUAL "Scalar")
+                target_compile_options(${PROJECT_NAME} PRIVATE -m${_TARGET_IS_LOW})
+            endif ()
+        endif ()
+    endforeach()
+
+endmacro()
+
+macro(add_hipacc_sample_cuda)
+
+    set(options HIDE)
+    set(oneValueArgs)
+    set(multiValueArgs)
+
+    cmake_parse_arguments(ARG_CUDA
+                        "${options}"
+                        "${oneValueArgs}"
+                        "${multiValueArgs}"
+                        ${ARGN})
+
+    get_filename_component(SAMPLE_NAME "${CMAKE_CURRENT_LIST_DIR}" NAME)
+
+    if(NOT HIPACC_SAMPLE_CUDA)
+        message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda (CUDA disabled)")
+    else()
+
+      check_language(CUDA)
+
+      if(CMAKE_CUDA_COMPILER)
+
+          project(${SAMPLE_NAME}_Cuda LANGUAGES CXX CUDA)
+
+          if(${ARG_CUDA_HIDE})
+              set(_MSG_ADDITION "(hidden)")
+          else()
+              unset(_MSG_ADDITION)
+          endif()
+
+          message(STATUS "Add sample ${SAMPLE_CATEGORY}/${PROJECT_NAME} ${_MSG_ADDITION}")
+
+          add_executable(${PROJECT_NAME})
+
+          file(STRINGS "${HIPACC_SAMPLES_DIR}/common/config/cuda.conf" _CONFIG_FILE NEWLINE_CONSUME)
+          string(REPLACE "\n" ";" _CONFIG_FILE ${_COMMON_CONFIG_FILE} ${_CONFIG_FILE})
+
+          add_hipacc_sources(TARGET ${PROJECT_NAME} PRIVATE
+                             TARGET_ARCH CUDA
+                             SOURCES ${CMAKE_CURRENT_LIST_DIR}/src/main.cpp
+                             INCLUDE_DIRS ${HIPACC_SAMPLES_DIR}/common
+                             OPTIONS "${_CONFIG_FILE}")
+
+          if(NOT ${ARG_CUDA_HIDE})
+              add_test(NAME ${PROJECT_NAME}
+                      COMMAND $<TARGET_FILE:${PROJECT_NAME}>
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+          endif()
+
+          set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${SAMPLE_CATEGORY})
+
+          target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)
+
+          if(HIPACC_SAMPLE_USE_OPENCV)
+              target_compile_options(${PROJECT_NAME} PRIVATE -DUSE_OPENCV
+                                                             -DIMAGE_BASE_PATH="${HIPACC_SAMPLES_DIR}/common/img/")
+              target_link_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
+              target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
+          endif()
+
+      else()
+          message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda (CUDA missing)")
+      endif()
+    endif()
+
+endmacro()
+
+macro(add_hipacc_sample_opencl)
+
+    set(options HIDE CPU GPU ACC)
+    set(oneValueArgs)
+    set(multiValueArgs)
+
+    cmake_parse_arguments(ARG_OPENCL
+                        "${options}"
+                        "${oneValueArgs}"
+                        "${multiValueArgs}"
+                        ${ARGN})
+
+    if(OpenCL_FOUND)
+
+        get_filename_component(SAMPLE_NAME "${CMAKE_CURRENT_LIST_DIR}" NAME)
+
+        set(_OPENCL_TARGET_DEVICES)
+
+        if(ARG_OPENCL_CPU)
+            if(HIPACC_SAMPLE_OPENCL_CPU)
+                list(APPEND _OPENCL_TARGET_DEVICES CPU)
+            else()
+                message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_OpenCL_CPU (OpenCL CPU disabled)")
+            endif()
+        endif()
+
+        if(ARG_OPENCL_GPU)
+            if(HIPACC_SAMPLE_OPENCL_GPU)
+                list(APPEND _OPENCL_TARGET_DEVICES GPU)
+            else()
+                message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_OpenCL_GPU (OpenCL GPU disabled)")
+            endif()
+        endif()
+
+        if(ARG_OPENCL_ACC)
+            if(HIPACC_SAMPLE_OPENCL_ACC)
+                list(APPEND _OPENCL_TARGET_DEVICES ACC)
+            else()
+                message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_OpenCL_ACC (OpenCL ACC disabled)")
+            endif()
+        endif()
+
+        foreach(_TARGET_DEVICE IN LISTS _OPENCL_TARGET_DEVICES)
+            project(${SAMPLE_NAME}_OpenCL_${_TARGET_DEVICE} LANGUAGES CXX)
+
+            if(${ARG_OPENCL_HIDE})
+                set(_MSG_ADDITION "(hidden)")
+            else()
+                unset(_MSG_ADDITION)
+            endif()
+
+            message(STATUS "Add sample ${SAMPLE_CATEGORY}/${PROJECT_NAME} ${_MSG_ADDITION}")
+            
+            add_executable(${PROJECT_NAME})
+
+            string(TOLOWER ${_TARGET_DEVICE} _TARGET_DEVICE_LOW)
+            file(STRINGS "${HIPACC_SAMPLES_DIR}/common/config/opencl-${_TARGET_DEVICE_LOW}.conf" _CONFIG_FILE NEWLINE_CONSUME)
+            string(REPLACE "\n" ";" _CONFIG_FILE ${_COMMON_CONFIG_FILE} ${_CONFIG_FILE})
+        
+            add_hipacc_sources(TARGET ${PROJECT_NAME} PRIVATE
+                               TARGET_ARCH OPENCL-${_TARGET_DEVICE}
+                               SOURCES ${CMAKE_CURRENT_LIST_DIR}/src/main.cpp
+                               INCLUDE_DIRS ${HIPACC_SAMPLES_DIR}/common
+                               OPTIONS "${_CONFIG_FILE}"
+                               OUTPUT_DIR_VAR _HIPACC_OUTPUT_DIR)
+    
+            if(NOT ${ARG_OPENCL_HIDE})
+                add_test(NAME ${PROJECT_NAME}
+                        COMMAND $<TARGET_FILE:${PROJECT_NAME}>
+                        WORKING_DIRECTORY ${_HIPACC_OUTPUT_DIR})
+            endif()
+
+            target_compile_options(${PROJECT_NAME} PRIVATE
+              -DCL_TARGET_OPENCL_VERSION=${OpenCL_VERSION_MAJOR}${OpenCL_VERSION_MINOR}0)
+            set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${SAMPLE_CATEGORY})
+            target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)   
+                                            
+            if(HIPACC_SAMPLE_USE_OPENCV)
+                target_compile_options(${PROJECT_NAME} PRIVATE -DUSE_OPENCV
+                                                               -DIMAGE_BASE_PATH="${HIPACC_SAMPLES_DIR}/common/img/")
+                target_link_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
+                target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
+            endif()
+
+        endforeach()
+        
+    else()
+        message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${PROJECT_NAME} (OpenCL missing)")
+    endif()
+    
+endmacro()
+
+macro(add_all_subdirectories)
+    file(GLOB _SUB_DIRS RELATIVE "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/*")
+    foreach(_SUB_DIR ${_SUB_DIRS})
+        if(IS_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/${_SUB_DIR}" AND EXISTS "${CMAKE_CURRENT_LIST_DIR}/${_SUB_DIR}/CMakeLists.txt")
+            add_subdirectory(${_SUB_DIR})
+        endif()
+    endforeach()
+endmacro()
+
+add_all_subdirectories()

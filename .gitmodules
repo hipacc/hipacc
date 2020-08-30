@@ -1,4 +1,0 @@
-[submodule "samples"]
-	path = samples
-	url = https://github.com/hipacc/samples.git
-	branch = master

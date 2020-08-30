@@ -287,7 +287,7 @@ endif()
 
 
 # add samples if available
-if(EXISTS ${CMAKE_SOURCE_DIR}/samples/CMakeLists.txt)
-    add_subdirectory(samples)
+if(EXISTS ${CMAKE_SOURCE_DIR}/samples-public/CMakeLists.txt)
+    add_subdirectory(samples-public)
 endif()
 
