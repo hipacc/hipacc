@@ -268,20 +268,36 @@ void HipaccKernel::calcConfig() {
       if (useLocalMemory(Acc)) {
         // check if the configuration suits our assumptions about shared memory
         if (num_threads % 32 == 0) {
-          // fixed shared memory for x: 3*BSX
-          int size_x = 32;
-          if (Acc->getSizeX() > 1) {
-            size_x = (options.allowMisAlignedAccess()) ?
-              size_x + 2 * static_cast<int32_t>(Acc->getSizeX()/2) : size_x * 3;
+          int size_x, size_y;
+          if (options.fuseKernels() &&
+                options.allowMisAlignedAccess() &&
+                  OptmOpt == OptimizationOption::KERNEL_FUSE) {
+            // fixed shared memory for x: BSX+MaskX*2
+            size_x = 32;
+            if (updated_size_x > 1) {
+              size_x = size_x + 2 * static_cast<int32_t>(updated_size_x/2);
+            }
+            // add padding to avoid bank conflicts
+            size_x += 1;
+
+            // size_y = ceil((PPT*BSY+SX-1)/BSY)
+            int threads_y = num_threads/32;
+            size_y = (int)ceilf((float)(getPixelsPerThread()*threads_y +
+                  updated_size_y-1)/(float)threads_y) * threads_y;
+          } else {
+            // fixed shared memory for x: 3*BSX
+            size_x = 32;
+            if (Acc->getSizeX() > 1) {
+              size_x *= 3;
+            }
+            // add padding to avoid bank conflicts
+            size_x += 1;
+
+            // size_y = ceil((PPT*BSY+SX-1)/BSY)
+            int threads_y = num_threads/32;
+            size_y = (int)ceilf((float)(getPixelsPerThread()*threads_y +
+                  Acc->getSizeY()-1)/(float)threads_y) * threads_y;
           }
-
-          // add padding to avoid bank conflicts
-          size_x += 1;
-
-          // size_y = ceil((PPT*BSY+SX-1)/BSY)
-          int threads_y = num_threads/32;
-          int size_y = (int)ceilf((float)(getPixelsPerThread()*threads_y +
-                Acc->getSizeY()-1)/(float)threads_y) * threads_y;
           smem_used += size_x*size_y * Acc->getImage()->getPixelSize();
           use_shared = true;
         } else {
@@ -485,7 +501,11 @@ void HipaccKernel::addParam(QualType QT1, QualType QT2, QualType QT3,
                                  argTypeNames.push_back(typeO); break;
   }
 
-  deviceArgNames.push_back(name);
+  if (options.fuseKernels() && OptmOpt == OptimizationOption::KERNEL_FUSE) {
+    deviceArgNames.push_back(name + "_" + kernelName);
+  } else {
+    deviceArgNames.push_back(name);
+  }
   deviceArgFields.push_back(fd);
 }
 

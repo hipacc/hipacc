@@ -273,7 +273,6 @@ void ASTTranslate::initCPU(SmallVector<Stmt *, 16> &kernelBody, Stmt *S) {
 
 // CUDA initialization
 void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
-  VarDecl *gid_x = nullptr, *gid_y = nullptr;
   SmallVector<QualType, 16> uintDeclTypes;
   SmallVector<StringRef, 16> uintDeclNames;
   uintDeclTypes.push_back(Ctx.UnsignedIntTy);
@@ -347,7 +346,7 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
   //    yVD->getType());
 
   // CUDA: const int gid_x = blockDim.x*blockIdx.x + threadIdx.x;
-  gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
+  VarDecl *gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
       createBinaryOperator(Ctx, createBinaryOperator(Ctx, tileVars.local_size_x,
           tileVars.block_id_x, BO_Mul, Ctx.IntTy), tileVars.local_id_x, BO_Add,
         Ctx.IntTy));
@@ -359,15 +358,18 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
     YE = createBinaryOperator(Ctx, YE, createIntegerLiteral(Ctx,
           static_cast<int>(Kernel->getPixelsPerThread())), BO_Mul, Ctx.IntTy);
   }
-  gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
+  VarDecl *gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
       createBinaryOperator(Ctx, YE, tileVars.local_id_y, BO_Add, Ctx.IntTy));
 
   // add gid_x and gid_y statements
   DeclContext *DC = FunctionDecl::castToDeclContext(kernelDecl);
   DC->addDecl(gid_x);
   DC->addDecl(gid_y);
-  kernelBody.push_back(createDeclStmt(Ctx, gid_x));
-  kernelBody.push_back(createDeclStmt(Ctx, gid_y));
+
+  if (!(Kernel->isFusible() && fusionVars.bSkipGidDecl)) {
+    kernelBody.push_back(createDeclStmt(Ctx, gid_x));
+    kernelBody.push_back(createDeclStmt(Ctx, gid_y));
+  }
 
   tileVars.global_id_x = createDeclRefExpr(Ctx, gid_x);
   tileVars.global_id_y = createDeclRefExpr(Ctx, gid_y);
@@ -376,7 +378,6 @@ void ASTTranslate::initCUDA(SmallVector<Stmt *, 16> &kernelBody) {
 
 // OpenCL initialization
 void ASTTranslate::initOpenCL(SmallVector<Stmt *, 16> &kernelBody) {
-  VarDecl *gid_x = nullptr, *gid_y = nullptr;
   // uint get_work_dim();
   //FunctionDecl *get_work_dim =
   //  builtins.getBuiltinFunction(OPENCLBIget_work_dim);
@@ -444,7 +445,7 @@ void ASTTranslate::initOpenCL(SmallVector<Stmt *, 16> &kernelBody) {
   //    nullptr, VK_RValue);
 
   // OpenCL: const int gid_x = get_global_id(0);
-  gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
+  VarDecl *gid_x = createVarDecl(Ctx, kernelDecl, "gid_x", Ctx.getConstType(Ctx.IntTy),
       get_global_id0);
 
   Expr *YE;
@@ -460,7 +461,7 @@ void ASTTranslate::initOpenCL(SmallVector<Stmt *, 16> &kernelBody) {
     // OpenCL: const int gid_y = get_global_id(1)*PPT;
     YE = get_global_id1;
   }
-  gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
+  VarDecl *gid_y = createVarDecl(Ctx, kernelDecl, "gid_y", Ctx.getConstType(Ctx.IntTy),
       YE);
 
   // add gid_x and gid_y statements
@@ -508,6 +509,7 @@ void ASTTranslate::updateTileVars() {
 
 Stmt *ASTTranslate::Hipacc(Stmt *S) {
   if (S==nullptr) return nullptr;
+  std::string ParamNameSuffix;
 
   // search for image width and height parameters
   for (auto param : kernelDecl->parameters()) {
@@ -518,24 +520,28 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       continue;
     }
 
+    if (Kernel->isFusible()) {
+      ParamNameSuffix = fusionVars.sKernelParamNameSuffix;
+    }
+
     // search for boundary handling parameters
-    if (param->getName().equals("bh_start_left")) {
+    if (param->getName().equals("bh_start_left"+ParamNameSuffix)) {
       bh_start_left = parm_ref;
       continue;
     }
-    if (param->getName().equals("bh_start_right")) {
+    if (param->getName().equals("bh_start_right"+ParamNameSuffix)) {
       bh_start_right = parm_ref;
       continue;
     }
-    if (param->getName().equals("bh_start_top")) {
+    if (param->getName().equals("bh_start_top"+ParamNameSuffix)) {
       bh_start_top = parm_ref;
       continue;
     }
-    if (param->getName().equals("bh_start_bottom")) {
+    if (param->getName().equals("bh_start_bottom"+ParamNameSuffix)) {
       bh_start_bottom = parm_ref;
       continue;
     }
-    if (param->getName().equals("bh_fall_back")) {
+    if (param->getName().equals("bh_fall_back"+ParamNameSuffix)) {
       bh_fall_back = parm_ref;
       continue;
     }
@@ -544,23 +550,23 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     for (auto img : KernelClass->getImgFields()) {
       HipaccAccessor *Acc = Kernel->getImgFromMapping(img);
 
-      if (param->getName().equals(img->getNameAsString() + "_width")) {
+      if (param->getName().equals(img->getNameAsString() + "_width"+ParamNameSuffix)) {
         Acc->setWidthDecl(parm_ref);
         continue;
       }
-      if (param->getName().equals(img->getNameAsString() + "_height")) {
+      if (param->getName().equals(img->getNameAsString() + "_height"+ParamNameSuffix)) {
         Acc->setHeightDecl(parm_ref);
         continue;
       }
-      if (param->getName().equals(img->getNameAsString() + "_stride")) {
+      if (param->getName().equals(img->getNameAsString() + "_stride"+ParamNameSuffix)) {
         Acc->setStrideDecl(parm_ref);
         continue;
       }
-      if (param->getName().equals(img->getNameAsString() + "_offset_x")) {
+      if (param->getName().equals(img->getNameAsString() + "_offset_x"+ParamNameSuffix)) {
         Acc->setOffsetXDecl(parm_ref);
         continue;
       }
-      if (param->getName().equals(img->getNameAsString() + "_offset_y")) {
+      if (param->getName().equals(img->getNameAsString() + "_offset_y"+ParamNameSuffix)) {
         Acc->setOffsetYDecl(parm_ref);
         continue;
       }
@@ -639,7 +645,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     // search for member name in kernel parameter list
     for (auto param : kernelDecl->parameters()) {
       // output image - iteration space
-      if (param->getName().equals((*kernelDecl->param_begin())->getName())) {
+      std::string strFuseName = (*kernelDecl->param_begin())->getName();
+      strFuseName += ParamNameSuffix;
+      if (param->getName().equals(strFuseName)) {
         // <type>4 *Output4 = (<type>4 *) Output;
         VarDecl *VD = CloneParmVarDecl(param);
 
@@ -660,7 +668,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       // search for member name in kernel parameter list
       for (auto param : kernelDecl->parameters()) {
         // parameter name matches
-        if (param->getName().equals(name)) {
+        std::string strFuseName = name;
+        strFuseName += ParamNameSuffix;
+        if (param->getName().equals(strFuseName)) {
           // <type>4 *Input4 = (<type>4 *) Input;
           VarDecl *VD = CloneParmVarDecl(param);
 
@@ -704,19 +714,32 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       llvm::APInt SX, SY;
       SX = llvm::APInt(32, Kernel->getNumThreadsX());
 
+      unsigned accSizeX = Acc->getSizeX();
+      unsigned accSizeY = Acc->getSizeY();
+      if (Kernel->isFusible() && fusionVars.bL2LReplaceVarAccSizeY) {
+        accSizeY = fusionVars.curL2LVarAccSizeY;
+        accSizeX = fusionVars.curL2LVarAccSizeX;
+      }
+
+      // setting x-dimension for the shared memory
       if (Acc->getSizeX() > 1) {
-        SX = (compilerOptions.allowMisAlignedAccess()) ?
-          SX + llvm::APInt(32, static_cast<int32_t>(Acc->getSizeX()/2)) * llvm::APInt(32, 2) :
-          SX * llvm::APInt(32, 3);
+        if (Kernel->isFusible() && compilerOptions.allowMisAlignedAccess()) {
+          // BSX+MaskX*2
+          SX += llvm::APInt(32, static_cast<int32_t>(accSizeX/2)) * llvm::APInt(32, 2);
+        } else {
+          // 3*BSX
+          SX *= llvm::APInt(32, 3);
+        }
       }
       // add padding to avoid bank conflicts
       SX += llvm::APInt(32, 1);
 
+      // setting y-dimension for the shared memory
       // size_y = ceil((PPT*BSY+SY-1)/BSY)
       int smem_size_y =
         static_cast<int>(ceilf(
               static_cast<float>(Kernel->getPixelsPerThread() *
-                Kernel->getNumThreadsY() + Acc->getSizeY() - 1) /
+                Kernel->getNumThreadsY() + accSizeY - 1) /
               static_cast<float>(Kernel->getNumThreadsY())));
       SY = llvm::APInt(32, smem_size_y*Kernel->getNumThreadsY());
 
@@ -742,8 +765,10 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
       // search for member name in kernel parameter list
       for (auto param : kernelDecl->parameters()) {
+        std::string imgNameTemp = img->getName();
+        imgNameTemp += ParamNameSuffix;
         // parameter name matches
-        if (param->getName().equals(img->getName())) {
+        if (param->getName().equals(imgNameTemp)) {
           // store mapping between ParmVarDecl and shared memory VarDecl
           KernelDeclMapShared[param] = VD;
           KernelDeclMapAcc[param] = Acc;
@@ -760,7 +785,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
 
   SmallVector<LabelDecl *, 16> LDS;
-  LabelDecl *LDExit = createLabelDecl(Ctx, kernelDecl, "BH_EXIT");
+  LabelDecl *LDExit = createLabelDecl(Ctx, kernelDecl, "BH_EXIT"+ParamNameSuffix);
   LabelStmt *LSExit = createLabelStmt(Ctx, LDExit, nullptr);
   GotoStmt *GSExit = createGotoStmt(Ctx, LDExit);
 
@@ -775,7 +800,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       case 0:
         // fall back: in case the image is too small, use code variant with
         // boundary handling for all borders
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_FB");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_FB"+ParamNameSuffix);
         if_goto = getBHFallBack();
         break;
       case 1:
@@ -786,7 +811,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         //              blockIdx.y < bh_start_top) goto BO_TL;
         // OpenCL:  if (get_group_id(0) < bh_start_left &&
         //              get_group_id(1) < bh_start_top) goto BO_TL;
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_TL");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_TL"+ParamNameSuffix);
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_x,
             getBHStartLeft(), BO_LT, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
@@ -801,7 +826,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         //              blockIdx.y < bh_start_top) goto BO_TR;
         // OpenCL:  if (get_group_id(0) >= bh_start_right &&
         //              get_group_id(1) < bh_start_top) goto BO_TR;
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_TR");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_TR"+ParamNameSuffix);
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_x,
             getBHStartRight(), BO_GE, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
@@ -814,7 +839,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
         // CUDA:    if (blockIdx.y < bh_start_top) goto BO_T;
         // OpenCL:  if (get_group_id(1) < bh_start_top) goto BO_T;
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_T");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_T"+ParamNameSuffix);
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
             getBHStartTop(), BO_LT, Ctx.BoolTy);
         break;
@@ -826,7 +851,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         //              blockIdx.x < bh_start_left) goto BO_BL;
         // OpenCL:  if (get_group_id(1) >= bh_start_bottom &&
         //              get_group_id(0) < bh_start_left) goto BO_BL;
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_BL");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_BL"+ParamNameSuffix);
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
             getBHStartBottom(), BO_GE, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
@@ -841,7 +866,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         //              blockIdx.x >= bh_start_right) goto BO_BR;
         // OpenCL:  if (get_group_id(1) >= bh_start_bottom &&
         //              get_group_id(0) >= bh_start_right) goto BO_BL;
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_BR");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_BR"+ParamNameSuffix);
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
             getBHStartBottom(), BO_GE, Ctx.BoolTy);
         if_goto = createBinaryOperator(Ctx, if_goto, createBinaryOperator(Ctx,
@@ -856,7 +881,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
         // CUDA:    if (blockIdx.y >= bh_start_bottom) goto BO_B;
         // OpenCL:  if (get_group_id(1) >= bh_start_bottom) goto BO_B;
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_B");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_B"+ParamNameSuffix);
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_y,
             getBHStartBottom(), BO_GE, Ctx.BoolTy);
         break;
@@ -866,7 +891,7 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
         // CUDA:    if (blockIdx.x >= bh_start_right) goto BO_R;
         // OpenCL:  if (get_group_id(0) >= bh_start_right) goto BO_R;
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_R");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_R"+ParamNameSuffix);
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_x,
             getBHStartRight(), BO_GE, Ctx.BoolTy);
         break;
@@ -876,12 +901,12 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
 
         // CUDA:    if (blockIdx.x < bh_start_left) goto BO_L;
         // OpenCL:  if (get_group_id(0) < bh_start_left) goto BO_L;
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_L");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_L"+ParamNameSuffix);
         if_goto = createBinaryOperator(Ctx, tileVars.block_id_x,
             getBHStartLeft(), BO_LT, Ctx.BoolTy);
         break;
       case 9:
-        LD = createLabelDecl(Ctx, kernelDecl, "BH_NO");
+        LD = createLabelDecl(Ctx, kernelDecl, "BH_NO"+ParamNameSuffix);
         break;
     }
     LDS.push_back(LD);
@@ -954,6 +979,10 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         break;
     }
 
+    if (Kernel->isFusible() && fusionVars.bL2LRecordBorder) {
+      fusionVars.bL2LRecordBorderStmts = true;
+      fusionVars.stmtsL2LBorder.clear();
+    }
     // if (gid_x >= is_offset_x && gid_x < is_width+is_offset_x)
     BinaryOperator *check_bop = nullptr;
     if (border_handling) {
@@ -1004,8 +1033,13 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
     // stage pixels into shared memory
     // ppt + ceil((size_y-1)/sy) iterations
     int p_add = 0;
-    if (Kernel->getMaxSizeYUndef()) {
-      p_add = static_cast<int>(ceilf(2*Kernel->getMaxSizeYUndef() /
+    unsigned maxSizeYUndef = Kernel->getMaxSizeYUndef();
+    if (Kernel->isFusible() && fusionVars.bL2LReplaceVarAccSizeY) {
+      maxSizeYUndef = fusionVars.curL2LVarAccSizeY >> 1;
+    }
+
+    if (maxSizeYUndef) {
+      p_add = static_cast<int>(ceilf(2*maxSizeYUndef /
             static_cast<float>(Kernel->getNumThreadsY())));
     }
     SmallVector<Stmt *, 16> labelBody;
@@ -1109,16 +1143,29 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
         pptBody.push_back(new_body);
       }
 
+      // Whole body replacement for kernel fusion
+      if (Kernel->isFusible() && fusionVars.bL2LReplaceBody) {
+        pptBody.clear();
+        pptBody.push_back((fusionVars.stmtsL2LProducerKernel).front());
+        (fusionVars.stmtsL2LProducerKernel).pop();
+      }
 
       // add iteration space checking in case we have padded images and/or
       // padded block/grid configurations
-      if (check_bop) {
+      if (Kernel->isFusible() && fusionVars.bP2LReplaceExprInputIdx) {
+        for (auto stmt : pptBody)
+          labelBody.push_back(stmt);
+      } else if (check_bop) {
         IfStmt *ispace_check = createIfStmt(Ctx, check_bop,
             createCompoundStmt(Ctx, pptBody));
         labelBody.push_back(ispace_check);
       } else {
         for (auto stmt : pptBody)
           labelBody.push_back(stmt);
+      }
+      // record ppt body for l2l fusion
+      if (Kernel->isFusible() && fusionVars.bL2LRecordBody) {
+        (fusionVars.stmtsL2LKernel).push(createCompoundStmt(Ctx, pptBody));
       }
     }
 
@@ -1132,6 +1179,9 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       kernelBody.push_back(createCompoundStmt(Ctx, labelBody));
     }
 
+    if (Kernel->isFusible() && fusionVars.bL2LInsertKernelBody) {
+      (fusionVars.stmtsL2LProducerKernel).pop();
+    }
     // reset image border configuration
     bh_variant.borderVal = 0;
     // reset lid_y and gid_y
@@ -1157,6 +1207,10 @@ VarDecl *ASTTranslate::CloneVarDecl(VarDecl *VD) {
     QualType QT = VD->getType();
     TypeSourceInfo *TInfo = VD->getTypeSourceInfo();
     std::string name = VD->getName();
+
+    if (Kernel->isFusible() && KernelClass->getVarDeclByName(name)) {
+      name += fusionVars.sKernelParamNameSuffix;
+    }
 
     if (Kernel->vectorize() && KernelClass->getVectorizeInfo(VD) == VECTORIZE &&
         !compilerOptions.emitC99()) {
@@ -1294,6 +1348,26 @@ Stmt *ASTTranslate::VisitCompoundStmtTranslate(CompoundStmt *S) {
       }
     }
 
+    if (Kernel->isFusible() && fusionVars.bL2LInsertKernelBody &&
+            fusionVars.bL2LInsertBeforeSmem) {
+      Expr *offset_x, *offset_y;
+      offset_x = createBinaryOperator(Ctx, fusionVars.exprL2LIdXShift,
+                    createIntegerLiteral(Ctx, fusionVars.curL2LIdXShift),
+                      BO_Assign, Ctx.IntTy);
+      offset_y = createBinaryOperator(Ctx, fusionVars.exprL2LIdYShift,
+                    createIntegerLiteral(Ctx, fusionVars.curL2LIdYShift),
+                      BO_Assign, Ctx.IntTy);
+      body.push_back(offset_x);
+      body.push_back(offset_y);
+
+      for (auto stmt : fusionVars.stmtsL2LBorder) {
+        body.push_back(stmt);
+      }
+
+      body.push_back((fusionVars.stmtsL2LProducerKernel).front());
+      fusionVars.bL2LInsertBeforeSmem = false;
+    }
+
     if (newS) body.push_back(newS);
 
     if (postStmts.size()) {
@@ -1399,7 +1473,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
           hipacc_require(false, "widening of intrinsic functions not supported currently");
         }
         if (compilerOptions.emitCUDA() && nameDC.at(nameDC.length()-1)!='f' &&
-            !QT->isVectorType() &&  
+            !QT->isVectorType() &&
 			QT->getAs<BuiltinType>()->getKind() == BuiltinType::Float) {
           llvm::errs() << "Error: " << nameDC <<
             " is not supported for float in CUDA, use " << nameDC << "f instead!\n";
@@ -1488,7 +1562,10 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   // search for member name in kernel parameter list
   for (auto param : kernelDecl->parameters()) {
     // parameter name matches
-    if (param->getName().equals(VD->getName())) {
+    std::string strParamName = VD->getName();
+    if (Kernel->isFusible())
+      strParamName += fusionVars.sKernelParamNameSuffix;
+    if (param->getName().equals(strParamName)) {
       paramDecl = param;
 
       // get vector declaration
@@ -1515,7 +1592,10 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
   // check if the parameter is a Mask and replace it by a global VarDecl
   bool isMask = false;
   for (auto mask : KernelClass->getMaskFields()) {
-    if (paramDecl->getName().equals(mask->getName())) {
+    std::string strParamName = mask->getName();
+    if (Kernel->isFusible())
+      strParamName += fusionVars.sKernelParamNameSuffix;
+    if (paramDecl->getName().equals(strParamName)) {
       if (auto Mask = Kernel->getMaskFromMapping(mask)) {
         isMask = true;
         if (Mask->isConstant() || compilerOptions.emitC99() ||
@@ -1552,6 +1632,12 @@ Expr *ASTTranslate::VisitMemberExprTranslate(MemberExpr *E) {
 
   Expr *result = createDeclRefExpr(Ctx, paramDecl);
   setExprProps(E, result);
+
+  if (Kernel->isFusible() && fusionVars.bReplaceExprInput &&
+          KernelClass->getKernelType() == PointOperator &&
+            Kernel->getImgFromMapping(dyn_cast<FieldDecl>(VD))) {
+    return fusionVars.exprInput;
+  }
 
   return result;
 }
@@ -1698,7 +1784,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
   // look for Mask user class member variable
   if (auto mask = Kernel->getMaskFromMapping(FD)) {
     MemoryAccess mem_acc = KernelClass->getMemAccess(FD);
-    hipacc_require(mem_acc == READ_ONLY, 
+    hipacc_require(mem_acc == READ_ONLY,
         "only read-only memory access to Mask supported");
 
     switch (E->getNumArgs()) {
@@ -1751,7 +1837,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         (void)Domain; // silent compiler warning
         hipacc_require(Domain->isDomain(), "Domain required.");
 
-        hipacc_require(mask->getSizeX()==Domain->getSizeX() && 
+        hipacc_require(mask->getSizeX()==Domain->getSizeX() &&
                mask->getSizeY()==Domain->getSizeY(),
                "Mask and Domain size must be equal.");
 
@@ -1836,6 +1922,14 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
   if (auto acc = Kernel->getImgFromMapping(FD)) {
     MemoryAccess mem_acc = KernelClass->getMemAccess(FD);
 
+    if (Kernel->isFusible() && fusionVars.bReplaceExprInput &&
+            KernelClass->getKernelType() == PointOperator) {
+      if (acc->getImage()->getName() == fusionVars.exprSharedImgName) {
+        return fusionVars.exprSharedImgReg;
+      } else {
+        return LHS;
+      }
+    }
     // Images are ParmVarDecls
     bool use_shared = false;
     DeclRefExpr *DRE = nullptr;
@@ -1852,20 +1946,40 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
     }
 
     Expr *SY, *TX;
-    if (acc->getSizeX() > 1) {
-      if (compilerOptions.allowMisAlignedAccess()) {
-        TX = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeX()/2));
+    if (Kernel->isFusible() &&fusionVars.bL2LReplaceVarAccSizeY) {
+      Expr *SYOld, *TXOld;
+      // Index fusion for local kernel fusion
+      if (acc->getSizeX() > 1) {
+        if (Kernel->isFusible() && compilerOptions.allowMisAlignedAccess()) {
+          TXOld = createIntegerLiteral(Ctx, static_cast<int>(fusionVars.curL2LVarAccSizeX/2));
+        } else {
+          TXOld = createIntegerLiteral(Ctx, static_cast<int>(Kernel->getNumThreadsX()));
+        }
       } else {
-        TX = createIntegerLiteral(Ctx,
-            static_cast<int>(Kernel->getNumThreadsX()));
+        TXOld = createIntegerLiteral(Ctx, 0);
       }
+      TX = createBinaryOperator(Ctx, fusionVars.exprL2LIdXShift, TXOld, BO_Add, Ctx.IntTy);
+      if (acc->getSizeY() > 1) {
+        SYOld = createIntegerLiteral(Ctx, static_cast<int>(fusionVars.curL2LVarAccSizeY/2));
+      } else {
+        SYOld = createIntegerLiteral(Ctx, 0);
+      }
+      SY = createBinaryOperator(Ctx, fusionVars.exprL2LIdYShift, SYOld, BO_Add, Ctx.IntTy);
     } else {
-      TX = createIntegerLiteral(Ctx, 0);
-    }
-    if (acc->getSizeY() > 1) {
-      SY = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeY()/2));
-    } else {
-      SY = createIntegerLiteral(Ctx, 0);
+      if (acc->getSizeX() > 1) {
+        if (Kernel->isFusible() && compilerOptions.allowMisAlignedAccess()) {
+          TX = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeY()/2));
+        } else {
+          TX = createIntegerLiteral(Ctx, static_cast<int>(Kernel->getNumThreadsX()));
+        }
+      } else {
+        TX = createIntegerLiteral(Ctx, 0);
+      }
+      if (acc->getSizeY() > 1) {
+        SY = createIntegerLiteral(Ctx, static_cast<int>(acc->getSizeY()/2));
+      } else {
+        SY = createIntegerLiteral(Ctx, 0);
+      }
     }
 
     HipaccMask *Mask = nullptr;
@@ -1881,12 +1995,17 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         } else {
           result = accessMem(LHS, acc, mem_acc);
         }
+
+        if (Kernel->isFusible() && KernelClass->getKernelType() == LocalOperator) {
+          fusionVars.curL2LIdXShift = 0;
+          fusionVars.curL2LIdYShift = 0;
+        }
         break;
       case 2:
         // 0: -> (this *) Image Class
         // 1: -> Mask | Domain
         {
-        hipacc_require(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()), 
+        hipacc_require(isa<MemberExpr>(E->getArg(1)->IgnoreImpCasts()),
             "Accessor operator() with 1 argument requires a"
             "convolution Mask or Domain as parameter.");
         MemberExpr *ME = dyn_cast<MemberExpr>(E->getArg(1)->IgnoreImpCasts());
@@ -1894,7 +2013,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         Mask = Kernel->getMaskFromMapping(FD);
         }
         if (convMask) {
-          hipacc_require(convMask == Mask, 
+          hipacc_require(convMask == Mask,
               "the Mask parameter for Accessor operator(Mask) has to be"
               "the Mask parameter of the convolve method.");
           mask_idx_x = convIdxX;
@@ -1909,7 +2028,7 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
               break;
             }
           }
-          hipacc_require(found, 
+          hipacc_require(found,
               "the Domain parameter for Accessor operator(Domain) has to be"
               "the Domain parameter of the reduce method.");
         }
@@ -1923,9 +2042,19 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
               mask_idx_x-static_cast<int>(Mask->getSizeX()/2));
           offset_y = createIntegerLiteral(Ctx,
               mask_idx_y-static_cast<int>(Mask->getSizeY()/2));
+
+          if (Kernel->isFusible() && KernelClass->getKernelType() == LocalOperator) {
+            fusionVars.curL2LIdXShift = mask_idx_x-static_cast<int>(Mask->getSizeX()/2);
+            fusionVars.curL2LIdYShift = mask_idx_y-static_cast<int>(Mask->getSizeY()/2);
+          }
         } else {
           offset_x = Clone(E->getArg(1));
           offset_y = Clone(E->getArg(2));
+
+          if (Kernel->isFusible() && KernelClass->getKernelType() == LocalOperator) {
+            fusionVars.curL2LIdXShift = 0;
+            fusionVars.curL2LIdYShift = 0;
+          }
         }
 
         if (use_shared) {
@@ -1948,9 +2077,19 @@ Expr *ASTTranslate::VisitCXXOperatorCallExprTranslate(CXXOperatorCallExpr *E) {
         }
         break;
     }
+
+    if (Kernel->isFusible() && KernelClass->getKernelType() == LocalOperator) {
+      fusionVars.bL2LInsertBeforeSmem = true;
+      if (fusionVars.bReplaceExprInput) return fusionVars.exprInput;
+    }
   }
 
   setExprProps(E, result);
+
+  if (Kernel->isFusible() && fusionVars.bP2LReplaceExprInputIdx) {
+    ArraySubscriptExpr *tempASE = dyn_cast<ArraySubscriptExpr>(result);
+    tempASE->setRHS(fusionVars.exprP2LInputIdx);
+  }
 
   return result;
 }
@@ -1973,7 +2112,7 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
 
   auto mem_at_fun = [&] (HipaccAccessor *acc, DeclRefExpr *LHS,
                          MemoryAccess mem_acc) -> Expr * {
-    hipacc_require(E->getNumArgs()==2, 
+    hipacc_require(E->getNumArgs()==2,
            "x and y argument for pixel_at() or output_at() required!");
     Expr *idx_x = addGlobalOffsetX(Clone(E->getArg(0)), acc);
     Expr *idx_y = addGlobalOffsetY(Clone(E->getArg(1)), acc);
@@ -2040,6 +2179,9 @@ Expr *ASTTranslate::VisitCXXMemberCallExprTranslate(CXXMemberCallExpr *E) {
       result = accessMem(LHS, acc, mem_acc);
       setExprProps(E, result);
 
+      if (Kernel->isFusible() && fusionVars.bReplaceExprOutput) {
+        return fusionVars.exprOutput;
+      }
       return result;
     }
 
@@ -2278,6 +2420,109 @@ Expr *ASTTranslate::BinningTranslator::translateCXXMemberCallExpr(CXXMemberCallE
   return E;
 }
 
+void ASTTranslate::setFusionP2PSrcOperator(VarDecl *VD) {
+  fusionVars.bReplaceExprOutput = true;
+  fusionVars.exprOutput = createDeclRefExpr(Ctx, VD);
+}
+
+void ASTTranslate::setFusionP2PDestOperator(VarDecl *VD) {
+  fusionVars.bReplaceExprInput = true;
+  fusionVars.exprInput = createDeclRefExpr(Ctx, VD);
+}
+
+void ASTTranslate::setFusionP2PIntermOperator(VarDecl *VDIn, VarDecl *VDOut) {
+  fusionVars.bReplaceExprInput = true;
+  fusionVars.exprInput = createDeclRefExpr(Ctx, VDIn);
+  fusionVars.bReplaceExprOutput = true;
+  fusionVars.exprOutput = createDeclRefExpr(Ctx, VDOut);
+}
+
+void ASTTranslate::setFusionL2PDestOperator(VarDecl *VD, VarDecl *VDSharedImg, std::string nam) {
+  fusionVars.bReplaceExprInput = true;
+  fusionVars.exprInput = createDeclRefExpr(Ctx, VD);
+  fusionVars.exprSharedImgReg = createDeclRefExpr(Ctx, VDSharedImg);
+  fusionVars.exprSharedImgName = nam;
+}
+
+void ASTTranslate::setFusionL2PIntermOperator(VarDecl *VDIn, VarDecl *VDOut, VarDecl *VDSharedImg, std::string nam) {
+  fusionVars.bReplaceExprInput = true;
+  fusionVars.exprInput = createDeclRefExpr(Ctx, VDIn);
+  fusionVars.bReplaceExprOutput = true;
+  fusionVars.exprOutput = createDeclRefExpr(Ctx, VDOut);
+  fusionVars.exprSharedImgReg = createDeclRefExpr(Ctx, VDSharedImg);
+  fusionVars.exprSharedImgName = nam;
+}
+
+void ASTTranslate::setFusionP2LSrcOperator(VarDecl *VDReg, VarDecl *VDIdx) {
+  fusionVars.bP2LReplaceExprInputIdx = true;
+  fusionVars.exprP2LInputIdx = createDeclRefExpr(Ctx, VDIdx);
+  fusionVars.bReplaceExprOutput = true;
+  fusionVars.exprOutput = createDeclRefExpr(Ctx, VDReg);
+}
+
+void ASTTranslate::setFusionP2LDestOperator(VarDecl *VDReg, VarDecl *VDIdx, Stmt *S) {
+  fusionVars.bP2LReplaceInputExprs = true;
+  fusionVars.exprP2LInputIdx = createDeclRefExpr(Ctx, VDIdx);
+  fusionVars.exprOutput = createDeclRefExpr(Ctx, VDReg);
+  fusionVars.stmtP2LProducerBody = S;
+}
+
+void ASTTranslate::setFusionL2LSrcOperator(VarDecl *VDRegOut, VarDecl *VDIdX,
+    VarDecl *VDIdY, unsigned sz) {
+  fusionVars.bL2LRecordBody = true;
+  fusionVars.bL2LReplaceVarAccSizeY = true;
+  fusionVars.curL2LVarAccSizeX = sz;
+  fusionVars.curL2LVarAccSizeY = sz;
+  fusionVars.bReplaceExprOutput = true;
+  fusionVars.exprOutput = createDeclRefExpr(Ctx, VDRegOut);
+  fusionVars.exprL2LIdXShift = createDeclRefExpr(Ctx, VDIdX);
+  fusionVars.exprL2LIdYShift = createDeclRefExpr(Ctx, VDIdY);
+}
+
+void ASTTranslate::setFusionL2LEndSrcOperator(std::queue<Stmt *> stmtsLocal,
+        VarDecl *VDIdX, VarDecl *VDIdY, unsigned sz) {
+  fusionVars.bL2LReplaceVarAccSizeY = true;
+  fusionVars.curL2LVarAccSizeX = sz;
+  fusionVars.curL2LVarAccSizeY = sz;
+  fusionVars.stmtsL2LProducerKernel = stmtsLocal;
+  fusionVars.exprL2LIdXShift = createDeclRefExpr(Ctx, VDIdX);
+  fusionVars.exprL2LIdYShift = createDeclRefExpr(Ctx, VDIdY);
+  fusionVars.bL2LReplaceBody = true;
+}
+
+void ASTTranslate::setFusionL2LDestOperator(std::queue<Stmt *> stmtsLocal,
+        VarDecl *VDRegIn, VarDecl *VDIdX, VarDecl *VDIdY, unsigned sz) {
+  fusionVars.bL2LReplaceVarAccSizeY = true;
+  fusionVars.curL2LVarAccSizeX = sz;
+  fusionVars.curL2LVarAccSizeY = sz;
+  fusionVars.bL2LInsertKernelBody = true;
+  fusionVars.stmtsL2LProducerKernel = stmtsLocal;
+  fusionVars.bL2LRecordBody = true;
+  fusionVars.bL2LRecordBorder = true;
+  fusionVars.bReplaceExprInput = true;
+  fusionVars.exprInput = createDeclRefExpr(Ctx, VDRegIn);
+  fusionVars.exprL2LIdXShift = createDeclRefExpr(Ctx, VDIdX);
+  fusionVars.exprL2LIdYShift = createDeclRefExpr(Ctx, VDIdY);
+}
+
+std::queue<Stmt *> ASTTranslate::getFusionLocalKernelBody() {
+  return fusionVars.stmtsL2LKernel;
+}
+
+Stmt *ASTTranslate::getFusionSharedInputStmt(VarDecl *VDIn) {
+  BinaryOperator *bOShared;
+  for (auto param : kernelDecl->parameters()) {
+    if (KernelDeclMapShared[param]) {
+      ParmVarDecl *PVD = param;
+      DeclRefExpr *paramDRE = createDeclRefExpr(Ctx, PVD);
+      HipaccAccessor *Acc = KernelDeclMapAcc[PVD];
+      bOShared = createBinaryOperator(Ctx, createDeclRefExpr(Ctx, VDIn),
+                   accessMemArrAt(paramDRE, getStrideDecl(Acc), tileVars.global_id_x,
+                     tileVars.global_id_y), BO_Assign, Acc->getImage()->getType());
+    }
+  }
+  return bOShared;
+}
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

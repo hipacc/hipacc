@@ -1,4 +1,7 @@
 set(KernelStatistics_SOURCES KernelStatistics.cpp)
+set(HostDataDeps_SOURCES HostDataDeps.cpp)
 
 add_library(hipaccKernelStatistics ${KernelStatistics_SOURCES})
+add_library(hipaccHostDataDeps ${HostDataDeps_SOURCES})
 add_cppcheck(hipaccKernelStatistics POSSIBLE_ERROR FAIL_ON_WARNINGS)
+add_cppcheck(hipaccHostDataDeps POSSIBLE_ERROR FAIL_ON_WARNINGS)

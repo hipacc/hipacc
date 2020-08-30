@@ -49,6 +49,7 @@
 #include "hipacc/Vectorization/SIMDTypes.h"
 
 #include <functional>
+#include <queue>
 
 //===----------------------------------------------------------------------===//
 // Statement/expression transformations
@@ -141,17 +142,13 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         QualType typeIdx_, typeBin_;
 
         void createBinningArguments() {
-          VarDecl *declLMem = nullptr,
-                  *declOffset = nullptr,
-                  *declNumBins = nullptr;
-
           funcBinning_ = kernel_->getKernelClass()->getBinningFunction();
 
-          declLMem = ASTNode::createVarDecl(ctx_, funcBinning_, "_lmem",
+          VarDecl *declLMem = ASTNode::createVarDecl(ctx_, funcBinning_, "_lmem",
               typeBin_, nullptr);
-          declOffset = ASTNode::createVarDecl(ctx_, funcBinning_, "_offset",
+          VarDecl *declOffset = ASTNode::createVarDecl(ctx_, funcBinning_, "_offset",
               typeIdx_, nullptr);
-          declNumBins = ASTNode::createVarDecl(ctx_, funcBinning_, "_num_bins",
+          VarDecl *declNumBins = ASTNode::createVarDecl(ctx_, funcBinning_, "_num_bins",
               typeIdx_, nullptr);
 
           lmem_ = ASTNode::createDeclRefExpr(ctx_, declLMem);
@@ -195,6 +192,68 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
           return traverseStmt(S);
         }
     };
+
+    // Params for kernel fusion
+    class KernelFusionVars {
+      public:
+        bool bSkipGidDecl;
+        Expr *exprOutput;
+        bool bReplaceExprOutput;
+        Expr *exprInput;
+        bool bReplaceExprInput;
+        bool bP2LReplaceExprInputIdx;
+        Expr *exprP2LInputIdx;
+        bool bP2LReplaceInputExprs;
+        Stmt *stmtP2LProducerBody;
+        Expr *exprSharedImgReg;
+        std::string exprSharedImgName;
+        bool bL2LInsertKernelBody;
+        bool bL2LInsertBeforeSmem;
+        Expr *exprL2LIdXShift;
+        Expr *exprL2LIdYShift;
+        int curL2LIdXShift;
+        int curL2LIdYShift;
+        bool bL2LRecordBorder;
+        bool bL2LRecordBody;
+        bool bL2LRecordBorderStmts;
+        unsigned curL2LLiteralCount;
+        bool bL2LReplaceVarAccSizeY;
+        unsigned curL2LVarAccSizeX;
+        unsigned curL2LVarAccSizeY;
+        bool bL2LReplaceBody;
+        SmallVector<Stmt *, 16> stmtsL2LBorder;
+        std::queue<Stmt *> stmtsL2LProducerKernel;
+        std::queue<Stmt *> stmtsL2LKernel;
+        std::string sKernelParamNameSuffix;
+
+        explicit KernelFusionVars(HipaccKernel *kernel) :
+          bSkipGidDecl(true),
+          exprOutput(nullptr),
+          bReplaceExprOutput(false),
+          exprInput(nullptr),
+          bReplaceExprInput(false),
+          bP2LReplaceExprInputIdx(false),
+          exprP2LInputIdx(nullptr),
+          bP2LReplaceInputExprs(false),
+          stmtP2LProducerBody(nullptr),
+          exprSharedImgReg(nullptr),
+          bL2LInsertKernelBody(false),
+          bL2LInsertBeforeSmem(false),
+          exprL2LIdXShift(nullptr),
+          exprL2LIdYShift(nullptr),
+          curL2LIdXShift(0),
+          curL2LIdYShift(0),
+          bL2LRecordBorder(false),
+          bL2LRecordBody(false),
+          bL2LRecordBorderStmts(false),
+          curL2LLiteralCount(0),
+          bL2LReplaceVarAccSizeY(false),
+          curL2LVarAccSizeX(0),
+          curL2LVarAccSizeY(0),
+          bL2LReplaceBody(false),
+          sKernelParamNameSuffix("_"+kernel->getKernelName()) {}
+    };
+    KernelFusionVars fusionVars;
 
 
     template<class T> T *Clone(T *S) {
@@ -311,6 +370,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     FunctionDecl *getInterpolationFunction(HipaccAccessor *Acc);
     FunctionDecl *getTextureFunction(HipaccAccessor *Acc, MemoryAccess mem_acc);
     FunctionDecl *getImageFunction(HipaccAccessor *Acc, MemoryAccess mem_acc);
+    FunctionDecl *getAllocationFunction(QualType QT, MemoryAccess mem_acc);
     FunctionDecl *getConvertFunction(QualType QT);
     Expr *addInterpolationCall(DeclRefExpr *LHS, HipaccAccessor *Acc, Expr
         *idx_x, Expr *idx_y);
@@ -339,6 +399,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
         *global_offset_x, Expr *global_offset_y);
     void stageIterationToSharedMemory(SmallVector<Stmt *, 16> &stageBody, int
         p);
+    void stageIterationToSharedMemoryExploration(SmallVector<Stmt *, 16>
+        &stageBody);
 
     // default error message for unsupported expressions and statements.
     #define HIPACC_UNSUPPORTED_EXPR(EXPR) \
@@ -395,7 +457,8 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
       writeImageRHS(nullptr),
       tileVars(),
       lidYRef(nullptr),
-      gidYRef(nullptr) {
+      gidYRef(nullptr),
+      fusionVars(kernel) {
         // get 'hipacc' namespace context for lookups
         auto hipacc_ident = &Ctx.Idents.get("hipacc");
         for (auto *decl : Ctx.getTranslationUnitDecl()->lookup(hipacc_ident))
@@ -452,6 +515,21 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
     // create interpolation function name
     static std::string getInterpolationName(CompilerOptions &compilerOptions,
         HipaccKernel *Kernel, HipaccAccessor *Acc);
+
+    // Kernel Fusion getters and setters
+    void setFusionSkipGidDecl(bool b) { fusionVars.bSkipGidDecl = b; }
+    void setFusionP2PSrcOperator(VarDecl *VD);
+    void setFusionP2PDestOperator(VarDecl *VD);
+    void setFusionP2PIntermOperator(VarDecl *VDIn, VarDecl *VDOut);
+    void setFusionL2PDestOperator(VarDecl *VD, VarDecl *VDSharedImg, std::string nam);
+    void setFusionL2PIntermOperator(VarDecl *VDIn, VarDecl *VDOut, VarDecl *VDSharedImg, std::string nam);
+    void setFusionP2LSrcOperator(VarDecl *VDReg, VarDecl *VDIdx);
+    void setFusionP2LDestOperator(VarDecl *VDReg, VarDecl *VDIdx, Stmt *S);
+    void setFusionL2LSrcOperator(VarDecl *VDRegOut, VarDecl *VDIdX, VarDecl *VDIdY, unsigned sz);
+    void setFusionL2LEndSrcOperator(std::queue<Stmt *> stmtsLocal, VarDecl *VDIdX, VarDecl *VDIdY, unsigned sz);
+    void setFusionL2LDestOperator(std::queue<Stmt *> stmtsLocal, VarDecl *VDRegIn, VarDecl *VDIdX, VarDecl *VDIdY, unsigned sz);
+    std::queue<Stmt *> getFusionLocalKernelBody();
+    Stmt *getFusionSharedInputStmt(VarDecl *VDIn);
 
     // the following list is ordered according to
     // include/clang/Basic/StmtNodes.td
