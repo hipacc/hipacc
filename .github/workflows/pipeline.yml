@@ -22,7 +22,6 @@ jobs:
         uses: actions/checkout@v2
         with:
           path: "hipacc"
-          submodules: true
 
       - name: Fetch history for all tags
         run: |
@@ -82,7 +81,6 @@ jobs:
         uses: actions/checkout@v2
         with:
           path: "hipacc"
-          submodules: true
 
       - name: Fetch history for all tags
         run: |
