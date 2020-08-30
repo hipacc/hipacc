@@ -14,7 +14,9 @@ set(HIPACC_LIBS
 
 list(APPEND HIPACC_LIBS
     hipaccKernelStatistics
+    hipaccHostDataDeps
     hipaccBuiltins
+    hipaccASTFuse
     hipaccASTNode)
 
 set(hipacc_SOURCES hipacc.cpp)

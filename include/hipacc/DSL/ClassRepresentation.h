@@ -86,6 +86,12 @@ enum class Interpolate : uint8_t {
   L3
 };
 
+// optimization modes for kernels
+enum class OptimizationOption : uint8_t {
+  NONE = 0,
+  KERNEL_FUSE
+};
+
 
 // common base class for images, masks and pyramids
 class HipaccSize {
@@ -440,6 +446,9 @@ class HipaccKernelClass {
     VectorInfo getVectorizeInfo(VarDecl *decl) {
       return kernelStatistics->getVectorizeInfo(decl);
     }
+    VarDecl *getVarDeclByName(std::string name) {
+      return kernelStatistics->getVarDeclByName(name);
+    }
     KernelType getKernelType() {
       return kernelStatistics->getKernelType();
     }
@@ -589,9 +598,11 @@ class HipaccKernel : public HipaccKernelFeatures {
     std::set<std::string> usedVars;
     unsigned max_threads_for_kernel;
     unsigned max_size_x, max_size_y;
+    unsigned updated_size_x, updated_size_y;
     unsigned max_size_x_undef, max_size_y_undef;
     unsigned num_threads_x, num_threads_y;
     unsigned num_reg, num_lmem, num_smem, num_cmem;
+    OptimizationOption OptmOpt;
 
     std::string executionParameter;
 
@@ -630,6 +641,7 @@ class HipaccKernel : public HipaccKernelFeatures {
       deviceFuncs(),
       max_threads_for_kernel(0),
       max_size_x(0), max_size_y(0),
+      updated_size_x(0), updated_size_y(0),
       max_size_x_undef(0), max_size_y_undef(0),
       num_threads_x(default_num_threads_x),
       num_threads_y(default_num_threads_y),
@@ -637,7 +649,9 @@ class HipaccKernel : public HipaccKernelFeatures {
       num_lmem(0),
       num_smem(0),
       num_cmem(0)
-    {}
+    {
+      OptmOpt = OptimizationOption::NONE;
+    }
 
     VarDecl *getDecl() const { return VD; }
     HipaccKernelClass *getKernelClass() const { return KC; }
@@ -654,6 +668,10 @@ class HipaccKernel : public HipaccKernelFeatures {
 
     // keep track of variables used within kernel
     void setUsed(std::string name) { usedVars.insert(name); }
+    void setUnused(std::string name) { usedVars.erase(name); }
+    void setOptimizationOptions(OptimizationOption opt) { OptmOpt = opt; }
+    void updateFusionSizeX(unsigned szX) { updated_size_x = szX; }
+    void updateFusionSizeY(unsigned szY) { updated_size_y = szY; }
     void resetUsed() {
       usedVars.clear();
       deviceFuncs.clear();
@@ -662,6 +680,9 @@ class HipaccKernel : public HipaccKernelFeatures {
     }
     bool getUsed(std::string name) {
       return usedVars.find(name) != usedVars.end();
+    }
+    bool isFusible() {
+      return OptmOpt == OptimizationOption::KERNEL_FUSE;
     }
 
     // keep track of functions called within kernel

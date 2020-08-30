@@ -53,7 +53,7 @@ namespace Backend
   /** \name Exception base classes. */
   //@{
 
-  /** \brief    Root class of all exceptions which can be thrown by the backend. 
+  /** \brief    Root class of all exceptions which can be thrown by the backend.
    *  \extends  std::runtime_error */
   class BackendException : public std::runtime_error
   {
@@ -65,12 +65,12 @@ namespace Backend
 
     /** \brief  Constructor.
      *  \param  strMessage  The message which shall be displayed. */
-    inline BackendException(std::string strMessage) : BaseType(std::string("Backend exception: ") + strMessage) {}
+    explicit inline BackendException(std::string strMessage) : BaseType(std::string("Backend exception: ") + strMessage) {}
 
     virtual ~BackendException() DECLARE_NOEXCEPT  {}
   };
 
-  /** \brief    Root class for all internal errors of the backend. 
+  /** \brief    Root class for all internal errors of the backend.
    *  \remarks  This type of error is caused by invalid assumptions at design time. Thus a user should never see an exception like in an ideal case.
    *  \extends  BackendException */
   class InternalErrorException : public BackendException
@@ -83,7 +83,7 @@ namespace Backend
 
     /** \brief  Constructor.
      *  \param  strMessage  The message which shall be displayed. */
-    inline InternalErrorException(std::string strMessage) : BaseType(std::string("Internal error: ") + strMessage)  {}
+    explicit inline InternalErrorException(std::string strMessage) : BaseType(std::string("Internal error: ") + strMessage)  {}
 
     virtual ~InternalErrorException() DECLARE_NOEXCEPT  {}
   };
@@ -101,7 +101,7 @@ namespace Backend
 
     /** \brief  Constructor.
      *  \param  strMessage  The message which shall be displayed. */
-    inline RuntimeErrorException(std::string strMessage) : BaseType(std::string("Runtime error: ") + strMessage)  {}
+    explicit inline RuntimeErrorException(std::string strMessage) : BaseType(std::string("Runtime error: ") + strMessage)  {}
 
     virtual ~RuntimeErrorException() DECLARE_NOEXCEPT {}
   };
@@ -126,7 +126,7 @@ namespace Backend
 
       /** \brief  General constructor.
        *  \param  strSwitch  The compiler switch which caused this error. */
-      inline DuplicateSwitchEntryException(std::string strSwitch) : BaseType(std::string("The switch \"") + strSwitch + std::string("\" has already been defined!"))  {}
+      explicit inline DuplicateSwitchEntryException(std::string strSwitch) : BaseType(std::string("The switch \"") + strSwitch + std::string("\" has already been defined!"))  {}
 
       /** \brief  Special constructor for the code generators.
        *  \param  strSwitch         The compiler switch which caused this error.
@@ -150,7 +150,7 @@ namespace Backend
 
       /** \brief  General constructor.
        *  \param  strPointerName  The name of the pointer which caused this error. */
-      inline NullPointerException(std::string strPointerName) : BaseType(std::string("The pointer \"") + strPointerName + std::string("\" is NULL!"))  {}
+      explicit inline NullPointerException(std::string strPointerName) : BaseType(std::string("The pointer \"") + strPointerName + std::string("\" is NULL!"))  {}
     };
 
 
@@ -166,7 +166,7 @@ namespace Backend
 
       /** \brief  General constructor.
        *  \param  strSwitch  The compiler switch which caused this error. */
-      inline UnhandledSwitchException(std::string strSwitch) : BaseType(std::string("Handler for switch \"") + strSwitch + std::string("\" is missing!")) {}
+      explicit inline UnhandledSwitchException(std::string strSwitch) : BaseType(std::string("Handler for switch \"") + strSwitch + std::string("\" is missing!")) {}
 
       /** \brief  Special constructor for the code generators.
        *  \param  strSwitch         The compiler switch which caused this error.
@@ -198,7 +198,7 @@ namespace Backend
 
       /** \brief  General constructor.
        *  \param  iExitCode  The requested exit code for the abort. */
-      inline AbortException(int iExitCode) : BaseType("Abort!"), _ciExitCode(iExitCode) {}
+      explicit inline AbortException(int iExitCode) : BaseType("Abort!"), _ciExitCode(iExitCode) {}
 
       /** \brief  Returns the requested abort code. */
       inline int GetExitCode() const  { return _ciExitCode; }
@@ -237,7 +237,7 @@ namespace Backend
 
       /** \brief  General constructor.
        *  \param  strSwitch  The compiler switch which caused this error. */
-      inline MissingOptionException(std::string strSwitch)  : BaseType(std::string("The required option for switch \"") + strSwitch + std::string("\" is missing!"))
+      explicit inline MissingOptionException(std::string strSwitch)  : BaseType(std::string("The required option for switch \"") + strSwitch + std::string("\" is missing!"))
       {}
 
       /** \brief  Special constructor for the code generators.

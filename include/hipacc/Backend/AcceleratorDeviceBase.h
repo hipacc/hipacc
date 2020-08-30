@@ -364,6 +364,28 @@ namespace Backend
 
         typedef CommonDefines::OptionParsers::Path   OptionParser;   //!< Type definition for the option parser for this switch.
       };
+
+      /** \brief  The switch type for the "kernel fusion" switch. */
+      struct FuseKernel final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-fuse-kernel"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return "<o>"; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()
+        {
+          std::string strDescription("");
+
+          strDescription += "Enable/disable usage of kernel fusion\n";
+          strDescription += "Valid values: 'on' and 'off'";
+          return strDescription;
+        }
+
+        typedef CommonDefines::OptionParsers::OnOff   OptionParser;   //!< Type definition for the option parser for this switch.
+      };
     };
   };
 } // end namespace Backend

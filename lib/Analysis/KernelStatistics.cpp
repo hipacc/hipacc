@@ -59,6 +59,7 @@ class KernelStatsImpl {
     llvm::DenseMap<const FieldDecl *, MemoryAccess> memToAccess;
     llvm::DenseMap<const FieldDecl *, MemoryPattern> memToPattern;
     llvm::DenseMap<const VarDecl *, VectorInfo> declsToVector;
+    std::map<std::string, VarDecl *> nameToDecls;
     KernelType kernelType;
 
     ASTContext &Ctx;
@@ -296,11 +297,25 @@ VectorInfo KernelStatistics::getVectorizeInfo(const VarDecl *VD) {
   return getImpl(impl).declsToVector[VD];
 }
 
+VarDecl *KernelStatistics::getVarDeclByName(std::string name) {
+  return getImpl(impl).nameToDecls[name];
+}
 
 KernelType KernelStatistics::getKernelType() {
   return getImpl(impl).kernelType;
 }
 
+unsigned KernelStatistics::getNumOpALUs() {
+  return getImpl(impl).num_ops;
+}
+
+unsigned KernelStatistics::getNumOpSFUs() {
+  return getImpl(impl).num_sops;
+}
+
+unsigned KernelStatistics::getNumImgLoads() {
+  return getImpl(impl).num_img_loads;
+}
 
 MemoryPattern TransferFunctions::checkStride(Expr *EX, Expr *EY) {
   bool stride_x=true, stride_y=true;
@@ -677,6 +692,7 @@ void TransferFunctions::VisitDeclStmt(DeclStmt *S) {
   for (auto decl : S->decls()) {
     if (isa<VarDecl>(decl)) {
       VarDecl *VD = dyn_cast<VarDecl>(decl);
+      KS.nameToDecls[VD->getName()] = VD; // for kernel fusion
       if (VD->hasInit()) {
         if (checkImageAccess(VD->getInit(), READ_ONLY)) {
           KS.stmtVectorize =

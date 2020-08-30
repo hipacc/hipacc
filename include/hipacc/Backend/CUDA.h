@@ -61,6 +61,7 @@ namespace Backend
       Vectorize,          //!< ID of the "kernel vectorization" switch
       NvccPath,           //!< ID of the "nvcc compiler" switch
       CCBinPath,          //!< ID of the "cross compiler" switch
+      FuseKernel,         //!< ID of the "use kernel fusion" switch
     };
 
 
