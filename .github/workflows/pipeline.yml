@@ -97,8 +97,9 @@ jobs:
       # Run only CPU tests, as GitHub's CI runner does not have GPU support
       - name: Run sample tests
         # Do not run Windows tests for every pull request
-        if: ${{ github.event_name != 'pull_request' }}
-        run: docker exec hipacc powershell hipacc/.github/run_tests.ps1 -DHIPACC_SAMPLE_CUDA=OFF -DHIPACC_SAMPLE_OPENCL_GPU=OFF
+        #if: ${{ github.event_name != 'pull_request' }}
+        # Temporarily disable OpenCL CPU samples for Windows because OpenCL 1.2 is not properly supported by runtime
+        run: docker exec hipacc powershell hipacc/.github/run_tests.ps1 -DHIPACC_SAMPLE_CUDA=OFF -DHIPACC_SAMPLE_OPENCL_GPU=OFF -DHIPACC_SAMPLE_OPENCL_CPU=OFF
 
       # On failure: Upload build artifacts
       - name: Upload build artifacts
