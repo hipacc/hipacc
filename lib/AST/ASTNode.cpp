@@ -252,8 +252,8 @@ RecordDecl *createRecordDecl(ASTContext &Ctx, DeclContext *DC, StringRef Name,
 
 MemberExpr *createMemberExpr(ASTContext &Ctx, Expr *base, bool isArrow,
     ValueDecl *memberdecl, QualType T) {
-  return new (Ctx) MemberExpr(base, isArrow, SourceLocation(), memberdecl,
-      SourceLocation(), T, VK_LValue, OK_Ordinary);
+  return MemberExpr::CreateImplicit(Ctx, base, isArrow, memberdecl, T,
+      VK_LValue, OK_Ordinary);
 }
 
 

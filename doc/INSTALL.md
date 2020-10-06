@@ -52,8 +52,8 @@ and **libc++** are required, or the corresponding components from Clang/LLVM
 have to be manually installed.
 
 ### Get the Sources
-The revision to checkout `<rev>` can be found in
-[dependencies.sh](dependencies.sh). In the following, all sources are cloned to
+The tag to checkout `<tag>` can be found in
+[dependencies.sh](dependencies.sh). Steps can also be followed from [Getting Started: Building and Running Clang](https://clang.llvm.org/get_started.html). In the following, all sources are cloned to
 directory `<SRC>`:
 
 ```bash
@@ -62,15 +62,8 @@ cd <SRC>
 # Get Hipacc
 git clone --recursive https://github.com/hipacc/hipacc.git
 
-# Get libc++
-git clone --branch <rev> https://llvm.org/git/libcxx.git
-
-# Get LLVM
-git clone --branch <rev> https://llvm.org/git/llvm.git
-
-# Get Clang
-cd <SRC>/llvm/tools
-git clone --branch <rev> https://llvm.org/git/clang.git
+# Get LLVM Project (already includes clang, libcxx, compiler-rt etc.)
+git clone --branch <tag> https://github.com/llvm/llvm-project.git
 ```
 
 ### Compile the Sources
@@ -110,18 +103,13 @@ must be set to `` `xcrun --sdk macosx --show-sdk-path` ``.
 
 ```bash
 # Compile Clang/LLVM on GNU/Linux
-mkdir <SRC>/llvm/build && cd <SRC>/llvm/build
-cmake .. -DCMAKE_INSTALL_PREFIX=<DST>
+mkdir <SRC>/llvm-project/build && cd <SRC>/llvm-project/build
+cmake .. -DCMAKE_INSTALL_PREFIX=<DST> -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld;polly"
 make install
 
 # Compile Clang/LLVM on macOS
-mkdir <SRC>/llvm/build && cd <SRC>/llvm/build
-cmake .. -DCMAKE_INSTALL_PREFIX=<DST> -DDEFAULT_SYSROOT=`xcrun --sdk macosx --show-sdk-path`
-make install
-
-# Compile libc++
-mkdir <SRC>/libcxx/build && cd <SRC>/libcxx/build
-cmake .. -DCMAKE_INSTALL_PREFIX=<DST>
+mkdir <SRC>/llvm-project/build && cd <SRC>/llvm-project/build
+cmake .. -DCMAKE_INSTALL_PREFIX=<DST> -DDEFAULT_SYSROOT=`xcrun --sdk macosx --show-sdk-path` -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld;polly"
 make install
 
 # Make sure previously built 'llvm-config' is present in PATH
@@ -138,8 +126,8 @@ Compiling on Windows requires **Visual Studio 2017**. Furthermore, download
 **Python** and install it to `<PYTHON_DIR>`.
 ```PowerShell
 # Compile Clang/LLVM
-mkdir <SRC>\llvm\build; cd <SRC>\llvm\build
-cmake.exe .. -G "Visual Studio 15 2017 Win64" -Thost=x64 -DCMAKE_INSTALL_PREFIX="<DST>" -DPYTHON_EXECUTABLE="<PYTHON_DIR>\python.exe"
+mkdir <SRC>\llvm-project\build; cd <SRC>\llvm-project\build
+cmake.exe .. -G "Visual Studio 15 2017 Win64" -Thost=x64 -DCMAKE_INSTALL_PREFIX="<DST>" -DPYTHON_EXECUTABLE="<PYTHON_DIR>\python.exe" -DLLVM_ENABLE_PROJECTS="clang;libcxx;libcxxabi;compiler-rt;lld;polly"
 cmake.exe --build . --target INSTALL
 
 # Install LLVM-vs2017 platform toolset

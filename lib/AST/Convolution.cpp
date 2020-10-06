@@ -323,12 +323,12 @@ Expr *ASTTranslate::convertConvolution(CXXMemberCallExpr *E) {
     li = 1;
 
   hipacc_require(isa<MaterializeTemporaryExpr>(E->getArg(li)) &&
-         isa<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(E->getArg(li))->GetTemporaryExpr()->IgnoreImpCasts()),
+         isa<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(E->getArg(li))->getSubExpr()->IgnoreImpCasts()),
          "Third parameter to 'reduce' or 'iterate' call must be a"
          "lambda-function.");
          
   LambdaExpr *LE = dyn_cast<LambdaExpr>(dyn_cast<MaterializeTemporaryExpr>(
-                       E->getArg(li))->GetTemporaryExpr()->IgnoreImpCasts());
+                       E->getArg(li))->getSubExpr()->IgnoreImpCasts());
 
   // check default capture kind
   if (LE->getCaptureDefault()==LCD_ByCopy) {

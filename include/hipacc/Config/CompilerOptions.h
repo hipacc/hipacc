@@ -45,8 +45,8 @@
 #include <memory>
 
 
-#if CLANG_VERSION_MAJOR != 8
-#error "Clang Version 8.x required!"
+#if CLANG_VERSION_MAJOR != 10
+#error "Clang Version 10.x required!"
 #endif
 
 namespace clang {

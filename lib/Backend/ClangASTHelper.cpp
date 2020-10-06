@@ -317,7 +317,7 @@ VarDecl* ClangASTHelper::CreateVariableDeclaration(FunctionDecl *pParentFunction
 
 QualType ClangASTHelper::GetConstantArrayType(const QualType &crElementType, const size_t cszDimension)
 {
-  return GetASTContext().getConstantArrayType( crElementType, llvm::APInt(32, static_cast<uint64_t>(cszDimension), false), ArrayType::Normal, 0 );
+  return GetASTContext().getConstantArrayType( crElementType, llvm::APInt(32, static_cast<uint64_t>(cszDimension), false), nullptr, ArrayType::Normal, 0 );
 }
 
 

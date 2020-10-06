@@ -240,7 +240,7 @@ Stmt *ASTTranslate::VisitGCCAsmStmt(GCCAsmStmt *S) {
   return new (Ctx) GCCAsmStmt(Ctx, S->getAsmLoc(), S->isSimple(),
       S->isVolatile(), S->getNumOutputs(), S->getNumInputs(), names.data(),
       constraints.data(), exprs.data(), S->getAsmString(), S->getNumClobbers(),
-      clobbers.data(), S->getRParenLoc());
+      clobbers.data(), S->getNumLabels(), S->getRParenLoc());
 }
 
 
@@ -436,10 +436,16 @@ Expr *ASTTranslate::VisitCallExprClone(CallExpr *E) {
 }
 
 Expr *ASTTranslate::VisitMemberExprClone(MemberExpr *E) {
-  MemberExpr *result = new (Ctx) MemberExpr(Clone(E->getBase()), E->isArrow(),
-      E->getOperatorLoc(), CloneDecl(E->getMemberDecl()),
-      E->getMemberNameInfo(), E->getType(), E->getValueKind(),
-      E->getObjectKind());
+  TemplateArgumentListInfo templateArgs(E->getLAngleLoc(), E->getRAngleLoc());
+  for (auto template_arg : E->template_arguments())
+    templateArgs.addArgument(template_arg);
+
+  MemberExpr *result = MemberExpr::Create(Ctx, Clone(E->getBase()), E->isArrow(),
+      E->getOperatorLoc(), E->getQualifierLoc(), E->getTemplateKeywordLoc(),
+      CloneDecl(E->getMemberDecl()), E->getFoundDecl(),
+      E->getMemberNameInfo(), E->getNumTemplateArgs()?&templateArgs:0,
+      E->getType(), E->getValueKind(),
+      E->getObjectKind(), E->isNonOdrUse());
 
   setExprPropsClone(E, result);
 
@@ -661,7 +667,7 @@ Expr *ASTTranslate::VisitAddrLabelExpr(AddrLabelExpr *E) {
 
 Expr *ASTTranslate::VisitStmtExpr(StmtExpr *E) {
   Expr *result = new (Ctx) StmtExpr(Clone(E->getSubStmt()), E->getType(),
-      E->getLParenLoc(), E->getRParenLoc());
+      E->getLParenLoc(), E->getRParenLoc(), E->getTemplateDepth());
 
   setExprPropsClone(E, result);
 
@@ -824,7 +830,7 @@ Expr *ASTTranslate::VisitCXXThrowExpr(CXXThrowExpr *E) {
 
 Expr *ASTTranslate::VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E) {
   Expr *result = CXXDefaultInitExpr::Create(Ctx, E->getExprLoc(),
-      E->getField());
+      E->getField(), E->getUsedContext());
 
   setExprPropsClone(E, result);
 
@@ -873,7 +879,7 @@ Expr *ASTTranslate::VisitExprWithCleanupsClone(ExprWithCleanups *E) {
 
 Expr *ASTTranslate::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
   MaterializeTemporaryExpr *result = new (Ctx)
-    MaterializeTemporaryExpr(E->getType(), Clone(E->GetTemporaryExpr()),
+    MaterializeTemporaryExpr(E->getType(), Clone(E->getSubExpr()),
         E->isBoundToLvalueReference());
 
   setExprPropsClone(E, result);

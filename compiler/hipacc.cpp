@@ -95,6 +95,7 @@ std::string getExecutablePath(const char *argv0) {
 
 void printCopyright() {
   llvm::errs() << "\n"
+    << "Copyright (c) 2020, University of Erlangen-Nuremberg\n"
     << "Copyright (c) 2014, Saarland University\n"
     << "Copyright (c) 2012, University of Erlangen-Nuremberg\n"
     << "Copyright (c) 2012, Siemens AG\n"
@@ -204,8 +205,7 @@ int main(int argc, char *argv[]) {
   // initialize a compiler invocation object from the arguments
   bool success;
   success = CompilerInvocation::CreateFromArgs(Clang->getInvocation(),
-      const_cast<const char **>(cc1_args->data()),
-      const_cast<const char **>(cc1_args->data()) + cc1_args->size(), Diags);
+      *cc1_args, Diags);
 
   // infer the builtin include path if unspecified
   if (Clang->getHeaderSearchOpts().UseBuiltinIncludes &&
