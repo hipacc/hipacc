@@ -74,7 +74,7 @@ jobs:
     runs-on: windows-2019
     steps:
       - name: Setup environment
-        run: echo "::set-env name=DOCKER_IMAGE::oreiche/hipacc-windows-minimal:v1.0"
+        run: echo "::set-env name=DOCKER_IMAGE::oreiche/hipacc-windows-minimal:v2.0"
         shell: bash
 
       - name: Checkout sources
