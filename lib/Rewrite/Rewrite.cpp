@@ -180,11 +180,11 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       switch (options.getTargetLang()) {
         default:
           LO.C99 = 1; break;
-        case Language::CUDA:
+        case clang::hipacc::Language::CUDA:
           LO.CUDA = 1; break;
-        case Language::OpenCLACC:
-        case Language::OpenCLCPU:
-        case Language::OpenCLGPU:
+        case clang::hipacc::Language::OpenCLACC:
+        case clang::hipacc::Language::OpenCLCPU:
+        case clang::hipacc::Language::OpenCLGPU:
           LO.OpenCL = 1; break;
       }
       return LO;
@@ -217,7 +217,7 @@ HipaccRewriteAction::CreateASTConsumer(CompilerInstance &CI,
   std::unique_ptr<llvm::raw_pwrite_stream> OS = CI.createOutputFile(out, false, true, "", "", false);
   hipacc_require(OS != nullptr, "Cannot create output stream.");
 
-  return llvm::make_unique<Rewrite>(CI, options, std::move(OS));
+  return std::make_unique<Rewrite>(CI, options, std::move(OS));
 }
 
 
@@ -326,14 +326,14 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   // include .cu or .h files for normal kernels
   switch (compilerOptions.getTargetLang()) {
     default: break;
-    case Language::C99:
+    case clang::hipacc::Language::C99:
       for (auto map : KernelDeclMap) {
         newStr += "#include \"";
         newStr += map.second->getFileName();
         newStr += ".cc\"\n";
       }
       break;
-    case Language::CUDA:
+    case clang::hipacc::Language::CUDA:
       if (compilerOptions.fuseKernels()) {
         for (auto map : KernelDeclMap) {
           if (!dataDeps->isFusible(map.second)) {
@@ -1545,7 +1545,7 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
 
   auto skip_mte = [&] (Expr *expr) -> Expr * {
     if (auto mte = dyn_cast<MaterializeTemporaryExpr>(expr))
-      return mte->GetTemporaryExpr();
+      return mte->getSubExpr();
     return expr;
   };
 
@@ -1967,8 +1967,8 @@ void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
 //  #ifdef USE_JIT_ESTIMATE
 //  switch (compilerOptions.getTargetLang()) {
 //    default: return K->setDefaultConfig();
-//    case Language::CUDA:
-//    case Language::OpenCLGPU:
+//    case clang::hipacc::Language::CUDA:
+//    case clang::hipacc::Language::OpenCLGPU:
 //      if (!targetDevice.isARMGPU())
 //        break;
 //  }
@@ -2103,13 +2103,13 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
   // preprocessor defines
   std::string KID = K->getKernelName();
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
+    case clang::hipacc::Language::C99:
+    case clang::hipacc::Language::OpenCLACC:
+    case clang::hipacc::Language::OpenCLCPU:
+    case clang::hipacc::Language::OpenCLGPU:
       OS << "#define " << KID << "PPT " << K->getPixelsPerThread() << "\n";
       break;
-    case Language::CUDA:
+    case clang::hipacc::Language::CUDA:
       break;
   }
   OS << "\n";
@@ -2172,7 +2172,7 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
 
     // instantiate reduction
     switch (compilerOptions.getTargetLang()) {
-      case Language::C99:
+      case clang::hipacc::Language::C99:
         OS << "BINNING_CPU_2D(";
         OS << K->getBinningName() << "2D, "
            << pixelType.getAsString() << ", "
@@ -2182,9 +2182,9 @@ void Rewrite::printBinningFunction(HipaccKernelClass *KC, HipaccKernel *K,
            << KID << "PPT"
            << ")\n\n";
         break;
-      case Language::OpenCLACC:
-      case Language::OpenCLCPU:
-      case Language::OpenCLGPU:
+      case clang::hipacc::Language::OpenCLACC:
+      case clang::hipacc::Language::OpenCLCPU:
+      case clang::hipacc::Language::OpenCLGPU:
         if (compilerOptions.emitOpenCL()) {
           OS << "BINNING_CL_2D_SEGMENTED("
             << K->getBinningName() << "2D, "
@@ -2253,22 +2253,22 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
     OS << "#define USE_OFFSETS\n";
   }
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
+    case clang::hipacc::Language::C99:
       if (compilerOptions.useOpenMP()) {
         OS << "#define USE_OPENMP\n";
       }
       OS << "#include \"hipacc_cpu_red.hpp\"\n\n";
       break;
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
+    case clang::hipacc::Language::OpenCLACC:
+    case clang::hipacc::Language::OpenCLCPU:
+    case clang::hipacc::Language::OpenCLGPU:
       if (compilerOptions.useTextureMemory() &&
           compilerOptions.getTextureType() == Texture::Array2D) {
         OS << "#define USE_ARRAY_2D\n";
       }
       OS << "#include \"hipacc_cl_red.hpp\"\n\n";
       break;
-    case Language::CUDA:
+    case clang::hipacc::Language::CUDA:
       if (compilerOptions.useTextureMemory() &&
           compilerOptions.getTextureType() == Texture::Array2D) {
         OS << "#define USE_ARRAY_2D\n";
@@ -2281,7 +2281,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
   // write kernel name and qualifiers
   switch (compilerOptions.getTargetLang()) {
     default: break;
-    case Language::CUDA:
+    case clang::hipacc::Language::CUDA:
       OS << "__device__ ";
       break;
   }
@@ -2309,16 +2309,16 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
 
   // instantiate reduction
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99:
+    case clang::hipacc::Language::C99:
       // 2D reduction
       OS << "REDUCTION_CPU_2D(" << K->getReduceName() << "2D, "
          << fun->getReturnType().getAsString() << ", "
          << K->getReduceName() << ", "
          << "PPT)\n";
       break;
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:
+    case clang::hipacc::Language::OpenCLACC:
+    case clang::hipacc::Language::OpenCLCPU:
+    case clang::hipacc::Language::OpenCLGPU:
       // 2D reduction
       OS << "REDUCTION_CL_2D(" << K->getReduceName() << "2D, "
          << fun->getReturnType().getAsString() << ", "
@@ -2330,7 +2330,7 @@ void Rewrite::printReductionFunction(HipaccKernelClass *KC, HipaccKernel *K,
          << fun->getReturnType().getAsString() << ", "
          << K->getReduceName() << ")\n";
       break;
-    case Language::CUDA:
+    case clang::hipacc::Language::CUDA:
       // 2D CUDA array definition - only required if Array2D is selected
       OS << "texture<" << fun->getReturnType().getAsString()
          << ", cudaTextureType2D, cudaReadModeElementType> _tex"
@@ -2352,11 +2352,11 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   std::string filename(file);
   std::string ifdef("_" + file + "_");
   switch (compilerOptions.getTargetLang()) {
-    case Language::C99:          filename += ".cc"; ifdef += "CC_"; break;
-    case Language::CUDA:         filename += ".cu"; ifdef += "CU_"; break;
-    case Language::OpenCLACC:
-    case Language::OpenCLCPU:
-    case Language::OpenCLGPU:    filename += ".cl"; ifdef += "CL_"; break;
+    case clang::hipacc::Language::C99:          filename += ".cc"; ifdef += "CC_"; break;
+    case clang::hipacc::Language::CUDA:         filename += ".cu"; ifdef += "CU_"; break;
+    case clang::hipacc::Language::OpenCLACC:
+    case clang::hipacc::Language::OpenCLCPU:
+    case clang::hipacc::Language::OpenCLGPU:    filename += ".cl"; ifdef += "CL_"; break;
   }
 
   // open file stream using own file descriptor. We need to call fsync() to
@@ -2377,7 +2377,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // preprocessor defines
   switch (compilerOptions.getTargetLang()) {
     default: break;
-    case Language::CUDA:
+    case clang::hipacc::Language::CUDA:
       OS << "#include \"hipacc_types.hpp\"\n"
          << "#include \"hipacc_math_functions.hpp\"\n\n";
       // TODO: remove when fixed upstream (not yet fixed despite upstream patch having been committed on 2019-06-05)
@@ -2405,7 +2405,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
       switch (compilerOptions.getTargetLang()) {
         default: break;
-        case Language::CUDA:
+        case clang::hipacc::Language::CUDA:
           // texture and surface declarations
           if (KC->getMemAccess(arg) == WRITE_ONLY) {
             if (K->useTextureMemory(Acc) == Texture::Array2D)
@@ -2434,15 +2434,15 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
 
       if (Acc->getInterpolationMode() > Interpolate::NN) {
         switch (compilerOptions.getTargetLang()) {
-          case Language::C99:
+          case clang::hipacc::Language::C99:
             target_interpolation_include = "#include \"hipacc_cpu_interpolate.hpp\"\n\n";
             break;
-          case Language::CUDA:
+          case clang::hipacc::Language::CUDA:
             target_interpolation_include = "#include \"hipacc_cu_interpolate.hpp\"\n\n";
             break;
-          case Language::OpenCLACC:
-          case Language::OpenCLCPU:
-          case Language::OpenCLGPU:
+          case clang::hipacc::Language::OpenCLACC:
+          case clang::hipacc::Language::OpenCLCPU:
+          case clang::hipacc::Language::OpenCLGPU:
             target_interpolation_include = "#include \"hipacc_cl_interpolate.hpp\"\n\n";
             break;
         }
@@ -2477,15 +2477,15 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (auto Mask = K->getMaskFromMapping(arg)) {
       if (Mask->isConstant()) {
         switch (compilerOptions.getTargetLang()) {
-          case Language::OpenCLACC:
-          case Language::OpenCLCPU:
-          case Language::OpenCLGPU:
+          case clang::hipacc::Language::OpenCLACC:
+          case clang::hipacc::Language::OpenCLCPU:
+          case clang::hipacc::Language::OpenCLGPU:
             OS << "__constant ";
             break;
-          case Language::CUDA:
+          case clang::hipacc::Language::CUDA:
             OS << "__device__ __constant__ ";
             break;
-          case Language::C99:
+          case clang::hipacc::Language::C99:
             OS << "static const ";
             break;
         }
@@ -2514,7 +2514,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         // for other back ends, the mask will be added as kernel parameter
         switch (compilerOptions.getTargetLang()) {
           default: break;
-          case Language::CUDA:
+          case clang::hipacc::Language::CUDA:
             OS << "__device__ __constant__ " << Mask->getTypeStr() << " "
                << Mask->getName() << K->getName() << "[" << Mask->getSizeYStr()
                << "][" << Mask->getSizeXStr() << "];\n\n";
@@ -2537,8 +2537,8 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         InterpolationDefinitionsLocal.end());
 
     switch (compilerOptions.getTargetLang()) {
-      case Language::C99:
-      case Language::CUDA:
+      case clang::hipacc::Language::C99:
+      case clang::hipacc::Language::CUDA:
         if (emitHints) {
           // emit interpolation definitions via auxiliary header file to obey ODR rule
           for (auto str : InterpolationDefinitionsLocal)
@@ -2565,12 +2565,12 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   // function definitions
   for (auto fun : K->getFunctionCalls()) {
     switch (compilerOptions.getTargetLang()) {
-      case Language::C99:
-      case Language::OpenCLACC:
-      case Language::OpenCLCPU:
-      case Language::OpenCLGPU:
+      case clang::hipacc::Language::C99:
+      case clang::hipacc::Language::OpenCLACC:
+      case clang::hipacc::Language::OpenCLCPU:
+      case clang::hipacc::Language::OpenCLGPU:
         OS << "inline "; break;
-      case Language::CUDA:
+      case clang::hipacc::Language::CUDA:
         OS << "__inline__ __device__ "; break;
     }
     fun->print(OS, Policy);
@@ -2584,15 +2584,15 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
   if (!bKernelPrinted) {
     // write kernel name and qualifiers
     switch (compilerOptions.getTargetLang()) {
-      case Language::C99:
-      case Language::CUDA:
+      case clang::hipacc::Language::C99:
+      case clang::hipacc::Language::CUDA:
         OS << "__global__ ";
         OS << "__launch_bounds__ (" << K->getNumThreadsX() << "*"
             << K->getNumThreadsY() << ") ";
         break;
-      case Language::OpenCLACC:
-      case Language::OpenCLCPU:
-      case Language::OpenCLGPU:
+      case clang::hipacc::Language::OpenCLACC:
+      case clang::hipacc::Language::OpenCLCPU:
+      case clang::hipacc::Language::OpenCLGPU:
         if (compilerOptions.useTextureMemory() &&
             compilerOptions.getTextureType() == Texture::Array2D) {
           OS << "__constant sampler_t " << D->getNameInfo().getAsString()
@@ -2627,7 +2627,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
         if (Mask->isConstant())
           continue;
         switch (compilerOptions.getTargetLang()) {
-          case Language::C99:
+          case clang::hipacc::Language::C99:
             if (comma++)
               OS << ", ";
             OS << "const "
@@ -2636,16 +2636,16 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
                << "[" << Mask->getSizeYStr() << "]"
                << "[" << Mask->getSizeXStr() << "]";
             break;
-          case Language::OpenCLACC:
-          case Language::OpenCLCPU:
-          case Language::OpenCLGPU:
+          case clang::hipacc::Language::OpenCLACC:
+          case clang::hipacc::Language::OpenCLCPU:
+          case clang::hipacc::Language::OpenCLGPU:
             if (comma++)
               OS << ", ";
             OS << "__constant ";
             T.getAsStringInternal(Name, Policy);
             OS << Name;
             break;
-          case Language::CUDA:
+          case clang::hipacc::Language::CUDA:
             // mask/domain is declared as constant memory
             break;
         }
@@ -2656,7 +2656,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
     if (auto Acc = K->getImgFromMapping(FD)) {
       MemoryAccess mem_acc = KC->getMemAccess(FD);
       switch (compilerOptions.getTargetLang()) {
-        case Language::C99: {
+        case clang::hipacc::Language::C99: {
           if (comma++)
             OS << ", ";
           if (mem_acc == READ_ONLY)
@@ -2673,7 +2673,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           // OS << "[static const restrict 2048][4096]";
           }
           break;
-        case Language::CUDA:
+        case clang::hipacc::Language::CUDA:
           if (K->useTextureMemory(Acc) != Texture::None &&
               K->useTextureMemory(Acc) != Texture::Ldg) // no parameter is emitted for textures
             continue;
@@ -2691,9 +2691,9 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
             OS << Name;
           }
           break;
-        case Language::OpenCLACC:
-        case Language::OpenCLCPU:
-        case Language::OpenCLGPU:
+        case clang::hipacc::Language::OpenCLACC:
+        case clang::hipacc::Language::OpenCLCPU:
+        case clang::hipacc::Language::OpenCLGPU:
           // __global keyword to specify memory location is only needed for OpenCL
           if (comma++)
             OS << ", ";

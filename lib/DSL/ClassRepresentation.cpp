@@ -530,17 +530,16 @@ void HipaccKernel::createArgInfo() {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
               Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
                     getImgFromMapping(arg.field)->getImage()->getSizeX()),
-                  ArrayType::Normal, false)), QT.getAsString(), "cl_mem",
-              arg.name, arg.field);
+                    nullptr, ArrayType::Normal, false)),
+              QT.getAsString(), "cl_mem", arg.name, arg.field);
         } else {
           addParam(Ctx.getPointerType(QT), Ctx.getPointerType(QT),
               Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
                     getImgFromMapping(arg.field)->getImage()->getSizeX()),
-                  ArrayType::Normal, false)),
+                    nullptr, ArrayType::Normal, false)),
               Ctx.getPointerType(QT).getAsString(), "cl_mem", arg.name,
               arg.field);
         }
-
         // add types for image width/height plus stride
         addParam(Ctx.getConstType(Ctx.IntTy), arg.name + "_width", nullptr);
         addParam(Ctx.getConstType(Ctx.IntTy), arg.name + "_height", nullptr);
@@ -561,8 +560,8 @@ void HipaccKernel::createArgInfo() {
         break;
       case HipaccKernelClass::FieldKind::Mask:
         QTtmp = Ctx.getPointerType(Ctx.getConstantArrayType(QT, llvm::APInt(32,
-                getMaskFromMapping(arg.field)->getSizeX()), ArrayType::Normal,
-              false));
+                getMaskFromMapping(arg.field)->getSizeX()),
+                nullptr, ArrayType::Normal, false));
         // OpenCL non-constant mask
         if (!getMaskFromMapping(arg.field)->isConstant()) {
           addParam(QTtmp, Ctx.getPointerType(QT), QTtmp, QTtmp.getAsString(),

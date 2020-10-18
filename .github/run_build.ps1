@@ -17,7 +17,7 @@ if ( -not ( Test-Path "$Workspace/hipacc" -PathType Container ) ) {
 New-Item -ItemType Directory -Force -Path "$Env:TEMP/target" | Out-Null
 New-Item -ItemType Directory -Force -Path "$Env:TEMP/build" | Out-Null
 
-$Env:Path="C:/LLVM_8.0.1-minimal/bin;$Env:Path"
+$Env:Path="C:/LLVM_10.0.1-minimal/bin;$Env:Path"
 
 cd "$Env:TEMP/build"
 if ( $UseNinja ) {

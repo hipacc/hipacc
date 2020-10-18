@@ -746,8 +746,8 @@ Stmt *ASTTranslate::Hipacc(Stmt *S) {
       QT = Acc->getImage()->getType();
       QT.removeLocalConst();
 
-      QT = Ctx.getConstantArrayType(QT, SX, ArrayType::Normal, 0);
-      QT = Ctx.getConstantArrayType(QT, SY, ArrayType::Normal, 0);
+      QT = Ctx.getConstantArrayType(QT, SX, nullptr, ArrayType::Normal, 0);
+      QT = Ctx.getConstantArrayType(QT, SY, nullptr, ArrayType::Normal, 0);
 
       switch (compilerOptions.getTargetLang()) {
         default: break;
@@ -1473,8 +1473,7 @@ Expr *ASTTranslate::VisitCallExprTranslate(CallExpr *E) {
           hipacc_require(false, "widening of intrinsic functions not supported currently");
         }
         if (compilerOptions.emitCUDA() && nameDC.at(nameDC.length()-1)!='f' &&
-            !QT->isVectorType() &&
-			QT->getAs<BuiltinType>()->getKind() == BuiltinType::Float) {
+            !QT->isVectorType() && QT->getAs<BuiltinType>()->getKind() == BuiltinType::Float) {
           llvm::errs() << "Error: " << nameDC <<
             " is not supported for float in CUDA, use " << nameDC << "f instead!\n";
           exit(EXIT_FAILURE);
