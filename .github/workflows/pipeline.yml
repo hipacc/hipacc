@@ -74,7 +74,7 @@ jobs:
     runs-on: windows-2019
     steps:
       - name: Setup environment
-        run: echo "::set-env name=DOCKER_IMAGE::oreiche/hipacc-windows-minimal:v2.0"
+        run: echo "::set-env name=DOCKER_IMAGE::oreiche/hipacc-windows-minimal:v3.0"
         shell: bash
 
       - name: Checkout sources
@@ -96,8 +96,6 @@ jobs:
 
       # Run only CPU tests, as GitHub's CI runner does not have GPU support
       - name: Run sample tests
-        # Do not run Windows tests for every pull request
-        if: ${{ github.event_name != 'pull_request' }}
         run: docker exec hipacc powershell hipacc/.github/run_tests.ps1 -DHIPACC_SAMPLE_CUDA=OFF -DHIPACC_SAMPLE_OPENCL_GPU=OFF
 
       # On failure: Upload build artifacts
