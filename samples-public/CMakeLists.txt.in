@@ -23,7 +23,9 @@ option(HIPACC_SAMPLE_CPU_SSE4.2 "Enable SSE4.2 instruction set for CPU samples" 
 option(HIPACC_SAMPLE_CPU_AVX    "Enable AVX instruction set for CPU samples" ON)
 option(HIPACC_SAMPLE_CPU_AVX2   "Enable AVX2 instruction set for CPU samples" ON)
 
-option(HIPACC_SAMPLE_CUDA       "Enable CUDA samples" ON)
+option(HIPACC_SAMPLE_CUDA_FUSION   "Enable kernel fusion for CUDA samples" ON)
+option(HIPACC_SAMPLE_CUDA_LOCAL    "Enable local memory use for CUDA samples" ON)
+option(HIPACC_SAMPLE_CUDA_PPT      "Enable thread coarsening for CUDA samples" ON)
 
 if(OpenCL_FOUND)
     option(HIPACC_SAMPLE_OPENCL_CPU "Enable CPU targets for OpenCL samples" ON)
@@ -183,7 +185,7 @@ endmacro()
 
 macro(add_hipacc_sample_cuda)
 
-    set(options HIDE)
+    set(options HIDE FUSION LOCAL PPT)
     set(oneValueArgs)
     set(multiValueArgs)
 
@@ -195,55 +197,77 @@ macro(add_hipacc_sample_cuda)
 
     get_filename_component(SAMPLE_NAME "${CMAKE_CURRENT_LIST_DIR}" NAME)
 
-    if(NOT HIPACC_SAMPLE_CUDA)
-        message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda (CUDA disabled)")
+    set(_CUDA_TARGET_CONFIG Default)
+
+    if(ARG_CUDA_FUSION)
+        if(HIPACC_SAMPLE_CUDA_FUSION)
+	    list(APPEND _CUDA_TARGET_CONFIG FUSION)
+        else()
+	    message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda_Fusion (CUDA kernel fusion disabled)")
+        endif()
+    endif()
+
+    if(ARG_CUDA_LOCAL)
+        if(HIPACC_SAMPLE_CUDA_LOCAL)
+	    list(APPEND _CUDA_TARGET_CONFIG LOCAL)
+        else()
+	    message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda_Local (CUDA local memory disabled)")
+        endif()
+    endif()
+
+    if(ARG_CUDA_PPT)
+        if(HIPACC_SAMPLE_CUDA_PPT)
+	    list(APPEND _CUDA_TARGET_CONFIG PPT)
+        else()
+	    message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda_Ppt (CUDA thread coarsening disabled)")
+        endif()
+    endif()
+
+    check_language(CUDA)
+
+    if(CMAKE_CUDA_COMPILER)
+        foreach(_TARGET_CONFIG IN LISTS _CUDA_TARGET_CONFIG)
+            project(${SAMPLE_NAME}_Cuda_${_TARGET_CONFIG} LANGUAGES CXX CUDA)
+
+            if(${ARG_CUDA_HIDE})
+                set(_MSG_ADDITION "(hidden)")
+            else()
+                unset(_MSG_ADDITION)
+            endif()
+
+            message(STATUS "Add sample ${SAMPLE_CATEGORY}/${PROJECT_NAME} ${_MSG_ADDITION}")
+
+            add_executable(${PROJECT_NAME})
+
+            string(TOLOWER ${_TARGET_CONFIG} _TARGET_CONFIG_LOW)
+            file(STRINGS "${HIPACC_SAMPLES_DIR}/common/config/cuda-${_TARGET_CONFIG_LOW}.conf" _CONFIG_FILE NEWLINE_CONSUME)
+            string(REPLACE "\n" ";" _CONFIG_FILE ${_COMMON_CONFIG_FILE} ${_CONFIG_FILE})
+
+            add_hipacc_sources(TARGET ${PROJECT_NAME} PRIVATE
+                               TARGET_ARCH CUDA
+                               SOURCES ${CMAKE_CURRENT_LIST_DIR}/src/main.cpp
+                               INCLUDE_DIRS ${HIPACC_SAMPLES_DIR}/common
+                               OPTIONS "${_CONFIG_FILE}")
+
+            if(NOT ${ARG_CUDA_HIDE})
+                add_test(NAME ${PROJECT_NAME}
+                        COMMAND $<TARGET_FILE:${PROJECT_NAME}>
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+            endif()
+
+            set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${SAMPLE_CATEGORY})
+
+            target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)
+
+            if(HIPACC_SAMPLE_USE_OPENCV)
+                target_compile_options(${PROJECT_NAME} PRIVATE -DUSE_OPENCV
+                                                               -DIMAGE_BASE_PATH="${HIPACC_SAMPLES_DIR}/common/img/")
+                target_link_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
+                target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
+            endif()
+        endforeach()
     else()
-
-      check_language(CUDA)
-
-      if(CMAKE_CUDA_COMPILER)
-
-          project(${SAMPLE_NAME}_Cuda LANGUAGES CXX CUDA)
-
-          if(${ARG_CUDA_HIDE})
-              set(_MSG_ADDITION "(hidden)")
-          else()
-              unset(_MSG_ADDITION)
-          endif()
-
-          message(STATUS "Add sample ${SAMPLE_CATEGORY}/${PROJECT_NAME} ${_MSG_ADDITION}")
-
-          add_executable(${PROJECT_NAME})
-
-          file(STRINGS "${HIPACC_SAMPLES_DIR}/common/config/cuda.conf" _CONFIG_FILE NEWLINE_CONSUME)
-          string(REPLACE "\n" ";" _CONFIG_FILE ${_COMMON_CONFIG_FILE} ${_CONFIG_FILE})
-
-          add_hipacc_sources(TARGET ${PROJECT_NAME} PRIVATE
-                             TARGET_ARCH CUDA
-                             SOURCES ${CMAKE_CURRENT_LIST_DIR}/src/main.cpp
-                             INCLUDE_DIRS ${HIPACC_SAMPLES_DIR}/common
-                             OPTIONS "${_CONFIG_FILE}")
-
-          if(NOT ${ARG_CUDA_HIDE})
-              add_test(NAME ${PROJECT_NAME}
-                      COMMAND $<TARGET_FILE:${PROJECT_NAME}>
-                      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
-          endif()
-
-          set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${SAMPLE_CATEGORY})
-
-          target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)
-
-          if(HIPACC_SAMPLE_USE_OPENCV)
-              target_compile_options(${PROJECT_NAME} PRIVATE -DUSE_OPENCV
-                                                             -DIMAGE_BASE_PATH="${HIPACC_SAMPLES_DIR}/common/img/")
-              target_link_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
-              target_link_libraries(${PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
-          endif()
-
-      else()
-          message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda (CUDA missing)")
-      endif()
+        message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda (CUDA missing)")
     endif()
 
 endmacro()
