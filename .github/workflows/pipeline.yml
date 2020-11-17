@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - name: Setup environment
-        run: echo "::set-env name=DOCKER_IMAGE::docker.pkg.github.com/hipacc/docker/ubuntu-minimal:v2.0"
+        run: echo "DOCKER_IMAGE=docker.pkg.github.com/hipacc/docker/ubuntu-minimal:v2.0" >> $GITHUB_ENV
 
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -74,7 +74,7 @@ jobs:
     runs-on: windows-2019
     steps:
       - name: Setup environment
-        run: echo "::set-env name=DOCKER_IMAGE::oreiche/hipacc-windows-minimal:v3.0"
+        run: echo "DOCKER_IMAGE=oreiche/hipacc-windows-minimal:v3.0" >> $GITHUB_ENV
         shell: bash
 
       - name: Checkout sources
