@@ -92,8 +92,8 @@ find_program(clang       NAMES clang       PATHS ${LLVM_TOOLS_BINARY_DIR})
 find_package(CUDA)
 find_package(OpenCL)
 
-if(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "7.0")
-    message(WARNING "At least CUDA version 7.0 required, but found CUDA version ${CUDA_VERSION}.")
+if(CUDA_FOUND AND CUDA_VERSION VERSION_LESS "10.0")
+    message(WARNING "At least CUDA version 10.0 required, but found CUDA version ${CUDA_VERSION}.")
     set(CUDA_FOUND FALSE)
 endif()
 
@@ -204,7 +204,7 @@ install(FILES "${CMAKE_BINARY_DIR}/export/hipacc-config-version.cmake" DESTINATI
 # enable static code analysis by cppcheck
 include(CppcheckTargets OPTIONAL RESULT_VARIABLE CppcheckTargets_FOUND)
 if(CppcheckTargets_FOUND)
-    LIST(APPEND CPPCHECK_CUSTOM_ARGUMENTS --std=c++11 -DCLANG_VERSION_MAJOR=8 -D__clang__ -DCUDA_VERSION=7000)
+    LIST(APPEND CPPCHECK_CUSTOM_ARGUMENTS --std=c++11 -DCLANG_VERSION_MAJOR=10 -D__clang__ -DCUDA_VERSION=10000)
 else()
     # stub macro, so we do not need to check CppcheckTargets_FOUND everywhere add_cppcheck() is used
     macro(add_cppcheck)

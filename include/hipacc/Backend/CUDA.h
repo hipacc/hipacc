@@ -62,6 +62,7 @@ namespace Backend
       NvccPath,           //!< ID of the "nvcc compiler" switch
       CCBinPath,          //!< ID of the "cross compiler" switch
       FuseKernel,         //!< ID of the "use kernel fusion" switch
+      UseGraph,           //!< ID of the "use cuda graph" switch
     };
 
 

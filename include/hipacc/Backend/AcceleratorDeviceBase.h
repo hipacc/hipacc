@@ -386,6 +386,28 @@ namespace Backend
 
         typedef CommonDefines::OptionParsers::OnOff   OptionParser;   //!< Type definition for the option parser for this switch.
       };
+
+      /** \brief  The switch type for the "cuda graph" switch. */
+      struct UseGraph final
+      {
+        /** \brief  Returns the command argument for this switch. */
+        inline static std::string Key()                 { return "-use-graph"; }
+
+        /** \brief  Returns the additional options string for this switch. */
+        inline static std::string AdditionalOptions()   { return "<o>"; }
+
+        /** \brief  Returns the description for this switch. */
+        inline static std::string Description()
+        {
+          std::string strDescription("");
+
+          strDescription += "Enable/disable usage of cuda graph\n";
+          strDescription += "Valid values: 'on' and 'off'";
+          return strDescription;
+        }
+
+        typedef CommonDefines::OptionParsers::OnOff   OptionParser;   //!< Type definition for the option parser for this switch.
+      };
     };
   };
 } // end namespace Backend

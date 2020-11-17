@@ -56,6 +56,7 @@ CUDA::CodeGenerator::CodeGenerator(::clang::hipacc::CompilerOptions *pCompilerOp
   _InitSwitch<AcceleratorDeviceSwitches::NvccPath       >(CompilerSwitchTypeEnum::NvccPath);
   _InitSwitch<AcceleratorDeviceSwitches::CCBinPath      >(CompilerSwitchTypeEnum::CCBinPath);
   _InitSwitch<AcceleratorDeviceSwitches::FuseKernel     >(CompilerSwitchTypeEnum::FuseKernel);
+  _InitSwitch<AcceleratorDeviceSwitches::UseGraph       >(CompilerSwitchTypeEnum::UseGraph);
 }
 
 
@@ -137,6 +138,12 @@ size_t CUDA::CodeGenerator::_HandleSwitch(CompilerSwitchTypeEnum eSwitch, Common
   case CompilerSwitchTypeEnum::FuseKernel:
     {
       GetCompilerOptions().setFuseKernels(_ParseOption<AcceleratorDeviceSwitches::FuseKernel>(rvecArguments, szCurrentIndex));
+      ++szReturnIndex;
+    }
+    break;
+  case CompilerSwitchTypeEnum::UseGraph:
+    {
+      GetCompilerOptions().setUseGraph(_ParseOption<AcceleratorDeviceSwitches::UseGraph>(rvecArguments, szCurrentIndex));
       ++szReturnIndex;
     }
     break;

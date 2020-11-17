@@ -31,8 +31,8 @@
 
 #include <cuda.h>
 
-#if CUDA_VERSION < 7000
-#error "CUDA 7.0 or higher required!"
+#if CUDA_VERSION < 10000
+#error "CUDA 10.0 or higher required!"
 #endif
 
 #include <nvrtc.h>
@@ -255,8 +255,9 @@ void hipaccCopyMemoryRegion(const HipaccAccessor<T> &src,
 void hipaccLaunchKernel(const void *kernel, std::string const& kernel_name, dim3 &grid,
                         dim3 &block, void **args, bool print_timing = false, const int shared_memory_size = 0);
 template <typename KernelFunction, typename... KernelParameters>
-void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridDim, dim3 const &blockDim, HipaccExecutionParameterCuda const& ep,
-                        bool print_timing, size_t shared_memory, KernelParameters &&... parameters);
+void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridDim, dim3 const &blockDim, HipaccExecutionParameterCuda const& ep, bool print_timing, size_t shared_memory, KernelParameters &&... parameters);
+template <typename KernelFunction, typename... KernelParameters>
+void hipaccLaunchKernelCudaGraph(KernelFunction const &kernel_function, dim3 const &gridDim, dim3 const &blockDim, HipaccExecutionParameterCuda const& ep, cudaGraph_t &graph, cudaGraphNode_t &graphNode, std::vector<cudaGraphNode_t> &graphNodeDeps, cudaKernelNodeParams &kernelNodeArgs, size_t shared_memory, KernelParameters &&... parameters);
 inline HipaccExecutionParameterCuda hipaccMapExecutionParameter(HipaccExecutionParameterCuda ep) { return ep; }
 
 //
@@ -279,7 +280,9 @@ HipaccImageCuda<T> hipaccCreateArray2D(T *host_mem, size_t width, size_t height)
 template <typename T, typename TI>
 TI hipaccCreatePyramidImage(const TI &base, size_t width, size_t height);
 template <typename T> void hipaccWriteMemory(HipaccImageCuda<T> &img, T *host_mem);
+template <typename T> void hipaccWriteMemoryCudaGraph(HipaccImageCuda<T> &img, T *host_mem, cudaGraph_t &graph, cudaGraphNode_t &graphNode, std::vector<cudaGraphNode_t> &graphNodeDeps, cudaMemcpy3DParms &memcpyArgs);
 template <typename T> T *hipaccReadMemory(const HipaccImageCuda<T> &img);
+template <typename T> T *hipaccReadMemoryCudaGraph(const HipaccImageCuda<T> &img, cudaGraph_t &graph, cudaGraphNode_t &graphNode, std::vector<cudaGraphNode_t> &graphNodeDeps, cudaMemcpy3DParms &memcpyArgs);
 template <typename T> HipaccImageCuda<T> hipaccMapMemory(HipaccImageCuda<T> img) { return img; }
 template <typename T>
 void hipaccBindTexture(hipaccMemoryType mem_type, const textureReference *tex,

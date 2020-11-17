@@ -115,6 +115,53 @@ void hipaccWriteMemory(HipaccImageCuda<T> &img, T *host_mem) {
   }
 }
 
+// Write to memory
+template <typename T>
+void hipaccWriteMemoryCudaGraph(HipaccImageCuda<T> &img, T *host_mem, cudaGraph_t &graph, cudaGraphNode_t &graphNode, std::vector<cudaGraphNode_t> &graphNodeDeps, cudaMemcpy3DParms &memcpyArgs) {
+  if (!img || host_mem == nullptr)
+    return;
+
+  size_t width = img->get_width();
+  size_t height = img->get_height();
+  size_t stride = img->get_stride();
+  if (host_mem != img->get_host_memory()) // copy if user provides host data
+    std::copy(host_mem, host_mem + width * height, img->get_host_memory());
+
+  cudaError_t err;
+  if (img->get_mem_type() == hipaccMemoryType::Array2D ||
+      img->get_mem_type() == hipaccMemoryType::Surface) {
+    // TODO
+    assert(false && "hipacc memory type not supported for cuda graph");
+  } else {
+    if (stride > width) {
+      memcpyArgs.srcArray = NULL;
+      memcpyArgs.srcPos = make_cudaPos(0, 0, 0);
+      memcpyArgs.srcPtr = make_cudaPitchedPtr(host_mem, sizeof(T)*width, width, height);
+      memcpyArgs.dstArray = NULL;
+      memcpyArgs.dstPos = make_cudaPos(0, 0, 0);
+      memcpyArgs.dstPtr = make_cudaPitchedPtr(img->get_device_memory(), sizeof(T)*stride, stride, height);
+      memcpyArgs.extent = make_cudaExtent(sizeof(T)*width, sizeof(T)*height, 1);
+      memcpyArgs.kind = cudaMemcpyHostToDevice;
+    } else {
+      memcpyArgs.srcArray = NULL;
+      memcpyArgs.srcPos = make_cudaPos(0, 0, 0);
+      memcpyArgs.srcPtr = make_cudaPitchedPtr(host_mem, sizeof(T)*width*height, width*height, 1);
+      memcpyArgs.dstArray = NULL;
+      memcpyArgs.dstPos = make_cudaPos(0, 0, 0);
+      memcpyArgs.dstPtr = make_cudaPitchedPtr(img->get_device_memory(), sizeof(T)*width*height, width*height, 1);
+      memcpyArgs.extent = make_cudaExtent(sizeof(T)*width*height, 1, 1);
+      memcpyArgs.kind = cudaMemcpyHostToDevice;
+    }
+    if (graphNodeDeps.empty()) {
+      err = cudaGraphAddMemcpyNode(&graphNode, graph, NULL, 0, &memcpyArgs);
+      checkErr(err, (std::string("cudaGraphAddMemcpyNode(") + __FUNCTION__ + ")"));
+    } else {
+      err = cudaGraphAddMemcpyNode(&graphNode, graph, graphNodeDeps.data(), graphNodeDeps.size(), &memcpyArgs);
+      checkErr(err, (std::string("cudaGraphAddMemcpyNode(") + __FUNCTION__ + ")"));
+    }
+  }
+}
+
 // Read from memory
 template <typename T> T *hipaccReadMemory(const HipaccImageCuda<T> &img) {
   size_t width = img->get_width();
@@ -141,6 +188,43 @@ template <typename T> T *hipaccReadMemory(const HipaccImageCuda<T> &img) {
                      sizeof(T) * width * height, cudaMemcpyDeviceToHost);
       checkErr(err, "cudaMemcpy()");
     }
+  }
+  return img->get_host_memory();
+}
+
+// Read from memory
+template <typename T> T *hipaccReadMemoryCudaGraph(const HipaccImageCuda<T> &img, cudaGraph_t &graph, cudaGraphNode_t &graphNode, std::vector<cudaGraphNode_t> &graphNodeDeps, cudaMemcpy3DParms &memcpyArgs) {
+  size_t width = img->get_width();
+  size_t height = img->get_height();
+  size_t stride = img->get_stride();
+
+  cudaError_t err;
+  if (img->get_mem_type() == hipaccMemoryType::Array2D ||
+      img->get_mem_type() == hipaccMemoryType::Surface) {
+    // TODO
+    assert(false && "hipacc memory type not supported for cuda graph");
+  } else {
+    if (stride > width) {
+      memcpyArgs.srcArray = NULL;
+      memcpyArgs.srcPos = make_cudaPos(0, 0, 0);
+      memcpyArgs.srcPtr = make_cudaPitchedPtr(img->get_device_memory(), sizeof(T)*stride, stride, height);
+      memcpyArgs.dstArray = NULL;
+      memcpyArgs.dstPos = make_cudaPos(0, 0, 0);
+      memcpyArgs.dstPtr = make_cudaPitchedPtr(img->get_host_memory(), sizeof(T)*width, width, height);
+      memcpyArgs.extent = make_cudaExtent(sizeof(T)*width, sizeof(T)*height, 1);
+      memcpyArgs.kind = cudaMemcpyDeviceToHost;
+    } else {
+      memcpyArgs.srcArray = NULL;
+      memcpyArgs.srcPos = make_cudaPos(0, 0, 0);
+      memcpyArgs.srcPtr = make_cudaPitchedPtr(img->get_device_memory(), sizeof(T)*width*height, width*height, 1);
+      memcpyArgs.dstArray = NULL;
+      memcpyArgs.dstPos = make_cudaPos(0, 0, 0);
+      memcpyArgs.dstPtr = make_cudaPitchedPtr(img->get_host_memory(), sizeof(T)*width*height, width*height, 1);
+      memcpyArgs.extent = make_cudaExtent(sizeof(T)*width*height, 1, 1);
+      memcpyArgs.kind = cudaMemcpyDeviceToHost;
+    }
+		err = cudaGraphAddMemcpyNode(&graphNode, graph, graphNodeDeps.data(), graphNodeDeps.size(), &memcpyArgs);
+    checkErr(err, (std::string("cudaGraphAddMemcpyNode(") + __FUNCTION__ + ")"));
   }
   return img->get_host_memory();
 }

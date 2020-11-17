@@ -328,6 +328,33 @@ void hipaccLaunchKernel(KernelFunction const &kernel_function, dim3 const &gridD
   if (ep) ep->post_kernel();
 }
 
+template <typename KernelFunction, typename... KernelParameters>
+void hipaccLaunchKernelCudaGraph(KernelFunction const &kernel_function, dim3 const &gridDim, dim3 const &blockDim, HipaccExecutionParameterCuda const& ep, cudaGraph_t &graph, cudaGraphNode_t &graphNode, std::vector<cudaGraphNode_t> &graphNodeDeps, cudaKernelNodeParams &kernelNodeArgs, size_t shared_memory, KernelParameters &&... parameters)
+{
+  constexpr auto non_zero_num_params = sizeof...(KernelParameters) == 0 ? 1 : sizeof...(KernelParameters);
+  void *argument_ptrs[non_zero_num_params];
+  detail::collect_argument_addresses(argument_ptrs, std::forward<KernelParameters>(parameters)...);
+
+  static_assert(
+      detail::is_invocable<KernelFunction, KernelParameters...>::value,
+      "mismatch of kernel parameters");
+
+  if (ep) ep->pre_kernel();
+
+  kernelNodeArgs.func = reinterpret_cast<void *>(&kernel_function);
+  kernelNodeArgs.gridDim = gridDim;
+  kernelNodeArgs.blockDim = blockDim;
+  kernelNodeArgs.sharedMemBytes = shared_memory;
+  kernelNodeArgs.kernelParams = &(argument_ptrs[0]);
+  kernelNodeArgs.extra = NULL;
+
+  cudaError_t err = cudaGraphAddKernelNode(&graphNode, graph, graphNodeDeps.data(),
+      graphNodeDeps.size(), &kernelNodeArgs);
+  checkErr(err, (std::string("cudaGraphAddKernelNode(") + __FUNCTION__ + ")"));
+
+  if (ep) ep->post_kernel();
+}
+
 //
 // DRIVER API
 //

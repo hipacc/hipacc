@@ -85,8 +85,12 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
     HipaccDevice targetDevice;
     hipacc::Builtin::Context builtins;
     CreateHostStrings stringCreator;
+
+    // Analysis
     HostDataDeps *dataDeps;
     ASTFuse *kernelFuser;
+    std::string cudaGraphStr;
+    std::map<std::string, bool> outputImagesVisitorMap_;
 
     // compiler known/built-in C++ classes
     CompilerKnownClasses compilerClasses;
@@ -126,6 +130,7 @@ class Rewrite : public ASTConsumer,  public RecursiveASTVisitor<Rewrite> {
       stringCreator(CreateHostStrings(options, targetDevice)),
       dataDeps(nullptr),
       kernelFuser(nullptr),
+      cudaGraphStr("graph_"),
       compilerClasses(CompilerKnownClasses()),
       mainFD(nullptr),
       literalCount(0),
@@ -387,7 +392,7 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   CompoundStmt *CS = dyn_cast<CompoundStmt>(mainFD->getBody());
   hipacc_require(CS->size(), "CompoundStmt has no statements.", &Diags, mainFD->getLocation());
 
-  std::string initStr;
+  std::string initStr, cleanupStr;
 
   // get initialization string for run-time
 
@@ -415,6 +420,30 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
   if(!skip_write_init)
       stringCreator.writeInitialization(initStr);
 
+  // write graph global decl in CUDA
+  if (compilerOptions.emitCUDA() && compilerOptions.useGraph()) {
+    initStr += "\n" + stringCreator.getIndent();
+    initStr += "// cuda graph decl\n" + stringCreator.getIndent();
+    initStr += "cudaGraph_t " + cudaGraphStr + ";\n" + stringCreator.getIndent();
+    initStr += "cudaGraphCreate(&" + cudaGraphStr + ", 0);\n" + stringCreator.getIndent();
+    initStr += "cudaGraphExec_t " + cudaGraphStr + "exec_;\n" + stringCreator.getIndent();
+    initStr += "cudaStream_t " + cudaGraphStr + "stream_;\n" + stringCreator.getIndent();
+    initStr += "cudaStreamCreate(&" + cudaGraphStr + "stream_);\n" + stringCreator.getIndent();
+    // graph node dep and args
+    std::string depString("");
+    initStr += "// cuda graph node, dependency and arguments decl\n" + stringCreator.getIndent();
+    for (auto GMap : dataDeps->getGraphNodeDepMap()) {
+      std::string nodeName = GMap.first;
+      std::string nodeDepName = nodeName + "dep_";
+      initStr += "cudaGraphNode_t " + nodeName + ";\n" + stringCreator.getIndent();
+      initStr += "std::vector<cudaGraphNode_t> " + nodeDepName + ";\n" + stringCreator.getIndent();
+      std::string nodeArgName = nodeName + "arg_";
+      bool isMemcpyNode = (nodeName.find("_H2D_") != std::string::npos)||(nodeName.find("_D2H_") != std::string::npos);
+      std::string nodeArgTypeStr = isMemcpyNode ? "cudaMemcpy3DParms" : "cudaKernelNodeParams";
+      initStr += nodeArgTypeStr + " " + nodeArgName + " = {0};\n" + stringCreator.getIndent();
+    }
+  }
+
   // load OpenCL kernel files and compile the OpenCL kernels
   for (auto map : KernelDeclMap)
     stringCreator.writeKernelCompilation(map.second, initStr);
@@ -440,6 +469,15 @@ void Rewrite::HandleTranslationUnit(ASTContext &) {
 
   // insert initialization before first statement
   TextRewriter.InsertTextBefore(CS->body_front()->getBeginLoc(), initStr);
+
+  // insert cleanup before last statement
+  if (compilerOptions.emitCUDA() && compilerOptions.useGraph()) {
+    cleanupStr += "// CUDA Graph clean up\n" + stringCreator.getIndent();
+    cleanupStr += "cudaGraphExecDestroy(" + cudaGraphStr + "exec_);\n" + stringCreator.getIndent();
+    cleanupStr += "cudaGraphDestroy(" + cudaGraphStr + ");\n" + stringCreator.getIndent();
+    cleanupStr += "cudaStreamDestroy(" + cudaGraphStr + "stream_);\n" + stringCreator.getIndent();
+  }
+  TextRewriter.InsertTextBefore(CS->body_back()->getBeginLoc(), cleanupStr);
 
   // get buffer of main file id. If we haven't changed it, then we are done.
   if (auto RewriteBuf = TextRewriter.getRewriteBufferFor(mainFileID)) {
@@ -657,12 +695,20 @@ bool Rewrite::VisitCXXRecordDecl(CXXRecordDecl *D) {
       // reduce function
       if (method->getNameAsString() == "reduce") {
         KC->setReduceFunction(method);
+        //TODO: cuda graph is not supported for reduce function
+        if (compilerOptions.useGraph() && compilerOptions.emitCUDA()) {
+          compilerOptions.setUseGraph(OFF);
+        }
         continue;
       }
 
       // binning function
       if (method->getNameAsString() == "binning") {
         KC->setBinningFunction(method);
+        //TODO: cuda graph is not supported for binning function
+        if (compilerOptions.useGraph() && compilerOptions.emitCUDA()) {
+          compilerOptions.setUseGraph(OFF);
+        }
         continue;
       }
     }
@@ -797,15 +843,36 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           // create memory allocation string
           std::string newStr;
-          stringCreator.writeMemoryAllocation(Img, width_str, height_str,
-              init_str, deep_copy_str, newStr);
+
+          if(!init_str.empty()) {
+            std::string h2dTransferStr;
+            // decouple image H2D transfer from decl
+            stringCreator.writeMemoryAllocation(Img, width_str, height_str, "", deep_copy_str, newStr);
+            if (compilerOptions.useGraph() && compilerOptions.emitCUDA()) {
+              std::string nodeName = dataDeps->getGraphMemcpyNodeName(Img->getName(), init_str, "H2D");
+              std::string nodeDepStr(nodeName + "dep_");
+              std::string nodeArgStr(nodeName + "arg_");
+              stringCreator.addMemoryTransferGraph(Img, init_str, HOST_TO_DEVICE, cudaGraphStr,
+                                                   nodeName, nodeDepStr, nodeArgStr, h2dTransferStr);
+              // add dependencies for other node
+              h2dTransferStr += "\n" + stringCreator.getIndent();
+              for (auto dStr : dataDeps->getGraphMemcpyNodeDepOn(Img->getName(), init_str, "H2D")) {
+                h2dTransferStr += dStr + "dep_.push_back(" + nodeName + ");\n" + stringCreator.getIndent();
+              }
+            } else {
+              stringCreator.writeMemoryTransfer(Img, init_str, HOST_TO_DEVICE, h2dTransferStr);
+            }
+            newStr += "\n" + stringCreator.getIndent();
+            newStr += h2dTransferStr;
+            newStr += "\n" + stringCreator.getIndent();
+          } else {
+            stringCreator.writeMemoryAllocation(Img, width_str, height_str,
+                init_str, deep_copy_str, newStr);
+          }
 
           // rewrite Image definition
           replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
-        }
-
-        else if(constructor_type == "CustomImage")
-        {
+        } else if (constructor_type == "CustomImage") {
           hipacc_require(CCE->getNumArgs() >= 1, "Image constructor expects at least one argument", &Diags, CCE->getLocation());
 
           std::string newStr{};
@@ -815,9 +882,7 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
 
           // rewrite Image definition
           replaceText(D->getBeginLoc(), D->getEndLoc(), ';', newStr);
-        }
-
-        else {
+        } else {
           // TODO: print error message
           hipacc_require(false, "Image constructor type not supported!", &Diags, CCE->getLocation());
         }
@@ -1396,6 +1461,14 @@ bool Rewrite::VisitDeclStmt(DeclStmt *D) {
           if (compilerOptions.fuseKernels() && dataDeps->isFusible(K)) {
             K->setOptimizationOptions(OptimizationOption::KERNEL_FUSE);
           }
+          if (compilerOptions.useGraph() && compilerOptions.emitCUDA()) {
+            std::string nodeName = dataDeps->getGraphKernelNodeName(K->getKernelClass()->getName() + K->getName());
+            std::string nodeDepStr(nodeName + "dep_");
+            std::string nodeArgStr(nodeName + "arg_");
+            K->setGraphNodeName(nodeName);
+            K->setGraphNodeDepName(nodeDepStr);
+            K->setGraphNodeArgName(nodeArgStr);
+          }
 
           // remove kernel declaration
           TextRewriter.RemoveText(D->getSourceRange());
@@ -1508,14 +1581,19 @@ bool Rewrite::VisitFunctionDecl(FunctionDecl *D) {
           hipacc_require(D->getBody(), "function to parse has no body.", &Diags, D->getLocation());
           hipacc_require(isa<CompoundStmt>(D->getBody()), "CompoundStmt for main body expected.", &Diags, D->getLocation());
           mainFD = D;
-
-          // enable kernel fusion for CUDA backend
-          if (compilerOptions.fuseKernels() && compilerOptions.emitCUDA()) {
+          // additional data dep analysis for CUDA backend
+          if (compilerOptions.emitCUDA() && (compilerOptions.fuseKernels() || compilerOptions.useGraph())) {
             AnalysisDeclContext AC(0, mainFD);
-            dataDeps = HostDataDeps::parse(Context, AC, compilerClasses,
+            dataDeps = HostDataDeps::parse(Context, Policy, AC, compilerClasses,
                 compilerOptions, KernelClassDeclMap);
-            kernelFuser = new ASTFuse(Context, Diags, builtins, compilerOptions,
-                Policy, dataDeps);
+            if (compilerOptions.fuseKernels()) {
+              kernelFuser = new ASTFuse(Context, Diags, builtins, compilerOptions, Policy, dataDeps);
+            }
+            if (compilerOptions.useGraph()) {
+              for (auto img : dataDeps->getOutputImageNames()) {  // record output images
+                outputImagesVisitorMap_[img] = false;
+              }
+            }
           }
         }
       }
@@ -1741,9 +1819,19 @@ bool Rewrite::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
           if (PyrLHS) {
             stringCreator.writeMemoryTransfer(PyrLHS, PyrIdxLHS, data_str,
                 HOST_TO_DEVICE, newStr);
+          } else if (compilerOptions.useGraph() && compilerOptions.emitCUDA()) {
+            std::string nodeName = dataDeps->getGraphMemcpyNodeName(ImgLHS->getName(), data_str, "H2D");
+            std::string nodeDepStr(nodeName + "dep_");
+            std::string nodeArgStr(nodeName + "arg_");
+            stringCreator.addMemoryTransferGraph(ImgLHS, data_str, HOST_TO_DEVICE, cudaGraphStr,
+                                                 nodeName, nodeDepStr, nodeArgStr, newStr);
+            // add dependencies for other node
+            newStr += "\n" + stringCreator.getIndent();
+            for (auto dStr : dataDeps->getGraphMemcpyNodeDepOn(ImgLHS->getName(), data_str, "H2D")) {
+              newStr += dStr + "dep_.push_back(" + nodeName + ");\n" + stringCreator.getIndent();
+            }
           } else {
-            stringCreator.writeMemoryTransfer(ImgLHS, data_str, HOST_TO_DEVICE,
-                newStr);
+            stringCreator.writeMemoryTransfer(ImgLHS, data_str, HOST_TO_DEVICE, newStr);
           }
         }
       }
@@ -1776,6 +1864,7 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
   // c) convert reduced_data() calls
   //    float min = MinReduction.reduced_data();
   // d) convert width()/height() calls
+
 
   if (auto DRE =
       dyn_cast<DeclRefExpr>(E->getImplicitObjectArgument()->IgnoreParenCasts())) {
@@ -1817,8 +1906,14 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           stringCreator.writeFusedKernelCall(K, newStr, kernelFuser);
         } else {
           stringCreator.writeKernelCall(K, newStr);
+          if (compilerOptions.useGraph() && compilerOptions.emitCUDA()) {
+            // add dependencies for other node
+            std::string nodeName = "node_" + K->getKernelClass()->getName() + K->getName() + "_";
+            for (auto dStr : dataDeps->getGraphKernelNodeDepOn(K->getKernelClass()->getName() + K->getName())) {
+              newStr += dStr + "dep_.push_back(" + nodeName + ");\n" + stringCreator.getIndent();
+            }
+          }
         }
-
         // rewrite kernel invocation
         replaceText(E->getBeginLoc(), E->getBeginLoc(), ';', newStr);
       }
@@ -1904,11 +1999,57 @@ bool Rewrite::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           }
           HipaccImage *Img = ImgDeclMap[DRE->getDecl()];
           // create memory transfer string
-          stringCreator.writeMemoryTransfer(Img, "NULL", DEVICE_TO_HOST,
-              newStr);
-          // rewrite Image assignment to memory transfer
-          replaceText(E->getBeginLoc(), E->getEndLoc(), ';', newStr);
+          if (compilerOptions.useGraph() && compilerOptions.emitCUDA()) {
+            // decl node and deps
+            std::string nodeName = dataDeps->getGraphMemcpyNodeName(Img->getName(), Img->getName(), "D2H");
+            std::string nodeDepStr(nodeName + "dep_");
+            std::string nodeArgStr(nodeName + "arg_");
+            stringCreator.addMemoryTransferGraph(Img, "NULL", DEVICE_TO_HOST, cudaGraphStr,
+                                                 nodeName, nodeDepStr, nodeArgStr, newStr);
+            // add dependencies for other node
+            newStr += "\n" + stringCreator.getIndent();
+            for (auto dStr : dataDeps->getGraphMemcpyNodeDepOn(Img->getName(), Img->getName(), "D2H")) {
+              newStr += dStr + "dep_.push_back(" + nodeName + ");\n" + stringCreator.getIndent();
+            }
+            hipacc_require(outputImagesVisitorMap_.count(Img->getName()), "Missing Graph Output Image");
+            outputImagesVisitorMap_[Img->getName()] = true;
+          } else {
+            stringCreator.writeMemoryTransfer(Img, "NULL", DEVICE_TO_HOST, newStr);
+          }
 
+          // additional call for cuda graph
+          if (compilerOptions.useGraph() && compilerOptions.emitCUDA()) {
+            bool allOutputImgVisited = true;
+            hipacc_require(!outputImagesVisitorMap_.empty(), "No Output Image Recorded");
+            for (auto imgMap : outputImagesVisitorMap_) {
+              if (imgMap.second == false) {
+                allOutputImgVisited = false;
+              }
+            }
+            if (allOutputImgVisited) {
+              newStr += "\n" + stringCreator.getIndent();
+              newStr += "\n" + stringCreator.getIndent();
+              newStr += "// CUDA Graph Execution\n" + stringCreator.getIndent();
+              // number of nodes query
+              newStr += "cudaGraphNode_t *nullNode = NULL;\n" + stringCreator.getIndent();
+              newStr += "size_t numNodes = 0;\n" + stringCreator.getIndent();
+              newStr += "cudaGraphGetNodes(" + cudaGraphStr + ", nullNode, &numNodes);\n" + stringCreator.getIndent();
+              newStr += "printf(\"\\nNum of nodes in the graph = \%zu\\n\", numNodes);\n" + stringCreator.getIndent();
+              // cuda graph init
+              newStr += "\n" + stringCreator.getIndent();
+              newStr += "// CUDA Graph Initialization\n" + stringCreator.getIndent();
+              newStr += "cudaGraphInstantiate(&" + cudaGraphStr + "exec_, " + cudaGraphStr + ", NULL, NULL, 0);\n" + stringCreator.getIndent();
+              // cuda graph init
+              newStr += "\n" + stringCreator.getIndent();
+              newStr += "// CUDA Graph Launch\n" + stringCreator.getIndent();
+              newStr += "cudaGraphLaunch(" + cudaGraphStr + "exec_, " + cudaGraphStr + "stream_);\n" + stringCreator.getIndent();
+              newStr += "cudaStreamSynchronize(" + cudaGraphStr + "stream_)";
+            }
+          }
+
+          // rewrite Image assignment to memory transfer
+          SourceRange rangeE(E->getBeginLoc(), E->getEndLoc());
+          TextRewriter.ReplaceText(rangeE, newStr);
           return true;
         }
 

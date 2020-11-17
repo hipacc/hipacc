@@ -52,18 +52,76 @@ void DependencyTracker::VisitDeclStmt(DeclStmt *S) {
         if (DEBUG) std::cout << "  Tracked Image declaration: "
                   << VD->getNameAsString() << std::endl;
 
+        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+
+        if (CCE == nullptr) {
+          // In case image constructor is called with function as parameter
+          // e.g. Image<ushort> image(converter::get_hipacc_image());
+          ExprWithCleanups *EWC = dyn_cast<ExprWithCleanups>(VD->getInit());
+          if (EWC != nullptr) {
+            CCE = dyn_cast<CXXConstructExpr>(EWC->getSubExpr());
+          }
+        }
+
+        hipacc_require(CCE != nullptr, "Not a constructor expression of hipacc::Image");
+        hipacc_require(CCE->getConstructor() != nullptr, "Missing constructor declaration of hipacc::Image");
+        hipacc_require(CCE->getConstructor()->hasAttrs(), "Missing constructor attribute of hipacc::Image");
+
+        std::string constructor_type{};
+
+        for(auto attrib: CCE->getConstructor()->getAttrs()) {
+          if(attrib->getKind() != attr::Annotate)
+            continue;
+
+          constructor_type = cast<AnnotateAttr>(attrib)->getAnnotation();
+          break;
+        }
+
         HipaccImage *Img = new HipaccImage(Context, VD,
             compilerClasses.getFirstTemplateType(VD->getType()));
 
-        //// get the text string for the image width and height
-        //std::string width_str  = convertToString(CCE->getArg(0));
-        //std::string height_str = convertToString(CCE->getArg(1));
+        if(constructor_type == "ArrayAssignment")
+        {
+          hipacc_require(CCE->getNumArgs() == 4,"Image ArrayAssignment constructor is expected to have four arguments");
+          // get the text string for the image width and height
+          std::string width_str  = convertToString(CCE->getArg(0));
+          std::string height_str = convertToString(CCE->getArg(1));
+          // host memory
+          std::string init_str = convertToString(CCE->getArg(2));
+          std::string deep_copy_str = convertToString(CCE->getArg(3));
+
+          if(!init_str.empty()) {
+            dataDeps.addMemcpyNodeGraph(Img->getName(), init_str, "H2D");
+          }
+        } else if(constructor_type == "CustomImage") {
+          // TODO: not supported for cuda graph
+          if (dataDeps.compilerOptions->useGraph() && dataDeps.compilerOptions->emitCUDA()) {
+            dataDeps.compilerOptions->setUseGraph(OFF);
+          }
+        } else {
+          // TODO: print error message
+          hipacc_require(false, "Image constructor type not supported!");
+        }
 
         // store Image definition
         imgDeclMap_[VD] = Img;
         dataDeps.addImage(VD, Img);
         break;
       }
+
+      // found Pyramid decl
+      if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
+            compilerClasses.Pyramid)) {
+        CXXConstructExpr *CCE = dyn_cast<CXXConstructExpr>(VD->getInit());
+        hipacc_require(CCE->getNumArgs() == 2 || CCE->getNumArgs() == 1,
+               "Pyramid definition requires one or two arguments!");
+        //TODO: cuda graph is not supported for pyramid
+        if (dataDeps.compilerOptions->useGraph() && dataDeps.compilerOptions->emitCUDA()) {
+          dataDeps.compilerOptions->setUseGraph(OFF);
+        }
+        break;
+      }
+
 
       // found BoundaryCondition decl
       if (compilerClasses.isTypeOfTemplateClass(VD->getType(),
@@ -465,6 +523,54 @@ void DependencyTracker::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
           dataDeps.runKernel(DRE->getDecl());
           dataDeps.recordVisitedKernelDecl(DRE, visitedKernelDecl_);
         }
+        if (CRD->getNameAsString() == "Image" &&
+            E->getMethodDecl()->getNameAsString() == "data") {
+          std::string varName = DRE->getDecl()->getNameAsString();
+          hipacc_require(imgDeclMap_.count(DRE->getDecl()), "image decl cannot be found");
+          dataDeps.addMemcpyNodeGraph(varName, varName, "D2H");
+        }
+      }
+    }
+  }
+}
+
+
+void DependencyTracker::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
+  if (E->getOperator() == OO_Equal) {
+    if (E->getNumArgs() == 2) {
+      HipaccImage *ImgLHS = nullptr, *ImgRHS = nullptr;
+      // check first parameter
+      if (auto DRE = dyn_cast<DeclRefExpr>(E->getArg(0)->IgnoreParenCasts())) {
+        // check if we have an Image at the LHS
+        if (imgDeclMap_.count(DRE->getDecl())) {
+          ImgLHS = imgDeclMap_[DRE->getDecl()];
+        }
+      }
+      // check second parameter
+      if (auto DRE = dyn_cast<DeclRefExpr>(E->getArg(1)->IgnoreParenCasts())) {
+        // check if we have an Image at the RHS
+        if (imgDeclMap_.count(DRE->getDecl()))
+          ImgRHS = imgDeclMap_[DRE->getDecl()];
+      }
+
+      if (ImgLHS) {
+        std::string newStr;
+        if (ImgLHS && ImgRHS) {
+          // TODO: Img1 = Img2;
+          if (dataDeps.compilerOptions->useGraph() && dataDeps.compilerOptions->emitCUDA()) {
+            dataDeps.compilerOptions->setUseGraph(OFF);
+          }
+        } else {
+          // get the text string for the memory transfer src
+          std::string data_str = convertToString(E->getArg(1));
+          bool write_pointer = true;
+          // TODO: Img1 = Img2.data();
+
+          if (write_pointer) {
+            // get the text string for the memory transfer src
+            dataDeps.addMemcpyNodeGraph(ImgLHS->getName(), data_str, "H2D");
+          }
+        }
       }
     }
   }
@@ -574,6 +680,9 @@ void HostDataDeps::runKernel(ValueDecl *VD) {
   processMap_[kernel->getName()] = proc;
   processVisitorMap_[proc] = false;
 
+  // Add kernel as graph node
+  addKernelNodeGraph(kernel->getName());
+
   // Set process to destination for all predecessor spaces:
   std::vector<Accessor*> accs = kernel->getAccessors();
   for (auto it = accs.begin(); it != accs.end(); ++it) {
@@ -625,6 +734,15 @@ std::vector<HostDataDeps::Space*> HostDataDeps::getOutputSpaces() {
 }
 
 
+std::vector<std::string> HostDataDeps::getOutputImageNames() {
+  std::vector<std::string> ret;
+  for (auto S : getOutputSpaces()) {
+    ret.push_back(S->getImage()->getName());
+  }
+  return ret;
+}
+
+
 void HostDataDeps::markProcess(Process *t) {
   for (auto S: t->getInSpaces()) { markSpace(S); }
 }
@@ -658,6 +776,128 @@ void HostDataDeps::generateSchedule() {
   }
 }
 
+// cuda graph helpers
+void HostDataDeps::insertKernelDependencyGraph(Process* srcP, Process* destP) {
+  std::string srcPName = srcP->getKernel()->getName();
+  std::string srcPNameNode = getKernelNodeName(srcPName);
+  std::string destPName = destP->getKernel()->getName();
+  std::string destPNameNode = getKernelNodeName(destPName);
+
+  hipacc_require(graphNodeDepMap_.count(destPNameNode), "Missing Graph Kernel Node");
+  std::set<std::string> nodeNamesDep = graphNodeDepMap_[destPNameNode];
+  nodeNamesDep.emplace(srcPNameNode);
+  graphNodeDepMap_[destPNameNode] = nodeNamesDep;
+}
+
+void HostDataDeps::insertDestSpaceDependencyGraph(Process* srcP, Space* destS) {
+  std::string srcPName = srcP->getKernel()->getName();
+  std::string srcPNameNode = getKernelNodeName(srcPName);
+  std::string destSName = destS->getImage()->getName();
+  std::string destSNameNode = getMemcpyNodeName(destSName, destSName, "D2H");
+
+  hipacc_require(graphNodeDepMap_.count(destSNameNode), "Missing Graph Memcpy Node");
+  std::set<std::string> nodeNamesDep = graphNodeDepMap_[destSNameNode];
+  nodeNamesDep.emplace(srcPNameNode);
+  graphNodeDepMap_[destSNameNode] = nodeNamesDep;
+}
+
+void HostDataDeps::insertSrcProcessDependencyGraph(Process* srcP, Space* inS) {
+  std::string srcPName = srcP->getKernel()->getName();
+  std::string srcPNameNode = getKernelNodeName(srcPName);
+  std::string inSName = inS->getImage()->getName();
+  hipacc_require(graphImgMemcpyNodeMap_.count(inSName), "Missing Graph Memcpy Node Record");
+  std::string inSNameNode = graphImgMemcpyNodeMap_[inSName];
+  hipacc_require(graphNodeDepMap_.count(srcPNameNode), "Missing Graph Kernel Node");
+  std::set<std::string> nodeNamesDep = graphNodeDepMap_[srcPNameNode];
+  nodeNamesDep.emplace(inSNameNode);
+  graphNodeDepMap_[srcPNameNode] = nodeNamesDep;
+}
+
+void HostDataDeps::buildGraphDependency() {
+  for (auto pL : applicationGraph) {
+    if (pL->size() > 1) {
+      Process* producerP = pL->front();
+      for (auto it = std::next(pL->begin()); it != pL->end(); ++it) {
+        Process *destP = *it;
+        insertKernelDependencyGraph(producerP, destP);
+      }
+    } else {  // D2H memcpy node for dest kernels
+      Process* destP = pL->front();
+      insertDestSpaceDependencyGraph(destP, destP->getOutSpace());
+    }
+    if (isSrc(pL->front())) { // H2D memcpy node for src kernels
+      Process* srcP = pL->front();
+      for (auto S : srcP->getInSpaces()) {
+        insertSrcProcessDependencyGraph(srcP, S);
+      }
+    }
+  }
+}
+
+std::string HostDataDeps::getMemcpyNodeName(std::string imgDst, std::string imgSrc, std::string direction) {
+  std::string nodeName("node_" + imgDst + "_" + imgSrc + "_" + direction + "_");
+  return nodeName;
+}
+
+std::string HostDataDeps::getKernelNodeName(std::string kernelName) {
+  std::string nodeName("node_" + kernelName + "_");
+  return nodeName;
+}
+
+void HostDataDeps::addMemcpyNodeGraph(std::string imgDst, std::string imgSrc, std::string direction) {
+  std::string nodeName = getMemcpyNodeName(imgDst, imgSrc, direction);
+  hipacc_require(!graphNodeDepMap_.count(nodeName), "Duplicate Graph Memcpy Node");
+  graphImgMemcpyNodeMap_[imgDst] = nodeName;
+  std::set<std::string> sNodeDepName;
+  graphNodeDepMap_[nodeName] = sNodeDepName;
+}
+
+void HostDataDeps::addKernelNodeGraph(std::string kernelName) {
+  std::string nodeName = getKernelNodeName(kernelName);
+  hipacc_require(!graphNodeDepMap_.count(nodeName), "Duplicate Graph Kernel Node");
+  std::set<std::string> sNodeDepName;
+  graphNodeDepMap_[nodeName] = sNodeDepName;
+}
+
+std::string HostDataDeps::getGraphMemcpyNodeName(std::string dst, std::string src, std::string dir) {
+  std::string nodeName = getMemcpyNodeName(dst, src, dir);
+  hipacc_require(graphNodeDepMap_.count(nodeName), "Missing Graph Memcpy Node");
+  return nodeName;
+}
+
+std::set<std::string> HostDataDeps::getGraphMemcpyNodeDepOn(std::string dst, std::string src, std::string dir) {
+  std::string nodeName = getMemcpyNodeName(dst, src, dir);
+  hipacc_require(graphNodeDepMap_.count(nodeName), "Missing Graph Memcpy Node");
+  std::set<std::string> nodeNamesDepOn;
+  for (auto GMap : graphNodeDepMap_) {
+    if (GMap.second.find(nodeName) != GMap.second.end()) {
+      nodeNamesDepOn.emplace(GMap.first);
+    }
+  }
+  return nodeNamesDepOn;
+}
+
+std::string HostDataDeps::getGraphKernelNodeName(std::string kernelName) {
+  std::string nodeName = getKernelNodeName(kernelName);
+  hipacc_require(graphNodeDepMap_.count(nodeName), "Missing Graph Kernel Node");
+  return nodeName;
+}
+
+std::set<std::string> HostDataDeps::getGraphKernelNodeDepOn(std::string kernelName) {
+  std::string nodeName = getKernelNodeName(kernelName);
+  hipacc_require(graphNodeDepMap_.count(nodeName), "Missing Graph Kernel Node");
+  std::set<std::string> nodeNamesDepOn;
+  for (auto GMap : graphNodeDepMap_) {
+    if (GMap.second.find(nodeName) != GMap.second.end()) {
+      nodeNamesDepOn.emplace(GMap.first);
+    }
+  }
+  return nodeNamesDepOn;
+}
+
+std::map<std::string, std::set<std::string>> HostDataDeps::getGraphNodeDepMap() const {
+  return graphNodeDepMap_;
+}
 
 // detect simple linear producer-consumer data dependence
 void HostDataDeps::fusibilityAnalysisLinear() {
@@ -701,7 +941,7 @@ void HostDataDeps::fusibilityAnalysisLinear() {
       if ((std::find(VKVP.begin(), VKVP.end(), consumerName) != VKVP.end()) &&
          (std::find(VKVC.begin(), VKVC.end(), producerName) != VKVC.end())) {
         // check shared memory options for local-based fusion
-        if ((KT == LocalOperator) && (!compilerOptions.useLocalMemory())) {
+        if ((KT == LocalOperator) && (!compilerOptions->useLocalMemory())) {
           llvm::errs() << "[Kernel Fusion INFO] hints:\n";
           llvm::errs() << " Kernel \"" << producerName << "\" and \"" << consumerName << "\" can be fused if shared memory option is enabled\n";
         } else {

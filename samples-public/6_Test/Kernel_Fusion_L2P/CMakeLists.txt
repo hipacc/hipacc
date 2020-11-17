@@ -6,5 +6,5 @@ project(${SAMPLE_NAME})
 
 #add_hipacc_sample_dsl()
 #add_hipacc_sample_cpu()
-add_hipacc_sample_cuda(FUSION LOCAL PPT) # kernel fusion is only supported for CUDA
+add_hipacc_sample_cuda(FUSION LOCAL PPT GRAPH) # kernel fusion is only supported for CUDA
 #add_hipacc_sample_opencl(CPU GPU)
