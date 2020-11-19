@@ -602,6 +602,7 @@ class HipaccKernel : public HipaccKernelFeatures {
     unsigned max_size_x_undef, max_size_y_undef;
     unsigned num_threads_x, num_threads_y;
     unsigned num_reg, num_lmem, num_smem, num_cmem;
+    std::string graphName, graphNodeName, graphNodeDepName, graphNodeArgName;
     OptimizationOption OptmOpt;
 
     std::string executionParameter;
@@ -648,7 +649,8 @@ class HipaccKernel : public HipaccKernelFeatures {
       num_reg(0),
       num_lmem(0),
       num_smem(0),
-      num_cmem(0)
+      num_cmem(0),
+      graphName("graph_")
     {
       OptmOpt = OptimizationOption::NONE;
     }
@@ -825,6 +827,16 @@ class HipaccKernel : public HipaccKernelFeatures {
     void setExecutionParameter(std::string const& ep) {
       executionParameter = ep;
     }
+
+    void setGraphName(std::string name) { graphName = name; }
+    void setGraphNodeName(std::string name) { graphNodeName = name; }
+    void setGraphNodeDepName(std::string name) { graphNodeDepName = name; }
+    void setGraphNodeArgName(std::string name) { graphNodeArgName = name; }
+
+    std::string getGraphName() const { return graphName; }
+    std::string getGraphNodeName() const { return graphNodeName; };
+    std::string getGraphNodeDepName() const { return graphNodeDepName; };
+    std::string getGraphNodeArgName() const { return graphNodeArgName; };
 };
 } // namespace hipacc
 } // namespace clang

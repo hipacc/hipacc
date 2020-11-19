@@ -38,6 +38,8 @@
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/StmtVisitor.h>
+#include <clang/AST/Attr.h>
+#include <clang/AST/Type.h>
 #include <clang/Analysis/AnalysisDeclContext.h>
 #include <clang/Analysis/Analyses/PostOrderCFGView.h>
 #include <clang/Basic/Diagnostic.h>
@@ -69,6 +71,7 @@ class DependencyTracker : public StmtVisitor<DependencyTracker> {
     static const bool DEBUG;
 
     ASTContext &Context;
+    PrintingPolicy &Policy;
     CompilerKnownClasses &compilerClasses;
     HostDataDeps &dataDeps;
 
@@ -81,11 +84,11 @@ class DependencyTracker : public StmtVisitor<DependencyTracker> {
     std::vector<VarDecl *> visitedKernelDecl_;
 
   public:
-    DependencyTracker(ASTContext &Context,
+    DependencyTracker(ASTContext &Context, PrintingPolicy &Policy,
                       AnalysisDeclContext &analysisContext,
                       CompilerKnownClasses &compilerClasses,
                       HostDataDeps &dataDeps)
-        : Context(Context), compilerClasses(compilerClasses), dataDeps(dataDeps) {
+        : Context(Context), Policy(Policy), compilerClasses(compilerClasses), dataDeps(dataDeps) {
 
       if (DEBUG) std::cout << "Tracking data dependencies:" << std::endl;
       PostOrderCFGView *POV = analysisContext.getAnalysis<PostOrderCFGView>();
@@ -104,6 +107,15 @@ class DependencyTracker : public StmtVisitor<DependencyTracker> {
 
     void VisitDeclStmt(DeclStmt *S);
     void VisitCXXMemberCallExpr(CXXMemberCallExpr *E);
+    void VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
+
+    std::string convertToString(Stmt *from) {
+      hipacc_require(from != nullptr, "Expected non-null Stmt");
+      std::string SS;
+      llvm::raw_string_ostream S(SS);
+      from->printPretty(S, nullptr, Policy);
+      return S.str();
+    }
 };
 
 
@@ -127,7 +139,7 @@ class HostDataDeps : public ManagedAnalysis {
 
     // member variables
     CompilerKnownClasses compilerClasses;
-    CompilerOptions compilerOptions;
+    CompilerOptions *compilerOptions;
 
     llvm::DenseMap<ValueDecl *, Accessor *> accMap_;
     llvm::DenseMap<ValueDecl *, Image *> imgMap_;
@@ -143,6 +155,9 @@ class HostDataDeps : public ManagedAnalysis {
     llvm::DenseMap<RecordDecl *, HipaccKernelClass *> KernelClassDeclMap;
     std::map<Process *, bool> processVisitorMap_;
     std::map<Process *, std::vector<std::string>> visitedKernelDeclNameMap_;
+
+    std::map<std::string, std::set<std::string>> graphNodeDepMap_;
+    std::map<std::string, std::string> graphImgMemcpyNodeMap_;
 
     // application graph representations
     std::map<Process *, std::list<Process*> *> FusibleKernelListsMap;
@@ -461,6 +476,14 @@ class HostDataDeps : public ManagedAnalysis {
     void markProcess(Process *t);
     void markSpace(Space *s);
     void generateSchedule();
+    void insertKernelDependencyGraph(Process* srcP, Process* destP);
+    void insertDestSpaceDependencyGraph(Process* srcP, Space* destS);
+    void insertSrcProcessDependencyGraph(Process* srcP, Space* inS);
+    void buildGraphDependency();
+    void addMemcpyNodeGraph(std::string imgDst, std::string imgSrc, std::string direction);
+    void addKernelNodeGraph(std::string kernelName);
+    std::string getMemcpyNodeName(std::string imgDst, std::string imgSrc, std::string direction);
+    std::string getKernelNodeName(std::string kernelName);
 
     // kernel fusion analysis
     void computeGraphWeight();
@@ -477,8 +500,16 @@ class HostDataDeps : public ManagedAnalysis {
     bool isSrc(Process *P);
     bool isDest(Process *P);
     std::set<partitionBlockNames> getFusibleSetNames() const;
+    std::string getGraphMemcpyNodeName(std::string dst, std::string src, std::string dir);
+    std::string getGraphKernelNodeName(std::string kernelName);
+    std::set<std::string> getGraphMemcpyNodeDepOn(std::string dst, std::string src, std::string dir);
+    std::set<std::string> getGraphKernelNodeDepOn(std::string kernelName);
+    std::map<std::string, std::set<std::string>> getGraphNodeDepMap() const;
+    std::vector<std::string> getOutputImageNames();
+
 
     static HostDataDeps *parse(ASTContext &Context,
+        PrintingPolicy &Policy,
         AnalysisDeclContext &analysisContext,
         CompilerKnownClasses &compilerClasses,
         CompilerOptions &compilerOptions,
@@ -486,12 +517,17 @@ class HostDataDeps : public ManagedAnalysis {
 
       static HostDataDeps dataDeps;
       dataDeps.compilerClasses = compilerClasses;
-      dataDeps.compilerOptions = compilerOptions;
+      dataDeps.compilerOptions = &compilerOptions;
       dataDeps.KernelClassDeclMap = KernelClassDeclMap;
-      DependencyTracker DT(Context, analysisContext, compilerClasses, dataDeps);
-
+      DependencyTracker DT(Context, Policy, analysisContext, compilerClasses, dataDeps);
       dataDeps.generateSchedule();
-      dataDeps.fusibilityAnalysisLinear();
+      if (dataDeps.compilerOptions->fuseKernels()) {
+        dataDeps.fusibilityAnalysisLinear();
+      }
+      if (dataDeps.compilerOptions->useGraph()) {
+        dataDeps.buildGraphDependency();
+      }
+
       return &dataDeps;
     }
 };

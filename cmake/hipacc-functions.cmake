@@ -18,7 +18,7 @@ get_filename_component(CCBIN_PATH "${CMAKE_CXX_COMPILER}" DIRECTORY)
 
 message(STATUS "Found Hipacc: ${HIPACC_PATH}")
 
-find_package(CUDA 7)
+find_package(CUDA 10)
 find_package(OpenCL)
 
 find_program(NVCC_EXE nvcc HINTS ${CUDA_TOOLKIT_ROOT_DIR}/bin/)

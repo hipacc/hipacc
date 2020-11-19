@@ -205,7 +205,7 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
     MemoryTransferDirection direction, std::string &resultStr) {
   switch (direction) {
     case HOST_TO_DEVICE:
-      resultStr += "hipaccWriteMemory(";
+      resultStr += "hipaccWriteMemory<" + Img->getTypeStr() + ">(";
       resultStr += Img->getName();
       resultStr += ", " + mem + ");";
       break;
@@ -214,6 +214,40 @@ void CreateHostStrings::writeMemoryTransfer(HipaccImage *Img, std::string mem,
       resultStr += Img->getName() + ");";
       break;
     case DEVICE_TO_DEVICE:
+      resultStr += "hipaccCopyMemory(";
+      resultStr += mem + ", ";
+      resultStr += Img->getName() + ");";
+      break;
+    case HOST_TO_HOST:
+      hipacc_require(0, "Unsupported memory transfer direction!");
+      break;
+  }
+}
+
+void CreateHostStrings::addMemoryTransferGraph(HipaccImage *Img, std::string mem,
+    MemoryTransferDirection direction, std::string &graphStr, std::string &nodeStr,
+    std::string &nodeDepStr, std::string &nodeArgStr, std::string &resultStr) {
+  switch (direction) {
+    case HOST_TO_DEVICE:
+      resultStr += "hipaccWriteMemoryCudaGraph<" + Img->getTypeStr() + ">(";
+      resultStr += Img->getName();
+      resultStr += ", " + mem;
+      resultStr += ", " + graphStr;
+      resultStr += ", " + nodeStr;
+      resultStr += ", " + nodeDepStr;
+      resultStr += ", " + nodeArgStr;
+      resultStr += ");";
+      break;
+    case DEVICE_TO_HOST:
+      resultStr += "hipaccReadMemoryCudaGraph<" + Img->getTypeStr() + ">(";
+      resultStr += Img->getName();
+      resultStr += ", " + graphStr;
+      resultStr += ", " + nodeStr;
+      resultStr += ", " + nodeDepStr;
+      resultStr += ", " + nodeArgStr;
+      resultStr += ");";
+      break;
+    case DEVICE_TO_DEVICE: // TODO
       resultStr += "hipaccCopyMemory(";
       resultStr += mem + ", ";
       resultStr += Img->getName() + ");";
@@ -848,13 +882,23 @@ void CreateHostStrings::writeKernelCall(HipaccKernel *K, std::string &resultStr)
         resultStr += hostArgNames[i] + img_mem;
         break;
       case Language::CUDA:
-
         if (cur_arg++ == 0) {
-          resultStr += "hipaccLaunchKernel(" + kernel_name;
-          resultStr += ", " + gridStr;
+          if (options.useGraph()) {
+            resultStr += "hipaccLaunchKernelCudaGraph(";
+          } else {
+            resultStr += "hipaccLaunchKernel(";
+          }
+          resultStr += kernel_name + ", " + gridStr;
           resultStr += ", " + blockStr;
           resultStr += ", " + execution_parameter_name;
-          resultStr += ", " + print_timing;
+          if (options.useGraph()) {
+            resultStr += ", " + K->getGraphName();
+            resultStr += ", " + K->getGraphNodeName();
+            resultStr += ", " + K->getGraphNodeDepName();
+            resultStr += ", " + K->getGraphNodeArgName();
+          } else {
+            resultStr += ", " + print_timing;
+          }
           resultStr += ", 0, ";
         }
         else resultStr += ", ";

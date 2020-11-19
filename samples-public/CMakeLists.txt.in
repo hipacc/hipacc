@@ -26,6 +26,7 @@ option(HIPACC_SAMPLE_CPU_AVX2   "Enable AVX2 instruction set for CPU samples" ON
 option(HIPACC_SAMPLE_CUDA_FUSION   "Enable kernel fusion for CUDA samples" ON)
 option(HIPACC_SAMPLE_CUDA_LOCAL    "Enable local memory use for CUDA samples" ON)
 option(HIPACC_SAMPLE_CUDA_PPT      "Enable thread coarsening for CUDA samples" ON)
+option(HIPACC_SAMPLE_CUDA_GRAPH    "Enable thread coarsening for CUDA samples" ON)
 
 if(OpenCL_FOUND)
     option(HIPACC_SAMPLE_OPENCL_CPU "Enable CPU targets for OpenCL samples" ON)
@@ -185,7 +186,7 @@ endmacro()
 
 macro(add_hipacc_sample_cuda)
 
-    set(options HIDE FUSION LOCAL PPT)
+    set(options HIDE FUSION LOCAL PPT GRAPH)
     set(oneValueArgs)
     set(multiValueArgs)
 
@@ -220,6 +221,14 @@ macro(add_hipacc_sample_cuda)
 	    list(APPEND _CUDA_TARGET_CONFIG PPT)
         else()
 	    message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda_Ppt (CUDA thread coarsening disabled)")
+        endif()
+    endif()
+
+    if(ARG_CUDA_GRAPH)
+        if(HIPACC_SAMPLE_CUDA_GRAPH)
+	    list(APPEND _CUDA_TARGET_CONFIG GRAPH)
+        else()
+	    message(STATUS "Skip sample ${SAMPLE_CATEGORY}/${SAMPLE_NAME}_Cuda_Graph (CUDA graph disabled)")
         endif()
     endif()
 

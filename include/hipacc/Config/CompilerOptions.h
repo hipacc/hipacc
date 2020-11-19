@@ -91,6 +91,7 @@ class CompilerOptions {
     CompilerOption multiple_pixels;
     CompilerOption vectorize_kernels;
     CompilerOption fuse_kernels;
+    CompilerOption use_graph;
     // user defined values for target code features
     int kernel_config_x, kernel_config_y;
     int reduce_config_num_warps, reduce_config_num_units;
@@ -138,6 +139,7 @@ class CompilerOptions {
       multiple_pixels(AUTO),
       vectorize_kernels(OFF),
       fuse_kernels(OFF),
+      use_graph(OFF),
       kernel_config_x(128),
       kernel_config_y(1),
       reduce_config_num_warps(16),
@@ -206,6 +208,9 @@ class CompilerOptions {
     bool fuseKernels(CompilerOption option=option_ou) {
       return fuse_kernels & option;
     }
+    bool useGraph(CompilerOption option=option_ou) {
+      return use_graph & option;
+    }
     bool multiplePixelsPerThread(CompilerOption option=option_ou) {
       return multiple_pixels & option;
     }
@@ -227,6 +232,7 @@ class CompilerOptions {
     void setLocalMemory(CompilerOption o) { local_memory = o; }
     void setVectorizeKernels(CompilerOption o) { vectorize_kernels = o; }
     void setFuseKernels(CompilerOption o) { fuse_kernels = o; }
+    void setUseGraph(CompilerOption o) { use_graph = o; }
 
     void setTextureMemory(Texture type) {
       texture_type = type;
@@ -339,6 +345,8 @@ class CompilerOptions {
       getOptionAsString(vectorize_kernels);
       llvm::errs() << "\n  Usage of kernel fusion: ";
       getOptionAsString(fuse_kernels);
+      llvm::errs() << "\n  Usage of cuda graph: ";
+      getOptionAsString(use_graph);
       llvm::errs() << "\n\n";
     }
 };
