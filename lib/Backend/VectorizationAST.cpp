@@ -30,7 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#include "hipacc/Backend/VectorizationAST.h"
+#include "VectorizationAST.h"
+
 #include <algorithm>
 #include <sstream>
 

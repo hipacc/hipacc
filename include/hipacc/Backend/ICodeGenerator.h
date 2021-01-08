@@ -33,9 +33,10 @@
 #ifndef _BACKEND_ICODEGENERATOR_H_
 #define _BACKEND_ICODEGENERATOR_H_
 
+#include "CommonDefines.h"
+
 #include <memory>
 #include <string>
-#include "CommonDefines.h"
 
 namespace clang
 {

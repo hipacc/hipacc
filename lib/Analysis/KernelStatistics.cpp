@@ -35,7 +35,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "hipacc/Analysis/KernelStatistics.h"
+#include "KernelStatistics.h"
 
 #include <clang/Analysis/Analyses/PostOrderCFGView.h>
 #include <clang/AST/ASTContext.h>

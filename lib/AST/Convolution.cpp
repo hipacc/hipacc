@@ -32,7 +32,7 @@
 // includes for numeric_limits
 #include <limits>
 
-#include "hipacc/AST/ASTTranslate.h"
+#include "ASTTranslate.h"
 
 using namespace clang;
 using namespace hipacc;

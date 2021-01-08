@@ -33,7 +33,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "hipacc/Analysis/HostDataDeps.h"
+#include "HostDataDeps.h"
 
 namespace clang {
 namespace hipacc {

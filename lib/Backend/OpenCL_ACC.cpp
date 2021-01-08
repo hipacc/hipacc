@@ -30,8 +30,8 @@
 //
 //===--------------------------------------------------------------------------------------===//
 
-#include "hipacc/Backend/OpenCL_ACC.h"
-#include "hipacc/Device/TargetDescription.h"
+#include "OpenCL_ACC.h"
+#include "TargetDescription.h"
 
 using namespace clang::hipacc::Backend;
 

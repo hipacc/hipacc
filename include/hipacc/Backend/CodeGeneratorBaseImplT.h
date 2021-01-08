@@ -33,14 +33,14 @@
 #ifndef _BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
 #define _BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
 
-#include "hipacc/Config/CompilerOptions.h"
+#include "CompilerOptions.h"
 #include "BackendExceptions.h"
 #include "CommonDefines.h"
 #include "ICodeGenerator.h"
+
 #include <map>
 #include <string>
 #include <utility>
-
 
 namespace clang
 {

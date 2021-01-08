@@ -33,13 +33,14 @@
 #ifndef _BACKEND_CPU_X86_H_
 #define _BACKEND_CPU_X86_H_
 
-#include "hipacc/DSL/ClassRepresentation.h"
+#include "ClassRepresentation.h"
 #include "ClangASTHelper.h"
 #include "CodeGeneratorBaseImplT.h"
 #include "InstructionSets.h"
 #include "OptionParsers.h"
 #include "VectorizationAST.h"
 #include "Vectorizer.h"
+
 #include <list>
 #include <set>
 #include <utility>
@@ -344,7 +345,7 @@ namespace Backend
       HipaccKernel          *_pKernel;            //!< A pointer to the encapsulated HIPAcc kernel object.
 
 
-      /** \brief    Looks up the index of a kernel parameter in the kernel function argument list. 
+      /** \brief    Looks up the index of a kernel parameter in the kernel function argument list.
        *  \param    crstrParamName  The name of the kernel parameter whose index shall be retrieved.
        *  \return   If successful, the index of the kernel parameter, and <b>-1</b> otherwise. */
       int                         _FindKernelParamIndex( const std::string &crstrParamName );
@@ -528,7 +529,7 @@ namespace Backend
        *  \remarks  This function will generate a vectorized helper function for each different conversion path. */
       ::clang::Expr*          _ConvertMaskUp(Vectorization::VectorElementTypes eTargetElementType, ::clang::Expr *pMaskExpr, const VectorIndex &crVectorIndex);
 
- 
+
       /** \brief  Helper function for the easy creation of vector index objects.
        *  \param  eElementType  The requested vector element type for the correct matching of the group index.
        *  \param  szGroupIndex  The index of the element group in the virtual vector. */
@@ -574,7 +575,7 @@ namespace Backend
       VASTExportInstructionSet(size_t VectorWidth, ::clang::ASTContext &rAstContext, Vectorization::InstructionSetBasePtr spInstructionSet);
 
 
-      /** \brief  Exports a VAST function declaration node into a Clang function declaration object. 
+      /** \brief  Exports a VAST function declaration node into a Clang function declaration object.
        *  \param  spVASTFunction  A shared pointer to VAST function declaration node, which shall be exported. */
       ::clang::FunctionDecl* ExportVASTFunction(Vectorization::AST::FunctionDeclarationPtr spVASTFunction);
 

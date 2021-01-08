@@ -33,7 +33,7 @@
 #ifndef _SIMDTYPES_H_
 #define _SIMDTYPES_H_
 
-#include "hipacc/Device/Builtins.h"
+#include "Builtins.h"
 
 namespace clang {
 namespace hipacc {

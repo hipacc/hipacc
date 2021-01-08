@@ -35,8 +35,8 @@
 #ifndef _CREATE_HOST_STRINGS_H_
 #define _CREATE_HOST_STRINGS_H_
 
-#include "hipacc/DSL/ClassRepresentation.h"
-#include "hipacc/AST/ASTFuse.h"
+#include "ClassRepresentation.h"
+#include "ASTFuse.h"
 
 #include <string>
 

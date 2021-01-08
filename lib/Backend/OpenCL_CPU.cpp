@@ -30,7 +30,7 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#include "hipacc/Backend/OpenCL_CPU.h"
+#include "OpenCL_CPU.h"
 
 using namespace clang::hipacc::Backend;
 using namespace clang::hipacc;

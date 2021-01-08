@@ -31,17 +31,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "hipacc/Rewrite/Rewrite.h"
-#include "hipacc/Config/config.h"
-#include "hipacc/AST/ASTNode.h"
-#include "hipacc/AST/ASTTranslate.h"
-#include "hipacc/AST/ASTFuse.h"
-#include "hipacc/Analysis/HostDataDeps.h"
-#include "hipacc/Backend/ICodeGenerator.h"
-#include "hipacc/Config/CompilerOptions.h"
-#include "hipacc/Device/TargetDescription.h"
-#include "hipacc/DSL/CompilerKnownClasses.h"
-#include "hipacc/Rewrite/CreateHostStrings.h"
+#include "Rewrite.h"
+#include "ASTNode.h"
+#include "ASTTranslate.h"
+#include "ASTFuse.h"
+#include "HostDataDeps.h"
+#include "ICodeGenerator.h"
+#include "CompilerOptions.h"
+#include "TargetDescription.h"
+#include "CompilerKnownClasses.h"
+#include "CreateHostStrings.h"
 
 #include <clang/AST/ASTConsumer.h>
 #include <clang/AST/RecursiveASTVisitor.h>
@@ -2105,6 +2104,7 @@ bool Rewrite::VisitCallExpr (CallExpr *E) {
 
 
 void Rewrite::setKernelConfiguration(HipaccKernelClass *KC, HipaccKernel *K) {
+// TODO:
 //  #ifdef USE_JIT_ESTIMATE
 //  switch (compilerOptions.getTargetLang()) {
 //    default: return K->setDefaultConfig();
@@ -2558,7 +2558,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
               OS << "texture<";
               OS << T.getAsString();
               switch (K->useTextureMemory(Acc)) {
-                default: hipacc_require(0, "texture expected.");
+                default: hipacc_require(0, "texture expected."); break;
                 case Texture::Linear1D:
                   OS << ", cudaTextureType1D, cudaReadModeElementType> _tex";
                   break;
@@ -2690,6 +2690,7 @@ void Rewrite::printKernelFunction(FunctionDecl *D, HipaccKernelClass *KC,
           OS << "#include \"interpolation_def.h\"\n";
           break;
         }
+        break;
       default:
         // add interpolation definitions to kernel file
         for (auto str : InterpolationDefinitionsLocal)

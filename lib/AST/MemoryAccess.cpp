@@ -32,7 +32,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "hipacc/AST/ASTTranslate.h"
+#include "ASTTranslate.h"
 #include <iostream>
 
 using namespace clang;

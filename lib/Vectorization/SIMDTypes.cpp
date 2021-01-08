@@ -30,9 +30,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "hipacc/Vectorization/SIMDTypes.h"
-#include "hipacc/AST/ASTNode.h"
-#include "hipacc/Config/CompilerOptions.h"
+#include "SIMDTypes.h"
+#include "ASTNode.h"
+#include "CompilerOptions.h"
 
 #include <clang/AST/Type.h>
 

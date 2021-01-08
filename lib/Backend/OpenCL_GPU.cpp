@@ -30,8 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#include "hipacc/Backend/OpenCL_GPU.h"
-#include "hipacc/Device/TargetDescription.h"
+#include "OpenCL_GPU.h"
+#include "TargetDescription.h"
 
 using namespace clang::hipacc::Backend;
 

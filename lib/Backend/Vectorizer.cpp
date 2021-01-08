@@ -30,7 +30,8 @@
 //
 //===-----------------------------------------------------------------------------------===//
 
-#include "hipacc/Backend/Vectorizer.h"
+#include "Vectorizer.h"
+
 #include <cstdint>
 #include <fstream>
 #include <string>

@@ -30,9 +30,10 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#include "hipacc/AST/ASTNode.h"
-#include "hipacc/AST/ASTTranslate.h"
-#include "hipacc/Backend/CPU_x86.h"
+#include "ASTNode.h"
+#include "ASTTranslate.h"
+#include "CPU_x86.h"
+
 #include <algorithm>
 #include <map>
 #include <sstream>

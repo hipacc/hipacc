@@ -32,7 +32,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "hipacc/Rewrite/CreateHostStrings.h"
+#include "CreateHostStrings.h"
 
 using namespace clang;
 using namespace hipacc;

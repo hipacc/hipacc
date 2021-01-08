@@ -41,12 +41,12 @@
 #include <clang/Sema/Ownership.h>
 #include <llvm/ADT/SmallVector.h>
 
-#include "hipacc/Analysis/KernelStatistics.h"
-#include "hipacc/AST/ASTNode.h"
-#include "hipacc/Config/CompilerOptions.h"
-#include "hipacc/Device/Builtins.h"
-#include "hipacc/DSL/ClassRepresentation.h"
-#include "hipacc/Vectorization/SIMDTypes.h"
+#include "KernelStatistics.h"
+#include "ASTNode.h"
+#include "CompilerOptions.h"
+#include "Builtins.h"
+#include "ClassRepresentation.h"
+#include "SIMDTypes.h"
 
 #include <functional>
 #include <queue>

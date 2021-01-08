@@ -34,7 +34,7 @@
 #ifndef _BUILTINS_H_
 #define _BUILTINS_H_
 
-#include "hipacc/Config/CompilerOptions.h"
+#include "CompilerOptions.h"
 
 #include <clang/AST/ASTContext.h>
 #include <clang/Basic/Builtins.h>
@@ -47,7 +47,7 @@ enum ID {
   #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID) HIPACCBI##NAME,
   #define CUDABUILTIN(NAME, TYPE, CUDANAME) CUDABI##CUDANAME,
   #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) OPENCLBI##OPENCLNAME,
-  #include "hipacc/Device/Builtins.def"
+  #include "Builtins.def"
   LastBuiltin
 };
 

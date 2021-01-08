@@ -33,10 +33,11 @@
 #ifndef _BACKEND_ACCELERATOR_DEVICE_BASE_H_
 #define _BACKEND_ACCELERATOR_DEVICE_BASE_H_
 
-#include "hipacc/Device/TargetDevices.h"
+#include "TargetDevices.h"
 #include "BackendExceptions.h"
 #include "CommonDefines.h"
 #include "OptionParsers.h"
+
 #include <string>
 
 namespace clang

@@ -33,8 +33,9 @@
 #ifndef _BACKEND_OPTION_PARSERS_H_
 #define _BACKEND_OPTION_PARSERS_H_
 
-#include "hipacc/Config/CompilerOptions.h"
+#include "CompilerOptions.h"
 #include "CommonDefines.h"
+
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -34,6 +34,7 @@
 #define _BACKEND_COMMON_DEFINES_H_
 
 #include "BackendExceptions.h"
+
 #include <string>
 #include <utility>
 #include <vector>

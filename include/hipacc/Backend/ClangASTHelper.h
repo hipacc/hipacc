@@ -33,8 +33,12 @@
 #ifndef _BACKEND_CLANG_AST_HELPER_H_
 #define _BACKEND_CLANG_AST_HELPER_H_
 
-#include "hipacc/AST/ASTNode.h"
+#include <clang/AST/DeclCXX.h>
+#include <clang/AST/StmtOpenMP.h>
 #include <clang/AST/ExprCXX.h>
+
+#include "ASTNode.h"
+
 #include <limits>
 #include <string>
 
@@ -250,7 +254,7 @@ namespace Backend
      *  \param  bIsLValue           Specifies, whether the reinterpret cast expression is used as a L-value of another expression. */
     ::clang::CXXReinterpretCastExpr*  CreateReinterpretCast(::clang::Expr *pOperandExpression, const ::clang::QualType &crReturnType, ::clang::CastKind eCastKind, bool bIsLValue = false);
 
-    /** \brief  Creates a <b>return</b> statement. 
+    /** \brief  Creates a <b>return</b> statement.
      *  \param  pReturnValue  A pointer to an expression object whose result shall be returned by the <b>return</b> statement (if set to <b>nullptr</b>, nothing will be returned). */
     ::clang::ReturnStmt*              CreateReturnStatement(::clang::Expr *pReturnValue = nullptr);
 

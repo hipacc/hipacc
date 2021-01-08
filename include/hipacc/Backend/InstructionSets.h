@@ -36,6 +36,7 @@
 #include "BackendExceptions.h"
 #include "ClangASTHelper.h"
 #include "VectorizationAST.h"
+
 #include <map>
 #include <memory>
 #include <string>
@@ -360,7 +361,7 @@ namespace Vectorization
     }
 
 
-    /** \brief  Reverts the order of expressions in a vector of expression objects. 
+    /** \brief  Reverts the order of expressions in a vector of expression objects.
      *  \param  crvecExpressions  The vector of expression objects, whose order shall be reverted. */
     ClangASTHelper::ExpressionVectorType _SwapExpressionOrder(const ClangASTHelper::ExpressionVectorType &crvecExpressions);
 

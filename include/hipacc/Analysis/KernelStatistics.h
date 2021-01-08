@@ -38,8 +38,8 @@
 #ifndef _KERNELSTATISTICS_H_
 #define _KERNELSTATISTICS_H_
 
-#include "hipacc/Device/TargetDescription.h"
-#include "hipacc/DSL/CompilerKnownClasses.h"
+#include "TargetDescription.h"
+#include "CompilerKnownClasses.h"
 
 #include <clang/Analysis/AnalysisDeclContext.h>
 
