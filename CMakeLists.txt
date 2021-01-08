@@ -123,8 +123,6 @@ add_subdirectory(compiler)
 add_subdirectory(lib)
 add_subdirectory(tools)
 
-# add *d to output binaries
-set(CMAKE_DEBUG_POSTFIX d)
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file (
@@ -147,7 +145,7 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/dsl/ DESTINATION include/dsl COMPONENT hea
 # copy system's clang headers to current build dir
 execute_process(COMMAND ${clang} -print-file-name=include
                 OUTPUT_VARIABLE CLANG_INCLUDE_DIRS OUTPUT_STRIP_TRAILING_WHITESPACE)
-install(DIRECTORY ${CLANG_INCLUDE_DIRS}/ DESTINATION include/clang COMPONENT headers_dsl)
+install(DIRECTORY ${CLANG_INCLUDE_DIRS}/ DESTINATION include/clang COMPONENT headers_clang)
 
 # copy system's libcxx to current build dir
 install(DIRECTORY ${LLVM_INCLUDE_DIRS}/c++/v1/ DESTINATION include/c++/v1 COMPONENT libcxx)
@@ -162,6 +160,9 @@ if(DoxygenTargets_FOUND)
                 INSTALL_DESTINATION doxygen
                 INSTALL_COMPONENT documentation)
 endif()
+
+# add *d to output binaries
+set(CMAKE_DEBUG_POSTFIX d)
 
 # create release packages for Ubuntu/Windows/macOS
 execute_process(COMMAND ${llvm-config} --shared-mode
