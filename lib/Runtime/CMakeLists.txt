@@ -10,7 +10,8 @@ target_include_directories(hipaccRuntime
   PRIVATE $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>
   PUBLIC  ${CMAKE_SOURCE_DIR}/runtime
           ${CMAKE_BINARY_DIR}/runtime)
-target_include_directories(hipaccRuntime SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+target_include_directories(hipaccRuntime SYSTEM
+  PRIVATE ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(hipaccRuntime
   PRIVATE ${LLVM_DEFINITIONS})
 

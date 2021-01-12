@@ -33,11 +33,11 @@
 #ifndef _BACKEND_CLANG_AST_HELPER_H_
 #define _BACKEND_CLANG_AST_HELPER_H_
 
+#include "hipacc/AST/ASTNode.h"
+
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/StmtOpenMP.h>
 #include <clang/AST/ExprCXX.h>
-
-#include "ASTNode.h"
 
 #include <limits>
 #include <string>

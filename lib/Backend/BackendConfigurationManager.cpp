@@ -30,12 +30,12 @@
 //
 //===--------------------------------------------------------------------------------===//
 
-#include "BackendConfigurationManager.h"
-#include "CPU_x86.h"
-#include "CUDA.h"
-#include "OpenCL_ACC.h"
-#include "OpenCL_CPU.h"
-#include "OpenCL_GPU.h"
+#include "hipacc/Backend/BackendConfigurationManager.h"
+#include "hipacc/Backend/CPU_x86.h"
+#include "hipacc/Backend/CUDA.h"
+#include "hipacc/Backend/OpenCL_ACC.h"
+#include "hipacc/Backend/OpenCL_CPU.h"
+#include "hipacc/Backend/OpenCL_GPU.h"
 
 using namespace clang::hipacc::Backend;
 using namespace clang::hipacc;

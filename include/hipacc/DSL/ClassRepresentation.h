@@ -34,9 +34,9 @@
 #ifndef _CLASS_REPRESENTATION_H_
 #define _CLASS_REPRESENTATION_H_
 
-#include "KernelStatistics.h"
-#include "CompilerOptions.h"
-#include "TargetDescription.h"
+#include "hipacc/Analysis/KernelStatistics.h"
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/Device/TargetDescription.h"
 
 #include <clang/AST/ASTContext.h>
 

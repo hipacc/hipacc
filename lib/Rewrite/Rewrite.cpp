@@ -31,16 +31,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Rewrite.h"
-#include "ASTNode.h"
-#include "ASTTranslate.h"
-#include "ASTFuse.h"
-#include "HostDataDeps.h"
-#include "ICodeGenerator.h"
-#include "CompilerOptions.h"
-#include "TargetDescription.h"
-#include "CompilerKnownClasses.h"
-#include "CreateHostStrings.h"
+#include "hipacc/Rewrite/Rewrite.h"
+#include "hipacc/AST/ASTNode.h"
+#include "hipacc/AST/ASTTranslate.h"
+#include "hipacc/AST/ASTFuse.h"
+#include "hipacc/Analysis/HostDataDeps.h"
+#include "hipacc/Backend/ICodeGenerator.h"
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/Device/TargetDescription.h"
+#include "hipacc/DSL/CompilerKnownClasses.h"
+#include "hipacc/Rewrite/CreateHostStrings.h"
 
 #include <clang/AST/ASTConsumer.h>
 #include <clang/AST/RecursiveASTVisitor.h>

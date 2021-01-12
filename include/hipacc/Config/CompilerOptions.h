@@ -33,9 +33,8 @@
 #ifndef _COMPILER_OPTIONS_H_
 #define _COMPILER_OPTIONS_H_
 
-#include "ErrorReporting.h"
-
-#include "TargetDevices.h"
+#include "hipacc/Config/ErrorReporting.h"
+#include "hipacc/Device/TargetDevices.h"
 
 #include <clang/Basic/Version.h>
 #include <llvm/Support/raw_ostream.h>

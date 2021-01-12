@@ -33,8 +33,8 @@
 #ifndef _BACKEND_OPENCL_GPU_H_
 #define _BACKEND_OPENCL_GPU_H_
 
-#include "AcceleratorDeviceBase.h"
-#include "CodeGeneratorBaseImplT.h"
+#include "hipacc/Backend/AcceleratorDeviceBase.h"
+#include "hipacc/Backend/CodeGeneratorBaseImplT.h"
 
 namespace clang
 {

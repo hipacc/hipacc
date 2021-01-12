@@ -31,8 +31,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ASTNode.h"
-#include "ErrorReporting.h"
+#include "hipacc/AST/ASTNode.h"
+#include "hipacc/Config/ErrorReporting.h"
 
 namespace clang {
 namespace hipacc {

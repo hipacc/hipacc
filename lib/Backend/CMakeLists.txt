@@ -13,10 +13,10 @@ target_sources(hipaccBackend
           ClangASTHelper.cpp
           InstructionSets.cpp)
 target_include_directories(hipaccBackend
-  PUBLIC  ${CMAKE_SOURCE_DIR}/include/hipacc/Backend
-  PRIVATE ${CMAKE_SOURCE_DIR}/include/hipacc/Device
+  PRIVATE ${CMAKE_SOURCE_DIR}/include
           ${CMAKE_BINARY_DIR}/include)
-target_include_directories(hipaccBackend SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+target_include_directories(hipaccBackend SYSTEM
+  PRIVATE ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(hipaccBackend
   PRIVATE ${LLVM_DEFINITIONS}
           HIPACC_VERSION="\\"${HIPACC_VERSION}\\""

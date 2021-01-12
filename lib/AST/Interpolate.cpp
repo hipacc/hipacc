@@ -31,7 +31,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ASTTranslate.h"
+#include "hipacc/AST/ASTTranslate.h"
 
 using namespace clang;
 using namespace hipacc;

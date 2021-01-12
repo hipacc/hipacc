@@ -31,7 +31,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClassRepresentation.h"
+#include "hipacc/DSL/ClassRepresentation.h"
 
 #include <llvm/Support/Format.h>
 

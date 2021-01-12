@@ -33,9 +33,9 @@
 #ifndef _BACKEND_VECTORIZATION_AST_H_
 #define _BACKEND_VECTORIZATION_AST_H_
 
-#include <llvm/Support/Casting.h>
+#include "hipacc/Backend/BackendExceptions.h"
 
-#include "BackendExceptions.h"
+#include <llvm/Support/Casting.h>
 
 #include <cstdint>
 #include <map>

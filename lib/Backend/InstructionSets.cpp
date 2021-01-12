@@ -30,8 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#include "BackendExceptions.h"
-#include "InstructionSets.h"
+#include "hipacc/Backend/BackendExceptions.h"
+#include "hipacc/Backend/InstructionSets.h"
 
 #include <sstream>
 

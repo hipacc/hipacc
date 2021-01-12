@@ -33,8 +33,8 @@
 #ifndef _TARGET_DESCRIPTION_H
 #define _TARGET_DESCRIPTION_H
 
-#include "CompilerOptions.h"
-#include "TargetDevices.h"
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/Device/TargetDevices.h"
 
 #include <string>
 #include <regex>

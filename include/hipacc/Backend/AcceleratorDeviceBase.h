@@ -33,10 +33,10 @@
 #ifndef _BACKEND_ACCELERATOR_DEVICE_BASE_H_
 #define _BACKEND_ACCELERATOR_DEVICE_BASE_H_
 
-#include "TargetDevices.h"
-#include "BackendExceptions.h"
-#include "CommonDefines.h"
-#include "OptionParsers.h"
+#include "hipacc/Device/TargetDevices.h"
+#include "hipacc/Backend/BackendExceptions.h"
+#include "hipacc/Backend/CommonDefines.h"
+#include "hipacc/Backend/OptionParsers.h"
 
 #include <string>
 

@@ -32,7 +32,7 @@
 //
 //===--------------------------------------------------------------------===//
 
-#include "ASTFuse.h"
+#include "hipacc/AST/ASTFuse.h"
 
 using namespace clang;
 using namespace hipacc;

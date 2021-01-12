@@ -30,8 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#include "CUDA.h"
-#include "TargetDescription.h"
+#include "hipacc/Backend/CUDA.h"
+#include "hipacc/Device/TargetDescription.h"
 
 using namespace clang::hipacc::Backend;
 

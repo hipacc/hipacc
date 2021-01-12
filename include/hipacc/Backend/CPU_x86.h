@@ -33,13 +33,13 @@
 #ifndef _BACKEND_CPU_X86_H_
 #define _BACKEND_CPU_X86_H_
 
-#include "ClassRepresentation.h"
-#include "ClangASTHelper.h"
-#include "CodeGeneratorBaseImplT.h"
-#include "InstructionSets.h"
-#include "OptionParsers.h"
-#include "VectorizationAST.h"
-#include "Vectorizer.h"
+#include "hipacc/DSL/ClassRepresentation.h"
+#include "hipacc/Backend/ClangASTHelper.h"
+#include "hipacc/Backend/CodeGeneratorBaseImplT.h"
+#include "hipacc/Backend/InstructionSets.h"
+#include "hipacc/Backend/OptionParsers.h"
+#include "hipacc/Backend/VectorizationAST.h"
+#include "hipacc/Backend/Vectorizer.h"
 
 #include <list>
 #include <set>

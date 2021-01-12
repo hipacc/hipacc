@@ -33,9 +33,9 @@
 #ifndef _BACKEND_VECTORIZER_H_
 #define _BACKEND_VECTORIZER_H_
 
-#include "ClangASTHelper.h"
-#include "CommonDefines.h"
-#include "VectorizationAST.h"
+#include "hipacc/Backend/ClangASTHelper.h"
+#include "hipacc/Backend/CommonDefines.h"
+#include "hipacc/Backend/VectorizationAST.h"
 
 #include <list>
 #include <map>

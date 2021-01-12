@@ -3,18 +3,17 @@
 add_library(hipaccASTNode ASTNode.cpp)
 add_cppcheck(hipaccASTNode POSSIBLE_ERROR FAIL_ON_WARNINGS)
 target_include_directories(hipaccASTNode
-  PUBLIC  ${CMAKE_SOURCE_DIR}/include/hipacc/AST
-  PRIVATE ${CMAKE_SOURCE_DIR}/include/hipacc/Config
+  PRIVATE ${CMAKE_SOURCE_DIR}/include
           ${CMAKE_BINARY_DIR}/include)
 target_link_libraries(hipaccASTNode
   PRIVATE hipaccCompilerOptions
-  PRIVATE clangAST)
+          clangAST)
 
 add_library(hipaccASTFuse ASTFuse.cpp)
 add_cppcheck(hipaccASTFuse POSSIBLE_ERROR FAIL_ON_WARNINGS)
 target_include_directories(hipaccASTFuse
-  PUBLIC  ${CMAKE_SOURCE_DIR}/include/hipacc/AST
-  PRIVATE ${CMAKE_BINARY_DIR}/include)
+  PRIVATE ${CMAKE_SOURCE_DIR}/include
+          ${CMAKE_BINARY_DIR}/include)
 target_link_libraries(hipaccASTFuse
   PUBLIC  hipaccASTNode
           hipaccASTTranslate
@@ -38,10 +37,8 @@ target_sources(hipaccASTTranslate
           MemoryAccess.cpp)
 add_cppcheck(hipaccASTTranslate POSSIBLE_ERROR FAIL_ON_WARNINGS)
 target_include_directories(hipaccASTTranslate
-  PUBLIC  ${CMAKE_SOURCE_DIR}/include/hipacc/AST
-  PRIVATE ${CMAKE_BINARY_DIR}/include)
-target_compile_features(hipaccASTTranslate
-  PRIVATE cxx_std_14)
+  PRIVATE ${CMAKE_SOURCE_DIR}/include
+          ${CMAKE_BINARY_DIR}/include)
 target_link_libraries(hipaccASTTranslate
   PUBLIC  hipaccASTNode
           hipaccCompilerOptions

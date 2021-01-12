@@ -33,13 +33,13 @@
 #ifndef _BACKEND_CONFIGURATION_MANAGER_H_
 #define _BACKEND_CONFIGURATION_MANAGER_H_
 
-#include <llvm/Support/raw_ostream.h>
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/Backend/BackendExceptions.h"
+#include "hipacc/Backend/CommonDefines.h"
+#include "hipacc/Backend/ICodeGenerator.h"
+#include "hipacc/Backend/OptionParsers.h"
 
-#include "CompilerOptions.h"
-#include "BackendExceptions.h"
-#include "CommonDefines.h"
-#include "ICodeGenerator.h"
-#include "OptionParsers.h"
+#include <llvm/Support/raw_ostream.h>
 
 #include <map>
 #include <ostream>

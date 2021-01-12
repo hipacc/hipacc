@@ -36,6 +36,14 @@
 #ifndef _HOSTDATADEPS_H_
 #define _HOSTDATADEPS_H_
 
+#include "hipacc/Analysis/KernelStatistics.h"
+#include "hipacc/Device/TargetDescription.h"
+#include "hipacc/Device/Builtins.h"
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/DSL/CompilerKnownClasses.h"
+#include "hipacc/DSL/ClassRepresentation.h"
+#include "hipacc/AST/ASTNode.h"
+
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/StmtVisitor.h>
 #include <clang/AST/Attr.h>
@@ -43,14 +51,6 @@
 #include <clang/Analysis/AnalysisDeclContext.h>
 #include <clang/Analysis/Analyses/PostOrderCFGView.h>
 #include <clang/Basic/Diagnostic.h>
-
-#include "KernelStatistics.h"
-#include "TargetDescription.h"
-#include "Builtins.h"
-#include "CompilerOptions.h"
-#include "CompilerKnownClasses.h"
-#include "ClassRepresentation.h"
-#include "ASTNode.h"
 
 #include <vector>
 #include <list>

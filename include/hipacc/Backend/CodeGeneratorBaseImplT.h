@@ -33,10 +33,10 @@
 #ifndef _BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
 #define _BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
 
-#include "CompilerOptions.h"
-#include "BackendExceptions.h"
-#include "CommonDefines.h"
-#include "ICodeGenerator.h"
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/Backend/BackendExceptions.h"
+#include "hipacc/Backend/CommonDefines.h"
+#include "hipacc/Backend/ICodeGenerator.h"
 
 #include <map>
 #include <string>

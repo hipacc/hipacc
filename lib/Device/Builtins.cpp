@@ -30,7 +30,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Builtins.h"
+#include "hipacc/Device/Builtins.h"
 
 #include <clang/Basic/TargetInfo.h>
 
@@ -43,7 +43,7 @@ static hipacc::Builtin::Info BuiltinInfo[] = {
   #define HIPACCBUILTIN(NAME, TYPE, CUDAID, OPENCLID) { #NAME, TYPE, Language::C99, CUDAID, OPENCLID, 0 },
   #define CUDABUILTIN(NAME, TYPE, CUDANAME) { #NAME, TYPE, Language::CUDA, (ID)0, (ID)0, 0 },
   #define OPENCLBUILTIN(NAME, TYPE, OPENCLNAME) { #NAME, TYPE, Language::OpenCLCPU, (ID)0, (ID)0, 0 },
-  #include "Builtins.def"
+  #include "hipacc/Device/Builtins.def"
 };
 
 

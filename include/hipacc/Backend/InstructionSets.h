@@ -33,9 +33,9 @@
 #ifndef _BACKEND_INSTRUCTION_SETS_H_
 #define _BACKEND_INSTRUCTION_SETS_H_
 
-#include "BackendExceptions.h"
-#include "ClangASTHelper.h"
-#include "VectorizationAST.h"
+#include "hipacc/Backend/BackendExceptions.h"
+#include "hipacc/Backend/ClangASTHelper.h"
+#include "hipacc/Backend/VectorizationAST.h"
 
 #include <map>
 #include <memory>

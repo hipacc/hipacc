@@ -33,7 +33,7 @@
 #ifndef _BACKEND_COMMON_DEFINES_H_
 #define _BACKEND_COMMON_DEFINES_H_
 
-#include "BackendExceptions.h"
+#include "hipacc/Backend/BackendExceptions.h"
 
 #include <string>
 #include <utility>

@@ -3,9 +3,10 @@
 add_executable(hipacc hipacc.cpp)
 add_cppcheck(hipacc POSSIBLE_ERROR FAIL_ON_WARNINGS)
 target_include_directories(hipacc
-  PRIVATE ${CMAKE_SOURCE_DIR}/include/Device
+  PRIVATE ${CMAKE_SOURCE_DIR}/include
           ${CMAKE_BINARY_DIR}/include)
-target_include_directories(hipacc SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+target_include_directories(hipacc SYSTEM
+  PRIVATE ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(hipacc
   PRIVATE ${LLVM_DEFINITIONS})
 target_link_libraries(hipacc

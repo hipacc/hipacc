@@ -32,10 +32,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "BackendConfigurationManager.h"
-#include "CompilerOptions.h"
-#include "TargetDescription.h"
-#include "Rewrite.h"
+#include "hipacc/Backend/BackendConfigurationManager.h"
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/Device/TargetDescription.h"
+#include "hipacc/Rewrite/Rewrite.h"
 
 #include <clang/Driver/Compilation.h>
 #include <clang/Driver/Driver.h>

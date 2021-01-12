@@ -30,8 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#include "BackendExceptions.h"
-#include "ClangASTHelper.h"
+#include "hipacc/Backend/BackendExceptions.h"
+#include "hipacc/Backend/ClangASTHelper.h"
 
 using namespace clang::hipacc::Backend;
 using namespace clang;
