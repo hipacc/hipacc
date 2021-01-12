@@ -33,8 +33,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _HOSTDATADEPS_H_
-#define _HOSTDATADEPS_H_
+#ifndef _HIPACC_ANALYSIS_HOSTDATADEPS_H_
+#define _HIPACC_ANALYSIS_HOSTDATADEPS_H_
 
 #include "hipacc/Analysis/KernelStatistics.h"
 #include "hipacc/Device/TargetDescription.h"
@@ -535,7 +535,7 @@ class HostDataDeps : public ManagedAnalysis {
 }
 }
 
-#endif  // _HOSTDATADEPS_H_
+#endif  // _HIPACC_ANALYSIS_HOSTDATADEPS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 //

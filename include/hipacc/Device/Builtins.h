@@ -31,8 +31,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _BUILTINS_H_
-#define _BUILTINS_H_
+#ifndef _HIPACC_DEVICE_BUILTINS_H_
+#define _HIPACC_DEVICE_BUILTINS_H_
 
 #include "hipacc/Config/CompilerOptions.h"
 
@@ -99,7 +99,7 @@ class Context {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _BUILTINS_H_
+#endif  // _HIPACC_DEVICE_BUILTINS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

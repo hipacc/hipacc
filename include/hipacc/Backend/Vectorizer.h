@@ -30,8 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_VECTORIZER_H_
-#define _BACKEND_VECTORIZER_H_
+#ifndef _HIPACC_BACKEND_VECTORIZER_H_
+#define _HIPACC_BACKEND_VECTORIZER_H_
 
 #include "hipacc/Backend/ClangASTHelper.h"
 #include "hipacc/Backend/CommonDefines.h"
@@ -946,7 +946,7 @@ namespace Vectorization
 } // end namespace clang
 
 
-#endif  // _BACKEND_VECTORIZER_H_
+#endif  // _HIPACC_BACKEND_VECTORIZER_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

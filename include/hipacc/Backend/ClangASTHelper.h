@@ -30,8 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_CLANG_AST_HELPER_H_
-#define _BACKEND_CLANG_AST_HELPER_H_
+#ifndef _HIPACC_BACKEND_CLANG_AST_HELPER_H_
+#define _HIPACC_BACKEND_CLANG_AST_HELPER_H_
 
 #include "hipacc/AST/ASTNode.h"
 
@@ -360,7 +360,7 @@ namespace Backend
 } // end namespace clang
 
 
-#endif  // _BACKEND_CLANG_AST_HELPER_H_
+#endif  // _HIPACC_BACKEND_CLANG_AST_HELPER_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

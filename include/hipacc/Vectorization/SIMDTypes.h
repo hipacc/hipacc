@@ -30,8 +30,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _SIMDTYPES_H_
-#define _SIMDTYPES_H_
+#ifndef _HIPACC_VECTORIZATION_SIMDTYPES_H_
+#define _HIPACC_VECTORIZATION_SIMDTYPES_H_
 
 #include "hipacc/Device/Builtins.h"
 
@@ -84,7 +84,7 @@ class SIMDTypes {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _SIMDTYPES_H_
+#endif  // _HIPACC_VECTORIZATION_SIMDTYPES_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

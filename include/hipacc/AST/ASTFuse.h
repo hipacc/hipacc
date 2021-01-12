@@ -32,8 +32,8 @@
 //
 //===--------------------------------------------------------------------===//
 
-#ifndef _ASTFUSE_H_
-#define _ASTFUSE_H_
+#ifndef _HIPACC_AST_ASTFUSE_H_
+#define _HIPACC_AST_ASTFUSE_H_
 
 #include "hipacc/Analysis/KernelStatistics.h"
 #include "hipacc/Analysis/HostDataDeps.h"
@@ -200,7 +200,7 @@ class ASTFuse {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _ASTFUSE_H_
+#endif  // _HIPACC_AST_ASTFUSE_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

@@ -30,8 +30,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _TARGET_DESCRIPTION_H
-#define _TARGET_DESCRIPTION_H
+#ifndef _HIPACC_DEVICE_TARGET_DESCRIPTION_H_
+#define _HIPACC_DEVICE_TARGET_DESCRIPTION_H_
 
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDevices.h"
@@ -414,7 +414,7 @@ class HipaccDevice : public HipaccDeviceOptions {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _TARGET_DESCRIPTION_H
+#endif  // _HIPACC_DEVICE_TARGET_DESCRIPTION_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

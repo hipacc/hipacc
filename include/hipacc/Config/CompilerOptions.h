@@ -30,8 +30,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _COMPILER_OPTIONS_H_
-#define _COMPILER_OPTIONS_H_
+#ifndef _HIPACC_CONFIG_COMPILER_OPTIONS_H_
+#define _HIPACC_CONFIG_COMPILER_OPTIONS_H_
 
 #include "hipacc/Config/ErrorReporting.h"
 #include "hipacc/Device/TargetDevices.h"
@@ -351,7 +351,7 @@ class CompilerOptions {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _COMPILER_OPTIONS_H_
+#endif  // _HIPACC_CONFIG_COMPILER_OPTIONS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

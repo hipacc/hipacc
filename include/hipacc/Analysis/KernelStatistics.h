@@ -35,8 +35,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _KERNELSTATISTICS_H_
-#define _KERNELSTATISTICS_H_
+#ifndef _HIPACC_ANALYSIS_KERNELSTATISTICS_H_
+#define _HIPACC_ANALYSIS_KERNELSTATISTICS_H_
 
 #include "hipacc/Device/TargetDescription.h"
 #include "hipacc/DSL/CompilerKnownClasses.h"
@@ -136,7 +136,7 @@ class KernelStatistics : public ManagedAnalysis {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _KERNELSTATISTICS_H_
+#endif  // _HIPACC_ANALYSIS_KERNELSTATISTICS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

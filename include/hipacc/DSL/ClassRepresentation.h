@@ -31,8 +31,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _CLASS_REPRESENTATION_H_
-#define _CLASS_REPRESENTATION_H_
+#ifndef _HIPACC_DSL_CLASS_REPRESENTATION_H_
+#define _HIPACC_DSL_CLASS_REPRESENTATION_H_
 
 #include "hipacc/Analysis/KernelStatistics.h"
 #include "hipacc/Config/CompilerOptions.h"
@@ -841,7 +841,7 @@ class HipaccKernel : public HipaccKernelFeatures {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _CLASS_REPRESENTATION_H_
+#endif  // _HIPACC_DSL_CLASS_REPRESENTATION_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

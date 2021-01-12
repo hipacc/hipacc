@@ -30,8 +30,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _COMPILER_KNOWN_CLASSES_H_
-#define _COMPILER_KNOWN_CLASSES_H_
+#ifndef _HIPACC_DSL_COMPILER_KNOWN_CLASSES_H_
+#define _HIPACC_DSL_COMPILER_KNOWN_CLASSES_H_
 
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/DeclTemplate.h>
@@ -153,7 +153,7 @@ class CompilerKnownClasses {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _COMPILER_KNOWN_CLASSES_H_
+#endif  // _HIPACC_DSL_COMPILER_KNOWN_CLASSES_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

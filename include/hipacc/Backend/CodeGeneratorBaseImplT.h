@@ -30,8 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
-#define _BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
+#ifndef _HIPACC_BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
+#define _HIPACC_BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
 
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Backend/BackendExceptions.h"
@@ -336,7 +336,7 @@ namespace Backend
 } // end namespace clang
 
 
-#endif  // _BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
+#endif  // _HIPACC_BACKEND_CODE_GENERATOR_BASE_IMPL_T_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

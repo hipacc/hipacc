@@ -31,8 +31,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _ASTTRANSLATE_H_
-#define _ASTTRANSLATE_H_
+#ifndef _HIPACC_AST_ASTTRANSLATE_H_
+#define _HIPACC_AST_ASTTRANSLATE_H_
 
 #include "hipacc/Analysis/KernelStatistics.h"
 #include "hipacc/AST/ASTNode.h"
@@ -794,7 +794,7 @@ class ASTTranslate : public StmtVisitor<ASTTranslate, Stmt *> {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _ASTTRANSLATE_H_
+#endif  // _HIPACC_AST_ASTTRANSLATE_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

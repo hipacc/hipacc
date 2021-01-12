@@ -30,8 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_OPTION_PARSERS_H_
-#define _BACKEND_OPTION_PARSERS_H_
+#ifndef _HIPACC_BACKEND_OPTION_PARSERS_H_
+#define _HIPACC_BACKEND_OPTION_PARSERS_H_
 
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Backend/CommonDefines.h"
@@ -126,7 +126,7 @@ namespace Backend
 } // end namespace clang
 
 
-#endif  // _BACKEND_OPTION_PARSERS_H_
+#endif  // _HIPACC_BACKEND_OPTION_PARSERS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

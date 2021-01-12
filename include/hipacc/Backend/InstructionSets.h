@@ -30,8 +30,8 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_INSTRUCTION_SETS_H_
-#define _BACKEND_INSTRUCTION_SETS_H_
+#ifndef _HIPACC_BACKEND_INSTRUCTION_SETS_H_
+#define _HIPACC_BACKEND_INSTRUCTION_SETS_H_
 
 #include "hipacc/Backend/BackendExceptions.h"
 #include "hipacc/Backend/ClangASTHelper.h"
@@ -2142,7 +2142,7 @@ namespace Vectorization
 #endif
 
 
-#endif  // _BACKEND_INSTRUCTION_SETS_H_
+#endif  // _HIPACC_BACKEND_INSTRUCTION_SETS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

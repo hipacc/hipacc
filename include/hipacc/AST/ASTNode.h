@@ -31,8 +31,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _ASTNODE_H_
-#define _ASTNODE_H_
+#ifndef _HIPACC_AST_ASTNODE_H_
+#define _HIPACC_AST_ASTNODE_H_
 
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Expr.h>
@@ -129,7 +129,7 @@ GotoStmt *createGotoStmt(ASTContext &Ctx, LabelDecl *LD);
 } // namespace hipacc
 } // namespace clang
 
-#endif /* _ASTNODE_H_ */
+#endif /* _HIPACC_AST_ASTNODE_H_ */
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 
