@@ -17,13 +17,13 @@ project(hipacc
         HOMEPAGE_URL ${HIPACC_GIT_REPOSITORY}
         LANGUAGES CXX)
 
-# global setup for hipacc
+# global setup flags that don't want to be localized
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
-  add_compile_options("/W3")
-  # move warnings from LLVM 8.0.1 to warning level 4
-  add_compile_options("/w44141" "/w44146" "/w44244" "/w44267" "/w44291")
+  add_compile_options(/W3)
 else()
-  add_compile_options("-W" "-Wall" "-Wunused")
+  add_compile_options(-W -Wall -Wunused)
 endif()
 
 find_package(LLVM REQUIRED CONFIG)
@@ -80,28 +80,17 @@ elseif(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GR")
 endif()
 
-# TODO, required?
-## from LLVM CMake to set visibility
-#include(CheckCXXCompilerFlag)
-#
-#function(append_if condition value)
-#  if (${condition})
-#    foreach(variable ${ARGN})
-#      set(${variable} "${${variable}} ${value}" PARENT_SCOPE)
-#    endforeach(variable)
-#  endif()
-#endfunction()
-#
-#if(NOT WIN32 AND NOT CYGWIN)
-#    # MinGW warns if -fvisibility-inlines-hidden is used.
-#    check_cxx_compiler_flag("-fvisibility-inlines-hidden" SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG)
-#    append_if(SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG "-fvisibility-inlines-hidden" CMAKE_CXX_FLAGS)
-#endif()
+# from LLVM CMake to set visibility
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-fvisibility-inlines-hidden" SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG)
+if(SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility-inlines-hidden")
+endif()
 
 # enable static code analysis by cppcheck
 include(CppcheckTargets OPTIONAL RESULT_VARIABLE CppcheckTargets_FOUND)
 if(CppcheckTargets_FOUND)
-    LIST(APPEND CPPCHECK_CUSTOM_ARGUMENTS --std=c++14 -DCLANG_VERSION_MAJOR=10 -D__clang__ -DCUDA_VERSION=10000)
+  LIST(APPEND CPPCHECK_CUSTOM_ARGUMENTS --std=c++${CMAKE_CXX_STANDARD} -DCLANG_VERSION_MAJOR=10 -D__clang__ -DCUDA_VERSION=10000)
 else()
     # stub macro, so we do not need to check CppcheckTargets_FOUND everywhere add_cppcheck() is used
     macro(add_cppcheck)

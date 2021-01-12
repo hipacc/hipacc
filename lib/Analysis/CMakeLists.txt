@@ -11,8 +11,6 @@ target_link_libraries(hipaccKernelStatistics
   PRIVATE hipaccCompilerOptions
   PRIVATE clangAST
           clangAnalysis)
-target_compile_features(hipaccKernelStatistics
-  PRIVATE cxx_std_14)
 
 add_library(hipaccHostDataDeps HostDataDeps.cpp)
 add_cppcheck(hipaccHostDataDeps POSSIBLE_ERROR FAIL_ON_WARNINGS)
@@ -29,5 +27,3 @@ target_link_libraries(hipaccHostDataDeps
   PRIVATE clangAST
           clangAnalysis
           clangBasic)
-target_compile_features(hipaccHostDataDeps
-  PRIVATE cxx_std_14)

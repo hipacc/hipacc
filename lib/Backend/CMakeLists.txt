@@ -12,11 +12,11 @@ target_sources(hipaccBackend
           OpenCL_GPU.cpp
           ClangASTHelper.cpp
           InstructionSets.cpp)
-target_include_directories(hipaccBackend SYSTEM
+target_include_directories(hipaccBackend
   PUBLIC  ${CMAKE_SOURCE_DIR}/include/hipacc/Backend
   PRIVATE ${CMAKE_SOURCE_DIR}/include/hipacc/Device
-          ${CMAKE_BINARY_DIR}/include
-          ${LLVM_INCLUDE_DIRS})
+          ${CMAKE_BINARY_DIR}/include)
+target_include_directories(hipaccBackend SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(hipaccBackend
   PRIVATE ${LLVM_DEFINITIONS}
           HIPACC_VERSION="\\"${HIPACC_VERSION}\\""
@@ -25,8 +25,6 @@ target_compile_definitions(hipaccBackend
           CLANG_LIB_INCLUDE_DIR="${CLANG_LIB_INCLUDE_DIR}"
           "$<$<AND:$<NOT:$<BOOL:${APPLE}>>,$<BOOL:${CUDA_FOUND}>>:USE_JIT_ESTIMATE>"
           "$<$<BOOL:${MSVC}>:HOST_COMPILER_INSTALL_PREFIX=${HOST_COMPILER_INSTALL_PREFIX}>")
-target_compile_features(hipaccBackend
-  PRIVATE cxx_std_14)
 
 # Activate Runtime Type Information for the Backend library
 if(LLVM_COMPILER_IS_GCC_COMPATIBLE)

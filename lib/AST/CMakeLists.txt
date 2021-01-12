@@ -6,8 +6,6 @@ target_include_directories(hipaccASTNode
   PUBLIC  ${CMAKE_SOURCE_DIR}/include/hipacc/AST
   PRIVATE ${CMAKE_SOURCE_DIR}/include/hipacc/Config
           ${CMAKE_BINARY_DIR}/include)
-target_compile_features(hipaccASTNode
-  PRIVATE cxx_std_14)
 target_link_libraries(hipaccASTNode
   PRIVATE hipaccCompilerOptions
   PRIVATE clangAST)
@@ -17,8 +15,6 @@ add_cppcheck(hipaccASTFuse POSSIBLE_ERROR FAIL_ON_WARNINGS)
 target_include_directories(hipaccASTFuse
   PUBLIC  ${CMAKE_SOURCE_DIR}/include/hipacc/AST
   PRIVATE ${CMAKE_BINARY_DIR}/include)
-target_compile_features(hipaccASTFuse
-  PRIVATE cxx_std_14)
 target_link_libraries(hipaccASTFuse
   PUBLIC  hipaccASTNode
           hipaccASTTranslate

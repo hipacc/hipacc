@@ -6,20 +6,18 @@
 
 add_library(hipaccRuntime Base.cpp CPU.cpp)
 add_cppcheck(hipaccRuntime POSSIBLE_ERROR FAIL_ON_WARNINGS)
-target_include_directories(hipaccRuntime SYSTEM
-  PRIVATE ${LLVM_INCLUDE_DIRS}
-          $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>
+target_include_directories(hipaccRuntime
+  PRIVATE $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>
   PUBLIC  ${CMAKE_SOURCE_DIR}/runtime
           ${CMAKE_BINARY_DIR}/runtime)
+target_include_directories(hipaccRuntime SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(hipaccRuntime
   PRIVATE ${LLVM_DEFINITIONS})
-target_compile_features(hipaccRuntime
-  PRIVATE cxx_std_14)
 
 if(OpenCL_FOUND)
   target_sources(hipaccRuntime
     PRIVATE OpenCL.cpp)
-  target_include_directories(hipaccRuntime SYSTEM
+  target_include_directories(hipaccRuntime
     PRIVATE ${OpenCL_INCLUDE_DIRS})
 endif()
 

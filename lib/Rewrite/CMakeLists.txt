@@ -2,17 +2,15 @@
 
 add_library(hipaccRewrite Rewrite.cpp)
 add_cppcheck(hipaccRewrite POSSIBLE_ERROR FAIL_ON_WARNINGS)
-target_include_directories(hipaccRewrite SYSTEM
+target_include_directories(hipaccRewrite
   PUBLIC  ${CMAKE_SOURCE_DIR}/include/hipacc/Rewrite
   PRIVATE ${CMAKE_SOURCE_DIR}/include/hipacc/Device
           ${CMAKE_SOURCE_DIR}/include/hipacc/DSL
-          ${CMAKE_BINARY_DIR}/include
-          ${LLVM_INCLUDE_DIRS})
+          ${CMAKE_BINARY_DIR}/include)
+target_include_directories(hipaccRewrite SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
 target_compile_definitions(hipaccRewrite
   PRIVATE ${LLVM_DEFINITIONS}
           "$<$<AND:$<NOT:$<BOOL:${APPLE}>>,$<BOOL:${CUDA_FOUND}>>:USE_JIT_ESTIMATE>")
-target_compile_features(hipaccRewrite
-  PRIVATE cxx_std_14)
 target_link_libraries(hipaccRewrite
   PRIVATE hipaccASTTranslate
           hipaccASTNode
