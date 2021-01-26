@@ -30,10 +30,11 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_COMMON_DEFINES_H_
-#define _BACKEND_COMMON_DEFINES_H_
+#ifndef _HIPACC_BACKEND_COMMON_DEFINES_H_
+#define _HIPACC_BACKEND_COMMON_DEFINES_H_
 
-#include "BackendExceptions.h"
+#include "hipacc/Backend/BackendExceptions.h"
+
 #include <string>
 #include <utility>
 #include <vector>
@@ -143,7 +144,7 @@ namespace Backend
 } // end namespace clang
 
 
-#endif  // _BACKEND_COMMON_DEFINES_H_
+#endif  // _HIPACC_BACKEND_COMMON_DEFINES_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

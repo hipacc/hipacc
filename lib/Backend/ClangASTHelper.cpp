@@ -32,8 +32,6 @@
 
 #include "hipacc/Backend/BackendExceptions.h"
 #include "hipacc/Backend/ClangASTHelper.h"
-#include <clang/AST/DeclCXX.h>
-#include <clang/AST/StmtOpenMP.h>
 
 using namespace clang::hipacc::Backend;
 using namespace clang;
@@ -285,7 +283,7 @@ ReturnStmt* ClangASTHelper::CreateReturnStatement(Expr *pReturnValue)
 CXXStaticCastExpr* ClangASTHelper::CreateStaticCast(Expr *pOperandExpression, const QualType &crReturnType, CastKind eCastKind, bool bIsLValue)
 {
   ExprValueKind  eValueKind = bIsLValue ? VK_LValue : VK_RValue;
-  
+
   CXXCastPath CastPath;
 
   return CXXStaticCastExpr::Create(GetASTContext(), crReturnType, eValueKind, eCastKind, pOperandExpression, &CastPath, GetASTContext().getTrivialTypeSourceInfo(crReturnType), SourceLocation(), SourceLocation(), SourceRange());

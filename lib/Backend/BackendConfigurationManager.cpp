@@ -31,10 +31,6 @@
 //===--------------------------------------------------------------------------------===//
 
 #include "hipacc/Backend/BackendConfigurationManager.h"
-#include "hipacc/Config/config.h"
-#include "llvm/Support/raw_ostream.h"
-
-// Supported code generators
 #include "hipacc/Backend/CPU_x86.h"
 #include "hipacc/Backend/CUDA.h"
 #include "hipacc/Backend/OpenCL_ACC.h"

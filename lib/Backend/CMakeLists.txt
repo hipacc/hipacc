@@ -1,44 +1,42 @@
-set(CURRENT_HEADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../include/hipacc/Backend")
+# ./lib/Backend/CMakeLists.txt
 
-set(Backend_Generators_SOURCES CPU_x86.cpp CUDA.cpp OpenCL_ACC.cpp OpenCL_CPU.cpp OpenCL_GPU.cpp)
-set(Backend_Generators_HEADERS "${CURRENT_HEADER_DIR}/CPU_x86.h"
-                               "${CURRENT_HEADER_DIR}/CUDA.h"
-                               "${CURRENT_HEADER_DIR}/OpenCL_ACC.h"
-                               "${CURRENT_HEADER_DIR}/OpenCL_CPU.h"
-                               "${CURRENT_HEADER_DIR}/OpenCL_GPU.h")
-
-set(Backend_Generators_Base_HEADERS "${CURRENT_HEADER_DIR}/AcceleratorDeviceBase.h"
-                                    "${CURRENT_HEADER_DIR}/CodeGeneratorBaseImplT.h")
-
-set(Backend_Common_SOURCES ClangASTHelper.cpp InstructionSets.cpp)
-
-set(Backend_Common_HEADERS "${CURRENT_HEADER_DIR}/BackendExceptions.h"
-                           "${CURRENT_HEADER_DIR}/ClangASTHelper.h"
-                           "${CURRENT_HEADER_DIR}/CommonDefines.h"
-                           "${CURRENT_HEADER_DIR}/ICodeGenerator.h"
-                           "${CURRENT_HEADER_DIR}/InstructionSets.h"
-                           "${CURRENT_HEADER_DIR}/OptionParsers.h"
-                           "${CURRENT_HEADER_DIR}/VectorizationAST.h"
-                           "${CURRENT_HEADER_DIR}/Vectorizer.h")
-
-set(Backend_SOURCES BackendConfigurationManager.cpp VectorizationAST.cpp Vectorizer.cpp ${Backend_Common_SOURCES} ${Backend_Generators_SOURCES})
-set(Backend_HEADERS "${CURRENT_HEADER_DIR}/BackendConfigurationManager.h"
-                    ${Backend_Common_HEADERS}
-                    ${Backend_Generators_HEADERS}
-                    ${Backend_Generators_Base_HEADERS})
-
-add_library(hipaccBackend ${Backend_SOURCES} ${Backend_HEADERS})
-
-source_group("Source Files\\Common" FILES ${Backend_Common_SOURCES})
-source_group("Source Files\\Generators" FILES ${Backend_Generators_SOURCES})
-source_group("Header Files\\Common" FILES ${Backend_Common_HEADERS})
-source_group("Header Files\\Generators" FILES ${Backend_Generators_HEADERS})
-source_group("Header Files\\Generators\\Base" FILES ${Backend_Generators_Base_HEADERS})
+add_library(hipaccBackend BackendConfigurationManager.cpp)
+add_cppcheck(hipaccBackend POSSIBLE_ERROR FAIL_ON_WARNINGS)
+target_sources(hipaccBackend
+  PRIVATE VectorizationAST.cpp
+          Vectorizer.cpp
+          CPU_x86.cpp
+          CUDA.cpp
+          OpenCL_ACC.cpp
+          OpenCL_CPU.cpp
+          OpenCL_GPU.cpp
+          ClangASTHelper.cpp
+          InstructionSets.cpp)
+target_include_directories(hipaccBackend
+  PRIVATE ${CMAKE_SOURCE_DIR}/include
+          ${CMAKE_BINARY_DIR}/include)
+target_include_directories(hipaccBackend SYSTEM
+  PRIVATE ${LLVM_INCLUDE_DIRS})
+target_compile_definitions(hipaccBackend
+  PRIVATE ${LLVM_DEFINITIONS}
+          HIPACC_VERSION="\\"${HIPACC_VERSION}\\""
+          GIT_REPOSITORY="\\"${HIPACC_GIT_REPOSITORY}\\""
+          GIT_VERSION="\\"${HIPACC_GIT_VERSION}\\""
+          CLANG_LIB_INCLUDE_DIR="${CLANG_LIB_INCLUDE_DIR}"
+          "$<$<AND:$<NOT:$<BOOL:${APPLE}>>,$<BOOL:${CUDA_FOUND}>>:USE_JIT_ESTIMATE>"
+          "$<$<BOOL:${MSVC}>:HOST_COMPILER_INSTALL_PREFIX=${HOST_COMPILER_INSTALL_PREFIX}>")
 
 # Activate Runtime Type Information for the Backend library
 if(LLVM_COMPILER_IS_GCC_COMPATIBLE)
-    string(REPLACE "-fno-rtti" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  string(REPLACE "-fno-rtti" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 elseif(MSVC)
-    string(REPLACE "/GR-" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    target_compile_options(hipaccBackend PRIVATE "/GR")
+  string(REPLACE "/GR-" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  target_compile_options(hipaccBackend PRIVATE "/GR")
 endif()
+
+target_link_libraries(hipaccBackend
+  PUBLIC  hipaccCompilerOptions
+  PRIVATE hipaccASTTranslate
+          hipaccASTNode
+          hipaccClassRepresentation
+          clangAST)

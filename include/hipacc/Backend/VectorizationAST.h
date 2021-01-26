@@ -30,13 +30,14 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_VECTORIZATION_AST_H_
-#define _BACKEND_VECTORIZATION_AST_H_
+#ifndef _HIPACC_BACKEND_VECTORIZATION_AST_H_
+#define _HIPACC_BACKEND_VECTORIZATION_AST_H_
 
-#include "llvm/Support/Casting.h"
-#include "BackendExceptions.h"
+#include "hipacc/Backend/BackendExceptions.h"
+
+#include <llvm/Support/Casting.h>
+
 #include <cstdint>
-#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -44,7 +45,6 @@
 #include <vector>
 #include <type_traits>
 #include <limits>
-
 
 namespace clang
 {
@@ -2489,7 +2489,7 @@ namespace Vectorization
 } // end namespace clang
 
 
-#endif  // _BACKEND_VECTORIZATION_AST_H_
+#endif  // _HIPACC_BACKEND_VECTORIZATION_AST_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

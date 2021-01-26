@@ -30,8 +30,16 @@
 //
 //===------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_CONFIGURATION_MANAGER_H_
-#define _BACKEND_CONFIGURATION_MANAGER_H_
+#ifndef _HIPACC_BACKEND_CONFIGURATION_MANAGER_H_
+#define _HIPACC_BACKEND_CONFIGURATION_MANAGER_H_
+
+#include "hipacc/Config/CompilerOptions.h"
+#include "hipacc/Backend/BackendExceptions.h"
+#include "hipacc/Backend/CommonDefines.h"
+#include "hipacc/Backend/ICodeGenerator.h"
+#include "hipacc/Backend/OptionParsers.h"
+
+#include <llvm/Support/raw_ostream.h>
 
 #include <map>
 #include <ostream>
@@ -39,11 +47,6 @@
 #include <utility>
 #include <vector>
 #include <type_traits>
-#include "hipacc/Config/CompilerOptions.h"
-#include "BackendExceptions.h"
-#include "CommonDefines.h"
-#include "ICodeGenerator.h"
-#include "OptionParsers.h"
 
 namespace clang
 {
@@ -270,7 +273,7 @@ namespace Backend
        *  \param  szPadSize   The requested length of the pad string. */
       std::string _GetPadString(size_t szPadSize);
 
-      /** \brief  Internal function which prints the display information for compiler switches. 
+      /** \brief  Internal function which prints the display information for compiler switches.
        *  \param  crvecSwitches   A reference to the display information vector for the compiler switches. */
       void _PrintSwitches(const CommonDefines::SwitchDisplayInfoVectorType &crvecSwitches);
 
@@ -419,7 +422,7 @@ namespace Backend
 } // end namespace clang
 
 
-#endif  // _BACKEND_CONFIGURATION_MANAGER_H_
+#endif  // _HIPACC_BACKEND_CONFIGURATION_MANAGER_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

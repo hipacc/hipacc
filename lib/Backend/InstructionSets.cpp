@@ -32,6 +32,7 @@
 
 #include "hipacc/Backend/BackendExceptions.h"
 #include "hipacc/Backend/InstructionSets.h"
+
 #include <sstream>
 
 using namespace clang::hipacc::Backend::Vectorization;

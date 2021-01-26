@@ -33,16 +33,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _HOSTDATADEPS_H_
-#define _HOSTDATADEPS_H_
-
-#include <clang/AST/ASTContext.h>
-#include <clang/AST/StmtVisitor.h>
-#include <clang/AST/Attr.h>
-#include <clang/AST/Type.h>
-#include <clang/Analysis/AnalysisDeclContext.h>
-#include <clang/Analysis/Analyses/PostOrderCFGView.h>
-#include <clang/Basic/Diagnostic.h>
+#ifndef _HIPACC_ANALYSIS_HOSTDATADEPS_H_
+#define _HIPACC_ANALYSIS_HOSTDATADEPS_H_
 
 #include "hipacc/Analysis/KernelStatistics.h"
 #include "hipacc/Device/TargetDescription.h"
@@ -51,6 +43,14 @@
 #include "hipacc/DSL/CompilerKnownClasses.h"
 #include "hipacc/DSL/ClassRepresentation.h"
 #include "hipacc/AST/ASTNode.h"
+
+#include <clang/AST/ASTContext.h>
+#include <clang/AST/StmtVisitor.h>
+#include <clang/AST/Attr.h>
+#include <clang/AST/Type.h>
+#include <clang/Analysis/AnalysisDeclContext.h>
+#include <clang/Analysis/Analyses/PostOrderCFGView.h>
+#include <clang/Basic/Diagnostic.h>
 
 #include <vector>
 #include <list>
@@ -535,7 +535,7 @@ class HostDataDeps : public ManagedAnalysis {
 }
 }
 
-#endif  // _HOSTDATADEPS_H_
+#endif  // _HIPACC_ANALYSIS_HOSTDATADEPS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 //

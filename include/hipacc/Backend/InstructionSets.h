@@ -30,12 +30,13 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_INSTRUCTION_SETS_H_
-#define _BACKEND_INSTRUCTION_SETS_H_
+#ifndef _HIPACC_BACKEND_INSTRUCTION_SETS_H_
+#define _HIPACC_BACKEND_INSTRUCTION_SETS_H_
 
-#include "BackendExceptions.h"
-#include "ClangASTHelper.h"
-#include "VectorizationAST.h"
+#include "hipacc/Backend/BackendExceptions.h"
+#include "hipacc/Backend/ClangASTHelper.h"
+#include "hipacc/Backend/VectorizationAST.h"
+
 #include <map>
 #include <memory>
 #include <string>
@@ -360,7 +361,7 @@ namespace Vectorization
     }
 
 
-    /** \brief  Reverts the order of expressions in a vector of expression objects. 
+    /** \brief  Reverts the order of expressions in a vector of expression objects.
      *  \param  crvecExpressions  The vector of expression objects, whose order shall be reverted. */
     ClangASTHelper::ExpressionVectorType _SwapExpressionOrder(const ClangASTHelper::ExpressionVectorType &crvecExpressions);
 
@@ -2141,7 +2142,7 @@ namespace Vectorization
 #endif
 
 
-#endif  // _BACKEND_INSTRUCTION_SETS_H_
+#endif  // _HIPACC_BACKEND_INSTRUCTION_SETS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

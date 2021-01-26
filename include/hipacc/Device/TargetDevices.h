@@ -30,8 +30,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _TARGET_DEVICES_H
-#define _TARGET_DEVICES_H
+#ifndef _HIPACC_DEVICE_TARGET_DEVICES_H_
+#define _HIPACC_DEVICE_TARGET_DEVICES_H_
 
 #include <cstdint>
 
@@ -67,7 +67,7 @@ enum class Texture : uint8_t {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _TARGET_DEVICES_H
+#endif  // _HIPACC_DEVICE_TARGET_DEVICES_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

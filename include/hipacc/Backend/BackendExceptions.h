@@ -30,8 +30,8 @@
 //
 //===----------------------------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_EXCEPTIONS_H_
-#define _BACKEND_EXCEPTIONS_H_
+#ifndef _HIPACC_BACKEND_EXCEPTIONS_H_
+#define _HIPACC_BACKEND_EXCEPTIONS_H_
 
 #include <stdexcept>
 #include <string>
@@ -274,7 +274,7 @@ namespace Backend
 } // end namespace clang
 
 
-#endif  // _BACKEND_EXCEPTIONS_H_
+#endif  // _HIPACC_BACKEND_EXCEPTIONS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

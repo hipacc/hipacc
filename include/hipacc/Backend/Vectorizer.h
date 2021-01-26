@@ -30,17 +30,17 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_VECTORIZER_H_
-#define _BACKEND_VECTORIZER_H_
+#ifndef _HIPACC_BACKEND_VECTORIZER_H_
+#define _HIPACC_BACKEND_VECTORIZER_H_
+
+#include "hipacc/Backend/ClangASTHelper.h"
+#include "hipacc/Backend/CommonDefines.h"
+#include "hipacc/Backend/VectorizationAST.h"
 
 #include <list>
 #include <map>
 #include <type_traits>
-#include "ClangASTHelper.h"
-#include "CommonDefines.h"
-#include "VectorizationAST.h"
-
-#include "stdio.h"
+#include <stdio.h>
 
 namespace clang
 {
@@ -199,7 +199,7 @@ namespace Vectorization
       bool _HasValueDeclaration(std::string strDeclName);
 
 
-      /** \brief    Abstract method, which returns the qualified Clang type of a <b>vectorized</b> VAST-specific type. 
+      /** \brief    Abstract method, which returns the qualified Clang type of a <b>vectorized</b> VAST-specific type.
        *  \param    crOriginalTypeInfo  A constant reference to the VAST-specific type information object, whose vectorized Clang type counterpart shall be returned.
        *  \remarks  As this type matching depends on the target architecture, this method must be implemented by the derived classes. */
       virtual ::clang::QualType _GetVectorizedType(AST::BaseClasses::TypeInfo &crOriginalTypeInfo) = 0;
@@ -251,7 +251,7 @@ namespace Vectorization
          *  \param  strNewName        The requested unique name for this variable. */
         void          AddRenameEntry( std::string strOriginalName, std::string strNewName );
 
-        /** \brief  Returns the mapped unique name for a specific variable. 
+        /** \brief  Returns the mapped unique name for a specific variable.
          *  \param  strOriginalName   The name of the variable in its original declaration. */
         std::string   TranslateName( std::string strOriginalName ) const;
       };
@@ -353,7 +353,7 @@ namespace Vectorization
           : _rASTContext(rASTContext) {
       }
 
-      /** \brief  Converts a Clang function declaration object into a VAST function declaration node. 
+      /** \brief  Converts a Clang function declaration object into a VAST function declaration node.
        *  \param  pFunctionDeclaration  A pointer to the Clang function declaration object, whicc shall be converted. */
       AST::FunctionDeclarationPtr BuildFunctionDecl(::clang::FunctionDecl *pFunctionDeclaration);
 
@@ -946,7 +946,7 @@ namespace Vectorization
 } // end namespace clang
 
 
-#endif  // _BACKEND_VECTORIZER_H_
+#endif  // _HIPACC_BACKEND_VECTORIZER_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

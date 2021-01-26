@@ -32,8 +32,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _CREATE_HOST_STRINGS_H_
-#define _CREATE_HOST_STRINGS_H_
+#ifndef _HIPACC_REWRITE_CREATE_HOST_STRINGS_H_
+#define _HIPACC_REWRITE_CREATE_HOST_STRINGS_H_
 
 #include "hipacc/DSL/ClassRepresentation.h"
 #include "hipacc/AST/ASTFuse.h"
@@ -113,7 +113,7 @@ class CreateHostStrings {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _CREATE_HOST_STRINGS_H_
+#endif  // _HIPACC_REWRITE_CREATE_HOST_STRINGS_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

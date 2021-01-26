@@ -32,7 +32,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "hipacc.h"
 #include "hipacc/Backend/BackendConfigurationManager.h"
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/TargetDescription.h"
@@ -101,12 +100,6 @@ void printCopyright() {
     << "Copyright (c) 2012, Siemens AG\n"
     << "Copyright (c) 2010, ARM Limited\n"
     << "All rights reserved.\n\n";
-}
-
-
-void printVersion() {
-  llvm::errs() << "hipacc version " << HIPACC_VERSION
-    << " (" << GIT_REPOSITORY " " << GIT_VERSION << ")\n";
 }
 
 

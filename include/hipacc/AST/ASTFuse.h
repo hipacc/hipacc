@@ -32,14 +32,8 @@
 //
 //===--------------------------------------------------------------------===//
 
-#ifndef _ASTFUSE_H_
-#define _ASTFUSE_H_
-
-#include <clang/AST/Attr.h>
-#include <clang/AST/Type.h>
-#include <clang/Frontend/CompilerInstance.h>
-#include <clang/Sema/Ownership.h>
-#include <llvm/ADT/SmallVector.h>
+#ifndef _HIPACC_AST_ASTFUSE_H_
+#define _HIPACC_AST_ASTFUSE_H_
 
 #include "hipacc/Analysis/KernelStatistics.h"
 #include "hipacc/Analysis/HostDataDeps.h"
@@ -48,7 +42,12 @@
 #include "hipacc/Config/CompilerOptions.h"
 #include "hipacc/Device/Builtins.h"
 #include "hipacc/DSL/ClassRepresentation.h"
-#include "hipacc/Vectorization/SIMDTypes.h"
+
+#include <clang/AST/Attr.h>
+#include <clang/AST/Type.h>
+#include <clang/Frontend/CompilerInstance.h>
+#include <clang/Sema/Ownership.h>
+#include <llvm/ADT/SmallVector.h>
 
 #include <functional>
 #include <queue>
@@ -201,7 +200,7 @@ class ASTFuse {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _ASTFUSE_H_
+#endif  // _HIPACC_AST_ASTFUSE_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

@@ -31,6 +31,7 @@
 //===---------------------------------------------------------------------------------===//
 
 #include "hipacc/Backend/VectorizationAST.h"
+
 #include <algorithm>
 #include <sstream>
 

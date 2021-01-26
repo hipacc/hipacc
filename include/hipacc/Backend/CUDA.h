@@ -30,11 +30,11 @@
 //
 //===---------------------------------------------------------------------------------===//
 
-#ifndef _BACKEND_CUDA_H_
-#define _BACKEND_CUDA_H_
+#ifndef _HIPACC_BACKEND_CUDA_H_
+#define _HIPACC_BACKEND_CUDA_H_
 
-#include "AcceleratorDeviceBase.h"
-#include "CodeGeneratorBaseImplT.h"
+#include "hipacc/Backend/AcceleratorDeviceBase.h"
+#include "hipacc/Backend/CodeGeneratorBaseImplT.h"
 
 namespace clang
 {
@@ -108,7 +108,7 @@ namespace Backend
 } // end namespace clang
 
 
-#endif  // _BACKEND_CUDA_H_
+#endif  // _HIPACC_BACKEND_CUDA_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 

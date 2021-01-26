@@ -31,8 +31,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _REWRITE_H_
-#define _REWRITE_H_
+#ifndef _HIPACC_REWRITE_REWRITE_H_
+#define _HIPACC_REWRITE_REWRITE_H_
 
 #include <clang/Frontend/FrontendAction.h>
 
@@ -57,7 +57,7 @@ class HipaccRewriteAction : public ASTFrontendAction {
 } // namespace hipacc
 } // namespace clang
 
-#endif  // _REWRITE_H_
+#endif  // _HIPACC_REWRITE_REWRITE_H_
 
 // vim: set ts=2 sw=2 sts=2 et ai:
 
