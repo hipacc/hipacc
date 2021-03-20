@@ -5,10 +5,6 @@ enable_testing()
 
 if(MSVC)
   add_compile_options("/W3")
-  # move warnings from LLVM 8.0.1 to warning level 4
-  add_compile_options("/w44141" "/w44146" "/w44244" "/w44267" "/w44291")
-else()
-  add_compile_options("-W" "-Wall" "-Wunused")
 endif()
 
 find_package(Hipacc HINTS "${CMAKE_CURRENT_LIST_DIR}/../cmake")

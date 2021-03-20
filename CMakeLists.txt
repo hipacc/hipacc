@@ -23,7 +23,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
   add_compile_options(/W3)
 else()
-  add_compile_options(-W -Wall -Wunused)
+  add_compile_options(-Wall -Wunused)
 endif()
 
 find_package(LLVM REQUIRED CONFIG)
